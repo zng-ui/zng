@@ -14,19 +14,20 @@ use crate::widget_info::{
 pub trait IterFocusableExt<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     /// Returns an iterator of only the focusable widgets.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] config for more on the parameter.
+    /// See the [`Focus::focus_disabled_widgets`] and [`Focus::focus_hidden_widgets`] config for more on the parameter.
     ///
     /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
-    fn focusable(self, focus_disabled_widgets: bool) -> IterFocusuable<'a, I>;
+    /// [`Focus::focus_hidden_widgets`]: crate::focus::Focus::focus_hidden_widgets
+    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<'a, I>;
 }
 impl<'a, I> IterFocusableExt<'a, I> for I
 where
     I: Iterator<Item = WidgetInfo<'a>>,
 {
-    fn focusable(self, focus_disabled_widgets: bool) -> IterFocusuable<'a, I> {
+    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<'a, I> {
         IterFocusuable {
             iter: self,
-            focus_disabled_widgets,
+            mode: FocusMode::new(focus_disabled_widgets, focus_hidden_widgets),
         }
     }
 }
@@ -36,7 +37,7 @@ where
 /// Use [`IterFocusableExt::focusable`] to create.
 pub struct IterFocusuable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     iter: I,
-    focus_disabled_widgets: bool,
+    mode: FocusMode,
 }
 impl<'a, I> Iterator for IterFocusuable<'a, I>
 where
@@ -46,7 +47,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         for next in self.iter.by_ref() {
-            if let Some(next) = next.as_focusable(self.focus_disabled_widgets) {
+            if let Some(next) = next.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
                 return Some(next);
             }
         }
@@ -59,7 +60,7 @@ where
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         while let Some(next) = self.iter.next_back() {
-            if let Some(next) = next.as_focusable(self.focus_disabled_widgets) {
+            if let Some(next) = next.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
                 return Some(next);
             }
         }
@@ -80,17 +81,17 @@ where
 {
     _lt: PhantomData<&'a WidgetInfoTree>,
     iter: I,
-    focus_disabled_widgets: bool,
+    mode: FocusMode,
 }
 impl<'a, I> FocusTreeIter<'a, I>
 where
     I: TreeIterator<'a>,
 {
-    pub(super) fn new(iter: I, focus_disabled_widgets: bool) -> Self {
+    pub(super) fn new(iter: I, mode: FocusMode) -> Self {
         Self {
             _lt: PhantomData,
             iter,
-            focus_disabled_widgets,
+            mode,
         }
     }
 
@@ -105,13 +106,13 @@ where
     {
         FocusTreeFilterIter {
             iter: self.iter.tree_filter(move |w| {
-                if let Some(f) = w.as_focusable(self.focus_disabled_widgets) {
+                if let Some(f) = w.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
                     filter(f)
                 } else {
                     w_iter::TreeFilter::Skip
                 }
             }),
-            focus_disabled_widgets: self.focus_disabled_widgets,
+            mode: self.mode,
         }
     }
 
@@ -143,7 +144,7 @@ where
 impl<'a> FocusTreeIter<'a, w_iter::TreeIter<'a>> {
     /// Creates a reverse tree iterator.
     pub fn tree_rev(self) -> FocusTreeIter<'a, w_iter::RevTreeIter<'a>> {
-        FocusTreeIter::new(self.iter.tree_rev(), self.focus_disabled_widgets)
+        FocusTreeIter::new(self.iter.tree_rev(), self.mode)
     }
 }
 
@@ -155,7 +156,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         for next in self.iter.by_ref() {
-            if let Some(next) = next.as_focusable(self.focus_disabled_widgets) {
+            if let Some(next) = next.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
                 return Some(next);
             }
         }
@@ -172,7 +173,7 @@ where
     F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
 {
     iter: w_iter::TreeFilterIter<'a, I, F>,
-    focus_disabled_widgets: bool,
+    mode: FocusMode,
 }
 impl<'a, I, F> Iterator for FocusTreeFilterIter<'a, I, F>
 where
@@ -182,6 +183,8 @@ where
     type Item = WidgetFocusInfo<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|w| w.as_focus_info(self.focus_disabled_widgets))
+        self.iter
+            .next()
+            .map(|w| w.as_focus_info(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)))
     }
 }

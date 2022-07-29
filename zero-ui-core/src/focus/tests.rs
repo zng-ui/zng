@@ -185,7 +185,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
 #[test]
 pub fn enabled_nav_cycle_0_horizontal() {
     let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-0").unwrap();
 
@@ -198,7 +198,7 @@ pub fn enabled_nav_cycle_0_horizontal() {
 #[test]
 pub fn enabled_nav_cycle_0_vertical() {
     let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, false);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-0").unwrap();
 
@@ -211,7 +211,7 @@ pub fn enabled_nav_cycle_0_vertical() {
 #[test]
 pub fn enabled_nav_cycle_1_horizontal() {
     let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-1").unwrap();
 
@@ -224,7 +224,7 @@ pub fn enabled_nav_cycle_1_horizontal() {
 #[test]
 pub fn enabled_nav_cycle_1_vertical() {
     let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, false);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-1").unwrap();
 
@@ -237,7 +237,7 @@ pub fn enabled_nav_cycle_1_vertical() {
 #[test]
 pub fn enabled_nav_cycle_2_horizontal() {
     let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-2").unwrap();
 
@@ -250,7 +250,7 @@ pub fn enabled_nav_cycle_2_horizontal() {
 #[test]
 pub fn enabled_nav_cycle_2_vertical() {
     let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, false);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-2").unwrap();
 
@@ -263,7 +263,7 @@ pub fn enabled_nav_cycle_2_vertical() {
 #[test]
 pub fn enabled_nav_contained_0_horizontal() {
     let tree = scope(TabNav::Contained, DirectionalNav::Contained, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-0").unwrap();
 
@@ -276,7 +276,7 @@ pub fn enabled_nav_contained_0_horizontal() {
 #[test]
 pub fn enabled_nav_contained_0_vertical() {
     let tree = scope(TabNav::Contained, DirectionalNav::Contained, false);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-0").unwrap();
 
@@ -289,7 +289,7 @@ pub fn enabled_nav_contained_0_vertical() {
 #[test]
 pub fn enabled_nav_contained_1_horizontal() {
     let tree = scope(TabNav::Contained, DirectionalNav::Contained, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-1").unwrap();
 
@@ -302,7 +302,7 @@ pub fn enabled_nav_contained_1_horizontal() {
 #[test]
 pub fn enabled_nav_contained_1_vertical() {
     let tree = scope(TabNav::Contained, DirectionalNav::Contained, false);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-1").unwrap();
 
@@ -315,7 +315,7 @@ pub fn enabled_nav_contained_1_vertical() {
 #[test]
 pub fn enabled_nav_contained_2_horizontal() {
     let tree = scope(TabNav::Contained, DirectionalNav::Contained, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-2").unwrap();
 
@@ -328,7 +328,7 @@ pub fn enabled_nav_contained_2_horizontal() {
 #[test]
 pub fn enabled_nav_contained_2_vertical() {
     let tree = scope(TabNav::Contained, DirectionalNav::Contained, false);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-2").unwrap();
 
@@ -341,7 +341,7 @@ pub fn enabled_nav_contained_2_vertical() {
 #[test]
 pub fn enabled_nav_none_0() {
     let tree = scope(TabNav::None, DirectionalNav::None, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-0").unwrap();
 
@@ -354,7 +354,7 @@ pub fn enabled_nav_none_0() {
 #[test]
 pub fn enabled_nav_none_1() {
     let tree = scope(TabNav::None, DirectionalNav::None, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-1").unwrap();
 
@@ -367,7 +367,7 @@ pub fn enabled_nav_none_1() {
 #[test]
 pub fn enabled_nav_none_2() {
     let tree = scope(TabNav::None, DirectionalNav::None, true);
-    let tree = FocusInfoTree::new(&tree, true);
+    let tree = FocusInfoTree::new(&tree, true, true);
 
     let item = tree.get("item-2").unwrap();
 

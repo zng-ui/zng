@@ -507,7 +507,10 @@ impl FocusManager {
         self.notify(ctx.vars, ctx.events, focus, windows, args);
 
         // cleanup return focuses.
-        for args in focus.cleanup_returns(ctx.vars, FocusInfoTree::new(tree, focus.focus_disabled_widgets)) {
+        for args in focus.cleanup_returns(
+            ctx.vars,
+            FocusInfoTree::new(tree, focus.focus_disabled_widgets, focus.focus_hidden_widgets),
+        ) {
             ReturnFocusChangedEvent.notify(ctx.events, args);
         }
     }
@@ -568,6 +571,18 @@ pub struct Focus {
     /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
     pub focus_disabled_widgets: bool,
 
+    /// If [`Hidden`] widgets can receive focus.
+    ///
+    /// This is `true` by default, with the expectation that hidden widgets are made visible once they receive focus, this is
+    /// particularly important to enable auto-scrolling to view, as widgets inside scroll regions that are far away from the
+    /// viewport are auto-hidden.
+    ///
+    /// Note that widgets can be explicitly made not focusable, so you can disable focus and hide a widget without needing to
+    /// disable this feature globally. Note also that this feature does not apply to collapsed widgets.
+    ///
+    /// [`Hidden`]: crate::widget_info::Visibility::Hidden
+    pub focus_hidden_widgets: bool,
+
     request: Option<FocusRequest>,
     app_event_sender: AppEventSender,
 
@@ -594,6 +609,7 @@ impl Focus {
     pub fn new(app_event_sender: AppEventSender) -> Self {
         Focus {
             focus_disabled_widgets: true,
+            focus_hidden_widgets: true,
             auto_highlight: Some(300.ms()),
 
             request: None,
@@ -824,7 +840,7 @@ impl Focus {
             }
             (Some(prev), move_) => {
                 if let Ok(info) = windows.widget_tree(prev.path.window_id()) {
-                    let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
+                    let info = FocusInfoTree::new(info, self.focus_disabled_widgets, self.focus_hidden_widgets);
                     if let Some(w) = info.get(prev.path.widget_id()) {
                         if let Some(new_focus) = match move_ {
                             // tabular
@@ -896,7 +912,7 @@ impl Focus {
                 let info = windows.widget_tree(focused.path.window_id()).unwrap();
                 if let Some(widget) = info
                     .get(focused.path.widget_id())
-                    .map(|w| w.as_focus_info(self.focus_disabled_widgets))
+                    .map(|w| w.as_focus_info(self.focus_disabled_widgets, self.focus_hidden_widgets))
                 {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
@@ -927,7 +943,10 @@ impl Focus {
                 } else {
                     // widget not found, move to focusable known parent
                     for &parent in focused.path.ancestors().iter().rev() {
-                        if let Some(parent) = info.get(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
+                        if let Some(parent) = info
+                            .get(parent)
+                            .and_then(|w| w.as_focusable(self.focus_disabled_widgets, self.focus_hidden_widgets))
+                        {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
@@ -984,7 +1003,7 @@ impl Focus {
         if let Some(w) = windows
             .widget_trees()
             .find_map(|info| info.get(widget_id))
-            .map(|w| w.as_focus_info(self.focus_disabled_widgets))
+            .map(|w| w.as_focus_info(self.focus_disabled_widgets, self.focus_hidden_widgets))
         {
             if w.is_focusable() {
                 target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
@@ -1052,7 +1071,7 @@ impl Focus {
     #[must_use]
     fn focus_focused_window(&mut self, vars: &Vars, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
         if let Some(info) = windows.focused_info() {
-            let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
+            let info = FocusInfoTree::new(info, self.focus_disabled_widgets, self.focus_hidden_widgets);
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
                 self.enabled_nav = root.enabled_nav_with_frame();
@@ -1114,7 +1133,9 @@ impl Focus {
     fn move_after_focus(&mut self, vars: &Vars, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Some(info) = windows.focused_info() {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(focused.path.widget_id()) {
+                if let Some(widget) =
+                    FocusInfoTree::new(info, self.focus_disabled_widgets, self.focus_hidden_widgets).get(focused.path.widget_id())
+                {
                     if widget.is_scope() {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
                             self.enabled_nav = widget.enabled_nav_with_frame();
@@ -1157,7 +1178,9 @@ impl Focus {
             // moved inside an ALT.
 
             if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus.path.widget_id()) {
+                if let Some(widget) =
+                    FocusInfoTree::new(info, self.focus_disabled_widgets, self.focus_hidden_widgets).get(new_focus.path.widget_id())
+                {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
                     } else {
@@ -1190,7 +1213,9 @@ impl Focus {
 
         if let Some(new_focus) = &self.focused {
             if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus.path.widget_id()) {
+                if let Some(widget) =
+                    FocusInfoTree::new(info, self.focus_disabled_widgets, self.focus_hidden_widgets).get(new_focus.path.widget_id())
+                {
                     if widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.
 

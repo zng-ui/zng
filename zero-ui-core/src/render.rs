@@ -150,7 +150,7 @@ pub struct FrameBuilder {
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
-    culling_rect: PxRect,
+    auto_hide_rect: PxRect,
     widget_data: Option<WidgetData>,
     parent_inner_bounds: Option<PxRect>,
 
@@ -202,7 +202,7 @@ impl FrameBuilder {
         };
 
         let root_size = root_bounds.outer_size();
-        let culling_rect = PxRect::from_size(root_size).inflate(root_size.width, root_size.height);
+        let auto_hide_rect = PxRect::from_size(root_size).inflate(root_size.width, root_size.height);
         root_bounds.set_outer_transform(PxTransform::identity(), info_tree);
 
         FrameBuilder {
@@ -230,7 +230,7 @@ impl FrameBuilder {
             parent_inner_bounds: None,
             can_reuse: true,
             open_reuse: None,
-            culling_rect,
+            auto_hide_rect,
 
             render_index: ZIndex(0),
 
@@ -350,18 +350,20 @@ impl FrameBuilder {
         self.auto_hit_test = prev;
     }
 
-    /// Current culling rect, only widgets with inner-bounds that intersect this rect actually record hit-test and display items.
-    pub fn culling_rect(&self) -> PxRect {
-        self.culling_rect
+    /// Current culling rect, widgets with outer-bounds that don't intersect this rect are rendered [hidden].
+    ///
+    /// [`hidden`]: Self::hide
+    pub fn auto_hide_rect(&self) -> PxRect {
+        self.auto_hide_rect
     }
 
-    /// Runs `render` and [`hide`] all widgets with inner-bounds that don't intersect with the `culling_rect`.
+    /// Runs `render` and [`hide`] all widgets with outer-bounds that don't intersect with the `auto_hide_rect`.
     ///
     /// [`hide`]: Self::hide
-    pub fn with_culling_rect(&mut self, culling_rect: PxRect, render: impl FnOnce(&mut Self)) {
-        let parent_rect = mem::replace(&mut self.culling_rect, culling_rect);
+    pub fn with_auto_hide_rect(&mut self, auto_hide_rect: PxRect, render: impl FnOnce(&mut Self)) {
+        let parent_rect = mem::replace(&mut self.auto_hide_rect, auto_hide_rect);
         render(self);
-        self.culling_rect = parent_rect;
+        self.auto_hide_rect = parent_rect;
     }
 
     /// Start a new widget outer context, this sets [`is_outer`] to `true` until an inner call to [`push_inner`],
@@ -395,7 +397,7 @@ impl FrameBuilder {
 
         let parent_visible = self.visible;
 
-        match self.culling_rect.intersection(&outer_bounds) {
+        match self.auto_hide_rect.intersection(&outer_bounds) {
             Some(cull) => {
                 let partial = cull != outer_bounds;
                 if partial || ctx.widget_info.bounds.is_partially_culled() {

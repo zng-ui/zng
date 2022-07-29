@@ -1,14 +1,8 @@
-# Screen culling
-
-* Can "cull" be "auto_hide"?
-  - Hidden widgets should be updating transform anyway.
-  - We want culled widgets to be focusable, so that they auto-scroll on focus, right now hidden widgets are not focusable.
-      - Sites usually have an accessibility link "Skip to Content" that only becomes visible on focus, in CSS
-        they have to trick the browser by positioning the element out-of-bounds if not focused.
-      - We can implement this explicitly, allow focus on hidden?
+* Merge.
 
 # Other
 
+* After `ALT+Tab` to focus a window we cannot `Alt+F4`.
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.
     - It halves the computation of bounds if removed.

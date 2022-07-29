@@ -182,7 +182,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 true,
                 false,
                 |frame| {
-                    frame.with_culling_rect(culling_rect, |frame| {
+                    frame.with_auto_hide_rect(culling_rect, |frame| {
                         self.child.render(ctx, frame);
                     });
                 },
