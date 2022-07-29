@@ -848,19 +848,22 @@ impl DisplayItem {
                 filters,
                 filter_datas,
                 filter_primitives,
-            } => wr_list.push_stacking_context(
-                wr::units::LayoutPoint::zero(),
-                sc.spatial_id(),
-                wr::PrimitiveFlags::empty(),
-                Some(sc.clip_id()),
-                wr::TransformStyle::Flat,
-                *blend_mode,
-                &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
-                filter_datas,
-                filter_primitives,
-                wr::RasterSpace::Screen,
-                wr::StackingContextFlags::empty(),
-            ),
+            } => {
+                let clip = wr_list.define_clip_chain(None, [sc.clip_id()]);
+                wr_list.push_stacking_context(
+                    wr::units::LayoutPoint::zero(),
+                    sc.spatial_id(),
+                    wr::PrimitiveFlags::empty(),
+                    Some(clip),
+                    wr::TransformStyle::Flat,
+                    *blend_mode,
+                    &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
+                    filter_datas,
+                    filter_primitives,
+                    wr::RasterSpace::Screen,
+                    wr::StackingContextFlags::empty(),
+                )
+            },
             DisplayItem::PopStackingContext => wr_list.pop_stacking_context(),
 
             DisplayItem::PushClipRect { clip_rect, clip_out } => {

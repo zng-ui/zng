@@ -361,7 +361,7 @@ impl FrameBuilder {
 
     /// Current culling rect, widgets with outer-bounds that don't intersect this rect are rendered [hidden].
     ///
-    /// [`hidden`]: Self::hide
+    /// [hidden]: Self::hide
     pub fn auto_hide_rect(&self) -> PxRect {
         self.auto_hide_rect
     }
