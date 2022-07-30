@@ -12,6 +12,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
 
+    let uuid = crate::util::uuid(&input);
+
     let fn_ = match syn::parse::<input::PropertyFn>(input.clone()) {
         Ok(p) => p,
         Err(e) => {
@@ -22,7 +24,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
 
-    let output = analysis::generate(args, fn_);
+    let output = analysis::generate(args, fn_, uuid);
 
     let tokens = output.to_token_stream();
 
@@ -264,7 +266,7 @@ mod analysis {
         }
     }
 
-    pub fn generate(args: input::MacroArgs, fn_: input::PropertyFn) -> output::Output {
+    pub fn generate(args: input::MacroArgs, fn_: input::PropertyFn, uuid: u64) -> output::Output {
         let input::PropertyFn { attrs, mut fn_ } = fn_;
 
         let mut errors = Errors::default();
@@ -676,7 +678,7 @@ mod analysis {
 
         let has_default_value = !default_value.is_empty();
 
-        let macro_ident = ident!("{}_{}", fn_.sig.ident, util::uuid());
+        let macro_ident = ident!("{}_{}", fn_.sig.ident, uuid);
 
         let export = !matches!(&fn_.vis, syn::Visibility::Inherited);
 

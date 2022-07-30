@@ -16,6 +16,8 @@
         - Property modules don't show help on hover.
     - widget_new: BROKEN, only expands to the first `__widget_macro`.
 
+* Test generated "$crate", if we resolve it by hand rust-analyzer expands all the way.
+
 # Other
 
 * Review easing animation the same value.

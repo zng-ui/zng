@@ -24,6 +24,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // the widget mod declaration.
     let mod_ = parse_macro_input!(input as ItemMod);
 
+    let uuid = util::uuid(&args);// full path to widget should be unique.
+
     if mod_.content.is_none() {
         let mut r = syn::Error::new(mod_.semi.span(), "only modules with inline content are supported")
             .to_compile_error()
@@ -71,7 +73,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mod_path_assert;
     match syn::parse::<ArgPath>(args) {
         Ok(a) => {
-            let assert_mod_path = ident!("__{ident}_assert_mod_path_{}", util::uuid());
+            let assert_mod_path = ident!("__{ident}_assert_mod_path_{}", uuid);
             mod_path = a.path;
             mod_path_assert = quote! {
                 #wgt_cfg
@@ -501,10 +503,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             let docs = &attrs.docs;
 
+            // the panic message is to cause an UUID for the property.
             property_declarations.extend(quote! {
                 #(#docs)*
                 #[#crate_core::property(capture_only, allowed_in_when = #allowed_in_when)]
-                pub fn #p_mod_ident(#inputs) -> ! { }
+                pub fn #p_mod_ident(#inputs) -> ! { panic!("capture-only property for {:?}", stringify!(#mod_path)) }
             });
 
             // so "widget_2_declare.rs" skips reexporting this one.
@@ -896,9 +899,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         };
     }
 
-    let errors_mod = ident!("__{ident}_stage0_errors_{}", util::uuid());
+    let errors_mod = ident!("__{ident}_stage0_errors_{}", uuid);
 
-    let final_macro_ident = ident!("__{ident}_{}_final", util::uuid());
+    let final_macro_ident = ident!("__{ident}_{}_final", uuid);
 
     let new_fns = new_fns.iter().map(|(_, v)| v);
 

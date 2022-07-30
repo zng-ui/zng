@@ -1,8 +1,6 @@
 use std::{
     env, fmt, fs,
     path::PathBuf,
-    sync::atomic::{AtomicU64, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use proc_macro2::*;
@@ -292,23 +290,24 @@ pub fn parse_all<T: Parse>(input: syn::parse::ParseStream) -> syn::Result<Vec<T>
     Ok(result)
 }
 
-/// Unique id of the current [`Span::call_site()`] or a random unique id if the call_site is not distinct.
-pub fn uuid() -> String {
-    let call_site = format!("{:?}", Span::call_site());
-    if call_site == "Span" {
-        static ID: AtomicU64 = AtomicU64::new(0);
-        let mut id = ID.fetch_add(1, Ordering::Relaxed);
-        if id == 0 {
-            id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64;
-            ID.store(id, Ordering::Relaxed);
-        }
-        format!("sp_{id:x}")
-    } else if let Some((n, _)) = call_site.split_once(' ') {
-        n.replace('#', "u")
-    } else {
-        // can happen when restarting rust-analyzer
-        call_site
-    }
+/// Hashes the `tokens` to generate an "unique" id  for generated macro-rules.
+pub fn uuid(tokens: &proc_macro::TokenStream) -> u64 {
+    // things we have tried before:
+    //
+    // - Generate a GUID.
+    // - Debug-to-string the call_site span and parse it.
+    //
+    // Both are more guaranteed than this, but can potentially change after any edit on the crate, invalidating incremental compilation,
+    // this one should still be good enough for practical reasons, an cause less incremental damage.
+
+    use sha2::Digest;
+
+    let mut s = sha2::Sha512_256::new();
+    s.update(tokens.to_string());
+
+    let hash = s.finalize();
+
+    u64::from_le_bytes(hash[..8].try_into().unwrap())
 }
 
 /// Collection of compile errors.

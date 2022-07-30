@@ -44,6 +44,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mut new_captures,
     } = widget;
 
+    // same as args in widget_0_attr
+    let uuid = util::uuid(&module.to_token_stream().into());
+
     macro_rules! quote {
         ($($tt:tt)*) => {
             quote::quote_spanned! {call_site.span=>
@@ -962,7 +965,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let auto_docs = auto_docs(docs_required, docs_normal, docs_event, docs_state, docs_whens);
 
-    let macro_ident = ident!("__{ident}_{}", util::uuid());
+    let macro_ident = ident!("__{ident}_{}", uuid);
 
     let export_macro = if errors.is_empty() {
         quote! {
