@@ -5,12 +5,16 @@
     - hex_color, OK.
     - impl_ui_node, OK.
     - lang, FIXED.
-    - merge_var, ?
-    - property, ?
-    - static_list, ?
-    - when_var, ?
-    - widget, ?
-    - widget_new, ?
+    - merge_var, OK.
+    - property, OK.
+    - static_list, OK.
+    - when_var, OK.
+    - widget, MOSTLY BROKEN.
+        - Constructor functions and custom items are OK.
+        - Type of capture-only properties are OK.
+        - Property value expressions are not expanded, only expands to the `property::code_gen!` macro.
+        - Property modules don't show help on hover.
+    - widget_new: BROKEN, only expands to the first `__widget_macro`.
 
 # Other
 
