@@ -16,5 +16,4 @@ syn = { version = "^1.0.98", features = ["full", "visit-mut", "extra-traits", "d
 quote = "1"
 
 sha2 = "0.10"
-once_cell = "1"
 unic-langid = "0.9"

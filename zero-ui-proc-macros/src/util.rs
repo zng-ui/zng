@@ -1,7 +1,4 @@
-use std::{
-    env, fmt, fs,
-    path::PathBuf,
-};
+use std::{env, fmt, fs, path::PathBuf};
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
@@ -37,10 +34,9 @@ pub fn parse_braces<'a>(input: &syn::parse::ParseBuffer<'a>) -> syn::Result<(syn
 /// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
 pub fn crate_core() -> TokenStream {
-    use once_cell::sync::OnceCell;
-    static CRATE: OnceCell<(String, bool)> = OnceCell::new();
+    // this is not cached because it breaks rust-analyzer.
 
-    let (ident, core) = CRATE.get_or_init(|| {
+    let (ident, core) = {
         if let Ok(ident) = crate_name("zero-ui") {
             // using the main crate.
             match ident {
@@ -57,10 +53,10 @@ pub fn crate_core() -> TokenStream {
             // failed, at least shows "zero_ui" in the compile error.
             ("zero_ui".to_owned(), true)
         }
-    });
+    };
 
-    let ident = Ident::new(ident, Span::call_site());
-    if *core {
+    let ident = Ident::new(&ident, Span::call_site());
+    if core {
         quote! { #ident::core }
     } else {
         ident.to_token_stream()
@@ -933,6 +929,17 @@ pub fn peek_any3(stream: ParseStream) -> bool {
     }
 
     false
+}
+
+/// Set the span for each token-tree in the stream.
+pub fn set_stream_span(stream: TokenStream, span: Span) -> TokenStream {
+    stream
+        .into_iter()
+        .map(|mut tt| {
+            tt.set_span(span);
+            tt
+        })
+        .collect()
 }
 
 #[cfg(test)]
