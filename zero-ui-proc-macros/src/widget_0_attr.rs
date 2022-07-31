@@ -920,11 +920,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         #wgt_cfg
         #wgt_attrs
         #vis mod #ident {
-            // use items
-            #(#uses)*
-
             // custom items
             #(#others)*
+
+            // use items (after custom items in case of custom macro_rules re-export)
+            #(#uses)*
 
             #debug_info
 
