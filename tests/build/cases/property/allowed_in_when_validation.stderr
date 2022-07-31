@@ -63,7 +63,7 @@ error[E0277]: the trait bound `LocalVar<<impl invalid2_Args as invalid2_Args>::T
              Option<U>
              PropertyInfoNode
              ViewGenerator<D>::presenter_map::ViewGenVarPresenter<G, S, U, M, V>
-           and 116 others
+           and 118 others
 note: required by a bound in `invalid2_ArgsImpl::<T_value>::new`
   --> cases/property/allowed_in_when_validation.rs:12:49
    |

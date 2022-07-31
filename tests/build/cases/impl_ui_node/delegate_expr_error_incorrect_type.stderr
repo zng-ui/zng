@@ -16,7 +16,7 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
             NilUiNode
             Option<U>
             PropertyInfoNode
-          and 117 others
+          and 119 others
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
  --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
@@ -36,4 +36,4 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
             NilUiNode
             Option<U>
             PropertyInfoNode
-          and 117 others
+          and 119 others

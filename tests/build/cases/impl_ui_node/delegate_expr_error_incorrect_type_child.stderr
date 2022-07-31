@@ -16,4 +16,4 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
             NilUiNode
             Option<U>
             PropertyInfoNode
-          and 117 others
+          and 119 others

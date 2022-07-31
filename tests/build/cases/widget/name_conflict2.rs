@@ -6,7 +6,7 @@ pub mod foo {}
 #[widget($crate::foo)]
 pub mod foo {}
 
-// Rust thinks the foo at line 4 is the second one for some reason, also line 3 and 6 are highlighted
-// as expected because of the macro name conflict, but line 4 and 7 are not highlighted, good enough.
+// the hash for the widget path is the same, so unfortunately all all generated macros end-up with the same name, at least the
+// just the second widget is highlighted?
 
 fn main() {}
