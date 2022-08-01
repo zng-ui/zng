@@ -792,6 +792,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // reexported if they have default values.
     let mut when_condition_default_props = TokenStream::default();
     let mut wgt_properties = wgt_properties;
+    let crate_core = util::crate_core();
     for (w_prop, cfg) in &wgt_when_properties {
         // property not introduced in the widget first, validate that it has a default value.
 
@@ -833,7 +834,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         });
         {
-            let crate_core = util::crate_core();
             let loc_ident = ident!("__loc_{w_prop}");
             when_condition_default_props.extend(quote_spanned! {p_ident.span()=> #crate_core::core_cfg_inspector! {
                 #w_prop::code_gen! {

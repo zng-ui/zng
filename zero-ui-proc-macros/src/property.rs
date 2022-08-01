@@ -242,7 +242,7 @@ mod analysis {
     use proc_macro2::{Ident, TokenStream};
     use syn::{parse_quote, spanned::Spanned, visit::Visit, visit_mut::VisitMut, TypeParam};
 
-    use crate::util::{self, crate_core, Attributes, Errors};
+    use crate::util::{crate_core, Attributes, Errors};
 
     use super::{input, output};
 
@@ -270,6 +270,7 @@ mod analysis {
         let input::PropertyFn { attrs, mut fn_ } = fn_;
 
         let mut errors = Errors::default();
+        let crate_core = crate_core();
 
         // if Output must only expand to the function and errors.
         let mut fn_and_errors_only = false;
@@ -374,7 +375,6 @@ mod analysis {
         if args.priority.is_capture_only() {
             if fn_.sig.inputs.is_empty() {
                 if let Prefix::State = prefix {
-                    let crate_core = crate_core();
                     fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
                 } else {
                     fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
@@ -383,13 +383,11 @@ mod analysis {
             }
         } else {
             if fn_.sig.inputs.is_empty() {
-                let crate_core = crate_core();
                 fn_.sig.inputs.push(parse_quote!( _missing_child: impl #crate_core::UiNode ));
                 args_are_valid = false;
             }
             if fn_.sig.inputs.len() == 1 {
                 if let Prefix::State = prefix {
-                    let crate_core = crate_core();
                     fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
                 } else {
                     fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
@@ -662,7 +660,6 @@ mod analysis {
         } else if matches!(prefix, Prefix::State) {
             let property_name = &fn_.sig.ident;
             if arg_idents.len() == 1 {
-                let crate_core = util::crate_core();
                 quote! {
                     #property_name::ArgsImpl::new(
                         #crate_core::var::state_var()
@@ -730,7 +727,6 @@ mod analysis {
                     if is_impl_node(&t.ty) {
                         let mut fn_impl = fn_.clone();
 
-                        let crate_core = crate_core();
                         let impl_ident = ident!("__{}_impl", fn_.sig.ident);
 
                         fn_.block = parse_quote! {{
