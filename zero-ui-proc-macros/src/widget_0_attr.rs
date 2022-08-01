@@ -24,7 +24,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // the widget mod declaration.
     let mod_ = parse_macro_input!(input as ItemMod);
 
-    let uuid = util::uuid(&args);// full path to widget should be unique.
+    let uuid = util::uuid(&args); // full path to widget should be unique.
 
     if mod_.content.is_none() {
         let mut r = syn::Error::new(mod_.semi.span(), "only modules with inline content are supported")
@@ -908,6 +908,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
 
     let new_captures_has_cfg = new_captures_cfg.iter().map(|ts| ts.is_empty());
+
+    // rust-analyzer does not find the macro if we don't set the call_site here.
+    let mod_path = util::set_stream_span(mod_path, Span::call_site());
 
     let r = quote! {
         #wgt_cfg

@@ -1,7 +1,4 @@
-use std::{
-    env, fmt, fs,
-    path::PathBuf,
-};
+use std::{borrow::Cow, env, fmt, fs, path::PathBuf};
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
@@ -33,37 +30,57 @@ pub fn parse_braces<'a>(input: &syn::parse::ParseBuffer<'a>) -> syn::Result<(syn
     Ok((b, r))
 }
 
+/// Returns `true` if the proc-macro is running in one of the rust-analyzer proc-macro servers.
+pub fn is_rust_analyzer() -> bool {
+    // can be:
+    // .rustup\toolchains\nightly-foo\libexec\rust-analyzer-proc-macro-srv.exe
+    // .vscode\extensions\rust-lang.rust-analyzer-foo\server\rust-analyzer.exe
+    std::env::current_exe()
+        .ok()
+        .and_then(|e| e.file_name().map(|f| f.to_string_lossy().contains("rust-analyzer")))
+        .unwrap_or(false)
+}
+
 /// Return `$crate::core` where `$crate` is the zero-ui
 /// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
 pub fn crate_core() -> TokenStream {
-    use once_cell::sync::OnceCell;
-    static CRATE: OnceCell<(String, bool)> = OnceCell::new();
+    let (ident, core) = if is_rust_analyzer() {
+        // rust-analyzer gets the wrong crate sometimes if we cache, maybe they use the same server instance 
+        // for the entire workspace?
+        let (ident, core) = crate_core_parts();
+        (Cow::Owned(ident), core)
+    } else {
+        use once_cell::sync::OnceCell;
+        static CRATE: OnceCell<(String, bool)> = OnceCell::new();
 
-    let (ident, core) = CRATE.get_or_init(|| {
-        if let Ok(ident) = crate_name("zero-ui") {
-            // using the main crate.
-            match ident {
-                FoundCrate::Name(name) => (name, true),
-                FoundCrate::Itself => ("zero_ui".to_owned(), true),
-            }
-        } else if let Ok(ident) = crate_name("zero-ui-core") {
-            // using the core crate only.
-            match ident {
-                FoundCrate::Name(name) => (name, false),
-                FoundCrate::Itself => ("zero_ui_core".to_owned(), false),
-            }
-        } else {
-            // failed, at least shows "zero_ui" in the compile error.
-            ("zero_ui".to_owned(), true)
-        }
-    });
+        let (ident, core) = CRATE.get_or_init(crate_core_parts);
+        (Cow::Borrowed(ident.as_str()), *core)
+    };
 
-    let ident = Ident::new(ident, Span::call_site());
-    if *core {
+    let ident = Ident::new(&ident, Span::call_site());
+    if core {
         quote! { #ident::core }
     } else {
         ident.to_token_stream()
+    }
+}
+fn crate_core_parts() -> (String, bool) {
+    if let Ok(ident) = crate_name("zero-ui") {
+        // using the main crate.
+        match ident {
+            FoundCrate::Name(name) => (name, true),
+            FoundCrate::Itself => ("zero_ui".to_owned(), true),
+        }
+    } else if let Ok(ident) = crate_name("zero-ui-core") {
+        // using the core crate only.
+        match ident {
+            FoundCrate::Name(name) => (name, false),
+            FoundCrate::Itself => ("zero_ui_core".to_owned(), false),
+        }
+    } else {
+        // failed, at least shows "zero_ui" in the compile error.
+        ("zero_ui".to_owned(), true)
     }
 }
 
@@ -933,6 +950,17 @@ pub fn peek_any3(stream: ParseStream) -> bool {
     }
 
     false
+}
+
+/// Set the span for each token-tree in the stream.
+pub fn set_stream_span(stream: TokenStream, span: Span) -> TokenStream {
+    stream
+        .into_iter()
+        .map(|mut tt| {
+            tt.set_span(span);
+            tt
+        })
+        .collect()
 }
 
 #[cfg(test)]
