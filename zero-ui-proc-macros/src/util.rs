@@ -45,8 +45,6 @@ pub fn is_rust_analyzer() -> bool {
 /// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
 pub fn crate_core() -> TokenStream {
-    // this is not cached because it breaks rust-analyzer.
-
     let (ident, core) = if is_rust_analyzer() {
         // rust-analyzer gets the wrong crate sometimes if we cache, maybe they use the same server instance 
         // for the entire workspace?

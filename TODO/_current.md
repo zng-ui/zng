@@ -1,22 +1,9 @@
-* Review proc-macros in rust-analyzer.
-    - any_all, OK.
-    - derive_service, FIXED.
-    - expr_var, OK.
-    - hex_color, OK.
-    - impl_ui_node, OK.
-    - lang, FIXED.
-    - merge_var, OK.
-    - property, OK.
-    - static_list, OK.
-    - when_var, OK.
-    - widget, MOSTLY BROKEN.
-        - Constructor functions and custom items are OK.
-        - Type of capture-only properties are OK.
-        - Property value expressions are not expanded, only expands to the `property::code_gen!` macro.
-        - Property modules don't show help on hover.
-    - widget_new: BROKEN, only expands to the first `__widget_macro`.
-
-* Test generated "$crate", if we resolve it by hand rust-analyzer expands all the way.
+* Review usage of "$crate" in widget macros, is this the reason rust-analyzer does not work in widgets?
+    - We already improved a bit by setting the span for the `#[widget({args})]` to `call_site`, but after
+      passing it to the other macros this is lost?
+    - We need recreate the current bug in the test crate, to be sure.
+    - If we can't really cause rust-analyzer to work, maybe we can implement a fake `__widget_macro` that materializes some
+      code for `is_rust_analyzer` only, that causes the property value expressions to be interactive.
 
 # Other
 
