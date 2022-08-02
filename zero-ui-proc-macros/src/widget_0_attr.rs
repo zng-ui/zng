@@ -903,17 +903,14 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     let final_macro_ident = ident!("__{ident}_{}_final", uuid);
 
-    let new_fns = new_fns.iter().map(|(_, v)| v);
-
-    let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
-
-    let new_captures_has_cfg = new_captures_cfg.iter().map(|ts| ts.is_empty());
-
     // rust-analyzer does not find the macro if we don't set the call_site here.
     let mod_path = util::set_stream_span(mod_path, Span::call_site());
 
     let rust_analyzer_extras = if util::is_rust_analyzer() {
         let widget_macro = ident!("__widget_macro_{}", uuid);
+        let new_caps = new_fns.iter().rposition(|f| f.0 == FnPriority::New);
+        let new_caps = new_caps.into_iter().flat_map(|i| new_captures[i].iter());
+
         quote! {
             #[doc(hidden)]
             pub use #crate_core::rust_analyzer_widget_new;
@@ -926,6 +923,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 };
                 ($($tt:tt)*) => {
                     #mod_path::rust_analyzer_widget_new! {
+                        new {
+                            // #mod_path::new(#(#new_caps),*)
+                        }
                         user {
                             $($tt)*
                         }
@@ -938,6 +938,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     } else {
         TokenStream::new()
     };
+
+    let new_fns = new_fns.iter().map(|(_, v)| v);
+
+    let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
+
+    let new_captures_has_cfg = new_captures_cfg.iter().map(|ts| ts.is_empty());
 
     let r = quote! {
         #wgt_cfg

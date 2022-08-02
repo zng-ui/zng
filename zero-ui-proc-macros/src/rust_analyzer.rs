@@ -3,7 +3,7 @@
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::Attribute;
+use syn::{parse::Parse, Attribute};
 
 use crate::widget_new::{PropertyAssign, PropertyValue, UserInput, WhenExprToVar};
 
@@ -15,7 +15,20 @@ pub fn widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 }
 
-fn clean_output(input: UserInput) -> TokenStream {
+struct Input {
+    new: TokenStream,
+    input: UserInput,
+}
+impl Parse for Input {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Input {
+            new: non_user_braced!(input, "new").parse().unwrap(),
+            input: input.parse()?,
+        })
+    }
+}
+
+fn clean_output(Input { new, input }: Input) -> TokenStream {
     let mut out = TokenStream::new();
 
     // property assign expressions
@@ -51,7 +64,12 @@ fn clean_output(input: UserInput) -> TokenStream {
         })
     }
 
-    out
+    quote! {
+        {
+            #out
+            #new
+        }
+    }
 }
 
 fn with_attrs(out: &mut TokenStream, attrs: &[Attribute], action: impl FnOnce(&mut TokenStream)) {
