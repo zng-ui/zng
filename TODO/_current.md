@@ -1,7 +1,3 @@
-* Fix rust-analyzer warning for when expression, it ignores an allow snake_case.
-
-# Other
-
 * Review easing animation the same value.
      - `ease_ne` causes weird effect animating `rgb(0.1, 0.1, 0.1)` to same value?
 * Don't update enabled_nav if focus command have no enabled listeners.

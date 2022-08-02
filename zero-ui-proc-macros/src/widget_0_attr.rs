@@ -767,9 +767,19 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
         let expr = condition.expr;
 
+        let ra_lints = if util::is_rust_analyzer() {
+            // rust analyzer does not this attribute in the var declaration.
+            quote! {
+                #[allow(non_snake_case)]
+            }
+        } else {
+            TokenStream::new()
+        };
+
         when_conditions.extend(quote! {
             #cfg
             #(#when_lints)*
+            #ra_lints
             #[doc(hidden)]
             pub fn #ident(
                 #(#input_idents : &impl self::#prop_idents::Args),*
