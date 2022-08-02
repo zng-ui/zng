@@ -46,7 +46,7 @@ pub fn is_rust_analyzer() -> bool {
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
 pub fn crate_core() -> TokenStream {
     let (ident, core) = if is_rust_analyzer() {
-        // rust-analyzer gets the wrong crate sometimes if we cache, maybe they use the same server instance 
+        // rust-analyzer gets the wrong crate sometimes if we cache, maybe they use the same server instance
         // for the entire workspace?
         let (ident, core) = crate_core_parts();
         (Cow::Owned(ident), core)

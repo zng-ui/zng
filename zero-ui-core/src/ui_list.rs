@@ -470,7 +470,7 @@ pub trait WidgetList: UiNodeList {
 ///
 /// # Examples
 ///
-/// ```todo
+/// ```
 /// # use zero_ui_core::{widgets, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
 /// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
@@ -502,7 +502,7 @@ pub use crate::widgets;
 ///
 /// # Examples
 ///
-/// ```todo
+/// ```
 /// # use zero_ui_core::{nodes, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
 /// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
