@@ -1,9 +1,5 @@
-* Review usage of "$crate" in widget macros, is this the reason rust-analyzer does not work in widgets?
-    - We already improved a bit by setting the span for the `#[widget({args})]` to `call_site`, but after
-      passing it to the other macros this is lost?
-    - We need recreate the current bug in the test crate, to be sure.
-    - If we can't really cause rust-analyzer to work, maybe we can implement a fake `__widget_macro` that materializes some
-      code for `is_rust_analyzer` only, that causes the property value expressions to be interactive.
+* Fix when without var capture, some problem with `bool` and `IntoVar`?
+* Fix rust-analyzer warning for when expression, it ignores an allow snake_case.
 
 # Other
 

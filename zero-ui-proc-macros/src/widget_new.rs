@@ -1244,24 +1244,54 @@ impl PropertyValue {
         // property ArgsImpl alias with value span to show type errors involving generics in the
         // right place.
 
-        match self {
-            PropertyValue::Unnamed(args) => {
-                let args_impl = quote_spanned!(value_span=> __ArgsImpl::new);
-                Ok(quote_spanned! {span=>
-                    #property_path::code_gen! {if resolved=>{
-                        use #property_path::{ArgsImpl as __ArgsImpl};
-                        #args_impl(#args)
-                    }}
-                })
+        if util::is_rust_analyzer() {
+            // rust-analyzer can't find the `property_path`, because it is expanded after inheritance and it
+            // can't resolve inheritance.
+
+            use quote::quote as call_site_quote; // ra works better with the actual default call_site.
+
+            let mut out = call_site_quote! {let _about = "This is a dummy expansion that only happens for rust-analyzer.";};
+
+            match self {
+                PropertyValue::Unnamed(args) => {
+                    for arg in args.iter() {
+                        out.extend(call_site_quote! {
+                            drop(#arg);
+                        });
+                    }
+                }
+                PropertyValue::Named(_, fields) => {
+                    for field in fields.iter() {
+                        let value = &field.expr;
+                        out.extend(call_site_quote! {
+                            drop(#value);
+                        });
+                    }
+                }
+                PropertyValue::Special(_, _) => return Err("cannot expand special"),
             }
-            PropertyValue::Named(brace, fields) => {
-                let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
-                let fields = quote_spanned! { brace.span=> { #fields } };
-                Ok(quote_spanned! {span=>
-                    #property_path::code_gen! { named_new #property_path, #args_impl #fields }
-                })
+
+            Ok(out)
+        } else {
+            match self {
+                PropertyValue::Unnamed(args) => {
+                    let args_impl = quote_spanned!(value_span=> __ArgsImpl::new);
+                    Ok(quote_spanned! {span=>
+                        #property_path::code_gen! {if resolved=>{
+                            use #property_path::{ArgsImpl as __ArgsImpl};
+                            #args_impl(#args)
+                        }}
+                    })
+                }
+                PropertyValue::Named(brace, fields) => {
+                    let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
+                    let fields = quote_spanned! { brace.span=> { #fields } };
+                    Ok(quote_spanned! {span=>
+                        #property_path::code_gen! { named_new #property_path, #args_impl #fields }
+                    })
+                }
+                PropertyValue::Special(_, _) => Err("cannot expand special"),
             }
-            PropertyValue::Special(_, _) => Err("cannot expand special"),
         }
     }
 }
