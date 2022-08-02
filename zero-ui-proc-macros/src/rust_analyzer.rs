@@ -29,7 +29,7 @@ impl Parse for Input {
 }
 
 fn clean_output(Input { new, input }: Input) -> TokenStream {
-    let mut out = TokenStream::new();
+    let mut out = quote! {let _about = "This is a dummy expansion that only happens for rust-analyzer.";};
 
     // property assign expressions
     for p in &input.properties {

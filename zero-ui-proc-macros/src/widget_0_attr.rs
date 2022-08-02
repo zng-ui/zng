@@ -908,8 +908,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     let rust_analyzer_extras = if util::is_rust_analyzer() {
         let widget_macro = ident!("__widget_macro_{}", uuid);
-        let new_caps = new_fns.iter().rposition(|f| f.0 == FnPriority::New);
-        let new_caps = new_caps.into_iter().flat_map(|i| new_captures[i].iter());
+        let new_caps = new_captures.last().into_iter().flatten();
 
         quote! {
             #[doc(hidden)]
@@ -924,7 +923,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 ($($tt:tt)*) => {
                     #mod_path::rust_analyzer_widget_new! {
                         new {
-                            // #mod_path::new(#(#new_caps),*)
+                            #mod_path::new(child, #(#new_caps),*)
                         }
                         user {
                             $($tt)*
