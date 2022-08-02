@@ -98,7 +98,7 @@ use std::{
 use gl::GlContextManager;
 use glutin::{
     event::{DeviceEvent, ModifiersState, WindowEvent},
-    event_loop::{ControlFlow, EventLoopProxy, EventLoopWindowTarget, EventLoopBuilder},
+    event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     platform::run_return::EventLoopExtRunReturn,
 };
@@ -365,6 +365,17 @@ impl fmt::Debug for App {
     }
 }
 impl App {
+    fn disable_device_events(&mut self, t: Option<&EventLoopWindowTarget<AppEvent>>) {
+        self.device_events = false;
+
+        if let Some(t) = t {
+            t.set_device_event_filter(glutin::event_loop::DeviceEventFilter::Always);
+        }
+
+        #[cfg(windows)]
+        util::unregister_raw_input();
+    }
+
     pub fn run_headless(c: ViewChannels) {
         tracing::info!("running headless view-process");
 
@@ -382,6 +393,7 @@ impl App {
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
         let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
+
         drop(winit_span);
 
         let window_target: &EventLoopWindowTarget<AppEvent> = &event_loop;
@@ -437,6 +449,9 @@ impl App {
                     }
                     AppEvent::ImageLoaded(data) => {
                         app.image_cache.loaded(data);
+                    }
+                    AppEvent::DisableDeviceEvents => {
+                        app.disable_device_events(None);
                     }
                 },
                 Err(_) => {
@@ -521,6 +536,9 @@ impl App {
                         }
                         AppEvent::ImageLoaded(data) => {
                             app.image_cache.loaded(data);
+                        }
+                        AppEvent::DisableDeviceEvents => {
+                            app.disable_device_events(Some(target));
                         }
                     },
                     GEvent::Suspended => {}
@@ -937,9 +955,8 @@ impl App {
                 }
             }
             WindowEvent::ThemeChanged(t) => self.notify(Event::WindowThemeChanged(id, util::winit_theme_to_zui(t))),
-            WindowEvent::Ime(_) => {},
-            WindowEvent::Occluded(_) => {},
-            
+            WindowEvent::Ime(_) => {}
+            WindowEvent::Occluded(_) => {}
         }
     }
 
@@ -1288,9 +1305,8 @@ impl Api for App {
         self.device_events = device_events;
         self.headless = headless;
 
-        #[cfg(windows)]
-        if !self.device_events {
-            util::unregister_raw_input();
+        if !device_events {
+            self.app_sender.send(AppEvent::DisableDeviceEvents).unwrap();
         }
 
         let available_monitors = self.available_monitors();
@@ -1598,6 +1614,9 @@ pub(crate) enum AppEvent {
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
     ImageLoaded(ImageLoadedData),
+
+    /// Send after init if `device_events` are not requested.
+    DisableDeviceEvents,
 }
 
 /// Message inserted in the request loop from the view-process.
