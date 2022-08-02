@@ -1,5 +1,3 @@
-* Review easing animation the same value.
-     - `ease_ne` causes weird effect animating `rgb(0.1, 0.1, 0.1)` to same value?
 * Don't update enabled_nav if focus command have no enabled listeners.
     - This saves some compute, most apps don't have an indicator for these commands.
     - We already handle invalid calls so it will not cause an error.
