@@ -283,7 +283,7 @@ fn test(mut args: Vec<&str>) {
 //        Runs the example in release with LTO mode.
 //     run some_example --backtrace
 //        Runs the "some_example" with `RUST_BACKTRACE=1`.
-//     run *
+//     run --all
 //        Builds all examples then runs them one by one.
 fn run(mut args: Vec<&str>) {
     let trace = if take_flag(&mut args, &["-b", "--backtrace"]) {
@@ -292,7 +292,7 @@ fn run(mut args: Vec<&str>) {
         ("", "")
     };
 
-    if let Some(&"*") = args.first() {
+    if take_flag(&mut args, &["*", "-a", "--all"]) {
         args.remove(0);
         let release = args.contains(&"--release") || args.contains(&"--release-lto");
         let rust_flags = release_rust_flags(release);
