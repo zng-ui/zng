@@ -1662,17 +1662,15 @@ pub struct VideoMode {
     /// The bit depth of this video mode, as in how many bits you have available per color.
     /// This is generally 24 bits or 32 bits on modern systems, depending on whether the alpha channel is counted or not.
     pub bit_depth: u16,
-    /// The refresh rate of this video mode.
-    ///
-    /// Note: the returned refresh rate is an integer approximation, and you shouldn’t rely on this value to be exact.
-    pub refresh_rate: u16,
+    /// The refresh rate of this video mode, in millihertz.
+    pub refresh_rate: u32,
 }
 impl Default for VideoMode {
     fn default() -> Self {
         Self {
             size: PxSize::new(Px::MAX, Px::MAX),
             bit_depth: u16::MAX,
-            refresh_rate: u16::MAX,
+            refresh_rate: u32::MAX,
         }
     }
 }

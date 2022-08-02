@@ -98,7 +98,7 @@ use std::{
 use gl::GlContextManager;
 use glutin::{
     event::{DeviceEvent, ModifiersState, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    event_loop::{ControlFlow, EventLoopProxy, EventLoopWindowTarget, EventLoopBuilder},
     monitor::MonitorHandle,
     platform::run_return::EventLoopExtRunReturn,
 };
@@ -381,7 +381,7 @@ impl App {
         app.headless = true;
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoop::<AppEvent>::with_user_event();
+        let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
         drop(winit_span);
 
         let window_target: &EventLoopWindowTarget<AppEvent> = &event_loop;
@@ -453,7 +453,7 @@ impl App {
         gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let mut event_loop = EventLoop::with_user_event();
+        let mut event_loop = EventLoopBuilder::with_user_event().build();
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
 
@@ -543,7 +543,7 @@ impl App {
             app.window_target = std::ptr::null();
 
             idle.enter();
-        })
+        });
     }
 
     fn new(
@@ -937,6 +937,9 @@ impl App {
                 }
             }
             WindowEvent::ThemeChanged(t) => self.notify(Event::WindowThemeChanged(id, util::winit_theme_to_zui(t))),
+            WindowEvent::Ime(_) => {},
+            WindowEvent::Occluded(_) => {},
+            
         }
     }
 

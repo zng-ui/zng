@@ -283,7 +283,7 @@ pub(crate) fn glutin_video_mode_to_video_mode(v: glutin::monitor::VideoMode) -> 
     VideoMode {
         size: PxSize::new(Px(size.width as i32), Px(size.height as i32)),
         bit_depth: v.bit_depth(),
-        refresh_rate: v.refresh_rate(),
+        refresh_rate: v.refresh_rate_millihertz(),
     }
 }
 

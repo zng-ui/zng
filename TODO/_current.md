@@ -1,3 +1,10 @@
+# Winit Update
+
+* Try new `with_msg_hook` instead of injecting code to implement windows settings and Alt+F4 handling.
+* Use `set_device_event_filter` to stop device mouse move events in Linux.
+
+# Other
+
 * Review easing animation the same value.
      - `ease_ne` causes weird effect animating `rgb(0.1, 0.1, 0.1)` to same value?
 * Don't update enabled_nav if focus command have no enabled listeners.
