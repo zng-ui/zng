@@ -912,6 +912,33 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // rust-analyzer does not find the macro if we don't set the call_site here.
     let mod_path = util::set_stream_span(mod_path, Span::call_site());
 
+    let rust_analyzer_extras = if util::is_rust_analyzer() {
+        let widget_macro = ident!("__widget_macro_{}", uuid);
+        quote! {
+            #[doc(hidden)]
+            pub use #crate_core::rust_analyzer_widget_new;
+
+            #[doc(hidden)]
+            #[macro_export]
+            macro_rules! #widget_macro {
+                (inherit=> $($tt:tt)*) => {
+
+                };
+                ($($tt:tt)*) => {
+                    #mod_path::rust_analyzer_widget_new! {
+                        user {
+                            $($tt)*
+                        }
+                    }
+                };
+            }
+            #[doc(hidden)]
+            pub use #widget_macro as __widget_macro;
+        }
+    } else {
+        TokenStream::new()
+    };
+
     let r = quote! {
         #wgt_cfg
         mod #errors_mod {
@@ -993,6 +1020,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     }
                 }
             }
+
+            #rust_analyzer_extras
         }
 
         #wgt_cfg

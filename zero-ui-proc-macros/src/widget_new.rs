@@ -1069,11 +1069,11 @@ impl Parse for BuiltWhenAssign {
 }
 
 /// The content of the widget macro call.
-struct UserInput {
+pub struct UserInput {
     call_site: Span,
     errors: Errors,
-    properties: Vec<PropertyAssign>,
-    whens: Vec<When>,
+    pub properties: Vec<PropertyAssign>,
+    pub whens: Vec<When>,
 }
 impl Parse for UserInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {

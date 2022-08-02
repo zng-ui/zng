@@ -31,6 +31,7 @@ mod widget_new;
 mod any_all;
 
 mod lang;
+mod rust_analyzer;
 
 /// Expands an impl into a `UiNode` impl.
 ///
@@ -156,4 +157,10 @@ pub fn static_list(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn lang(input: TokenStream) -> TokenStream {
     lang::expand(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn rust_analyzer_widget_new(input: TokenStream) -> TokenStream {
+    rust_analyzer::widget_new(input)
 }
