@@ -15,7 +15,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let r = if vars.is_empty() {
         // no interpolation, just eval to var.
         quote_spanned! {expr.span()=>
-            #mod_::IntoVar::into_var({ #expr })
+            #mod_::IntoVar::<bool>::into_var({ #expr })
         }
     } else if vars.len() == 1 {
         let (ident, eval) = &vars[0];

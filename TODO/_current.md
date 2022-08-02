@@ -1,4 +1,3 @@
-* Fix when without var capture, some problem with `bool` and `IntoVar`?
 * Fix rust-analyzer warning for when expression, it ignores an allow snake_case.
 
 # Other
