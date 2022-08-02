@@ -10,6 +10,8 @@ use syn::{
     Attribute, Token,
 };
 
+use once_cell::sync::OnceCell;
+
 /// `Ident` with custom span.
 macro_rules! ident_spanned {
     ($span:expr=> $($format_name:tt)+) => {
@@ -32,13 +34,16 @@ pub fn parse_braces<'a>(input: &syn::parse::ParseBuffer<'a>) -> syn::Result<(syn
 
 /// Returns `true` if the proc-macro is running in one of the rust-analyzer proc-macro servers.
 pub fn is_rust_analyzer() -> bool {
-    // can be:
-    // .rustup\toolchains\nightly-foo\libexec\rust-analyzer-proc-macro-srv.exe
-    // .vscode\extensions\rust-lang.rust-analyzer-foo\server\rust-analyzer.exe
-    std::env::current_exe()
-        .ok()
-        .and_then(|e| e.file_name().map(|f| f.to_string_lossy().contains("rust-analyzer")))
-        .unwrap_or(false)
+    static IS: OnceCell<bool> = OnceCell::new();
+    *IS.get_or_init(|| {
+        // can be:
+        // .rustup\toolchains\nightly-foo\libexec\rust-analyzer-proc-macro-srv.exe
+        // .vscode\extensions\rust-lang.rust-analyzer-foo\server\rust-analyzer.exe
+        std::env::current_exe()
+            .ok()
+            .and_then(|e| e.file_name().map(|f| f.to_string_lossy().contains("rust-analyzer")))
+            .unwrap_or(false)
+    })
 }
 
 /// Return `$crate::core` where `$crate` is the zero-ui
@@ -51,7 +56,6 @@ pub fn crate_core() -> TokenStream {
         let (ident, core) = crate_core_parts();
         (Cow::Owned(ident), core)
     } else {
-        use once_cell::sync::OnceCell;
         static CRATE: OnceCell<(String, bool)> = OnceCell::new();
 
         let (ident, core) = CRATE.get_or_init(crate_core_parts);
