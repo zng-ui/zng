@@ -508,7 +508,7 @@ pub use crate::widgets;
 /// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
 /// # use text as foo;
 /// # use text as bar;
-/// let items = widgets![
+/// let items = nodes![
 ///     foo("Hello "),
 ///     bar("World!")
 /// ];
