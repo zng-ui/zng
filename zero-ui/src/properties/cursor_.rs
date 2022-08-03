@@ -1,6 +1,6 @@
 use crate::core::{
     mouse::MouseHoveredEvent,
-    window::{CursorIcon, WindowVarsKey},
+    window::{CursorIcon, WindowVars},
 };
 use crate::prelude::new_property::*;
 
@@ -51,7 +51,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                             if self.hovered_binding.is_none() {
                                 // we are not already set, setup binding.
 
-                                let cursor = ctx.window_state.req(WindowVarsKey).cursor();
+                                let cursor = WindowVars::req(ctx.window_state).cursor();
                                 cursor.set_ne(ctx.vars, self.cursor.copy(ctx.vars));
                                 self.hovered_binding = Some(self.cursor.bind(ctx.vars, cursor));
                             }
@@ -62,8 +62,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                             // we are set, unbind.
 
                             self.hovered_binding = None;
-                            ctx.window_state
-                                .req(WindowVarsKey)
+                            WindowVars::req(ctx.window_state)
                                 .cursor()
                                 .set_ne(ctx.vars, Some(CursorIcon::Default));
                         }

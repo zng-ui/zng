@@ -1,5 +1,8 @@
 # Scroll TODO
 
+* Don't invalidate render_update if no culling visibility updated.
+    - In case the content is one large image for example.
+
 * Parallax scrolling.
     - Test access to the scroll offset inside the content.
 

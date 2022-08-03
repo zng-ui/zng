@@ -27,7 +27,7 @@ pub trait StateKey: Copy + 'static {
     type Type: 'static;
 }
 
-///<span data-del-macro-root></span> Declares new [`StateKey`](crate::context::StateKey) types.
+///<span data-del-macro-root></span> Declares new [`StateKey`] types.
 ///
 /// # Examples
 ///
@@ -38,9 +38,16 @@ pub trait StateKey: Copy + 'static {
 ///     pub struct FooKey: u32;
 /// }
 /// ```
+/// 
 /// # Naming Convention
 ///
-/// It is recommended that the type name ends with the key suffix.
+/// It is recommended that the type name ends with the `Key` suffix. If the value is a singleton-like value the key
+/// can be made private and a helper function to require and get the value added directly on the value type, see [`WindowVars::req`]
+/// and [`WindowVars::get`] for examples of this.
+/// 
+/// [`StateKey`]: crate::context::StateKey
+/// [`WindowVars::req`]: crate::window::WindowVars::req
+/// [`WindowVars::get`]: crate::window::WindowVars::get
 #[macro_export]
 macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(

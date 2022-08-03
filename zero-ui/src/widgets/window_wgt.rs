@@ -293,7 +293,7 @@ pub mod window {
         /// use zero_ui::prelude::*;
         ///
         /// fn example(ctx: &mut WindowContext) -> Window {
-        ///     let selected_mode = ctx.window_state.req(WindowVarsKey).render_mode();
+        ///     let selected_mode = WindowVars::req(ctx.window_state).render_mode();
         ///     window! {
         ///         title = "Render Mode";
         ///         render_mode = RenderMode::Dedicated;

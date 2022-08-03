@@ -1,14 +1,3 @@
-# Parallel UI
-
-* How much overhead needed to add `rayon` join support for UiNode methods?
-    * Need to make every thing sync.
-    * Vars are already *locked* for updates due to their delayed assign, is only reading from `Arc` slower then from `Rc`?
-    * Event `propagation` becomes indeterministic.
-    * Services must become sync.
-    * State must become sync!
-* Maybe can always have an AppContext for each UI thread, with a copy of services and such, after each update they merge into
-  the main AppContext.
-
 # Update Mask
 
 * Sub-divide UiNodeList masks.
@@ -21,7 +10,6 @@
 
 * NVIDIA OpenGL takes 200ms! to startup.
 * First render is also slow.
-* We block the app process waiting view-process startup.
 
 # Render
 
@@ -58,3 +46,14 @@
   - Comparison of release mode with/out "inspector" and profiler shows that a 7ms frame turns into a 13ms frame.
   - Some of it is due to all the boxing enabled by "inspector.
   - Can we use the inspector collected metadata to batch generate tracing spans after the frame is send?
+
+# Parallel UI
+
+* How much overhead needed to add `rayon` join support for UiNode methods?
+    * Need to make every thing sync.
+    * Vars are already *locked* for updates due to their delayed assign, is only reading from `Arc` slower then from `Rc`?
+    * Event `propagation` becomes indeterministic.
+    * Services must become sync.
+    * State must become sync!
+* Maybe can always have an AppContext for each UI thread, with a copy of services and such, after each update they merge into
+  the main AppContext.

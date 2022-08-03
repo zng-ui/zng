@@ -6,7 +6,7 @@ use super::properties::{
     ImageAlignVar, ImageCacheVar, ImageCropVar, ImageErrorArgs, ImageErrorViewVar, ImageFit, ImageFitVar, ImageLimitsVar, ImageLoadingArgs,
     ImageLoadingViewVar, ImageOffsetVar, ImageRenderingVar, ImageScaleFactorVar, ImageScalePpiVar, ImageScaleVar,
 };
-use crate::core::{image::*, window::WindowVarsKey};
+use crate::core::{image::*, window::WindowVars};
 
 use super::*;
 
@@ -60,7 +60,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             if let ImageSource::Render(_, cfg) = &mut source {
                 if cfg.scale_factor.is_none() {
                     // Render without scale_factor can be configured by us, set it to our own scale factor.
-                    let fct = ctx.window_state.req(WindowVarsKey).scale_factor();
+                    let fct = WindowVars::req(ctx.window_state).scale_factor();
                     cfg.scale_factor = Some(fct.copy(ctx));
                     self.render_factor = Some(fct);
                 }
@@ -92,7 +92,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         if let Some(fct) = &self.render_factor {
                             cfg.scale_factor = Some(fct.copy(ctx));
                         } else {
-                            let fct = ctx.window_state.req(WindowVarsKey).scale_factor();
+                            let fct = WindowVars::req(ctx.window_state).scale_factor();
                             cfg.scale_factor = Some(fct.copy(ctx));
                             self.render_factor = Some(fct);
                             ctx.updates.subscriptions();

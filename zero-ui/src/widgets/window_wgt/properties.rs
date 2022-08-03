@@ -5,9 +5,7 @@
 
 use std::marker::PhantomData;
 
-use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowState, WindowVars, WindowVarsKey,
-};
+use crate::core::window::{AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowState, WindowVars};
 use crate::prelude::new_property::*;
 
 fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
@@ -33,7 +31,7 @@ where
         S: Fn(&WindowVars) -> SV + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let window_var = (self.select)(ctx.window_state.req(WindowVarsKey));
+            let window_var = (self.select)(WindowVars::req(ctx.window_state));
             if self.user_var.can_update() {
                 self.binding = Some(self.user_var.bind_bidi(ctx.vars, &window_var));
             }

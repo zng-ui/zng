@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
+    context::StateMap,
     image::Image,
     render::RenderMode,
     state_key,
@@ -60,12 +61,14 @@ pub(super) struct WindowVarsData {
 ///
 /// You can get the controller for any window using [`Windows::vars`].
 ///
-/// You can get the controller for the current context window by getting [`WindowVarsKey`] from the `window_state`
+/// You can get the controller for the current context window using [`req`] or [`get`] and the `window_state`
 /// in [`WindowContext`] and [`WidgetContext`].
 ///
 /// [`WindowContext`]: crate::context::WindowContext::window_state
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state
 /// [`Windows::vars`]: crate::window::Windows::vars
+/// [`req`]: WindowVars::req
+/// [`get`]: WindowVars::get
 pub struct WindowVars(pub(super) Rc<WindowVarsData>);
 impl WindowVars {
     pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor) -> Self {
@@ -123,6 +126,20 @@ impl WindowVars {
 
     pub(super) fn clone(&self) -> Self {
         Self(Rc::clone(&self.0))
+    }
+
+    /// Require the window vars from the window state.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not called using the window state or called in a custom window context that did not setup the variables.
+    pub fn req(window_state: &StateMap) -> &Self {
+        window_state.req(WindowVarsKey)
+    }
+
+    /// Tries to get the window vars from the window state.
+    pub fn get(window_state: &StateMap) -> Option<&Self> {
+        window_state.get(WindowVarsKey)
     }
 
     /// Window chrome, the non-client area of the window.
@@ -502,6 +519,5 @@ impl WindowVars {
     }
 }
 state_key! {
-    /// Key for the instance of [`WindowVars`] in the window state.
-    pub struct WindowVarsKey: WindowVars;
+    pub(super) struct WindowVarsKey: WindowVars;
 }
