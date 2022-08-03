@@ -1,5 +1,5 @@
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext},
+    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
@@ -107,14 +107,14 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn item_state(&self, index: usize) -> &StateMap {
+            fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget> {
                 match index {
                     $($n => self.items.$n.state(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
-            fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
+            fn item_state_mut(&mut self, index: usize) -> StateMapRef<state_map::Widget> {
                 match index {
                     $($n => self.items.$n.state_mut(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
@@ -298,7 +298,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+            fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
                 match index {
                     $(
                         $n => self.items.$n.try_state(),
@@ -307,7 +307,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+            fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
                 match index {
                     $(
                         $n => self.items.$n.try_state_mut(),
@@ -496,11 +496,11 @@ macro_rules! empty_node_list {
                 panic!("index {index} out of range for length 0")
             }
 
-            fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+            fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
                 panic!("index {index} out of range for length 0")
             }
 
-            fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+            fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
                 panic!("index {index} out of range for length 0")
             }
 
@@ -566,11 +566,11 @@ impl WidgetList for WidgetList0 {
         panic!("index {index} out of range for length 0")
     }
 
-    fn item_state(&self, index: usize) -> &StateMap {
+    fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget> {
         panic!("index {index} out of range for length 0")
     }
 
-    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
+    fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget> {
         panic!("index {index} out of range for length 0")
     }
 

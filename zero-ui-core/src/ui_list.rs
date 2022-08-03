@@ -1,7 +1,7 @@
 //! UI node and widget lists abstraction.
 
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext},
+    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
@@ -139,10 +139,10 @@ pub trait UiNodeList: 'static {
     fn try_item_id(&self, index: usize) -> Option<WidgetId>;
 
     /// Reference the state of the widget at the `index`.
-    fn try_item_state(&self, index: usize) -> Option<&StateMap>;
+    fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>>;
 
     /// Exclusive reference the state of the widget at the `index`.
-    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap>;
+    fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>>;
 
     /// Gets the bounds layout info of the node at the `index` if it is a full widget.
     ///
@@ -185,14 +185,14 @@ pub struct PreMeasureArgs<'a> {
     /// Reference to the widget state.
     ///
     /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
-    pub state: Option<&'a StateMap>,
+    pub state: Option<StateMapRef<'a, state_map::Widget>>,
 
     /// Constrains overwrite just for this child.
     pub constrains: Option<PxConstrains2d>,
 }
 impl<'a> PreMeasureArgs<'a> {
     /// New args for item.
-    pub fn new(index: usize, state: Option<&'a StateMap>) -> Self {
+    pub fn new(index: usize, state: Option<StateMapRef<'a, state_map::Widget>>) -> Self {
         PreMeasureArgs {
             index,
             state,
@@ -209,14 +209,14 @@ pub struct PosMeasureArgs<'a> {
     /// Reference to the widget state.
     ///
     /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
-    pub state: Option<&'a StateMap>,
+    pub state: Option<StateMapRef<'a, state_map::Widget>>,
 
     /// The measured size.
     pub size: PxSize,
 }
 impl<'a> PosMeasureArgs<'a> {
     /// New args for item.
-    pub fn new(index: usize, state: Option<&'a StateMap>, size: PxSize) -> Self {
+    pub fn new(index: usize, state: Option<StateMapRef<'a, state_map::Widget>>, size: PxSize) -> Self {
         PosMeasureArgs { index, state, size }
     }
 }
@@ -229,14 +229,14 @@ pub struct PreLayoutArgs<'a> {
     /// Mutable reference to the widget state.
     ///
     /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
-    pub state: Option<&'a mut StateMap>,
+    pub state: Option<StateMapMut<'a, state_map::Widget>>,
 
     /// Constrains overwrite just for this child.
     pub constrains: Option<PxConstrains2d>,
 }
 impl<'a> PreLayoutArgs<'a> {
     /// New args for item.
-    pub fn new(index: usize, state: Option<&'a mut StateMap>) -> Self {
+    pub fn new(index: usize, state: Option<StateMapMut<'a, state_map::Widget>>) -> Self {
         PreLayoutArgs {
             index,
             state,
@@ -253,14 +253,14 @@ pub struct PosLayoutArgs<'a> {
     /// Mutable reference to the widget state.
     ///
     /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
-    pub state: Option<&'a mut StateMap>,
+    pub state: Option<StateMapMut<'a, state_map::Widget>>,
 
     /// The updated size.
     pub size: PxSize,
 }
 impl<'a> PosLayoutArgs<'a> {
     /// New args for item.
-    pub fn new(index: usize, state: Option<&'a mut StateMap>, size: PxSize) -> Self {
+    pub fn new(index: usize, state: Option<StateMapMut<'a, state_map::Widget>>, size: PxSize) -> Self {
         PosLayoutArgs { index, state, size }
     }
 }
@@ -339,7 +339,7 @@ pub struct WidgetFilterArgs<'a> {
     /// The [`Widget::border_info`].
     pub border_info: &'a WidgetBorderInfo,
     /// The [`Widget::state`].
-    pub state: &'a StateMap,
+    pub state: StateMapRef<'a, state_map::Widget>,
 }
 impl<'a> WidgetFilterArgs<'a> {
     /// Copy or borrow all info from a widget list and index.
@@ -377,7 +377,7 @@ pub struct UiNodeFilterArgs<'a> {
     /// The [`UiNode::try_border_info`].
     pub border_info: Option<&'a WidgetBorderInfo>,
     /// The [`UiNode::try_state`].
-    pub state: Option<&'a StateMap>,
+    pub state: Option<StateMapRef<'a, state_map::Widget>>,
 }
 impl<'a> UiNodeFilterArgs<'a> {
     /// Copy or borrow all info from a node list and index.
@@ -430,10 +430,10 @@ pub trait WidgetList: UiNodeList {
     fn item_id(&self, index: usize) -> WidgetId;
 
     /// Reference the state of the widget at the `index`.
-    fn item_state(&self, index: usize) -> &StateMap;
+    fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget>;
 
     /// Exclusive reference the state of the widget at the `index`.
-    fn item_state_mut(&mut self, index: usize) -> &mut StateMap;
+    fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget>;
 
     /// Gets the bounds layout info of the widget at the `index`.
     ///

@@ -192,11 +192,11 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.try_item_id(index)
     }
 
-    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+    fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
         self.list.try_item_state(index)
     }
 
-    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+    fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
         self.list.try_item_state_mut(index)
     }
 
@@ -268,11 +268,11 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         self.list.item_id(index)
     }
 
-    fn item_state(&self, index: usize) -> &StateMap {
+    fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget> {
         self.list.item_state(index)
     }
 
-    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
+    fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget> {
         self.list.item_state_mut(index)
     }
 

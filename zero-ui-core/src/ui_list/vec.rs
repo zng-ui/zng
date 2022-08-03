@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext, WithUpdates},
+    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTranslation, WidgetList},
@@ -400,11 +400,11 @@ impl UiNodeList for WidgetVec {
         self.vec[index].try_id()
     }
 
-    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+    fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
         self.vec[index].try_state()
     }
 
-    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+    fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
         self.vec[index].try_state_mut()
     }
 
@@ -476,11 +476,11 @@ impl WidgetList for WidgetVec {
         self.vec[index].id()
     }
 
-    fn item_state(&self, index: usize) -> &StateMap {
+    fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget> {
         self.vec[index].state()
     }
 
-    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
+    fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget> {
         self.vec[index].state_mut()
     }
 
@@ -923,11 +923,11 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].try_id()
     }
 
-    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+    fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
         self.vec[index].try_state()
     }
 
-    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+    fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
         self.vec[index].try_state_mut()
     }
 

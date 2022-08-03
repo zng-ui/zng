@@ -28,7 +28,7 @@ use std::{
 };
 
 use crate::{
-    context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMap, UpdatesTrace, WidgetContext, WidgetContextMut, WindowContext},
+    context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMapMut, UpdatesTrace, WidgetContext, WidgetContextMut, WindowContext},
     crate_util::{Handle, HandleOwner},
     event::{Event, EventPropagationHandle, Events, WithEvents},
     handler::WidgetHandler,
@@ -974,8 +974,8 @@ where
 ///
 /// [`command!`]: macro@crate::command::command
 pub struct CommandMeta<'a> {
-    meta: &'a mut StateMap,
-    scope: Option<&'a mut StateMap>,
+    meta: StateMapMut<'a, CommandMetaState>,
+    scope: Option<StateMapMut<'a, CommandMetaState>>,
 }
 impl<'a> CommandMeta<'a> {
     /// Clone a meta value identified by a [`StateKey`] type.
@@ -1183,6 +1183,8 @@ impl<C: Command> CommandInfoExt for C {
     }
 }
 
+enum CommandMetaState {}
+
 /// A handle to a [`Command`].
 ///
 /// Holding the command handle indicates that the command is relevant in the current app state.
@@ -1253,7 +1255,7 @@ struct ScopedValue {
     handle: HandleOwner<CommandHandleData>,
     enabled: RcVar<bool>,
     has_handlers: RcVar<bool>,
-    meta: OwnedStateMap,
+    meta: OwnedStateMap<CommandMetaState>,
     registered: bool,
 }
 impl Default for ScopedValue {
@@ -1282,7 +1284,7 @@ pub struct CommandValue {
 
     has_handlers: RcVar<bool>,
 
-    meta: RefCell<OwnedStateMap>,
+    meta: RefCell<OwnedStateMap<CommandMetaState>>,
 
     meta_init: Box<dyn Fn()>,
     pending_init: Cell<bool>,
@@ -1453,15 +1455,15 @@ impl CommandValue {
 
         if let CommandScope::App = scope {
             f(&mut CommandMeta {
-                meta: &mut self.meta.borrow_mut().0,
+                meta: self.meta.borrow_mut().borrow_mut(),
                 scope: None,
             })
         } else {
             let mut scopes = self.scopes.borrow_mut();
             let scope = scopes.entry(scope).or_default();
             f(&mut CommandMeta {
-                meta: &mut self.meta.borrow_mut().0,
-                scope: Some(&mut scope.meta.0),
+                meta: self.meta.borrow_mut().borrow_mut(),
+                scope: Some(scope.meta.borrow_mut()),
             })
         }
     }

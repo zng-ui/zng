@@ -3,7 +3,10 @@
 use std::{fmt, mem};
 
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMapMut, StateMapRef, WidgetContext,
+        WidgetUpdates,
+    },
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
@@ -296,7 +299,7 @@ pub mod implicit_base {
         pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
             struct WidgetNode<C> {
                 id: WidgetId,
-                state: OwnedStateMap,
+                state: OwnedStateMap<state_map::Widget>,
                 child: C,
                 info: WidgetContextInfo,
                 subscriptions: RefCell<WidgetSubscriptions>,
@@ -478,11 +481,11 @@ pub mod implicit_base {
                     Some(self.id())
                 }
 
-                fn try_state(&self) -> Option<&StateMap> {
+                fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
                     Some(self.state())
                 }
 
-                fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+                fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
                     Some(self.state_mut())
                 }
 
@@ -506,11 +509,11 @@ pub mod implicit_base {
                     self.id
                 }
 
-                fn state(&self) -> &StateMap {
+                fn state(&self) -> StateMapRef<state_map::Widget> {
                     &self.state.0
                 }
 
-                fn state_mut(&mut self) -> &mut StateMap {
+                fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
                     &mut self.state.0
                 }
 

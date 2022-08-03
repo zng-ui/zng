@@ -1,4 +1,9 @@
+use crate::context::StateMapMut;
+
 use super::*;
+
+/// Tag for the [`WidgetInfo::meta`] state-map.
+pub enum WidgetInfoMeta {}
 
 /// Widget info tree builder.
 ///
@@ -8,7 +13,7 @@ pub struct WidgetInfoBuilder {
 
     node: tree::NodeId,
     widget_id: WidgetId,
-    meta: OwnedStateMap,
+    meta: OwnedStateMap<WidgetInfoMeta>,
 
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, tree::NodeId>,
@@ -16,7 +21,7 @@ pub struct WidgetInfoBuilder {
 
     scale_factor: Factor,
 
-    build_meta: OwnedStateMap,
+    build_meta: OwnedStateMap<WidgetInfoMeta>,
 
     build_start: Instant,
     pushed_widgets: u32,
@@ -79,13 +84,13 @@ impl WidgetInfoBuilder {
     /// Widget tree build metadata.
     ///
     /// This metadata can be modified only by pushed widgets, **not** by the reused widgets.
-    pub fn build_meta(&mut self) -> &mut StateMap {
-        &mut self.build_meta.0
+    pub fn build_meta(&mut self) -> StateMapMut<WidgetInfoMeta> {
+        self.build_meta.borrow_mut()
     }
 
     /// Current widget metadata.
-    pub fn meta(&mut self) -> &mut StateMap {
-        &mut self.meta.0
+    pub fn meta(&mut self) -> StateMapMut<WidgetInfoMeta> {
+        self.meta.borrow_mut()
     }
 
     /// Calls `f` in a new widget context.

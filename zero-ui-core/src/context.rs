@@ -27,7 +27,7 @@ pub use trace::*;
 ///
 /// You can only have one instance of this at a time per-thread at a time.
 pub(crate) struct OwnedAppContext {
-    app_state: StateMap,
+    app_state: OwnedStateMap<state_map::App>,
     vars: Vars,
     events: Events,
     services: Services,
@@ -39,7 +39,7 @@ impl OwnedAppContext {
     pub fn instance(app_event_sender: AppEventSender) -> Self {
         let updates = Updates::new(app_event_sender.clone());
         OwnedAppContext {
-            app_state: StateMap::new(),
+            app_state: OwnedStateMap::new(),
             vars: Vars::instance(app_event_sender.clone()),
             events: Events::instance(app_event_sender),
             services: Services::default(),
@@ -49,19 +49,19 @@ impl OwnedAppContext {
     }
 
     /// State that lives for the duration of an application, including a headless application.
-    pub fn app_state(&self) -> &StateMap {
-        &self.app_state
+    pub fn app_state(&self) -> StateMapRef<state_map::App> {
+        self.app_state.borrow()
     }
 
     /// State that lives for the duration of an application, including a headless application.
-    pub fn app_state_mut(&mut self) -> &mut StateMap {
-        &mut self.app_state
+    pub fn app_state_mut(&mut self) -> StateMapMut<state_map::App> {
+        self.app_state.borrow_mut()
     }
 
     /// Borrow the app context as an [`AppContext`].
     pub fn borrow(&mut self) -> AppContext {
         AppContext {
-            app_state: &mut self.app_state,
+            app_state: self.app_state.borrow_mut(),
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
@@ -128,7 +128,7 @@ impl OwnedAppContext {
 /// Full application context.
 pub struct AppContext<'a> {
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StateMap,
+    pub app_state: StateMapMut<'a, state_map::App>,
 
     /// Access to variables.
     pub vars: &'a Vars,
@@ -151,21 +151,21 @@ impl<'a> AppContext<'a> {
         &mut self,
         window_id: WindowId,
         window_mode: WindowMode,
-        window_state: &mut OwnedStateMap,
+        window_state: &mut OwnedStateMap<state_map::Window>,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, WindowUpdates) {
         let _span = UpdatesTrace::window_span(window_id);
 
         self.updates.enter_window_ctx();
 
-        let mut update_state = StateMap::new();
+        let mut update_state = OwnedStateMap::new();
 
         let r = f(&mut WindowContext {
             window_id: &window_id,
             window_mode: &window_mode,
-            app_state: self.app_state,
-            window_state: &mut window_state.0,
-            update_state: &mut update_state,
+            app_state: self.app_state.reborrow(),
+            window_state: window_state.borrow_mut(),
+            update_state: update_state.borrow_mut(),
             vars: self.vars,
             events: self.events,
             services: self.services,
@@ -186,10 +186,10 @@ pub struct WindowContext<'a> {
     pub window_mode: &'a WindowMode,
 
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StateMap,
+    pub app_state: StateMapMut<'a, state_map::App>,
 
     /// State that lives for the duration of the window.
-    pub window_state: &'a mut StateMap,
+    pub window_state: StateMapMut<'a, state_map::Window>,
 
     /// State that lives for the duration of the node tree method call in the window.
     ///
@@ -197,7 +197,7 @@ pub struct WindowContext<'a> {
     /// Usually `f` calls one of the [`UiNode`](crate::UiNode) methods and [`WidgetContext`] shares this
     /// state so properties and event handlers can use this state to communicate to further nodes along the
     /// update sequence.
-    pub update_state: &'a mut StateMap,
+    pub update_state: StateMapMut<'a, state_map::Update>,
 
     /// Access to variables.
     pub vars: &'a Vars,
@@ -218,7 +218,7 @@ impl<'a> WindowContext<'a> {
         &mut self,
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
-        root_widget_state: &mut OwnedStateMap,
+        root_widget_state: &mut OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         let widget_id = info_tree.root().widget_id();
@@ -248,7 +248,7 @@ impl<'a> WindowContext<'a> {
         &mut self,
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
-        root_widget_state: &OwnedStateMap,
+        root_widget_state: &OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut InfoContext) -> R,
     ) -> R {
         f(&mut InfoContext {
@@ -273,7 +273,7 @@ impl<'a> WindowContext<'a> {
         viewport_size: PxSize,
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
-        root_widget_state: &mut OwnedStateMap,
+        root_widget_state: &mut OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         let widget_id = info_tree.root().widget_id();
@@ -286,7 +286,7 @@ impl<'a> WindowContext<'a> {
             widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &mut root_widget_state.0,
+            widget_state: root_widget_state.borrow_mut(),
             update_state: self.update_state,
 
             vars: self.vars,
@@ -299,7 +299,7 @@ impl<'a> WindowContext<'a> {
     pub fn render_context<R>(
         &mut self,
         root_widget_id: WidgetId,
-        root_widget_state: &OwnedStateMap,
+        root_widget_state: &OwnedStateMap<state_map::Widget>,
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
         f: impl FnOnce(&mut RenderContext) -> R,
@@ -310,7 +310,7 @@ impl<'a> WindowContext<'a> {
             widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &root_widget_state.0,
+            widget_state: root_widget_state.borrow(),
             update_state: self.update_state,
             vars: self.vars,
         })
@@ -349,16 +349,16 @@ pub struct TestWidgetContext {
     /// The [`app_state`] value. Empty by default.
     ///
     /// [`app_state`]: WidgetContext::app_state
-    pub app_state: OwnedStateMap,
+    pub app_state: OwnedStateMap<state_map::App>,
     /// The [`window_state`] value. Empty by default.
     ///
     /// [`window_state`]: WidgetContext::window_state
-    pub window_state: OwnedStateMap,
+    pub window_state: OwnedStateMap<state_map::Window>,
 
     /// The [`widget_state`] value. Empty by default.
     ///
     /// [`widget_state`]: WidgetContext::widget_state
-    pub widget_state: OwnedStateMap,
+    pub widget_state: OwnedStateMap<state_map::Widget>,
 
     /// The [`update_state`] value. Empty by default.
     ///
@@ -367,7 +367,7 @@ pub struct TestWidgetContext {
     ///
     /// [`update_state`]: WidgetContext::update_state
     /// [`clear`]: OwnedStateMap::clear
-    pub update_state: OwnedStateMap,
+    pub update_state: OwnedStateMap<state_map::Update>,
 
     /// The [`services`] repository. Empty by default.
     ///
@@ -598,13 +598,13 @@ pub struct WidgetContext<'a> {
     pub widget_info: &'a WidgetContextInfo,
 
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StateMap,
+    pub app_state: StateMapMut<'a, state_map::App>,
 
     /// State that lives for the duration of the window.
-    pub window_state: &'a mut StateMap,
+    pub window_state: StateMapMut<'a, state_map::Window>,
 
     /// State that lives for the duration of the widget.
-    pub widget_state: &'a mut StateMap,
+    pub widget_state: StateMapMut<'a, state_map::Widget>,
 
     /// State that lives for the duration of the node tree method call in the window.
     ///
@@ -613,7 +613,7 @@ pub struct WidgetContext<'a> {
     /// will be updated further then the current one.
     ///
     /// [`UiNode`]: crate::UiNode
-    pub update_state: &'a mut StateMap,
+    pub update_state: StateMapMut<'a, state_map::Update>,
 
     /// Access to variables.
     pub vars: &'a Vars,
@@ -635,7 +635,7 @@ impl<'a> WidgetContext<'a> {
         &mut self,
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
-        widget_state: &mut OwnedStateMap,
+        widget_state: &mut OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> (R, WidgetUpdates) {
         self.path.push(widget_id);
@@ -650,7 +650,7 @@ impl<'a> WidgetContext<'a> {
                 widget_info,
                 app_state: self.app_state,
                 window_state: self.window_state,
-                widget_state: &mut widget_state.0,
+                widget_state: widget_state.borrow_mut(),
                 update_state: self.update_state,
 
                 vars: self.vars,
@@ -799,16 +799,19 @@ pub struct MeasureContext<'a> {
     pub widget_info: &'a WidgetContextInfo,
 
     /// Read-only access to the state that lives for the duration of the application.
-    pub app_state: &'a StateMap,
+    pub app_state: StateMapRef<'a, state_map::App>,
 
     /// Read-only access to the state that lives for the duration of the window.
-    pub window_state: &'a StateMap,
+    pub window_state: StateMapRef<'a, state_map::Window>,
 
     /// Read-only access to the state that lives for the duration of the widget.
-    pub widget_state: &'a StateMap,
+    pub widget_state: StateMapRef<'a, state_map::Widget>,
 
-    /// State that lives for the duration of the node tree measure call.
-    pub update_state: &'a mut StateMap,
+    /// State that lives for the duration of the node tree measure in the window.
+    ///
+    /// This state lives only for the call to [`UiNode::measure`](crate::UiNode::measure) in all nodes of the window.
+    /// You can use this to signal nodes that have not measured yet.
+    pub update_state: StateMapMut<'a, state_map::Update>,
 
     /// Read-only access to variables.
     pub vars: &'a VarsRead,
@@ -903,7 +906,7 @@ impl<'a> MeasureContext<'a> {
         &mut self,
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
-        widget_state: &OwnedStateMap,
+        widget_state: &OwnedStateMap<state_map::Widget>,
         reuse: bool,
         f: impl FnOnce(&mut MeasureContext) -> PxSize,
     ) -> PxSize {
@@ -992,16 +995,16 @@ pub struct LayoutContext<'a> {
     pub widget_info: &'a WidgetContextInfo,
 
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StateMap,
+    pub app_state: StateMapMut<'a, state_map::App>,
 
     /// State that lives for the duration of the window.
-    pub window_state: &'a mut StateMap,
+    pub window_state: StateMapMut<'a, state_map::Window>,
 
     /// State that lives for the duration of the widget.
-    pub widget_state: &'a mut StateMap,
+    pub widget_state: StateMapMut<'a, state_map::Widget>,
 
     /// State that lives for the duration of the node tree layout update call in the window.
-    pub update_state: &'a mut StateMap,
+    pub update_state: StateMapMut<'a, state_map::Update>,
 
     /// Access to variables.
     ///
@@ -1112,7 +1115,7 @@ impl<'a> LayoutContext<'a> {
         &mut self,
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
-        widget_state: &mut OwnedStateMap,
+        widget_state: &mut OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> (R, WidgetUpdates) {
         self.path.push(widget_id);
@@ -1184,20 +1187,20 @@ pub struct RenderContext<'a> {
     pub widget_info: &'a WidgetContextInfo,
 
     /// Read-only access to the state that lives for the duration of the application.
-    pub app_state: &'a StateMap,
+    pub app_state: StateMapRef<'a, state_map::App>,
 
     /// Read-only access to the state that lives for the duration of the window.
-    pub window_state: &'a StateMap,
+    pub window_state: StateMapRef<'a, state_map::Window>,
 
     /// Read-only access to the state that lives for the duration of the widget.
-    pub widget_state: &'a StateMap,
+    pub widget_state: StateMapRef<'a, state_map::Widget>,
 
     /// State that lives for the duration of the node tree render or render update call in the window.
     ///
     /// This state lives only for the call to [`UiNode::render`](crate::UiNode::render) or
     /// [`UiNode::render_update`](crate::UiNode::render_update) method call in all nodes of the window.
     /// You can use this to signal nodes that have not rendered yet.
-    pub update_state: &'a mut StateMap,
+    pub update_state: StateMapMut<'a, state_map::Update>,
 
     /// Read-only access to variables.
     pub vars: &'a VarsRead,
@@ -1208,7 +1211,7 @@ impl<'a> RenderContext<'a> {
         &mut self,
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
-        widget_state: &OwnedStateMap,
+        widget_state: &OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut RenderContext) -> R,
     ) -> R {
         self.path.push(widget_id);
@@ -1253,20 +1256,20 @@ pub struct InfoContext<'a> {
     pub widget_info: &'a WidgetContextInfo,
 
     /// Read-only access to the state that lives for the duration of the application.
-    pub app_state: &'a StateMap,
+    pub app_state: StateMapRef<'a, state_map::App>,
 
     /// Read-only access to the state that lives for the duration of the window.
-    pub window_state: &'a StateMap,
+    pub window_state: StateMapRef<'a, state_map::Window>,
 
     /// Read-only access to the state that lives for the duration of the widget.
-    pub widget_state: &'a StateMap,
+    pub widget_state: StateMapRef<'a, state_map::Widget>,
 
     /// State that lives for the duration of the node tree rebuild or subscriptions aggregation call in the window.
     ///
     /// This state lives only for the call to [`UiNode::info`](crate::UiNode::info) or
     /// [`UiNode::subscriptions`](crate::UiNode::subscriptions) method call in all nodes of the window.
     /// You can use this to signal nodes that have not added info yet.
-    pub update_state: &'a mut StateMap,
+    pub update_state: StateMapMut<'a, state_map::Update>,
 
     /// Read-only access to variables.
     pub vars: &'a VarsRead,
@@ -1277,7 +1280,7 @@ impl<'a> InfoContext<'a> {
         &mut self,
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
-        widget_state: &OwnedStateMap,
+        widget_state: &OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut InfoContext) -> R,
     ) -> R {
         self.path.push(widget_id);
@@ -1287,7 +1290,7 @@ impl<'a> InfoContext<'a> {
             widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &widget_state.0,
+            widget_state: widget_state.borrow(),
             update_state: self.update_state,
             vars: self.vars,
         });

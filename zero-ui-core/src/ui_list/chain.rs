@@ -1,5 +1,5 @@
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext},
+    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
@@ -162,7 +162,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         }
     }
 
-    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+    fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
         let a_len = self.0.len();
         if index < a_len {
             self.0.try_item_state(index)
@@ -171,7 +171,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         }
     }
 
-    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+    fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
         let a_len = self.0.len();
         if index < a_len {
             self.0.try_item_state_mut(index)
@@ -302,7 +302,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn item_state(&self, index: usize) -> &StateMap {
+    fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget> {
         let a_len = self.0.len();
         if index < a_len {
             self.0.item_state(index)
@@ -311,7 +311,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
+    fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget> {
         let a_len = self.0.len();
         if index < a_len {
             self.0.item_state_mut(index)
@@ -514,7 +514,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         }
     }
 
-    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+    fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
         let a_len = self.0.len();
         if index < a_len {
             self.0.try_item_state(index)
@@ -523,7 +523,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         }
     }
 
-    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+    fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
         let a_len = self.0.len();
         if index < a_len {
             self.0.try_item_state_mut(index)

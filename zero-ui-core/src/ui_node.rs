@@ -331,14 +331,14 @@ pub trait UiNode: 'static {
     /// Gets the [`Widget::state`] if this node [`is_widget`].
     ///
     /// [`is_widget`]: UiNode::is_widget
-    fn try_state(&self) -> Option<&StateMap> {
+    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
         None
     }
 
     /// Gets the [`Widget::state_mut`] if this node [`is_widget`].
     ///
     /// [`is_widget`]: UiNode::is_widget
-    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
         None
     }
 
@@ -387,8 +387,8 @@ pub trait UiNodeBoxed: 'static {
 
     fn is_widget_boxed(&self) -> bool;
     fn try_id_boxed(&self) -> Option<WidgetId>;
-    fn try_state_boxed(&self) -> Option<&StateMap>;
-    fn try_state_mut_boxed(&mut self) -> Option<&mut StateMap>;
+    fn try_state_boxed(&self) -> Option<StateMapRef<state_map::Widget>>;
+    fn try_state_mut_boxed(&mut self) -> Option<StateMapMut<state_map::Widget>>;
     fn try_bounds_info_boxed(&self) -> Option<&WidgetBoundsInfo>;
     fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo>;
     fn into_widget_boxed(self: Box<Self>) -> BoxedWidget;
@@ -443,11 +443,11 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.try_id()
     }
 
-    fn try_state_boxed(&self) -> Option<&StateMap> {
+    fn try_state_boxed(&self) -> Option<StateMapRef<state_map::Widget>> {
         self.try_state()
     }
 
-    fn try_state_mut_boxed(&mut self) -> Option<&mut StateMap> {
+    fn try_state_mut_boxed(&mut self) -> Option<StateMapMut<state_map::Widget>> {
         self.try_state_mut()
     }
 
@@ -527,11 +527,11 @@ impl UiNode for BoxedUiNode {
         self.as_ref().try_id_boxed()
     }
 
-    fn try_state(&self) -> Option<&StateMap> {
+    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
         self.as_ref().try_state_boxed()
     }
 
-    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
         self.as_mut().try_state_mut_boxed()
     }
 
@@ -640,14 +640,14 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn try_state(&self) -> Option<&StateMap> {
+    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
         match self {
             Some(node) => node.try_state(),
             None => None,
         }
     }
 
-    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
         match self {
             Some(node) => node.try_state_mut(),
             None => None,
@@ -703,9 +703,9 @@ pub trait Widget: UiNode {
     fn id(&self) -> WidgetId;
 
     /// Reference the widget lazy state.
-    fn state(&self) -> &StateMap;
+    fn state(&self) -> StateMapRef<state_map::Widget>;
     /// Exclusive borrow the widget lazy state.
-    fn state_mut(&mut self) -> &mut StateMap;
+    fn state_mut(&mut self) -> StateMapMut<state_map::Widget>;
 
     /// Bounds layout information.
     ///
@@ -813,8 +813,8 @@ pub trait Widget: UiNode {
 #[doc(hidden)]
 pub trait WidgetBoxed: UiNodeBoxed {
     fn id_boxed(&self) -> WidgetId;
-    fn state_boxed(&self) -> &StateMap;
-    fn state_mut_boxed(&mut self) -> &mut StateMap;
+    fn state_boxed(&self) -> StateMapRef<state_map::Widget>;
+    fn state_mut_boxed(&mut self) -> StateMapMut<state_map::Widget>;
     fn bounds_info_boxed(&self) -> &WidgetBoundsInfo;
     fn border_info_boxed(&self) -> &WidgetBorderInfo;
 }
@@ -823,11 +823,11 @@ impl<W: Widget> WidgetBoxed for W {
         self.id()
     }
 
-    fn state_boxed(&self) -> &StateMap {
+    fn state_boxed(&self) -> StateMapRef<state_map::Widget> {
         self.state()
     }
 
-    fn state_mut_boxed(&mut self) -> &mut StateMap {
+    fn state_mut_boxed(&mut self) -> StateMapMut<state_map::Widget> {
         self.state_mut()
     }
 
@@ -903,11 +903,11 @@ impl UiNode for BoxedWidget {
         Some(self.id())
     }
 
-    fn try_state(&self) -> Option<&StateMap> {
+    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
         Some(self.state())
     }
 
-    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
         Some(self.state_mut())
     }
 
@@ -931,11 +931,11 @@ impl Widget for BoxedWidget {
         self.as_ref().id_boxed()
     }
 
-    fn state(&self) -> &StateMap {
+    fn state(&self) -> StateMapRef<state_map::Widget> {
         self.as_ref().state_boxed()
     }
 
-    fn state_mut(&mut self) -> &mut StateMap {
+    fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
         self.as_mut().state_mut_boxed()
     }
 

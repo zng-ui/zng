@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
-    context::StateMap,
+    context::{state_map, StateMapRef},
     image::Image,
     render::RenderMode,
     state_key,
@@ -133,13 +133,13 @@ impl WindowVars {
     /// # Panics
     ///
     /// Panics if not called using the window state or called in a custom window context that did not setup the variables.
-    pub fn req(window_state: &StateMap) -> &Self {
-        window_state.req(WindowVarsKey)
+    pub fn req<'a>(window_state: &impl AsRef<StateMapRef<'a, state_map::Window>>) -> &'a Self {
+        window_state.as_ref().req(WindowVarsKey)
     }
 
     /// Tries to get the window vars from the window state.
-    pub fn get(window_state: &StateMap) -> Option<&Self> {
-        window_state.get(WindowVarsKey)
+    pub fn get<'a>(window_state: &impl AsRef<StateMapRef<'a, state_map::Window>>) -> Option<&'a Self> {
+        window_state.as_ref().get(WindowVarsKey)
     }
 
     /// Window chrome, the non-client area of the window.

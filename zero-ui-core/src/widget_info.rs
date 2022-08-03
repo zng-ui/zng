@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     border::ContextBorders,
-    context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMap, Updates},
+    context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMapRef, Updates},
     crate_util::IdMap,
     event::EventUpdateArgs,
     handler::WidgetHandler,
@@ -136,7 +136,7 @@ struct WidgetInfoTreeInner {
     interactivity_filters: InteractivityFilters,
     out_of_bounds: RefCell<Rc<Vec<tree::NodeId>>>,
     spatial_bounds: Cell<PxBox>,
-    build_meta: Rc<OwnedStateMap>,
+    build_meta: Rc<OwnedStateMap<WidgetInfoMeta>>,
     stats: RefCell<WidgetInfoTreeStats>,
     stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
     out_of_bounds_update: RefCell<Vec<(tree::NodeId, bool)>>,
@@ -169,7 +169,7 @@ impl WidgetInfoTree {
     /// Custom metadata associated with the tree during info build.
     ///
     /// Any widget (that was not reused) can have inserted metadata.
-    pub fn build_meta(&self) -> &StateMap {
+    pub fn build_meta(&self) -> StateMapRef<WidgetInfoMeta> {
         &self.0.build_meta.0
     }
 
@@ -835,7 +835,7 @@ struct WidgetInfoData {
     widget_id: WidgetId,
     bounds_info: WidgetBoundsInfo,
     border_info: WidgetBorderInfo,
-    meta: Rc<OwnedStateMap>,
+    meta: Rc<OwnedStateMap<WidgetInfoMeta>>,
     interactivity_filters: InteractivityFilters,
     interactivity_cache: Cell<Option<Interactivity>>,
     local_interactivity: Cell<Interactivity>,
@@ -869,7 +869,7 @@ impl<'a> std::fmt::Debug for WidgetInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WidgetInfo")
             .field("[path]", &self.path().to_string())
-            .field("[meta]", self.meta())
+            .field("[meta]", &self.meta())
             .finish_non_exhaustive()
     }
 }
@@ -1116,8 +1116,8 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Custom metadata associated with the widget during info build.
-    pub fn meta(self) -> &'a StateMap {
-        &self.info().meta.0
+    pub fn meta(self) -> StateMapRef<'a, WidgetInfoMeta> {
+        self.info().meta.borrow()
     }
 
     /// Reference the [`WidgetInfoTree`] that owns `self`.

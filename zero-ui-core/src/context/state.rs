@@ -38,13 +38,13 @@ pub trait StateKey: Copy + 'static {
 ///     pub struct FooKey: u32;
 /// }
 /// ```
-/// 
+///
 /// # Naming Convention
 ///
 /// It is recommended that the type name ends with the `Key` suffix. If the value is a singleton-like value the key
 /// can be made private and a helper function to require and get the value added directly on the value type, see [`WindowVars::req`]
 /// and [`WindowVars::get`] for examples of this.
-/// 
+///
 /// [`StateKey`]: crate::context::StateKey
 /// [`WindowVars::req`]: crate::window::WindowVars::req
 /// [`WindowVars::get`]: crate::window::WindowVars::get
@@ -68,58 +68,82 @@ macro_rules! state_key {
 #[doc(inline)]
 pub use crate::state_key;
 
-/// A map of [state keys](StateKey) to values of their associated types that exists for
-/// a stage of the application.
+/// Read-only state map.
 ///
-/// # No Remove
-///
-/// Note that there is no way to clear the map, remove a key or replace the map with a new empty one.
-/// This is by design, if you want to make a key *removable* make its value `Option<T>`.
-pub struct StateMap {
-    map: AnyMap,
-}
-impl fmt::Debug for StateMap {
+/// The `U` parameter is tag type that represents the map's *context*.
+#[derive(Clone, Copy)]
+pub struct StateMapRef<'a, U>(&'a state_map::StateMap, PhantomData<U>);
+impl<'a, U> fmt::Debug for StateMapRef<'a, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "StateMap[{} entries]", self.map.len())
+        write!(f, "StateMapRef<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
     }
 }
-impl StateMap {
-    pub(crate) fn new() -> Self {
-        StateMap { map: AnyMap::default() }
-    }
-
-    /// Set the key `value`.
-    ///
-    /// # Key
-    ///
-    /// Use [`state_key!`](crate::context::state_key) to generate a key, any static type can be a key,
-    /// the [type id](TypeId) is the actual key.
-    pub fn set<S: StateKey>(&mut self, _key: S, value: S::Type) -> Option<S::Type> {
-        self.map.insert(TypeId::of::<S>(), Box::new(value)).map(|any| {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { *any.downcast_unchecked::<S::Type>() }
-        })
-    }
-
-    /// Sets a value that is its own [`StateKey`].
-    pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
-        self.map.insert(TypeId::of::<S>(), Box::new(value)).map(|any| {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { *any.downcast_unchecked::<S>() }
-        })
-    }
-
+impl<'a, U> StateMapRef<'a, U> {
     /// Gets if the key is set in this map.
-    pub fn contains<S: StateKey>(&self, _key: S) -> bool {
-        self.map.contains_key(&TypeId::of::<S>())
+    pub fn contains<S: StateKey>(self, key: S) -> bool {
+        self.0.contains(key)
     }
 
     /// Reference the key value set in this map.
-    pub fn get<S: StateKey>(&self, _key: S) -> Option<&S::Type> {
-        self.map.get(&TypeId::of::<S>()).map(|any| {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { any.downcast_ref_unchecked::<S::Type>() }
-        })
+    pub fn get<S: StateKey>(self, key: S) -> Option<&'a S::Type> {
+        self.0.get(key)
+    }
+
+    /// Copy the key value set in this map.
+    pub fn copy<S: StateKey>(self, key: S) -> Option<S::Type>
+    where
+        S::Type: Copy,
+    {
+        self.get(key).copied()
+    }
+
+    /// Clone the key value set in this map.
+    pub fn get_clone<S: StateKey>(self, key: S) -> Option<S::Type>
+    where
+        S::Type: Clone,
+    {
+        self.get(key).cloned()
+    }
+
+    /// Reference the key value set in this map or panics if the key is not set.
+    pub fn req<S: StateKey>(self, key: S) -> &'a S::Type {
+        self.0.req(key)
+    }
+
+    /// Gets if a state key without value is set.
+    pub fn flagged<S: StateKey<Type = ()>>(self, key: S) -> bool {
+        self.0.flagged(key)
+    }
+
+    /// If no state is set.
+    pub fn is_empty(self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns `true` if self and other reference the same map.
+    pub fn ptr_eq(self, other: Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+}
+
+/// Mutable state map.
+///
+/// The `U` parameter is tag type that represents the map's *context*.
+pub struct StateMapMut<'a, U>(&'a mut state_map::StateMap, PhantomData<U>);
+impl<'a, U> fmt::Debug for StateMapMut<'a, U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "StateMapMut<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
+    }
+}
+impl<'a, U> StateMapMut<'a, U> {
+    /// Gets if the key is set in this map.
+    pub fn contains<S: StateKey>(&self, key: S) -> bool {
+        self.0.contains(key)
+    }
+
+    /// Reference the key value set in this map.
+    pub fn get<S: StateKey>(&'a self, key: S) -> Option<&'a S::Type> {
+        self.0.get(key)
     }
 
     /// Copy the key value set in this map.
@@ -138,228 +162,19 @@ impl StateMap {
         self.get(key).cloned()
     }
 
-    /// Mutable borrow the key value set in this map.
-    pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&mut S::Type> {
-        self.map.get_mut(&TypeId::of::<S>()).map(|any| {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { any.downcast_mut_unchecked::<S::Type>() }
-        })
-    }
-
     /// Reference the key value set in this map or panics if the key is not set.
-    pub fn req<S: StateKey>(&self, key: S) -> &S::Type {
-        self.get(key)
-            .unwrap_or_else(|| panic!("expected `{}` in state map", type_name::<S>()))
-    }
-
-    /// Mutable borrow the key value set in this map or panics if the key is not set.
-    pub fn req_mut<S: StateKey>(&mut self, key: S) -> &mut S::Type {
-        self.get_mut(key)
-            .unwrap_or_else(|| panic!("expected `{}` in state map", type_name::<S>()))
-    }
-
-    /// Gets the given key's corresponding entry in the map for in-place manipulation.
-    pub fn entry<S: StateKey>(&mut self, _key: S) -> StateMapEntry<S> {
-        match self.map.entry(TypeId::of::<S>()) {
-            std::collections::hash_map::Entry::Occupied(e) => StateMapEntry::Occupied(OccupiedStateMapEntry {
-                _key: PhantomData,
-                entry: e,
-            }),
-            std::collections::hash_map::Entry::Vacant(e) => StateMapEntry::Vacant(VacantStateMapEntry {
-                _key: PhantomData,
-                entry: e,
-            }),
-        }
-    }
-
-    /// Sets a state key without value.
-    ///
-    /// Returns if the state key was already flagged.
-    pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
-        self.set(key, ()).is_some()
+    pub fn req<S: StateKey>(&'a self, key: S) -> &'a S::Type {
+        self.0.req(key)
     }
 
     /// Gets if a state key without value is set.
-    pub fn flagged<S: StateKey<Type = ()>>(&self, _key: S) -> bool {
-        self.map.contains_key(&TypeId::of::<S>())
+    pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
+        self.0.flagged(key)
     }
 
     /// If no state is set.
     pub fn is_empty(&self) -> bool {
-        self.map.is_empty()
-    }
-}
-
-/// A view into an occupied entry in a [`StateMap`].
-///
-/// This struct is part of [`StateMapEntry`].
-pub struct OccupiedStateMapEntry<'a, S: StateKey> {
-    _key: PhantomData<S>,
-    entry: std::collections::hash_map::OccupiedEntry<'a, TypeId, Box<dyn UnsafeAny>>,
-}
-impl<'a, S: StateKey> OccupiedStateMapEntry<'a, S> {
-    /// Gets a reference to the value in the entry.
-    pub fn get(&self) -> &S::Type {
-        // SAFETY: The type system asserts this is valid.
-        unsafe { self.entry.get().downcast_ref_unchecked() }
-    }
-
-    /// Gets a mutable reference to the value in the entry.
-    ///
-    /// If you need a reference to the OccupiedEntry which may outlive the destruction of the Entry value, see [`into_mut`].
-    ///
-    /// [`into_mut`]: Self::into_mut
-    pub fn get_mut(&mut self) -> &mut S::Type {
-        // SAFETY: The type system asserts this is valid.
-        unsafe { self.entry.get_mut().downcast_mut_unchecked() }
-    }
-
-    /// Converts the entry into a mutable reference to the value in the entry with a lifetime bound to the map itself.
-    ///
-    /// If you need multiple references to the OccupiedEntry, see [`get_mut`].
-    ///
-    /// [`get_mut`]: Self::get_mut
-    pub fn into_mut(self) -> &'a mut S::Type {
-        // SAFETY: The type system asserts this is valid.
-        unsafe { self.entry.into_mut().downcast_mut_unchecked() }
-    }
-
-    /// Sets the value of the entry, and returns the entry’s old value.
-    pub fn insert(&mut self, value: S::Type) -> S::Type {
-        // SAFETY: The type system asserts this is valid.
-        unsafe { *self.entry.insert(Box::new(value)).downcast_unchecked() }
-    }
-
-    /// Takes the value out of the entry, and returns it.
-    pub fn remove(self) -> S::Type {
-        // SAFETY: The type system asserts this is valid.
-        unsafe { *self.entry.remove().downcast_unchecked() }
-    }
-}
-impl<'a, S: StateKey> fmt::Debug for OccupiedStateMapEntry<'a, S>
-where
-    S::Type: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("OccupiedStateMapEntry")
-            .field("key", &type_name::<S>())
-            .field("value", self.get())
-            .finish_non_exhaustive()
-    }
-}
-
-/// A view into a vacant entry in a [`StateMap`].
-///
-/// This struct is part of [`StateMapEntry`].
-pub struct VacantStateMapEntry<'a, S: StateKey> {
-    _key: PhantomData<S>,
-    entry: std::collections::hash_map::VacantEntry<'a, TypeId, Box<dyn UnsafeAny>>,
-}
-impl<'a, S: StateKey> VacantStateMapEntry<'a, S> {
-    /// Sets the value of the entry and returns a mutable reference to it.
-    pub fn insert(self, value: S::Type) -> &'a mut S::Type {
-        // SAFETY: The type system asserts this is valid.
-        unsafe { self.entry.insert(Box::new(value)).downcast_mut_unchecked() }
-    }
-}
-impl<'a, S: StateKey> fmt::Debug for VacantStateMapEntry<'a, S>
-where
-    S::Type: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("VacantStateMapEntry")
-            .field("key", &type_name::<S>())
-            .finish_non_exhaustive()
-    }
-}
-
-/// A view into a single entry in a state map, which may either be vacant or occupied.
-///
-/// This `enum` is constructed from the [`entry`] method on [`StateMap`].
-///
-/// [`entry`]: StateMap::entry
-pub enum StateMapEntry<'a, S: StateKey> {
-    /// An occupied entry.
-    Occupied(OccupiedStateMapEntry<'a, S>),
-    /// A vacant entry.
-    Vacant(VacantStateMapEntry<'a, S>),
-}
-impl<'a, S: StateKey> StateMapEntry<'a, S> {
-    /// Ensures a value is in the entry by inserting the default if empty, and
-    /// returns a mutable reference to the value in the entry.
-    pub fn or_insert(self, default: S::Type) -> &'a mut S::Type {
-        match self {
-            StateMapEntry::Occupied(e) => e.into_mut(),
-            StateMapEntry::Vacant(e) => e.insert(default),
-        }
-    }
-
-    /// Ensures a value is in the entry by inserting the result of the
-    /// default function if empty, and returns a mutable reference to the value in the entry.
-    pub fn or_insert_with<F: FnOnce() -> S::Type>(self, default: F) -> &'a mut S::Type {
-        match self {
-            StateMapEntry::Occupied(e) => e.into_mut(),
-            StateMapEntry::Vacant(e) => e.insert(default()),
-        }
-    }
-
-    /// Provides in-place mutable access to an occupied entry before any potential inserts into the map.
-    pub fn and_modify<F: FnOnce(&mut S::Type)>(mut self, f: F) -> Self {
-        if let StateMapEntry::Occupied(e) = &mut self {
-            f(e.get_mut())
-        }
-        self
-    }
-}
-impl<'a, S: StateKey> StateMapEntry<'a, S>
-where
-    S::Type: Default,
-{
-    /// Ensures a value is in the entry by inserting the default value if empty,
-    /// and returns a mutable reference to the value in the entry.
-    pub fn or_default(self) -> &'a mut S::Type {
-        self.or_insert_with(Default::default)
-    }
-}
-impl<'a, S: StateKey> fmt::Debug for StateMapEntry<'a, S>
-where
-    S::Type: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Occupied(arg0) => f.debug_tuple("Occupied").field(arg0).finish(),
-            Self::Vacant(arg0) => f.debug_tuple("Vacant").field(arg0).finish(),
-        }
-    }
-}
-
-/// Private [`StateMap`].
-///
-/// The owner of a state map has full access including to the `remove` and `clear` function that is not
-/// provided in the [`StateMap`] type.
-pub struct OwnedStateMap(pub(crate) StateMap);
-impl Default for OwnedStateMap {
-    fn default() -> Self {
-        OwnedStateMap(StateMap::new())
-    }
-}
-impl OwnedStateMap {
-    /// New default, empty.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Remove the key.
-    pub fn remove<S: StateKey>(&mut self, _key: S) -> Option<S::Type> {
-        self.0.map.remove(&TypeId::of::<S>()).map(|a| {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { *a.downcast_unchecked::<S::Type>() }
-        })
-    }
-
-    /// Removes all entries.
-    pub fn clear(&mut self) {
-        self.0.map.clear()
+        self.0.is_empty()
     }
 
     /// Set the key `value`.
@@ -376,34 +191,17 @@ impl OwnedStateMap {
     pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
         self.0.set_single(value)
     }
-
-    /// Gets if the key is set in this map.
-    pub fn contains<S: StateKey>(&self, key: S) -> bool {
-        self.0.contains(key)
-    }
-
-    /// Reference the key value set in this map.
-    pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
-        self.0.get(key)
-    }
-
     /// Mutable borrow the key value set in this map.
-    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
+    pub fn get_mut<S: StateKey>(&'a mut self, key: S) -> Option<&'a mut S::Type> {
         self.0.get_mut(key)
     }
-
-    /// Reference the key value set in this map, or panics if the key is not set.
-    pub fn req<S: StateKey>(&self, key: S) -> &S::Type {
-        self.0.req(key)
-    }
-
-    /// Mutable borrow the key value set in this map, or panics if the key is not set.
-    pub fn req_mut<S: StateKey>(&mut self, key: S) -> &mut S::Type {
+    /// Mutable borrow the key value set in this map or panics if the key is not set.
+    pub fn req_mut<S: StateKey>(&'a mut self, key: S) -> &'a mut S::Type {
         self.0.req_mut(key)
     }
 
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
-    pub fn entry<S: StateKey>(&mut self, key: S) -> StateMapEntry<S> {
+    pub fn entry<S: StateKey>(&mut self, key: S) -> state_map::StateMapEntry<S> {
         self.0.entry(key)
     }
 
@@ -411,17 +209,326 @@ impl OwnedStateMap {
     ///
     /// Returns if the state key was already flagged.
     pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
-        self.0.flag(key)
+        self.flag(key)
     }
 
-    /// Gets if a state key without value is set.
-    pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
-        self.0.flagged(key)
+    /// Reborrow the mutable reference.
+    pub fn reborrow(&'a mut self) -> StateMapMut<'a, U> {
+        StateMapMut(self.0, PhantomData)
     }
 
-    /// If no state is set.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+    /// Reborrow the reference as read-only.
+    pub fn as_ref(&'a mut self) -> StateMapRef<'a, U> {
+        StateMapRef(self.0, PhantomData)
+    }
+}
+
+/// Private state map.
+///
+/// The owner of a state map has full access including to the `remove` and `clear` methods that are not
+/// provided in the [`StateMap`] type.
+///
+/// The `U` parameter is tag type that represents the map's *context*.
+pub struct OwnedStateMap<U>(state_map::StateMap, PhantomData<U>);
+impl<'a, U> fmt::Debug for OwnedStateMap<U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "OwnedStateMap<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
+    }
+}
+impl<U> Default for OwnedStateMap<U> {
+    fn default() -> Self {
+        OwnedStateMap(state_map::StateMap::new(), PhantomData)
+    }
+}
+impl<U> OwnedStateMap<U> {
+    /// New default, empty.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Remove the key.
+    pub fn remove<S: StateKey>(&mut self, key: S) -> Option<S::Type> {
+        self.0.remove(key)
+    }
+
+    /// Removes all entries.
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+
+    /// Create tagged read-only reference to the map.
+    pub fn borrow(&self) -> StateMapRef<U> {
+        StateMapRef(&self.0, PhantomData)
+    }
+
+    /// Crate tagged mutable reference to the map.
+    pub fn borrow_mut(&mut self) -> StateMapMut<U> {
+        StateMapMut(&mut self.0, PhantomData)
+    }
+}
+
+/// State map helper types.
+pub mod state_map {
+    use super::*;
+
+    /// App state-map tag.
+    pub enum App {}
+
+    /// Window state-map tag.
+    pub enum Window {}
+
+    /// Widget state-map tag.
+    pub enum Widget {}
+
+    /// Update state-map tag.
+    pub enum Update {}
+
+    pub(super) struct StateMap {
+        map: AnyMap,
+    }
+    impl StateMap {
+        pub(super) fn new() -> Self {
+            StateMap { map: AnyMap::default() }
+        }
+
+        pub(super) fn len(&self) -> usize {
+            self.map.len()
+        }
+
+        pub(super) fn remove<S: StateKey>(&mut self, _key: S) -> Option<S::Type> {
+            self.map.remove(&TypeId::of::<S>()).map(|a| {
+                // SAFETY: The type system asserts this is valid.
+                unsafe { *a.downcast_unchecked::<S::Type>() }
+            })
+        }
+
+        pub(super) fn clear(&mut self) {
+            self.map.clear()
+        }
+
+        pub fn set<S: StateKey>(&mut self, _key: S, value: S::Type) -> Option<S::Type> {
+            self.map.insert(TypeId::of::<S>(), Box::new(value)).map(|any| {
+                // SAFETY: The type system asserts this is valid.
+                unsafe { *any.downcast_unchecked::<S::Type>() }
+            })
+        }
+
+        pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
+            self.map.insert(TypeId::of::<S>(), Box::new(value)).map(|any| {
+                // SAFETY: The type system asserts this is valid.
+                unsafe { *any.downcast_unchecked::<S>() }
+            })
+        }
+
+        pub fn contains<S: StateKey>(&self, _key: S) -> bool {
+            self.map.contains_key(&TypeId::of::<S>())
+        }
+
+        pub fn get<S: StateKey>(&self, _key: S) -> Option<&S::Type> {
+            self.map.get(&TypeId::of::<S>()).map(|any| {
+                // SAFETY: The type system asserts this is valid.
+                unsafe { any.downcast_ref_unchecked::<S::Type>() }
+            })
+        }
+
+        pub fn copy<S: StateKey>(&self, key: S) -> Option<S::Type>
+        where
+            S::Type: Copy,
+        {
+            self.get(key).copied()
+        }
+
+        pub fn get_clone<S: StateKey>(&self, key: S) -> Option<S::Type>
+        where
+            S::Type: Clone,
+        {
+            self.get(key).cloned()
+        }
+
+        pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&mut S::Type> {
+            self.map.get_mut(&TypeId::of::<S>()).map(|any| {
+                // SAFETY: The type system asserts this is valid.
+                unsafe { any.downcast_mut_unchecked::<S::Type>() }
+            })
+        }
+
+        pub fn req<S: StateKey>(&self, key: S) -> &S::Type {
+            self.get(key)
+                .unwrap_or_else(|| panic!("expected `{}` in state map", type_name::<S>()))
+        }
+
+        pub fn req_mut<S: StateKey>(&mut self, key: S) -> &mut S::Type {
+            self.get_mut(key)
+                .unwrap_or_else(|| panic!("expected `{}` in state map", type_name::<S>()))
+        }
+
+        pub fn entry<S: StateKey>(&mut self, _key: S) -> StateMapEntry<S> {
+            match self.map.entry(TypeId::of::<S>()) {
+                std::collections::hash_map::Entry::Occupied(e) => StateMapEntry::Occupied(OccupiedStateMapEntry {
+                    _key: PhantomData,
+                    entry: e,
+                }),
+                std::collections::hash_map::Entry::Vacant(e) => StateMapEntry::Vacant(VacantStateMapEntry {
+                    _key: PhantomData,
+                    entry: e,
+                }),
+            }
+        }
+
+        pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
+            self.set(key, ()).is_some()
+        }
+
+        pub fn flagged<S: StateKey<Type = ()>>(&self, _key: S) -> bool {
+            self.map.contains_key(&TypeId::of::<S>())
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.map.is_empty()
+        }
+    }
+
+    /// A view into an occupied entry in a [`StateMap`].
+    ///
+    /// This struct is part of [`StateMapEntry`].
+    pub struct OccupiedStateMapEntry<'a, S: StateKey> {
+        _key: PhantomData<S>,
+        entry: std::collections::hash_map::OccupiedEntry<'a, TypeId, Box<dyn UnsafeAny>>,
+    }
+    impl<'a, S: StateKey> OccupiedStateMapEntry<'a, S> {
+        /// Gets a reference to the value in the entry.
+        pub fn get(&self) -> &S::Type {
+            // SAFETY: The type system asserts this is valid.
+            unsafe { self.entry.get().downcast_ref_unchecked() }
+        }
+
+        /// Gets a mutable reference to the value in the entry.
+        ///
+        /// If you need a reference to the OccupiedEntry which may outlive the destruction of the Entry value, see [`into_mut`].
+        ///
+        /// [`into_mut`]: Self::into_mut
+        pub fn get_mut(&mut self) -> &mut S::Type {
+            // SAFETY: The type system asserts this is valid.
+            unsafe { self.entry.get_mut().downcast_mut_unchecked() }
+        }
+
+        /// Converts the entry into a mutable reference to the value in the entry with a lifetime bound to the map itself.
+        ///
+        /// If you need multiple references to the OccupiedEntry, see [`get_mut`].
+        ///
+        /// [`get_mut`]: Self::get_mut
+        pub fn into_mut(self) -> &'a mut S::Type {
+            // SAFETY: The type system asserts this is valid.
+            unsafe { self.entry.into_mut().downcast_mut_unchecked() }
+        }
+
+        /// Sets the value of the entry, and returns the entry’s old value.
+        pub fn insert(&mut self, value: S::Type) -> S::Type {
+            // SAFETY: The type system asserts this is valid.
+            unsafe { *self.entry.insert(Box::new(value)).downcast_unchecked() }
+        }
+
+        /// Takes the value out of the entry, and returns it.
+        pub fn remove(self) -> S::Type {
+            // SAFETY: The type system asserts this is valid.
+            unsafe { *self.entry.remove().downcast_unchecked() }
+        }
+    }
+    impl<'a, S: StateKey> fmt::Debug for OccupiedStateMapEntry<'a, S>
+    where
+        S::Type: fmt::Debug,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("OccupiedStateMapEntry")
+                .field("key", &type_name::<S>())
+                .field("value", self.get())
+                .finish_non_exhaustive()
+        }
+    }
+
+    /// A view into a vacant entry in a [`StateMap`].
+    ///
+    /// This struct is part of [`StateMapEntry`].
+    pub struct VacantStateMapEntry<'a, S: StateKey> {
+        _key: PhantomData<S>,
+        entry: std::collections::hash_map::VacantEntry<'a, TypeId, Box<dyn UnsafeAny>>,
+    }
+    impl<'a, S: StateKey> VacantStateMapEntry<'a, S> {
+        /// Sets the value of the entry and returns a mutable reference to it.
+        pub fn insert(self, value: S::Type) -> &'a mut S::Type {
+            // SAFETY: The type system asserts this is valid.
+            unsafe { self.entry.insert(Box::new(value)).downcast_mut_unchecked() }
+        }
+    }
+    impl<'a, S: StateKey> fmt::Debug for VacantStateMapEntry<'a, S>
+    where
+        S::Type: fmt::Debug,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("VacantStateMapEntry")
+                .field("key", &type_name::<S>())
+                .finish_non_exhaustive()
+        }
+    }
+
+    /// A view into a single entry in a state map, which may either be vacant or occupied.
+    ///
+    /// This `enum` is constructed from the [`entry`] method on [`StateMap`].
+    ///
+    /// [`entry`]: StateMap::entry
+    pub enum StateMapEntry<'a, S: StateKey> {
+        /// An occupied entry.
+        Occupied(OccupiedStateMapEntry<'a, S>),
+        /// A vacant entry.
+        Vacant(VacantStateMapEntry<'a, S>),
+    }
+    impl<'a, S: StateKey> StateMapEntry<'a, S> {
+        /// Ensures a value is in the entry by inserting the default if empty, and
+        /// returns a mutable reference to the value in the entry.
+        pub fn or_insert(self, default: S::Type) -> &'a mut S::Type {
+            match self {
+                StateMapEntry::Occupied(e) => e.into_mut(),
+                StateMapEntry::Vacant(e) => e.insert(default),
+            }
+        }
+
+        /// Ensures a value is in the entry by inserting the result of the
+        /// default function if empty, and returns a mutable reference to the value in the entry.
+        pub fn or_insert_with<F: FnOnce() -> S::Type>(self, default: F) -> &'a mut S::Type {
+            match self {
+                StateMapEntry::Occupied(e) => e.into_mut(),
+                StateMapEntry::Vacant(e) => e.insert(default()),
+            }
+        }
+
+        /// Provides in-place mutable access to an occupied entry before any potential inserts into the map.
+        pub fn and_modify<F: FnOnce(&mut S::Type)>(mut self, f: F) -> Self {
+            if let StateMapEntry::Occupied(e) = &mut self {
+                f(e.get_mut())
+            }
+            self
+        }
+    }
+    impl<'a, S: StateKey> StateMapEntry<'a, S>
+    where
+        S::Type: Default,
+    {
+        /// Ensures a value is in the entry by inserting the default value if empty,
+        /// and returns a mutable reference to the value in the entry.
+        pub fn or_default(self) -> &'a mut S::Type {
+            self.or_insert_with(Default::default)
+        }
+    }
+    impl<'a, S: StateKey> fmt::Debug for StateMapEntry<'a, S>
+    where
+        S::Type: fmt::Debug,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                Self::Occupied(arg0) => f.debug_tuple("Occupied").field(arg0).finish(),
+                Self::Vacant(arg0) => f.debug_tuple("Vacant").field(arg0).finish(),
+            }
+        }
     }
 }
 

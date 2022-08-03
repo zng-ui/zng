@@ -7,7 +7,7 @@ use super::commands::WindowCommands;
 use super::*;
 use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent};
 use crate::app::{AppProcess, ExitRequestedEvent};
-use crate::context::OwnedStateMap;
+use crate::context::{state_map, OwnedStateMap};
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
@@ -721,7 +721,7 @@ struct AppWindow {
 
     id: WindowId,
     pub(super) mode: WindowMode,
-    state: OwnedStateMap,
+    state: OwnedStateMap<state_map::Window>,
 }
 impl AppWindow {
     pub fn new(

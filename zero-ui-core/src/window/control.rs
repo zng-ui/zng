@@ -11,7 +11,7 @@ use crate::{
         view_process::*,
     },
     color::RenderColor,
-    context::{LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
+    context::{state_map, LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::EventUpdateArgs,
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
@@ -1109,7 +1109,7 @@ struct ContentCtrl {
     commands: WindowCommands,
 
     root_id: WidgetId,
-    root_state: OwnedStateMap,
+    root_state: OwnedStateMap<state_map::Widget>,
     root: BoxedUiNode,
     // info
     info_tree: WidgetInfoTree,
