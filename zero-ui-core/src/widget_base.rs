@@ -510,11 +510,11 @@ pub mod implicit_base {
                 }
 
                 fn state(&self) -> StateMapRef<state_map::Widget> {
-                    &self.state.0
+                    self.state.borrow()
                 }
 
                 fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
-                    &mut self.state.0
+                    self.state.borrow_mut()
                 }
 
                 fn bounds_info(&self) -> &WidgetBoundsInfo {

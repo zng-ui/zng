@@ -31,7 +31,7 @@ where
         S: Fn(&WindowVars) -> SV + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let window_var = (self.select)(WindowVars::req(ctx.window_state));
+            let window_var = (self.select)(WindowVars::req(ctx));
             if self.user_var.can_update() {
                 self.binding = Some(self.user_var.bind_bidi(ctx.vars, &window_var));
             }

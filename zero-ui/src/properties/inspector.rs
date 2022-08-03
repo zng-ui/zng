@@ -157,7 +157,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = MouseMoveEvent.update(args) {
                 if self.valid && self.enabled.copy(ctx) {
-                    let factor = WindowVars::req(ctx.window_state).scale_factor().copy(ctx.vars);
+                    let factor = WindowVars::req(ctx).scale_factor().copy(ctx.vars);
                     let pt = args.position.to_px(factor.0);
 
                     let fails = Rc::new(RefCell::new(vec![]));

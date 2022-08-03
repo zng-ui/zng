@@ -15,7 +15,7 @@ use crate::{
     UiNode,
 };
 
-/// A key to a value in a [`StateMap`].
+/// A key to a value in a state map.
 ///
 /// The type that implements this trait is the key. You can use the [`state_key!`]
 /// macro to generate a key type.
@@ -71,8 +71,13 @@ pub use crate::state_key;
 /// Read-only state map.
 ///
 /// The `U` parameter is tag type that represents the map's *context*.
-#[derive(Clone, Copy)]
 pub struct StateMapRef<'a, U>(&'a state_map::StateMap, PhantomData<U>);
+impl<'a, U> Clone for StateMapRef<'a, U> {
+    fn clone(&self) -> Self {
+        Self(self.0, PhantomData)
+    }
+}
+impl<'a, U> Copy for StateMapRef<'a, U> {}
 impl<'a, U> fmt::Debug for StateMapRef<'a, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "StateMapRef<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
@@ -142,7 +147,12 @@ impl<'a, U> StateMapMut<'a, U> {
     }
 
     /// Reference the key value set in this map.
-    pub fn get<S: StateKey>(&'a self, key: S) -> Option<&'a S::Type> {
+    pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
+        self.0.get(key)
+    }
+
+    /// Consume the mutable reference to the map and returns a reference to the value in the parent lifetime `'a`.
+    pub fn into_get<S: StateKey>(self, key: S) -> Option<&'a S::Type> {
         self.0.get(key)
     }
 
@@ -163,7 +173,12 @@ impl<'a, U> StateMapMut<'a, U> {
     }
 
     /// Reference the key value set in this map or panics if the key is not set.
-    pub fn req<S: StateKey>(&'a self, key: S) -> &'a S::Type {
+    pub fn req<S: StateKey>(&self, key: S) -> &S::Type {
+        self.0.req(key)
+    }
+
+    /// Consume the mutable reference to the map and returns a reference to the value in the parent lifetime `'a`.
+    pub fn into_req<S: StateKey>(self, key: S) -> &'a S::Type {
         self.0.req(key)
     }
 
@@ -191,12 +206,24 @@ impl<'a, U> StateMapMut<'a, U> {
     pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
         self.0.set_single(value)
     }
+
     /// Mutable borrow the key value set in this map.
-    pub fn get_mut<S: StateKey>(&'a mut self, key: S) -> Option<&'a mut S::Type> {
+    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
         self.0.get_mut(key)
     }
+
+    /// Consume the mutable reference to the map and mutable borrow the key value in the parent lifetime `'a`.
+    pub fn into_get_mut<S: StateKey>(self, key: S) -> Option<&'a mut S::Type> {
+        self.0.get_mut(key)
+    }
+
     /// Mutable borrow the key value set in this map or panics if the key is not set.
-    pub fn req_mut<S: StateKey>(&'a mut self, key: S) -> &'a mut S::Type {
+    pub fn req_mut<S: StateKey>(&mut self, key: S) -> &mut S::Type {
+        self.0.req_mut(key)
+    }
+
+    /// Consume the mutable reference to the map and mutable borrow the key value in the parent lifetime `'a`.
+    pub fn into_req_mut<S: StateKey>(self, key: S) -> &'a mut S::Type {
         self.0.req_mut(key)
     }
 
@@ -205,20 +232,25 @@ impl<'a, U> StateMapMut<'a, U> {
         self.0.entry(key)
     }
 
+    /// Consume the mutable reference to the map and returns a given key's corresponding entry in the map with the parent lifetime `'a`.
+    pub fn into_entry<S: StateKey>(self, key: S) -> state_map::StateMapEntry<'a, S> {
+        self.0.entry(key)
+    }
+
     /// Sets a state key without value.
     ///
     /// Returns if the state key was already flagged.
     pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
-        self.flag(key)
+        self.0.flag(key)
     }
 
     /// Reborrow the mutable reference.
-    pub fn reborrow(&'a mut self) -> StateMapMut<'a, U> {
+    pub fn reborrow(&mut self) -> StateMapMut<U> {
         StateMapMut(self.0, PhantomData)
     }
 
     /// Reborrow the reference as read-only.
-    pub fn as_ref(&'a mut self) -> StateMapRef<'a, U> {
+    pub fn as_ref(&self) -> StateMapRef<U> {
         StateMapRef(self.0, PhantomData)
     }
 }
@@ -226,11 +258,12 @@ impl<'a, U> StateMapMut<'a, U> {
 /// Private state map.
 ///
 /// The owner of a state map has full access including to the `remove` and `clear` methods that are not
-/// provided in the [`StateMap`] type.
+/// provided in the [`StateMapMut`] type. All mutable references borrowed from this map are also protected to
+/// not allow replacement.
 ///
 /// The `U` parameter is tag type that represents the map's *context*.
 pub struct OwnedStateMap<U>(state_map::StateMap, PhantomData<U>);
-impl<'a, U> fmt::Debug for OwnedStateMap<U> {
+impl<U> fmt::Debug for OwnedStateMap<U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "OwnedStateMap<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
     }
@@ -264,6 +297,141 @@ impl<U> OwnedStateMap<U> {
     /// Crate tagged mutable reference to the map.
     pub fn borrow_mut(&mut self) -> StateMapMut<U> {
         StateMapMut(&mut self.0, PhantomData)
+    }
+}
+
+/// Borrow a read-only reference to a state-map of kind `U`.
+pub trait BorrowStateMap<U> {
+    /// Borrow a read-only reference to a state-map.
+    fn borrow(&self) -> StateMapRef<U>;
+}
+impl<'a, U> BorrowStateMap<U> for StateMapRef<'a, U> {
+    fn borrow(&self) -> StateMapRef<U> {
+        *self
+    }
+}
+impl<'a, U> BorrowStateMap<U> for StateMapMut<'a, U> {
+    fn borrow(&self) -> StateMapRef<U> {
+        self.as_ref()
+    }
+}
+impl<U> BorrowStateMap<U> for OwnedStateMap<U> {
+    fn borrow(&self) -> StateMapRef<U> {
+        self.borrow()
+    }
+}
+
+/// Borrow a mutable reference to a state-map of kind `U`.
+pub trait BorrowMutStateMap<U> {
+    /// Borrow a mutable reference to a state-map.
+    fn borrow_mut(&mut self) -> StateMapMut<U>;
+}
+impl<'a, U> BorrowMutStateMap<U> for StateMapMut<'a, U> {
+    fn borrow_mut(&mut self) -> StateMapMut<U> {
+        self.reborrow()
+    }
+}
+impl<U> BorrowMutStateMap<U> for OwnedStateMap<U> {
+    fn borrow_mut(&mut self) -> StateMapMut<U> {
+        self.borrow_mut()
+    }
+}
+
+macro_rules! impl_borrow_mut_for_ctx {
+    ($($Ctx:ident.$field:ident : $Tag:ident;)+) => {$(
+
+        impl<'a> BorrowStateMap<state_map::$Tag> for crate::context::$Ctx<'a> {
+            fn borrow(&self) -> StateMapRef<state_map::$Tag> {
+                self.$field.as_ref()
+            }
+        }
+
+        impl<'a> BorrowMutStateMap<state_map::$Tag> for crate::context::$Ctx<'a> {
+            fn borrow_mut(&mut self) -> StateMapMut<state_map::$Tag> {
+                self.$field.reborrow()
+            }
+        }
+
+    )+}
+}
+impl_borrow_mut_for_ctx! {
+    AppContext.app_state: App;
+    WindowContext.app_state: App;
+    WidgetContext.app_state: App;
+    LayoutContext.app_state: App;
+
+    WindowContext.window_state: Window;
+    WidgetContext.window_state: Window;
+    LayoutContext.window_state: Window;
+
+    WidgetContext.widget_state: Widget;
+    LayoutContext.widget_state: Widget;
+
+    WindowContext.update_state: Update;
+    WidgetContext.update_state: Update;
+    LayoutContext.update_state: Update;
+    MeasureContext.update_state: Update;
+    InfoContext.update_state: Update;
+    RenderContext.update_state: Update;
+}
+
+macro_rules! impl_borrow_for_ctx {
+    ($($Ctx:ident.$field:ident : $Tag:ident;)+) => {$(
+
+        impl<'a> BorrowStateMap<state_map::$Tag> for crate::context::$Ctx<'a> {
+            fn borrow(&self) -> StateMapRef<state_map::$Tag> {
+                self.$field
+            }
+        }
+
+    )+}
+}
+impl_borrow_for_ctx! {
+    MeasureContext.app_state: App;
+    MeasureContext.window_state: Window;
+    MeasureContext.widget_state: Widget;
+
+    InfoContext.app_state: App;
+    InfoContext.window_state: Window;
+    InfoContext.widget_state: Widget;
+
+    RenderContext.app_state: App;
+    RenderContext.window_state: Window;
+    RenderContext.widget_state: Widget;
+}
+
+macro_rules! impl_borrow_mut_for_test_ctx {
+    ($($field:ident : $Tag:ident;)+) => {$(
+
+        #[cfg(any(test, doc, feature = "test_util"))]
+        impl BorrowStateMap<state_map::$Tag> for crate::context::TestWidgetContext {
+            fn borrow(&self) -> StateMapRef<state_map::$Tag> {
+                self.$field.borrow()
+            }
+        }
+        #[cfg(any(test, doc, feature = "test_util"))]
+        impl BorrowMutStateMap<state_map::$Tag> for crate::context::TestWidgetContext {
+            fn borrow_mut(&mut self) -> StateMapMut<state_map::$Tag> {
+                self.$field.borrow_mut()
+            }
+        }
+
+    )+}
+}
+impl_borrow_mut_for_test_ctx! {
+    app_state: App;
+    window_state: Window;
+    widget_state: Widget;
+    update_state: Update;
+}
+impl BorrowStateMap<state_map::App> for crate::app::HeadlessApp {
+    fn borrow(&self) -> StateMapRef<state_map::App> {
+        self.app_state()
+    }
+}
+impl BorrowMutStateMap<state_map::App> for crate::app::HeadlessApp {
+    fn borrow_mut(&mut self) -> StateMapMut<state_map::App> {
+        self.app_state_mut()
     }
 }
 
@@ -331,20 +499,6 @@ pub mod state_map {
             })
         }
 
-        pub fn copy<S: StateKey>(&self, key: S) -> Option<S::Type>
-        where
-            S::Type: Copy,
-        {
-            self.get(key).copied()
-        }
-
-        pub fn get_clone<S: StateKey>(&self, key: S) -> Option<S::Type>
-        where
-            S::Type: Clone,
-        {
-            self.get(key).cloned()
-        }
-
         pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&mut S::Type> {
             self.map.get_mut(&TypeId::of::<S>()).map(|any| {
                 // SAFETY: The type system asserts this is valid.
@@ -388,7 +542,7 @@ pub mod state_map {
         }
     }
 
-    /// A view into an occupied entry in a [`StateMap`].
+    /// A view into an occupied entry in a state map.
     ///
     /// This struct is part of [`StateMapEntry`].
     pub struct OccupiedStateMapEntry<'a, S: StateKey> {
@@ -446,7 +600,7 @@ pub mod state_map {
         }
     }
 
-    /// A view into a vacant entry in a [`StateMap`].
+    /// A view into a vacant entry in a state map.
     ///
     /// This struct is part of [`StateMapEntry`].
     pub struct VacantStateMapEntry<'a, S: StateKey> {
@@ -473,9 +627,9 @@ pub mod state_map {
 
     /// A view into a single entry in a state map, which may either be vacant or occupied.
     ///
-    /// This `enum` is constructed from the [`entry`] method on [`StateMap`].
+    /// This `enum` is constructed from the [`entry`] method on [`StateMapMut`].
     ///
-    /// [`entry`]: StateMap::entry
+    /// [`entry`]: StateMapMut::entry
     pub enum StateMapEntry<'a, S: StateKey> {
         /// An occupied entry.
         Occupied(OccupiedStateMapEntry<'a, S>),

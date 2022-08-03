@@ -23,7 +23,7 @@ fn app_main() {
 }
 
 fn main_window(ctx: &mut WindowContext) -> Window {
-    let window_vars = WindowVars::req(ctx.window_state);
+    let window_vars = WindowVars::req(&ctx.window_state);
     let window_id = *ctx.window_id;
 
     // Windows::req(ctx.services).exit_on_last_close = false;
@@ -330,7 +330,7 @@ fn focus_control() -> impl Widget {
             task::timeout(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx.window_state).focus_indicator().set(ctx.vars, Some(FocusIndicator::Critical));
+                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Critical));
             });
             enabled.set(&ctx, true);
         });
@@ -345,7 +345,7 @@ fn focus_control() -> impl Widget {
             task::timeout(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx.window_state).focus_indicator().set(ctx.vars, Some(FocusIndicator::Info));
+                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Info));
             });
             enabled.set(&ctx, true);
         });

@@ -82,7 +82,7 @@ fn image() -> impl Widget {
 }
 
 fn window_status(ctx: &mut WindowContext) -> impl Widget {
-    let vars = WindowVars::req(ctx.window_state);
+    let vars = WindowVars::req(ctx);
 
     macro_rules! status {
         ($name:ident) => {

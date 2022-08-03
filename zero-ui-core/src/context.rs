@@ -228,10 +228,10 @@ impl<'a> WindowContext<'a> {
 
             info_tree,
             widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: &mut root_widget_state.0,
-            update_state: self.update_state,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: root_widget_state.borrow_mut(),
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
             events: self.events,
@@ -255,10 +255,10 @@ impl<'a> WindowContext<'a> {
             path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
             info_tree,
             widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: &root_widget_state.0,
-            update_state: self.update_state,
+            app_state: self.app_state.as_ref(),
+            window_state: self.window_state.as_ref(),
+            widget_state: root_widget_state.borrow(),
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         })
     }
@@ -284,10 +284,10 @@ impl<'a> WindowContext<'a> {
 
             info_tree,
             widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
             widget_state: root_widget_state.borrow_mut(),
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
 
@@ -308,10 +308,10 @@ impl<'a> WindowContext<'a> {
             path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
             info_tree,
             widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
+            app_state: self.app_state.as_ref(),
+            window_state: self.window_state.as_ref(),
             widget_state: root_widget_state.borrow(),
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         })
     }
@@ -450,10 +450,10 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: &mut self.app_state.0,
-            window_state: &mut self.window_state.0,
-            widget_state: &mut self.widget_state.0,
-            update_state: &mut self.update_state.0,
+            app_state: self.app_state.borrow_mut(),
+            window_state: self.window_state.borrow_mut(),
+            widget_state: self.widget_state.borrow_mut(),
+            update_state: self.update_state.borrow_mut(),
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
@@ -468,10 +468,10 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: &self.app_state.0,
-            window_state: &self.window_state.0,
-            widget_state: &self.widget_state.0,
-            update_state: &mut self.update_state.0,
+            app_state: self.app_state.borrow(),
+            window_state: self.window_state.borrow(),
+            widget_state: self.widget_state.borrow(),
+            update_state: self.update_state.borrow_mut(),
             vars: &self.vars,
         })
     }
@@ -516,10 +516,10 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: &mut self.app_state.0,
-            window_state: &mut self.window_state.0,
-            widget_state: &mut self.widget_state.0,
-            update_state: &mut self.update_state.0,
+            app_state: self.app_state.borrow_mut(),
+            window_state: self.window_state.borrow_mut(),
+            widget_state: self.widget_state.borrow_mut(),
+            update_state: self.update_state.borrow_mut(),
             vars: &self.vars,
             updates: &mut self.updates,
         })
@@ -531,10 +531,10 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: &self.app_state.0,
-            window_state: &self.window_state.0,
-            widget_state: &self.widget_state.0,
-            update_state: &mut self.update_state.0,
+            app_state: self.app_state.borrow(),
+            window_state: self.window_state.borrow(),
+            widget_state: self.widget_state.borrow(),
+            update_state: self.update_state.borrow_mut(),
             vars: &self.vars,
         })
     }
@@ -648,10 +648,10 @@ impl<'a> WidgetContext<'a> {
 
                 info_tree: self.info_tree,
                 widget_info,
-                app_state: self.app_state,
-                window_state: self.window_state,
+                app_state: self.app_state.reborrow(),
+                window_state: self.window_state.reborrow(),
                 widget_state: widget_state.borrow_mut(),
-                update_state: self.update_state,
+                update_state: self.update_state.reborrow(),
 
                 vars: self.vars,
                 events: self.events,
@@ -674,10 +674,10 @@ impl<'a> WidgetContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state,
+            app_state: self.app_state.as_ref(),
+            window_state: self.window_state.as_ref(),
+            widget_state: self.widget_state.as_ref(),
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         }
     }
@@ -842,7 +842,7 @@ impl<'a> MeasureContext<'a> {
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
         })
@@ -870,7 +870,7 @@ impl<'a> MeasureContext<'a> {
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
         })
@@ -888,7 +888,7 @@ impl<'a> MeasureContext<'a> {
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
         })
@@ -947,8 +947,8 @@ impl<'a> MeasureContext<'a> {
                 widget_info,
                 app_state: self.app_state,
                 window_state: self.window_state,
-                widget_state: &widget_state.0,
-                update_state: self.update_state,
+                widget_state: widget_state.borrow(),
+                update_state: self.update_state.reborrow(),
 
                 vars: self.vars,
             })
@@ -972,7 +972,7 @@ impl<'a> MeasureContext<'a> {
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         }
     }
@@ -1040,10 +1040,10 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
             updates: self.updates,
@@ -1077,10 +1077,10 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
             updates: self.updates,
@@ -1096,10 +1096,10 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
 
             vars: self.vars,
             updates: self.updates,
@@ -1130,10 +1130,10 @@ impl<'a> LayoutContext<'a> {
 
                 info_tree: self.info_tree,
                 widget_info,
-                app_state: self.app_state,
-                window_state: self.window_state,
-                widget_state: &mut widget_state.0,
-                update_state: self.update_state,
+                app_state: self.app_state.reborrow(),
+                window_state: self.window_state.reborrow(),
+                widget_state: widget_state.borrow_mut(),
+                update_state: self.update_state.reborrow(),
 
                 vars: self.vars,
                 updates: self.updates,
@@ -1151,10 +1151,10 @@ impl<'a> LayoutContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state,
+            app_state: self.app_state.as_ref(),
+            window_state: self.window_state.as_ref(),
+            widget_state: self.widget_state.as_ref(),
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         }
     }
@@ -1166,10 +1166,10 @@ impl<'a> LayoutContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state,
+            app_state: self.app_state.as_ref(),
+            window_state: self.window_state.as_ref(),
+            widget_state: self.widget_state.as_ref(),
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         }
     }
@@ -1221,8 +1221,8 @@ impl<'a> RenderContext<'a> {
             widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &widget_state.0,
-            update_state: self.update_state,
+            widget_state: widget_state.borrow(),
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         });
         self.path.pop();
@@ -1238,7 +1238,7 @@ impl<'a> RenderContext<'a> {
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         }
     }
@@ -1291,7 +1291,7 @@ impl<'a> InfoContext<'a> {
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: widget_state.borrow(),
-            update_state: self.update_state,
+            update_state: self.update_state.reborrow(),
             vars: self.vars,
         });
         self.path.pop();

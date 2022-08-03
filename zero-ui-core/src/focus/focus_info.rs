@@ -1689,11 +1689,11 @@ impl<'a> FocusInfoBuilder<'a> {
     }
 
     fn data(&mut self) -> &mut FocusInfoData {
-        self.0.meta().entry(FocusInfoKey).or_default()
+        self.0.meta().into_entry(FocusInfoKey).or_default()
     }
 
     fn tree_data(&mut self) -> &mut FocusTreeData {
-        self.0.build_meta().entry(FocusTreeKey).or_default()
+        self.0.build_meta().into_entry(FocusTreeKey).or_default()
     }
 
     /// If the widget is definitely focusable or not.

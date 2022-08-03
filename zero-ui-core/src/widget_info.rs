@@ -170,7 +170,7 @@ impl WidgetInfoTree {
     ///
     /// Any widget (that was not reused) can have inserted metadata.
     pub fn build_meta(&self) -> StateMapRef<WidgetInfoMeta> {
-        &self.0.build_meta.0
+        self.0.build_meta.borrow()
     }
 
     /// Reference to the root widget in the tree.

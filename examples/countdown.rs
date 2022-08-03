@@ -35,7 +35,7 @@ fn app_main() {
 
         let icon_label = count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() });
 
-        let actual_icon = WindowVars::req(ctx.window_state).actual_icon();
+        let actual_icon = WindowVars::req(ctx).actual_icon();
 
         window! {
             title = "Countdown Example";

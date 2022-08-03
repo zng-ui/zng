@@ -107,7 +107,7 @@ impl ImageManager {
                             (req.node)(ctx),
                         );
 
-                        let vars = WindowVars::req(ctx.window_state);
+                        let vars = WindowVars::req(&ctx.window_state);
 
                         vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All);
 

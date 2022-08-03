@@ -59,11 +59,11 @@ impl WindowLayers {
                 self.widget.id()
             }
 
-            fn state(&self) -> &StateMap {
+            fn state(&self) -> StateMapRef<state_map::Widget> {
                 self.widget.state()
             }
 
-            fn state_mut(&mut self) -> &mut StateMap {
+            fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
                 self.widget.state_mut()
             }
 
@@ -400,11 +400,11 @@ impl WindowLayers {
                 self.widget.id()
             }
 
-            fn state(&self) -> &StateMap {
+            fn state(&self) -> StateMapRef<state_map::Widget> {
                 self.widget.state()
             }
 
-            fn state_mut(&mut self) -> &mut StateMap {
+            fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
                 self.widget.state_mut()
             }
 

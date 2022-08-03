@@ -114,7 +114,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn item_state_mut(&mut self, index: usize) -> StateMapRef<state_map::Widget> {
+            fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget> {
                 match index {
                     $($n => self.items.$n.state_mut(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())

@@ -15,10 +15,10 @@ fn notify() {
 
     let _ = app.update(false);
 
-    let trace = app.ctx().app_state.req(TestTrace);
+    let trace = app.ctx().app_state.into_req(TestTrace);
     assert_eq!(trace, &vec!["no-scope / App".to_owned()]);
 
-    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
     assert_eq!(trace, &vec!["no-scope / App".to_owned(), "no-scope / App".to_owned()]);
     // two handlers
 }
@@ -35,10 +35,10 @@ fn notify_scoped() {
 
     let _ = app.update(false);
 
-    let trace = app.ctx().app_state.req(TestTrace);
+    let trace = app.ctx().app_state.into_req(TestTrace);
     assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
 
-    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
     assert_eq!(
         trace,
         &vec![
@@ -57,12 +57,12 @@ fn shortcut() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.req(TestTrace);
+    let trace = app.ctx().app_state.into_req(TestTrace);
     let widget_id = WidgetId::named("test-widget");
     // because we target the scoped first.
     assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 
-    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
     assert_eq!(
         trace,
         &vec![
@@ -84,12 +84,12 @@ fn shortcut_with_focused_scope() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.req(TestTrace);
+    let trace = app.ctx().app_state.into_req(TestTrace);
     let widget_id = WidgetId::named("other-widget");
     assert_eq!(1, trace.len()); // because we target the focused first.
     assert_eq!(&trace[0], &format!("scoped-wgt / Widget({widget_id:?})"));
 
-    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
     assert_eq!(
         trace,
         &vec![
@@ -113,11 +113,11 @@ fn shortcut_scoped() {
     app.press_key(window_id, Key::G);
 
     {
-        let trace = app.ctx().app_state.req_mut(TestTrace);
+        let trace = app.ctx().app_state.into_req_mut(TestTrace);
         assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
         trace.clear();
 
-        let trace = app.ctx().app_state.req_mut(TestTraceIgnorePropagation);
+        let trace = app.ctx().app_state.into_req_mut(TestTraceIgnorePropagation);
         assert_eq!(
             trace,
             &vec![
@@ -130,11 +130,11 @@ fn shortcut_scoped() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.req(TestTrace);
+    let trace = app.ctx().app_state.into_req(TestTrace);
     let widget_id = WidgetId::named("test-widget");
     assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 
-    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
     assert_eq!(
         trace,
         &vec![
