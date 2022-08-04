@@ -428,7 +428,10 @@ impl EventReceiver {
 fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> Disconnected {
     match e {
         ipc_channel::ipc::IpcError::Disconnected => Disconnected,
-        e => panic!("IO or bincode error: {e:?}"),
+        e => {
+            tracing::error!("IO or bincode error: {e:?}");
+            Disconnected
+        },
     }
 }
 #[cfg(not(feature = "ipc"))]
