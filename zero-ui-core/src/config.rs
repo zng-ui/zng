@@ -35,7 +35,22 @@ impl AppExtension for ConfigManager {
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
-        todo!()
+        let config = Config::req(ctx.services);
+
+        for task in config.once_tasks.drain(..) {
+            task(ctx.vars);
+        }
+
+        if let Some((_, backend_tasks)) = &config.backend {
+            while let Ok(task) = backend_tasks.try_recv() {
+                match task {
+                    ConfigBackendUpdate::ExternalChange(_) => todo!(),
+                    ConfigBackendUpdate::ExternalChangeAll => todo!(),
+                }
+            }
+        }
+
+        config.tasks.retain_mut(|t| t(ctx.vars, &config.status));
     }
 }
 
@@ -87,7 +102,7 @@ impl Config {
     pub fn install_backend(&mut self, mut backend: impl ConfigBackend) {
         let (sender, receiver) = self.update.ext_channel();
         if !self.vars.is_empty() {
-            sender.send(ConfigBackendUpdate::ExternalChangeAll);
+            let _ = sender.send(ConfigBackendUpdate::ExternalChangeAll);
         }
 
         backend.init(sender);
@@ -107,7 +122,37 @@ impl Config {
         K: Into<ConfigKey>,
         T: ConfigValue,
     {
-        todo!()
+        // channel with the caller.
+        let (responder, rsp) = response_var();
+
+        if let Some((backend, _)) = &self.backend {
+            // channel with the backend.
+            let (sender, receiver) = self.update.ext_channel_bounded(1);
+            backend.read(key.into(), sender);
+
+            // bind two channels.
+            self.tasks.push(Box::new(move |vars, _| {
+                match receiver.try_recv() {
+                    Ok(Ok(r)) => {
+                        responder.respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
+                        false
+                    }
+                    Err(flume::TryRecvError::Empty) => true, // retain
+                    Ok(Err(_)) | Err(_) => {
+                        responder.respond(vars, None);
+                        false
+                    }
+                }
+            }));
+        } else {
+            // no backend, just respond with `None`.
+            self.once_tasks.push(Box::new(move |vars| {
+                responder.respond(vars, None);
+            }));
+            let _ = self.update.send_ext_update();
+        }
+
+        rsp
     }
 
     /// Write the config value associated with the `key`.
@@ -189,6 +234,9 @@ impl Config {
     /// every time it changes.
     ///
     /// This is equivalent of a two-way binding between the config storage and the variable.
+    ///
+    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
+    /// after it is read.
     pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> RcVar<T>
     where
         K: Into<ConfigKey>,
@@ -198,7 +246,9 @@ impl Config {
         self.var_impl(key.into(), default_value)
     }
     fn var_impl<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<T> {
-        match self.vars.entry(key) {
+        let refresh;
+
+        let r = match self.vars.entry(key) {
             Entry::Occupied(mut entry) => {
                 if let Some(var) = entry.get().downcast_ref::<types::WeakRcVar<T>>() {
                     if let Some(var) = var.upgrade() {
@@ -213,28 +263,35 @@ impl Config {
                 *entry.get_mut() = Box::new(var.downgrade());
 
                 // and refresh the value.
-                let bound_var = var.clone();
-                let value = self.read::<T>(entry.key().clone());
-                self.tasks.push(Box::new(move |vars, _| {
-                    if let Some(rsp) = value.rsp_clone(vars) {
-                        if let Some(value) = rsp {
-                            bound_var.set_ne(vars, value);
-                        }
-                        false // task finished
-                    } else {
-                        true // retain
-                    }
-                }));
+                refresh = (entry.key().clone(), var.clone());
 
                 var
             }
-            Entry::Vacant(mut entry) => {
+            Entry::Vacant(entry) => {
                 let var = var(default_value());
+
+                refresh = (entry.key().clone(), var.clone());
+
                 entry.insert(Box::new(var.downgrade()));
 
                 var
             }
-        }
+        };
+
+        let (key, var) = refresh;
+        let value = self.read::<_, T>(key);
+        self.tasks.push(Box::new(move |vars, _| {
+            if let Some(rsp) = value.rsp_clone(vars) {
+                if let Some(value) = rsp {
+                    var.set_ne(vars, value);
+                }
+                false // task finished
+            } else {
+                true // retain
+            }
+        }));
+
+        r
     }
 }
 
