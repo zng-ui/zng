@@ -336,10 +336,6 @@ macro_rules! impl_rc_merge_var {
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         any::AnyVar for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
-            fn into_any(self) -> Box<dyn any::AnyVar> {
-                Box::new(self)
-            }
-
             any_var_impls!();
         }
 
@@ -621,10 +617,6 @@ impl<O: VarValue> IntoVar<O> for RcMergeVar<O> {
     }
 }
 impl<O: VarValue> any::AnyVar for RcMergeVar<O> {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 
@@ -637,10 +629,6 @@ impl<T: VarValue> Clone for WeakRcMergeVar<T> {
     }
 }
 impl<O: VarValue> any::AnyWeakVar for WeakRcMergeVar<O> {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<T: VarValue> WeakVar<T> for WeakRcMergeVar<T> {

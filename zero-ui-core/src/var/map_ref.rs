@@ -39,10 +39,6 @@ where
     M: Fn(&A) -> &B + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<A, B, M, S> WeakVar<B> for WeakMapRefVar<A, B, M, S>
@@ -258,9 +254,6 @@ where
     M: Fn(&A) -> &B + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
 
     any_var_impls!(Var);
 }
@@ -303,10 +296,6 @@ where
     N: Fn(&mut A) -> &mut B + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 
@@ -570,9 +559,5 @@ where
     N: Fn(&mut A) -> &mut B + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }

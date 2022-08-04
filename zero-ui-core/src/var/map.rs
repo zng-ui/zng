@@ -34,10 +34,6 @@ where
     M: FnMut(&A) -> B + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<A, B, M, S> WeakVar<B> for WeakRcMapVar<A, B, M, S>
@@ -298,10 +294,6 @@ where
     M: FnMut(&A) -> B + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 
@@ -336,10 +328,6 @@ where
     N: FnMut(B) -> A + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 
@@ -668,9 +656,5 @@ where
     N: FnMut(B) -> A + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }

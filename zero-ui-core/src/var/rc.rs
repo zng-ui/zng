@@ -177,10 +177,6 @@ impl<T: VarValue> Clone for WeakRcVar<T> {
     }
 }
 impl<T: VarValue> any::AnyWeakVar for WeakRcVar<T> {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
@@ -326,10 +322,6 @@ impl<T: VarValue> IntoVar<T> for RcVar<T> {
     }
 }
 impl<T: VarValue> any::AnyVar for RcVar<T> {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 

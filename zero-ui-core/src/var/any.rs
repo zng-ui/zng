@@ -66,6 +66,12 @@ pub trait AnyWeakVar: Any + crate::private::Sealed {
 
 macro_rules! any_var_impls {
     (Var) => {
+        fn into_any(self) -> Box<dyn any::AnyVar> {
+            // we can end-up double boxing here, this is needed to allow down-casting to the input var type that may be generic, 
+            // if we delegate to an "into_any_boxed" for `BoxVar<T>` the down-cast fails because the inner boxed var type becomes the `Any` type.
+            Box::new(self)
+        }
+
         fn as_any(&self) -> &dyn std::any::Any {
             self
         }
@@ -126,6 +132,10 @@ macro_rules! any_var_impls {
         }
     };
     (WeakVar) => {
+        fn into_any(self) -> Box<dyn AnyWeakVar> {
+            Box::new(self)
+        }
+
         fn as_any(&self) -> &dyn std::any::Any {
             self
         }
@@ -146,4 +156,30 @@ macro_rules! any_var_impls {
             WeakVar::upgrade(self).map(any::AnyVar::into_any)
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn downcast_rc() {
+        let any_var = var(true).into_any();
+        assert!(any_var.as_any().downcast_ref::<RcVar<bool>>().is_some())
+    }
+
+    #[test]
+    fn downcast_boxed() {
+        let any_var = var(true).boxed().into_any();
+        assert!(any_var.as_any().downcast_ref::<BoxedVar<bool>>().is_some())
+    }
+
+    #[test]
+    fn downcast_context_var() {
+        context_var! {
+            struct FooVar: bool = true;
+        }
+        let any_var = FooVar::new().into_any();
+        assert!(any_var.as_any().downcast_ref::<ContextVarProxy<FooVar>>().is_some());
+    }
 }

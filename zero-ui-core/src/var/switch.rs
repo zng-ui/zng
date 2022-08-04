@@ -344,10 +344,6 @@ macro_rules! impl_rc_switch_var {
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         any::AnyWeakVar for $WeakRcSwitchVar<O, $($V,)+ VI> {
-            fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-                Box::new(self)
-            }
-
             any_var_impls!(WeakVar);
         }
 
@@ -388,10 +384,6 @@ macro_rules! impl_rc_switch_var {
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         any::AnyVar for $RcSwitchVar<O, $($V,)+ VI> {
-            fn into_any(self) -> Box<dyn any::AnyVar> {
-                Box::new(self)
-            }
-
             any_var_impls!(Var);
         }
     };
@@ -600,10 +592,6 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     }
 }
 impl<O: VarValue, VI: Var<usize>> any::AnyWeakVar for WeakRcSwitchVar<O, VI> {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
@@ -633,10 +621,6 @@ impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
     }
 }
 impl<O: VarValue, VI: Var<usize>> any::AnyVar for RcSwitchVar<O, VI> {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 

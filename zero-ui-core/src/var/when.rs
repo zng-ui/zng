@@ -434,10 +434,6 @@ macro_rules! impl_rc_when_var {
         }
 
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> any::AnyVar for $RcWhenVar<O, D, $($C),+ , $($V),+> {
-            fn into_any(self) -> Box<dyn any::AnyVar> {
-                Box::new(self)
-            }
-
             any_var_impls!();
         }
     };
@@ -757,10 +753,6 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 }
 impl<O: VarValue> any::AnyWeakVar for WeakRcWhenVar<O> {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<O: VarValue> WeakVar<O> for WeakRcWhenVar<O> {
@@ -790,10 +782,6 @@ impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {
     }
 }
 impl<O: VarValue> any::AnyVar for RcWhenVar<O> {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 

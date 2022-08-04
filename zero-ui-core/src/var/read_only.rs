@@ -23,9 +23,6 @@ where
     T: VarValue,
     W: WeakVar<T>,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        any::AnyWeakVar::into_any(self.0)
-    }
     any_var_impls!(WeakVar);
 }
 impl<T: VarValue, W: WeakVar<T>> WeakVar<T> for ReadOnlyWeakVar<T, W> {
@@ -203,8 +200,5 @@ where
     T: VarValue,
     V: Var<T>,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        any::AnyVar::into_any(self.0)
-    }
     any_var_impls!(Var);
 }

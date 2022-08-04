@@ -38,10 +38,6 @@ where
     M: FnMut(&A) -> Option<B> + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<A, B, M, I, S> WeakVar<B> for WeakRcFilterMapVar<A, B, I, M, S>
@@ -356,10 +352,6 @@ where
     M: FnMut(&A) -> Option<B> + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 
@@ -398,10 +390,6 @@ where
     N: FnMut(B) -> Option<A> + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 
@@ -766,9 +754,5 @@ where
     N: FnMut(B) -> Option<A> + 'static,
     S: Var<A>,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }

@@ -372,10 +372,6 @@ impl<T: VarValue> Default for NoneWeakVar<T> {
 }
 impl<T: VarValue> crate::private::Sealed for NoneWeakVar<T> {}
 impl<T: VarValue> any::AnyWeakVar for NoneWeakVar<T> {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<T: VarValue> WeakVar<T> for NoneWeakVar<T> {

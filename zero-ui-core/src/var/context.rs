@@ -153,10 +153,6 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     }
 }
 impl<C: ContextVar> any::AnyVar for ContextVarProxy<C> {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 

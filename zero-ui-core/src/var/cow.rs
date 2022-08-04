@@ -361,10 +361,6 @@ impl<T: VarValue, V: Var<T>> IntoVar<T> for RcCowVar<T, V> {
     }
 }
 impl<T: VarValue, V: Var<T>> any::AnyVar for RcCowVar<T, V> {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
 
@@ -377,10 +373,6 @@ impl<T: VarValue, V: Var<T>> Clone for WeakRcCowVar<T, V> {
     }
 }
 impl<T: VarValue, V: Var<T>> any::AnyWeakVar for WeakRcCowVar<T, V> {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<T: VarValue, V: Var<T>> WeakVar<T> for WeakRcCowVar<T, V> {

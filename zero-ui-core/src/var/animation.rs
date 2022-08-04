@@ -540,10 +540,6 @@ where
     V: Var<T>,
     F: Fn(EasingTime) -> EasingStep + 'static,
 {
-    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(WeakVar);
 }
 impl<T, V, F> WeakVar<T> for WeakEasingVar<T, V, F>
@@ -859,9 +855,5 @@ where
     V: Var<T>,
     F: Fn(EasingTime) -> EasingStep + 'static,
 {
-    fn into_any(self) -> Box<dyn any::AnyVar> {
-        Box::new(self)
-    }
-
     any_var_impls!(Var);
 }
