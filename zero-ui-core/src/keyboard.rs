@@ -1,6 +1,6 @@
 //! Keyboard manager.
 //!
-//! The [`KeyboardManager`] struct is an [app extension](crate::app::AppExtension). It
+//! The [`KeyboardManager`] struct is an [app extension](crate::app::AppExtension), it
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 

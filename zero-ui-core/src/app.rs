@@ -28,6 +28,7 @@ use crate::{
 use self::view_process::{ViewProcess, ViewProcessInitedArgs, ViewProcessInitedEvent};
 use once_cell::sync::Lazy;
 use std::future::Future;
+use std::marker::PhantomData;
 use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -2249,6 +2250,38 @@ impl AppEventSender {
     pub fn waker(&self, update_slot: UpdateSlot) -> Waker {
         Arc::new(AppWaker(self.0.clone(), update_slot)).into()
     }
+
+    /// Create an unbound channel that causes an extension update for each message received.
+    pub fn ext_channel<T>(&self) -> (AppExtSender<T>, AppExtReceiver<T>) {
+        let (sender, receiver) = flume::unbounded();
+
+        (
+            AppExtSender {
+                update: self.clone(),
+                sender,
+            },
+            AppExtReceiver {
+                _not_send: PhantomData,
+                receiver,
+            },
+        )
+    }
+
+    /// Create aa bounded channel that causes an extension update for each message received.
+    pub fn ext_channel_bounded<T>(&self, cap: usize) -> (AppExtSender<T>, AppExtReceiver<T>) {
+        let (sender, receiver) = flume::bounded(cap);
+
+        (
+            AppExtSender {
+                update: self.clone(),
+                sender,
+            },
+            AppExtReceiver {
+                _not_send: PhantomData,
+                receiver,
+            },
+        )
+    }
 }
 
 struct AppWaker(flume::Sender<AppEvent>, UpdateSlot);
@@ -2256,6 +2289,57 @@ impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
         let _ = self.0.send(AppEvent::Update(self.1.mask()));
     }
+}
+
+/// Represents a channel sender that causes an extensions update for each value transferred.
+///
+/// A channel can be created using the [`AppEventSender::ext_channel`] method.
+pub struct AppExtSender<T> {
+    update: AppEventSender,
+    sender: flume::Sender<T>,
+}
+impl<T> Clone for AppExtSender<T> {
+    fn clone(&self) -> Self {
+        Self {
+            update: self.update.clone(),
+            sender: self.sender.clone(),
+        }
+    }
+}
+impl<T: Send> AppExtSender<T> {
+    /// Send an extensions update and `msg`.
+    pub fn send(&self, msg: T) -> Result<(), AppDisconnected<T>> {
+        match self.update.send_ext_update() {
+            Ok(()) => self.sender.send(msg).map_err(|e| AppDisconnected(e.0)),
+            Err(_) => Err(AppDisconnected(msg)),
+        }
+    }
+
+    // TODO other send methods.
+}
+
+/// Represents a channel receiver in an app extension.
+///
+/// See [`AppExtReceiver`] for details.
+pub struct AppExtReceiver<T> {
+    _not_send: PhantomData<std::rc::Rc<T>>,
+    receiver: flume::Receiver<T>,
+}
+impl<T> Clone for AppExtReceiver<T> {
+    fn clone(&self) -> Self {
+        Self {
+            _not_send: PhantomData,
+            receiver: self.receiver.clone(),
+        }
+    }
+}
+impl<T> AppExtReceiver<T> {
+    /// Receive an update if any was send.
+    pub fn try_recv(&self) -> Result<T, flume::TryRecvError> {
+        self.receiver.try_recv()
+    }
+
+    // TODO async recv?
 }
 
 #[cfg(test)]

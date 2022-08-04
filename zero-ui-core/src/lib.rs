@@ -21,6 +21,7 @@ extern crate self as zero_ui_core;
 
 #[macro_use]
 mod crate_util;
+pub mod config;
 
 #[cfg(any(test, feature = "test_util"))]
 pub use crate_util::test_log;
