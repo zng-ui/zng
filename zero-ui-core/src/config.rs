@@ -138,7 +138,7 @@ impl Config {
                         responder.respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
                         false
                     }
-                    Err(flume::TryRecvError::Empty) => true, // retain
+                    Err(None) => true, // retain
                     Ok(Err(_)) | Err(_) => {
                         responder.respond(vars, None);
                         false
@@ -208,7 +208,7 @@ impl Config {
                                 });
                                 false // task finished
                             }
-                            Err(flume::TryRecvError::Empty) => {
+                            Err(None) => {
                                 if count == 0 {
                                     // first try, add pending.
                                     count = 1;
@@ -216,7 +216,7 @@ impl Config {
                                 }
                                 true // retain
                             }
-                            Err(e) => {
+                            Err(Some(e)) => {
                                 status.modify(vars, move |mut s| {
                                     s.pending -= count;
                                     s.last_error = Some(Rc::new(e))

@@ -33,6 +33,7 @@ use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::task::Waker;
+use std::time::Duration;
 use std::{
     any::{type_name, TypeId},
     fmt,
@@ -2307,7 +2308,7 @@ impl<T> Clone for AppExtSender<T> {
     }
 }
 impl<T: Send> AppExtSender<T> {
-    /// Send an extensions update and `msg`.
+    /// Send an extension update and `msg`, blocks until the app receives the message.
     pub fn send(&self, msg: T) -> Result<(), AppDisconnected<T>> {
         match self.update.send_ext_update() {
             Ok(()) => self.sender.send(msg).map_err(|e| AppDisconnected(e.0)),
@@ -2315,7 +2316,27 @@ impl<T: Send> AppExtSender<T> {
         }
     }
 
-    // TODO other send methods.
+    /// Send an extension update and `msg`, blocks until the app receives the message or `dur` elapses.
+    pub fn send_timeout(&self, msg: T, dur: Duration) -> Result<(), TimeoutOrAppDisconnected> {
+        match self.update.send_ext_update() {
+            Ok(()) => self.sender.send_timeout(msg, dur).map_err(|e| match e {
+                flume::SendTimeoutError::Timeout(_) => TimeoutOrAppDisconnected::Timeout,
+                flume::SendTimeoutError::Disconnected(_) => TimeoutOrAppDisconnected::AppDisconnected,
+            }),
+            Err(_) => Err(TimeoutOrAppDisconnected::AppDisconnected),
+        }
+    }
+
+    /// Send an extension update and `msg`, blocks until the app receives the message or `deadline` is reached.
+    pub fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), TimeoutOrAppDisconnected> {
+        match self.update.send_ext_update() {
+            Ok(()) => self.sender.send_deadline(msg, deadline).map_err(|e| match e {
+                flume::SendTimeoutError::Timeout(_) => TimeoutOrAppDisconnected::Timeout,
+                flume::SendTimeoutError::Disconnected(_) => TimeoutOrAppDisconnected::AppDisconnected,
+            }),
+            Err(_) => Err(TimeoutOrAppDisconnected::AppDisconnected),
+        }
+    }
 }
 
 /// Represents a channel receiver in an app extension.
@@ -2335,11 +2356,15 @@ impl<T> Clone for AppExtReceiver<T> {
 }
 impl<T> AppExtReceiver<T> {
     /// Receive an update if any was send.
-    pub fn try_recv(&self) -> Result<T, flume::TryRecvError> {
-        self.receiver.try_recv()
+    /// 
+    /// Returns `Ok(msg)` if there was at least one message, or returns `Err(None)` if there was no update or 
+    /// returns `Err(AppDisconnected)` if the connected sender was dropped.
+    pub fn try_recv(&self) -> Result<T, Option<AppDisconnected<()>>> {
+        self.receiver.try_recv().map_err(|e| match e {
+            flume::TryRecvError::Empty => None,
+            flume::TryRecvError::Disconnected => Some(AppDisconnected(())),
+        })
     }
-
-    // TODO async recv?
 }
 
 #[cfg(test)]

@@ -26,7 +26,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     fn always_read_only_any(&self) -> bool;
     /// Type erased [`Var::is_contextual`].
     fn is_contextual_any(&self) -> bool;
-    /// Type erased [`Var::is_rc_any`].
+    /// Type erased [`Var::is_rc`].
     fn is_rc_any(&self) -> bool;
     /// Type erased [`Var::can_update`].
     fn can_update_any(&self) -> bool;
