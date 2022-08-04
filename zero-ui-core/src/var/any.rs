@@ -11,6 +11,10 @@ pub trait AnyVar: Any + crate::private::Sealed {
     fn into_any(self) -> Box<dyn AnyVar>;
     /// Cast to [`Any`].
     fn as_any(&self) -> &dyn Any;
+    /// Type erased [`Var::boxed`].
+    /// 
+    /// Returns a value that can be down-casted to `BoxedVar<T>` if the value type is known.
+    fn boxed_any(self: Box<Self>) -> Box<dyn AnyVar>;
 
     /// Type erased [`Var::is_new`].
     fn is_new_any(&self, vars: &Vars) -> bool;
@@ -52,6 +56,10 @@ pub trait AnyWeakVar: Any + crate::private::Sealed {
     fn into_any(self) -> Box<dyn AnyWeakVar>;
     /// Cast to [`Any`].
     fn as_any(&self) -> &dyn Any;
+    /// Type erased [`WeakVar::boxed`].
+    /// 
+    /// Returns a value that can be down-casted to `BoxedWeakVar<T>` if the value type is known.
+    fn boxed_any(self: Box<Self>) -> Box<dyn AnyWeakVar>;
 
     /// Type erased [`WeakVar::as_ptr`].
     fn as_ptr_any(&self) -> *const ();
@@ -74,6 +82,10 @@ macro_rules! any_var_impls {
 
         fn as_any(&self) -> &dyn std::any::Any {
             self
+        }
+
+        fn boxed_any(self: Box<Self>) -> Box<dyn any::AnyVar> {
+            self.boxed().into_any()
         }
 
         fn is_new_any(&self, vars: &Vars) -> bool {
@@ -140,6 +152,10 @@ macro_rules! any_var_impls {
             self
         }
 
+        fn boxed_any(self: Box<Self>) -> Box<dyn any::AnyWeakVar> {
+            self.boxed().into_any()
+        }
+
         fn as_ptr_any(&self) -> *const () {
             WeakVar::as_ptr(self)
         }
@@ -181,5 +197,11 @@ mod tests {
         }
         let any_var = FooVar::new().into_any();
         assert!(any_var.as_any().downcast_ref::<ContextVarProxy<FooVar>>().is_some());
+    }
+
+    #[test]
+    fn downcast_any_boxed() {
+        let any_var = var(true).into_any().boxed_any();
+        assert!(any_var.as_any().downcast_ref::<BoxedVar<bool>>().is_some())
     }
 }
