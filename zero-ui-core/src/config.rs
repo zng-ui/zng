@@ -38,7 +38,7 @@ impl AppExtension for ConfigManager {
         let config = Config::req(ctx.services);
 
         for task in config.once_tasks.drain(..) {
-            task(ctx.vars);
+            task(ctx.vars, &config.status);
         }
 
         if let Some((_, backend_tasks)) = &config.backend {
@@ -68,6 +68,7 @@ impl<T: VarValue + PartialEq + serde::Serialize + serde::de::DeserializeOwned> C
 
 /// Return `true` to retain, `false` to drop.
 type ConfigTask = Box<dyn FnMut(&Vars, &RcVar<ConfigStatus>) -> bool>;
+type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
 
 /// Represents the config of the app.
 ///
@@ -81,7 +82,7 @@ pub struct Config {
 
     status: RcVar<ConfigStatus>,
 
-    once_tasks: Vec<Box<dyn FnOnce(&Vars)>>,
+    once_tasks: Vec<OnceConfigTask>,
     tasks: Vec<ConfigTask>,
 }
 impl Config {
@@ -146,7 +147,7 @@ impl Config {
             }));
         } else {
             // no backend, just respond with `None`.
-            self.once_tasks.push(Box::new(move |vars| {
+            self.once_tasks.push(Box::new(move |vars, _| {
                 responder.respond(vars, None);
             }));
             let _ = self.update.send_ext_update();
@@ -174,7 +175,7 @@ impl Config {
                 if let Some(var) = entry.get().downcast_ref::<types::WeakRcVar<T>>().and_then(|v| v.upgrade()) {
                     let value = value.clone();
 
-                    self.once_tasks.push(Box::new(move |vars| {
+                    self.once_tasks.push(Box::new(move |vars, _| {
                         var.set_ne(vars, value);
                     }));
 
@@ -225,7 +226,11 @@ impl Config {
                         }
                     }));
                 }
-                Err(e) => tracing::error!("failed to serialize config for key `{:?}`, error: {:?}", key, e),
+                Err(e) => {
+                    self.once_tasks.push(Box::new(move |vars, status| {
+                        status.modify(vars, move |mut s| s.last_error = Some(Rc::new(e)));
+                    }));
+                }
             }
         }
     }
@@ -237,13 +242,13 @@ impl Config {
     ///
     /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
     /// after it is read.
-    pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> RcVar<T>
+    pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> ReadOnlyRcVar<T>
     where
         K: Into<ConfigKey>,
         T: ConfigValue,
         D: FnOnce() -> T,
     {
-        self.var_impl(key.into(), default_value)
+        self.var_impl(key.into(), default_value).into_read_only()
     }
     fn var_impl<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<T> {
         let refresh;
