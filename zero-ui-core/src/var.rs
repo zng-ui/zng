@@ -2709,9 +2709,7 @@ macro_rules! __impl_from_and_into_var {
     };
 }
 
-/// Identifies a variable value version.
-///
-/// Comparing
+/// Identifies a variable value version and context.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct VarVersion {
     context: Option<WidgetId>,
@@ -2719,6 +2717,17 @@ pub struct VarVersion {
     version: u32,
 }
 impl VarVersion {
+    /// Gets the simple count used by all variables that are not influenced by the read context.
+    /// 
+    /// Returns `None` for context vars and vars that depend on the value of a context var.
+    pub fn non_contextual(self) -> Option<u32> {
+        if self.context.is_some() {
+            None
+        } else {
+            Some(self.version)
+        }
+    }
+
     /// Version for a variable that has a value not affected by context.
     pub(crate) fn normal(version: u32) -> Self {
         VarVersion {
@@ -2730,7 +2739,7 @@ impl VarVersion {
 
     /// Add to the version count.
     pub(crate) fn wrapping_add(mut self, add: u32) -> Self {
-        self.depth = self.depth.wrapping_add(add);
+        self.version = self.version.wrapping_add(add);
         self
     }
 

@@ -7,6 +7,7 @@ pub mod view_process;
 
 pub use intrinsic::*;
 
+use crate::config::ConfigManager;
 use crate::context::*;
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
@@ -591,15 +592,17 @@ impl App {
     ///
     /// Extensions included.
     ///
-    /// * [MouseManager]
-    /// * [KeyboardManager]
-    /// * [GestureManager]
-    /// * [WindowManager]
-    /// * [FontManager]
-    /// * [FocusManager]
-    /// * [ImageManager]
+    /// * [`ConfigManager`]
+    /// * [`MouseManager`]
+    /// * [`KeyboardManager`]
+    /// * [`GestureManager`]
+    /// * [`WindowManager`]
+    /// * [`FontManager`]
+    /// * [`FocusManager`]
+    /// * [`ImageManager`]
     pub fn default() -> AppExtended<impl AppExtension> {
         App::blank()
+            .extend(ConfigManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())
@@ -629,15 +632,17 @@ impl App {
     ///
     /// Extensions included.
     ///
-    /// * [MouseManager]
-    /// * [KeyboardManager]
-    /// * [GestureManager]
-    /// * [WindowManager]
-    /// * [FontManager]
-    /// * [FocusManager]
-    /// * [ImageManager]
+    /// * [`ConfigManager`]
+    /// * [`MouseManager`]
+    /// * [`KeyboardManager`]
+    /// * [`GestureManager`]
+    /// * [`WindowManager`]
+    /// * [`FontManager`]
+    /// * [`FocusManager`]
+    /// * [`ImageManager`]
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         App::blank()
+            .extend(ConfigManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())

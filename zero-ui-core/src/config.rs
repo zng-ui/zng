@@ -8,8 +8,7 @@
 //! [default app]: crate::app::App::default
 
 use std::{
-    any::Any,
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, HashMap, HashSet},
     error::Error,
     rc::Rc,
 };
@@ -28,6 +27,7 @@ use serde_json::value::Value as JsonValue;
 ///
 /// Note that this extension does not implement a [`ConfigBackend`], it just manages whatever backend is installed and
 /// the watcher variables.
+#[derive(Default)]
 pub struct ConfigManager {}
 impl AppExtension for ConfigManager {
     fn init(&mut self, ctx: &mut AppContext) {
@@ -41,16 +41,35 @@ impl AppExtension for ConfigManager {
             task(ctx.vars, &config.status);
         }
 
+        let mut read = HashSet::new();
+        let mut read_all = false;
+
         if let Some((_, backend_tasks)) = &config.backend {
             while let Ok(task) = backend_tasks.try_recv() {
                 match task {
-                    ConfigBackendUpdate::ExternalChange(_) => todo!(),
-                    ConfigBackendUpdate::ExternalChangeAll => todo!(),
+                    ConfigBackendUpdate::ExternalChange(key) => if !read_all {
+                        read.insert(key);
+                    },
+                    ConfigBackendUpdate::ExternalChangeAll => read_all = true,
                 }
             }
         }
 
         config.tasks.retain_mut(|t| t(ctx.vars, &config.status));
+
+        config.vars.retain(|key, var| {
+            match var.update(ctx.vars) {
+                Some(is_new) => {
+                    if is_new {
+                        todo!("write")
+                    } else if read_all || read.remove(key) {
+                        todo!("read")
+                    }
+                    true
+                },
+                None => false,
+            }
+        });
     }
 }
 
@@ -78,7 +97,7 @@ type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
 pub struct Config {
     update: AppEventSender,
     backend: Option<(Box<dyn ConfigBackend>, AppExtReceiver<ConfigBackendUpdate>)>,
-    vars: HashMap<ConfigKey, Box<dyn Any>>,
+    vars: HashMap<ConfigKey, ConfigVar>,
 
     status: RcVar<ConfigStatus>,
 
@@ -172,7 +191,7 @@ impl Config {
         let key = match self.vars.entry(key) {
             Entry::Occupied(entry) => {
                 let key = entry.key().clone();
-                if let Some(var) = entry.get().downcast_ref::<types::WeakRcVar<T>>().and_then(|v| v.upgrade()) {
+                if let Some(var) = entry.get().downcast::<T>() {
                     let value = value.clone();
 
                     self.once_tasks.push(Box::new(move |vars, _| {
@@ -181,7 +200,7 @@ impl Config {
 
                     let _ = self.update.send_ext_update();
                 } else {
-                    // not observed anymore.
+                    // not observed anymore or changed type.
                     entry.remove();
                 }
                 key
@@ -255,17 +274,15 @@ impl Config {
 
         let r = match self.vars.entry(key) {
             Entry::Occupied(mut entry) => {
-                if let Some(var) = entry.get().downcast_ref::<types::WeakRcVar<T>>() {
-                    if let Some(var) = var.upgrade() {
-                        return var; // already observed and is the same type.
-                    }
+                if let Some(var) = entry.get().downcast::<T>() {
+                    return var; // already observed and is the same type.
                 }
 
                 // entry stale or for the wrong type:
 
                 // re-insert observer
                 let var = var(default_value());
-                *entry.get_mut() = Box::new(var.downgrade());
+                *entry.get_mut() = ConfigVar::new(&var);
 
                 // and refresh the value.
                 refresh = (entry.key().clone(), var.clone());
@@ -277,7 +294,7 @@ impl Config {
 
                 refresh = (entry.key().clone(), var.clone());
 
-                entry.insert(Box::new(var.downgrade()));
+                entry.insert(ConfigVar::new(&var));
 
                 var
             }
@@ -297,6 +314,32 @@ impl Config {
         }));
 
         r
+    }
+}
+
+struct ConfigVar {
+    var: Box<dyn AnyWeakVar>,
+    backend_version: u32,
+}
+impl ConfigVar {
+    fn new<T: ConfigValue>(var: &RcVar<T>) -> Self {
+        ConfigVar {
+            var: var.downgrade().into_any(),
+            backend_version: 0,
+        }
+    }
+
+    fn update(&mut self, vars: &Vars) -> Option<bool> {
+        self.var.upgrade_any().map(|v| {
+            let version = v.version_any(vars).non_contextual().unwrap();
+            let update = self.backend_version == version;
+            self.backend_version = version;
+            update
+        })
+    }
+
+    fn downcast<T: ConfigValue>(&self) -> Option<RcVar<T>> {
+        self.var.as_any().downcast_ref::<types::WeakRcVar<T>>()?.upgrade()
     }
 }
 
