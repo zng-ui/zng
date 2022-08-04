@@ -131,5 +131,5 @@ impl<T: VarValue> any::AnyVar for LocalVar<T> {
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }

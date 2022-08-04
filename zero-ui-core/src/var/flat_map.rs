@@ -31,6 +31,20 @@ where
         Self(self.0.clone())
     }
 }
+impl<A, B, V, M, S> any::AnyWeakVar for WeakRcFlatMapVar<A, B, V, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    V: Var<B>,
+    M: FnMut(&A) -> V + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<A, B, V, M, S> WeakVar<B> for WeakRcFlatMapVar<A, B, V, M, S>
 where
     A: VarValue,
@@ -309,7 +323,7 @@ where
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 #[cfg(test)]

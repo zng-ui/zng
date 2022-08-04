@@ -343,6 +343,15 @@ macro_rules! impl_rc_switch_var {
         }
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
+        any::AnyWeakVar for $WeakRcSwitchVar<O, $($V,)+ VI> {
+            fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+                Box::new(self)
+            }
+
+            any_var_impls!(WeakVar);
+        }
+
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         WeakVar<O> for $WeakRcSwitchVar<O, $($V,)+ VI> {
             type Strong = $RcSwitchVar<O, $($V,)+ VI>;
 
@@ -383,7 +392,7 @@ macro_rules! impl_rc_switch_var {
                 Box::new(self)
             }
 
-            any_var_impls!();
+            any_var_impls!(Var);
         }
     };
 }
@@ -590,6 +599,13 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         Rc::as_ptr(&self.0) as _
     }
 }
+impl<O: VarValue, VI: Var<usize>> any::AnyWeakVar for WeakRcSwitchVar<O, VI> {
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
     type Strong = RcSwitchVar<O, VI>;
 
@@ -621,7 +637,7 @@ impl<O: VarValue, VI: Var<usize>> any::AnyVar for RcSwitchVar<O, VI> {
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 #[doc(hidden)]

@@ -22,6 +22,7 @@ use crate::{
 
 #[macro_use]
 mod any;
+pub use any::*;
 
 mod binding;
 pub use binding::*;
@@ -323,7 +324,7 @@ pub trait IntoValue<T: fmt::Debug>: Into<T> + Clone {}
 impl<T: fmt::Debug + Clone> IntoValue<T> for T {}
 
 /// Represents a weak reference to a [`Var<T>`] that is a shared pointer.
-pub trait WeakVar<T: VarValue>: Clone + crate::private::Sealed + 'static {
+pub trait WeakVar<T: VarValue>: Clone + any::AnyWeakVar + crate::private::Sealed + 'static {
     /// The strong var type.
     type Strong: Var<T>;
 
@@ -370,6 +371,13 @@ impl<T: VarValue> Default for NoneWeakVar<T> {
     }
 }
 impl<T: VarValue> crate::private::Sealed for NoneWeakVar<T> {}
+impl<T: VarValue> any::AnyWeakVar for NoneWeakVar<T> {
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<T: VarValue> WeakVar<T> for NoneWeakVar<T> {
     type Strong = LocalVar<T>;
 
@@ -410,7 +418,7 @@ macro_rules! DefaultMapVar {
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::Sealed + 'static {
-    /**
+    /*
      * README Before Adding Methods/Docs
      *
      * - If you are updating the docs of a method, you should also review all methods of the same name in all var implementers,

@@ -176,6 +176,13 @@ impl<T: VarValue> Clone for WeakRcVar<T> {
         WeakRcVar(self.0.clone())
     }
 }
+impl<T: VarValue> any::AnyWeakVar for WeakRcVar<T> {
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
     type Strong = RcVar<T>;
 
@@ -323,7 +330,7 @@ impl<T: VarValue> any::AnyVar for RcVar<T> {
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 /// New [`StateVar`].

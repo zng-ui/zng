@@ -30,6 +30,20 @@ where
         WeakRcFilterMapVar(self.0.clone())
     }
 }
+impl<A, B, I, M, S> any::AnyWeakVar for WeakRcFilterMapVar<A, B, I, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<A, B, M, I, S> WeakVar<B> for WeakRcFilterMapVar<A, B, I, M, S>
 where
     A: VarValue,
@@ -346,7 +360,7 @@ where
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 /// A weak reference to a [`RcFilterMapBidiVar`].
@@ -375,6 +389,22 @@ where
         WeakRcFilterMapBidiVar(self.0.clone())
     }
 }
+impl<A, B, I, M, N, S> any::AnyWeakVar for WeakRcFilterMapBidiVar<A, B, I, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    N: FnMut(B) -> Option<A> + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
+
 impl<A, B, I, M, N, S> WeakVar<B> for WeakRcFilterMapBidiVar<A, B, I, M, N, S>
 where
     A: VarValue,
@@ -740,5 +770,5 @@ where
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }

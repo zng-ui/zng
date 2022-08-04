@@ -625,7 +625,7 @@ impl<O: VarValue> any::AnyVar for RcMergeVar<O> {
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 /// A weak reference to a [`RcMergeVar`].
@@ -635,6 +635,13 @@ impl<T: VarValue> Clone for WeakRcMergeVar<T> {
     fn clone(&self) -> Self {
         WeakRcMergeVar(self.0.clone())
     }
+}
+impl<O: VarValue> any::AnyWeakVar for WeakRcMergeVar<O> {
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
 }
 impl<T: VarValue> WeakVar<T> for WeakRcMergeVar<T> {
     type Strong = RcMergeVar<T>;

@@ -18,6 +18,16 @@ impl<T: VarValue, W: WeakVar<T>> Clone for ReadOnlyWeakVar<T, W> {
         Self(self.0.clone(), PhantomData)
     }
 }
+impl<T, W> any::AnyWeakVar for ReadOnlyWeakVar<T, W>
+where
+    T: VarValue,
+    W: WeakVar<T>,
+{
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        any::AnyWeakVar::into_any(self.0)
+    }
+    any_var_impls!(WeakVar);
+}
 impl<T: VarValue, W: WeakVar<T>> WeakVar<T> for ReadOnlyWeakVar<T, W> {
     type Strong = ReadOnlyVar<T, W::Strong>;
 
@@ -196,5 +206,5 @@ where
     fn into_any(self) -> Box<dyn any::AnyVar> {
         any::AnyVar::into_any(self.0)
     }
-    any_var_impls!();
+    any_var_impls!(Var);
 }

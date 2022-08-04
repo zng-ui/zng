@@ -14,7 +14,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::{any, IntoVar, Var, VarValue, Vars, WeakVar};
+use super::{any, AnyWeakVar, IntoVar, Var, VarValue, Vars, WeakVar};
 
 mod vars;
 pub(crate) use vars::*;
@@ -534,6 +534,18 @@ where
         WeakEasingVar(self.0.clone())
     }
 }
+impl<T, V, F> AnyWeakVar for WeakEasingVar<T, V, F>
+where
+    T: VarValue + Transitionable,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + 'static,
+{
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<T, V, F> WeakVar<T> for WeakEasingVar<T, V, F>
 where
     T: VarValue + Transitionable,
@@ -851,5 +863,5 @@ where
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }

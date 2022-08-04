@@ -365,7 +365,7 @@ impl<T: VarValue, V: Var<T>> any::AnyVar for RcCowVar<T, V> {
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 /// A weak reference to a [`RcCowVar`].
@@ -375,6 +375,13 @@ impl<T: VarValue, V: Var<T>> Clone for WeakRcCowVar<T, V> {
     fn clone(&self) -> Self {
         WeakRcCowVar(self.0.clone())
     }
+}
+impl<T: VarValue, V: Var<T>> any::AnyWeakVar for WeakRcCowVar<T, V> {
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
 }
 impl<T: VarValue, V: Var<T>> WeakVar<T> for WeakRcCowVar<T, V> {
     type Strong = RcCowVar<T, V>;

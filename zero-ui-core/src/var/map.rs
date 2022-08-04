@@ -27,6 +27,19 @@ where
         WeakRcMapVar(self.0.clone())
     }
 }
+impl<A, B, M, S> any::AnyWeakVar for WeakRcMapVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<A, B, M, S> WeakVar<B> for WeakRcMapVar<A, B, M, S>
 where
     A: VarValue,
@@ -289,7 +302,7 @@ where
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 /// Weak reference to a [`RcMapBidiVar`].
@@ -315,6 +328,21 @@ where
         Self(self.0.clone())
     }
 }
+impl<A, B, M, N, S> any::AnyWeakVar for WeakRcMapBidiVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: FnMut(&A) -> B + 'static,
+    N: FnMut(B) -> A + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
+
 impl<A, B, M, N, S> WeakVar<B> for WeakRcMapBidiVar<A, B, M, N, S>
 where
     A: VarValue,
@@ -644,5 +672,5 @@ where
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }

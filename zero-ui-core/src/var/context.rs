@@ -157,7 +157,7 @@ impl<C: ContextVar> any::AnyVar for ContextVarProxy<C> {
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 /// Value bound to a [`ContextVar`] at a context.

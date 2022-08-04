@@ -756,6 +756,13 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         Rc::as_ptr(&self.0) as _
     }
 }
+impl<O: VarValue> any::AnyWeakVar for WeakRcWhenVar<O> {
+    fn into_any(self) -> Box<dyn any::AnyWeakVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!(WeakVar);
+}
 impl<O: VarValue> WeakVar<O> for WeakRcWhenVar<O> {
     type Strong = RcWhenVar<O>;
 
@@ -787,7 +794,7 @@ impl<O: VarValue> any::AnyVar for RcWhenVar<O> {
         Box::new(self)
     }
 
-    any_var_impls!();
+    any_var_impls!(Var);
 }
 
 /// Builder used in [`when_var!`] when there is more then 8 conditions. Boxes the variables.
