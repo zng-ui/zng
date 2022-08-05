@@ -10,7 +10,7 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     error::Error,
-    rc::Rc,
+    rc::Rc, cell::Cell,
 };
 
 use crate::{
@@ -37,47 +37,55 @@ impl AppExtension for ConfigManager {
     fn update_preview(&mut self, ctx: &mut AppContext) {
         let config = Config::req(ctx.services);
 
+        // run once tasks
         for task in config.once_tasks.drain(..) {
             task(ctx.vars, &config.status);
         }
 
+        // collect backend updates
         let mut read = HashSet::new();
         let mut read_all = false;
-
         if let Some((_, backend_tasks)) = &config.backend {
             while let Ok(task) = backend_tasks.try_recv() {
                 match task {
-                    ConfigBackendUpdate::ExternalChange(key) => {
+                    ConfigBackendUpdate::Refresh(key) => {
                         if !read_all {
                             read.insert(key);
                         }
                     }
-                    ConfigBackendUpdate::ExternalChangeAll => read_all = true,
+                    ConfigBackendUpdate::RefreshAll => read_all = true,
                 }
             }
         }
 
+        // run retained tasks
         config.tasks.retain_mut(|t| t(ctx.vars, &config.status));
 
+        // Update config vars:
+        // - Remove dropped vars.
+        // - React to var assigns.
+        // - Apply backend requests.
         let mut var_tasks = vec![];
         config.vars.retain(|key, var| match var.upgrade(ctx.vars) {
             Some((any_var, write)) => {
                 if write {
+                    // var was set by the user, start a write task.
                     var_tasks.push(var.write(ConfigVarTaskArgs {
                         vars: ctx.vars,
                         key,
                         var: any_var,
                     }));
-                } else if read_all || read.remove(key) {
+                } else if read_all || read.contains(key) {
+                    // backend notified a potential change, start a read task.
                     var_tasks.push(var.read(ConfigVarTaskArgs {
                         vars: ctx.vars,
                         key,
                         var: any_var,
                     }));
                 }
-                true
+                true // retain var
             }
-            None => false,
+            None => false, // var was dropped, remove entry
         });
 
         for task in var_tasks {
@@ -135,7 +143,7 @@ impl Config {
     pub fn install_backend(&mut self, mut backend: impl ConfigBackend) {
         let (sender, receiver) = self.update.ext_channel();
         if !self.vars.is_empty() {
-            let _ = sender.send(ConfigBackendUpdate::ExternalChangeAll);
+            let _ = sender.send(ConfigBackendUpdate::RefreshAll);
         }
 
         backend.init(sender);
@@ -226,7 +234,12 @@ impl Config {
                     let value = value.clone();
 
                     self.once_tasks.push(Box::new(move |vars, _| {
-                        var.set_ne(vars, value);
+                        var.modify(vars, move |mut v| {
+                            if v.value != value {
+                                v.value = value;
+                                v.write.set(false);
+                            }
+                        });
                     }));
 
                     let _ = self.update.send_ext_update();
@@ -240,6 +253,12 @@ impl Config {
         };
 
         // serialize and request write.
+        self.write_backend(key, value);
+    }
+    fn write_backend<T>(&mut self, key: ConfigKey, value: T)
+    where
+        T: ConfigValue,
+    {
         if let Some((backend, _)) = &self.backend {
             match serde_json::value::to_value(value) {
                 Ok(json) => {
@@ -285,22 +304,28 @@ impl Config {
         }
     }
 
-    /// Gets a variable that updates every time the config associated with `key` changes and updates the config
+    /// Gets a variable that updates every time the config associated with `key` changes and writes the config
     /// every time it changes.
     ///
     /// This is equivalent of a two-way binding between the config storage and the variable.
     ///
     /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
     /// after it is read.
-    pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> ReadOnlyRcVar<T>
+    pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>
     where
         K: Into<ConfigKey>,
         T: ConfigValue,
         D: FnOnce() -> T,
     {
-        self.var_impl(key.into(), default_value).into_read_only()
+        self.var_impl(key.into(), default_value).map_ref_bidi(
+            |v| &v.value,
+            |v| {
+                v.write.set(true);
+                &mut v.value
+            },
+        )
     }
-    fn var_impl<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<T> {
+    fn var_impl<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<ValueWithSource<T>> {
         let refresh;
 
         let r = match self.vars.entry(key) {
@@ -312,8 +337,8 @@ impl Config {
                 // entry stale or for the wrong type:
 
                 // re-insert observer
-                let var = var(default_value());
-                *entry.get_mut() = ConfigVar::new(&var);
+                let (cfg_var, var) = ConfigVar::new(default_value());
+                *entry.get_mut() = cfg_var;
 
                 // and refresh the value.
                 refresh = (entry.key().clone(), var.clone());
@@ -321,11 +346,11 @@ impl Config {
                 var
             }
             Entry::Vacant(entry) => {
-                let var = var(default_value());
+                let (cfg_var, var) = ConfigVar::new(default_value());
 
                 refresh = (entry.key().clone(), var.clone());
 
-                entry.insert(ConfigVar::new(&var));
+                entry.insert(cfg_var);
 
                 var
             }
@@ -336,7 +361,12 @@ impl Config {
         self.tasks.push(Box::new(move |vars, _| {
             if let Some(rsp) = value.rsp_clone(vars) {
                 if let Some(value) = rsp {
-                    var.set_ne(vars, value);
+                    var.modify(vars, move |mut v| {
+                        if v.value != value {
+                            v.value = value;
+                            v.write.set(false);
+                        }
+                    });
                 }
                 false // task finished
             } else {
@@ -350,28 +380,43 @@ impl Config {
 
 type VarUpdateTask = Box<dyn FnOnce(&mut Config)>;
 
+/// ConfigVar actual value, tracks if updates need to be send to backend.
+#[derive(Debug, Clone, PartialEq)]
+struct ValueWithSource<T: ConfigValue> {
+    value: T,
+    write: Rc<Cell<bool>>,
+}
+
 struct ConfigVar {
     var: Box<dyn AnyWeakVar>,
+    write: Rc<Cell<bool>>,
     run_task: Box<dyn Fn(ConfigVarTask, ConfigVarTaskArgs) -> VarUpdateTask>,
 }
 impl ConfigVar {
-    fn new<T: ConfigValue>(var: &RcVar<T>) -> Self {
-        ConfigVar {
+    fn new<T: ConfigValue>(initial_value: T) -> (Self, RcVar<ValueWithSource<T>>) {
+        let write = Rc::new(Cell::new(false));
+        let var = var(ValueWithSource {
+            value: initial_value,
+            write: write.clone(),
+        });
+        let r = ConfigVar {
             var: var.downgrade().into_any(),
+            write,
             run_task: Box::new(ConfigVar::run_task_impl::<T>),
-        }
+        };
+        (r, var)
     }
 
     /// Returns var and if it needs to write.
     fn upgrade(&mut self, vars: &Vars) -> Option<(Box<dyn AnyVar>, bool)> {
         self.var.upgrade_any().map(|v| {
-            let write = v.is_new_any(vars);
+            let write = self.write.get() && v.is_new_any(vars);
             (v, write)
         })
     }
 
-    fn downcast<T: ConfigValue>(&self) -> Option<RcVar<T>> {
-        self.var.as_any().downcast_ref::<types::WeakRcVar<T>>()?.upgrade()
+    fn downcast<T: ConfigValue>(&self) -> Option<RcVar<ValueWithSource<T>>> {
+        self.var.as_any().downcast_ref::<types::WeakRcVar<ValueWithSource<T>>>()?.upgrade()
     }
 
     fn read(&self, args: ConfigVarTaskArgs) -> VarUpdateTask {
@@ -381,7 +426,7 @@ impl ConfigVar {
         (self.run_task)(ConfigVarTask::Write, args)
     }
     fn run_task_impl<T: ConfigValue>(task: ConfigVarTask, args: ConfigVarTaskArgs) -> VarUpdateTask {
-        if let Some(var) = args.var.as_any().downcast_ref::<RcVar<T>>() {
+        if let Some(var) = args.var.as_any().downcast_ref::<RcVar<ValueWithSource<T>>>() {
             match task {
                 ConfigVarTask::Read => {
                     let key = args.key.clone();
@@ -389,16 +434,21 @@ impl ConfigVar {
                     Box::new(move |config| {
                         config.read_raw::<T, _>(key, move |vars, value| {
                             if let Some(value) = value {
-                                var.set_ne(vars, value);
+                                var.modify(vars, move |mut v| {
+                                    if v.value != value {
+                                        v.value = value;
+                                        v.write.set(false);
+                                    }
+                                });
                             }
                         });
                     })
                 }
                 ConfigVarTask::Write => {
                     let key = args.key.clone();
-                    let value = var.get_clone(args.vars);
+                    let value = var.get_clone(args.vars).value;
                     Box::new(move |config| {
-                        config.write_impl(key, value);
+                        config.write_backend(key, value);
                     })
                 }
             }
@@ -448,7 +498,7 @@ pub trait ConfigBackend: 'static {
 #[derive(Clone, Debug)]
 pub enum ConfigBackendUpdate {
     /// Value associated with the key may have changed from an external event, **not** a write operation.
-    ExternalChange(ConfigKey),
+    Refresh(ConfigKey),
     /// All values may have changed.
-    ExternalChangeAll,
+    RefreshAll,
 }
