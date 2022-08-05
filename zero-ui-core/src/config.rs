@@ -8,9 +8,10 @@
 //! [default app]: crate::app::App::default
 
 use std::{
+    cell::Cell,
     collections::{hash_map::Entry, HashMap, HashSet},
     error::Error,
-    rc::Rc, cell::Cell,
+    rc::Rc,
 };
 
 use crate::{
@@ -305,9 +306,7 @@ impl Config {
     }
 
     /// Gets a variable that updates every time the config associated with `key` changes and writes the config
-    /// every time it changes.
-    ///
-    /// This is equivalent of a two-way binding between the config storage and the variable.
+    /// every time it changes. This is equivalent of a two-way binding between the config storage and the variable.
     ///
     /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
     /// after it is read.
@@ -317,7 +316,7 @@ impl Config {
         T: ConfigValue,
         D: FnOnce() -> T,
     {
-        self.var_impl(key.into(), default_value).map_ref_bidi(
+        self.var_with_source(key.into(), default_value).map_ref_bidi(
             |v| &v.value,
             |v| {
                 v.write.set(true);
@@ -325,7 +324,49 @@ impl Config {
             },
         )
     }
-    fn var_impl<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<ValueWithSource<T>> {
+
+    /// Binds a variable that updates every time the config associated with `key` changes and writes the config
+    /// every time it changes. If the `target` is dropped the binding is dropped.
+    ///
+    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
+    /// after it is read.
+    pub fn bind<Vw: WithVars, K: Into<ConfigKey>, T: ConfigValue, D: FnOnce() -> T, V: Var<T>>(
+        &mut self,
+        vars: &Vw,
+        key: K,
+        default_value: D,
+        target: &V,
+    ) -> VarBindingHandle {
+        let source = self.var_with_source(key.into(), default_value);
+        vars.with_vars(|vars| {
+            if let Some(target) = target.actual_var(vars).downgrade() {
+                vars.bind(move |vars, binding| {
+                    if let Some(target) = target.upgrade() {
+                        if let Some(v) = source.get_new(vars) {
+                            // backend updated, notify
+                            let _ = target.set_ne(vars, v.value.clone());
+                        }
+                        if let Some(value) = target.clone_new(vars) {
+                            // user updated, write
+                            source.modify(vars, move |mut v| {
+                                if v.value != value {
+                                    Cell::set(&v.write, true);
+                                    v.value = value;
+                                }
+                            });
+                        }
+                    } else {
+                        // dropped target, drop binding
+                        binding.unbind();
+                    }
+                })
+            } else {
+                VarBindingHandle::dummy()
+            }
+        })
+    }
+
+    fn var_with_source<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<ValueWithSource<T>> {
         let refresh;
 
         let r = match self.vars.entry(key) {
