@@ -141,7 +141,7 @@ impl Config {
     }
 
     /// Install a config backend, replaces the previous backend.
-    pub fn install_backend(&mut self, mut backend: impl ConfigBackend) {
+    pub fn set_backend(&mut self, mut backend: impl ConfigBackend) {
         let (sender, receiver) = self.update.ext_channel();
         if !self.vars.is_empty() {
             let _ = sender.send(ConfigBackendUpdate::RefreshAll);
@@ -184,7 +184,7 @@ impl Config {
         T: ConfigValue,
         R: FnOnce(&Vars, Option<T>) + 'static,
     {
-        if let Some((backend, _)) = &self.backend {
+        if let Some((backend, _)) = &mut self.backend {
             // channel with the backend.
             let (sender, receiver) = self.update.ext_channel_bounded(1);
             backend.read(key, sender);
@@ -260,7 +260,7 @@ impl Config {
     where
         T: ConfigValue,
     {
-        if let Some((backend, _)) = &self.backend {
+        if let Some((backend, _)) = &mut self.backend {
             match serde_json::value::to_value(value) {
                 Ok(json) => {
                     let (sx, rx) = self.update.ext_channel_bounded(1);
@@ -528,11 +528,11 @@ pub trait ConfigBackend: 'static {
     /// Send a read request for the most recent value associated with `key` in the persistent storage.
     ///
     /// The `rsp` channel must be used once to send back the result.
-    fn read(&self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>);
+    fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>);
     /// Send a write request to set the `value` for `key` on the persistent storage.
     ///
     /// The `rsp` channel must be used once to send back the result.
-    fn write(&self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), Box<dyn Error + Send>>>);
+    fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), Box<dyn Error + Send>>>);
 }
 
 /// External updates in a [`ConfigBackend`].
@@ -543,3 +543,120 @@ pub enum ConfigBackendUpdate {
     /// All values may have changed.
     RefreshAll,
 }
+
+mod file_backend {
+    use super::*;
+    use std::{
+        fs,
+        io::{BufReader, BufWriter, Seek, SeekFrom},
+        path::PathBuf,
+        thread::{self, JoinHandle},
+    };
+
+    /// Simple [`ConfigBackend`] that writes all settings to a JSON file.
+    pub struct ConfigFile {
+        file: PathBuf,
+        thread: Option<(JoinHandle<()>, flume::Sender<Request>)>,
+        pretty: bool,
+    }
+    impl ConfigFile {
+        /// New with the path to the JSON config file.
+        pub fn new(json_file: impl Into<PathBuf>, pretty: bool) -> Self {
+            ConfigFile {
+                file: json_file.into(),
+                thread: None,
+                pretty,
+            }
+        }
+
+        fn send(&mut self, request: Request) {
+            if let Some((_, sx)) = &self.thread {
+                if sx.send(request).is_err() {
+                    let thread = self.thread.take().unwrap().0;
+                    let panic = thread.join().unwrap_err();
+                    std::panic::resume_unwind(panic);
+                }
+            } else {
+                let (sx, rx) = flume::unbounded();
+                sx.send(request).unwrap();
+                let file = self.file.clone();
+                let pretty = self.pretty;
+                let handle = thread::spawn(move || {
+                    let mut file = fs::OpenOptions::new().read(true).write(true).create(true).open(file).unwrap();
+                    let mut data: HashMap<String, JsonValue> = if file.metadata().unwrap().len() == 0 {
+                        HashMap::new()
+                    } else {
+                        serde_json::from_reader(&mut BufReader::new(&mut file)).unwrap()
+                    };
+
+                    for request in rx.iter() {
+                        match request {
+                            Request::Read { key, rsp } => rsp.send(Ok(data.get(&key.into_owned()).cloned())).unwrap(),
+                            Request::Write { key, value, rsp } => {
+                                let write = match data.entry(key.into_owned()) {
+                                    Entry::Occupied(mut e) => {
+                                        if e.get() != &value {
+                                            *e.get_mut() = value;
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                    Entry::Vacant(e) => {
+                                        e.insert(value);
+                                        true
+                                    }
+                                };
+
+                                if write {
+                                    file.seek(SeekFrom::Start(0)).unwrap();
+                                    file.set_len(0).unwrap();
+                                    let r = if pretty {
+                                        serde_json::to_writer_pretty(BufWriter::new(&mut file), &data)
+                                    } else {
+                                        serde_json::to_writer(BufWriter::new(&mut file), &data)
+                                    };
+                                    rsp.send(r.map_err(|e| {
+                                        let e: Box<dyn Error + Send> = Box::new(e);
+                                        e
+                                    }))
+                                    .unwrap();
+                                } else {
+                                    rsp.send(Ok(())).unwrap();
+                                }
+                            }
+                        }
+                    }
+                });
+
+                self.thread = Some((handle, sx));
+            }
+        }
+    }
+    impl ConfigBackend for ConfigFile {
+        fn init(&mut self, _: AppExtSender<ConfigBackendUpdate>) {
+            tracing::warn!("config watcher not implemented")
+        }
+
+        fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>) {
+            self.send(Request::Read { key, rsp })
+        }
+
+        fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), Box<dyn Error + Send>>>) {
+            self.send(Request::Write { key, value, rsp })
+        }
+    }
+
+    enum Request {
+        Read {
+            key: ConfigKey,
+            rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>,
+        },
+        Write {
+            key: ConfigKey,
+            value: JsonValue,
+            rsp: AppExtSender<Result<(), Box<dyn Error + Send>>>,
+        },
+    }
+}
+pub use file_backend::ConfigFile;

@@ -32,6 +32,10 @@ name = "calculator"
 path = "calculator.rs"
 
 [[example]]
+name = "config"
+path = "config.rs"
+
+[[example]]
 name = "countdown"
 path = "countdown.rs"
 
