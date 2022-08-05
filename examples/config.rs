@@ -20,7 +20,7 @@ fn main() {
 fn app_main() {
     App::default().run_window(|ctx| {
         let cfg = Config::req(ctx);
-        cfg.set_backend(ConfigFile::new("target/tmp/example.config.json", true, 3.secs()));
+        cfg.init(ConfigFile::new("target/tmp/example.config.json", true, 3.secs()));
 
         let checked = cfg.var("main.checked", || false);
         let count = cfg.var("main.count", || 0);
@@ -32,11 +32,14 @@ fn app_main() {
                 margin = 10;
                 font_family = "monospace";
                 align = Align::TOP_LEFT;
+
+                color = cfg.status().map(|s| if s.has_errors() { colors::PINK } else { colors::WHITE });
+                font_weight = FontWeight::BOLD;
             };
             content = v_stack! {
                 align = Align::CENTER;
                 spacing = 5;
-                items = widgets![                    
+                items = widgets![
                     button! {
                         content = text(checked.map(|c| formatx!("Checked: {c:?}")));
                         on_click = hn!(checked, |ctx, _| {

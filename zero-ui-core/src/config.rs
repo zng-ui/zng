@@ -63,6 +63,11 @@ impl AppExtension for ConfigManager {
                         }
                     }
                     ConfigBackendUpdate::RefreshAll => read_all = true,
+                    ConfigBackendUpdate::InternalError(e) => {
+                        config.status.modify(ctx.vars, move |mut s| {
+                            s.set_internal_error(e);
+                        });
+                    }
                 }
             }
         }
@@ -149,7 +154,7 @@ impl Config {
     }
 
     /// Install a config backend, replaces the previous backend.
-    pub fn set_backend(&mut self, mut backend: impl ConfigBackend) {
+    pub fn init(&mut self, mut backend: impl ConfigBackend) {
         let (sender, receiver) = self.update.ext_channel();
         if !self.vars.is_empty() {
             let _ = sender.send(ConfigBackendUpdate::RefreshAll);
@@ -162,6 +167,21 @@ impl Config {
     /// Gets a variable that tracks the backend write tasks.
     pub fn status(&self) -> ReadOnlyRcVar<ConfigStatus> {
         self.status.clone().into_read_only()
+    }
+
+    /// Remove any errors set in the [`status`].
+    ///
+    /// [`status`]: Self::status
+    pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
+        vars.with_vars(|vars| {
+            self.status.modify(vars, |mut s| {
+                if s.has_errors() {
+                    s.read_error = None;
+                    s.write_error = None;
+                    s.internal_error = None;
+                }
+            });
+        })
     }
 
     /// Read the config value currently associated with the `key` if it is of the same type.
@@ -199,7 +219,7 @@ impl Config {
 
             // bind two channels.
             let mut respond = Some(respond);
-            self.tasks.push(Box::new(move |vars, _| {
+            self.tasks.push(Box::new(move |vars, status| {
                 match receiver.try_recv() {
                     Ok(Ok(r)) => {
                         let respond = respond.take().unwrap();
@@ -207,7 +227,19 @@ impl Config {
                         false
                     }
                     Err(None) => true, // retain
-                    Ok(Err(_)) | Err(_) => {
+                    Ok(Err(e)) => {
+                        status.modify(vars, move |mut s| {
+                            s.set_read_error(e);
+                        });
+
+                        let respond = respond.take().unwrap();
+                        respond(vars, None);
+                        false
+                    }
+                    Err(Some(e)) => {
+                        status.modify(vars, move |mut s| {
+                            s.set_read_error(ConfigError::new(e));
+                        });
                         let respond = respond.take().unwrap();
                         respond(vars, None);
                         false
@@ -281,7 +313,7 @@ impl Config {
                                 status.modify(vars, move |mut s| {
                                     s.pending -= count;
                                     if let Err(e) = r {
-                                        s.last_error = Some(e);
+                                        s.set_write_error(e);
                                     }
                                 });
                                 false // task finished
@@ -297,7 +329,7 @@ impl Config {
                             Err(Some(e)) => {
                                 status.modify(vars, move |mut s| {
                                     s.pending -= count;
-                                    s.last_error = Some(ConfigError::new(e))
+                                    s.set_write_error(ConfigError::new(e))
                                 });
                                 false // task finished
                             }
@@ -306,7 +338,7 @@ impl Config {
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
-                        status.modify(vars, move |mut s| s.last_error = Some(ConfigError::new(e)));
+                        status.modify(vars, move |mut s| s.set_write_error(ConfigError::new(e)));
                     }));
                 }
             }
@@ -524,16 +556,67 @@ pub struct ConfigStatus {
     /// Number of pending writes.
     pub pending: usize,
 
-    /// Last write error.
-    pub last_error: Option<ConfigError>,
+    /// Last error during a read operation.
+    pub read_error: Option<ConfigError>,
+    /// Number of read errors.
+    pub read_errors: u32,
+
+    /// Last error during a write operation.
+    pub write_error: Option<ConfigError>,
+    /// Number of write errors.
+    pub write_errors: u32,
+
+    /// Last internal error.
+    pub internal_error: Option<ConfigError>,
+    /// Number of internal errors.
+    pub internal_errors: u32,
+}
+impl ConfigStatus {
+    /// Returns `true` if there are any errors currently in the status.
+    ///
+    /// The errors can be cleared using [`Focus::clear_errors`].
+    pub fn has_errors(&self) -> bool {
+        self.read_error.is_some() || self.write_error.is_some() || self.internal_error.is_some()
+    }
+
+    fn set_read_error(&mut self, e: ConfigError) {
+        self.read_error = Some(e);
+        self.read_errors += 1;
+    }
+
+    fn set_write_error(&mut self, e: ConfigError) {
+        self.write_error = Some(e);
+        self.write_errors += 1;
+    }
+
+    fn set_internal_error(&mut self, e: ConfigError) {
+        self.internal_error = Some(e);
+        self.internal_errors += 1;
+    }
 }
 impl fmt::Display for ConfigStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.pending > 1 {
-            writeln!(f, "{} updates pending..", self.pending)?
+        use std::cmp::Ordering::*;
+        match self.pending.cmp(&1) {
+            Equal => writeln!(f, "{} update pending…", self.pending)?,
+            Greater => writeln!(f, "{} updates pending…", self.pending)?,
+            Less => {}
         }
-        if let Some(e) = &self.last_error {
-            writeln!(f, "last error: {}", e)?;
+
+        if let Some(e) = &self.internal_error {
+            write!(f, "internal error: ")?;
+            fmt::Display::fmt(e, f)?;
+            writeln!(f)?;
+        }
+        if let Some(e) = &self.read_error {
+            write!(f, "read error: ")?;
+            fmt::Display::fmt(e, f)?;
+            writeln!(f)?;
+        }
+        if let Some(e) = &self.write_error {
+            write!(f, "write error: ")?;
+            fmt::Display::fmt(e, f)?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -617,6 +700,10 @@ pub enum ConfigBackendUpdate {
     Refresh(ConfigKey),
     /// All values may have changed.
     RefreshAll,
+    /// Error not directly related to a read or write operation.
+    ///
+    /// If a full refresh is required after this a `RefreshAll` is send.
+    InternalError(ConfigError),
 }
 
 mod file_backend {
@@ -700,13 +787,22 @@ mod file_backend {
 
                     if self.panic_count > 5 {
                         self.is_shutdown = true;
-                        tracing::error!(
-                            "config thread panic 5 times in 1 minute, deactivating\nlast panic: {:?}",
-                            panic_str(&panic)
-                        );
+                        let update = self.update.as_ref().unwrap();
+                        update
+                            .send(ConfigBackendUpdate::InternalError(ConfigError::new_str(format!(
+                                "config thread panic 5 times in 1 minute, deactivating\nlast panic: {:?}",
+                                panic_str(&panic)
+                            ))))
+                            .unwrap();
                     } else {
-                        tracing::error!("config thread panic, {:?}", panic_str(&panic));
-                        self.update.as_ref().unwrap().send(ConfigBackendUpdate::RefreshAll).unwrap();
+                        let update = self.update.as_ref().unwrap();
+                        update
+                            .send(ConfigBackendUpdate::InternalError(ConfigError::new_str(format!(
+                                "config thread panic, {:?}",
+                                panic_str(&panic)
+                            ))))
+                            .unwrap();
+                        update.send(ConfigBackendUpdate::RefreshAll).unwrap();
                     }
                 }
             } else {
@@ -720,12 +816,19 @@ mod file_backend {
                 let handle = thread::Builder::new()
                     .name("ConfigFile".to_owned())
                     .spawn(move || {
-                        fs::create_dir_all(&file).expect("failed to create missing config dir");
+                        if let Some(dir) = file.parent() {
+                            if let Err(e) = fs::create_dir_all(dir) {
+                                if e.kind() != std::io::ErrorKind::AlreadyExists {
+                                    panic!("failed to create missing config dir")
+                                }
+                            }
+                        }
 
                         // load
                         let mut data: HashMap<String, JsonValue> = {
                             let mut file = fs::OpenOptions::new()
                                 .read(true)
+                                .write(true)
                                 .create(true)
                                 .open(&file)
                                 .expect("failed to crate or open config file");
@@ -737,12 +840,19 @@ mod file_backend {
                             }
                         };
 
-                        let mut last_write = Instant::now();
+                        let mut oldest_pending = Instant::now();
                         let mut pending_writes = vec![];
+                        let mut write_fails = 0;
                         let mut run = true;
 
                         while run {
-                            match rx.recv_timeout(if pending_writes.is_empty() { 30.minutes() } else { delay }) {
+                            match rx.recv_timeout(if write_fails > 0 {
+                                1.secs()
+                            } else if pending_writes.is_empty() {
+                                30.minutes()
+                            } else {
+                                delay
+                            }) {
                                 Ok(request) => match request {
                                     Request::Read { key, rsp } => rsp.send(Ok(data.get(&key.into_owned()).cloned())).unwrap(),
                                     Request::Write { key, value, rsp } => {
@@ -762,6 +872,9 @@ mod file_backend {
                                             }
                                         };
                                         if write {
+                                            if pending_writes.is_empty() {
+                                                oldest_pending = Instant::now();
+                                            }
                                             pending_writes.push(rsp);
                                         } else {
                                             rsp.send(Ok(())).unwrap();
@@ -776,8 +889,8 @@ mod file_backend {
                                 Err(flume::RecvTimeoutError::Disconnected) => panic!("disconnected"),
                             }
 
-                            if !pending_writes.is_empty() && (!run && last_write.elapsed() >= delay) {
-                                // debounce elapsed of is shutting-down.
+                            if (!pending_writes.is_empty() || write_fails > 0) && (!run || (oldest_pending.elapsed()) >= delay) {
+                                // debounce elapsed, or is shutting-down, or is trying to recover from write error.
 
                                 // try write
                                 let write_result: Result<(), ConfigError> = (|| {
@@ -797,7 +910,16 @@ mod file_backend {
                                     let _ = request.send(write_result.clone());
                                 }
 
-                                last_write = Instant::now();
+                                // track error recovery
+                                if write_result.is_err() {
+                                    write_fails += 1;
+                                    if write_fails > 5 {
+                                        // causes a respawn or worker shutdown.
+                                        panic!("write failed 5 times in 5 seconds");
+                                    }
+                                } else {
+                                    write_fails = 0;
+                                }
                             }
                         }
                     })
