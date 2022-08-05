@@ -1,3 +1,6 @@
+* Review error notification in `ConfigBackend`.
+    - We want to debounce writes, this means a single error for multiple requests.
+
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.
     - It halves the computation of bounds if removed.

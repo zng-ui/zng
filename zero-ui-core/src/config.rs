@@ -552,7 +552,7 @@ mod file_backend {
         io::{BufReader, BufWriter, Seek, SeekFrom},
         path::PathBuf,
         thread::{self, JoinHandle},
-        time::Instant,
+        time::{Instant, Duration},
     };
 
     /// Simple [`ConfigBackend`] that writes all settings to a JSON file.
@@ -561,6 +561,7 @@ mod file_backend {
         thread: Option<(JoinHandle<()>, flume::Sender<Request>)>,
         update: Option<AppExtSender<ConfigBackendUpdate>>,
         pretty: bool,
+        delay: Duration,
         last_panic: Option<Instant>,
         panic_count: usize,
     }
@@ -572,6 +573,7 @@ mod file_backend {
                 thread: None,
                 update: None,
                 pretty,
+                delay: 1.secs(),
                 last_panic: None,
                 panic_count: 0,
             }
@@ -607,6 +609,7 @@ mod file_backend {
                 sx.send(request).unwrap();
                 let file = self.file.clone();
                 let pretty = self.pretty;
+                let delay = self.delay;
                 let handle = thread::spawn(move || {
                     let mut file = fs::OpenOptions::new().read(true).write(true).create(true).open(file).unwrap();
                     let mut data: HashMap<String, JsonValue> = if file.metadata().unwrap().len() == 0 {
@@ -615,41 +618,57 @@ mod file_backend {
                         serde_json::from_reader(&mut BufReader::new(&mut file)).unwrap()
                     };
 
-                    for request in rx.iter() {
-                        match request {
-                            Request::Read { key, rsp } => rsp.send(Ok(data.get(&key.into_owned()).cloned())).unwrap(),
-                            Request::Write { key, value, rsp } => {
-                                let write = match data.entry(key.into_owned()) {
-                                    Entry::Occupied(mut e) => {
-                                        if e.get() != &value {
-                                            *e.get_mut() = value;
-                                            true
+                    let mut last_write = Instant::now();
+                    let mut pending_writes = vec![];
+
+                    loop {
+                        match rx.recv_timeout(delay) {
+                            Ok(request) => {
+                                match request {
+                                    Request::Read { key, rsp } => rsp.send(Ok(data.get(&key.into_owned()).cloned())).unwrap(),
+                                    Request::Write { key, value, rsp } => {
+                                        let write = match data.entry(key.into_owned()) {
+                                            Entry::Occupied(mut e) => {
+                                                if e.get() != &value {
+                                                    *e.get_mut() = value;
+                                                    true
+                                                } else {
+                                                    false
+                                                }
+                                            }
+                                            Entry::Vacant(e) => {
+                                                e.insert(value);
+                                                true
+                                            }
+                                        };
+                                        if write {
+                                            pending_writes.push(rsp);
                                         } else {
-                                            false
+                                            rsp.send(Ok(())).unwrap();
                                         }
-                                    }
-                                    Entry::Vacant(e) => {
-                                        e.insert(value);
-                                        true
-                                    }
+                                    },
+                                }
+                            },
+                            Err(flume::RecvTimeoutError::Timeout) => {}
+                            Err(flume::RecvTimeoutError::Disconnected) => panic!("disconnected"),
+                        }
+
+                        if !pending_writes.is_empty() && last_write.elapsed() >= delay {
+                            let write_result: Result<(), Box<dyn Error + Send + Sync>> = (|| {
+                                file.seek(SeekFrom::Start(0))?;
+                                file.set_len(0)?;
+                                
+                                if pretty {
+                                    serde_json::to_writer_pretty(BufWriter::new(&mut file), &data)?;
+                                } else {
+                                    serde_json::to_writer(BufWriter::new(&mut file), &data)?;
                                 };
 
-                                if write {
-                                    file.seek(SeekFrom::Start(0)).unwrap();
-                                    file.set_len(0).unwrap();
-                                    let r = if pretty {
-                                        serde_json::to_writer_pretty(BufWriter::new(&mut file), &data)
-                                    } else {
-                                        serde_json::to_writer(BufWriter::new(&mut file), &data)
-                                    };
-                                    rsp.send(r.map_err(|e| {
-                                        let e: Box<dyn Error + Send> = Box::new(e);
-                                        e
-                                    }))
-                                    .unwrap();
-                                } else {
-                                    rsp.send(Ok(())).unwrap();
-                                }
+                                Ok(())
+                            })();
+
+                            for request in pending_writes {
+                                let _ = request.send(write_result);
                             }
                         }
                     }
