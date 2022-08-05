@@ -546,18 +546,23 @@ pub enum ConfigBackendUpdate {
 
 mod file_backend {
     use super::*;
+    use crate::{crate_util::panic_str, units::*};
     use std::{
         fs,
         io::{BufReader, BufWriter, Seek, SeekFrom},
         path::PathBuf,
         thread::{self, JoinHandle},
+        time::Instant,
     };
 
     /// Simple [`ConfigBackend`] that writes all settings to a JSON file.
     pub struct ConfigFile {
         file: PathBuf,
         thread: Option<(JoinHandle<()>, flume::Sender<Request>)>,
+        update: Option<AppExtSender<ConfigBackendUpdate>>,
         pretty: bool,
+        last_panic: Option<Instant>,
+        panic_count: usize,
     }
     impl ConfigFile {
         /// New with the path to the JSON config file.
@@ -565,7 +570,10 @@ mod file_backend {
             ConfigFile {
                 file: json_file.into(),
                 thread: None,
+                update: None,
                 pretty,
+                last_panic: None,
+                panic_count: 0,
             }
         }
 
@@ -574,7 +582,25 @@ mod file_backend {
                 if sx.send(request).is_err() {
                     let thread = self.thread.take().unwrap().0;
                     let panic = thread.join().unwrap_err();
-                    std::panic::resume_unwind(panic);
+
+                    let now = Instant::now();
+                    if let Some(last) = self.last_panic {
+                        if now.duration_since(last) < 1.minutes() {
+                            self.panic_count += 1;
+                        } else {
+                            self.panic_count = 1;
+                        }
+                    } else {
+                        self.panic_count = 1;
+                    }
+                    self.last_panic = Some(now);
+
+                    if self.panic_count > 5 {
+                        std::panic::resume_unwind(panic);
+                    } else {
+                        tracing::error!("config thread panic, {:?}", panic_str(&panic));
+                        self.update.as_ref().unwrap().send(ConfigBackendUpdate::RefreshAll).unwrap();
+                    }
                 }
             } else {
                 let (sx, rx) = flume::unbounded();
@@ -634,8 +660,8 @@ mod file_backend {
         }
     }
     impl ConfigBackend for ConfigFile {
-        fn init(&mut self, _: AppExtSender<ConfigBackendUpdate>) {
-            tracing::warn!("config watcher not implemented")
+        fn init(&mut self, sender: AppExtSender<ConfigBackendUpdate>) {
+            self.update = Some(sender);
         }
 
         fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>) {
