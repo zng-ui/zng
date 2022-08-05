@@ -11,7 +11,9 @@ use std::{
     cell::Cell,
     collections::{hash_map::Entry, HashMap, HashSet},
     error::Error,
+    fmt,
     rc::Rc,
+    sync::Arc,
 };
 
 use crate::{
@@ -33,6 +35,12 @@ pub struct ConfigManager {}
 impl AppExtension for ConfigManager {
     fn init(&mut self, ctx: &mut AppContext) {
         ctx.services.register(Config::new(ctx.updates.sender()));
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        if let Some((mut backend, _)) = Config::req(ctx).backend.take() {
+            backend.deinit();
+        }
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
@@ -273,7 +281,7 @@ impl Config {
                                 status.modify(vars, move |mut s| {
                                     s.pending -= count;
                                     if let Err(e) = r {
-                                        s.last_error = Some(e.into());
+                                        s.last_error = Some(e);
                                     }
                                 });
                                 false // task finished
@@ -289,7 +297,7 @@ impl Config {
                             Err(Some(e)) => {
                                 status.modify(vars, move |mut s| {
                                     s.pending -= count;
-                                    s.last_error = Some(Rc::new(e))
+                                    s.last_error = Some(ConfigError::new(e))
                                 });
                                 false // task finished
                             }
@@ -298,7 +306,7 @@ impl Config {
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
-                        status.modify(vars, move |mut s| s.last_error = Some(Rc::new(e)));
+                        status.modify(vars, move |mut s| s.last_error = Some(ConfigError::new(e)));
                     }));
                 }
             }
@@ -517,7 +525,69 @@ pub struct ConfigStatus {
     pub pending: usize,
 
     /// Last write error.
-    pub last_error: Option<Rc<dyn Error + Send>>,
+    pub last_error: Option<ConfigError>,
+}
+impl fmt::Display for ConfigStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.pending > 1 {
+            writeln!(f, "{} updates pending..", self.pending)?
+        }
+        if let Some(e) = &self.last_error {
+            writeln!(f, "last error: {}", e)?;
+        }
+        Ok(())
+    }
+}
+
+/// Error in a [`ConfigBackend`].
+#[derive(Debug, Clone)]
+pub struct ConfigError(pub Arc<dyn Error + Send + Sync>);
+impl ConfigError {
+    /// New error.
+    pub fn new(error: impl Error + Send + Sync + 'static) -> Self {
+        Self(Arc::new(error))
+    }
+
+    /// New error from string.
+    pub fn new_str(error: impl Into<String>) -> Self {
+        struct StringError(String);
+        impl fmt::Debug for StringError {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                fmt::Debug::fmt(&self.0, f)
+            }
+        }
+        impl fmt::Display for StringError {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                fmt::Display::fmt(&self.0, f)
+            }
+        }
+        impl Error for StringError {}
+        Self::new(StringError(error.into()))
+    }
+}
+impl Error for ConfigError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.0.source()
+    }
+}
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+impl From<std::io::Error> for ConfigError {
+    fn from(e: std::io::Error) -> Self {
+        ConfigError::new(e)
+    }
+}
+impl From<serde_json::Error> for ConfigError {
+    fn from(e: serde_json::Error) -> Self {
+        ConfigError::new(e)
+    }
 }
 
 /// Represents an implementation of [`Config`].
@@ -525,14 +595,19 @@ pub trait ConfigBackend: 'static {
     /// Called once when the backend is installed.
     fn init(&mut self, observer: AppExtSender<ConfigBackendUpdate>);
 
+    /// Called once when the app is shutdown.
+    ///
+    /// Backends should block and flush all pending writes here.
+    fn deinit(&mut self);
+
     /// Send a read request for the most recent value associated with `key` in the persistent storage.
     ///
     /// The `rsp` channel must be used once to send back the result.
-    fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>);
+    fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>);
     /// Send a write request to set the `value` for `key` on the persistent storage.
     ///
     /// The `rsp` channel must be used once to send back the result.
-    fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), Box<dyn Error + Send>>>);
+    fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>);
 }
 
 /// External updates in a [`ConfigBackend`].
@@ -549,10 +624,10 @@ mod file_backend {
     use crate::{crate_util::panic_str, units::*};
     use std::{
         fs,
-        io::{BufReader, BufWriter, Seek, SeekFrom},
+        io::{BufReader, BufWriter},
         path::PathBuf,
         thread::{self, JoinHandle},
-        time::{Instant, Duration},
+        time::{Duration, Instant},
     };
 
     /// Simple [`ConfigBackend`] that writes all settings to a JSON file.
@@ -564,27 +639,53 @@ mod file_backend {
         delay: Duration,
         last_panic: Option<Instant>,
         panic_count: usize,
+        is_shutdown: bool,
     }
     impl ConfigFile {
         /// New with the path to the JSON config file.
-        pub fn new(json_file: impl Into<PathBuf>, pretty: bool) -> Self {
+        ///
+        /// # Parameters
+        ///
+        /// * `json_file`: The configuration file, path and file are created if it does not exist.
+        /// * `pretty`: If the JSON is formatted.
+        /// * `delay`: Debounce delay, write requests made inside the time window all become a single write operation, all pending
+        ///            writes are also written on shutdown.
+        pub fn new(json_file: impl Into<PathBuf>, pretty: bool, delay: Duration) -> Self {
             ConfigFile {
                 file: json_file.into(),
                 thread: None,
                 update: None,
                 pretty,
-                delay: 1.secs(),
+                delay,
                 last_panic: None,
                 panic_count: 0,
+                is_shutdown: false,
             }
         }
 
         fn send(&mut self, request: Request) {
-            if let Some((_, sx)) = &self.thread {
+            if self.is_shutdown {
+                // worker thread is permanently shutdown, can happen in case of repeated panics, or
+                match request {
+                    Request::Read { rsp, .. } => {
+                        let _ = rsp.send(Err(ConfigError::new_str("config worker is shutdown")));
+                    }
+                    Request::Write { rsp, .. } => {
+                        let _ = rsp.send(Err(ConfigError::new_str("config worker is shutdown")));
+                    }
+                    Request::Shutdown => {}
+                }
+            } else if let Some((_, sx)) = &self.thread {
+                // worker thread is running, send request
+
                 if sx.send(request).is_err() {
+                    // worker thread disconnected, can only be due to panic.
+
+                    // get panic.
                     let thread = self.thread.take().unwrap().0;
                     let panic = thread.join().unwrap_err();
 
+                    // respawn 5 times inside 1 minute, in case the error is recoverable.
                     let now = Instant::now();
                     if let Some(last) = self.last_panic {
                         if now.duration_since(last) < 1.minutes() {
@@ -598,35 +699,54 @@ mod file_backend {
                     self.last_panic = Some(now);
 
                     if self.panic_count > 5 {
-                        std::panic::resume_unwind(panic);
+                        self.is_shutdown = true;
+                        tracing::error!(
+                            "config thread panic 5 times in 1 minute, deactivating\nlast panic: {:?}",
+                            panic_str(&panic)
+                        );
                     } else {
                         tracing::error!("config thread panic, {:?}", panic_str(&panic));
                         self.update.as_ref().unwrap().send(ConfigBackendUpdate::RefreshAll).unwrap();
                     }
                 }
             } else {
+                // spawn worker thread
+
                 let (sx, rx) = flume::unbounded();
                 sx.send(request).unwrap();
                 let file = self.file.clone();
                 let pretty = self.pretty;
                 let delay = self.delay;
-                let handle = thread::spawn(move || {
-                    let mut file = fs::OpenOptions::new().read(true).write(true).create(true).open(file).unwrap();
-                    let mut data: HashMap<String, JsonValue> = if file.metadata().unwrap().len() == 0 {
-                        HashMap::new()
-                    } else {
-                        serde_json::from_reader(&mut BufReader::new(&mut file)).unwrap()
-                    };
+                let handle = thread::Builder::new()
+                    .name("ConfigFile".to_owned())
+                    .spawn(move || {
+                        fs::create_dir_all(&file).expect("failed to create missing config dir");
 
-                    let mut last_write = Instant::now();
-                    let mut pending_writes = vec![];
+                        // load
+                        let mut data: HashMap<String, JsonValue> = {
+                            let mut file = fs::OpenOptions::new()
+                                .read(true)
+                                .create(true)
+                                .open(&file)
+                                .expect("failed to crate or open config file");
 
-                    loop {
-                        match rx.recv_timeout(delay) {
-                            Ok(request) => {
-                                match request {
+                            if file.metadata().unwrap().len() == 0 {
+                                HashMap::new()
+                            } else {
+                                serde_json::from_reader(&mut BufReader::new(&mut file)).unwrap()
+                            }
+                        };
+
+                        let mut last_write = Instant::now();
+                        let mut pending_writes = vec![];
+                        let mut run = true;
+
+                        while run {
+                            match rx.recv_timeout(if pending_writes.is_empty() { 30.minutes() } else { delay }) {
+                                Ok(request) => match request {
                                     Request::Read { key, rsp } => rsp.send(Ok(data.get(&key.into_owned()).cloned())).unwrap(),
                                     Request::Write { key, value, rsp } => {
+                                        // update entry, but wait for next debounce write.
                                         let write = match data.entry(key.into_owned()) {
                                             Entry::Occupied(mut e) => {
                                                 if e.get() != &value {
@@ -646,33 +766,42 @@ mod file_backend {
                                         } else {
                                             rsp.send(Ok(())).unwrap();
                                         }
-                                    },
+                                    }
+                                    Request::Shutdown => {
+                                        // stop running will flush
+                                        run = false;
+                                    }
+                                },
+                                Err(flume::RecvTimeoutError::Timeout) => {}
+                                Err(flume::RecvTimeoutError::Disconnected) => panic!("disconnected"),
+                            }
+
+                            if !pending_writes.is_empty() && (!run && last_write.elapsed() >= delay) {
+                                // debounce elapsed of is shutting-down.
+
+                                // try write
+                                let write_result: Result<(), ConfigError> = (|| {
+                                    let mut file = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&file)?;
+                                    let file = BufWriter::new(&mut file);
+                                    if pretty {
+                                        serde_json::to_writer_pretty(file, &data)?;
+                                    } else {
+                                        serde_json::to_writer(file, &data)?;
+                                    };
+
+                                    Ok(())
+                                })();
+
+                                // notify write listeners
+                                for request in pending_writes.drain(..) {
+                                    let _ = request.send(write_result.clone());
                                 }
-                            },
-                            Err(flume::RecvTimeoutError::Timeout) => {}
-                            Err(flume::RecvTimeoutError::Disconnected) => panic!("disconnected"),
-                        }
 
-                        if !pending_writes.is_empty() && last_write.elapsed() >= delay {
-                            let write_result: Result<(), Box<dyn Error + Send + Sync>> = (|| {
-                                file.seek(SeekFrom::Start(0))?;
-                                file.set_len(0)?;
-                                
-                                if pretty {
-                                    serde_json::to_writer_pretty(BufWriter::new(&mut file), &data)?;
-                                } else {
-                                    serde_json::to_writer(BufWriter::new(&mut file), &data)?;
-                                };
-
-                                Ok(())
-                            })();
-
-                            for request in pending_writes {
-                                let _ = request.send(write_result);
+                                last_write = Instant::now();
                             }
                         }
-                    }
-                });
+                    })
+                    .expect("failed to spawn ConfigFile worker thread");
 
                 self.thread = Some((handle, sx));
             }
@@ -683,11 +812,19 @@ mod file_backend {
             self.update = Some(sender);
         }
 
-        fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>) {
+        fn deinit(&mut self) {
+            if let Some((thread, sender)) = self.thread.take() {
+                self.is_shutdown = true;
+                let _ = sender.send(Request::Shutdown);
+                let _ = thread.join();
+            }
+        }
+
+        fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>) {
             self.send(Request::Read { key, rsp })
         }
 
-        fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), Box<dyn Error + Send>>>) {
+        fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>) {
             self.send(Request::Write { key, value, rsp })
         }
     }
@@ -695,13 +832,14 @@ mod file_backend {
     enum Request {
         Read {
             key: ConfigKey,
-            rsp: AppExtSender<Result<Option<JsonValue>, Box<dyn Error + Send>>>,
+            rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>,
         },
         Write {
             key: ConfigKey,
             value: JsonValue,
-            rsp: AppExtSender<Result<(), Box<dyn Error + Send>>>,
+            rsp: AppExtSender<Result<(), ConfigError>>,
         },
+        Shutdown,
     }
 }
 pub use file_backend::ConfigFile;

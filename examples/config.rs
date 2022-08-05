@@ -20,17 +20,23 @@ fn main() {
 fn app_main() {
     App::default().run_window(|ctx| {
         let cfg = Config::req(ctx);
-        cfg.set_backend(ConfigFile::new("target/tmp/example.config.json", true));
+        cfg.set_backend(ConfigFile::new("target/tmp/example.config.json", true, 3.secs()));
 
         let checked = cfg.var("main.checked", || false);
         let count = cfg.var("main.count", || 0);
 
         window! {
             title = "Config Example";
+            background = text! {
+                text = cfg.status().map_to_text();
+                margin = 10;
+                font_family = "monospace";
+                align = Align::TOP_LEFT;
+            };
             content = v_stack! {
                 align = Align::CENTER;
                 spacing = 5;
-                items = widgets![
+                items = widgets![                    
                     button! {
                         content = text(checked.map(|c| formatx!("Checked: {c:?}")));
                         on_click = hn!(checked, |ctx, _| {
@@ -43,6 +49,7 @@ fn app_main() {
                             count.modify(ctx, |mut c| *c += 1).unwrap();
                         })
                     },
+                    separator(),
                     button! {
                         content = text("Reset");
                         on_click = hn!(|ctx, _| {
@@ -54,4 +61,12 @@ fn app_main() {
             };
         }
     })
+}
+
+fn separator() -> impl Widget {
+    hr! {
+        color = rgba(1.0, 1.0, 1.0, 0.2);
+        margin = (0, 8);
+        style = LineStyle::Dashed;
+    }
 }

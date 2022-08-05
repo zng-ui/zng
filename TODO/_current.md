@@ -1,5 +1,5 @@
-* Review error notification in `ConfigBackend`.
-    - We want to debounce writes, this means a single error for multiple requests.
+* Review "fatal" errors in ConfigBackend.
+    - We want the `last_error` to don't show subsequent errors after the panic?
 
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.
