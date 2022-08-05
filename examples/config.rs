@@ -24,16 +24,19 @@ fn app_main() {
 
         let checked = cfg.var("main.checked", || false);
         let count = cfg.var("main.count", || 0);
+        let status = cfg.status();
+
+        trace_status(ctx.vars, &status);
 
         window! {
             title = "Config Example";
             background = text! {
-                text = cfg.status().map_to_text();
+                text = status.map_to_text();
                 margin = 10;
                 font_family = "monospace";
                 align = Align::TOP_LEFT;
 
-                color = cfg.status().map(|s| if s.has_errors() { colors::PINK } else { colors::WHITE });
+                color = status.map(|s| if s.has_errors() { colors::PINK } else { colors::WHITE });
                 font_weight = FontWeight::BOLD;
             };
             content = v_stack! {
@@ -72,4 +75,34 @@ fn separator() -> impl Widget {
         margin = (0, 8);
         style = LineStyle::Dashed;
     }
+}
+
+fn trace_status(vars: &Vars, status: &impl Var<ConfigStatus>) {
+    let mut read_errs = 0;
+    let mut write_errs = 0;
+    let mut internal_errs = 0;
+    status
+        .trace_value(vars, move |s: &ConfigStatus| {
+            if let Some(e) = &s.internal_error {
+                if s.internal_errors != internal_errs {
+                    internal_errs = s.internal_errors;
+                    tracing::error!("internal error: {e}");
+                }
+            }
+
+            if let Some(e) = &s.read_error {
+                if s.read_errors != read_errs {
+                    read_errs = s.read_errors;
+                    tracing::error!("read error: {e}");
+                }
+            }
+
+            if let Some(e) = &s.write_error {
+                if s.write_errors != write_errs {
+                    write_errs = s.write_errors;
+                    tracing::error!("write error: {e}");
+                }
+            }            
+        })
+        .perm();
 }

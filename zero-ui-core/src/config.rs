@@ -246,6 +246,7 @@ impl Config {
                     }
                 }
             }));
+            let _ = self.update.send_ext_update();
         } else {
             // no backend, just respond with `None`.
             self.once_tasks.push(Box::new(move |vars, _| {
@@ -335,11 +336,13 @@ impl Config {
                             }
                         }
                     }));
+                    let _ = self.update.send_ext_update();
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
                         status.modify(vars, move |mut s| s.set_write_error(ConfigError::new(e)));
                     }));
+                    let _ = self.update.send_ext_update();
                 }
             }
         }
