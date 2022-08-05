@@ -2361,8 +2361,8 @@ impl<T> Clone for AppExtReceiver<T> {
 }
 impl<T> AppExtReceiver<T> {
     /// Receive an update if any was send.
-    /// 
-    /// Returns `Ok(msg)` if there was at least one message, or returns `Err(None)` if there was no update or 
+    ///
+    /// Returns `Ok(msg)` if there was at least one message, or returns `Err(None)` if there was no update or
     /// returns `Err(AppDisconnected)` if the connected sender was dropped.
     pub fn try_recv(&self) -> Result<T, Option<AppDisconnected<()>>> {
         self.receiver.try_recv().map_err(|e| match e {

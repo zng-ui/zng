@@ -47,9 +47,11 @@ impl AppExtension for ConfigManager {
         if let Some((_, backend_tasks)) = &config.backend {
             while let Ok(task) = backend_tasks.try_recv() {
                 match task {
-                    ConfigBackendUpdate::ExternalChange(key) => if !read_all {
-                        read.insert(key);
-                    },
+                    ConfigBackendUpdate::ExternalChange(key) => {
+                        if !read_all {
+                            read.insert(key);
+                        }
+                    }
                     ConfigBackendUpdate::ExternalChangeAll => read_all = true,
                 }
             }
@@ -57,19 +59,30 @@ impl AppExtension for ConfigManager {
 
         config.tasks.retain_mut(|t| t(ctx.vars, &config.status));
 
-        config.vars.retain(|key, var| {
-            match var.update(ctx.vars) {
-                Some(is_new) => {
-                    if is_new {
-                        todo!("write")
-                    } else if read_all || read.remove(key) {
-                        todo!("read")
-                    }
-                    true
-                },
-                None => false,
+        let mut var_tasks = vec![];
+        config.vars.retain(|key, var| match var.upgrade(ctx.vars) {
+            Some((any_var, write)) => {
+                if write {
+                    var_tasks.push(var.write(ConfigVarTaskArgs {
+                        vars: ctx.vars,
+                        key,
+                        var: any_var,
+                    }));
+                } else if read_all || read.remove(key) {
+                    var_tasks.push(var.read(ConfigVarTaskArgs {
+                        vars: ctx.vars,
+                        key,
+                        var: any_var,
+                    }));
+                }
+                true
             }
+            None => false,
         });
+
+        for task in var_tasks {
+            task(config);
+        }
     }
 }
 
@@ -142,24 +155,44 @@ impl Config {
         K: Into<ConfigKey>,
         T: ConfigValue,
     {
+        self.read_impl(key.into())
+    }
+    fn read_impl<T>(&mut self, key: ConfigKey) -> ResponseVar<Option<T>>
+    where
+        T: ConfigValue,
+    {
         // channel with the caller.
         let (responder, rsp) = response_var();
 
+        self.read_raw(key, move |vars, r| {
+            responder.respond(vars, r);
+        });
+
+        rsp
+    }
+    fn read_raw<T, R>(&mut self, key: ConfigKey, respond: R)
+    where
+        T: ConfigValue,
+        R: FnOnce(&Vars, Option<T>) + 'static,
+    {
         if let Some((backend, _)) = &self.backend {
             // channel with the backend.
             let (sender, receiver) = self.update.ext_channel_bounded(1);
-            backend.read(key.into(), sender);
+            backend.read(key, sender);
 
             // bind two channels.
+            let mut respond = Some(respond);
             self.tasks.push(Box::new(move |vars, _| {
                 match receiver.try_recv() {
                     Ok(Ok(r)) => {
-                        responder.respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
+                        let respond = respond.take().unwrap();
+                        respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
                         false
                     }
                     Err(None) => true, // retain
                     Ok(Err(_)) | Err(_) => {
-                        responder.respond(vars, None);
+                        let respond = respond.take().unwrap();
+                        respond(vars, None);
                         false
                     }
                 }
@@ -167,12 +200,10 @@ impl Config {
         } else {
             // no backend, just respond with `None`.
             self.once_tasks.push(Box::new(move |vars, _| {
-                responder.respond(vars, None);
+                respond(vars, None);
             }));
             let _ = self.update.send_ext_update();
         }
-
-        rsp
     }
 
     /// Write the config value associated with the `key`.
@@ -317,30 +348,75 @@ impl Config {
     }
 }
 
+type VarUpdateTask = Box<dyn FnOnce(&mut Config)>;
+
 struct ConfigVar {
     var: Box<dyn AnyWeakVar>,
-    backend_version: u32,
+    run_task: Box<dyn Fn(ConfigVarTask, ConfigVarTaskArgs) -> VarUpdateTask>,
 }
 impl ConfigVar {
     fn new<T: ConfigValue>(var: &RcVar<T>) -> Self {
         ConfigVar {
             var: var.downgrade().into_any(),
-            backend_version: 0,
+            run_task: Box::new(ConfigVar::run_task_impl::<T>),
         }
     }
 
-    fn update(&mut self, vars: &Vars) -> Option<bool> {
+    /// Returns var and if it needs to write.
+    fn upgrade(&mut self, vars: &Vars) -> Option<(Box<dyn AnyVar>, bool)> {
         self.var.upgrade_any().map(|v| {
-            let version = v.version_any(vars).non_contextual().unwrap();
-            let update = self.backend_version == version;
-            self.backend_version = version;
-            update
+            let write = v.is_new_any(vars);
+            (v, write)
         })
     }
 
     fn downcast<T: ConfigValue>(&self) -> Option<RcVar<T>> {
         self.var.as_any().downcast_ref::<types::WeakRcVar<T>>()?.upgrade()
     }
+
+    fn read(&self, args: ConfigVarTaskArgs) -> VarUpdateTask {
+        (self.run_task)(ConfigVarTask::Read, args)
+    }
+    fn write(&self, args: ConfigVarTaskArgs) -> VarUpdateTask {
+        (self.run_task)(ConfigVarTask::Write, args)
+    }
+    fn run_task_impl<T: ConfigValue>(task: ConfigVarTask, args: ConfigVarTaskArgs) -> VarUpdateTask {
+        if let Some(var) = args.var.as_any().downcast_ref::<RcVar<T>>() {
+            match task {
+                ConfigVarTask::Read => {
+                    let key = args.key.clone();
+                    let var = var.clone();
+                    Box::new(move |config| {
+                        config.read_raw::<T, _>(key, move |vars, value| {
+                            if let Some(value) = value {
+                                var.set_ne(vars, value);
+                            }
+                        });
+                    })
+                }
+                ConfigVarTask::Write => {
+                    let key = args.key.clone();
+                    let value = var.get_clone(args.vars);
+                    Box::new(move |config| {
+                        config.write_impl(key, value);
+                    })
+                }
+            }
+        } else {
+            Box::new(|_| {})
+        }
+    }
+}
+
+struct ConfigVarTaskArgs<'a> {
+    vars: &'a Vars,
+    key: &'a ConfigKey,
+    var: Box<dyn AnyVar>,
+}
+
+enum ConfigVarTask {
+    Read,
+    Write,
 }
 
 /// Current [`Config`] status.

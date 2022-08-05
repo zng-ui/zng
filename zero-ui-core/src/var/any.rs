@@ -12,7 +12,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Cast to [`Any`].
     fn as_any(&self) -> &dyn Any;
     /// Type erased [`Var::boxed`].
-    /// 
+    ///
     /// Returns a value that can be down-casted to `BoxedVar<T>` if the value type is known.
     fn boxed_any(self: Box<Self>) -> Box<dyn AnyVar>;
 
@@ -57,7 +57,7 @@ pub trait AnyWeakVar: Any + crate::private::Sealed {
     /// Cast to [`Any`].
     fn as_any(&self) -> &dyn Any;
     /// Type erased [`WeakVar::boxed`].
-    /// 
+    ///
     /// Returns a value that can be down-casted to `BoxedWeakVar<T>` if the value type is known.
     fn boxed_any(self: Box<Self>) -> Box<dyn AnyWeakVar>;
 
@@ -75,7 +75,7 @@ pub trait AnyWeakVar: Any + crate::private::Sealed {
 macro_rules! any_var_impls {
     (Var) => {
         fn into_any(self) -> Box<dyn any::AnyVar> {
-            // we can end-up double boxing here, this is needed to allow down-casting to the input var type that may be generic, 
+            // we can end-up double boxing here, this is needed to allow down-casting to the input var type that may be generic,
             // if we delegate to an "into_any_boxed" for `BoxVar<T>` the down-cast fails because the inner boxed var type becomes the `Any` type.
             Box::new(self)
         }

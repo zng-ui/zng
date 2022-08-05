@@ -254,7 +254,6 @@ where
     M: Fn(&A) -> &B + 'static,
     S: Var<A>,
 {
-
     any_var_impls!(Var);
 }
 

@@ -2718,7 +2718,7 @@ pub struct VarVersion {
 }
 impl VarVersion {
     /// Gets the simple count used by all variables that are not influenced by the read context.
-    /// 
+    ///
     /// Returns `None` for context vars and vars that depend on the value of a context var.
     pub fn non_contextual(self) -> Option<u32> {
         if self.context.is_some() {
