@@ -1,4 +1,5 @@
-use std::mem;
+use std::sync::Arc;
+use std::{fmt, mem};
 
 use linear_map::set::LinearSet;
 use linear_map::LinearMap;
@@ -168,6 +169,23 @@ impl Windows {
         let _ = self.update_sender.send_ext_update();
 
         response
+    }
+
+    /// Gets a handle that stops the window from loading while it exists.
+    /// 
+    /// A window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*
+    /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
+    /// it requires to render correctly are loaded.
+    /// 
+    /// Note that a window is only loaded after all handles are dropped, in practice a timeout should be used to avoid awaiting for too long,
+    /// after a time it is best to partially render a window than not showing anything.
+    /// 
+    /// Returns `None` if the window has already loaded or is not found.
+    pub fn loading_handle(&mut self, window_id: impl Into<WindowId>) -> Option<WindowLoadingHandle> {
+        self.loading_handle_impl(window_id.into())
+    }
+    fn loading_handle_impl(&mut self, window_id: WindowId) -> Option<WindowLoadingHandle> {
+        todo!()
     }
 
     /// Starts closing a window, the operation can be canceled by listeners of
@@ -797,5 +815,37 @@ impl AppWindow {
 
     pub fn close(mut self, ctx: &mut AppContext) {
         let _ = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.close(ctx));
+    }
+}
+
+struct WindowLoadingData {
+    update: AppEventSender,
+}
+impl Drop for WindowLoadingData {
+    fn drop(&mut self) {
+        let _ = self.update.send_ext_update();
+    }
+}
+
+/// Represents a handle that stops a window from opening while it exists.
+///
+/// A handle can be retrieved using [`Windows::loading_handle`], the window does not
+/// open until all handles are dropped.
+#[derive(Clone)]
+pub struct WindowLoadingHandle(Arc<WindowLoadingData>);
+impl PartialEq for WindowLoadingHandle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for WindowLoadingHandle {}
+impl std::hash::Hash for WindowLoadingHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (Arc::as_ptr(&self.0) as usize).hash(state);
+    }
+}
+impl fmt::Debug for WindowLoadingHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WindowLoadingHandle(_)")
     }
 }
