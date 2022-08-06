@@ -1,5 +1,3 @@
-* Fix error type for ext-channels, if the sender end-point drops it is not an `AppDisconnected`.
-
 * Implement a way to delay the window open.
     - Use the new function in the `save_config` property.
     - Add an optional usage of this in the `image!` widget.

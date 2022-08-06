@@ -2363,14 +2363,26 @@ impl<T> AppExtReceiver<T> {
     /// Receive an update if any was send.
     ///
     /// Returns `Ok(msg)` if there was at least one message, or returns `Err(None)` if there was no update or
-    /// returns `Err(AppDisconnected)` if the connected sender was dropped.
-    pub fn try_recv(&self) -> Result<T, Option<AppDisconnected<()>>> {
+    /// returns `Err(AppExtSenderDisconnected)` if the connected sender was dropped.
+    pub fn try_recv(&self) -> Result<T, Option<AppExtSenderDisconnected>> {
         self.receiver.try_recv().map_err(|e| match e {
             flume::TryRecvError::Empty => None,
-            flume::TryRecvError::Disconnected => Some(AppDisconnected(())),
+            flume::TryRecvError::Disconnected => Some(AppExtSenderDisconnected),
         })
     }
 }
+
+/// Error when the app connected to a sender/receiver channel has disconnected.
+///
+/// Contains the value that could not be send or `()` for receiver errors.
+#[derive(Debug)]
+pub struct AppExtSenderDisconnected;
+impl fmt::Display for AppExtSenderDisconnected {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "cannot receive because the sender disconnected")
+    }
+}
+impl std::error::Error for AppExtSenderDisconnected {}
 
 #[cfg(test)]
 mod headless_tests {
