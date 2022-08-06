@@ -1828,6 +1828,22 @@ impl PartialEq<Text> for String {
         other.as_str().eq(self)
     }
 }
+impl serde::Serialize for Text {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+impl<'de> serde::Deserialize<'de> for Text {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer).map(Text::from)
+    }
+}
 
 /// A trait for converting a value to a [`Text`].
 ///

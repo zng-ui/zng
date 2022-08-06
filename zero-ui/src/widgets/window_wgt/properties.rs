@@ -217,7 +217,7 @@ impl SaveState {
             SaveState::Enabled { key, .. } => Some(key.clone().unwrap_or_else(|| {
                 let name = id.name();
                 if name.is_empty() {
-                    formatx!("window.id#{}.state", id.sequential())
+                    formatx!("window.sequential({}).state", id.sequential())
                 } else {
                     formatx!("window.{name}.state")
                 }

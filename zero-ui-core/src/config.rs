@@ -28,8 +28,8 @@ use serde_json::value::Value as JsonValue;
 
 /// Application extension that manages the app configuration access point ([`Config`]).
 ///
-/// Note that this extension does not implement a [`ConfigBackend`], it just manages whatever backend is installed and
-/// the watcher variables.
+/// Note that this extension does not implement a [`ConfigSource`], it just manages whatever source is installed and
+/// the config variables.
 #[derive(Default)]
 pub struct ConfigManager {}
 impl AppExtension for ConfigManager {
@@ -38,8 +38,8 @@ impl AppExtension for ConfigManager {
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
-        if let Some((mut backend, _)) = Config::req(ctx).backend.take() {
-            backend.deinit();
+        if let Some((mut source, _)) = Config::req(ctx).source.take() {
+            source.deinit();
         }
     }
 
@@ -51,19 +51,19 @@ impl AppExtension for ConfigManager {
             task(ctx.vars, &config.status);
         }
 
-        // collect backend updates
+        // collect source updates
         let mut read = HashSet::new();
         let mut read_all = false;
-        if let Some((_, backend_tasks)) = &config.backend {
-            while let Ok(task) = backend_tasks.try_recv() {
+        if let Some((_, source_tasks)) = &config.source {
+            while let Ok(task) = source_tasks.try_recv() {
                 match task {
-                    ConfigBackendUpdate::Refresh(key) => {
+                    ConfigSourceUpdate::Refresh(key) => {
                         if !read_all {
                             read.insert(key);
                         }
                     }
-                    ConfigBackendUpdate::RefreshAll => read_all = true,
-                    ConfigBackendUpdate::InternalError(e) => {
+                    ConfigSourceUpdate::RefreshAll => read_all = true,
+                    ConfigSourceUpdate::InternalError(e) => {
                         config.status.modify(ctx.vars, move |mut s| {
                             s.set_internal_error(e);
                         });
@@ -78,7 +78,7 @@ impl AppExtension for ConfigManager {
         // Update config vars:
         // - Remove dropped vars.
         // - React to var assigns.
-        // - Apply backend requests.
+        // - Apply source requests.
         let mut var_tasks = vec![];
         config.vars.retain(|key, var| match var.upgrade(ctx.vars) {
             Some((any_var, write)) => {
@@ -90,7 +90,7 @@ impl AppExtension for ConfigManager {
                         var: any_var,
                     }));
                 } else if read_all || read.contains(key) {
-                    // backend notified a potential change, start a read task.
+                    // source notified a potential change, start a read task.
                     var_tasks.push(var.read(ConfigVarTaskArgs {
                         vars: ctx.vars,
                         key,
@@ -126,12 +126,12 @@ type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
 
 /// Represents the config of the app.
 ///
-/// This type does not implement any config scheme, a [`ConfigBackend`] must be installed to enable persistence, without a backend
+/// This type does not implement any config scheme, a [`ConfigSource`] must be set to enable persistence, without a source
 /// only the config variables work.
 #[derive(Service)]
 pub struct Config {
     update: AppEventSender,
-    backend: Option<(Box<dyn ConfigBackend>, AppExtReceiver<ConfigBackendUpdate>)>,
+    source: Option<(Box<dyn ConfigSource>, AppExtReceiver<ConfigSourceUpdate>)>,
     vars: HashMap<ConfigKey, ConfigVar>,
 
     status: RcVar<ConfigStatus>,
@@ -143,7 +143,7 @@ impl Config {
     fn new(update: AppEventSender) -> Self {
         Config {
             update,
-            backend: None,
+            source: None,
             vars: HashMap::new(),
 
             status: var(ConfigStatus::default()),
@@ -153,18 +153,18 @@ impl Config {
         }
     }
 
-    /// Install a config backend, replaces the previous backend.
-    pub fn init(&mut self, mut backend: impl ConfigBackend) {
+    /// Install a config source, replaces the previous source.
+    pub fn init(&mut self, mut source: impl ConfigSource) {
         let (sender, receiver) = self.update.ext_channel();
         if !self.vars.is_empty() {
-            let _ = sender.send(ConfigBackendUpdate::RefreshAll);
+            let _ = sender.send(ConfigSourceUpdate::RefreshAll);
         }
 
-        backend.init(sender);
-        self.backend = Some((Box::new(backend), receiver));
+        source.init(sender);
+        self.source = Some((Box::new(source), receiver));
     }
 
-    /// Gets a variable that tracks the backend write tasks.
+    /// Gets a variable that tracks the source write tasks.
     pub fn status(&self) -> ReadOnlyRcVar<ConfigStatus> {
         self.status.clone().into_read_only()
     }
@@ -212,10 +212,10 @@ impl Config {
         T: ConfigValue,
         R: FnOnce(&Vars, Option<T>) + 'static,
     {
-        if let Some((backend, _)) = &mut self.backend {
-            // channel with the backend.
+        if let Some((source, _)) = &mut self.source {
+            // channel with the source.
             let (sender, receiver) = self.update.ext_channel_bounded(1);
-            backend.read(key, sender);
+            source.read(key, sender);
 
             // bind two channels.
             let mut respond = Some(respond);
@@ -248,7 +248,7 @@ impl Config {
             }));
             let _ = self.update.send_ext_update();
         } else {
-            // no backend, just respond with `None`.
+            // no source, just respond with `None`.
             self.once_tasks.push(Box::new(move |vars, _| {
                 respond(vars, None);
             }));
@@ -295,48 +295,18 @@ impl Config {
         };
 
         // serialize and request write.
-        self.write_backend(key, value);
+        self.write_source(key, value);
     }
-    fn write_backend<T>(&mut self, key: ConfigKey, value: T)
+    fn write_source<T>(&mut self, key: ConfigKey, value: T)
     where
         T: ConfigValue,
     {
-        if let Some((backend, _)) = &mut self.backend {
+        if let Some((source, _)) = &mut self.source {
             match serde_json::value::to_value(value) {
                 Ok(json) => {
                     let (sx, rx) = self.update.ext_channel_bounded(1);
-                    backend.write(key, json, sx);
-
-                    let mut count = 0;
-                    self.tasks.push(Box::new(move |vars, status| {
-                        match rx.try_recv() {
-                            Ok(r) => {
-                                status.modify(vars, move |mut s| {
-                                    s.pending -= count;
-                                    if let Err(e) = r {
-                                        s.set_write_error(e);
-                                    }
-                                });
-                                false // task finished
-                            }
-                            Err(None) => {
-                                if count == 0 {
-                                    // first try, add pending.
-                                    count = 1;
-                                    status.modify(vars, |mut s| s.pending += 1);
-                                }
-                                true // retain
-                            }
-                            Err(Some(e)) => {
-                                status.modify(vars, move |mut s| {
-                                    s.pending -= count;
-                                    s.set_write_error(ConfigError::new(e))
-                                });
-                                false // task finished
-                            }
-                        }
-                    }));
-                    let _ = self.update.send_ext_update();
+                    source.write(key, json, sx);
+                    self.track_write_task(rx);
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
@@ -346,6 +316,54 @@ impl Config {
                 }
             }
         }
+    }
+
+    /// Remove the `key` from the persistent storage.
+    /// 
+    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable 
+    /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
+    pub fn remove<K: Into<ConfigKey>>(&mut self, key: K) {
+        self.remove_impl(key.into())
+    }
+    fn remove_impl(&mut self, key: ConfigKey) {
+        if let Some((source, _)) = &mut self.source {
+            let (sx, rx) = self.update.ext_channel_bounded(1);
+            source.remove(key, sx);
+            self.track_write_task(rx);
+        }
+    }
+
+    fn track_write_task(&mut self, rx: AppExtReceiver<Result<(), ConfigError>>) {
+        let mut count = 0;
+        self.tasks.push(Box::new(move |vars, status| {
+            match rx.try_recv() {
+                Ok(r) => {
+                    status.modify(vars, move |mut s| {
+                        s.pending -= count;
+                        if let Err(e) = r {
+                            s.set_write_error(e);
+                        }
+                    });
+                    false // task finished
+                }
+                Err(None) => {
+                    if count == 0 {
+                        // first try, add pending.
+                        count = 1;
+                        status.modify(vars, |mut s| s.pending += 1);
+                    }
+                    true // retain
+                }
+                Err(Some(e)) => {
+                    status.modify(vars, move |mut s| {
+                        s.pending -= count;
+                        s.set_write_error(ConfigError::new(e))
+                    });
+                    false // task finished
+                }
+            }
+        }));
+        let _ = self.update.send_ext_update();
     }
 
     /// Gets a variable that updates every time the config associated with `key` changes and writes the config
@@ -386,7 +404,7 @@ impl Config {
                 vars.bind(move |vars, binding| {
                     if let Some(target) = target.upgrade() {
                         if let Some(v) = source.get_new(vars) {
-                            // backend updated, notify
+                            // source updated, notify
                             let _ = target.set_ne(vars, v.value.clone());
                         }
                         if let Some(value) = target.clone_new(vars) {
@@ -464,7 +482,7 @@ impl Config {
 
 type VarUpdateTask = Box<dyn FnOnce(&mut Config)>;
 
-/// ConfigVar actual value, tracks if updates need to be send to backend.
+/// ConfigVar actual value, tracks if updates need to be send to source.
 #[derive(Debug, Clone, PartialEq)]
 struct ValueWithSource<T: ConfigValue> {
     value: T,
@@ -532,7 +550,7 @@ impl ConfigVar {
                     let key = args.key.clone();
                     let value = var.get_clone(args.vars).value;
                     Box::new(move |config| {
-                        config.write_backend(key, value);
+                        config.write_source(key, value);
                     })
                 }
             }
@@ -625,7 +643,7 @@ impl fmt::Display for ConfigStatus {
     }
 }
 
-/// Error in a [`ConfigBackend`].
+/// Error in a [`ConfigSource`].
 #[derive(Debug, Clone)]
 pub struct ConfigError(pub Arc<dyn Error + Send + Sync>);
 impl ConfigError {
@@ -677,13 +695,13 @@ impl From<serde_json::Error> for ConfigError {
 }
 
 /// Represents an implementation of [`Config`].
-pub trait ConfigBackend: 'static {
-    /// Called once when the backend is installed.
-    fn init(&mut self, observer: AppExtSender<ConfigBackendUpdate>);
+pub trait ConfigSource: 'static {
+    /// Called once when the source is installed.
+    fn init(&mut self, observer: AppExtSender<ConfigSourceUpdate>);
 
     /// Called once when the app is shutdown.
     ///
-    /// Backends should block and flush all pending writes here.
+    /// Sources should block and flush all pending writes here.
     fn deinit(&mut self);
 
     /// Send a read request for the most recent value associated with `key` in the persistent storage.
@@ -694,11 +712,14 @@ pub trait ConfigBackend: 'static {
     ///
     /// The `rsp` channel must be used once to send back the result.
     fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>);
+
+    /// Send a request to remove the `key` from the persistent storage.
+    fn remove(&mut self, key: ConfigKey, rsp: AppExtSender<Result<(), ConfigError>>);
 }
 
-/// External updates in a [`ConfigBackend`].
+/// External updates in a [`ConfigSource`].
 #[derive(Clone, Debug)]
-pub enum ConfigBackendUpdate {
+pub enum ConfigSourceUpdate {
     /// Value associated with the key may have changed from an external event, **not** a write operation.
     Refresh(ConfigKey),
     /// All values may have changed.
@@ -709,7 +730,7 @@ pub enum ConfigBackendUpdate {
     InternalError(ConfigError),
 }
 
-mod file_backend {
+mod file_source {
     use super::*;
     use crate::{crate_util::panic_str, units::*};
     use std::{
@@ -720,11 +741,11 @@ mod file_backend {
         time::{Duration, Instant},
     };
 
-    /// Simple [`ConfigBackend`] that writes all settings to a JSON file.
+    /// Simple [`ConfigSource`] that writes all settings to a JSON file.
     pub struct ConfigFile {
         file: PathBuf,
         thread: Option<(JoinHandle<()>, flume::Sender<Request>)>,
-        update: Option<AppExtSender<ConfigBackendUpdate>>,
+        update: Option<AppExtSender<ConfigSourceUpdate>>,
         pretty: bool,
         delay: Duration,
         last_panic: Option<Instant>,
@@ -763,6 +784,9 @@ mod file_backend {
                     Request::Write { rsp, .. } => {
                         let _ = rsp.send(Err(ConfigError::new_str("config worker is shutdown")));
                     }
+                    Request::Remove { rsp, .. } => {
+                        let _ = rsp.send(Err(ConfigError::new_str("config worker is shutdown")));
+                    }
                     Request::Shutdown => {}
                 }
             } else if let Some((_, sx)) = &self.thread {
@@ -792,7 +816,7 @@ mod file_backend {
                         self.is_shutdown = true;
                         let update = self.update.as_ref().unwrap();
                         update
-                            .send(ConfigBackendUpdate::InternalError(ConfigError::new_str(format!(
+                            .send(ConfigSourceUpdate::InternalError(ConfigError::new_str(format!(
                                 "config thread panic 5 times in 1 minute, deactivating\nlast panic: {:?}",
                                 panic_str(&panic)
                             ))))
@@ -800,12 +824,12 @@ mod file_backend {
                     } else {
                         let update = self.update.as_ref().unwrap();
                         update
-                            .send(ConfigBackendUpdate::InternalError(ConfigError::new_str(format!(
+                            .send(ConfigSourceUpdate::InternalError(ConfigError::new_str(format!(
                                 "config thread panic, {:?}",
                                 panic_str(&panic)
                             ))))
                             .unwrap();
-                        update.send(ConfigBackendUpdate::RefreshAll).unwrap();
+                        update.send(ConfigSourceUpdate::RefreshAll).unwrap();
                     }
                 }
             } else {
@@ -828,7 +852,7 @@ mod file_backend {
                         }
 
                         // load
-                        let mut data: HashMap<String, JsonValue> = {
+                        let mut data: HashMap<Text, JsonValue> = {
                             let mut file = fs::OpenOptions::new()
                                 .read(true)
                                 .write(true)
@@ -857,10 +881,10 @@ mod file_backend {
                                 delay
                             }) {
                                 Ok(request) => match request {
-                                    Request::Read { key, rsp } => rsp.send(Ok(data.get(&key.into_owned()).cloned())).unwrap(),
+                                    Request::Read { key, rsp } => rsp.send(Ok(data.get(&key).cloned())).unwrap(),
                                     Request::Write { key, value, rsp } => {
                                         // update entry, but wait for next debounce write.
-                                        let write = match data.entry(key.into_owned()) {
+                                        let write = match data.entry(key) {
                                             Entry::Occupied(mut e) => {
                                                 if e.get() != &value {
                                                     *e.get_mut() = value;
@@ -875,6 +899,16 @@ mod file_backend {
                                             }
                                         };
                                         if write {
+                                            if pending_writes.is_empty() {
+                                                oldest_pending = Instant::now();
+                                            }
+                                            pending_writes.push(rsp);
+                                        } else {
+                                            rsp.send(Ok(())).unwrap();
+                                        }
+                                    }
+                                    Request::Remove { key, rsp } => {
+                                        if data.remove(&key).is_some() {
                                             if pending_writes.is_empty() {
                                                 oldest_pending = Instant::now();
                                             }
@@ -932,8 +966,8 @@ mod file_backend {
             }
         }
     }
-    impl ConfigBackend for ConfigFile {
-        fn init(&mut self, sender: AppExtSender<ConfigBackendUpdate>) {
+    impl ConfigSource for ConfigFile {
+        fn init(&mut self, sender: AppExtSender<ConfigSourceUpdate>) {
             self.update = Some(sender);
         }
 
@@ -952,6 +986,10 @@ mod file_backend {
         fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>) {
             self.send(Request::Write { key, value, rsp })
         }
+
+        fn remove(&mut self, key: ConfigKey, rsp: AppExtSender<Result<(), ConfigError>>) {
+            self.send(Request::Remove { key, rsp })
+        }
     }
 
     enum Request {
@@ -964,7 +1002,11 @@ mod file_backend {
             value: JsonValue,
             rsp: AppExtSender<Result<(), ConfigError>>,
         },
+        Remove {
+            key: ConfigKey,
+            rsp: AppExtSender<Result<(), ConfigError>>,
+        },
         Shutdown,
     }
 }
-pub use file_backend::ConfigFile;
+pub use file_source::ConfigFile;
