@@ -1,4 +1,7 @@
 * Implement window persistence using config.
+    - Started in `save_state` property.
+    - Need to implement a way to delay the window open.
+        - This is useful for other things too.
 
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.

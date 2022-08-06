@@ -102,7 +102,7 @@ fn trace_status(vars: &Vars, status: &impl Var<ConfigStatus>) {
                     write_errs = s.write_errors;
                     tracing::error!("write error: {e}");
                 }
-            }            
+            }
         })
         .perm();
 }

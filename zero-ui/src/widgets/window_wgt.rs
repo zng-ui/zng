@@ -309,6 +309,9 @@ pub mod window {
         #[allowed_in_when = false]
         render_mode(impl IntoValue<Option<RenderMode>>) = None;
 
+        /// Save and restore the window state.
+        properties::save_state = properties::SaveState::enabled();
+
         /// Event just after the window opens.
         ///
         /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.

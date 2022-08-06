@@ -79,6 +79,7 @@ paste = "1"
 tracing = "0.1"
 bitflags = "1"
 linear-map = "1"
+serde = "1"
 
 [build-dependencies]
 zero-ui-docs =  { path = "../zero-ui-docs" }
