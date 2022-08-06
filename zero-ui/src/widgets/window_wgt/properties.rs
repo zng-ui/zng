@@ -312,7 +312,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                                 let window_vars = WindowVars::req(&ctx.window_state);
                                 let cfg = WindowStateCfg {
                                     state: window_vars.state().copy(ctx.vars),
-                                    rect: window_vars.restore_rect().copy(ctx.vars),
+                                    rect: window_vars.restore_rect().copy(ctx.vars).cast(),
                                 };
 
                                 Config::req(ctx.services).write(key, cfg);
@@ -334,8 +334,8 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                     if let Some(s) = rsp {
                         let window_vars = WindowVars::req(&ctx.window_state);
                         window_vars.state().set_ne(ctx.vars, s.state);
-                        window_vars.position().set_ne(ctx.vars, s.rect.origin);
-                        window_vars.size().set_ne(ctx.vars, s.rect.size);
+                        window_vars.position().set_ne(ctx.vars, s.rect.origin.cast());
+                        window_vars.size().set_ne(ctx.vars, s.rect.size.cast());
                     }
                     self.task = SaveTask::None;
                     ctx.updates.subscriptions();
@@ -372,5 +372,5 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct WindowStateCfg {
     state: WindowState,
-    rect: DipRect,
+    rect: euclid::Rect<f32, Dip>,
 }

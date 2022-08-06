@@ -2,6 +2,7 @@
     - Started in `save_state` property.
     - Need to implement a way to delay the window open.
         - This is useful for other things too.
+    - Don't let windows reopen outside the monitor area.
 
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.

@@ -424,6 +424,39 @@ impl ops::RemAssign for Dip {
         *self = *self % rhs;
     }
 }
+impl num_traits::ToPrimitive for Dip {
+    fn to_i64(&self) -> Option<i64> {
+        Some(Dip::to_i32(*self) as i64)
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        if self.0 >= 0 {
+            Some(Dip::to_i32(*self) as u64)
+        } else {
+            None
+        }
+    }
+
+    fn to_f32(&self) -> Option<f32> {
+        Some(Dip::to_f32(*self))
+    }
+
+    fn to_f64(&self) -> Option<f64> {
+        Some(Dip::to_f32(*self) as f64)
+    }
+}
+impl num_traits::NumCast for Dip {
+    fn from<T: num_traits::ToPrimitive>(n: T) -> Option<Self> {
+        #[allow(clippy::manual_map)]
+        if let Some(n) = n.to_f32() {
+            Some(Dip::new_f32(n))
+        } else if let Some(n) = n.to_i32() {
+            Some(Dip::new(n))
+        } else {
+            None
+        }
+    }
+}
 impl num_traits::Zero for Dip {
     fn zero() -> Self {
         Dip(0)
