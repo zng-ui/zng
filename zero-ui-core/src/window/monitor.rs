@@ -320,6 +320,17 @@ impl MonitorInfo {
         self.ppi.clone()
     }
 
+    /// Gets the monitor area in device independent pixels.
+    pub fn dip_rect(&self, vars: &impl WithVarsRead) -> DipRect {
+        vars.with_vars_read(|vars| {
+            let pos = self.position.copy(vars);
+            let size = self.size.copy(vars);
+            let factor = self.scale_factor.copy(vars);
+
+            PxRect::new(pos, size).to_dip(factor.0)
+        })
+    }
+
     /// Bogus metadata for the [`MonitorId::fallback`].
     pub fn fallback() -> Self {
         let defaults = HeadlessMonitor::default();

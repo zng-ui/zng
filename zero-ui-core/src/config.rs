@@ -319,8 +319,8 @@ impl Config {
     }
 
     /// Remove the `key` from the persistent storage.
-    /// 
-    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable 
+    ///
+    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
     /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
     pub fn remove<K: Into<ConfigKey>>(&mut self, key: K) {
         self.remove_impl(key.into())

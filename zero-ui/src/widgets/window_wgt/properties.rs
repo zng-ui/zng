@@ -9,7 +9,8 @@ use std::time::{Duration, Instant};
 use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowState, WindowVars,
+    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowState,
+    WindowVars,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -312,7 +313,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                                 let window_vars = WindowVars::req(&ctx.window_state);
                                 let cfg = WindowStateCfg {
                                     state: window_vars.state().copy(ctx.vars),
-                                    rect: window_vars.restore_rect().copy(ctx.vars).cast(),
+                                    restore_rect: window_vars.restore_rect().copy(ctx.vars).cast(),
                                 };
 
                                 Config::req(ctx.services).write(key, cfg);
@@ -334,8 +335,16 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                     if let Some(s) = rsp {
                         let window_vars = WindowVars::req(&ctx.window_state);
                         window_vars.state().set_ne(ctx.vars, s.state);
-                        window_vars.position().set_ne(ctx.vars, s.rect.origin.cast());
-                        window_vars.size().set_ne(ctx.vars, s.rect.size.cast());
+                        let restore_rect: DipRect = s.restore_rect.cast();
+
+                        let visible = Monitors::req(ctx.services)
+                            .available_monitors()
+                            .any(|m| m.dip_rect(ctx.vars).intersects(&restore_rect));
+                        if visible {
+                            window_vars.position().set_ne(ctx.vars, restore_rect.origin);
+                        }
+
+                        window_vars.size().set_ne(ctx.vars, restore_rect.size);
                     }
                     self.task = SaveTask::None;
                     ctx.updates.subscriptions();
@@ -372,5 +381,5 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct WindowStateCfg {
     state: WindowState,
-    rect: euclid::Rect<f32, Dip>,
+    restore_rect: euclid::Rect<f32, Dip>,
 }

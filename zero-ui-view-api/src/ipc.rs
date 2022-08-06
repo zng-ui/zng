@@ -431,7 +431,7 @@ fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> Disconnected {
         e => {
             tracing::error!("IO or bincode error: {e:?}");
             Disconnected
-        },
+        }
     }
 }
 #[cfg(not(feature = "ipc"))]
