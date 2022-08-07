@@ -164,6 +164,7 @@ impl Windows {
             new: Box::new(new_window),
             force_headless,
             responder,
+            loading_handle: WindowLoading::new(),
         };
         self.open_requests.push(request);
         let _ = self.update_sender.send_ext_update();
@@ -181,11 +182,21 @@ impl Windows {
     /// after a time it is best to partially render a window than not showing anything.
     ///
     /// Returns `None` if the window has already loaded or is not found.
-    pub fn loading_handle(&mut self, window_id: impl Into<WindowId>) -> Option<WindowLoadingHandle> {
-        self.loading_handle_impl(window_id.into())
+    pub fn loading_handle(&mut self, window_id: impl Into<WindowId>, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
+        self.loading_handle_impl(window_id.into(), deadline.into())
     }
-    fn loading_handle_impl(&mut self, window_id: WindowId) -> Option<WindowLoadingHandle> {
-        todo!()
+    fn loading_handle_impl(&mut self, window_id: WindowId, deadline: Deadline) -> Option<WindowLoadingHandle> {
+        if let Some(info) = self.windows_info.get_mut(&window_id) {
+            if info.is_loaded {
+                None
+            } else {
+                Some(info.loading_handle.handle(&self.update_sender, deadline))
+            }
+        } else if let Some(request) = self.open_requests.iter_mut().find(|r| r.id == window_id) {
+            Some(request.loading_handle.handle(&self.update_sender, deadline))
+        } else {
+            None
+        }
     }
 
     /// Starts closing a window, the operation can be canceled by listeners of
@@ -394,6 +405,12 @@ impl Windows {
         self.open_requests.iter().any(|r| r.id == window_id)
     }
 
+    /// Returns `true` if the window is open and loaded.
+    pub fn is_loaded(&self, window_id: impl Into<WindowId>) -> bool {
+        let window_id = window_id.into();
+        self.windows_info.get(&window_id).map(|i| i.is_loaded).unwrap_or(false)
+    }
+
     /// Requests that the window be made the foreground keyboard focused window.
     ///
     /// Prefer using the [`Focus`] service and advanced [`FocusRequest`] configs instead of using this method directly.
@@ -460,6 +477,23 @@ impl Windows {
     pub(super) fn set_subscriptions(&mut self, window_id: WindowId, subscriptions: WidgetSubscriptions) {
         if let Some(info) = self.windows_info.get_mut(&window_id) {
             info.subscriptions = subscriptions;
+        }
+    }
+
+    /// Change window state to loaded if there are no load handles active.
+    ///
+    /// Returns `true` if loaded.
+    pub(super) fn try_load(&mut self, window_id: WindowId, vars: &Vars) -> bool {
+        if let Some(info) = self.windows_info.get_mut(&window_id) {
+            if info.loading_handle.is_loading() {
+                false
+            } else {
+                info.is_loaded = true;
+                info.vars.0.is_loaded.set_ne(vars, true);
+                true
+            }
+        } else {
+            unreachable!()
         }
     }
 
@@ -631,7 +665,7 @@ impl Windows {
                 (mode, _) => mode,
             };
 
-            let (window, info) = AppWindow::new(ctx, r.id, window_mode, r.new);
+            let (window, info) = AppWindow::new(ctx, r.id, window_mode, r.new, r.loading_handle);
 
             let args = WindowOpenArgs::now(window.id);
             {
@@ -708,9 +742,12 @@ struct AppWindowInfo {
     subscriptions: WidgetSubscriptions,
     // focus tracked by the raw focus events.
     is_focused: bool,
+
+    loading_handle: WindowLoading,
+    is_loaded: bool,
 }
 impl AppWindowInfo {
-    pub fn new(id: WindowId, root_id: WidgetId, mode: WindowMode, vars: WindowVars) -> Self {
+    pub fn new(id: WindowId, root_id: WidgetId, mode: WindowMode, vars: WindowVars, loading_handle: WindowLoading) -> Self {
         Self {
             id,
             mode,
@@ -719,6 +756,8 @@ impl AppWindowInfo {
             widget_tree: WidgetInfoTree::blank(id, root_id),
             subscriptions: WidgetSubscriptions::new(),
             is_focused: false,
+            loading_handle,
+            is_loaded: false,
         }
     }
 }
@@ -727,6 +766,7 @@ struct OpenWindowRequest {
     new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     force_headless: Option<WindowMode>,
     responder: ResponderVar<WindowOpenArgs>,
+    loading_handle: WindowLoading,
 }
 struct CloseWindowRequest {
     responder: ResponderVar<CloseWindowResult>,
@@ -747,6 +787,7 @@ impl AppWindow {
         id: WindowId,
         mode: WindowMode,
         new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
+        loading: WindowLoading,
     ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = Monitors::req(ctx.services)
             .primary_monitor(ctx.vars)
@@ -776,7 +817,7 @@ impl AppWindow {
         let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);
 
         let window = Self { ctrl, id, mode, state };
-        let info = AppWindowInfo::new(id, root_id, mode, vars);
+        let info = AppWindowInfo::new(id, root_id, mode, vars, loading);
 
         (window, info)
     }
@@ -824,6 +865,38 @@ struct WindowLoadingData {
 impl Drop for WindowLoadingData {
     fn drop(&mut self) {
         let _ = self.update.send_ext_update();
+    }
+}
+
+struct WindowLoading {
+    handle: std::sync::Weak<WindowLoadingData>,
+    deadline: Deadline,
+}
+impl WindowLoading {
+    pub fn new() -> Self {
+        WindowLoading {
+            handle: std::sync::Weak::new(),
+            deadline: Deadline::timeout(24.hours()),
+        }
+    }
+
+    pub fn is_loading(&self) -> bool {
+        self.handle.strong_count() > 0 && !self.deadline.has_elapsed()
+    }
+
+    pub fn handle(&mut self, update: &AppEventSender, deadline: Deadline) -> WindowLoadingHandle {
+        match self.handle.upgrade() {
+            Some(h) => {
+                self.deadline = self.deadline.min(deadline);
+                WindowLoadingHandle(h)
+            },
+            None => {
+                let h = Arc::new(WindowLoadingData { update: update.clone() });
+                self.handle = Arc::downgrade(&h);
+                self.deadline = deadline;
+                WindowLoadingHandle(h)
+            }
+        }
     }
 }
 

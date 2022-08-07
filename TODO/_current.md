@@ -1,11 +1,14 @@
 * Implement window loading handle.
-    - Add `Windows::loading_handle(WindowId) -> Option<Handle>`.
-    - Add `is_loaded` var.
-        - Events too?
     - Implement loading handle timeout.
+        - Needs a timer.
+* Implement loading handle for headless.
+* Is a window loading again after respawn?
 
 * Use loading handle the `save_config` property.
 * Implement optional loading handle usage of this in the `image!` widget.
+* Use loading handle in the window icon.
+
+* Use the `Deadline` type in all timer functions.
 
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.
