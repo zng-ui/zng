@@ -480,21 +480,21 @@ impl WindowVars {
     ///
     /// This is a read-only variable, it starts set to `true` and will update only once,
     /// when the window finishes closing.
-    /// 
+    ///
     /// Note that a window is only actually opened in the operating system after it [`is_loaded`].
-    /// 
+    ///
     /// [`is_loaded`]: Self::is_loaded
     pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
         self.0.is_open.clone().into_read_only()
     }
 
     /// If the window has finished loading.
-    /// 
+    ///
     /// This is a read-only variable, it starts set to `false` and will update only once, after
     /// the first window layout and when all loading handles to the window are released.
-    /// 
+    ///
     /// A window is only opened in the view-process once it is loaded, see [`Windows::loading_handle`] for more details.
-    /// 
+    ///
     /// [`Windows::loading_handle`]: crate::window::Windows::loading_handle
     pub fn is_loaded(&self) -> ReadOnlyRcVar<bool> {
         self.0.is_loaded.clone().into_read_only()

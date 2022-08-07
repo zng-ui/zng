@@ -2194,6 +2194,10 @@ pub(crate) enum AppEvent {
 }
 
 /// A sender that can awake apps and insert events into the main loop.
+///
+/// A Clone of the sender is available in [`Updates::sender`].
+///
+/// [`Updates::sender`]: crate::context::Updates::sender
 #[derive(Clone)]
 pub struct AppEventSender(flume::Sender<AppEvent>);
 impl AppEventSender {

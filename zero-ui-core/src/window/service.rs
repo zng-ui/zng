@@ -172,14 +172,14 @@ impl Windows {
     }
 
     /// Gets a handle that stops the window from loading while it exists.
-    /// 
+    ///
     /// A window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*
     /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
     /// it requires to render correctly are loaded.
-    /// 
+    ///
     /// Note that a window is only loaded after all handles are dropped, in practice a timeout should be used to avoid awaiting for too long,
     /// after a time it is best to partially render a window than not showing anything.
-    /// 
+    ///
     /// Returns `None` if the window has already loaded or is not found.
     pub fn loading_handle(&mut self, window_id: impl Into<WindowId>) -> Option<WindowLoadingHandle> {
         self.loading_handle_impl(window_id.into())

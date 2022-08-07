@@ -8,7 +8,7 @@
 //! [default app]: crate::app::App::default
 
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     collections::{hash_map::Entry, HashMap, HashSet},
     error::Error,
     fmt,
@@ -32,6 +32,7 @@ use serde_json::value::Value as JsonValue;
 /// the config variables.
 #[derive(Default)]
 pub struct ConfigManager {}
+impl ConfigManager {}
 impl AppExtension for ConfigManager {
     fn init(&mut self, ctx: &mut AppContext) {
         ctx.services.register(Config::new(ctx.updates.sender()));
@@ -44,67 +45,7 @@ impl AppExtension for ConfigManager {
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
-        let config = Config::req(ctx.services);
-
-        // run once tasks
-        for task in config.once_tasks.drain(..) {
-            task(ctx.vars, &config.status);
-        }
-
-        // collect source updates
-        let mut read = HashSet::new();
-        let mut read_all = false;
-        if let Some((_, source_tasks)) = &config.source {
-            while let Ok(task) = source_tasks.try_recv() {
-                match task {
-                    ConfigSourceUpdate::Refresh(key) => {
-                        if !read_all {
-                            read.insert(key);
-                        }
-                    }
-                    ConfigSourceUpdate::RefreshAll => read_all = true,
-                    ConfigSourceUpdate::InternalError(e) => {
-                        config.status.modify(ctx.vars, move |mut s| {
-                            s.set_internal_error(e);
-                        });
-                    }
-                }
-            }
-        }
-
-        // run retained tasks
-        config.tasks.retain_mut(|t| t(ctx.vars, &config.status));
-
-        // Update config vars:
-        // - Remove dropped vars.
-        // - React to var assigns.
-        // - Apply source requests.
-        let mut var_tasks = vec![];
-        config.vars.retain(|key, var| match var.upgrade(ctx.vars) {
-            Some((any_var, write)) => {
-                if write {
-                    // var was set by the user, start a write task.
-                    var_tasks.push(var.write(ConfigVarTaskArgs {
-                        vars: ctx.vars,
-                        key,
-                        var: any_var,
-                    }));
-                } else if read_all || read.contains(key) {
-                    // source notified a potential change, start a read task.
-                    var_tasks.push(var.read(ConfigVarTaskArgs {
-                        vars: ctx.vars,
-                        key,
-                        var: any_var,
-                    }));
-                }
-                true // retain var
-            }
-            None => false, // var was dropped, remove entry
-        });
-
-        for task in var_tasks {
-            task(config);
-        }
+        Config::req(ctx.services).update(ctx.vars);
     }
 }
 
@@ -124,10 +65,44 @@ impl<T: VarValue + PartialEq + serde::Serialize + serde::de::DeserializeOwned> C
 type ConfigTask = Box<dyn FnMut(&Vars, &RcVar<ConfigStatus>) -> bool>;
 type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
 
-/// Represents the config of the app.
+/// Represents the configuration of the app.
 ///
 /// This type does not implement any config scheme, a [`ConfigSource`] must be set to enable persistence, without a source
-/// only the config variables work.
+/// only the config variables work, and only for the duration of the app process.
+///
+/// Note that this is a service *singleton* that represents the config in use by the app, to load other config files
+/// you can use the [`Config::load_alt`].
+///
+/// # Examples
+///
+/// The example demonstrates loading a config file and binding a config to a variable that is auto saves every time it changes.
+///
+/// ```no_run
+/// # use zero_ui_core::{app::*, window::*, config::*, units::*};
+/// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+/// App::default().run_window(|ctx| {
+///     // require the Config service, it is available in the default App.
+///     let cfg = Config::req(ctx.services);
+///
+///     // load a ConfigSource.
+///     cfg.load(ConfigFile::new("app.config.json", true, 3.secs()));
+///     
+///     // read the "main.count" config and bind it to a variable.
+///     let count = cfg.var("main.count");
+///
+///     window! {
+///         title = "Persistent Counter";
+///         padding = 20;
+///         content = button! {
+///             content = text(count.map(|c| formatx!("Count: {c}")));
+///             on_click = hn!(|ctx, _| {
+///                 // modifying the var updates the "main.count" config.
+///                 count.modify(ctx, |mut c| *c += 1).unwrap();
+///             });
+///         }
+///     }
+/// })
+/// ```
 #[derive(Service)]
 pub struct Config {
     update: AppEventSender,
@@ -138,6 +113,8 @@ pub struct Config {
 
     once_tasks: Vec<OnceConfigTask>,
     tasks: Vec<ConfigTask>,
+
+    alts: Vec<std::rc::Weak<RefCell<Config>>>,
 }
 impl Config {
     fn new(update: AppEventSender) -> Self {
@@ -150,11 +127,75 @@ impl Config {
 
             once_tasks: vec![],
             tasks: vec![],
+            alts: vec![],
         }
     }
 
-    /// Install a config source, replaces the previous source.
-    pub fn init(&mut self, mut source: impl ConfigSource) {
+    fn update(&mut self, vars: &Vars) {
+        // run once tasks
+        for task in self.once_tasks.drain(..) {
+            task(vars, &self.status);
+        }
+
+        // collect source updates
+        let mut read = HashSet::new();
+        let mut read_all = false;
+        if let Some((_, source_tasks)) = &self.source {
+            while let Ok(task) = source_tasks.try_recv() {
+                match task {
+                    ConfigSourceUpdate::Refresh(key) => {
+                        if !read_all {
+                            read.insert(key);
+                        }
+                    }
+                    ConfigSourceUpdate::RefreshAll => read_all = true,
+                    ConfigSourceUpdate::InternalError(e) => {
+                        self.status.modify(vars, move |mut s| {
+                            s.set_internal_error(e);
+                        });
+                    }
+                }
+            }
+        }
+
+        // run retained tasks
+        self.tasks.retain_mut(|t| t(vars, &self.status));
+
+        // Update config vars:
+        // - Remove dropped vars.
+        // - React to var assigns.
+        // - Apply source requests.
+        let mut var_tasks = vec![];
+        self.vars.retain(|key, var| match var.upgrade(vars) {
+            Some((any_var, write)) => {
+                if write {
+                    // var was set by the user, start a write task.
+                    var_tasks.push(var.write(ConfigVarTaskArgs { vars, key, var: any_var }));
+                } else if read_all || read.contains(key) {
+                    // source notified a potential change, start a read task.
+                    var_tasks.push(var.read(ConfigVarTaskArgs { vars, key, var: any_var }));
+                }
+                true // retain var
+            }
+            None => false, // var was dropped, remove entry
+        });
+
+        for task in var_tasks {
+            task(self);
+        }
+
+        // update loaded alts.
+        self.alts.retain(|alt| match alt.upgrade() {
+            Some(alt) => {
+                alt.borrow_mut().update(vars);
+                true
+            }
+            None => false,
+        })
+    }
+
+    /// Set the config source, replaces the previous source.
+    pub fn load(&mut self, mut source: impl ConfigSource) {
         let (sender, receiver) = self.update.ext_channel();
         if !self.vars.is_empty() {
             let _ = sender.send(ConfigSourceUpdate::RefreshAll);
@@ -162,6 +203,14 @@ impl Config {
 
         source.init(sender);
         self.source = Some((Box::new(source), receiver));
+    }
+
+    /// Open an alternative config source disconnected from the actual app source.
+    #[must_use]
+    pub fn load_alt(&mut self, source: impl ConfigSource) -> ConfigAlt {
+        let e = ConfigAlt::load(self.update.clone(), source);
+        self.alts.push(Rc::downgrade(&e.0));
+        e
     }
 
     /// Gets a variable that tracks the source write tasks.
@@ -480,6 +529,105 @@ impl Config {
     }
 }
 
+/// Represents a loaded config source that is not the main config.
+///
+/// This type allows interaction with a [`ConfigSource`] just like the [`Config`] service, but without affecting the
+/// actual app config, so that the same config key can be loaded  from different sources with different values.
+///
+/// Note that some config sources can auto-reload if their backing file is modified, so modifications using this type
+/// can end-up affecting the actual [`Config`] too.
+///
+/// You can use the [`Config::load_alt`] method to create an instance of this type.
+pub struct ConfigAlt(Rc<RefCell<Config>>);
+impl ConfigAlt {
+    fn load(updates: AppEventSender, source: impl ConfigSource) -> Self {
+        let mut cfg = Config::new(updates);
+        cfg.load(source);
+        ConfigAlt(Rc::new(RefCell::new(cfg)))
+    }
+
+    /// Flush writes and unload.
+    pub fn unload(self) {
+        // drop
+    }
+
+    /// Gets a variable that tracks the source write tasks.
+    pub fn status(&self) -> ReadOnlyRcVar<ConfigStatus> {
+        self.0.borrow().status()
+    }
+
+    /// Remove any errors set in the [`status`].
+    ///
+    /// [`status`]: Self::status
+    pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
+        self.0.borrow_mut().clear_errors(vars)
+    }
+
+    /// Read the config value currently associated with the `key` if it is of the same type.
+    ///
+    /// Returns a [`ResponseVar`] that will update once when the value finishes reading.
+    pub fn read<K, T>(&mut self, key: K) -> ResponseVar<Option<T>>
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+    {
+        self.0.borrow_mut().read(key)
+    }
+
+    /// Write the config value associated with the `key`.
+    pub fn write<K, T>(&mut self, key: K, value: T)
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+    {
+        self.0.borrow_mut().write(key, value)
+    }
+
+    /// Remove the `key` from the persistent storage.
+    ///
+    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
+    /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
+    pub fn remove<K: Into<ConfigKey>>(&mut self, key: K) {
+        self.0.borrow_mut().remove(key)
+    }
+
+    /// Gets a variable that updates every time the config associated with `key` changes and writes the config
+    /// every time it changes. This is equivalent of a two-way binding between the config storage and the variable.
+    ///
+    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
+    /// after it is read.
+    pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+        D: FnOnce() -> T,
+    {
+        self.0.borrow_mut().var(key, default_value)
+    }
+
+    /// Binds a variable that updates every time the config associated with `key` changes and writes the config
+    /// every time it changes. If the `target` is dropped the binding is dropped.
+    ///
+    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
+    /// after it is read.
+    pub fn bind<Vw: WithVars, K: Into<ConfigKey>, T: ConfigValue, D: FnOnce() -> T, V: Var<T>>(
+        &mut self,
+        vars: &Vw,
+        key: K,
+        default_value: D,
+        target: &V,
+    ) -> VarBindingHandle {
+        Config::bind(&mut *self.0.borrow_mut(), vars, key, default_value, target)
+    }
+}
+impl Drop for ConfigAlt {
+    fn drop(&mut self) {
+        if let Some((mut s, _)) = self.0.borrow_mut().source.take() {
+            s.deinit();
+        }
+    }
+}
+
 type VarUpdateTask = Box<dyn FnOnce(&mut Config)>;
 
 /// ConfigVar actual value, tracks if updates need to be send to source.
@@ -595,7 +743,7 @@ pub struct ConfigStatus {
 impl ConfigStatus {
     /// Returns `true` if there are any errors currently in the status.
     ///
-    /// The errors can be cleared using [`Focus::clear_errors`].
+    /// The errors can be cleared using [`Config::clear_errors`].
     pub fn has_errors(&self) -> bool {
         self.read_error.is_some() || self.write_error.is_some() || self.internal_error.is_some()
     }
