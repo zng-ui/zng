@@ -1,6 +1,3 @@
-* Implement window loading handle.
-    - Implement loading handle timeout.
-        - Needs a timer.
 * Implement loading handle for headless.
 * Is a window loading again after respawn?
 

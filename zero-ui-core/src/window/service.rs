@@ -13,6 +13,7 @@ use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
 use crate::service::Service;
+use crate::timer::DeadlineHandle;
 use crate::var::*;
 use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};
 use crate::{
@@ -55,6 +56,7 @@ pub struct Windows {
     close_responders: LinearMap<WindowId, ResponderVar<CloseWindowResult>>,
     focus_request: Option<WindowId>,
     frame_images: Vec<RcVar<Image>>,
+    loading_deadline: Option<DeadlineHandle>,
 }
 impl Windows {
     pub(super) fn new(update_sender: AppEventSender) -> Self {
@@ -69,6 +71,7 @@ impl Windows {
             close_requests: vec![],
             focus_request: None,
             frame_images: vec![],
+            loading_deadline: None,
         }
     }
 
@@ -178,7 +181,7 @@ impl Windows {
     /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
     /// it requires to render correctly are loaded.
     ///
-    /// Note that a window is only loaded after all handles are dropped, in practice a timeout should be used to avoid awaiting for too long,
+    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`    
     /// after a time it is best to partially render a window than not showing anything.
     ///
     /// Returns `None` if the window has already loaded or is not found.
@@ -186,17 +189,22 @@ impl Windows {
         self.loading_handle_impl(window_id.into(), deadline.into())
     }
     fn loading_handle_impl(&mut self, window_id: WindowId, deadline: Deadline) -> Option<WindowLoadingHandle> {
+        let mut handle = None;
+
         if let Some(info) = self.windows_info.get_mut(&window_id) {
-            if info.is_loaded {
-                None
-            } else {
-                Some(info.loading_handle.handle(&self.update_sender, deadline))
+            // window already opened, check if not loaded
+            if !info.is_loaded {
+                handle = Some(info.loading_handle.handle(&self.update_sender, deadline))
             }
+
+            // drop timer to nearest deadline, will recreate in the next update.
+            self.loading_deadline = None;
         } else if let Some(request) = self.open_requests.iter_mut().find(|r| r.id == window_id) {
-            Some(request.loading_handle.handle(&self.update_sender, deadline))
-        } else {
-            None
+            // window not opened yet
+            handle = Some(request.loading_handle.handle(&self.update_sender, deadline));
         }
+
+        handle
     }
 
     /// Starts closing a window, the operation can be canceled by listeners of
@@ -638,6 +646,7 @@ impl Windows {
 
     pub(super) fn on_update(ctx: &mut AppContext) {
         Self::fullfill_requests(ctx);
+        Self::update_loading(ctx);
     }
 
     fn fullfill_requests(ctx: &mut AppContext) {
@@ -700,6 +709,35 @@ impl Windows {
                 }
             });
         }
+    }
+    fn update_loading(ctx: &mut AppContext) {
+        let windows = Windows::req(ctx.services);
+
+        // deadline handle is cleared when a new request is made.
+        if let Some(h) = &windows.loading_deadline {
+            if !h.has_executed() {
+                return;
+            }
+        }
+
+        // find next nearest deadline.
+        let mut next_load_deadline = None;
+        for info in windows.windows_info.values() {
+            if next_load_deadline.is_none() {
+                next_load_deadline = info.loading_handle.deadline();
+            } else if let Some(d) = info.loading_handle.deadline() {
+                let nd = next_load_deadline.as_mut().unwrap();
+                *nd = (*nd).min(d);
+            }
+        }
+
+        // start a timer for the next deadline.
+        if let Some(d) = next_load_deadline {
+            let timer = ctx.timers.on_deadline(d.0, app_hn_once!(|_, _| {}));
+            windows.loading_deadline = Some(timer);
+        }
+
+        // the timer will cause an extensions update when it expires, and that ends up updating the window.
     }
 
     pub(super) fn on_layout(ctx: &mut AppContext) {
@@ -884,12 +922,21 @@ impl WindowLoading {
         self.handle.strong_count() > 0 && !self.deadline.has_elapsed()
     }
 
+    /// Future deadline.
+    pub fn deadline(&self) -> Option<Deadline> {
+        if self.is_loading() {
+            Some(self.deadline)
+        } else {
+            None
+        }
+    }
+
     pub fn handle(&mut self, update: &AppEventSender, deadline: Deadline) -> WindowLoadingHandle {
         match self.handle.upgrade() {
             Some(h) => {
                 self.deadline = self.deadline.min(deadline);
                 WindowLoadingHandle(h)
-            },
+            }
             None => {
                 let h = Arc::new(WindowLoadingData { update: update.clone() });
                 self.handle = Arc::downgrade(&h);

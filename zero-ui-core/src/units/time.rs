@@ -1,4 +1,7 @@
-use std::{time::{Duration, Instant}, fmt};
+use std::{
+    fmt,
+    time::{Duration, Instant},
+};
 
 use crate::impl_from_and_into_var;
 
@@ -49,17 +52,17 @@ impl TimeUnits for f32 {
 }
 
 /// Represents a timeout instant.
-/// 
+///
 /// Timers and timeouts can be specified as an [`Instant`] in the future or as a [`Duration`] from now, both
 /// of these types can be converted to this `struct`, timer related function can receive an `impl Into<Deadline>`
 /// to support both methods in the same signature.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// # use zero_ui_core::units::*;
 /// fn timer(deadline: impl Into<Deadline>) { }
-/// 
+///
 /// timer(5.secs());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
