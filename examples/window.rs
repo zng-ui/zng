@@ -312,7 +312,7 @@ fn focus_control() -> impl Widget {
         content = text("Focus in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
-            task::timeout(5.secs()).await;
+            task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
                 Windows::req(ctx.services).focus(ctx.path.window_id()).unwrap();
@@ -327,7 +327,7 @@ fn focus_control() -> impl Widget {
         content = text("Critical Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
-            task::timeout(5.secs()).await;
+            task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
                 WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Critical));
@@ -342,7 +342,7 @@ fn focus_control() -> impl Widget {
         content = text("Info Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
-            task::timeout(5.secs()).await;
+            task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
                 WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Info));
@@ -392,7 +392,7 @@ fn visibility(window_vars: &WindowVars) -> impl Widget {
         on_click = async_hn!(visible, |ctx, _| {
             visible.set(&ctx, false);
             println!("visible=false");
-            task::timeout(1.secs()).await;
+            task::deadline(1.secs()).await;
             visible.set(&ctx, true);
             println!("visible=true");
         });

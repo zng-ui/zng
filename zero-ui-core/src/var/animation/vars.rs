@@ -12,14 +12,14 @@ use crate::{
 
 use super::*;
 
-type AnimationFn = Box<dyn FnMut(&Vars, AnimationUpdateInfo) -> Option<Instant>>;
+type AnimationFn = Box<dyn FnMut(&Vars, AnimationUpdateInfo) -> Option<Deadline>>;
 
 #[derive(Clone, Copy)]
 struct AnimationUpdateInfo {
     animations_enabled: bool,
     now: Instant,
     time_scale: Factor,
-    next_frame: Instant,
+    next_frame: Deadline,
 }
 
 /// Part of `Vars` that controls animations.
@@ -28,7 +28,7 @@ pub(crate) struct VarsAnimations {
     animation_id: Cell<u32>,
     pub(crate) current_animation: RefCell<(Option<WeakAnimationHandle>, u32)>,
     pub(crate) animation_start_time: Cell<Option<Instant>>,
-    next_frame: Cell<Option<Instant>>,
+    next_frame: Cell<Option<Deadline>>,
     pub(crate) animations_enabled: RcVar<bool>,
     pub(crate) frame_duration: RcVar<Duration>,
     pub(crate) animation_time_scale: RcVar<Factor>,
@@ -60,7 +60,7 @@ impl VarsAnimations {
                     next_frame: next_frame + vars.ans.frame_duration.copy(vars),
                 };
 
-                let mut min_sleep = info.now + Duration::from_secs(60 * 60);
+                let mut min_sleep = Deadline(info.now + Duration::from_secs(60 * 60));
 
                 animations.retain_mut(|animate| {
                     if let Some(sleep) = animate(vars, info) {
@@ -178,7 +178,7 @@ impl VarsAnimations {
                     if sleep > info.next_frame {
                         // retain sleep
                         return Some(sleep);
-                    } else if sleep > info.now {
+                    } else if sleep.0 > info.now {
                         // sync-up to frame rate after sleep
                         anim.reset_sleep();
                         return Some(info.next_frame);
@@ -209,7 +209,7 @@ impl VarsAnimations {
         }));
 
         if vars.ans.next_frame.get().is_none() {
-            vars.ans.next_frame.set(Some(Instant::now()));
+            vars.ans.next_frame.set(Some(Deadline(Instant::now())));
         }
 
         handle

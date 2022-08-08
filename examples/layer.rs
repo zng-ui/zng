@@ -146,7 +146,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
                 hit_test_mode = HitTestMode::Disabled;
             }));
 
-            task::timeout(2.secs()).await;
+            task::deadline(2.secs()).await;
 
             ctx.with(|ctx| WindowLayers::remove(ctx, id));
         });

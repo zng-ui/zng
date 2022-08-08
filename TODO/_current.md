@@ -1,4 +1,3 @@
-* Use the `Deadline` type in all timer functions.
 * Review timers, deadline timer is not working correctly.
 
 * Implement loading handle for headless.

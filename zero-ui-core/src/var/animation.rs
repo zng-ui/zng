@@ -250,7 +250,7 @@ pub struct AnimationArgs {
     start_time: Cell<Instant>,
     restart_count: Cell<usize>,
     stop: Cell<bool>,
-    sleep: Cell<Option<Instant>>,
+    sleep: Cell<Option<Deadline>>,
     animations_enabled: bool,
     now: Instant,
     time_scale: Factor,
@@ -303,10 +303,10 @@ impl AnimationArgs {
     /// a multiple of the frame duration it will delay an extra `frame_duration - 1ns` in the worst case. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     pub fn sleep(&self, duration: Duration) {
-        self.sleep.set(Some(self.now + duration));
+        self.sleep.set(Some(Deadline(self.now + duration)));
     }
 
-    pub(crate) fn sleep_deadline(&self) -> Option<Instant> {
+    pub(crate) fn sleep_deadline(&self) -> Option<Deadline> {
         self.sleep.get()
     }
 

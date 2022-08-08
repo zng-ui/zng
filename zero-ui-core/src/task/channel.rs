@@ -13,7 +13,7 @@
 //! let (sender, receiver) = channel::bounded(5);
 //!
 //! task::spawn(async move {
-//!     task::timeout(5.secs()).await;
+//!     task::deadline(5.secs()).await;
 //!     if let Err(e) = sender.send("Data!").await {
 //!         eprintln!("no receiver connected, did not send message: '{}'", e.0)
 //!     }
@@ -28,14 +28,11 @@
 //!
 //! [`flume`]: https://docs.rs/flume/0.10.7/flume/
 
-use std::{
-    any::type_name,
-    convert::TryFrom,
-    fmt,
-    time::{Duration, Instant},
-};
+use std::{any::type_name, convert::TryFrom, fmt};
 
 pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
+
+use crate::units::Deadline;
 
 /// The transmitting end of an unbounded channel.
 ///
@@ -130,11 +127,11 @@ impl<T> Sender<T> {
 
     /// Send a value into the channel.
     ///
-    /// Waits until there is space in the channel buffer or the `timeout` is reached.
+    /// Waits until there is space in the channel buffer or the `deadline` is reached.
     ///
-    /// Returns an error if all receivers have been dropped or the `timeout` is reached.
-    pub async fn send_timeout(&self, msg: T, timeout: Duration) -> Result<(), SendTimeoutError<T>> {
-        match super::with_timeout(self.send(msg), timeout).await {
+    /// Returns an error if all receivers have been dropped or the `deadline` is reached.
+    pub async fn send_deadline(&self, msg: T, deadline: impl Into<Deadline>) -> Result<(), SendTimeoutError<T>> {
+        match super::with_deadline(self.send(msg), deadline).await {
             Ok(r) => match r {
                 Ok(_) => Ok(()),
                 Err(e) => Err(SendTimeoutError::Disconnected(e.0)),
@@ -144,20 +141,6 @@ impl<T> Sender<T> {
                 //
                 todo!("wait for send_timeout_async impl")
             }
-        }
-    }
-
-    /// Send a value into the channel.
-    ///
-    /// Waits until there is space in the channel buffer or the `deadline` has passed.
-    ///
-    /// Returns an error if all receivers have been dropped or the `deadline` has passed.
-    pub async fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), SendTimeoutError<T>> {
-        let now = Instant::now();
-        if deadline < now {
-            Err(SendTimeoutError::Timeout(msg))
-        } else {
-            self.send_timeout(msg, deadline - now).await
         }
     }
 
@@ -221,26 +204,14 @@ impl<T> Receiver<T> {
 
     /// Wait for an incoming value from the channel associated with this receiver.
     ///
-    /// Returns an error if all senders have been dropped or the `timeout` is reached.
-    pub async fn recv_timeout(&self, timeout: Duration) -> Result<T, RecvTimeoutError> {
-        match super::with_timeout(self.recv(), timeout).await {
+    /// Returns an error if all senders have been dropped or the `deadline` is reached.
+    pub async fn recv_deadline(&self, deadline: impl Into<Deadline>) -> Result<T, RecvTimeoutError> {
+        match super::with_deadline(self.recv(), deadline).await {
             Ok(r) => match r {
                 Ok(m) => Ok(m),
                 Err(_) => Err(RecvTimeoutError::Disconnected),
             },
             Err(_) => Err(RecvTimeoutError::Timeout),
-        }
-    }
-
-    /// Wait for an incoming value from the channel associated with this receiver.
-    ///  
-    /// Returns an error if all senders have been dropped or the `deadline` has passed.
-    pub async fn recv_deadline(&self, deadline: Instant) -> Result<T, RecvTimeoutError> {
-        let now = Instant::now();
-        if deadline < now {
-            Err(RecvTimeoutError::Timeout)
-        } else {
-            self.recv_timeout(now - deadline).await
         }
     }
 
@@ -296,7 +267,7 @@ impl<T> Receiver<T> {
 ///
 /// task::spawn(async move {
 ///     for msg in ["Hello!", "Are you still there?"].into_iter().cycle() {
-///         task::timeout(300.ms());
+///         task::deadline(300.ms()).await;
 ///         if let Err(e) = sender.send(msg) {
 ///             eprintln!("no receiver connected, the message `{}` was not send", e.0);
 ///             break;
@@ -304,7 +275,7 @@ impl<T> Receiver<T> {
 ///     }
 /// });
 /// task::spawn(async move {
-///     task::timeout(5.secs()).await;
+///     task::deadline(5.secs()).await;
 ///     
 ///     loop {
 ///         match receiver.recv().await {
@@ -345,7 +316,7 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 ///
 /// task::spawn(async move {
 ///     for msg in ["Hello!", "Data!"].into_iter().cycle() {
-///         task::timeout(300.ms());
+///         task::deadline(300.ms()).await;
 ///         if let Err(e) = sender.send(msg).await {
 ///             eprintln!("no receiver connected, the message `{}` was not send", e.0);
 ///             break;
@@ -353,7 +324,7 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 ///     }
 /// });
 /// task::spawn(async move {
-///     task::timeout(5.secs()).await;
+///     task::deadline(5.secs()).await;
 ///     
 ///     loop {
 ///         match receiver.recv().await {
@@ -404,7 +375,7 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 /// });
 /// task::spawn(async move {
 ///     loop {
-///         task::timeout(2.secs()).await;
+///         task::deadline(2.secs()).await;
 ///
 ///         match receiver.recv().await {
 ///             Ok(msg) => println!(r#"got "{msg}""#),

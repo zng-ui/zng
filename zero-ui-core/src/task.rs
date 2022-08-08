@@ -146,13 +146,13 @@ use std::{
         Arc,
     },
     task::Poll,
-    time::{Duration, Instant},
 };
 
 use parking_lot::Mutex;
 
 use crate::{
     crate_util::{panic_str, PanicResult},
+    units::Deadline,
     var::{response_channel, response_var, ResponseVar, Var, VarValue, WithVars},
 };
 
@@ -620,7 +620,7 @@ where
 /// ```
 /// use zero_ui_core::task;
 /// # use zero_ui_core::units::*;
-/// # async fn foo(u: u8) -> Result<u8, ()> { task::timeout(1.ms()).await; Ok(u) }
+/// # async fn foo(u: u8) -> Result<u8, ()> { task::deadline(1.ms()).await; Ok(u) }
 ///
 /// #[test]
 /// # fn __() { }
@@ -676,10 +676,12 @@ pub fn doc_test<F>(spin: bool, task: F) -> F::Output
 where
     F: Future,
 {
+    use crate::units::TimeUnits;
+
     if spin {
-        spin_on(with_timeout(task, Duration::from_millis(500))).expect("async doc-test timeout")
+        spin_on(with_deadline(task, 500.ms())).expect("async doc-test timeout")
     } else {
-        block_on(with_timeout(task, Duration::from_secs(5))).expect("async doc-test timeout")
+        block_on(with_deadline(task, 5.secs())).expect("async doc-test timeout")
     }
 }
 
@@ -749,7 +751,7 @@ pub async fn yield_now() {
     YieldNowFut(false).await
 }
 
-/// A future that is [`Pending`] until the `timeout` is reached.
+/// A future that is [`Pending`] until the `deadline` is reached.
 ///
 /// # Examples
 ///
@@ -760,7 +762,7 @@ pub async fn yield_now() {
 ///
 /// task::spawn(async {
 ///     println!("waiting 5 seconds..");
-///     task::timeout(5.secs()).await;
+///     task::deadline(5.secs()).await;
 ///     println!("5 seconds elapsed.")
 /// });
 /// ```
@@ -776,19 +778,10 @@ pub async fn yield_now() {
 /// [`Pending`]: std::task::Poll::Pending
 /// [`futures_timer`]: https://docs.rs/futures-timer
 /// [`Timers`]: crate::timer::Timers#async
-pub async fn timeout(timeout: Duration) {
-    futures_timer::Delay::new(timeout).await
-}
-
-/// A future that is [`Pending`] until the `deadline` has passed.
-///
-///  This function just calculates the [`timeout`], from the time this method is called minus `deadline`.
-///
-/// [`Pending`]: std::task::Poll::Pending
-pub async fn deadline(deadline: Instant) {
-    let now = Instant::now();
-    if deadline > now {
-        timeout(deadline - now).await
+pub async fn deadline(deadline: impl Into<Deadline>) {
+    let deadline = deadline.into();
+    if let Some(timeout) = deadline.time_left() {
+        futures_timer::Delay::new(timeout).await
     }
 }
 
@@ -824,43 +817,29 @@ pub async fn poll_fn<T, F: FnMut(&mut std::task::Context) -> Poll<T>>(fn_: F) ->
     PollFn(fn_).await
 }
 
-/// Error when [`with_timeout`] or [`with_deadline`] reach a time limit before a task finishes.
+/// Error when [`with_deadline`] reach a time limit before a task finishes.
 #[derive(Debug, Clone, Copy)]
-pub struct TimeoutError {
-    /// Timeout duration.
-    ///
-    /// In [`with_deadline`] it is calculated and is [`Duration::ZERO`]
-    /// if the deadline is in the past from the start.
-    pub timeout: Duration,
+pub struct DeadlineError {
+    /// The deadline that was reached.
+    pub deadline: Deadline,
 }
-impl fmt::Display for TimeoutError {
+impl fmt::Display for DeadlineError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "future timeout after {:?}", self.timeout)
+        write!(f, "reached deadline, {:?}", self.deadline)
     }
 }
-impl std::error::Error for TimeoutError {}
-
-/// Add a [`timeout`] to a future.
-///
-/// Returns the `fut` output or [`TimeoutError`] if the timeout elapses first.
-pub async fn with_timeout<O, F: Future<Output = O>>(fut: F, timeout: Duration) -> Result<F::Output, TimeoutError> {
-    any!(async { Ok(fut.await) }, async {
-        self::timeout(timeout).await;
-        Err(TimeoutError { timeout })
-    })
-    .await
-}
+impl std::error::Error for DeadlineError {}
 
 /// Add a [`deadline`] to a future.
 ///
-/// Returns the `fut` output or [`TimeoutError`] if the deadline elapses first.
-pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) -> Result<F::Output, TimeoutError> {
-    let now = Instant::now();
-    if deadline < now {
-        Err(TimeoutError { timeout: Duration::ZERO })
-    } else {
-        with_timeout(fut, deadline - now).await
-    }
+/// Returns the `fut` output or [`DeadlineError`] if the deadline elapses first.
+pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: impl Into<Deadline>) -> Result<F::Output, DeadlineError> {
+    let deadline = deadline.into();
+    any!(async { Ok(fut.await) }, async {
+        self::deadline(deadline).await;
+        Err(DeadlineError { deadline })
+    })
+    .await
 }
 
 /// <span data-del-macro-root></span> Pins variables on the stack.
@@ -1061,9 +1040,9 @@ macro_rules! __all {
 ///
 /// # task::doc_test(false, async {
 /// let r = task::any!(
-///     task::run(async { task::timeout(300.ms()).await; 'a' }),
+///     task::run(async { task::deadline(300.ms()).await; 'a' }),
 ///     task::wait(|| 'b'),
-///     async { task::timeout(300.ms()).await; 'c' }
+///     async { task::deadline(300.ms()).await; 'c' }
 /// ).await;
 ///
 /// assert_eq!('b', r);
@@ -1923,13 +1902,14 @@ pub mod tests {
     use rayon::prelude::*;
 
     use super::*;
+    use crate::units::TimeUnits;
 
     #[track_caller]
     fn async_test<F>(test: F) -> F::Output
     where
         F: Future,
     {
-        block_on(with_timeout(test, Duration::from_secs(5))).unwrap()
+        block_on(with_deadline(test, 5.secs())).unwrap()
     }
 
     #[test]
@@ -1941,39 +1921,39 @@ pub mod tests {
 
     #[test]
     pub fn any_nine() {
-        let one_s = Duration::from_secs(1);
+        let one_s = 1.secs();
         let r = async_test(async {
             any!(
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     1
                 },
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     2
                 },
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     3
                 },
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     4
                 },
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     5
                 },
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     6
                 },
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     7
                 },
                 async {
-                    timeout(one_s).await;
+                    deadline(one_s).await;
                     8
                 },
                 async { 9 },
@@ -1999,7 +1979,7 @@ pub mod tests {
         async_test(async {
             let r = run_catch(async {
                 run(async {
-                    timeout(Duration::from_millis(1)).await;
+                    deadline(1.ms()).await;
                     panic!("test panic")
                 })
                 .await;
@@ -2015,7 +1995,7 @@ pub mod tests {
         async_test(async {
             let r = run_catch(async {
                 run(async {
-                    timeout(Duration::from_millis(1)).await;
+                    deadline(1.ms()).await;
                     (0..100000).into_par_iter().for_each(|i| {
                         if i == 50005 {
                             panic!("test panic");

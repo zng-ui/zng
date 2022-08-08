@@ -15,6 +15,7 @@ use crate::{
     context::AppContext,
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
+    units::Deadline,
     var::{types::WeakRcVar, var, ReadOnlyRcVar, Var, Vars, VarsRead, WeakVar},
 };
 
@@ -27,7 +28,7 @@ struct DeadlineHandlerEntry {
 struct TimerHandlerEntry {
     handle: HandleOwner<TimerState>,
     handler: Box<dyn FnMut(&mut AppContext, &TimerArgs, &dyn AppWeakHandle)>,
-    pending: Option<Instant>, // the `Instant` is the last expected deadline
+    pending: Option<Deadline>, // the last expected deadline
 }
 
 struct TimerVarEntry {
@@ -43,7 +44,7 @@ struct TimerVarEntry {
 ///
 /// Timer updates can be observed using variables that update when the timer elapses, or you can register
 /// handlers to be called directly when the time elapses. Timers can be *one-time*, updating only once when
-/// a [`deadline`] is reached or a [`timeout`] elapses; or they can update every time on a set [`interval`].
+/// a [`deadline`] is reached; or they can update every time on a set [`interval`].
 ///
 /// # Async
 ///
@@ -61,7 +62,6 @@ struct TimerVarEntry {
 /// [variable]: Var
 /// [`task`]: crate::task
 /// [`deadline`]: Timers::deadline
-/// [`timeout`]: Timers::timeout
 /// [`interval`]: Timers::interval
 /// [`async_app_hn!`]: crate::handler::async_app_hn!
 /// [`async_app_hn_once!`]: crate::async_app_hn_once!
@@ -94,29 +94,22 @@ impl Timers {
     /// # use zero_ui_core::context::WidgetContext;
     /// # use std::time::Instant;
     /// # fn foo(ctx: &mut WidgetContext) {
-    /// let deadline = ctx.timers.deadline(Instant::now() + 20.secs());
+    /// let deadline = ctx.timers.deadline(20.secs());
     ///
     /// # let
-    /// text = deadline.map(|d| if d.elapsed { "20 seconds have passed" } else { "..." });
+    /// text = deadline.map(|d| if d.has_elapsed() { "20 seconds have passed" } else { "..." });
     /// # }
     /// ```
     ///
-    /// In the example above the deadline variable starts with [`elapsed`](Deadline::elapsed) set to `false`,
-    /// 20 seconds later the variable will update with [`elapsed`](Deadline::elapsed) set to `true`. The variable
+    /// In the example above the deadline variable will update 20 seconds later when the deadline [`has_elapsed`]. The variable
     /// is read-only and will only update once.
+    ///
+    /// [`has_elapsed`]: Deadline::has_elapsed
     #[must_use]
-    pub fn deadline(&mut self, deadline: Instant) -> DeadlineVar {
-        let timer = var(Deadline { deadline, elapsed: false });
+    pub fn deadline(&mut self, deadline: impl Into<Deadline>) -> DeadlineVar {
+        let timer = var(deadline.into());
         self.deadlines.push(timer.downgrade());
         timer.into_read_only()
-    }
-
-    /// Returns a [`DeadlineVar`] that will update once when the `timeout` has elapsed.
-    ///
-    /// This method just calculates the [`deadline`](Self::deadline), from the time this method is called plus `timeout`.
-    #[must_use]
-    pub fn timeout(&mut self, timeout: Duration) -> DeadlineVar {
-        self.deadline(Instant::now() + timeout)
     }
 
     /// Returns a [`TimerVar`] that will update every time the `interval` elapses.
@@ -169,7 +162,7 @@ impl Timers {
     /// # use zero_ui_core::context::AppContext;
     /// # use std::time::Instant;
     /// # fn foo(ctx: &mut AppContext) {
-    /// let handle = ctx.timers.on_deadline(Instant::now() + 20.secs(), app_hn_once!(|ctx, _| {
+    /// let handle = ctx.timers.on_deadline(20.secs(), app_hn_once!(|ctx, _| {
     ///     println!("20 seconds have passed");
     /// }));
     /// # }
@@ -189,10 +182,11 @@ impl Timers {
     /// Returns a [`DeadlineHandle`] that can be used to cancel the timer, either by dropping the handle or by
     /// calling [`cancel`](DeadlineHandle::cancel). You can also call [`perm`](DeadlineHandle::perm)
     /// to drop the handle without cancelling.
-    pub fn on_deadline<H>(&mut self, deadline: Instant, mut handler: H) -> DeadlineHandle
+    pub fn on_deadline<H>(&mut self, deadline: impl Into<Deadline>, mut handler: H) -> DeadlineHandle
     where
         H: AppHandler<DeadlineArgs> + handler::marker::OnceHn,
     {
+        let deadline = deadline.into();
         let (handle_owner, handle) = DeadlineHandle::new(deadline);
         self.deadline_handlers.push(DeadlineHandlerEntry {
             handle: handle_owner,
@@ -209,17 +203,6 @@ impl Timers {
             pending: false,
         });
         handle
-    }
-
-    /// Register a `handler` that will be called once when `timeout` elapses.
-    ///
-    /// This method just calculates the deadline for [`on_deadline`](Self::on_deadline). The deadline is calculated
-    /// from the time this method is called plus `timeout`.
-    pub fn on_timeout<H>(&mut self, timeout: Duration, handler: H) -> DeadlineHandle
-    where
-        H: AppHandler<DeadlineArgs> + handler::marker::OnceHn,
-    {
-        self.on_deadline(Instant::now() + timeout, handler)
     }
 
     /// Register a `handler` that will be called every time the `interval` elapses.
@@ -244,7 +227,7 @@ impl Timers {
     pub(crate) fn next_deadline(&self, vars: &VarsRead, timer: &mut LoopTimer) {
         for wk in &self.deadlines {
             if let Some(var) = wk.upgrade() {
-                timer.register(var.get(vars).deadline);
+                timer.register(var.copy(vars));
             }
         }
 
@@ -284,11 +267,11 @@ impl Timers {
         // update `deadline` vars
         self.deadlines.retain(|wk| {
             if let Some(var) = wk.upgrade() {
-                if !timer.elapsed(var.get(vars).deadline) {
+                if !timer.elapsed(var.copy(vars)) {
                     return true; // retain
                 }
 
-                var.modify(vars, |mut t| t.elapsed = true);
+                var.touch(vars);
             }
             false // don't retain
         });
@@ -388,16 +371,7 @@ impl Timers {
     }
 }
 
-/// Represents the state of a [`DeadlineVar`].
-#[derive(Debug, Clone)]
-pub struct Deadline {
-    /// Deadline for the timer to elapse, this value does not change.
-    pub deadline: Instant,
-    /// If the timer has elapsed, the initial value is `false`, once the timer elapses the value is updated to `true`.
-    pub elapsed: bool,
-}
-
-/// A [`deadline`](Timers::deadline) or [`timeout`](Timers::timeout) timer.
+/// A [`deadline`](Timers::deadline) timer.
 ///
 /// This is a read-only variable of type [`Deadline`], it will update once when the timer elapses.
 ///
@@ -411,10 +385,10 @@ pub struct Deadline {
 /// # use zero_ui_core::context::WidgetContext;
 /// # use std::time::Instant;
 /// # fn foo(ctx: &mut WidgetContext) {
-/// let deadline: DeadlineVar = ctx.timers.deadline(Instant::now() + 20.secs());
+/// let deadline: DeadlineVar = ctx.timers.deadline(20.secs());
 ///
 /// # let
-/// text = deadline.map(|d| if d.elapsed { "20 seconds have passed" } else { "..." });
+/// text = deadline.map(|d| if d.has_elapsed() { "20 seconds have passed" } else { "..." });
 /// # }
 /// ```
 ///
@@ -422,7 +396,7 @@ pub struct Deadline {
 /// including `.await` for the update in UI bound async tasks. See [`Var`] for details.
 pub type DeadlineVar = ReadOnlyRcVar<Deadline>;
 
-/// Represents a [`on_deadline`](Timers::on_deadline) or [`on_timeout`](Timers::on_timeout) handler.
+/// Represents a [`on_deadline`](Timers::on_deadline) handler.
 ///
 /// Drop all clones of this handle to cancel the timer, or call [`perm`](Self::perm) to drop the handle
 /// without cancelling the timer.
@@ -431,7 +405,7 @@ pub type DeadlineVar = ReadOnlyRcVar<Deadline>;
 #[must_use = "the timer is canceled if the handler is dropped"]
 pub struct DeadlineHandle(Handle<DeadlineState>);
 struct DeadlineState {
-    deadline: Instant,
+    deadline: Deadline,
     executed: AtomicBool,
 }
 impl DeadlineHandle {
@@ -441,12 +415,12 @@ impl DeadlineHandle {
     pub fn dummy() -> DeadlineHandle {
         assert_non_null!(DeadlineHandle);
         DeadlineHandle(Handle::dummy(DeadlineState {
-            deadline: Instant::now(),
+            deadline: Deadline(Instant::now()),
             executed: AtomicBool::new(false),
         }))
     }
 
-    fn new(deadline: Instant) -> (HandleOwner<DeadlineState>, Self) {
+    fn new(deadline: Deadline) -> (HandleOwner<DeadlineState>, Self) {
         let (owner, handle) = Handle::new(DeadlineState {
             deadline,
             executed: AtomicBool::new(false),
@@ -477,7 +451,7 @@ impl DeadlineHandle {
     /// The timeout deadline.
     ///
     /// The handler is called once when this deadline is reached.
-    pub fn deadline(&self) -> Instant {
+    pub fn deadline(&self) -> Deadline {
         self.0.data().deadline
     }
 
@@ -531,13 +505,13 @@ impl WeakDeadlineHandle {
     }
 }
 
-/// Arguments for the handler of [`on_deadline`](Timers::on_deadline) or [`on_timeout`](Timers::on_timeout).
+/// Arguments for the handler of [`on_deadline`](Timers::on_deadline).
 #[derive(Clone, Debug)]
 pub struct DeadlineArgs {
     /// When the handler was called.
     pub timestamp: Instant,
     /// Timer deadline, is less-or-equal to the [`timestamp`](Self::timestamp).
-    pub deadline: Instant,
+    pub deadline: Deadline,
 }
 
 /// Represents a [`on_interval`](Timers::on_interval) handler.
@@ -558,8 +532,8 @@ struct TimerDeadline {
     last: Instant,
 }
 impl TimerDeadline {
-    fn current_deadline(&self) -> Instant {
-        self.last + self.interval
+    fn current_deadline(&self) -> Deadline {
+        Deadline(self.last + self.interval)
     }
 }
 impl TimerHandle {
@@ -638,7 +612,7 @@ impl TimerHandle {
     /// The next deadline.
     ///
     /// This is the [`timestamp`](Self::timestamp) plus the [`interval`](Self::interval).
-    pub fn deadline(&self) -> Instant {
+    pub fn deadline(&self) -> Deadline {
         self.0.data().deadline.lock().current_deadline()
     }
 
@@ -805,7 +779,7 @@ impl Timer {
     /// The next deadline.
     ///
     /// This is the [`timestamp`](Self::timestamp) plus the [`interval`](Self::interval).
-    pub fn deadline(&self) -> Instant {
+    pub fn deadline(&self) -> Deadline {
         self.0.deadline()
     }
 
@@ -857,7 +831,7 @@ pub struct TimerArgs {
     pub timestamp: Instant,
 
     /// Expected deadline, is less-or-equal to the [`timestamp`](Self::timestamp).
-    pub deadline: Instant,
+    pub deadline: Deadline,
 
     wk_handle: WeakHandle<TimerState>,
 }
@@ -928,7 +902,7 @@ impl TimerArgs {
     /// The next timer deadline.
     ///
     /// This is [`last_timestamp`](Self::last_timestamp) plus [`interval`](Self::interval).
-    pub fn next_deadline(&self) -> Instant {
+    pub fn next_deadline(&self) -> Deadline {
         self.handle().map(|h| h.deadline()).unwrap_or(self.deadline)
     }
 

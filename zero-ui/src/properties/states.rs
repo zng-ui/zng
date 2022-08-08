@@ -202,7 +202,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     if self.shortcut_press.take().is_none() {
                         let duration = Gestures::req(ctx.services).shortcut_pressed_duration;
                         if duration != Duration::default() {
-                            self.shortcut_press = Some(ctx.timers.timeout(duration));
+                            self.shortcut_press = Some(ctx.timers.deadline(duration));
                             self.state.set_ne(ctx, true);
                             ctx.updates.subscriptions();
                         }

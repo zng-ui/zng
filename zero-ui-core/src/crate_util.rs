@@ -1,6 +1,6 @@
 //! Crate visible macros and utilities.
 
-use crate::text::Text;
+use crate::{text::Text, units::Deadline};
 use rand::Rng;
 use rustc_hash::FxHasher;
 use std::{
@@ -1038,23 +1038,23 @@ macro_rules! print_backtrace {
 /// Extension methods for [`flume::Receiver<T>`].
 pub trait ReceiverExt<T> {
     /// Receive or precise timeout.
-    fn recv_deadline_sp(&self, deadline: Instant) -> Result<T, flume::RecvTimeoutError>;
+    fn recv_deadline_sp(&self, deadline: Deadline) -> Result<T, flume::RecvTimeoutError>;
 }
 
 const WORST_SLEEP_ERR: Duration = Duration::from_millis(if cfg!(windows) { 20 } else { 10 });
 const WORST_SPIN_ERR: Duration = Duration::from_millis(if cfg!(windows) { 2 } else { 1 });
 
 impl<T> ReceiverExt<T> for flume::Receiver<T> {
-    fn recv_deadline_sp(&self, deadline: Instant) -> Result<T, flume::RecvTimeoutError> {
-        if let Some(d) = deadline.checked_duration_since(Instant::now()) {
+    fn recv_deadline_sp(&self, deadline: Deadline) -> Result<T, flume::RecvTimeoutError> {
+        if let Some(d) = deadline.0.checked_duration_since(Instant::now()) {
             if d > WORST_SLEEP_ERR {
                 // probably sleeps here.
-                match self.recv_deadline(deadline - WORST_SLEEP_ERR) {
+                match self.recv_deadline(deadline.0 - WORST_SLEEP_ERR) {
                     Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
                     interrupt => interrupt,
                 }
             } else if d > WORST_SPIN_ERR {
-                let spin_deadline = deadline - WORST_SPIN_ERR;
+                let spin_deadline = deadline.0 - WORST_SPIN_ERR;
 
                 // high-res sleep.
                 #[cfg(windows)]
@@ -1076,7 +1076,7 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
                 self.recv_deadline_sp(deadline)
             } else {
                 // last millis spin
-                while deadline > Instant::now() {
+                while !deadline.has_elapsed() {
                     std::thread::yield_now();
                 }
                 Err(flume::RecvTimeoutError::Timeout)

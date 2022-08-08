@@ -1,5 +1,5 @@
 use std::{
-    fmt,
+    fmt, ops,
     time::{Duration, Instant},
 };
 
@@ -78,6 +78,11 @@ impl Deadline {
         self.0 <= Instant::now()
     }
 
+    /// Returns the time left until the deadline is reached.
+    pub fn time_left(self) -> Option<Duration> {
+        self.0.checked_duration_since(Instant::now())
+    }
+
     /// Returns the deadline further into the past or closest to now.
     pub fn min(self, other: Deadline) -> Deadline {
         Deadline(self.0.min(other.0))
@@ -106,5 +111,31 @@ impl_from_and_into_var! {
 
     fn from(timeout: Duration) -> Deadline {
         Deadline::timeout(timeout)
+    }
+}
+impl ops::Add<Duration> for Deadline {
+    type Output = Self;
+
+    fn add(mut self, rhs: Duration) -> Self {
+        self.0 += rhs;
+        self
+    }
+}
+impl ops::AddAssign<Duration> for Deadline {
+    fn add_assign(&mut self, rhs: Duration) {
+        self.0 += rhs;
+    }
+}
+impl ops::Sub<Duration> for Deadline {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Duration) -> Self {
+        self.0 -= rhs;
+        self
+    }
+}
+impl ops::SubAssign<Duration> for Deadline {
+    fn sub_assign(&mut self, rhs: Duration) {
+        self.0 -= rhs;
     }
 }

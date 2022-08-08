@@ -14,6 +14,7 @@ use crate::event::{event, event_args, AnyEventUpdate, BoxedEventUpdate, EventUpd
 use crate::image::ImageManager;
 use crate::service::Services;
 use crate::timer::Timers;
+use crate::units::Deadline;
 use crate::var::Vars;
 use crate::widget_info::{UpdateMask, UpdateSlot};
 use crate::window::WindowMode;
@@ -1580,46 +1581,46 @@ share_generics!(RunningApp<Box<dyn AppExtensionBoxed>>::start);
 #[derive(Default, Debug)]
 pub(crate) struct LoopTimer {
     awake: bool,
-    wake: Option<Instant>,
-    next_wake: Option<Instant>,
+    wake: Option<Deadline>,
+    next_wake: Option<Deadline>,
 }
 impl LoopTimer {
-    /// Returns `true` if the `instant` has elapsed, `false` if the `instance` was
+    /// Returns `true` if the `deadline` has elapsed, `false` if the `deadline` was
     /// registered for future waking.
-    pub fn elapsed(&mut self, instant: Instant) -> bool {
+    pub fn elapsed(&mut self, deadline: Deadline) -> bool {
         if self.awake {
             if let Some(w) = self.wake {
-                if instant <= w {
+                if deadline <= w {
                     return true;
                 }
             }
         }
-        self.register(instant);
+        self.register(deadline);
         false
     }
 
-    /// Register the future `instant`.
-    pub fn register(&mut self, instant: Instant) {
+    /// Register the future `deadline`.
+    pub fn register(&mut self, deadline: Deadline) {
         if let Some(nxt) = &mut self.next_wake {
-            if instant < *nxt {
-                *nxt = instant;
+            if deadline < *nxt {
+                *nxt = deadline;
             }
         } else {
-            self.next_wake = Some(instant);
+            self.next_wake = Some(deadline);
         }
     }
 
     /// Get next sleep deadline.
-    pub(crate) fn poll(&mut self) -> Option<Instant> {
+    pub(crate) fn poll(&mut self) -> Option<Deadline> {
         if self.awake {
             if let Some(w) = self.next_wake.take() {
-                self.wake = Some(w.max(Instant::now()));
+                self.wake = Some(w.max(Deadline(Instant::now())));
             } else {
                 self.wake = None;
             }
             self.awake = false;
         } else if let Some(w) = self.next_wake.take() {
-            self.wake = Some(w.max(Instant::now()));
+            self.wake = Some(w.max(Deadline(Instant::now())));
         }
         self.wake
     }
@@ -1627,7 +1628,7 @@ impl LoopTimer {
     /// Maybe awake timer.
     pub(crate) fn awake(&mut self) -> bool {
         if let Some(w) = self.wake {
-            self.awake = w <= Instant::now();
+            self.awake = w.has_elapsed();
         }
         self.awake
     }

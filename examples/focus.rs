@@ -147,7 +147,7 @@ fn disable_window(window_enabled: RcVar<bool>) -> impl Widget {
         min_width = 140;
         on_click = async_hn!(window_enabled, |ctx, _| {
             window_enabled.set(&ctx, false);
-            task::timeout(1.secs()).await;
+            task::deadline(1.secs()).await;
             window_enabled.set(&ctx, true);
         });
     }
@@ -246,7 +246,7 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
         content = text(content.into());
         on_click = async_hn!(enabled, on_timeout, |ctx, _| {
             enabled.set(&ctx, false);
-            task::timeout(4.secs()).await;
+            task::deadline(4.secs()).await;
             ctx.with(|ctx| {
                 let mut on_timeout = on_timeout.borrow_mut();
                 on_timeout(ctx);

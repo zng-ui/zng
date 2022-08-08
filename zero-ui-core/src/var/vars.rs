@@ -1475,7 +1475,7 @@ mod tests {
     use crate::{
         app::{App, HeadlessApp},
         context::TestWidgetContext,
-        task::with_timeout,
+        task::with_deadline,
         units::*,
         var::*,
     };
@@ -1561,7 +1561,7 @@ mod tests {
         test.ease(app.ctx().vars, 20, 1.secs(), easing::linear).perm();
 
         app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_timeout(test.wait_animation(&ctx), 2.secs()).await.unwrap();
+            with_deadline(test.wait_animation(&ctx), 2.secs()).await.unwrap();
         }));
 
         assert_eq!(20, test.copy(app.ctx().vars));
@@ -1589,7 +1589,7 @@ mod tests {
         start_sleep_1s(&mut app, &test);
 
         app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_timeout(test.wait_animation(&ctx), 2.secs()).await.unwrap();
+            with_deadline(test.wait_animation(&ctx), 2.secs()).await.unwrap();
         }));
 
         assert!(test.copy(&app.ctx()));
@@ -1606,7 +1606,7 @@ mod tests {
         other_anim.ease(&app.ctx(), 100u32, 1.secs(), easing::linear).perm();
 
         app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_timeout(test.wait_animation(&ctx), 2.secs()).await.unwrap();
+            with_deadline(test.wait_animation(&ctx), 2.secs()).await.unwrap();
         }));
 
         assert!(test.copy(&app.ctx()));
@@ -1656,7 +1656,7 @@ mod tests {
         }));
 
         app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_timeout(test.wait_animation(&ctx), 2.secs()).await
+            with_deadline(test.wait_animation(&ctx), 2.secs()).await
         }));
         assert_eq!(100, test.copy(&app));
         let inner_handle = Rc::try_unwrap(inner_handle).unwrap().into_inner().unwrap();

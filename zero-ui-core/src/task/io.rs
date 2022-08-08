@@ -693,7 +693,7 @@ mod tests {
             });
             let b = task::run(async move {
                 let mut buf: Vec<u8> = vec![];
-                task::timeout(5.ms()).await;
+                task::deadline(5.ms()).await;
                 b.read_to_end(&mut buf).await.unwrap();
                 buf
             });
@@ -761,7 +761,7 @@ mod tests {
                     let waker = cx.waker().clone();
                     let delay = self.delay;
                     task::spawn(async move {
-                        task::timeout(delay).await;
+                        task::deadline(delay).await;
                         waker.wake();
                     });
                     return Poll::Pending;
@@ -778,7 +778,7 @@ mod tests {
     where
         F: std::future::Future,
     {
-        task::block_on(task::with_timeout(test, 5.secs())).unwrap()
+        task::block_on(task::with_deadline(test, 5.secs())).unwrap()
     }
 
     #[macro_export]

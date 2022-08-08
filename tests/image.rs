@@ -35,7 +35,7 @@ pub fn get_before_view_init(app: &mut HeadlessApp) {
     }
 
     app.run_task(async_clone_move_fn!(img, |ctx| {
-        task::with_timeout(img.get_clone(&ctx).wait_done(), 5.secs()).await.unwrap();
+        task::with_deadline(img.get_clone(&ctx).wait_done(), 5.secs()).await.unwrap();
     }));
 
     assert!(img.get(app.ctx().vars).is_loaded());

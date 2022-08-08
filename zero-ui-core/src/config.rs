@@ -88,7 +88,7 @@ type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
 ///     cfg.load(ConfigFile::new("app.config.json", true, 3.secs()));
 ///     
 ///     // read the "main.count" config and bind it to a variable.
-///     let count = cfg.var("main.count");
+///     let count = cfg.var("main.count", || 0);
 ///
 ///     window! {
 ///         title = "Persistent Counter";
@@ -924,7 +924,7 @@ mod file_source {
                 is_shutdown: false,
 
                 #[cfg(any(test, doc, feature = "test_util"))]
-                read_delay: None
+                read_delay: None,
             }
         }
 
@@ -936,7 +936,6 @@ mod file_source {
             self.read_delay = Some(read_delay);
             self
         }
-
 
         fn send(&mut self, request: Request) {
             if self.is_shutdown {
@@ -1054,7 +1053,7 @@ mod file_source {
                                         #[cfg(any(test, doc, feature = "test_util"))]
                                         if let Some(delay) = read_delay {
                                             crate::task::spawn(async move {
-                                                crate::task::timeout(delay).await;
+                                                crate::task::deadline(delay).await;
                                                 rsp.send(Ok(r)).unwrap();
                                             });
                                         } else {
@@ -1063,7 +1062,7 @@ mod file_source {
 
                                         #[cfg(not(any(test, doc, feature = "test_util")))]
                                         rsp.send(Ok(r)).unwrap();
-                                    },
+                                    }
                                     Request::Write { key, value, rsp } => {
                                         // update entry, but wait for next debounce write.
                                         let write = match data.entry(key) {
