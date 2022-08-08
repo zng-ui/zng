@@ -314,13 +314,21 @@ pub mod window {
 
         /// Event just after the window opens.
         ///
-        /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.
-        /// Note that the first frame metadata is available in [`Windows::widget_tree`], but it probably has not finished rendering.
+        /// This event notifies once per window, after the window content is inited.
         ///
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
-        ///
-        /// [`Windows::widget_tree`]: crate::core::window::Windows::widget_tree
         on_pre_window_open as on_open;
+
+        /// Event just after the window loads.
+        ///
+        /// This event notifies once per window, after the window content is inited, updated, layout and the first frame
+        /// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
+        /// have expired or dropped.
+        ///
+        /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
+        ///
+        /// This property is the [`on_pre_window_load`](fn@on_pre_window_load) so window handlers see it first.
+        on_pre_window_load as on_load;
 
         /// On window close requested.
         ///

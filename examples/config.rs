@@ -20,7 +20,7 @@ fn main() {
 fn app_main() {
     App::default().run_window(|ctx| {
         let cfg = Config::req(ctx);
-        cfg.load(ConfigFile::new("target/tmp/example.config.json", true, 3.secs()).with_read_delay(13.secs()));
+        cfg.load(ConfigFile::new("target/tmp/example.config.json", true, 3.secs()));
         // cfg.remove("old.key");
 
         let checked = cfg.var("main.checked", || false);

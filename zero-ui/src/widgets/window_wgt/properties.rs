@@ -9,7 +9,7 @@ use std::time::Duration;
 use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowLoadedEvent,
+    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowLoadEvent,
     WindowLoadingHandle, WindowState, WindowVars, Windows,
 };
 use crate::prelude::new_property::*;
@@ -301,13 +301,13 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                 Task::None => {}
             }
             if self.enabled.is_enabled() {
-                subs.event(WindowCloseRequestedEvent).event(WindowLoadedEvent);
+                subs.event(WindowCloseRequestedEvent).event(WindowLoadEvent);
             }
             self.child.subscriptions(ctx, subs);
         }
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = WindowLoadedEvent.update(args) {
+            if let Some(args) = WindowLoadEvent.update(args) {
                 self.child.event(ctx, args);
                 self.task = Task::None;
             }

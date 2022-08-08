@@ -929,6 +929,10 @@ impl HeadlessWithRendererCtrl {
         } else if !self.waiting_view {
             // (re)spawn the view surface:
 
+            if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, self.window_id) {
+                return;
+            }
+
             let window_id = *ctx.window_id;
             let render_mode = self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode);
 
@@ -1023,6 +1027,10 @@ impl HeadlessCtrl {
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
         if !self.content.layout_requested {
+            return;
+        }
+
+        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, *ctx.window_id) {
             return;
         }
 

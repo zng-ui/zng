@@ -498,7 +498,7 @@ impl Windows {
             } else {
                 info.is_loaded = true;
                 if info.vars.0.is_loaded.set_ne(vars, true) {
-                    WindowLoadedEvent.notify(events, WindowOpenArgs::now(info.id));
+                    WindowLoadEvent.notify(events, WindowOpenArgs::now(info.id));
                 }
                 true
             }

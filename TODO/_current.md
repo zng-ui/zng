@@ -1,9 +1,5 @@
-* Implement loading handle for headless.
-* Implement `WindowLoadedEvent` properties.
-
 * Implement optional loading handle usage of this in the `image!` widget.
 * Use loading handle in the window icon.
-
 
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.

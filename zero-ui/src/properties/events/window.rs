@@ -14,12 +14,21 @@ use crate::core::window::*;
 event_property! {
     /// On window opened.
     ///
-    /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.
-    ///
-    /// Note, the frame metadata is available using [`Windows::frame_info`] but the frame pixels are probably not ready yet,
-    /// use [`on_frame_pixels_ready`] if you want to copy the pixels of the first frame.
+    /// This event notifies once per window, as soon as the window is created and the content is inited.
     pub fn window_open {
         event: WindowOpenEvent,
+        args: WindowOpenArgs,
+    }
+
+    /// On window loaded.
+    /// 
+    /// This event notifies once per window, after the window content is inited, updated, layout and the first frame 
+    /// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
+    /// have expired or dropped.
+    /// 
+    /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
+    pub fn window_load {
+        event: WindowLoadEvent,
         args: WindowOpenArgs,
     }
 

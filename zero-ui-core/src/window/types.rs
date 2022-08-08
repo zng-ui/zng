@@ -853,7 +853,7 @@ event! {
     pub WindowOpenEvent: WindowOpenArgs;
 
     /// Window finished loading and has opened in the view-process.
-    pub WindowLoadedEvent: WindowOpenArgs;
+    pub WindowLoadEvent: WindowOpenArgs;
 
     /// Window focus/blur event.
     pub WindowFocusChangedEvent: WindowFocusChangedArgs;
