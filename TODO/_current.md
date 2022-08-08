@@ -1,5 +1,3 @@
-* Review timers, deadline timer is not working correctly.
-
 * Implement loading handle for headless.
 * Implement `WindowLoadedEvent` properties.
 

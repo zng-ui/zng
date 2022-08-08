@@ -735,7 +735,12 @@ impl Windows {
 
         // start a timer for the next deadline.
         if let Some(d) = next_load_deadline {
-            let timer = ctx.timers.on_deadline(d.0, app_hn_once!(|_, _| {}));
+            let timer = ctx.timers.on_deadline(
+                d.0,
+                app_hn_once!(|ctx, _| {
+                    ctx.updates.update_ext();
+                }),
+            );
             windows.loading_deadline = Some(timer);
         }
 

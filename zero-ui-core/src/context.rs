@@ -122,6 +122,7 @@ impl OwnedAppContext {
             || self.updates.render_requested()
             || self.vars.has_pending_updates()
             || self.events.has_pending_updates()
+            || self.timers.has_pending_updates()
     }
 }
 

@@ -70,6 +70,7 @@ pub struct Timers {
     timers: Vec<TimerVarEntry>,
     deadline_handlers: Vec<DeadlineHandlerEntry>,
     timer_handlers: Vec<TimerHandlerEntry>,
+    has_pending_handlers: bool,
 }
 impl Timers {
     pub(crate) fn new() -> Self {
@@ -78,6 +79,7 @@ impl Timers {
             timers: vec![],
             deadline_handlers: vec![],
             timer_handlers: vec![],
+            has_pending_handlers: false,
         }
     }
 
@@ -260,6 +262,11 @@ impl Timers {
         }
     }
 
+    /// if the last `apply_updates` observed elapsed timers.
+    pub(crate) fn has_pending_updates(&mut self) -> bool {
+        self.has_pending_handlers
+    }
+
     /// Update timer vars, flag handlers to be called in [`Self::notify`], returns new app wake time.
     pub(crate) fn apply_updates(&mut self, vars: &Vars, timer: &mut LoopTimer) {
         let now = Instant::now();
@@ -308,6 +315,8 @@ impl Timers {
             let deadline = e.handle.data().deadline;
             e.pending = timer.elapsed(deadline);
 
+            self.has_pending_handlers |= e.pending;
+
             true // retain if not canceled, elapsed deadlines will be dropped in [`Self::notify`].
         });
 
@@ -324,6 +333,7 @@ impl Timers {
                 if timer.elapsed(deadline.current_deadline()) {
                     state.count.fetch_add(1, Ordering::Relaxed);
                     e.pending = Some(deadline.current_deadline());
+                    self.has_pending_handlers = true;
 
                     deadline.last = now;
                     timer.register(deadline.current_deadline());
@@ -339,6 +349,10 @@ impl Timers {
         // we need to detach the handlers from the AppContext, so we can pass the context for then
         // so we `mem::take` for the duration of the call. But new timers can be registered inside
         // the handlers, so we add those handlers using `extend`.
+
+        if !mem::take(&mut ctx.timers.has_pending_handlers) {
+            return;
+        }
 
         // call `on_deadline` handlers.
         let mut handlers = mem::take(&mut ctx.timers.deadline_handlers);
