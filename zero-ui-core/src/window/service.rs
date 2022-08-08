@@ -491,13 +491,15 @@ impl Windows {
     /// Change window state to loaded if there are no load handles active.
     ///
     /// Returns `true` if loaded.
-    pub(super) fn try_load(&mut self, window_id: WindowId, vars: &Vars) -> bool {
+    pub(super) fn try_load(&mut self, vars: &Vars, events: &mut Events, window_id: WindowId) -> bool {
         if let Some(info) = self.windows_info.get_mut(&window_id) {
             if info.loading_handle.is_loading() {
                 false
             } else {
                 info.is_loaded = true;
-                info.vars.0.is_loaded.set_ne(vars, true);
+                if info.vars.0.is_loaded.set_ne(vars, true) {
+                    WindowLoadedEvent.notify(events, WindowOpenArgs::now(info.id));
+                }
                 true
             }
         } else {

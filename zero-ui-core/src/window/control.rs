@@ -552,7 +552,7 @@ impl HeadedCtrl {
             size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
         }
 
-        if !Windows::req(ctx.services).try_load(self.window_id, ctx.vars) {
+        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, self.window_id) {
             return;
         }
 

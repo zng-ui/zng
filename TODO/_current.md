@@ -1,11 +1,12 @@
-* Implement loading handle for headless.
-* Is a window loading again after respawn?
+* Use the `Deadline` type in all timer functions.
+* Review timers, deadline timer is not working correctly.
 
-* Use loading handle the `save_config` property.
+* Implement loading handle for headless.
+* Implement `WindowLoadedEvent` properties.
+
 * Implement optional loading handle usage of this in the `image!` widget.
 * Use loading handle in the window icon.
 
-* Use the `Deadline` type in all timer functions.
 
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.

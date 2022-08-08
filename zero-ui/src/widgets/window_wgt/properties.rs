@@ -4,13 +4,13 @@
 //! but you can also use then stand-alone. They configure the window from any widget inside the window.
 
 use std::marker::PhantomData;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowState,
-    WindowVars,
+    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowLoadedEvent,
+    WindowLoadingHandle, WindowState, WindowVars, Windows,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -183,16 +183,12 @@ pub enum SaveState {
         ///
         /// [`window_key`]: Self::window_key
         key: Option<ConfigKey>,
-        /// Maximum duration to delay the window view open awaiting the config to load.
+        /// Maximum time to keep the window in the loading state awaiting for the config to load.
         ///
-        /// The config starts reading in parallel on init, the window opens after the first layout, if
-        /// the config has not loaded on the first layout the window will await at maximum this duration from
-        /// the moment the config started reading.
-        ///
-        /// If the config does not load in time it is ignored and the default position and state is used.
+        /// If the config fails to load in this time frame the window is opened in it's default state.
         ///
         /// This is one second by default.
-        delay_open: Duration,
+        loading_timeout: Duration,
     },
     /// Don't save & restore state.
     Disabled,
@@ -202,7 +198,7 @@ impl Default for SaveState {
     fn default() -> Self {
         SaveState::Enabled {
             key: None,
-            delay_open: 1.secs(),
+            loading_timeout: 1.secs(),
         }
     }
 }
@@ -227,14 +223,14 @@ impl SaveState {
         }
     }
 
-    /// Get the `delay_open` if is enabled and the duration is greater than zero.
-    pub fn delay_open(&self) -> Option<Duration> {
+    /// Get the `loading_timeout` if is enabled and the duration is greater than zero.
+    pub fn loading_timeout(&self) -> Option<Duration> {
         match self {
-            SaveState::Enabled { delay_open, .. } => {
-                if *delay_open == Duration::ZERO {
+            SaveState::Enabled { loading_timeout, .. } => {
+                if *loading_timeout == Duration::ZERO {
                     None
                 } else {
-                    Some(*delay_open)
+                    Some(*loading_timeout)
                 }
             }
             SaveState::Disabled => None,
@@ -273,42 +269,55 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
         child: C,
         enabled: SaveState,
 
-        task: SaveTask,
+        task: Task,
     }
-    enum SaveTask {
+    enum Task {
         None,
-        Read(ResponseVar<Option<WindowStateCfg>>, Instant),
+        Read {
+            rsp: ResponseVar<Option<WindowStateCfg>>,
+            #[allow(dead_code)] // hold handle alive
+            loading: Option<WindowLoadingHandle>,
+        },
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for SaveStateNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if let Some(key) = self.enabled.state_key(ctx.path.window_id()) {
-                self.task = SaveTask::Read(Config::req(ctx.services).read(key), Instant::now());
+                let rsp = Config::req(ctx.services).read(key);
+                let loading = self
+                    .enabled
+                    .loading_timeout()
+                    .and_then(|t| Windows::req(ctx.services).loading_handle(ctx.path.window_id(), t));
+                self.task = Task::Read { rsp, loading };
             }
             self.child.init(ctx);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             match &self.task {
-                SaveTask::Read(var, _) => {
-                    subs.var(ctx.vars, var);
+                Task::Read { rsp, .. } => {
+                    subs.var(ctx.vars, rsp);
                 }
-                SaveTask::None => {}
+                Task::None => {}
             }
             if self.enabled.is_enabled() {
-                subs.event(WindowCloseRequestedEvent);
+                subs.event(WindowCloseRequestedEvent).event(WindowLoadedEvent);
             }
             self.child.subscriptions(ctx, subs);
         }
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            if let Some(args) = WindowLoadedEvent.update(args) {
+                self.child.event(ctx, args);
+                self.task = Task::None;
+            }
             if let Some(args) = WindowCloseRequestedEvent.update(args) {
                 self.child.event(ctx, args);
 
                 if !args.propagation().is_stopped() {
                     if let Some(key) = self.enabled.state_key(ctx.path.window_id()) {
                         match &self.task {
-                            SaveTask::None => {
+                            Task::None => {
                                 // request write.
                                 let window_vars = WindowVars::req(&ctx.window_state);
                                 let cfg = WindowStateCfg {
@@ -318,7 +327,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 
                                 Config::req(ctx.services).write(key, cfg);
                             }
-                            SaveTask::Read(_, _) => {
+                            Task::Read { .. } => {
                                 // closing quick, ignore
                             }
                         }
@@ -330,8 +339,8 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let SaveTask::Read(var, _) = &self.task {
-                if let Some(rsp) = var.rsp(ctx.vars) {
+            if let Task::Read { rsp, .. } = &mut self.task {
+                if let Some(rsp) = rsp.rsp(ctx.vars) {
                     if let Some(s) = rsp {
                         let window_vars = WindowVars::req(&ctx.window_state);
                         window_vars.state().set_ne(ctx.vars, s.state);
@@ -346,35 +355,17 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 
                         window_vars.size().set_ne(ctx.vars, restore_rect.size);
                     }
-                    self.task = SaveTask::None;
+                    self.task = Task::None;
                     ctx.updates.subscriptions();
                 }
             }
             self.child.update(ctx);
         }
-
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
-        }
-
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            if let SaveTask::Read(_, start) = &self.task {
-                if let Some(delay) = self.enabled.delay_open() {
-                    let elapsed = start.elapsed();
-                    if elapsed < delay {
-                        let dur = delay - elapsed;
-                        tracing::error!("TODO wait config for {dur:?}");
-                    }
-                }
-            }
-
-            self.child.layout(ctx, wl)
-        }
     }
     SaveStateNode {
         child,
         enabled,
-        task: SaveTask::None,
+        task: Task::None,
     }
 }
 

@@ -895,10 +895,13 @@ mod file_source {
         thread: Option<(JoinHandle<()>, flume::Sender<Request>)>,
         update: Option<AppExtSender<ConfigSourceUpdate>>,
         pretty: bool,
-        delay: Duration,
+        write_delay: Duration,
         last_panic: Option<Instant>,
         panic_count: usize,
         is_shutdown: bool,
+
+        #[cfg(any(test, doc, feature = "test_util"))]
+        read_delay: Option<Duration>,
     }
     impl ConfigFile {
         /// New with the path to the JSON config file.
@@ -907,20 +910,33 @@ mod file_source {
         ///
         /// * `json_file`: The configuration file, path and file are created if it does not exist.
         /// * `pretty`: If the JSON is formatted.
-        /// * `delay`: Debounce delay, write requests made inside the time window all become a single write operation, all pending
+        /// * `write_delay`: Debounce delay, write requests made inside the time window all become a single write operation, all pending
         ///            writes are also written on shutdown.
-        pub fn new(json_file: impl Into<PathBuf>, pretty: bool, delay: Duration) -> Self {
+        pub fn new(json_file: impl Into<PathBuf>, pretty: bool, write_delay: Duration) -> Self {
             ConfigFile {
                 file: json_file.into(),
                 thread: None,
                 update: None,
                 pretty,
-                delay,
+                write_delay,
                 last_panic: None,
                 panic_count: 0,
                 is_shutdown: false,
+
+                #[cfg(any(test, doc, feature = "test_util"))]
+                read_delay: None
             }
         }
+
+        /// Awaits the delay for each read request.
+        #[cfg(any(test, doc, feature = "test_util"))]
+        #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+        pub fn with_read_delay(mut self, read_delay: Duration) -> Self {
+            assert!(self.thread.is_none(), "worker already spawned");
+            self.read_delay = Some(read_delay);
+            self
+        }
+
 
         fn send(&mut self, request: Request) {
             if self.is_shutdown {
@@ -987,7 +1003,10 @@ mod file_source {
                 sx.send(request).unwrap();
                 let file = self.file.clone();
                 let pretty = self.pretty;
-                let delay = self.delay;
+                let write_delay = self.write_delay;
+                #[cfg(any(test, doc, feature = "test_util"))]
+                let read_delay = self.read_delay;
+
                 let handle = thread::Builder::new()
                     .name("ConfigFile".to_owned())
                     .spawn(move || {
@@ -1026,10 +1045,25 @@ mod file_source {
                             } else if pending_writes.is_empty() {
                                 30.minutes()
                             } else {
-                                delay
+                                write_delay
                             }) {
                                 Ok(request) => match request {
-                                    Request::Read { key, rsp } => rsp.send(Ok(data.get(&key).cloned())).unwrap(),
+                                    Request::Read { key, rsp } => {
+                                        let r = data.get(&key).cloned();
+
+                                        #[cfg(any(test, doc, feature = "test_util"))]
+                                        if let Some(delay) = read_delay {
+                                            crate::task::spawn(async move {
+                                                crate::task::timeout(delay).await;
+                                                rsp.send(Ok(r)).unwrap();
+                                            });
+                                        } else {
+                                            rsp.send(Ok(r)).unwrap()
+                                        }
+
+                                        #[cfg(not(any(test, doc, feature = "test_util")))]
+                                        rsp.send(Ok(r)).unwrap();
+                                    },
                                     Request::Write { key, value, rsp } => {
                                         // update entry, but wait for next debounce write.
                                         let write = match data.entry(key) {
@@ -1074,7 +1108,7 @@ mod file_source {
                                 Err(flume::RecvTimeoutError::Disconnected) => panic!("disconnected"),
                             }
 
-                            if (!pending_writes.is_empty() || write_fails > 0) && (!run || (oldest_pending.elapsed()) >= delay) {
+                            if (!pending_writes.is_empty() || write_fails > 0) && (!run || (oldest_pending.elapsed()) >= write_delay) {
                                 // debounce elapsed, or is shutting-down, or is trying to recover from write error.
 
                                 // try write
