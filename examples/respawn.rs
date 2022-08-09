@@ -10,6 +10,7 @@ fn main() {
     App::default().run_window(|ctx| {
         window! {
             title = "View-Process Respawn Example";
+            icon = WindowIcon::render(RenderMode::Software, |_| icon());
             start_position = StartPosition::CenterMonitor;
             on_key_down = hn!(|ctx, args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {
@@ -103,5 +104,17 @@ fn window_status(ctx: &mut WindowContext) -> impl Widget {
             status!(restore_state),
             status!(restore_rect),
         ]
+    }
+}
+
+fn icon() -> impl Widget {
+    container! {
+        size = (36, 36);
+        background_gradient = Line::to_bottom_right(), stops![colors::ORANGE_RED, 70.pct(), colors::DARK_RED];
+        corner_radius = 6;
+        font_size = 28;
+        font_weight = FontWeight::BOLD;
+        content_align = Align::CENTER;
+        content = text("R");
     }
 }
