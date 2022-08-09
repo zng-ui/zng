@@ -293,7 +293,6 @@ fn run(mut args: Vec<&str>) {
     };
 
     if take_flag(&mut args, &["*", "-a", "--all"]) {
-        args.remove(0);
         let release = args.contains(&"--release") || args.contains(&"--release-lto");
         let rust_flags = release_rust_flags(release);
         let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];

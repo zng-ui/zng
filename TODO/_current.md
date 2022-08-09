@@ -1,4 +1,5 @@
-* Use loading handle in the window icon.
+* Test window icon respawn.
+* Review window icon scale factor before first layout.
 
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.

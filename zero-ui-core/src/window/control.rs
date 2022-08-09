@@ -55,6 +55,7 @@ struct HeadedCtrl {
     resize_wait_id: Option<FrameWaitId>,
     icon: Option<ImageVar>,
     icon_binding: Option<VarBindingHandle>,
+    icon_deadline: Deadline,
     actual_state: Option<WindowState>, // for WindowChangedEvent
 }
 impl HeadedCtrl {
@@ -80,6 +81,7 @@ impl HeadedCtrl {
             resize_wait_id: None,
             icon: None,
             icon_binding: None,
+            icon_deadline: Deadline::timeout(1.secs()),
 
             actual_state: None,
         }
@@ -268,8 +270,32 @@ impl HeadedCtrl {
 
             // icon:
             let mut send_icon = false;
-            if self.vars.icon().is_new(ctx) {
-                Self::init_icon(&mut self.icon, &mut self.icon_binding, &self.vars, ctx);
+            if let Some(ico) = self.vars.icon().get_new(ctx.vars) {
+                use crate::image::ImageSource;
+
+                self.icon = match ico {
+                    WindowIcon::Default => None,
+                    WindowIcon::Image(ImageSource::Render(ico, cfg)) => {
+                        let ico = ico.clone();
+                        let mut cfg = cfg.clone();
+
+                        if cfg.scale_factor.is_none() {
+                            cfg.scale_factor = Some(self.vars.0.scale_factor.copy(ctx.vars));
+                        }
+
+                        Some(Images::req(ctx.services).cache(ImageSource::Render(ico, cfg)))
+                    }
+                    WindowIcon::Image(source) => Some(Images::req(ctx.services).cache(source.clone())),
+                };
+
+                if let Some(ico) = &self.icon {
+                    let b = ico.bind_map(ctx.vars, &self.vars.0.actual_icon, |_, img| Some(img.clone()));
+                    self.icon_binding = Some(b);
+                } else {
+                    self.vars.0.actual_icon.set_ne(ctx.vars, None);
+                    self.icon_binding = None;
+                }
+
                 send_icon = true;
             } else if self.icon.as_ref().map(|ico| ico.is_new(ctx)).unwrap_or(false) {
                 send_icon = true;
@@ -532,6 +558,7 @@ impl HeadedCtrl {
         let screen_ppi = m.ppi().copy(ctx);
         let screen_size = m.size().copy(ctx);
 
+        // Layout min, max and size in the monitor space.
         let (min_size, max_size, mut size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let min_size = self
                 .vars
@@ -549,13 +576,25 @@ impl HeadedCtrl {
         let state = self.vars.state().copy(ctx);
 
         if state == WindowState::Normal && self.vars.auto_size().copy(ctx) != AutoSize::DISABLED {
+            // layout content to get auto-size size.
             size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
         }
 
+        // await icon load for up to 1s.
+        if let Some(icon) = &self.icon {
+            if !self.icon_deadline.has_elapsed() && icon.get(ctx.vars).is_loading() {
+                // block on icon loading.
+                return;
+            }
+        }
+
+        // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
         if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
+            // block on loading handles.
             return;
         }
 
+        // Layout initial position in the monitor space.
         let mut system_pos = false;
         let position = match self.start_position {
             StartPosition::Default => {
@@ -578,6 +617,8 @@ impl HeadedCtrl {
             }
         };
 
+        // send view window request:
+
         let position = position.to_dip(scale_factor.0);
         let size = size.to_dip(scale_factor.0);
 
@@ -589,8 +630,6 @@ impl HeadedCtrl {
             max_size: max_size.to_dip(scale_factor.0),
             chrome_visible: self.vars.chrome().get(ctx).is_default(),
         };
-
-        Self::init_icon(&mut self.icon, &mut self.icon_binding, &self.vars, ctx);
 
         let request = WindowRequest {
             id: ctx.window_id.get(),
@@ -700,8 +739,6 @@ impl HeadedCtrl {
 
         self.layout_update(ctx);
 
-        Self::init_icon(&mut self.icon, &mut self.icon_binding, &self.vars, ctx);
-
         let request = WindowRequest {
             id: ctx.window_id.get(),
             title: self.vars.title().get(ctx).to_string(),
@@ -751,33 +788,6 @@ impl HeadedCtrl {
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
         self.window = None;
-    }
-
-    fn init_icon(icon: &mut Option<ImageVar>, icon_binding: &mut Option<VarBindingHandle>, vars: &WindowVars, ctx: &mut WindowContext) {
-        use crate::image::ImageSource;
-
-        *icon = match vars.icon().get(ctx.vars) {
-            WindowIcon::Default => None,
-            WindowIcon::Image(ImageSource::Render(ico, cfg)) => {
-                let ico = ico.clone();
-                let mut cfg = cfg.clone();
-
-                if cfg.scale_factor.is_none() {
-                    cfg.scale_factor = Some(vars.0.scale_factor.copy(ctx.vars));
-                }
-
-                Some(Images::req(ctx.services).cache(ImageSource::Render(ico, cfg)))
-            }
-            WindowIcon::Image(source) => Some(Images::req(ctx.services).cache(source.clone())),
-        };
-
-        if let Some(ico) = &icon {
-            let b = ico.bind_map(ctx.vars, &vars.0.actual_icon, |_, img| Some(img.clone()));
-            *icon_binding = Some(b);
-        } else {
-            vars.0.actual_icon.set_ne(ctx.vars, None);
-            *icon_binding = None;
-        }
     }
 }
 
