@@ -552,7 +552,7 @@ impl HeadedCtrl {
             size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
         }
 
-        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, self.window_id) {
+        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
             return;
         }
 
@@ -929,7 +929,7 @@ impl HeadlessWithRendererCtrl {
         } else if !self.waiting_view {
             // (re)spawn the view surface:
 
-            if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, self.window_id) {
+            if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
                 return;
             }
 
@@ -1030,7 +1030,7 @@ impl HeadlessCtrl {
             return;
         }
 
-        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, *ctx.window_id) {
+        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, ctx.timers, *ctx.window_id) {
             return;
         }
 

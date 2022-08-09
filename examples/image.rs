@@ -263,7 +263,7 @@ fn panorama_image() -> impl Widget {
 fn block_window_load_image() -> impl Widget {
     let enabled = var(true);
     button! {
-        content = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Loading.." }.into()));
+        content = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking Window Until Image Load.." }.into()));
         enabled = enabled.clone();
         on_click = hn!(|ctx, _| {
             enabled.set(ctx, false);

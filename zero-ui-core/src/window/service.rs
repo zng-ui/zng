@@ -13,7 +13,7 @@ use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
 use crate::service::Service;
-use crate::timer::DeadlineHandle;
+use crate::timer::{DeadlineHandle, Timers};
 use crate::var::*;
 use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};
 use crate::{
@@ -194,14 +194,14 @@ impl Windows {
         if let Some(info) = self.windows_info.get_mut(&window_id) {
             // window already opened, check if not loaded
             if !info.is_loaded {
-                handle = Some(info.loading_handle.handle(&self.update_sender, deadline))
+                handle = Some(info.loading_handle.new_handle(&self.update_sender, deadline))
             }
 
             // drop timer to nearest deadline, will recreate in the next update.
             self.loading_deadline = None;
         } else if let Some(request) = self.open_requests.iter_mut().find(|r| r.id == window_id) {
             // window not opened yet
-            handle = Some(request.loading_handle.handle(&self.update_sender, deadline));
+            handle = Some(request.loading_handle.new_handle(&self.update_sender, deadline));
         }
 
         handle
@@ -491,17 +491,15 @@ impl Windows {
     /// Change window state to loaded if there are no load handles active.
     ///
     /// Returns `true` if loaded.
-    pub(super) fn try_load(&mut self, vars: &Vars, events: &mut Events, window_id: WindowId) -> bool {
+    pub(super) fn try_load(&mut self, vars: &Vars, events: &mut Events, timers: &mut Timers, window_id: WindowId) -> bool {
         if let Some(info) = self.windows_info.get_mut(&window_id) {
-            if info.loading_handle.is_loading() {
-                false
-            } else {
-                info.is_loaded = true;
-                if info.vars.0.is_loaded.set_ne(vars, true) {
-                    WindowLoadEvent.notify(events, WindowOpenArgs::now(info.id));
-                }
-                true
+            info.is_loaded = info.loading_handle.try_load(timers);
+
+            if info.is_loaded && info.vars.0.is_loaded.set_ne(vars, true) {
+                WindowLoadEvent.notify(events, WindowOpenArgs::now(info.id));
             }
+
+            info.is_loaded
         } else {
             unreachable!()
         }
@@ -648,7 +646,6 @@ impl Windows {
 
     pub(super) fn on_update(ctx: &mut AppContext) {
         Self::fullfill_requests(ctx);
-        Self::update_loading(ctx);
     }
 
     fn fullfill_requests(ctx: &mut AppContext) {
@@ -711,40 +708,6 @@ impl Windows {
                 }
             });
         }
-    }
-    fn update_loading(ctx: &mut AppContext) {
-        let windows = Windows::req(ctx.services);
-
-        // deadline handle is cleared when a new request is made.
-        if let Some(h) = &windows.loading_deadline {
-            if !h.has_executed() {
-                return;
-            }
-        }
-
-        // find next nearest deadline.
-        let mut next_load_deadline = None;
-        for info in windows.windows_info.values() {
-            if next_load_deadline.is_none() {
-                next_load_deadline = info.loading_handle.deadline();
-            } else if let Some(d) = info.loading_handle.deadline() {
-                let nd = next_load_deadline.as_mut().unwrap();
-                *nd = (*nd).min(d);
-            }
-        }
-
-        // start a timer for the next deadline.
-        if let Some(d) = next_load_deadline {
-            let timer = ctx.timers.on_deadline(
-                d.0,
-                app_hn_once!(|ctx, _| {
-                    ctx.updates.update_ext();
-                }),
-            );
-            windows.loading_deadline = Some(timer);
-        }
-
-        // the timer will cause an extensions update when it expires, and that ends up updating the window.
     }
 
     pub(super) fn on_layout(ctx: &mut AppContext) {
@@ -904,53 +867,57 @@ impl AppWindow {
     }
 }
 
-struct WindowLoadingData {
-    update: AppEventSender,
-}
-impl Drop for WindowLoadingData {
-    fn drop(&mut self) {
-        let _ = self.update.send_ext_update();
-    }
-}
-
 struct WindowLoading {
-    handle: std::sync::Weak<WindowLoadingData>,
-    deadline: Deadline,
+    handles: Vec<std::sync::Weak<WindowLoadingHandleData>>,
+    timer: Option<DeadlineHandle>,
 }
 impl WindowLoading {
     pub fn new() -> Self {
         WindowLoading {
-            handle: std::sync::Weak::new(),
-            deadline: Deadline::timeout(24.hours()),
+            handles: vec![],
+            timer: None,
         }
     }
 
-    pub fn is_loading(&self) -> bool {
-        self.handle.strong_count() > 0 && !self.deadline.has_elapsed()
-    }
-
-    /// Future deadline.
-    pub fn deadline(&self) -> Option<Deadline> {
-        if self.is_loading() {
-            Some(self.deadline)
-        } else {
-            None
-        }
-    }
-
-    pub fn handle(&mut self, update: &AppEventSender, deadline: Deadline) -> WindowLoadingHandle {
-        match self.handle.upgrade() {
+    /// Returns `true` if the window can load.
+    pub fn try_load(&mut self, timers: &mut Timers) -> bool {
+        let mut deadline = Deadline::timeout(1.hours());
+        self.handles.retain(|h| match h.upgrade() {
             Some(h) => {
-                self.deadline = self.deadline.min(deadline);
-                WindowLoadingHandle(h)
+                if h.deadline.has_elapsed() {
+                    false
+                } else {
+                    deadline = deadline.max(h.deadline);
+                    true
+                }
             }
-            None => {
-                let h = Arc::new(WindowLoadingData { update: update.clone() });
-                self.handle = Arc::downgrade(&h);
-                self.deadline = deadline;
-                WindowLoadingHandle(h)
+            None => false,
+        });
+
+        if self.handles.is_empty() {
+            true
+        } else {
+            if let Some(t) = &self.timer {
+                if t.deadline() != deadline {
+                    self.timer = None;
+                }
             }
+            if self.timer.is_none() {
+                let t = timers.on_deadline(deadline, app_hn_once!(|ctx, _| ctx.updates.update_ext()));
+                self.timer = Some(t);
+            }
+
+            false
         }
+    }
+
+    pub fn new_handle(&mut self, update: &AppEventSender, deadline: Deadline) -> WindowLoadingHandle {
+        let h = Arc::new(WindowLoadingHandleData {
+            update: update.clone(),
+            deadline,
+        });
+        self.handles.push(Arc::downgrade(&h));
+        WindowLoadingHandle(h)
     }
 }
 
@@ -959,7 +926,22 @@ impl WindowLoading {
 /// A handle can be retrieved using [`Windows::loading_handle`], the window does not
 /// open until all handles are dropped.
 #[derive(Clone)]
-pub struct WindowLoadingHandle(Arc<WindowLoadingData>);
+pub struct WindowLoadingHandle(Arc<WindowLoadingHandleData>);
+impl WindowLoadingHandle {
+    /// Handle expiration deadline.
+    pub fn deadline(&self) -> Deadline {
+        self.0.deadline
+    }
+}
+struct WindowLoadingHandleData {
+    update: AppEventSender,
+    deadline: Deadline,
+}
+impl Drop for WindowLoadingHandleData {
+    fn drop(&mut self) {
+        let _ = self.update.send_ext_update();
+    }
+}
 impl PartialEq for WindowLoadingHandle {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
