@@ -127,9 +127,10 @@ fn app_main() {
                                 widgets![sprite(ctx.timers)]
                             ),
                             section(
-                                "Large",
+                                "Window",
                                 widgets![
                                     panorama_image(),
+                                    block_window_load_image(),
                                     large_image(),
                                 ]
                             )
@@ -174,80 +175,6 @@ fn img_filter(filter: impl IntoVar<color::Filter>) -> impl Widget {
                 filter;
             }
         ]
-    }
-}
-
-fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
-    let button_color = rgb(0, 0, 20);
-    let loading_color = colors::LIGHT_GRAY;
-    let error_color = colors::RED;
-
-    window! {
-        title;
-        content;
-        content_align = Align::CENTER;
-
-        // render_mode = zero_ui::core::window::RenderMode::Software;
-
-        state = WindowState::Maximized;
-        size = (1140, 770);// restore size
-
-        background = checkerboard! {
-            colors = rgb(20, 20, 20), rgb(40, 40, 40);
-            cb_size = (16, 16);
-        };
-
-        // content shown by all images when loading.
-        image_loading_view = view_generator!(|ctx, _| {
-            let mut dots_count = 3;
-            let msg = ctx.timers.interval(300.ms(), false).map(move |_| {
-                dots_count += 1;
-                if dots_count == 8 {
-                    dots_count = 0;
-                }
-                formatx!("loading{:.^dots_count$}", "")
-            });
-
-            center_viewport(text! {
-                text = msg;
-                color = loading_color;
-                margin = 8;
-                width = 80;
-                font_style = FontStyle::Italic;
-                drop_shadow = {
-                    offset: (0, 0),
-                    blur_radius: 4,
-                    color: loading_color.darken(5.pct()),
-                };
-            })
-        });
-
-        // content shown by all images that failed to load.
-        image_error_view = view_generator!(|_, args: ImageErrorArgs| {
-            center_viewport(text! {
-                text = args.error;
-                margin = 8;
-                align = Align::CENTER;
-                color = error_color;
-                drop_shadow = {
-                    offset: (0, 0),
-                    blur_radius: 4,
-                    color: error_color.darken(5.pct()),
-                };
-            })
-        });
-
-        button::theme::background_color = button_color.lighten(4.pct());
-        button::theme::border = {
-            widths: 1,
-            sides: button_color.lighten(4.pct()),
-        };
-
-        button::theme::hovered::background_color = button_color.lighten(2.fct());
-        button::theme::hovered::border_sides = button_color.lighten(1.fct());
-
-        button::theme::pressed::background_color = button_color.lighten(3.fct());
-        button::theme::pressed::border_sides = button_color.lighten(2.fct());
     }
 }
 
@@ -333,6 +260,165 @@ fn panorama_image() -> impl Widget {
     }
 }
 
+fn block_window_load_image() -> impl Widget {
+    let enabled = var(true);
+    button! {
+        content = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Loading.." }.into()));
+        enabled = enabled.clone();
+        on_click = hn!(|ctx, _| {
+            enabled.set(ctx, false);
+            Windows::req(ctx.services).open(clone_move!(enabled, |_| img_window! {
+                title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
+                state = WindowState::Normal;
+
+                content = scroll! {
+                    content = image! {
+
+                        // block window load until the image is ready to present or 10 seconds have elapsed.
+                        // usually you want to set a shorter deadline, `true` converts to 1 second.
+                        block_window_load = 5.minutes();
+
+                        fit = ImageFit::Fill;
+                        source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
+                        limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+
+                        on_error = hn!(|_, args: &ImageErrorArgs| {
+                            tracing::error!(target: "unexpected", "{}", args.error);
+                        });
+                    }
+                };
+
+                on_load = hn!(enabled, |ctx, _| {
+                    enabled.set(ctx, true);
+                });
+            }));
+        });
+    }
+}
+
+fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
+    if let Some(a) = req.uri().authority() {
+        if a.host().contains("wikimedia.org") {
+            // Wikimedia not configured for caching.
+            return http::CacheMode::Permanent;
+        }
+    }
+    http::CacheMode::default()
+}
+
+fn center_viewport(msg: impl Widget) -> impl Widget {
+    container! {
+        // center the message on the scroll viewport:
+        //
+        // the large images can take a moment to decode in debug builds, but the size
+        // is already known after read, so the "loading.." message ends-up off-screen
+        // because it is centered on the image.
+        x = zero_ui::widgets::scroll::ScrollHorizontalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
+        y = zero_ui::widgets::scroll::ScrollVerticalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+        max_size = (1.vw(), 1.vh());
+        content_align = Align::CENTER;
+
+        content = msg;
+    }
+}
+
+#[zero_ui::core::widget($crate::img_window)]
+pub mod img_window {
+    use super::*;
+
+    inherit!(zero_ui::widgets::window);
+
+    properties! {
+        content_align = Align::CENTER;
+
+        // render_mode = zero_ui::core::window::RenderMode::Software;
+
+        state = WindowState::Maximized;
+        size = (1140, 770);// restore size
+
+        background = checkerboard! {
+            colors = rgb(20, 20, 20), rgb(40, 40, 40);
+            cb_size = (16, 16);
+        };
+
+        // content shown by all images when loading.
+        image_loading_view = view_generator!(|ctx, _| {
+            let mut dots_count = 3;
+            let msg = ctx.timers.interval(300.ms(), false).map(move |_| {
+                dots_count += 1;
+                if dots_count == 8 {
+                    dots_count = 0;
+                }
+                formatx!("loading{:.^dots_count$}", "")
+            });
+
+            center_viewport(text! {
+                text = msg;
+                color = loading_color();
+                margin = 8;
+                width = 80;
+                font_style = FontStyle::Italic;
+                drop_shadow = {
+                    offset: (0, 0),
+                    blur_radius: 4,
+                    color: loading_color().darken(5.pct()),
+                };
+            })
+        });
+
+        // content shown by all images that failed to load.
+        image_error_view = view_generator!(|_, args: ImageErrorArgs| {
+            center_viewport(text! {
+                text = args.error;
+                margin = 8;
+                align = Align::CENTER;
+                color = error_color();
+                drop_shadow = {
+                    offset: (0, 0),
+                    blur_radius: 4,
+                    color: error_color().darken(5.pct()),
+                };
+            })
+        });
+
+
+    }
+
+    fn new_child_context(child: impl UiNode) -> impl UiNode {
+        // button theme
+        container! {
+            content = child;
+
+            button::theme::background_color = button_color().lighten(4.pct());
+            button::theme::border = {
+                widths: 1,
+                sides: button_color().lighten(4.pct()),
+            };
+
+            button::theme::hovered::background_color = button_color().lighten(2.fct());
+            button::theme::hovered::border_sides = button_color().lighten(1.fct());
+
+            button::theme::pressed::background_color = button_color().lighten(3.fct());
+            button::theme::pressed::border_sides = button_color().lighten(2.fct());
+        }
+    }
+
+    fn button_color() -> Rgba {
+        rgb(0, 0, 20)
+    }
+
+    fn loading_color() -> Rgba {
+        colors::LIGHT_GRAY
+    }
+
+    fn error_color() -> Rgba {
+        colors::RED
+    }
+}
+fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
+    img_window!(title; content)
+}
+
 fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
     v_stack! {
         spacing = 5;
@@ -367,31 +453,5 @@ fn sub_title(text: impl IntoVar<Text>) -> impl Widget {
 
         background_color = colors::BLACK;
         padding = (2, 5);
-    }
-}
-
-fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
-    if let Some(a) = req.uri().authority() {
-        if a.host().contains("wikimedia.org") {
-            // Wikimedia not configured for caching.
-            return http::CacheMode::Permanent;
-        }
-    }
-    http::CacheMode::default()
-}
-
-fn center_viewport(msg: impl Widget) -> impl Widget {
-    container! {
-        // center the message on the scroll viewport:
-        //
-        // the large images can take a moment to decode in debug builds, but the size
-        // is already known after read, so the "loading.." message ends-up off-screen
-        // because it is centered on the image.
-        x = zero_ui::widgets::scroll::ScrollHorizontalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
-        y = zero_ui::widgets::scroll::ScrollVerticalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
-        max_size = (1.vw(), 1.vh());
-        content_align = Align::CENTER;
-
-        content = msg;
     }
 }

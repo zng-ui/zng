@@ -21,11 +21,11 @@ event_property! {
     }
 
     /// On window loaded.
-    /// 
-    /// This event notifies once per window, after the window content is inited, updated, layout and the first frame 
+    ///
+    /// This event notifies once per window, after the window content is inited, updated, layout and the first frame
     /// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
     /// have expired or dropped.
-    /// 
+    ///
     /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
     pub fn window_load {
         event: WindowLoadEvent,

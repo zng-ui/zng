@@ -9,6 +9,8 @@ use std::fmt;
 
 pub use crate::core::image::ImageLimits;
 pub use crate::core::render::ImageRendering;
+use crate::core::window::{WindowLoadingHandle, Windows};
+use crate::widgets::window::nodes::BlockWindowLoad;
 use nodes::ContextImageVar;
 
 /// Image layout mode.
@@ -356,4 +358,46 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
         }
     }
     OnLoadNode { child, handler }
+}
+
+/// Block window load until image is loaded.
+///
+/// If the image widget is in the initial window content a [`WindowLoadingHandle`] is used to delay the window
+/// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
+#[property(layout, allowed_in_when = false, default(false))]
+pub fn image_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
+    struct ImageBlockWindowLoadNode<C> {
+        child: C,
+        enabled: BlockWindowLoad,
+        block: Option<WindowLoadingHandle>,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode> UiNode for ImageBlockWindowLoadNode<C> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            if let Some(delay) = self.enabled.deadline() {
+                self.block = Windows::req(ctx.services).loading_handle(ctx.path.window_id(), delay);
+            }
+            self.child.init(ctx);
+        }
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            if self.block.is_some() {
+                subs.var(ctx, &ContextImageVar::new());
+            }
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.block.is_some() && !ContextImageVar::get(ctx).is_loading() {
+                self.block = None;
+                ctx.updates.subscriptions();
+            }
+            self.child.update(ctx);
+        }
+    }
+    ImageBlockWindowLoadNode {
+        child: child.cfg_boxed(),
+        enabled: enabled.into(),
+        block: None,
+    }
+    .cfg_boxed()
 }

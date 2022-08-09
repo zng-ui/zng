@@ -1,4 +1,6 @@
-* Implement optional loading handle usage of this in the `image!` widget.
+* Image `block_window_load` not working right.
+    - Loading deadline should be per handle clone, right now the shortest timeout invalidate all other handles.
+
 * Use loading handle in the window icon.
 
 * Review, can we remove outer-transform/bounds?

@@ -131,6 +131,15 @@ pub mod image {
         /// If not set or set to `None` the [`Images::limits`] is used.
         properties::image_limits as limits;
 
+        /// Block window load until the image loads.
+        ///
+        /// If the image widget is in the initial window content the window view opening is blocked until the image source
+        /// loads, fails to load or a timeout elapses.
+        ///
+        /// You can enable this behavior by setting this to `true` for a timeout of `1.secs()`, or you can set it to a
+        /// timeout duration directly. Note that the input is a fixed value, not a variable.
+        properties::image_block_window_load as block_window_load;
+
         /// If the image successfully loaded.
         properties::is_loaded;
 
