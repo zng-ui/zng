@@ -3,6 +3,7 @@ use zero_ui::prelude::*;
 
 use zero_ui::core::config::*;
 
+use zero_ui::prelude::new_widget::{Dip, DipPoint, DipVector};
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -20,7 +21,7 @@ fn main() {
 fn app_main() {
     App::default().run_window(|ctx| {
         let cfg = Config::req(ctx);
-        cfg.load(ConfigFile::new("target/tmp/example.config.json", true, 3.secs()));
+        cfg.load(ConfigFile::new("target/tmp/example.config.json"));
         // cfg.remove("old.key");
 
         let checked = cfg.var("main.checked", || false);
@@ -63,9 +64,37 @@ fn app_main() {
                             checked.set_ne(ctx, false).unwrap();
                             count.set_ne(ctx, 0).unwrap();
                         })
+                    },
+                    button! {
+                        content = text("Open Another Instance");
+                        on_click = hn!(|ctx, _| {
+                            let offset= Dip::new(30);
+                            let pos = WindowVars::req(ctx).actual_position().copy(ctx) + DipVector::new(offset, offset);
+                            let pos = pos.to_i32();
+                            let r: Result<(), Box<dyn std::error::Error>> = (|| {
+                                let exe = std::env::current_exe()?;
+                                std::process::Command::new(exe).env("MOVE-TO", format!("{},{}", pos.x, pos.y)).spawn()?;
+                                Ok(())
+                            })();
+                            match r {
+                                Ok(_) => println!("Opened another instance"),
+                                Err(e) => eprintln!("Error opening another instance, {e:?}"),
+                            }
+                        })
                     }
                 ];
             };
+            on_load = hn_once!(|ctx, _| {
+                if let Ok(pos) = std::env::var("MOVE-TO") {
+                    if let Some((x, y)) = pos.split_once(',') {
+                        if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
+                            let pos = DipPoint::new(Dip::new(x), Dip::new(y));
+                            WindowVars::req(&ctx.window_state).position().set(ctx.vars, pos);
+                            Windows::req(ctx.services).focus(ctx.path.window_id()).unwrap();
+                        }
+                    }
+                }
+            });
         }
     })
 }

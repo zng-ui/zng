@@ -1,5 +1,3 @@
-* Review window icon scale factor before first layout.
-
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.
     - It halves the computation of bounds if removed.

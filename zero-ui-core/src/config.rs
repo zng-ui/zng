@@ -883,11 +883,67 @@ mod file_source {
     use crate::{crate_util::panic_str, units::*};
     use std::{
         fs,
-        io::{BufReader, BufWriter},
+        io::{BufReader, BufWriter, Write},
         path::PathBuf,
         thread::{self, JoinHandle},
         time::{Duration, Instant},
     };
+
+    /// Builder for [`ConfigFile`].
+    pub struct ConfigFileBuilder {
+        pretty: bool,
+        debounce: Duration,
+        #[cfg(any(test, doc, feature = "test_util"))]
+        read_delay: Option<Duration>,
+    }
+    impl Default for ConfigFileBuilder {
+        fn default() -> Self {
+            Self {
+                pretty: true,
+                debounce: 1.secs(),
+                #[cfg(any(test, doc, feature = "test_util"))]
+                read_delay: None,
+            }
+        }
+    }
+    impl ConfigFileBuilder {
+        /// If the JSON is formatted when written, is `true` by default.
+        pub fn with_pretty(mut self, pretty: bool) -> Self {
+            self.pretty = pretty;
+            self
+        }
+
+        /// Write and reload debounce delay, is `1.secs()` by default.
+        pub fn with_debounce(mut self, delay: Duration) -> Self {
+            self.debounce = delay;
+            self
+        }
+
+        /// Read test delay, is not set by default.
+        #[cfg(any(test, doc, feature = "test_util"))]
+        #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+        pub fn with_read_sleep(mut self, delay: Duration) -> Self {
+            self.read_delay = Some(delay);
+            self
+        }
+
+        /// Build the config file, will read and write from the `json_file`.
+        pub fn build(self, json_file: impl Into<PathBuf>) -> ConfigFile {
+            ConfigFile {
+                file: json_file.into(),
+                thread: None,
+                update: None,
+                pretty: self.pretty,
+                debounce: self.debounce,
+                last_panic: None,
+                panic_count: 0,
+                is_shutdown: false,
+
+                #[cfg(any(test, doc, feature = "test_util"))]
+                read_delay: self.read_delay,
+            }
+        }
+    }
 
     /// Simple [`ConfigSource`] that writes all settings to a JSON file.
     pub struct ConfigFile {
@@ -895,7 +951,7 @@ mod file_source {
         thread: Option<(JoinHandle<()>, flume::Sender<Request>)>,
         update: Option<AppExtSender<ConfigSourceUpdate>>,
         pretty: bool,
-        write_delay: Duration,
+        debounce: Duration,
         last_panic: Option<Instant>,
         panic_count: usize,
         is_shutdown: bool,
@@ -904,37 +960,14 @@ mod file_source {
         read_delay: Option<Duration>,
     }
     impl ConfigFile {
-        /// New with the path to the JSON config file.
-        ///
-        /// # Parameters
-        ///
-        /// * `json_file`: The configuration file, path and file are created if it does not exist.
-        /// * `pretty`: If the JSON is formatted.
-        /// * `write_delay`: Debounce delay, write requests made inside the time window all become a single write operation, all pending
-        ///            writes are also written on shutdown.
-        pub fn new(json_file: impl Into<PathBuf>, pretty: bool, write_delay: Duration) -> Self {
-            ConfigFile {
-                file: json_file.into(),
-                thread: None,
-                update: None,
-                pretty,
-                write_delay,
-                last_panic: None,
-                panic_count: 0,
-                is_shutdown: false,
-
-                #[cfg(any(test, doc, feature = "test_util"))]
-                read_delay: None,
-            }
+        /// Start building a config file.
+        pub fn builder() -> ConfigFileBuilder {
+            Default::default()
         }
 
-        /// Awaits the delay for each read request.
-        #[cfg(any(test, doc, feature = "test_util"))]
-        #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-        pub fn with_read_delay(mut self, read_delay: Duration) -> Self {
-            assert!(self.thread.is_none(), "worker already spawned");
-            self.read_delay = Some(read_delay);
-            self
+        /// New with default config.
+        pub fn new(json_file: impl Into<PathBuf>) -> Self {
+            Self::builder().build(json_file)
         }
 
         fn send(&mut self, request: Request) {
@@ -1002,9 +1035,10 @@ mod file_source {
                 sx.send(request).unwrap();
                 let file = self.file.clone();
                 let pretty = self.pretty;
-                let write_delay = self.write_delay;
+                let debounce = self.debounce;
                 #[cfg(any(test, doc, feature = "test_util"))]
                 let read_delay = self.read_delay;
+                let update = self.update.as_ref().unwrap().clone();
 
                 let handle = thread::Builder::new()
                     .name("ConfigFile".to_owned())
@@ -1018,7 +1052,9 @@ mod file_source {
                         }
 
                         // load
-                        let mut data: HashMap<Text, JsonValue> = {
+                        let mut data: HashMap<Text, JsonValue>;
+                        let mut data_version;
+                        {
                             let mut file = fs::OpenOptions::new()
                                 .read(true)
                                 .write(true)
@@ -1026,26 +1062,25 @@ mod file_source {
                                 .open(&file)
                                 .expect("failed to crate or open config file");
 
-                            if file.metadata().unwrap().len() == 0 {
-                                HashMap::new()
-                            } else {
+                            let meta = file.metadata().expect("failed to read file metadata");
+                            data = if meta.len() > 0 {
                                 serde_json::from_reader(&mut BufReader::new(&mut file)).unwrap()
-                            }
+                            } else {
+                                HashMap::new()
+                            };
+                            data_version = meta.modified().ok();
                         };
 
                         let mut oldest_pending = Instant::now();
                         let mut pending_writes = vec![];
                         let mut write_fails = 0;
+
+                        let mut last_data_version_check = Instant::now();
+
                         let mut run = true;
 
                         while run {
-                            match rx.recv_timeout(if write_fails > 0 {
-                                1.secs()
-                            } else if pending_writes.is_empty() {
-                                30.minutes()
-                            } else {
-                                write_delay
-                            }) {
+                            match rx.recv_timeout(if write_fails > 0 { 1.secs() } else { debounce }) {
                                 Ok(request) => match request {
                                     Request::Read { key, rsp } => {
                                         let r = data.get(&key).cloned();
@@ -1107,18 +1142,22 @@ mod file_source {
                                 Err(flume::RecvTimeoutError::Disconnected) => panic!("disconnected"),
                             }
 
-                            if (!pending_writes.is_empty() || write_fails > 0) && (!run || (oldest_pending.elapsed()) >= write_delay) {
-                                // debounce elapsed, or is shutting-down, or is trying to recover from write error.
+                            if (!pending_writes.is_empty() || write_fails > 0) && (!run || (oldest_pending.elapsed()) >= debounce) {
+                                // write debounce elapsed, or is shutting-down, or is trying to recover from write error.
 
                                 // try write
                                 let write_result: Result<(), ConfigError> = (|| {
                                     let mut file = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&file)?;
-                                    let file = BufWriter::new(&mut file);
+                                    let file_buf = BufWriter::new(&mut file);
                                     if pretty {
-                                        serde_json::to_writer_pretty(file, &data)?;
+                                        serde_json::to_writer_pretty(file_buf, &data)?;
                                     } else {
-                                        serde_json::to_writer(file, &data)?;
+                                        serde_json::to_writer(file_buf, &data)?;
                                     };
+                                    file.flush()?;
+
+                                    data_version = file.metadata().unwrap().modified().ok();
+                                    last_data_version_check = Instant::now();
 
                                     Ok(())
                                 })();
@@ -1137,6 +1176,43 @@ mod file_source {
                                     }
                                 } else {
                                     write_fails = 0;
+                                }
+                            }
+
+                            if last_data_version_check.elapsed() >= debounce {
+                                // file watcher update.
+
+                                if let Ok(m) = fs::metadata(&file) {
+                                    let version = m.modified().ok();
+
+                                    if data_version != version {
+                                        // try reload.
+                                        let d: Result<HashMap<Text, JsonValue>, ConfigError> = (|| {
+                                            let mut file = fs::File::open(&file)?;
+                                            let map = serde_json::from_reader(&mut BufReader::new(&mut file))?;
+                                            Ok(map)
+                                        })();
+                                        if let Ok(d) = d {
+                                            for (key, value) in d {
+                                                match data.entry(key) {
+                                                    Entry::Occupied(mut e) => {
+                                                        if e.get() != &value {
+                                                            // key changed
+                                                            *e.get_mut() = value;
+                                                            update.send(ConfigSourceUpdate::Refresh(e.key().clone())).unwrap();
+                                                        }
+                                                    }
+                                                    Entry::Vacant(e) => {
+                                                        // new key
+                                                        e.insert(value);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    data_version = version;
+                                    last_data_version_check = Instant::now();
                                 }
                             }
                         }
@@ -1190,4 +1266,4 @@ mod file_source {
         Shutdown,
     }
 }
-pub use file_source::ConfigFile;
+pub use file_source::{ConfigFile, ConfigFileBuilder};
