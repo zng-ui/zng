@@ -60,8 +60,8 @@ impl SegmentedText {
                     // the break was a "\r\n"
                     offset - 2
                 } else {
-                    debug_assert!(seg.ends_with('\n'));
-                    // the break was a '\n'
+                    debug_assert!(seg.ends_with('\n') || seg.ends_with('\r'), "seg: {:#?}", seg);
+                    // the break was a '\n' or just '\r'
                     offset - 1
                 };
 
