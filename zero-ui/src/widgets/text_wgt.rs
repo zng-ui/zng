@@ -128,6 +128,12 @@ pub mod text {
         /// By default uses the font configuration, but it usually crosses over glyph *descents* causing skips on
         /// the line, you can set this [`UnderlinePosition::Descent`] to fully clear all glyph *descents*.
         properties::underline_position;
+
+        /// Enable text selection, copy, caret and input; and makes the widget focusable.
+        ///
+        /// If the `text` variable is read-only, this only enables text selection, if the var is writeable this
+        /// enables text input and modifies the variable.
+        properties::text_editable as editable;
     }
 
     fn new_child() -> impl UiNode {

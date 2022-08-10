@@ -3,7 +3,7 @@
 use std::cell::{Cell, RefCell};
 
 use super::properties::*;
-use crate::core::text::*;
+use crate::core::{focus::FocusInfoBuilder, keyboard::CharInputEvent, text::*};
 use crate::prelude::new_widget::*;
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
@@ -143,11 +143,19 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         }
 
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            if *TextEditableVar::get(ctx) {
+                FocusInfoBuilder::get(info).focusable(true);
+            }
             self.with(ctx.vars, |c| c.info(ctx, info))
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
+
+            if *TextEditableVar::get(ctx) {
+                subs.event(CharInputEvent);
+            }
+
             self.with(ctx.vars, |c| c.subscriptions(ctx, subs))
         }
 
@@ -157,7 +165,26 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         }
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(_args) = FontChangedEvent.update(args) {
+            if let Some(args) = CharInputEvent.update(args) {
+                self.with_mut(ctx.vars, |c| c.event(ctx, args));
+
+                if !args.propagation().is_stopped() && !self.text.is_read_only(ctx.vars) && args.is_enabled(ctx.path.widget_id()) {
+                    args.propagation().stop();
+
+                    if args.is_backspace() {
+                        let _ = self.text.modify(ctx.vars, move |mut t| {
+                            if !t.is_empty() {
+                                t.to_mut().pop();
+                            }
+                        });
+                    } else {
+                        let c = args.character;
+                        let _ = self.text.modify(ctx.vars, move |mut t| {
+                            t.to_mut().push(c);
+                        });
+                    }
+                }
+            } else if let Some(_args) = FontChangedEvent.update(args) {
                 // font query may return a different result.
 
                 let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
@@ -248,6 +275,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     r.underline_color = c;
                     ctx.updates.render();
                 }
+            }
+
+            if TextEditableVar::is_new(ctx) {
+                ctx.updates.info();
             }
 
             self.with_mut(ctx.vars, |c| c.update(ctx))

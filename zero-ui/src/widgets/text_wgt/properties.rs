@@ -94,6 +94,9 @@ context_var! {
     pub struct  StrikethroughStyleVar: LineStyle = LineStyle::Hidden;
     /// Strikethrough color.
     pub struct StrikethroughColorVar: TextLineColor = TextLineColor::Text;
+
+    /// Text is editable.
+    pub struct TextEditableVar: bool = false;
 }
 
 /// Sets the [`FontFamilyVar`] context var.
@@ -468,6 +471,12 @@ pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickne
 #[property(context, default(StrikethroughColorVar))]
 pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
     with_context_var(child, StrikethroughColorVar, color)
+}
+
+/// Sets the [`TextEditableVar`].
+#[property(context, default(TextEditableVar))]
+pub fn text_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, TextEditableVar, enabled)
 }
 
 /// All the text contextual values.

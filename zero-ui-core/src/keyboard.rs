@@ -119,6 +119,11 @@ impl CharInputArgs {
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
+
+    /// Returns `true` if the character is the backspace.
+    pub fn is_backspace(&self) -> bool {
+        self.character == '\u{8}'
+    }
 }
 
 event! {

@@ -20,9 +20,9 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).focusable(*self.is_focusable.get(ctx));
-            self.child.info(ctx, widget);
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            FocusInfoBuilder::get(info).focusable(*self.is_focusable.get(ctx));
+            self.child.info(ctx, info);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {

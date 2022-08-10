@@ -1,3 +1,12 @@
+* Text Editable
+    - Caret.
+    - Selection.
+* `text_input!`.
+    - Inherit from `text!`.
+    - Appearance of a text-box.
+* IME.
+
+
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.
     - It halves the computation of bounds if removed.
