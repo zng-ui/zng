@@ -355,32 +355,41 @@ impl ConfigSource for ConfigFile {
         }
     }
 
-    fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>) {
-        self.send(Request::Read { key, rsp })
+    fn read(&mut self, key: ConfigKey) -> BoxedFut<Result<Option<JsonValue>, ConfigError>> {
+        let (rsp, rcv) = flume::bounded(1);
+        self.send(Request::Read { key, rsp });
+
+        Box::pin(async move { rcv.recv_async().await? })
     }
 
-    fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>) {
-        self.send(Request::Write { key, value, rsp })
+    fn write(&mut self, key: ConfigKey, value: JsonValue) -> BoxedFut<Result<(), ConfigError>> {
+        let (rsp, rcv) = flume::bounded(1);
+        self.send(Request::Write { key, value, rsp });
+
+        Box::pin(async move { rcv.recv_async().await? })
     }
 
-    fn remove(&mut self, key: ConfigKey, rsp: AppExtSender<Result<(), ConfigError>>) {
-        self.send(Request::Remove { key, rsp })
+    fn remove(&mut self, key: ConfigKey) -> BoxedFut<Result<(), ConfigError>> {
+        let (rsp, rcv) = flume::bounded(1);
+        self.send(Request::Remove { key, rsp });
+
+        Box::pin(async move { rcv.recv_async().await? })
     }
 }
 
 enum Request {
     Read {
         key: ConfigKey,
-        rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>,
+        rsp: flume::Sender<Result<Option<JsonValue>, ConfigError>>,
     },
     Write {
         key: ConfigKey,
         value: JsonValue,
-        rsp: AppExtSender<Result<(), ConfigError>>,
+        rsp: flume::Sender<Result<(), ConfigError>>,
     },
     Remove {
         key: ConfigKey,
-        rsp: AppExtSender<Result<(), ConfigError>>,
+        rsp: flume::Sender<Result<(), ConfigError>>,
     },
     Shutdown,
 }

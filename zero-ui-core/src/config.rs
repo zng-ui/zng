@@ -19,7 +19,9 @@ use std::{
 use crate::{
     app::{AppEventSender, AppExtReceiver, AppExtSender, AppExtension},
     context::*,
+    crate_util::BoxedFut,
     service::*,
+    task::ui::UiTask,
     text::Text,
     var::*,
 };
@@ -268,38 +270,27 @@ impl Config {
         R: FnOnce(&Vars, Option<T>) + 'static,
     {
         if let Some((source, _)) = &mut self.source {
-            // channel with the source.
-            let (sender, receiver) = self.update.ext_channel_bounded(1);
-            source.read(key, sender);
-
-            // bind two channels.
+            let mut task = Some(UiTask::new(&self.update, source.read(key)));
             let mut respond = Some(respond);
             self.tasks.push(Box::new(move |vars, status| {
-                match receiver.try_recv() {
-                    Ok(Ok(r)) => {
-                        let respond = respond.take().unwrap();
-                        respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
-                        false
-                    }
-                    Err(None) => true, // retain
-                    Ok(Err(e)) => {
-                        status.modify(vars, move |mut s| {
-                            s.set_read_error(e);
-                        });
+                let finished = task.as_mut().unwrap().update().is_some();
+                if finished {
+                    match task.take().unwrap().into_result().unwrap() {
+                        Ok(r) => {
+                            let respond = respond.take().unwrap();
+                            respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
+                        }
+                        Err(e) => {
+                            status.modify(vars, move |mut s| {
+                                s.set_read_error(e);
+                            });
 
-                        let respond = respond.take().unwrap();
-                        respond(vars, None);
-                        false
-                    }
-                    Err(Some(e)) => {
-                        status.modify(vars, move |mut s| {
-                            s.set_read_error(ConfigError::new(e));
-                        });
-                        let respond = respond.take().unwrap();
-                        respond(vars, None);
-                        false
+                            let respond = respond.take().unwrap();
+                            respond(vars, None);
+                        }
                     }
                 }
+                !finished
             }));
             let _ = self.update.send_ext_update();
         } else {
@@ -359,9 +350,8 @@ impl Config {
         if let Some((source, _)) = &mut self.source {
             match serde_json::value::to_value(value) {
                 Ok(json) => {
-                    let (sx, rx) = self.update.ext_channel_bounded(1);
-                    source.write(key, json, sx);
-                    self.track_write_task(rx);
+                    let task = UiTask::new(&self.update, source.write(key, json));
+                    self.track_write_task(task);
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
@@ -382,41 +372,31 @@ impl Config {
     }
     fn remove_impl(&mut self, key: ConfigKey) {
         if let Some((source, _)) = &mut self.source {
-            let (sx, rx) = self.update.ext_channel_bounded(1);
-            source.remove(key, sx);
-            self.track_write_task(rx);
+            let task = UiTask::new(&self.update, source.remove(key));
+            self.track_write_task(task);
         }
     }
 
-    fn track_write_task(&mut self, rx: AppExtReceiver<Result<(), ConfigError>>) {
+    fn track_write_task(&mut self, task: UiTask<Result<(), ConfigError>>) {
         let mut count = 0;
+        let mut task = Some(task);
         self.tasks.push(Box::new(move |vars, status| {
-            match rx.try_recv() {
-                Ok(r) => {
-                    status.modify(vars, move |mut s| {
-                        s.pending -= count;
-                        if let Err(e) = r {
-                            s.set_write_error(e);
-                        }
-                    });
-                    false // task finished
-                }
-                Err(None) => {
-                    if count == 0 {
-                        // first try, add pending.
-                        count = 1;
-                        status.modify(vars, |mut s| s.pending += 1);
+            let finished = task.as_mut().unwrap().update().is_some();
+            if finished {
+                let r = task.take().unwrap().into_result().unwrap();
+                status.modify(vars, move |mut s| {
+                    s.pending -= count;
+                    if let Err(e) = r {
+                        s.set_write_error(e);
                     }
-                    true // retain
-                }
-                Err(Some(e)) => {
-                    status.modify(vars, move |mut s| {
-                        s.pending -= count;
-                        s.set_write_error(ConfigError::new(e))
-                    });
-                    false // task finished
-                }
+                });
+            } else if count == 0 {
+                // first try, add pending.
+                count = 1;
+                status.modify(vars, |mut s| s.pending += 1);
             }
+
+            !finished
         }));
         let _ = self.update.send_ext_update();
     }
@@ -847,9 +827,14 @@ impl From<serde_json::Error> for ConfigError {
         ConfigError::new(e)
     }
 }
+impl From<flume::RecvError> for ConfigError {
+    fn from(e: flume::RecvError) -> Self {
+        ConfigError::new(e)
+    }
+}
 
 /// Represents an implementation of [`Config`].
-pub trait ConfigSource: 'static {
+pub trait ConfigSource: Send + 'static {
     /// Called once when the source is installed.
     fn init(&mut self, observer: AppExtSender<ConfigSourceUpdate>);
 
@@ -858,17 +843,14 @@ pub trait ConfigSource: 'static {
     /// Sources should block and flush all pending writes here.
     fn deinit(&mut self);
 
-    /// Send a read request for the most recent value associated with `key` in the persistent storage.
-    ///
-    /// The `rsp` channel must be used once to send back the result.
-    fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>);
-    /// Send a write request to set the `value` for `key` on the persistent storage.
-    ///
-    /// The `rsp` channel must be used once to send back the result.
-    fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>);
+    /// Read the most recent value associated with `key` in the config source.
+    fn read(&mut self, key: ConfigKey) -> BoxedFut<Result<Option<JsonValue>, ConfigError>>;
 
-    /// Send a request to remove the `key` from the persistent storage.
-    fn remove(&mut self, key: ConfigKey, rsp: AppExtSender<Result<(), ConfigError>>);
+    /// Write the `value` for `key` in the config source.
+    fn write(&mut self, key: ConfigKey, value: JsonValue) -> BoxedFut<Result<(), ConfigError>>;
+
+    /// Remove the `key` in the config source.
+    fn remove(&mut self, key: ConfigKey) -> BoxedFut<Result<(), ConfigError>>;
 }
 
 /// External updates in a [`ConfigSource`].

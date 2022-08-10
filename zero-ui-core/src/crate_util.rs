@@ -1161,3 +1161,5 @@ macro_rules! measure_time {
         $crate::crate_util::MeasureTime::start($msg)
     };
 }
+
+pub type BoxedFut<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T>>>;

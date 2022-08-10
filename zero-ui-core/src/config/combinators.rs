@@ -1,5 +1,7 @@
 use std::mem;
 
+use parking_lot::Mutex;
+
 use super::*;
 
 /// Config wrapper that only initializes the inner config on the first read/write op.
@@ -37,19 +39,19 @@ impl<C: ConfigSource> ConfigSource for LazyConfig<C> {
         self.update = None;
     }
 
-    fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>) {
+    fn read(&mut self, key: ConfigKey) -> BoxedFut<Result<Option<JsonValue>, ConfigError>> {
         self.init_cfg();
-        self.cfg.read(key, rsp);
+        self.cfg.read(key)
     }
 
-    fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>) {
+    fn write(&mut self, key: ConfigKey, value: JsonValue) -> BoxedFut<Result<(), ConfigError>> {
         self.init_cfg();
-        self.cfg.write(key, value, rsp);
+        self.cfg.write(key, value)
     }
 
-    fn remove(&mut self, key: ConfigKey, rsp: AppExtSender<Result<(), ConfigError>>) {
+    fn remove(&mut self, key: ConfigKey) -> BoxedFut<Result<(), ConfigError>> {
         self.init_cfg();
-        self.cfg.remove(key, rsp);
+        self.cfg.remove(key)
     }
 }
 
@@ -58,37 +60,47 @@ impl<C: ConfigSource> ConfigSource for LazyConfig<C> {
 /// Reads from the fallback are automatically written on the primary source.
 pub struct FallbackConfig<P, F> {
     primary: P,
-    fallback: LazyConfig<F>,
+    fallback: Arc<Mutex<LazyConfig<F>>>,
 }
 impl<P: ConfigSource, F: ConfigSource> FallbackConfig<P, F> {
     /// New from primary and fallback, you can use [`ConfigSource::with_fallback`] to build.
     pub fn new(primary: P, fallback: F) -> Self {
         Self {
             primary,
-            fallback: LazyConfig::new(fallback),
+            fallback: Arc::new(Mutex::new(LazyConfig::new(fallback))),
         }
     }
 }
 impl<P: ConfigSource, F: ConfigSource> ConfigSource for FallbackConfig<P, F> {
     fn init(&mut self, observer: AppExtSender<ConfigSourceUpdate>) {
         self.primary.init(observer.clone());
-        self.fallback.init(observer);
+        self.fallback.lock().init(observer);
     }
 
     fn deinit(&mut self) {
         self.primary.deinit();
-        self.fallback.deinit();
+        self.fallback.lock().deinit();
     }
 
-    fn read(&mut self, key: ConfigKey, rsp: AppExtSender<Result<Option<JsonValue>, ConfigError>>) {
-        self.primary.read(key.clone(), rsp.clone());
+    fn read(&mut self, key: ConfigKey) -> BoxedFut<Result<Option<JsonValue>, ConfigError>> {
+        let prim = self.primary.read(key.clone());
+        let fallback = self.fallback.clone();
+        Box::pin(async move {
+            let r = prim.await?;
+            if r.is_some() {
+                Ok(r)
+            } else {
+                let f = fallback.lock().read(key);
+                f.await
+            }
+        })
     }
 
-    fn write(&mut self, key: ConfigKey, value: JsonValue, rsp: AppExtSender<Result<(), ConfigError>>) {
-        self.primary.write(key, value, rsp);
+    fn write(&mut self, key: ConfigKey, value: JsonValue) -> BoxedFut<Result<(), ConfigError>> {
+        self.primary.write(key, value)
     }
 
-    fn remove(&mut self, key: ConfigKey, rsp: AppExtSender<Result<(), ConfigError>>) {
-        self.primary.remove(key, rsp);
+    fn remove(&mut self, key: ConfigKey) -> BoxedFut<Result<(), ConfigError>> {
+        self.primary.remove(key)
     }
 }
