@@ -51,6 +51,10 @@ mod text_wgt;
 #[doc(inline)]
 pub use text_wgt::{em, strong, text};
 
+mod toggle_wgt;
+#[doc(inline)]
+pub use toggle_wgt::toggle;
+
 mod view;
 #[doc(inline)]
 pub use view::*;

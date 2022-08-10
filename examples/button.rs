@@ -27,6 +27,8 @@ fn app_main() {
                     example(),
                     disabled(),
                     image_button(),
+                    separator(),
+                    toggle_buttons(),
                     dyn_buttons(),
                 ];
             };
@@ -39,6 +41,13 @@ fn example() -> impl Widget {
     let mut count = 0;
 
     button! {
+        background = text! {
+            text = "!!: FIX ME!";
+            font_family = "monospace";
+            font_size = 10;
+            align = Align::TOP_RIGHT;
+            color = colors::RED;
+        };
         on_click = hn!(t, |ctx, _| {
             count += 1;
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
@@ -109,5 +118,38 @@ fn separator() -> impl Widget {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         style = LineStyle::Dashed;
+    }
+}
+
+fn toggle_buttons() -> impl Widget {
+    fn show_checked() -> impl Widget {
+        text! {
+            text = toggle::properties::IsCheckedVar::new().map(|v| formatx!("{v:?}"));
+            font_family = "monospace";
+            font_size = 10;
+            align = Align::TOP_RIGHT;
+        }
+    }
+
+    v_stack! {
+        spacing = 5;
+        items = widgets![
+            toggle! {
+                content = text("Toggle Button 1");
+                checked = var(false);
+                background = show_checked();
+            },
+            toggle! {
+                content = text("Toggle Button 2");
+                checked_opt = var(None);
+                background = show_checked();
+            },
+            toggle! {
+                content = text("Three Toggle Button");
+                checked_opt = var(Some(false));
+                three_state = true;
+                background = show_checked();
+            }
+        ]
     }
 }
