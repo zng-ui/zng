@@ -274,7 +274,7 @@ fn block_window_load_image() -> impl Widget {
                 content = scroll! {
                     content = image! {
 
-                        // block window load until the image is ready to present or 10 seconds have elapsed.
+                        // block window load until the image is ready to present or 5 minutes have elapsed.
                         // usually you want to set a shorter deadline, `true` converts to 1 second.
                         block_window_load = 5.minutes();
 
