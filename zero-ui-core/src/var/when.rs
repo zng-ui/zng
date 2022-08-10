@@ -156,6 +156,9 @@ macro_rules! impl_rc_when_var {
                 Self(self.0.clone())
             }
         }
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> any::AnyWeakVar for $WeakRcWhenVar<O, D, $($C),+ , $($V),+> {
+            any_var_impls!(WeakVar);
+        }
 
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Var<O> for $RcWhenVar<O, D, $($C),+ , $($V),+> {
             type AsReadOnly = types::ReadOnlyVar<O, Self>;
@@ -434,7 +437,7 @@ macro_rules! impl_rc_when_var {
         }
 
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> any::AnyVar for $RcWhenVar<O, D, $($C),+ , $($V),+> {
-            any_var_impls!();
+            any_var_impls!(Var);
         }
     };
 }

@@ -1,6 +1,5 @@
 # Update Mask
 
-* Sub-divide UiNodeList masks.
 * Review the icon example with all icon to see what happens with lots of false positives.
   - Maybe we need a better distribution or a linear search after the flag matches?
   - Can we have delivery lists for vars?
@@ -22,9 +21,6 @@
 # Layout
 
 * Add property for selecting the "sample" child in panels that need to measure.
-* Implement "auto splitting/grid" for widgets with many children.
-    - The `icon` example would be faster if the buttons where split into groups, this idea is to 
-        do this splitting automatically internally, without asking the user.
 
 # Image Render
 

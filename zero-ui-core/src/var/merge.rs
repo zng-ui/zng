@@ -336,7 +336,7 @@ macro_rules! impl_rc_merge_var {
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         any::AnyVar for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
-            any_var_impls!();
+            any_var_impls!(Var);
         }
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
@@ -362,6 +362,11 @@ macro_rules! impl_rc_merge_var {
             fn as_ptr(&self) -> *const () {
                 self.0.as_ptr() as _
             }
+        }
+
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        any::AnyWeakVar for $WeakRcMergeVar<$($I,)+ O, $($V,)+ F> {
+            any_var_impls!(WeakVar);
         }
 
         #[test]
