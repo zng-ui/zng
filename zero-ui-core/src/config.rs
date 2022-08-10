@@ -851,6 +851,17 @@ pub trait ConfigSource: Send + 'static {
 
     /// Remove the `key` in the config source.
     fn remove(&mut self, key: ConfigKey) -> BoxedFut<Result<(), ConfigError>>;
+
+    /// Create a config source that reads from `fallback` if not found in `self`.
+    ///
+    /// If `copy_from_fallback` is enabled, values read from `fallback` are written to `self`.
+    fn with_fallback<C>(self, fallback: C, copy_from_fallback: bool) -> FallbackConfig<Self, C>
+    where
+        Self: Sized,
+        C: ConfigSource,
+    {
+        FallbackConfig::new(self, fallback, copy_from_fallback)
+    }
 }
 
 /// External updates in a [`ConfigSource`].

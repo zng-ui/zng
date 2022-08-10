@@ -56,51 +56,62 @@ impl<C: ConfigSource> ConfigSource for LazyConfig<C> {
 }
 
 /// Represents a config source that reads from a fallback source if a key is not found.
-///
-/// Reads from the fallback are automatically written on the primary source.
 pub struct FallbackConfig<P, F> {
-    primary: P,
+    primary: Arc<Mutex<P>>,
     fallback: Arc<Mutex<LazyConfig<F>>>,
+    copy_to_primary: bool,
 }
 impl<P: ConfigSource, F: ConfigSource> FallbackConfig<P, F> {
     /// New from primary and fallback, you can use [`ConfigSource::with_fallback`] to build.
-    pub fn new(primary: P, fallback: F) -> Self {
+    pub fn new(primary: P, fallback: F, copy_to_primary: bool) -> Self {
         Self {
-            primary,
+            primary: Arc::new(Mutex::new(primary)),
             fallback: Arc::new(Mutex::new(LazyConfig::new(fallback))),
+            copy_to_primary,
         }
     }
 }
 impl<P: ConfigSource, F: ConfigSource> ConfigSource for FallbackConfig<P, F> {
     fn init(&mut self, observer: AppExtSender<ConfigSourceUpdate>) {
-        self.primary.init(observer.clone());
+        self.primary.lock().init(observer.clone());
         self.fallback.lock().init(observer);
     }
 
     fn deinit(&mut self) {
-        self.primary.deinit();
+        self.primary.lock().deinit();
         self.fallback.lock().deinit();
     }
 
     fn read(&mut self, key: ConfigKey) -> BoxedFut<Result<Option<JsonValue>, ConfigError>> {
-        let prim = self.primary.read(key.clone());
+        let read = self.primary.lock().read(key.clone());
+        let primary = self.primary.clone();
         let fallback = self.fallback.clone();
+        let copy_to_primary = self.copy_to_primary;
         Box::pin(async move {
-            let r = prim.await?;
+            let r = read.await?;
             if r.is_some() {
                 Ok(r)
             } else {
-                let f = fallback.lock().read(key);
-                f.await
+                let copy_key = if copy_to_primary { Some(key.clone()) } else { None };
+
+                let read = fallback.lock().read(key);
+                let result = read.await;
+
+                if let (Some(key), Ok(Some(value))) = (copy_key, &result) {
+                    let write = primary.lock().write(key, value.clone());
+                    let _ = write.await;
+                }
+
+                result
             }
         })
     }
 
     fn write(&mut self, key: ConfigKey, value: JsonValue) -> BoxedFut<Result<(), ConfigError>> {
-        self.primary.write(key, value)
+        self.primary.lock().write(key, value)
     }
 
     fn remove(&mut self, key: ConfigKey) -> BoxedFut<Result<(), ConfigError>> {
-        self.primary.remove(key)
+        self.primary.lock().remove(key)
     }
 }
