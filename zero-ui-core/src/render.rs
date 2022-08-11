@@ -1959,7 +1959,7 @@ impl SpatialFrameId {
 }
 
 /// Unique key of an updatable value in the view-process frame.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FrameValueKey<T> {
     id: FrameBindingKeyId,
     _type: PhantomData<T>,

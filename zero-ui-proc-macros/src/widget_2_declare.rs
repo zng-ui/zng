@@ -297,8 +297,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt_whens = TokenStream::default();
 
     // all properties used in when conditions and assigns.
+    //
+    // After property processing only properties not declared in the widget or inherited are left.
+    //
+    // the key is a property ident, the value is a cfg macro for use in-case the property is not
+    // declared in the widget.
     let mut wgt_when_properties: HashMap<Ident, Option<Ident>> = HashMap::new();
+    // Properties declared in the widget without default value and used in whens.
+    let mut wgt_when_default_reqs = HashMap::new();
 
+    // collect whens
     for bw in whens {
         let dbg_ident = &bw.dbg_ident;
         let BuiltWhen {
@@ -372,9 +380,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             mut required,
         } = ip;
 
-        let used_in_when = wgt_when_properties.remove(ident).is_some();
-
         required |= inherited_required.contains(ident);
+
+        if let Some(p) = wgt_when_properties.remove(ident) {
+            if !default && !required {
+                wgt_when_default_reqs.insert(ident, p);
+            }
+        }
 
         // collect property documentation info.
         let docs_info = if required {
@@ -470,8 +482,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ..
         } = p;
 
-        let used_in_when = wgt_when_properties.remove(ident).is_some();
         let required = *required || inherited_required.contains(ident);
+
+        if let Some(p) = wgt_when_properties.remove(ident) {
+            if !default && !required {
+                wgt_when_default_reqs.insert(ident, p);
+            }
+        }
 
         // collect property documentation info.
         let ident_str = ident.to_string();

@@ -752,9 +752,7 @@ mod tests {
         let body = async_test(async move {
             let mut body = test.body(&key).await.unwrap();
 
-            let body = body.text_utf8().await.unwrap();
-
-            body
+            body.text_utf8().await.unwrap()
         });
 
         assert_eq!(body, "test content.");

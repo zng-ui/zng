@@ -627,7 +627,7 @@ impl<'a> AnyEventUpdate<'a> {
     fn delivery_list(&self) -> &EventDeliveryList {
         unsafe {
             // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
-            (self.delivery_list_deref)(&*self.event_update_args)
+            (self.delivery_list_deref)(self.event_update_args)
         }
     }
 }

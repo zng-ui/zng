@@ -222,6 +222,7 @@ macro_rules! make_absents {
         if !user_mtds.contains(&ident!(stringify!($ident))) {
             absents.push(parse_quote! {
 
+                #[allow(clippy::borrow_deref_ref)]
                 fn $ident $($tt)*
             });
         }

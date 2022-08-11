@@ -580,7 +580,6 @@ impl syn::parse::Parse for OuterAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let inner;
 
-        #[allow(clippy::eval_order_dependence)] // see https://github.com/rust-lang/rust-clippy/issues/4637
         Ok(OuterAttr {
             pound_token: input.parse()?,
             style: if input.peek(Token![!]) {
@@ -754,7 +753,6 @@ struct LintPath {
 impl syn::parse::Parse for LintPath {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let inner;
-        #[allow(clippy::eval_order_dependence)] // see https://github.com/rust-lang/rust-clippy/issues/4637
         Ok(LintPath {
             _paren: syn::parenthesized!(inner in input),
             path: inner.parse()?,

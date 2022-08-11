@@ -1572,7 +1572,7 @@ impl_from_and_into_var! {
 }
 
 /// Information about mouse capture in a mouse event argument.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaptureInfo {
     /// Widget that is capturing all mouse events. The widget and all ancestors are [`ENABLED`].
     ///

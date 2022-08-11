@@ -358,7 +358,7 @@ impl WindowMode {
 }
 
 /// Window chrome, the non-client area of the window.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum WindowChrome {
     /// System chrome.
     Default,

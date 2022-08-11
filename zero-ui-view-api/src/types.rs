@@ -1216,7 +1216,7 @@ pub enum Force {
 }
 
 /// OS theme.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WindowTheme {
     /// Dark text on light background.
     Light,

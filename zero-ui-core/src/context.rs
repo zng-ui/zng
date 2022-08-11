@@ -1588,7 +1588,7 @@ impl<'m> Deref for Layout1dMetrics<'m> {
     type Target = LayoutMetrics;
 
     fn deref(&self) -> &Self::Target {
-        &*self.metrics
+        self.metrics
     }
 }
 

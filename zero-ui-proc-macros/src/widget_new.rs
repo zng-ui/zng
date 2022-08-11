@@ -977,7 +977,7 @@ impl Parse for BuiltProperty {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
         let input = non_user_braced!(input);
 
-        let r = Ok(BuiltProperty {
+        let r = BuiltProperty {
             ident,
             docs: non_user_braced!(&input, "docs").parse().unwrap(),
             cfg: non_user_braced!(&input, "cfg")
@@ -992,8 +992,8 @@ impl Parse for BuiltProperty {
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
-        });
-        r
+        };
+        Ok(r)
     }
 }
 
@@ -1006,14 +1006,14 @@ impl Parse for PropertyCapture {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
         let input = non_user_braced!(input);
-        let r = Ok(PropertyCapture {
+        let r = PropertyCapture {
             ident,
             cfg: non_user_braced!(&input, "cfg")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
-        });
-        r
+        };
+        Ok(r)
     }
 }
 
@@ -1031,7 +1031,7 @@ impl Parse for BuiltWhen {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
         let input = non_user_braced!(input);
 
-        let r = Ok(BuiltWhen {
+        let r = BuiltWhen {
             ident,
             dbg_ident: non_user_braced!(&input, "dbg_ident").parse().unwrap(),
             docs: non_user_braced!(&input, "docs").parse().unwrap(),
@@ -1042,8 +1042,8 @@ impl Parse for BuiltWhen {
             inputs: parse_all(&non_user_braced!(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
             assigns: parse_all(&non_user_braced!(&input, "assigns")).unwrap_or_else(|e| non_user_error!(e)),
             expr_str: non_user_braced!(&input, "expr_str").parse().unwrap_or_else(|e| non_user_error!(e)),
-        });
-        r
+        };
+        Ok(r)
     }
 }
 
@@ -1056,15 +1056,16 @@ impl Parse for BuiltWhenAssign {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let property = input.parse().unwrap_or_else(|e| non_user_error!(e));
         let input = non_user_braced!(input);
-        let r = Ok(BuiltWhenAssign {
+
+        let r = BuiltWhenAssign {
             property,
             cfg: non_user_braced!(&input, "cfg")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
             value_fn: non_user_braced!(&input, "value_fn").parse().unwrap_or_else(|e| non_user_error!(e)),
-        });
-        r
+        };
+        Ok(r)
     }
 }
 
