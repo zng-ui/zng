@@ -1,5 +1,3 @@
-# Text
-
 * Text Editable
     - Caret.
     - Selection.
