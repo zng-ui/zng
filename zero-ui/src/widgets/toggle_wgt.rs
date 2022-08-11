@@ -18,7 +18,7 @@ pub mod toggle {
 
     use crate::widgets::button::theme;
 
-    use properties::is_checked;
+    //use properties::is_checked;
 
     properties! {
         /// Toggle cycles between `true` and `false`, updating the variable.
@@ -37,7 +37,7 @@ pub mod toggle {
         /// This is not enabled by default.
         properties::three_state = properties::IsThreeStateVar;
 
-        // properties::is_checked; !!: FIX ME
+        properties::is_checked; // !!: FIX ME
 
         /// When toggle is `Some(true)`.
         when self.is_checked {

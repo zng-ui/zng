@@ -284,6 +284,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut docs_event = vec![];
     let mut docs_state = vec![];
     let mut docs_declared = vec![];
+    let mut docs_whens = vec![]; // docs data about when blocks.
 
     // properties that are assigned (not in when blocks) or declared in the new widget.
     let wgt_used_properties: HashSet<_> = properties.iter().map(|p| &p.ident).collect();
@@ -291,6 +292,70 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt_properties = TokenStream::default();
     // property pub uses.
     let mut property_reexports = TokenStream::default();
+
+    // when data for macros.
+    let mut wgt_whens = TokenStream::default();
+
+    // all properties used in when conditions and assigns.
+    let mut wgt_when_properties: HashMap<Ident, Option<Ident>> = HashMap::new();
+
+    for bw in whens {
+        let dbg_ident = &bw.dbg_ident;
+        let BuiltWhen {
+            ident,
+            docs,
+            cfg,
+            inputs,
+            assigns,
+            expr_str,
+            ..
+        } = bw;
+
+        docs_whens.push(WhenDocs {
+            docs: docs.clone(),
+            expr: expr_str.value(),
+            affects: assigns.iter().map(|a| (a.property.clone(), a.cfg)).collect(),
+        });
+
+        let when_cfg = if cfg { Some(ident!("__cfg_{ident}")) } else { None };
+
+        for property in inputs.iter().chain(assigns.iter().map(|a| &a.property)) {
+            // set to the cfg of one of the whens that use it or `None` if any of the
+            // whens that use don't have cfg.
+            match wgt_when_properties.entry(property.clone()) {
+                std::collections::hash_map::Entry::Vacant(e) => {
+                    e.insert(when_cfg.clone());
+                }
+                std::collections::hash_map::Entry::Occupied(mut e) => {
+                    if when_cfg.is_none() {
+                        *e.get_mut() = None;
+                    }
+                }
+            }
+        }
+
+        let mut assigns_tt = TokenStream::default();
+        for BuiltWhenAssign { property, cfg, value_fn } in assigns {
+            assigns_tt.extend(quote! {
+                #property { cfg { #cfg } value_fn { #value_fn } }
+            });
+        }
+
+        let dbg_ident = quote! {
+            dbg_ident { #dbg_ident }
+        };
+
+        wgt_whens.extend(quote! {
+            #ident {
+                #dbg_ident
+                docs { #docs }
+                cfg { #cfg }
+                inputs { #(#inputs)* }
+                assigns {#assigns_tt }
+                expr_str { #expr_str }
+            }
+        });
+    }
 
     // collect inherited re-exports and property data for macros.
     for ip in &inherited_props {
@@ -306,6 +371,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             default,
             mut required,
         } = ip;
+
+        let used_in_when = wgt_when_properties.remove(ident).is_some();
 
         required |= inherited_required.contains(ident);
 
@@ -402,6 +469,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             declared,
             ..
         } = p;
+
+        let used_in_when = wgt_when_properties.remove(ident).is_some();
         let required = *required || inherited_required.contains(ident);
 
         // collect property documentation info.
@@ -529,13 +598,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     docs_event.extend(docs_event_inherited);
     docs_state.extend(docs_state_inherited);
 
-    // when data for macros.
-    let mut wgt_whens = TokenStream::default();
     // inherited whens pub uses.
     let mut when_reexports = TokenStream::default();
-
-    // docs data bout when blocks.
-    let mut docs_whens = vec![];
 
     for inherited in &inherits {
         //inherited.module
@@ -640,10 +704,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // all widget properties with and without values (excluding new when properties).
-    let wgt_all_properties: HashSet<_> = inherited_props
+    let wgt_all_properties: HashMap<&Ident, bool> = inherited_props
         .iter()
-        .map(|p| &p.ident)
-        .chain(properties.iter().map(|p| &p.ident))
+        .map(|p| (&p.ident, p.default))
+        .chain(properties.iter().map(|p| (&p.ident, p.default)))
         .collect();
 
     // validate captures exist.
@@ -653,7 +717,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         let mut invalid = false;
         for capture in caps {
-            if !wgt_all_properties.contains::<Ident>(&capture.ident) {
+            if !wgt_all_properties.contains_key(&capture.ident) {
                 errors.push(
                     format_args!("property `{}` is not inherited nor declared by the widget", capture.ident),
                     capture.ident.span(),
@@ -720,73 +784,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
     let assert_not_captures = assert_not_captures;
-
-    // widget properties introduced first by use in when blocks, we validate for default value.
-    // map of [property_without_value => when_cfg_macro]
-    let mut wgt_when_properties: HashMap<Ident, Option<Ident>> = HashMap::new();
-
-    for bw in whens {
-        let dbg_ident = &bw.dbg_ident;
-        let BuiltWhen {
-            ident,
-            docs,
-            cfg,
-            inputs,
-            assigns,
-            expr_str,
-            ..
-        } = bw;
-
-        docs_whens.push(WhenDocs {
-            docs: docs.clone(),
-            expr: expr_str.value(),
-            affects: assigns.iter().map(|a| (a.property.clone(), a.cfg)).collect(),
-        });
-
-        let when_cfg = if cfg { Some(ident!("__cfg_{ident}")) } else { None };
-
-        // for each property in inputs and assigns that are not declared in widget or inherited.
-        for property in inputs
-            .iter()
-            .chain(assigns.iter().map(|a| &a.property))
-            .filter(|p| !wgt_all_properties.contains(p))
-        {
-            // set to the cfg of one of the whens that use it or `None` if any of the
-            // whens that use don't have cfg.
-            match wgt_when_properties.entry(property.clone()) {
-                std::collections::hash_map::Entry::Vacant(e) => {
-                    e.insert(when_cfg.clone());
-                }
-                std::collections::hash_map::Entry::Occupied(mut e) => {
-                    if when_cfg.is_none() {
-                        *e.get_mut() = None;
-                    }
-                }
-            }
-        }
-
-        let mut assigns_tt = TokenStream::default();
-        for BuiltWhenAssign { property, cfg, value_fn } in assigns {
-            assigns_tt.extend(quote! {
-                #property { cfg { #cfg } value_fn { #value_fn } }
-            });
-        }
-
-        let dbg_ident = quote! {
-            dbg_ident { #dbg_ident }
-        };
-
-        wgt_whens.extend(quote! {
-            #ident {
-                #dbg_ident
-                docs { #docs }
-                cfg { #cfg }
-                inputs { #(#inputs)* }
-                assigns {#assigns_tt }
-                expr_str { #expr_str }
-            }
-        });
-    }
 
     // properties that are only introduced in when conditions.
     // reexported if they have default values.
