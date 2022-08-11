@@ -310,13 +310,12 @@ impl InteractionPath {
             if self.blocked == 0 {
                 return None;
             }
-            let blocked = self.blocked - 1;
             Some(InteractionPath {
                 path: WidgetPath {
                     window_id: self.path.window_id,
-                    path: self.path.path[blocked..].to_vec().into_boxed_slice(),
+                    path: self.path.path[..self.blocked].to_vec().into_boxed_slice(),
                 },
-                blocked,
+                blocked: self.blocked,
                 disabled: self.disabled,
             })
         } else {

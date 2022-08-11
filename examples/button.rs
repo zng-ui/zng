@@ -41,13 +41,6 @@ fn example() -> impl Widget {
     let mut count = 0;
 
     button! {
-        background = text! {
-            text = "!!: FIX ME!";
-            font_family = "monospace";
-            font_size = 10;
-            align = Align::TOP_RIGHT;
-            color = colors::RED;
-        };
         on_click = hn!(t, |ctx, _| {
             count += 1;
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});

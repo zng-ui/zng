@@ -13,5 +13,4 @@
 
 # Toggle
 
-* Button example exiting hover from the corner with the background `show_checked` sticks the hover state.
 * Panic if we try to use `self.is_checked` with `is_checked` declared in the widget.

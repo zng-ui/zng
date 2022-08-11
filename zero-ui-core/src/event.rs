@@ -218,7 +218,6 @@ struct WindowDelivery {
 /// Delivery list for an [`EventArgs`].
 ///
 /// Windows and widgets use this list to find all targets of the event.
-#[derive(Debug)]
 pub struct EventDeliveryList {
     windows: RefCell<Vec<WindowDelivery>>,
     all: bool,
@@ -226,6 +225,25 @@ pub struct EventDeliveryList {
     depth: Cell<usize>,
 
     search: RefCell<Vec<WidgetId>>,
+}
+impl fmt::Debug for EventDeliveryList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "EventDeliveryList {{")?;
+        if self.all {
+            writeln!(f, "   <all-widgets>")?;
+        } else {
+            for w in self.windows.borrow().iter() {
+                if w.all {
+                    writeln!(f, "   {}//<all-widgets>", w.id)?;
+                } else {
+                    for wgt in w.widgets.iter() {
+                        writeln!(f, "   {wgt}")?;
+                    }
+                }
+            }
+        }
+        writeln!(f, "}}")
+    }
 }
 impl Default for EventDeliveryList {
     /// None.
