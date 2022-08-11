@@ -304,7 +304,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // declared in the widget.
     let mut wgt_when_properties: HashMap<Ident, Option<Ident>> = HashMap::new();
     // Properties declared in the widget without default value and used in whens.
-    let mut wgt_when_default_reqs = HashMap::new();
+    let mut wgt_when_default_reqs: Vec<Ident> = vec![];
 
     // collect whens
     for bw in whens {
@@ -376,15 +376,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident,
             docs,
             cfg,
-            default,
+            mut default,
             mut required,
         } = ip;
 
         required |= inherited_required.contains(ident);
 
-        if let Some(p) = wgt_when_properties.remove(ident) {
+        if let Some((k, _)) = wgt_when_properties.remove_entry(ident) {
             if !default && !required {
-                wgt_when_default_reqs.insert(ident, p);
+                // mark property to include default value, or compile error.
+                wgt_when_default_reqs.push(k);
+                default = true;
             }
         }
 
@@ -407,7 +409,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let i = &inherited_properties[ident];
                 i.inherit_use.to_token_stream()
             },
-            assigned_by_wgt: *default,
+            assigned_by_wgt: default,
         });
 
         // collect property data for macros.
@@ -476,7 +478,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident,
             docs,
             cfg,
-            default,
+            mut default,
             required,
             declared,
             ..
@@ -484,10 +486,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let required = *required || inherited_required.contains(ident);
 
-        if let Some(p) = wgt_when_properties.remove(ident) {
-            if !default && !required {
-                wgt_when_default_reqs.insert(ident, p);
-            }
+        if wgt_when_properties.remove(ident).is_some() && !default && !required {
+            wgt_when_default_reqs.push(ident.clone());
+            default = true;
         }
 
         // collect property documentation info.
@@ -514,7 +515,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
             inherited: inherited_p.is_some(),
             path: inherited_p.unwrap_or_else(|| p.path.clone()),
-            assigned_by_wgt: *default,
+            assigned_by_wgt: default,
         });
 
         if *declared {
@@ -721,10 +722,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // all widget properties with and without values (excluding new when properties).
-    let wgt_all_properties: HashMap<&Ident, bool> = inherited_props
+    let wgt_all_properties: HashSet<&Ident> = inherited_props
         .iter()
-        .map(|p| (&p.ident, p.default))
-        .chain(properties.iter().map(|p| (&p.ident, p.default)))
+        .map(|p| &p.ident)
+        .chain(properties.iter().map(|p| &p.ident))
         .collect();
 
     // validate captures exist.
@@ -734,7 +735,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         let mut invalid = false;
         for capture in caps {
-            if !wgt_all_properties.contains_key(&capture.ident) {
+            if !wgt_all_properties.contains(&capture.ident) {
                 errors.push(
                     format_args!("property `{}` is not inherited nor declared by the widget", capture.ident),
                     capture.ident.span(),
@@ -805,11 +806,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // properties that are only introduced in when conditions.
     // reexported if they have default values.
     let mut when_condition_default_props = TokenStream::default();
+
     let mut wgt_properties = wgt_properties;
     let crate_core = util::crate_core();
-    for (w_prop, cfg) in &wgt_when_properties {
-        // property not introduced in the widget first, validate that it has a default value.
 
+    for (w_prop, cfg) in wgt_when_properties {
+        // property not declared in the widget first, or declared with no default, validate that it has a default value.
+
+        let inherited = inherited_properties.get(&w_prop).map(|i| i.inherit_use.to_token_stream());
+
+        // docs
         let w_prop_str = w_prop.to_string();
         let docs = if w_prop_str.starts_with("is_") {
             &mut docs_state
@@ -818,9 +824,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else {
             &mut docs_normal
         };
-
-        let inherited = inherited_properties.get(w_prop).map(|i| i.inherit_use.to_token_stream());
-
         docs.push(PropertyDocs {
             ident: w_prop_str,
             docs: TokenStream::default(),
@@ -833,43 +836,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let p_ident = ident!("__p_{w_prop}");
         let d_ident = ident!("__d_{w_prop}");
 
-        // reexport property and default value.
+        // reexport property.
+
         when_condition_default_props.extend(quote! {
             #w_prop::code_gen! {
                 if default=>
 
                 #[doc(hidden)]
                 pub use #w_prop::export as #p_ident;
+            }
+        });
+
+        let loc_ident = ident!("__loc_{w_prop}");
+        when_condition_default_props.extend(quote_spanned! {p_ident.span()=> #crate_core::core_cfg_inspector! {
+            #w_prop::code_gen! {
+                if default=>
 
                 #[doc(hidden)]
-                pub fn #d_ident() -> impl self::#p_ident::Args {
-                    self::#p_ident::default_args()
+                pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
+                    #crate_core::inspector::source_location!()
                 }
             }
-        });
-        {
-            let loc_ident = ident!("__loc_{w_prop}");
-            when_condition_default_props.extend(quote_spanned! {p_ident.span()=> #crate_core::core_cfg_inspector! {
-                #w_prop::code_gen! {
-                    if default=>
-
-                    #[doc(hidden)]
-                    pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
-                        #crate_core::inspector::source_location!()
-                    }
-                }
-            }});
-        }
-
-        // OR compile error because the property has no default value.
-        let msg = format!("property `{w_prop}` is not declared in the widget and has no default value");
-        when_condition_default_props.extend(quote_spanned! {w_prop.span()=>
-            #w_prop::code_gen! {
-                if !default=>
-
-                std::compile_error! { #msg }
-            }
-        });
+        }});
 
         if let Some(cfg) = &cfg {
             let cfg_ident = ident!("__cfg_{w_prop}");
@@ -888,6 +876,66 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 required { false }
             }
         });
+
+        // default value.
+        when_condition_default_props.extend(quote! {
+            #w_prop::code_gen! {
+                if default=>
+
+                #[doc(hidden)]
+                pub fn #d_ident() -> impl self::#p_ident::Args {
+                    self::#p_ident::default_args()
+                }
+            }
+        });
+        // OR compile error because the property has no default value.
+        let msg = format!("property `{w_prop}` has no default value");
+        when_condition_default_props.extend(quote_spanned! {w_prop.span()=>
+            #w_prop::code_gen! {
+                if !default=>
+
+                std::compile_error! { #msg }
+            }
+        });
+    }
+
+    for w_prop in wgt_when_default_reqs {
+        let p_ident = ident!("__p_{w_prop}");
+        let d_ident = ident!("__d_{w_prop}");
+
+        // default value.
+        when_condition_default_props.extend(quote! {
+            #p_ident::code_gen! {
+                if default=>
+
+                #[doc(hidden)]
+                pub fn #d_ident() -> impl self::#p_ident::Args {
+                    self::#p_ident::default_args()
+                }
+            }
+        });
+        // OR compile error because the property has no default value.
+        let msg = format!("property `{w_prop}` has no default value");
+        when_condition_default_props.extend(quote_spanned! {w_prop.span()=>
+            #p_ident::code_gen! {
+                if !default=>
+
+                std::compile_error! { #msg }
+            }
+        });
+
+        // location only added with default value.
+        let loc_ident = ident!("__loc_{w_prop}");
+        when_condition_default_props.extend(quote_spanned! {w_prop.span()=> #crate_core::core_cfg_inspector! {
+            #p_ident::code_gen! {
+                if default=>
+
+                #[doc(hidden)]
+                pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
+                    #crate_core::inspector::source_location!()
+                }
+            }
+        }});
     }
 
     let new_idents = FnPriority::all().iter().map(|p| ident!("{p}"));
