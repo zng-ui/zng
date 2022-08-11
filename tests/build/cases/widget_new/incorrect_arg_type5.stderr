@@ -1,5 +1,14 @@
 error[E0308]: mismatched types
-  --> $DIR/incorrect_arg_type5.rs:11:27
+  --> cases/widget_new/incorrect_arg_type5.rs:11:27
    |
 11 |         simple_type = 42, true
-   |                           ^^^^ expected `u32`, found `bool`
+   |                       --  ^^^^ expected `u32`, found `bool`
+   |                       |
+   |                       arguments to this function are incorrect
+   |
+note: associated function defined here
+  --> cases/widget_new/incorrect_arg_type5.rs:4:1
+   |
+4  | #[property(context, allowed_in_when = false)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)

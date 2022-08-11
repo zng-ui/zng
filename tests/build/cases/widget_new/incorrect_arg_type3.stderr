@@ -8,14 +8,14 @@ error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
     |
     = help: the following other types implement trait `IntoVar<T>`:
               <bool as IntoVar<AutoSize>>
+              <bool as IntoVar<BlockWindowLoad>>
               <bool as IntoVar<CaptureMode>>
               <bool as IntoVar<Factor>>
               <bool as IntoVar<FontFeatureState>>
               <bool as IntoVar<FontSynthesis>>
               <bool as IntoVar<HitTestMode>>
               <bool as IntoVar<Interactivity>>
-              <bool as IntoVar<ScrollMode>>
-            and 5 others
+            and 7 others
 note: required by a bound in `background_gradient_ArgsImpl::<T_axis, T_stops>::new`
    --> $WORKSPACE/zero-ui/src/properties/visual.rs
     |

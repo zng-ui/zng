@@ -1,8 +1,16 @@
 error[E0308]: mismatched types
-  --> $DIR/allowed_in_when_validation_back_to_args.rs:14:43
+  --> cases/property/allowed_in_when_validation_back_to_args.rs:14:43
    |
+13 | #[property(context)]
+   | -------------------- arguments to this function are incorrect
 14 | pub fn invalid(child: impl UiNode, value: MyType) -> impl UiNode {
    |                                           ^^^^^^ expected struct `MyType`, found struct `LocalVar`
    |
    = note: expected struct `MyType`
               found struct `LocalVar<bool>`
+note: associated function defined here
+  --> cases/property/allowed_in_when_validation_back_to_args.rs:13:1
+   |
+13 | #[property(context)]
+   | ^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)

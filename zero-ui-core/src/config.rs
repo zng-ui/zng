@@ -93,7 +93,7 @@ type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
 ///     let cfg = Config::req(ctx.services);
 ///
 ///     // load a ConfigSource.
-///     cfg.load(ConfigFile::new("app.config.json", true, 3.secs()));
+///     cfg.load(ConfigFile::new("app.config.json"));
 ///     
 ///     // read the "main.count" config and bind it to a variable.
 ///     let count = cfg.var("main.count", || 0);

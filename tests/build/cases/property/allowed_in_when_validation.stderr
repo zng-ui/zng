@@ -2,7 +2,7 @@ error[E0283]: type annotations needed
    --> cases/property/allowed_in_when_validation.rs:5:44
     |
 5   | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
-    |                                            ^^^^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
+    |                                            ^^^^ cannot infer type of the type parameter `Self` declared on the trait `IntoVar`
     |
     = note: cannot satisfy `_: VarValue`
 note: required by a bound in `allowed_in_when_property_requires_IntoVar_members`
@@ -10,19 +10,27 @@ note: required by a bound in `allowed_in_when_property_requires_IntoVar_members`
     |
     | pub trait IntoVar<T: VarValue>: Clone {
     |                      ^^^^^^^^ required by this bound in `allowed_in_when_property_requires_IntoVar_members`
+help: consider specifying the generic argument
+    |
+5   | pub fn invalid1(child: impl UiNode, value: bool::<T>) -> impl UiNode {
+    |                                                +++++
 
 error[E0283]: type annotations needed
  --> cases/property/allowed_in_when_validation.rs:5:44
   |
 5 | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
-  |                                            ^^^^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
+  |                                            ^^^^ cannot infer type of the type parameter `Self` declared on the trait `IntoVar`
   |
   = note: multiple `impl`s satisfying `bool: IntoVar<_>` found in the following crates: `zero_ui_core`, `zero_ui`:
           - impl IntoVar<AutoSize> for bool;
+          - impl IntoVar<BlockWindowLoad> for bool;
           - impl IntoVar<CaptureMode> for bool;
           - impl IntoVar<Factor> for bool;
-          - impl IntoVar<FontFeatureState> for bool;
-          and 10 more
+          and 12 more
+help: consider specifying the generic argument
+  |
+5 | pub fn invalid1(child: impl UiNode, value: bool::<T>) -> impl UiNode {
+  |                                                +++++
 
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
    --> cases/property/allowed_in_when_validation.rs:12:44
@@ -63,7 +71,7 @@ error[E0277]: the trait bound `LocalVar<<impl invalid2_Args as invalid2_Args>::T
              Option<U>
              PropertyInfoNode
              ViewGenerator<D>::presenter_map::ViewGenVarPresenter<G, S, U, M, V>
-           and 118 others
+           and 122 others
 note: required by a bound in `invalid2_ArgsImpl::<T_value>::new`
   --> cases/property/allowed_in_when_validation.rs:12:49
    |

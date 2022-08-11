@@ -31,7 +31,7 @@ error[E0277]: `NoDebug` doesn't implement `Debug`
              <&'static str as IntoVar<FontNames>>
              <&'static str as IntoVar<GlyphSource>>
              <&'static str as IntoVar<WidgetId>>
-           and 396 others
+           and 404 others
    = note: required because of the requirements on the impl of `VarValue` for `NoDebug`
    = note: required because of the requirements on the impl of `IntoVar<NoDebug>` for `NoDebug`
 help: consider annotating `NoDebug` with `#[derive(Debug)]`
@@ -42,8 +42,16 @@ help: consider annotating `NoDebug` with `#[derive(Debug)]`
 error[E0308]: mismatched types
   --> cases/property/input_no_debug.rs:14:37
    |
+13 | #[property(context)]
+   | -------------------- arguments to this function are incorrect
 14 | pub fn bar(child: impl UiNode, bar: NoDebug) -> impl UiNode {
    |                                     ^^^^^^^ expected struct `NoDebug`, found struct `LocalVar`
    |
    = note: expected struct `NoDebug`
               found struct `LocalVar<NoDebug>`
+note: associated function defined here
+  --> cases/property/input_no_debug.rs:13:1
+   |
+13 | #[property(context)]
+   | ^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)

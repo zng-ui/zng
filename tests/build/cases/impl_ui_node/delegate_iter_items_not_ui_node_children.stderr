@@ -16,7 +16,7 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
               NilUiNode
               Option<U>
               PropertyInfoNode
-            and 119 others
+            and 123 others
 note: required by a bound in `delegate_iter`
    --> $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
@@ -41,7 +41,7 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
               NilUiNode
               Option<U>
               PropertyInfoNode
-            and 119 others
+            and 123 others
 note: required by a bound in `delegate_iter_mut`
    --> $WORKSPACE/zero-ui-core/src/ui_node.rs
     |

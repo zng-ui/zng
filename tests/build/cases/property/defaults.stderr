@@ -26,10 +26,7 @@ error[E0061]: this function takes 2 arguments but 1 argument was supplied
   --> cases/property/defaults.rs:15:28
    |
 15 | #[property(context, default(true))]
-   |                            ^----^
-   |                            ||
-   |                            |supplied 1 argument
-   |                            expected 2 arguments
+   |                            ^^^^^^ an argument is missing
    |
 note: associated function defined here
   --> cases/property/defaults.rs:15:1
@@ -37,15 +34,18 @@ note: associated function defined here
 15 | #[property(context, default(true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: provide the argument
+   |
+15 | #[property(context, default(true)(true, /* value */))]
+   |                            ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 error[E0061]: this function takes 2 arguments but 3 arguments were supplied
   --> cases/property/defaults.rs:27:28
    |
 27 | #[property(context, default(true, 2555, "ABC"))]
-   |                            ^----^^----^^-----^
-   |                            |            |
-   |                            |            supplied 3 arguments
-   |                            expected 2 arguments
+   |                            ^^^^^^^^^^^^^-----^
+   |                                         |
+   |                                         argument unexpected
    |
 note: associated function defined here
   --> cases/property/defaults.rs:27:1
@@ -53,6 +53,10 @@ note: associated function defined here
 27 | #[property(context, default(true, 2555, "ABC"))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: remove the extra argument
+   |
+27 | #[property(context, default(true, 2555, "ABC")(true, 2555))]
+   |                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
   --> cases/property/defaults.rs:39:29
@@ -92,14 +96,14 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
    |
    = help: the following other types implement trait `IntoVar<T>`:
              <bool as IntoVar<AutoSize>>
+             <bool as IntoVar<BlockWindowLoad>>
              <bool as IntoVar<CaptureMode>>
              <bool as IntoVar<Factor>>
              <bool as IntoVar<FontFeatureState>>
              <bool as IntoVar<FontSynthesis>>
              <bool as IntoVar<HitTestMode>>
              <bool as IntoVar<Interactivity>>
-             <bool as IntoVar<ScrollMode>>
-           and 5 others
+           and 7 others
 note: required by a bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:40:90
    |
@@ -146,14 +150,14 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
    |
    = help: the following other types implement trait `IntoVar<T>`:
              <bool as IntoVar<AutoSize>>
+             <bool as IntoVar<BlockWindowLoad>>
              <bool as IntoVar<CaptureMode>>
              <bool as IntoVar<Factor>>
              <bool as IntoVar<FontFeatureState>>
              <bool as IntoVar<FontSynthesis>>
              <bool as IntoVar<HitTestMode>>
              <bool as IntoVar<Interactivity>>
-             <bool as IntoVar<ScrollMode>>
-           and 5 others
+           and 7 others
 note: required by a bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:46:90
    |

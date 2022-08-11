@@ -1,11 +1,35 @@
+error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
+   --> cases/widget_new/missing_field_all_multi.rs:9:31
+    |
+9   |         background_gradient = { }
+    |                               -^^
+    |                               |
+    |                               the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
+    |                               required by a bound introduced by this call
+    |
+    = help: the following other types implement trait `IntoVar<T>`:
+              <(&'static [u8; N], F) as IntoVar<ImageSource>>
+              <(&'static [u8; N], F) as IntoVar<WindowIcon>>
+              <(&'static [u8], F) as IntoVar<ImageSource>>
+              <(&'static [u8], F) as IntoVar<WindowIcon>>
+              <(Arc<Vec<u8>>, F) as IntoVar<ImageSource>>
+              <(Arc<Vec<u8>>, F) as IntoVar<WindowIcon>>
+              <(C, O) as IntoVar<ColorStop>>
+              <(C, O) as IntoVar<zero_ui::prelude::GradientStop>>
+            and 29 others
+note: required by a bound in `background_gradient_ArgsImpl::<T_axis, T_stops>::new`
+   --> $WORKSPACE/zero-ui/src/properties/visual.rs
+    |
+    | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient_ArgsImpl::<T_axis, T_stops>::new`
+
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
    --> cases/widget_new/missing_field_all_multi.rs:9:31
     |
 9   |         background_gradient = { }
-    |                               ^--
-    |                               |
-    |                               supplied 1 argument
-    |                               expected 2 arguments
+    |         ----------------------^
+    |         |
+    |         an argument is missing
     |
 note: associated function defined here
    --> $WORKSPACE/zero-ui/src/properties/visual.rs
@@ -16,3 +40,7 @@ note: associated function defined here
     | | }))]
     | |____^
     = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: provide the argument
+    |
+9   |         {({ }, /* value */) }
+    |         ~~~~~~~~~~~~~~~~~~~
