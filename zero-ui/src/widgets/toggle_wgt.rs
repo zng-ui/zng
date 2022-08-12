@@ -25,17 +25,17 @@ pub mod toggle {
         properties::checked;
 
         /// Toggle cycles between `Some(true)` and `Some(false)` and accepts `None`, if the
-        /// widget is `three_state` also sets to `None` in the toggle cycle.
+        /// widget is `tristate` also sets to `None` in the toggle cycle.
         properties::checked_opt;
 
         /// Enables `None` as an input value.
         ///
-        /// Note that the `None` value is always accepted in `checked_opt`, this property controls if
+        /// Note that `None` is always accepted in `checked_opt`, this property controls if
         /// `None` is one of the values in the toggle cycle. If the widget is bound to the `checked` property
         /// this config is ignored.
         ///
         /// This is not enabled by default.
-        properties::three_state = properties::IsThreeStateVar;
+        properties::tristate = properties::IsTristateVar;
 
         properties::is_checked;
 
@@ -50,9 +50,9 @@ pub mod toggle {
         }
     }
 
-    fn new_context(child: impl UiNode, three_state: impl IntoVar<bool>) -> impl UiNode {
+    fn new_context(child: impl UiNode, tristate: impl IntoVar<bool>) -> impl UiNode {
         // ensure that the context var is set for other contexts.
-        properties::three_state(child, three_state)
+        properties::tristate(child, tristate)
     }
 }
 
@@ -65,7 +65,7 @@ pub mod properties {
         pub struct IsCheckedVar: Option<bool> = Some(false);
 
         /// If toggle button cycles between `None`, `Some(false)` and `Some(true)` on click.
-        pub struct IsThreeStateVar: bool = false;
+        pub struct IsTristateVar: bool = false;
     }
 
     /// Toggle `checked` on click and sets the [`IsCheckedVar`], disables the widget if `checked` is read-only.
@@ -112,7 +112,7 @@ pub mod properties {
 
     /// Three state toggle `checked` on click and sets the [`IsCheckedVar`], disables the widget if `checked` is read-only.
     ///
-    /// Sets to `None` if [`IsThreeStateVar`] is `true`.
+    /// Sets to `None` if [`IsTristateVar`] is `true`.
     #[property(context, default(None))]
     pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
         struct CheckedOptNode<C, B> {
@@ -137,7 +137,7 @@ pub mod properties {
                     {
                         args.propagation().stop();
 
-                        if *IsThreeStateVar::get(ctx) {
+                        if *IsTristateVar::get(ctx) {
                             let _ = self.checked.modify(ctx, |mut c| {
                                 *c = match *c {
                                     Some(true) => None,
@@ -173,9 +173,9 @@ pub mod properties {
     /// Enables `None` as an input on toggle.
     ///
     /// If the toggle button is checking using [`checked_opt`] and this is enabled the toggle cycles between `None`, `Some(false)` and `Some(true)`.
-    #[property(context, default(IsThreeStateVar))]
-    pub fn three_state(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        with_context_var(child, IsThreeStateVar, enabled)
+    #[property(context, default(IsTristateVar))]
+    pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+        with_context_var(child, IsTristateVar, enabled)
     }
 
     /// If [`IsCheckedVar`] is `Some(true)`.

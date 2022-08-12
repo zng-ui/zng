@@ -127,18 +127,18 @@ fn toggle_buttons() -> impl Widget {
                 checked_opt = var(None);
             },
             toggle! {
-                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle: {:?}", s)));
+                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle Tristate: {:?}", s)));
                 checked_opt = var(Some(false));
-                three_state = true;
+                tristate = true;
             },
             checkbox! {
                 content = text("Checkbox");
                 checked = var(false);
             },
             checkbox! {
-                content = text("Checkbox Three State");
+                content = text("Checkbox Tristate");
                 checked_opt = var(Some(false));
-                three_state = true;
+                tristate = true;
             },
         ]
     }

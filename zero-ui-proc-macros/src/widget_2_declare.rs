@@ -1135,7 +1135,7 @@ fn auto_docs(
     if !whens.is_empty() {
         doc_extend!(
             r,
-            "# When Conditions\n\nWhen conditions set by default, more expressions can be set during instantiation."
+            "# When Conditions\n\nWhen conditions set by default, more expressions can be set during instantiation.\n\n<div style='overflow-x: visible;'>\n\n"
         );
         for w in whens {
             doc_extend!(r, "* **`when {}`**\n\n", w.expr);
@@ -1160,6 +1160,7 @@ fn auto_docs(
 
             doc_extend!(r, "\n\n</div>\n\n");
         }
+        doc_extend!(r, "\n\n</div>\n\n");
     }
 
     r
@@ -1172,7 +1173,7 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
 
     properties.sort_by(|a, b| a.ident.cmp(&b.ident));
 
-    doc_extend!(r, "# {}\n\n<div>\n\n", name);
+    doc_extend!(r, "# {}\n\n<div style='overflow-x: visible;'>\n\n", name);
     for p in properties {
         let path = p.path.to_string().replace(' ', "").replace('$', "");
         if p.inherited {
