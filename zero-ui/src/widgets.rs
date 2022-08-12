@@ -49,7 +49,7 @@ pub use switch_wgt::switch;
 
 mod text_wgt;
 #[doc(inline)]
-pub use text_wgt::{em, strong, text};
+pub use text_wgt::{em, strong, text, text_input};
 
 mod toggle_wgt;
 #[doc(inline)]

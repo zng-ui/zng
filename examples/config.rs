@@ -26,6 +26,7 @@ fn app_main() {
 
         let checked = cfg.var("main.checked", || false);
         let count = cfg.var("main.count", || 0);
+        let txt = cfg.var("main.txt", || "Save this".to_text());
         let status = cfg.status();
 
         trace_status(ctx.vars, &status);
@@ -58,11 +59,17 @@ fn app_main() {
                         })
                     },
                     separator(),
+                    text_input! {
+                        text = txt.clone();
+                        min_width = 100;
+                    },
+                    separator(),
                     button! {
                         content = text("Reset");
                         on_click = hn!(|ctx, _| {
                             checked.set_ne(ctx, false).unwrap();
                             count.set_ne(ctx, 0).unwrap();
+                            txt.set_ne(ctx, "Save this").unwrap();
                         })
                     },
                     button! {

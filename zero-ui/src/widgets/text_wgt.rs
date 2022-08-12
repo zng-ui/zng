@@ -234,3 +234,300 @@ mod em {
 pub fn em(text: impl IntoVar<Text> + 'static) -> impl Widget {
     em! { text; }
 }
+
+/// Text box widget.
+#[widget($crate::widgets::text_input)]
+pub mod text_input {
+    use super::*;
+
+    inherit!(super::text);
+
+    properties! {
+        editable = true;
+
+        /// Text input background color.
+        background_color = theme::BackgroundColorVar;
+
+        /// Text input border.
+        border = {
+            widths: theme::BorderWidthsVar,
+            sides: theme::BorderSidesVar,
+        };
+
+        /// Text input corner radius.
+        corner_radius = theme::CornerRadiusVar;
+
+        /// Enabled by default.
+        ///
+        /// Blocks pointer interaction with other widgets while the text input is pressed.
+        capture_mouse = true;
+
+        /// Content padding.
+        padding = theme::PaddingVar;
+
+        /// Text input cursor.
+        cursor = theme::CursorIconVar;
+
+        /// Enables keyboard focusing in the widget.
+        focusable = true;
+
+        /// When the pointer device is over this text input.
+        when self.is_cap_hovered {
+            background_color = theme::hovered::BackgroundColorVar;
+            border = {
+                widths: theme::BorderWidthsVar,
+                sides: theme::hovered::BorderSidesVar,
+            };
+            text_color = theme::hovered::TextColorVar;
+        }
+
+        /// When this text input has keyboard input.
+        when self.is_focused {
+            background_color = theme::focused::BackgroundColorVar;
+            border = {
+                widths: theme::BorderWidthsVar,
+                sides: theme::focused::BorderSidesVar,
+            };
+            text_color = theme::focused::TextColorVar;
+        }
+
+        /// When the text input is disabled.
+        when self.is_disabled {
+            background_color = theme::disabled::BackgroundColorVar;
+            border = {
+                widths: theme::BorderWidthsVar,
+                sides: theme::disabled::BorderSidesVar,
+            };
+            text_color = theme::disabled::TextColorVar;
+            cursor = theme::disabled::CursorIconVar;
+        }
+    }
+
+    /// Context variables and properties that affect the text input appearance from parent widgets.
+    pub mod theme {
+        use super::*;
+
+        context_var! {
+            /// Text input background color.
+            ///
+            /// Use the [`text_input::theme::background_color`] property to set.
+            ///
+            /// [`text_input::theme::background_color`]: fn@background_color
+            pub struct BackgroundColorVar: Rgba = rgb(0.1, 0.1, 0.1);
+
+            /// Text input border widths.
+            ///
+            /// Use the [`text_input::theme::border`] property to set.
+            ///`text_input
+            /// [`text_input::theme::border`]: fn@border
+            pub struct BorderWidthsVar: SideOffsets = SideOffsets::new_all(1);
+            /// Text input border sides.
+            ///
+            /// Use the [`text_input::theme::border`] property to set.
+            ///
+            /// [`text_input::theme::border`]: fn@border
+            pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.3, 0.3, 0.3));
+            /// Text input corner radius.
+            ///
+            /// Use the [`text_input::theme::corner_radius`] property to set.
+            ///
+            /// [`text_input::theme::corner_radius`]: fn@corner_radius
+            pub struct CornerRadiusVar: CornerRadius = CornerRadius::new_all(2);
+
+            /// Text input padding.
+            ///
+            /// Use the [`text_input::theme::padding`] property to set.
+            ///
+            /// [`text_input::theme::border`]: fn@border
+            pub struct PaddingVar: SideOffsets = SideOffsets::new(7, 15, 7, 15);
+
+            /// Text input cursor icon.
+            ///
+            /// Use the [`text_input::theme::cursor`] property to set.
+            ///
+            /// Default is [`CursorIcon::Default`].
+            pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::Text);
+        }
+
+        /// Sets the [`BackgroundColorVar`] that affects all buttons inside the widget.
+        #[property(context, default(BackgroundColorVar))]
+        pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+            with_context_var(child, BackgroundColorVar, color)
+        }
+
+        /// Sets the [`BorderWidthsVar`], [`BorderSidesVar`] that affects all buttons inside the widget.
+        #[property(context, default(BorderWidthsVar, BorderSidesVar))]
+        pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+            let child = with_context_var(child, BorderWidthsVar, widths);
+            with_context_var(child, BorderSidesVar, sides)
+        }
+
+        /// Sets the [`CornerRadiusVar`] that affects all buttons inside the widget.
+        #[property(context, default(CornerRadiusVar))]
+        pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
+            with_context_var(child, CornerRadiusVar, radius)
+        }
+
+        /// Sets the [`PaddingVar`] that affects all buttons inside the widget.
+        #[property(context, default(PaddingVar))]
+        pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+            with_context_var(child, PaddingVar, padding)
+        }
+
+        /// Sets the [`CursorIconVar`] that affects all buttons inside the widget.
+        #[property(context, default(CursorIconVar))]
+        pub fn cursor(child: impl UiNode, align: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
+            with_context_var(child, CursorIconVar, align)
+        }
+
+        /// Pointer hovered values.
+        pub mod hovered {
+            use super::*;
+
+            context_var! {
+                /// Hovered text input background color.
+                ///
+                /// Use the [`text_input::theme::hovered::background_color`] property to set.
+                ///
+                /// [`text_input::theme::hovered::background_color`]: fn@background_color
+                pub struct BackgroundColorVar: Rgba = rgb(0.1, 0.1, 0.1);
+
+                /// Hovered text input border sides.
+                ///
+                /// Use the [`text_input::theme::hovered::border_sides`] property to set.
+                ///
+                /// [`text_input::theme::hovered::border_sides`]: fn@border_sides
+                pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.4, 0.4, 0.4));
+
+                /// Hovered text input text color.
+                ///
+                /// Use the [`text_input::theme::hovered::text_color`] property to set.
+                ///
+                /// [`text_input::theme::hovered::text_color`]: fn@text_color
+                pub struct TextColorVar: Rgba = colors::WHITE;
+            }
+
+            /// Sets the hovered [`BackgroundColorVar`] that affects all buttons inside the widget.
+            #[property(context, default(BackgroundColorVar))]
+            pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, BackgroundColorVar, color)
+            }
+
+            /// Sets the hovered [`BorderSidesVar`] that affects all buttons inside the widget.
+            #[property(context, default(BorderSidesVar))]
+            pub fn border_sides(child: impl UiNode, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+                with_context_var(child, BorderSidesVar, sides)
+            }
+
+            /// Sets the hovered [`TextColorVar`] that affects all texts inside buttons inside the widget.
+            #[property(context, default(TextColorVar))]
+            pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, TextColorVar, color)
+            }
+        }
+
+        /// Focused values.
+        pub mod focused {
+            use super::*;
+
+            context_var! {
+                /// Hovered text input background color.
+                ///
+                /// Use the [`text_input::theme::hovered::background_color`] property to set.
+                ///
+                /// [`text_input::theme::hovered::background_color`]: fn@background_color
+                pub struct BackgroundColorVar: Rgba = rgb(0.1, 0.1, 0.1);
+
+                /// Hovered text input border sides.
+                ///
+                /// Use the [`text_input::theme::hovered::border_sides`] property to set.
+                ///
+                /// [`text_input::theme::hovered::border_sides`]: fn@border_sides
+                pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.6, 0.6, 0.6));
+
+                /// Hovered text input text color.
+                ///
+                /// Use the [`text_input::theme::hovered::text_color`] property to set.
+                ///
+                /// [`text_input::theme::hovered::text_color`]: fn@text_color
+                pub struct TextColorVar: Rgba = colors::WHITE;
+            }
+
+            /// Sets the focused [`BackgroundColorVar`] that affects all buttons inside the widget.
+            #[property(context, default(BackgroundColorVar))]
+            pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, BackgroundColorVar, color)
+            }
+
+            /// Sets the focused [`BorderSidesVar`] that affects all buttons inside the widget.
+            #[property(context, default(BorderSidesVar))]
+            pub fn border_sides(child: impl UiNode, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+                with_context_var(child, BorderSidesVar, sides)
+            }
+
+            /// Sets the focused [`TextColorVar`] that affects all texts inside buttons inside the widget.
+            #[property(context, default(TextColorVar))]
+            pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, TextColorVar, color)
+            }
+        }
+
+        /// Text input disabled values.
+        pub mod disabled {
+            use super::*;
+
+            context_var! {
+                /// Disabled text input background color.
+                ///
+                /// Use the [`text_input::theme::disabled::background_color`] property to set.
+                ///
+                /// [`text_input::theme::disabled::background_color`]: fn@background_color
+                pub struct BackgroundColorVar: Rgba = rgb(0.1, 0.1, 0.1);
+                /// Disabled text input border sides.
+                ///
+                /// Use the [`text_input::theme::disabled::border`] property to set.
+                ///
+                /// [`text_input::theme::disabled::border`]: fn@border
+                pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.2, 0.2, 0.2));
+
+                /// Disabled text input text color.
+                ///
+                /// Use the [`text_input::theme::disabled::text_color`] property to set.
+                ///
+                /// [`text_input::theme::disabled::text_color`]: fn@text_color
+                pub struct TextColorVar: Rgba = colors::WHITE.darken(40.pct());
+
+                /// Disabled text input cursor icon.
+                ///
+                /// Use the [`text_input::theme::disabled::cursor`] property to set.
+                ///
+                /// Default is [`CursorIcon::NotAllowed`], meaning the parent cursor is used.
+                pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::NotAllowed);
+            }
+
+            /// Sets the disabled [`BackgroundColorVar`] that affects all buttons inside the widget.
+            #[property(context, default(BackgroundColorVar))]
+            pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, BackgroundColorVar, color)
+            }
+
+            /// Sets the disabled [`BorderSidesVar`] that affects all buttons inside the widget.
+            #[property(context, default(BorderSidesVar))]
+            pub fn border_sides(child: impl UiNode, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+                with_context_var(child, BorderSidesVar, sides)
+            }
+
+            /// Sets the disabled [`TextColorVar`] that affects all texts inside buttons inside the widget.
+            #[property(context, default(TextColorVar))]
+            pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+                with_context_var(child, TextColorVar, color)
+            }
+
+            /// Sets the disabled [`CursorIconVar`] that affects all buttons inside the widget.
+            #[property(context, default(CursorIconVar))]
+            pub fn cursor(child: impl UiNode, align: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
+                with_context_var(child, CursorIconVar, align)
+            }
+        }
+    }
+}
