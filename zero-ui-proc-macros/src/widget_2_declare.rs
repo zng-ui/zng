@@ -1189,7 +1189,7 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
         doc_extend!(r, "<div class='docblock'>\n\n");
 
         if p.docs.is_empty() {
-            doc_extend!(r, "<span data-fetch-docs></span>");
+            doc_extend!(r, "<span data-fetch-docs='{}'></span>", p.ident);
         } else {
             r.extend(p.docs);
         }

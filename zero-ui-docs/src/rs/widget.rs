@@ -216,6 +216,8 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
     let inner_html = Regex::new(r#"<!-- COPY \s*((?s).+?)\s* -->"#).unwrap();
     let inner_html = &inner_html.captures(&docs_html).unwrap()[1];
 
+    let mut summaries = HashMap::new();
+
     // matches:
     // <ul>\n<li><span id='{id}' class='wp-title'><strong><a href="{href}"><code>{name}</code></a></strong></span></li>\n</ul>
     let property_titles = Regex::new(r##"(?s)<ul>\s*<li><span id='(?P<id>[a-z\-_]+)' class='wp-title'><strong><a href="(?P<href>[\./a-z#\-_@]+)"><code>(?P<name>[a-z_]+)</code></a></strong></span></li>\s*</ul>"##).unwrap();
@@ -225,13 +227,15 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
         let name = &caps["name"];
 
         let mut prop_types = String::new();
+
         if let Some(pfn_file) = resolve_property_href(file, href) {
             if let Ok(pfn_html) = fs::read_to_string(&pfn_file) {
                 let base_path = file.parent().unwrap();
                 let pfn_base_path = pfn_file.parent().unwrap();
+                let found_summary = Cell::new(false);
                 let pfn_html = super::util::rewrite_html(&pfn_html, vec![
                     lol_html::element!("pre.rust.fn code", |code| {
-                        code.prepend("<!-- COPY ", ContentType::Html);
+                        code.prepend("<!-- CODE ", ContentType::Html);
                         code.append(" -->", ContentType::Html);
                         Ok(())
                     }),
@@ -245,12 +249,23 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
                             }
                         }
                         Ok(())
+                    }),
+                    // summary + .docblock p
+                    lol_html::element!("summary", |_| {
+                        found_summary.set(true);
+                        Ok(())
+                    }),
+                    lol_html::element!(".docblock p", |code| {
+                        if found_summary.take() {
+                            code.prepend("<!-- SUMMARY ", ContentType::Html);
+                            code.append(" -->", ContentType::Html);
+                        }                        
+                        Ok(())
                     })
                 ]).unwrap();
 
-                let copy = Regex::new(r"<!-- COPY \s*((?s).+?)\s* -->").unwrap();
-
-                let code_inner_html = &copy.captures(&pfn_html).unwrap()[1];
+                let code = Regex::new(r"<!-- CODE \s*((?s).+?)\s* -->").unwrap();
+                let code_inner_html = &code.captures(&pfn_html).unwrap()[1];
 
                 if let Some((before_eq, after_eq)) = code_inner_html.split_once('=') {
                     let valid_prop = Regex::new(r#"^\s*(pub(\(\w+\))?)?\s+\w+\s*$"#).unwrap();
@@ -258,6 +273,11 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
                         prop_types.push_str(" = ");
                         prop_types.push_str(after_eq.trim_start());
                     }
+                }
+
+                let summary = Regex::new(r"<!-- SUMMARY \s*((?s).+?)\s* -->").unwrap();
+                if let Some(summary) = summary.captures(&pfn_html).map(|c| c[1].to_owned()) {
+                    summaries.insert(name.to_owned(), summary);
                 }
             }
         }
@@ -268,6 +288,16 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
         }
 
         format!(r##"<h3 id="{id}" class="wp-title variant small-section-header" style="overflow-x:visible;"><a href="#{id}" class="anchor field"></a><code style="background-color:transparent;"><a href="{href}">{name}</a>{prop_types}</code></h3>"##)
+    });
+    let inner_html = inner_html.as_ref();
+
+    // matches:
+    // <span data-fetch-docs='{name}'></span>
+    let summary_fetch = Regex::new(r##"<span data-fetch-docs='(?P<name>[a-z_]+)'></span>"##).unwrap();
+    let inner_html = summary_fetch.replace_all(inner_html, |caps: &regex::Captures| {
+        let name = &caps["name"];
+
+        summaries.remove(name).unwrap_or_default()
     });
     let inner_html = inner_html.as_ref();
 
