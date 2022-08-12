@@ -53,7 +53,7 @@ pub use text_wgt::{em, strong, text};
 
 mod toggle_wgt;
 #[doc(inline)]
-pub use toggle_wgt::toggle;
+pub use toggle_wgt::{checkbox, toggle};
 
 mod view;
 #[doc(inline)]

@@ -12,13 +12,15 @@ use crate::prelude::new_widget::*;
 pub mod toggle {
     use super::*;
 
-    pub use super::properties;
+    pub use super::properties::{self, IsCheckedVar};
 
     inherit!(crate::widgets::button);
 
     use crate::widgets::button::theme;
 
     properties! {
+        remove { on_click }
+
         /// Toggle cycles between `true` and `false`, updating the variable.
         properties::checked;
 
@@ -180,5 +182,26 @@ pub mod properties {
     #[property(event)]
     pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
         bind_state(child, IsCheckedVar::new().map(|s| *s == Some(true)), state)
+    }
+}
+
+/// A checkbox toggle.
+#[widget($crate::widgets::checkbox)]
+pub mod checkbox {
+    inherit!(super::toggle);
+
+    pub use super::toggle::IsCheckedVar;
+
+    use super::*;
+
+    properties! {
+        remove { background_color; border }
+
+        content_align = Align::LEFT;
+        padding = 0;
+    }
+
+    fn new_child(content: impl UiNode) -> impl UiNode {
+        content
     }
 }

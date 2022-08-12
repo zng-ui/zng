@@ -1172,7 +1172,7 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
 
     properties.sort_by(|a, b| a.ident.cmp(&b.ident));
 
-    doc_extend!(r, "# {}\n\n", name);
+    doc_extend!(r, "# {}\n\n<div>\n\n", name);
     for p in properties {
         let path = p.path.to_string().replace(' ', "").replace('$', "");
         if p.inherited {
@@ -1200,6 +1200,7 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
 
         doc_extend!(r, "\n\n");
     }
+    doc_extend!(r, "\n\n</div>\n\n");
 }
 
 struct Items {

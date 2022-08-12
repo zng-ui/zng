@@ -115,34 +115,31 @@ fn separator() -> impl Widget {
 }
 
 fn toggle_buttons() -> impl Widget {
-    fn show_checked() -> impl Widget {
-        text! {
-            text = toggle::properties::IsCheckedVar::new().map(|v| formatx!("{v:?}"));
-            font_family = "monospace";
-            font_size = 10;
-            align = Align::TOP_RIGHT;
-        }
-    }
-
     v_stack! {
         spacing = 5;
         items = widgets![
             toggle! {
-                content = text("Toggle Button 1");
+                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle: {:?}", s.unwrap())));
                 checked = var(false);
-                background = show_checked();
             },
             toggle! {
-                content = text("Toggle Button 2");
+                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(None);
-                background = show_checked();
             },
             toggle! {
-                content = text("Three Toggle Button");
+                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(Some(false));
                 three_state = true;
-                background = show_checked();
-            }
+            },
+            checkbox! {
+                content = text("Checkbox");
+                checked = var(false);
+            },
+            checkbox! {
+                content = text("Checkbox Three State");
+                checked_opt = var(Some(false));
+                three_state = true;
+            },
         ]
     }
 }

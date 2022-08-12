@@ -49,6 +49,17 @@ macro_rules! include_js {
         )
     };
 }
+macro_rules! include_css {
+    ($name:tt) => {
+        concat!(
+            "<style data-zero-ui-dyn='",
+            $name,
+            "'>",
+            include_str!(concat!(env!("OUT_DIR"), "/css_min/", $name)),
+            "</style>"
+        )
+    };
+}
 
 /// Aggregate all dynamic customization scripts in a HTML snippet that can be written to a file
 /// and used as the `--html-in-header`.
@@ -57,7 +68,8 @@ pub fn html() -> &'static str {
         include_js!("macro.js"),
         include_js!("property.js"),
         include_js!("widget.js"),
-        include_js!("sidebar.js")
+        include_js!("sidebar.js"),
+        include_css!("widget.css"),
     )
 }
 
