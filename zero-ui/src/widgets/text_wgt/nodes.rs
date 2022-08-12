@@ -786,6 +786,42 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     RenderOverlineNode { child: child.cfg_boxed() }.cfg_boxed()
 }
 
+/// An Ui node that renders the edit caret visual.
+///
+/// The caret is rendered after `child`, over it.
+///
+/// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
+pub fn render_caret(child: impl UiNode) -> impl UiNode {
+    struct RenderCaretNode<C> {
+        child: C,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode> UiNode for RenderCaretNode<C> {
+        // subscriptions are handled by the `editable` property node.
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if TextEditableVar::is_new(ctx) {
+                ctx.updates.render();
+            }
+
+            self.child.update(ctx);
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.child.render(ctx, frame);
+
+            if *TextEditableVar::get(ctx) {
+                frame.push_line(
+                    PxRect::from_size(PxSize::new(Px(1), Px(30))),
+                    LineOrientation::Vertical,
+                    colors::WHITE.into(),
+                    LineStyle::Solid,
+                );
+            }
+        }
+    }
+    RenderCaretNode { child }
+}
+
 /// An UI node that renders the parent [`LayoutText`].
 ///
 /// This node renders the text only, decorators are rendered by other nodes.

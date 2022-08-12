@@ -138,6 +138,7 @@ pub mod text {
 
     fn new_child() -> impl UiNode {
         let child = nodes::render_text();
+        let child = nodes::render_caret(child);
         let child = nodes::render_overlines(child);
         let child = nodes::render_strikethroughs(child);
         nodes::render_underlines(child)
