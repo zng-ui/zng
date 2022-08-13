@@ -1,6 +1,9 @@
 # Themes TODO
 
-* Test `theme` and `themable`.
+* The `theme!` init is not working, call to init does not go in.
+    - Is there a way to implement this without messing with the widget_new macro?
+        - Can we init the nodes as the widget is inited?
+
 * Create a `theme_mixin` using doc-hidden properties, can it work? Need to review mixin priority.
 * Implement a `button_theme` that inherits from `theme`.
 
