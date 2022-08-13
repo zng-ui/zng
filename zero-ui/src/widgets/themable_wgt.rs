@@ -175,6 +175,17 @@ pub mod themable {
 
     use implicit_base::nodes as base_nodes;
 
+    properties! {
+        /// Theme generator used for the widget.
+        /// 
+        /// Properties and `when` conditions in the generated theme are applied to the widget as
+        /// if they where set on it. Note that changing the theme causes the widget info tree to rebuild,
+        /// prefer property binding and `when` conditions to cause visual changes that happen often.
+        ///
+        /// Is `nil` by default.
+        theme(impl IntoVar<ThemeGenerator>) = ThemeGenerator::nil();
+    }
+
     fn new_child_layout(child: impl UiNode) -> impl UiNode {
         let child = nodes::insert_child_layout(child);
         base_nodes::child_layout(child)
@@ -205,12 +216,12 @@ pub mod themable {
         nodes::insert_event(child)
     }
 
-    fn new_context(child: impl UiNode) -> impl UiNode {
+    fn new_context(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
         let child = nodes::insert_context(child);
-        nodes::generate_themes(child, ThemeVar)
+        nodes::generate_theme(child, theme)
     }
 
-    pub use super::{nodes, ThemeVar, Themes};
+    pub use super::nodes;
 }
 
 struct ThemePriority {
@@ -265,97 +276,67 @@ impl Theme {
 
 /// Boxed shared closure that generates a theme instance for a given widget context.
 #[derive(Clone)]
-pub struct ThemeGenerator(Rc<dyn Fn(&mut InfoContext) -> Option<Theme>>);
+pub struct ThemeGenerator(Option<Rc<dyn Fn(&mut WidgetContext) -> Theme>>);
 impl Default for ThemeGenerator {
     fn default() -> Self {
         Self::nil()
     }
 }
 impl ThemeGenerator {
-    /// Default generator, never produces a theme.
+    /// Default generator, produces an empty theme.
     pub fn nil() -> Self {
-        Self::new(|_| None)
+        Self(None)
     }
 
-    /// New theme generator, the `generate` closure is called for each potential themable widget, if it returns some
-    /// theme it is applied on the themable.
-    pub fn new(generate: impl Fn(&mut InfoContext) -> Option<Theme> + 'static) -> Self {
-        Self(Rc::new(generate))
+    /// If this generator produces an empty theme.
+    pub fn is_nil(&self) -> bool {
+        self.0.is_none()
+    }
+
+    /// New theme generator, the `generate` closure is called for each themable widget, before the widget is inited.
+    pub fn new(generate: impl Fn(&mut WidgetContext) -> Theme + 'static) -> Self {
+        Self(Some(Rc::new(generate)))
     }
 
     /// Generate a theme for the themable widget in the context.
     ///
-    /// Returns `None` if no theme is provided for the widget.
-    pub fn generate(&self, ctx: &mut InfoContext) -> Option<Theme> {
-        (self.0)(ctx)
+    /// Returns `None` if [`is_nil`], otherwise returns the theme.
+    pub fn generate(&self, ctx: &mut WidgetContext) -> Option<Theme> {
+        if let Some(generate) = &self.0 {
+            let mut theme = generate(ctx);
+            theme.init(ctx);
+            Some(theme)
+        } else {
+            None
+        }
     }
 }
 impl fmt::Debug for ThemeGenerator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ThemeGenerator(Rc<dyn Fn(&mut InfoContext) -> Option<Theme>>)")
+        write!(f, "ThemeGenerator(_)")
     }
 }
 
 context_var! {
-    /// Theme generators available in a context.
-    ///
-    /// Note that themable widgets can have custom theme tracking vars.
-    pub struct ThemeVar: Vec<ThemeGenerator> = vec![];
-
-    struct ActualThemesVar: ActualThemes = ActualThemes::default();
+    struct ActualThemeVar: ActualTheme = ActualTheme::default();
 }
 
-#[derive(Debug, Default)]
-struct ActualThemes {
-    themes: Themes,
+#[derive(Default)]
+struct ActualTheme {
+    widget_id: Option<WidgetId>,
+    theme: Option<Theme>,
 }
-impl Clone for ActualThemes {
+impl Clone for ActualTheme {
     fn clone(&self) -> Self {
         // need clone to be `VarValue`, but we only use this type in
         // `ActualThemesVar` that we control and don't clone.
         unreachable!()
     }
 }
-
-/// Themes instances generated for an widget.
-pub struct Themes {
-    widget_id: Option<WidgetId>,
-    themes: Vec<Theme>,
-}
-impl Default for Themes {
-    fn default() -> Self {
-        Themes::new()
-    }
-}
-impl Themes {
-    /// New default empty.
-    pub fn new() -> Themes {
-        Themes {
-            widget_id: None,
-            themes: vec![],
-        }
-    }
-
-    /// Themable widget that is applying these themes.
-    pub fn widget_id(&self) -> Option<WidgetId> {
-        self.widget_id
-    }
-
-    /// If any theme was generated for the widget.
-    pub fn is_any(&self) -> bool {
-        self.themes.is_empty()
-    }
-
-    /// Gets the themes selected for the themable context.
-    pub fn get(vars: &impl AsRef<VarsRead>) -> &Themes {
-        &ActualThemesVar::get(vars).themes
-    }
-}
-impl fmt::Debug for Themes {
+impl fmt::Debug for ActualTheme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Themes")
+        f.debug_struct("ActualTheme")
             .field("widget_id", &self.widget_id)
-            .field("is_any", &self.is_any())
             .finish_non_exhaustive()
     }
 }
@@ -363,25 +344,6 @@ impl fmt::Debug for Themes {
 /// Nodes for building themable widgets.
 pub mod nodes {
     use super::*;
-
-    /// Merge the `theme` into the `themes` context.
-    ///
-    /// The `themes` can be the [`ThemeVar`] or a custom var.
-    pub fn merge_theme<T: ContextVar<Type = Vec<ThemeGenerator>>>(
-        child: impl UiNode,
-        themes: T,
-        theme: impl IntoVar<ThemeGenerator>,
-    ) -> impl UiNode {
-        with_context_var(
-            child,
-            themes,
-            merge_var!(T::new(), theme.into_var(), |themes, theme| {
-                let mut themes = themes.clone();
-                themes.push(theme.clone());
-                themes
-            }),
-        )
-    }
 
     macro_rules! insert_node {
         ($Node:ident { $wgt_child:ident, $priority:ident, }) => {
@@ -394,11 +356,12 @@ pub mod nodes {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     debug_assert!(self.wgt_child.is_none());
 
-                    let t = Themes::get(ctx.vars);
-                    if t.widget_id == Some(ctx.path.widget_id()) {
-                        // widget is themed, splice in theme properties
-                        for t in &t.themes {
-                            let t = &t.theme.$priority;
+                    let t = ActualThemeVar::get(ctx.vars);
+                    if let (Some(id), Some(theme)) = (t.widget_id, &t.theme) {
+                        if id == ctx.path.widget_id() {
+                            // widget is themed, insert the theme
+
+                            let t = &theme.theme.$priority;
 
                             if let Some(properties) = t.properties.borrow_mut().take() {
                                 // child becomes the properties
@@ -406,10 +369,8 @@ pub mod nodes {
                                 // prev_child becomes the theme child
                                 *t.child.borrow_mut() = prev_child;
 
-                                if self.wgt_child.is_none() {
-                                    // preserve the original widget child so that we can remove the theme on deinit.
-                                    self.wgt_child = Some(t.child.clone());
-                                }
+                                // preserve the original widget child so that we can remove the theme on deinit.
+                                self.wgt_child = Some(t.child.clone());
                             }
                         }
                     }
@@ -513,58 +474,32 @@ pub mod nodes {
         }
     }
 
-    /// Generate the themes for the widget.
-    ///
-    /// The `themes` can be the [`ThemeVar`] or a custom var. This node (re)init the `child` with
-    /// the theme instances available in [`Themes`] every time the `themes` updates.
-    pub fn generate_themes<T: ContextVar<Type = Vec<ThemeGenerator>>>(child: impl UiNode, themes: T) -> impl UiNode {
-        let _ = themes;
-
-        struct ThemableContextNode<C, T>
-        where
-            T: ContextVar<Type = Vec<ThemeGenerator>>,
-        {
+    /// Generate the theme for the widget.
+    pub fn generate_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        struct ThemableContextNode<C, T> {
             child: C,
-            themes: ContextVarProxy<T>,
-            actual_themes: ActualThemes,
+            theme: T,
+            actual_theme: ActualTheme,
         }
-        impl<C, T> ThemableContextNode<C, T>
-        where
-            C: UiNode,
-            T: ContextVar<Type = Vec<ThemeGenerator>>,
-        {
+        impl<C, T> ThemableContextNode<C, T> {
             fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-                vars.with_context_var(ActualThemesVar, ContextVarData::fixed(&self.actual_themes), || f(&mut self.child))
+                vars.with_context_var(ActualThemeVar, ContextVarData::fixed(&self.actual_theme), || f(&mut self.child))
             }
 
             fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&C) -> R) -> R {
-                vars.with_context_var(ActualThemesVar, ContextVarData::fixed(&self.actual_themes), || f(&self.child))
+                vars.with_context_var(ActualThemeVar, ContextVarData::fixed(&self.actual_theme), || f(&self.child))
             }
         }
         impl<C, T> UiNode for ThemableContextNode<C, T>
         where
             C: UiNode,
-            T: ContextVar<Type = Vec<ThemeGenerator>>,
+            T: Var<ThemeGenerator>,
         {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                let themes = self.themes.get(ctx.vars);
-                let mut info = ctx.as_info();
-                let mut ts = vec![];
-                for theme in themes {
-                    if let Some(t) = theme.generate(&mut info) {
-                        ts.push(t);
-                    }
-                }
-                self.actual_themes = ActualThemes {
-                    themes: Themes {
-                        widget_id: Some(ctx.path.widget_id()),
-                        themes: ts,
-                    },
+                self.actual_theme = ActualTheme {
+                    widget_id: Some(ctx.path.widget_id()),
+                    theme: self.theme.get(ctx.vars).generate(ctx),
                 };
-
-                for t in &mut self.actual_themes.themes.themes {
-                    t.init(ctx);
-                }
 
                 self.with_mut(ctx.vars, |c| {
                     c.init(ctx);
@@ -575,7 +510,7 @@ pub mod nodes {
                 self.with_mut(ctx.vars, |c| {
                     c.deinit(ctx);
                 });
-                self.actual_themes = ActualThemes::default();
+                self.actual_theme = ActualTheme::default();
             }
 
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -585,7 +520,7 @@ pub mod nodes {
             }
 
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.var(ctx, &self.themes);
+                subs.var(ctx, &self.theme);
 
                 self.with(ctx.vars, |c| {
                     c.subscriptions(ctx, subs);
@@ -599,22 +534,19 @@ pub mod nodes {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
-                if let Some(themes) = self.themes.get_new(ctx.vars) {
-                    let mut info = ctx.as_info();
-                    let mut ts = vec![];
-                    for theme in themes {
-                        if let Some(t) = theme.generate(&mut info) {
-                            ts.push(t);
-                        }
-                    }
-                    self.actual_themes = ActualThemes {
-                        themes: Themes {
-                            widget_id: Some(ctx.path.widget_id()),
-                            themes: ts,
-                        },
+                if let Some(theme) = self.theme.get_new(ctx.vars) {
+                    let actual_theme = ActualTheme {
+                        widget_id: Some(ctx.path.widget_id()),
+                        theme: theme.generate(ctx),
                     };
 
-                    todo!("(re)init");
+                    if self.actual_theme.theme.is_some() || actual_theme.theme.is_some() {
+                        self.child.deinit(ctx);
+                        self.actual_theme = actual_theme;
+                        self.child.init(ctx);
+
+                        ctx.updates.info_layout_and_render();
+                    }
                 } else {
                     self.with_mut(ctx.vars, |c| {
                         c.update(ctx);
@@ -641,8 +573,8 @@ pub mod nodes {
 
         ThemableContextNode {
             child,
-            themes: T::new(),
-            actual_themes: ActualThemes::default(),
+            theme: theme.into_var(),
+            actual_theme: ActualTheme::default(),
         }
     }
 }
