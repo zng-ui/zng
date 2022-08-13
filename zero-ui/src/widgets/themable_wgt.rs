@@ -48,10 +48,7 @@ pub mod theme {
                 child: Rc<RefCell<BoxedUiNode>>,
                 properties: Option<BoxedUiNode>,
             }
-            #[impl_ui_node(
-                            delegate = self.child.borrow(),
-                            delegate_mut = self.child.borrow_mut(),
-                        )]
+            #[impl_ui_node(delegate = self.child.borrow(), delegate_mut = self.child.borrow_mut())]
             impl UiNode for $Node {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     if let Some(theme) = ctx.widget_state.get_mut(ThemeKey) {

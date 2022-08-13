@@ -810,12 +810,16 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render(ctx, frame);
 
             if *TextEditableVar::get(ctx) {
-                frame.push_line(
-                    PxRect::from_size(PxSize::new(Px(1), Px(30))),
-                    LineOrientation::Vertical,
-                    colors::WHITE.into(),
-                    LineStyle::Solid,
-                );
+                let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
+                let mut clip_rect = t.shaped_text.align_box();
+                clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
+                clip_rect.size.height = t.shaped_text.line_height();
+
+                let padding = t.shaped_text.padding();
+                clip_rect.origin.x += padding.left;
+                clip_rect.origin.y += padding.top;
+
+                frame.push_line(clip_rect, LineOrientation::Vertical, colors::WHITE.into(), LineStyle::Solid);
             }
         }
     }

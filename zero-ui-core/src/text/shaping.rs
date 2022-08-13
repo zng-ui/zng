@@ -413,7 +413,7 @@ impl ShapedText {
 
     /// Reshape text.
     ///
-    /// The `align_box` closure is called with the up-to-date [`box_size`] to produce the the container rect where the
+    /// The `align_box` closure is called with the up-to-date [`box_size`] to produce the container rect where the
     /// text is aligned.
     ///
     /// Glyphs are moved, including the `align_box.origin`, the [`size`] only changes for rewrap.
