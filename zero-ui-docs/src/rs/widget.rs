@@ -259,7 +259,7 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
                         if found_summary.take() {
                             code.prepend("<!-- SUMMARY ", ContentType::Html);
                             code.append(" -->", ContentType::Html);
-                        }                        
+                        }
                         Ok(())
                     })
                 ]).unwrap();

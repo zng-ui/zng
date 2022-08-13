@@ -23,6 +23,9 @@ pub use rc_node::*;
 mod instrument;
 pub use instrument::InstrumentedNode;
 
+mod adoptive;
+pub use adoptive::*;
+
 unique_id_64! {
     /// Unique id of a widget.
     ///
