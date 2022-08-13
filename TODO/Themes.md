@@ -1,11 +1,10 @@
 # Themes TODO
 
-* Create a `theme` "widget" that setups `AdoptiveNode` insertion points for each property priority and returns a `ThemeBundle`.
-    - DONE.
-* Create a `themable` widget that uses the theme bundle insertion points to inject dynamic theme properties in the tree.
-    - ONGOING.
+* Test `theme` and `themable`.
+* Create a `theme_mixin` using doc-hidden properties, can it work? Need to review mixin priority.
+* Implement a `button_theme` that inherits from `theme`.
 
-* Widgets can inherit from `theme` to define a default theme, like a `button_theme`.
-
-* Themes can be selected via query that is a predicate closure that runs with the `InfoContext` of the target widget.
-    - See `ThemeGenerator`.
+* Theme generator (selector):
+    - Themes can be selected via query that is a predicate closure that runs with the `InfoContext` of the target widget.
+    - BUT query runs on init, before info is collected, so there is no useful data to filter with.
+    - There is no way to dynamically identify a widget type, even with inspector metadata all we get is a string.

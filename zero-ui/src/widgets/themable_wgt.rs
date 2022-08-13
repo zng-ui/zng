@@ -1,6 +1,6 @@
 //! Theme building blocks.
 
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{cell::RefCell, fmt, mem, rc::Rc};
 
 use crate::{core::NilUiNode, prelude::new_widget::*};
 
@@ -54,7 +54,7 @@ pub mod theme {
                     if let Some(theme) = ctx.widget_state.get_mut(ThemeKey) {
                         // theme init.
                         self.child = theme.$child.child.clone();
-                        theme.$properties.properties = self.properties.take().unwrap();
+                        *theme.$properties.properties.borrow_mut() = self.properties.take();
                     } else {
                         // themable init.
                         self.child.borrow_mut().init(ctx);
@@ -147,7 +147,7 @@ pub mod theme {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 if let Some(theme) = ctx.widget_state.get_mut(ThemeKey) {
                     // theme init.
-                    theme.context.properties = self.properties.take().unwrap();
+                    *theme.context.properties.borrow_mut() = self.properties.take();
                 } else {
                     unreachable!()
                 }
@@ -215,13 +215,13 @@ pub mod themable {
 
 struct ThemePriority {
     child: Rc<RefCell<BoxedUiNode>>,
-    properties: BoxedUiNode,
+    properties: RefCell<Option<BoxedUiNode>>,
 }
 impl Default for ThemePriority {
     fn default() -> Self {
         Self {
             child: Rc::new(RefCell::new(NilUiNode.boxed())),
-            properties: NilUiNode.boxed(),
+            properties: RefCell::new(None),
         }
     }
 }
@@ -383,54 +383,134 @@ pub mod nodes {
         )
     }
 
+    macro_rules! insert_node {
+        ($Node:ident { $wgt_child:ident, $priority:ident, }) => {
+            struct $Node {
+                wgt_child: Option<Rc<RefCell<BoxedUiNode>>>,
+                child: BoxedUiNode,
+            }
+            #[impl_ui_node(child)]
+            impl UiNode for $Node {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    debug_assert!(self.wgt_child.is_none());
+
+                    let t = Themes::get(ctx.vars);
+                    if t.widget_id == Some(ctx.path.widget_id()) {
+                        // widget is themed, splice in theme properties
+                        for t in &t.themes {
+                            let t = &t.theme.$priority;
+
+                            if let Some(properties) = t.properties.borrow_mut().take() {
+                                // child becomes the properties
+                                let prev_child = mem::replace(&mut self.child, properties);
+                                // prev_child becomes the theme child
+                                *t.child.borrow_mut() = prev_child;
+
+                                if self.wgt_child.is_none() {
+                                    // preserve the original widget child so that we can remove the theme on deinit.
+                                    self.wgt_child = Some(t.child.clone());
+                                }
+                            }
+                        }
+                    }
+
+                    self.child.init(ctx);
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.child.deinit(ctx);
+
+                    if let Some(w) = self.wgt_child.take() {
+                        // restore to not-themed state, where child is the widget child.
+                        self.child = mem::replace(&mut *w.borrow_mut(), NilUiNode.boxed());
+                    }
+                }
+            }
+            $Node {
+                child: $wgt_child.boxed(),
+                wgt_child: None,
+            }
+        };
+    }
+
     /// Insert the *child-layout* priority properties from the theme.
     pub fn insert_child_layout(child: impl UiNode) -> impl UiNode {
-        child
+        insert_node! {
+            InsertChildLayoutNode {
+                child,
+                child_layout,
+            }
+        }
     }
 
     /// Insert the *child-context* priority properties from the theme.
     pub fn insert_child_context(child: impl UiNode) -> impl UiNode {
-        child
+        insert_node! {
+            InsertChildContextNode {
+                child,
+                child_context,
+            }
+        }
     }
 
     /// Insert the *fill* priority properties from the theme.
     pub fn insert_fill(child: impl UiNode) -> impl UiNode {
-        child
+        insert_node! {
+            InsertFillNode {
+                child,
+                fill,
+            }
+        }
     }
 
     /// Insert the *border* priority properties from the theme.
     pub fn insert_border(child: impl UiNode) -> impl UiNode {
-        child
+        insert_node! {
+            InsertBorderNode {
+                child,
+                border,
+            }
+        }
     }
 
     /// Insert the *size* priority properties from the theme.
     pub fn insert_size(child: impl UiNode) -> impl UiNode {
-        child
+        insert_node! {
+            InsertSizeNode {
+                child,
+                size,
+            }
+        }
     }
 
     /// Insert the *layout* priority properties from the theme.
     pub fn insert_layout(child: impl UiNode) -> impl UiNode {
-        child
+        insert_node! {
+            InsertLayoutNode {
+                child,
+                layout,
+            }
+        }
     }
 
     /// Insert the *event* priority properties from the theme.
     pub fn insert_event(child: impl UiNode) -> impl UiNode {
-        child
+        insert_node! {
+            InsertEventNode {
+                child,
+                event,
+            }
+        }
     }
 
     /// Insert the *context* priority properties from the theme.
     pub fn insert_context(child: impl UiNode) -> impl UiNode {
-        struct ThemableInsertContext {
-            child: BoxedUiNode,
-        }
-        #[impl_ui_node(child)]
-        impl UiNode for ThemableInsertContext {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                let themes = Themes::get(ctx.vars);
-                self.child.init(ctx);
+        insert_node! {
+            InsertContextNode {
+                child,
+                context,
             }
         }
-        ThemableInsertContext { child: child.boxed() }
     }
 
     /// Generate the themes for the widget.
@@ -481,6 +561,10 @@ pub mod nodes {
                         themes: ts,
                     },
                 };
+
+                for t in &mut self.actual_themes.themes.themes {
+                    t.init(ctx);
+                }
 
                 self.with_mut(ctx.vars, |c| {
                     c.init(ctx);
