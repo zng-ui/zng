@@ -794,6 +794,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
     struct RenderCaretNode<C> {
         child: C,
+        color_key: FrameValueKey<RenderColor>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for RenderCaretNode<C> {
@@ -819,11 +820,23 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 clip_rect.origin.x += padding.left;
                 clip_rect.origin.y += padding.top;
 
-                frame.push_line(clip_rect, LineOrientation::Vertical, colors::WHITE.into(), LineStyle::Solid);
+                //frame.push_line(clip_rect, LineOrientation::Vertical, colors::WHITE.into(), LineStyle::Solid);
+                frame.push_color(clip_rect, self.color_key.bind(colors::WHITE.into()));
+            }
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            self.child.render_update(ctx, update);
+
+            if *TextEditableVar::get(ctx) {
+                update.update_color(self.color_key.update(colors::WHITE.into()))
             }
         }
     }
-    RenderCaretNode { child }
+    RenderCaretNode {
+        child,
+        color_key: FrameValueKey::new_unique(),
+    }
 }
 
 /// An UI node that renders the parent [`LayoutText`].
