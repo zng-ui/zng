@@ -177,7 +177,7 @@ pub mod themable {
 
     properties! {
         /// Theme generator used for the widget.
-        /// 
+        ///
         /// Properties and `when` conditions in the generated theme are applied to the widget as
         /// if they where set on it. Note that changing the theme causes the widget info tree to rebuild,
         /// prefer property binding and `when` conditions to cause visual changes that happen often.

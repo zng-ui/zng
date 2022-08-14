@@ -285,6 +285,7 @@ impl PropertyPriority {
             PropertyPriority::Context,
             PropertyPriority::Event,
             PropertyPriority::Layout,
+            PropertyPriority::Size,
             PropertyPriority::Border,
             PropertyPriority::Fill,
             PropertyPriority::ChildContext,
