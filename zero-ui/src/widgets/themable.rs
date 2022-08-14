@@ -27,7 +27,7 @@ pub mod theme {
     #[doc(inline)]
     pub use super::{theme_generator, Theme, ThemeGenerator};
 
-    properties! { 
+    properties! {
         remove { id; visibility; enabled }
     }
 
@@ -138,7 +138,7 @@ pub mod theme {
 
 /// Themable widget mix-in.
 ///
-/// Adds the `theme` property that can be set to a [`ThemeConstructor`] that generates properties that are dynamically injected
+/// Adds the `theme` property that can be set to a [`ThemeGenerator`] that generates properties that are dynamically injected
 /// into the widget to alter its appearance.
 #[widget_mixin($crate::widgets::mixins::theme_mixin)]
 pub mod theme_mixin {
@@ -153,7 +153,7 @@ pub mod theme_mixin {
         ///
         /// Is `nil` by default.
         properties::theme;
-        
+
         #[doc(hidden)]
         properties::insert_child_layout = ();
         #[doc(hidden)]

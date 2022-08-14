@@ -16,7 +16,7 @@ pub mod toggle {
 
     inherit!(crate::widgets::button);
 
-    use crate::widgets::button::theme;
+    use crate::widgets::button::vis;
 
     properties! {
         remove { on_click }
@@ -41,12 +41,12 @@ pub mod toggle {
 
         /// When toggle is `Some(true)`.
         when self.is_checked {
-            background_color = theme::hovered::BackgroundColorVar;
+            background_color = vis::hovered::BackgroundColorVar;
             border = {
-                widths: theme::BorderWidthsVar,
-                sides: theme::hovered::BorderSidesVar,
+                widths: vis::BorderWidthsVar,
+                sides: vis::hovered::BorderSidesVar,
             };
-            text_color = theme::hovered::TextColorVar;
+            text_color = vis::hovered::TextColorVar;
         }
     }
 

@@ -6,7 +6,8 @@ pub mod button {
     use super::*;
     use crate::properties::capture_mouse;
 
-    pub use super::theme;
+    #[doc(inline)]
+    pub use super::vis;
 
     inherit!(focusable_mixin);
     inherit!(container);
@@ -31,19 +32,19 @@ pub mod button {
         on_click;
 
         /// Button background color.
-        background_color = theme::BackgroundColorVar;
+        background_color = vis::BackgroundColorVar;
 
         /// Button border.
         border = {
-            widths: theme::BorderWidthsVar,
-            sides: theme::BorderSidesVar,
+            widths: vis::BorderWidthsVar,
+            sides: vis::BorderSidesVar,
         };
 
         /// Button corner radius.
-        corner_radius = theme::CornerRadiusVar;
+        corner_radius = vis::CornerRadiusVar;
 
         /// Color of text inside the button [`content`](#wp-content).
-        text_color = theme::TextColorVar;
+        text_color = vis::TextColorVar;
 
         /// Enabled by default.
         ///
@@ -51,102 +52,154 @@ pub mod button {
         capture_mouse = true;
 
         /// Content padding.
-        padding = theme::PaddingVar;
+        padding = vis::PaddingVar;
 
         /// Content align.
-        content_align = theme::ContentAlignVar;
+        content_align = vis::ContentAlignVar;
 
         /// Button cursor.
-        cursor = theme::CursorIconVar;
+        cursor = vis::CursorIconVar;
 
         /// When the pointer device is over this button.
         when self.is_cap_hovered {
-            background_color = theme::hovered::BackgroundColorVar;
+            background_color = vis::hovered::BackgroundColorVar;
             border = {
-                widths: theme::BorderWidthsVar,
-                sides: theme::hovered::BorderSidesVar,
+                widths: vis::BorderWidthsVar,
+                sides: vis::hovered::BorderSidesVar,
             };
-            text_color = theme::hovered::TextColorVar;
+            text_color = vis::hovered::TextColorVar;
         }
 
         /// When the button is pressed in a way that press release will cause a button click.
         when self.is_pressed  {
-            background_color = theme::pressed::BackgroundColorVar;
+            background_color = vis::pressed::BackgroundColorVar;
             border = {
-                widths: theme::BorderWidthsVar,
-                sides: theme::pressed::BorderSidesVar,
+                widths: vis::BorderWidthsVar,
+                sides: vis::pressed::BorderSidesVar,
             };
-            text_color = theme::pressed::TextColorVar;
+            text_color = vis::pressed::TextColorVar;
         }
 
         /// When the button is disabled.
         when self.is_disabled {
-            background_color = theme::disabled::BackgroundColorVar;
+            background_color = vis::disabled::BackgroundColorVar;
             border = {
-                widths: theme::BorderWidthsVar,
-                sides: theme::disabled::BorderSidesVar,
+                widths: vis::BorderWidthsVar,
+                sides: vis::disabled::BorderSidesVar,
             };
-            text_color = theme::disabled::TextColorVar;
-            cursor = theme::disabled::CursorIconVar;
+            text_color = vis::disabled::TextColorVar;
+            cursor = vis::disabled::CursorIconVar;
         }
     }
 }
 
-/// Context variables and properties that affect the button appearance from parent widgets.
-pub mod theme {
+/// Button themes, visual properties and context vars.
+pub mod vis {
     use super::*;
+
+    /// Button base theme.
+    #[widget($crate::widgets::button::vis::base_theme)]
+    pub mod base_theme {
+        use super::*;
+
+        inherit!(theme);
+    }
+
+    /// Default button dark theme.
+    #[widget($crate::widgets::button::vis::dark_theme)]
+    pub mod dark_theme {
+        use super::*;
+
+        inherit!(base_theme);
+    }
+
+    /// Default button light theme.
+    #[widget($crate::widgets::button::vis::light_theme)]
+    pub mod light_theme {
+        use super::*;
+
+        inherit!(base_theme);
+    }
+
+    context_var! {
+        /// Button dark theme.
+        ///
+        /// Use the [`button::vis::dark`] property to set.
+        ///
+        /// [`button::vis::dark`]: fn@dark
+        pub struct DarkThemeVar: ThemeGenerator = ThemeGenerator::new(|_| dark_theme!());
+
+        /// Button light theme.
+        ///
+        /// Use the [`button::vis::light`] property to set.
+        ///
+        /// [`button::vis::light`]: fn@light
+        pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_| light_theme!());
+    }
+
+    /// Sets the [`DarkThemeVar`] that affects all buttons inside the widget.
+    #[property(context, default(DarkThemeVar))]
+    pub fn dark(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, DarkThemeVar, theme)
+    }
+
+    /// Sets the [`LightThemeVar`] that affects all buttons inside the widget.
+    #[property(context, default(LightThemeVar))]
+    pub fn light(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, LightThemeVar, theme)
+    }
 
     context_var! {
         /// Button background color.
         ///
-        /// Use the [`button::theme::background_color`] property to set.
+        /// Use the [`button::vis::background_color`] property to set.
         ///
-        /// [`button::theme::background_color`]: fn@background_color
+        /// [`button::vis::background_color`]: fn@background_color
         pub struct BackgroundColorVar: Rgba = rgb(0.2, 0.2, 0.2);
 
         /// Button border widths.
         ///
-        /// Use the [`button::theme::border`] property to set.
+        /// Use the [`button::vis::border`] property to set.
         ///
-        /// [`button::theme::border`]: fn@border
+        /// [`button::vis::border`]: fn@border
         pub struct BorderWidthsVar: SideOffsets = SideOffsets::new_all(1);
         /// Button border sides.
         ///
-        /// Use the [`button::theme::border`] property to set.
+        /// Use the [`button::vis::border`] property to set.
         ///
-        /// [`button::theme::border`]: fn@border
+        /// [`button::vis::border`]: fn@border
         pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.2, 0.2, 0.2));
         /// Button corner radius.
         ///
-        /// Use the [`button::theme::corner_radius`] property to set.
+        /// Use the [`button::vis::corner_radius`] property to set.
         ///
-        /// [`button::theme::corner_radius`]: fn@corner_radius
+        /// [`button::vis::corner_radius`]: fn@corner_radius
         pub struct CornerRadiusVar: CornerRadius = CornerRadius::new_all(4);
 
         /// Button padding.
         ///
-        /// Use the [`button::theme::padding`] property to set.
+        /// Use the [`button::vis::padding`] property to set.
         ///
-        /// [`button::theme::border`]: fn@border
+        /// [`button::vis::border`]: fn@border
         pub struct PaddingVar: SideOffsets = SideOffsets::new(7, 15, 7, 15);
 
         /// Button text color.
         ///
-        /// Use the [`button::theme::text_color`] property to set.
+        /// Use the [`button::vis::text_color`] property to set.
         ///
-        /// [`button::theme::text_color`]: fn@text_color
+        /// [`button::vis::text_color`]: fn@text_color
         pub struct TextColorVar: Rgba = colors::WHITE;
 
         /// Button content align.
         ///
-        /// Use the [`button::theme::content_align`] property to set.
+        /// Use the [`button::vis::content_align`] property to set.
         ///
-        /// [`button::theme::content_align`]: fn@content_align
+        /// [`button::vis::content_align`]: fn@content_align
         pub struct ContentAlignVar: Align = Align::CENTER;
 
         /// Button cursor icon.
         ///
-        /// Use the [`button::theme::cursor`] property to set.
+        /// Use the [`button::vis::cursor`] property to set.
         ///
         /// Default is [`CursorIcon::Default`].
         pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::Default);
@@ -202,23 +255,23 @@ pub mod theme {
         context_var! {
             /// Hovered button background color.
             ///
-            /// Use the [`button::theme::hovered::background_color`] property to set.
+            /// Use the [`button::vis::hovered::background_color`] property to set.
             ///
-            /// [`button::theme::hovered::background_color`]: fn@background_color
+            /// [`button::vis::hovered::background_color`]: fn@background_color
             pub struct BackgroundColorVar: Rgba = rgb(0.25, 0.25, 0.25);
 
             /// Hovered button border sides.
             ///
-            /// Use the [`button::theme::hovered::border_sides`] property to set.
+            /// Use the [`button::vis::hovered::border_sides`] property to set.
             ///
-            /// [`button::theme::hovered::border_sides`]: fn@border_sides
+            /// [`button::vis::hovered::border_sides`]: fn@border_sides
             pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.4, 0.4, 0.4));
 
             /// Hovered button text color.
             ///
-            /// Use the [`button::theme::hovered::text_color`] property to set.
+            /// Use the [`button::vis::hovered::text_color`] property to set.
             ///
-            /// [`button::theme::hovered::text_color`]: fn@text_color
+            /// [`button::vis::hovered::text_color`]: fn@text_color
             pub struct TextColorVar: Rgba = colors::WHITE;
         }
 
@@ -248,22 +301,22 @@ pub mod theme {
         context_var! {
             /// Pressed button background color.
             ///
-            /// Use the [`button::theme::pressed::background_color`] property to set.
+            /// Use the [`button::vis::pressed::background_color`] property to set.
             ///
-            /// [`button::theme::pressed::background_color`]: fn@background_color
+            /// [`button::vis::pressed::background_color`]: fn@background_color
             pub struct BackgroundColorVar: Rgba = rgb(0.3, 0.3, 0.3);
             /// Pressed button border sides.
             ///
-            /// Use the [`button::theme::pressed::border`] property to set.
+            /// Use the [`button::vis::pressed::border`] property to set.
             ///
-            /// [`button::theme::pressed::border`]: fn@border
+            /// [`button::vis::pressed::border`]: fn@border
             pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.6, 0.6, 0.6));
 
             /// Pressed button text color.
             ///
-            /// Use the [`button::theme::pressed::text_color`] property to set.
+            /// Use the [`button::vis::pressed::text_color`] property to set.
             ///
-            /// [`button::theme::pressed::text_color`]: fn@text_color
+            /// [`button::vis::pressed::text_color`]: fn@text_color
             pub struct TextColorVar: Rgba = colors::WHITE;
         }
 
@@ -293,27 +346,27 @@ pub mod theme {
         context_var! {
             /// Disabled button background color.
             ///
-            /// Use the [`button::theme::disabled::background_color`] property to set.
+            /// Use the [`button::vis::disabled::background_color`] property to set.
             ///
-            /// [`button::theme::disabled::background_color`]: fn@background_color
+            /// [`button::vis::disabled::background_color`]: fn@background_color
             pub struct BackgroundColorVar: Rgba = rgb(0.2, 0.2, 0.2);
             /// Disabled button border sides.
             ///
-            /// Use the [`button::theme::disabled::border`] property to set.
+            /// Use the [`button::vis::disabled::border`] property to set.
             ///
-            /// [`button::theme::disabled::border`]: fn@border
+            /// [`button::vis::disabled::border`]: fn@border
             pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.2, 0.2, 0.2));
 
             /// Disabled button text color.
             ///
-            /// Use the [`button::theme::disabled::text_color`] property to set.
+            /// Use the [`button::vis::disabled::text_color`] property to set.
             ///
-            /// [`button::theme::disabled::text_color`]: fn@text_color
+            /// [`button::vis::disabled::text_color`]: fn@text_color
             pub struct TextColorVar: Rgba = colors::WHITE.darken(40.pct());
 
             /// Disabled button cursor icon.
             ///
-            /// Use the [`button::theme::disabled::cursor`] property to set.
+            /// Use the [`button::vis::disabled::cursor`] property to set.
             ///
             /// Default is [`CursorIcon::NotAllowed`], meaning the parent cursor is used.
             pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::NotAllowed);

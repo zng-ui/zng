@@ -1143,6 +1143,8 @@ pub mod prelude {
         pub use crate::widgets::{
             container,
             layouts::{stack_nodes, stack_nodes_layout_by},
+            theme,
+            theme::ThemeGenerator,
             view_generator, DataUpdate, ViewGenerator,
         };
     }

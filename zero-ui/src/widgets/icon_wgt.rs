@@ -12,6 +12,9 @@ use std::fmt;
 pub mod icon {
     use super::*;
 
+    #[doc(inline)]
+    pub use super::theme;
+
     properties! {
         /// The glyph icon.
         icon(impl IntoVar<GlyphIcon>);
@@ -119,51 +122,50 @@ pub mod icon {
             GlyphIcon::new(name, glyph)
         }
     }
+}
+/// Context variables and properties that affect icons.
+pub mod theme {
+    use super::*;
 
-    /// Context variables and properties that affect icons.
-    pub mod theme {
+    context_var! {
+        /// Defines the size of an icon.
+        ///
+        /// Default is `24.dip()`.
+        pub struct IconSizeVar: Length = 24.dip();
+
+        /// Defines the color of an icon.
+        ///
+        /// Default `colors::WHITE`.
+        pub struct IconColorVar: Rgba = colors::WHITE;
+    }
+
+    /// Sets the [`IconSizeVar`] that affects all icons inside the widget.
+    #[property(context, default(IconSizeVar))]
+    pub fn icon_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
+        with_context_var(child, IconSizeVar, size)
+    }
+
+    /// Sets the [`IconColorVar`] that affects all icons inside the widget.
+    #[property(context, default(IconColorVar))]
+    pub fn icon_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+        with_context_var(child, IconColorVar, color)
+    }
+
+    /// Icon disabled values.
+    pub mod disabled {
         use super::*;
 
         context_var! {
-            /// Defines the size of an icon.
+            /// Defines the color of a disabled icon.
             ///
-            /// Default is `24.dip()`.
-            pub struct IconSizeVar: Length = 24.dip();
-
-            /// Defines the color of an icon.
-            ///
-            /// Default `colors::WHITE`.
-            pub struct IconColorVar: Rgba = colors::WHITE;
+            /// Default `colors::WHITE.darken(40.pct()`.
+            pub struct IconColorVar: Rgba = colors::WHITE.darken(40.pct());
         }
 
-        /// Sets the [`IconSizeVar`] that affects all icons inside the widget.
-        #[property(context, default(IconSizeVar))]
-        pub fn icon_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
-            with_context_var(child, IconSizeVar, size)
-        }
-
-        /// Sets the [`IconColorVar`] that affects all icons inside the widget.
+        /// Sets the [`IconColorVar`] that affects all disabled icons inside the widget.
         #[property(context, default(IconColorVar))]
         pub fn icon_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
             with_context_var(child, IconColorVar, color)
-        }
-
-        /// Icon disabled values.
-        pub mod disabled {
-            use super::*;
-
-            context_var! {
-                /// Defines the color of a disabled icon.
-                ///
-                /// Default `colors::WHITE.darken(40.pct()`.
-                pub struct IconColorVar: Rgba = colors::WHITE.darken(40.pct());
-            }
-
-            /// Sets the [`IconColorVar`] that affects all disabled icons inside the widget.
-            #[property(context, default(IconColorVar))]
-            pub fn icon_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-                with_context_var(child, IconColorVar, color)
-            }
         }
     }
 }
