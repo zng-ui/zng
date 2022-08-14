@@ -389,17 +389,17 @@ pub mod img_window {
         container! {
             content = child;
 
-            button::theme::background_color = button_color().lighten(4.pct());
-            button::theme::border = {
+            button::vis::background_color = button_color().lighten(4.pct());
+            button::vis::border = {
                 widths: 1,
                 sides: button_color().lighten(4.pct()),
             };
 
-            button::theme::hovered::background_color = button_color().lighten(2.fct());
-            button::theme::hovered::border_sides = button_color().lighten(1.fct());
+            button::vis::hovered::background_color = button_color().lighten(2.fct());
+            button::vis::hovered::border_sides = button_color().lighten(1.fct());
 
-            button::theme::pressed::background_color = button_color().lighten(3.fct());
-            button::theme::pressed::border_sides = button_color().lighten(2.fct());
+            button::vis::pressed::background_color = button_color().lighten(3.fct());
+            button::vis::pressed::border_sides = button_color().lighten(2.fct());
         }
     }
 

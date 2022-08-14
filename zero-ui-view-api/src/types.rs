@@ -1832,6 +1832,9 @@ pub struct WindowOpenData {
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
+
+    /// System theme.
+    pub theme: WindowTheme,
 }
 
 /// Information about a successfully opened headless surface.

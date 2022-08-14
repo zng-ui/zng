@@ -10,7 +10,7 @@ use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
     AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowLoadEvent,
-    WindowLoadingHandle, WindowState, WindowVars, Windows,
+    WindowLoadingHandle, WindowState, WindowTheme, WindowVars, Windows,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -104,6 +104,8 @@ set_properties! {
     parent: Option<WindowId>,
     modal: bool,
 
+    theme: Option<WindowTheme>,
+
     frame_capture_mode: FrameCaptureMode,
 }
 
@@ -166,7 +168,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     }
 }
 
-// TODO read-only properties.
+// TODO read-only properties, see `window_theme`.
 
 /// Window persistence config.
 ///

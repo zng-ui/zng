@@ -15,7 +15,7 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData,
-    RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll, WindowTheme,
 };
 
 #[cfg(windows)]
@@ -814,6 +814,11 @@ impl Window {
     /// Returns of the last update state.
     pub fn state(&self) -> WindowStateAll {
         self.state.clone()
+    }
+
+    /// Returns the system theme for the window. TODO
+    pub fn theme(&self) -> WindowTheme {
+        WindowTheme::Dark
     }
 
     fn set_inner_position(&self, pos: DipPoint) {

@@ -1350,6 +1350,7 @@ impl Api for App {
                 position: DipPoint::zero(),
                 size: config.state.restore_rect.size,
                 scale_factor: 1.0,
+                theme: WindowTheme::Dark,
                 state: WindowStateAll {
                     state: WindowState::Fullscreen,
                     restore_rect: DipRect::from_size(config.state.restore_rect.size),
@@ -1385,6 +1386,7 @@ impl Api for App {
                 scale_factor: win.scale_factor(),
                 render_mode: win.render_mode(),
                 state: win.state(),
+                theme: win.theme(),
             };
 
             self.windows.push(win);

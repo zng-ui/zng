@@ -51,6 +51,9 @@ pub(super) struct WindowVarsData {
     parent: RcVar<Option<WindowId>>,
     modal: RcVar<bool>,
 
+    theme: RcVar<Option<WindowTheme>>,
+    pub(super) actual_theme: RcVar<WindowTheme>,
+
     pub(super) is_open: RcVar<bool>,
     pub(super) is_loaded: RcVar<bool>,
 
@@ -116,6 +119,9 @@ impl WindowVars {
 
             parent: var(None),
             modal: var(false),
+
+            theme: var(None),
+            actual_theme: var(WindowTheme::Dark),
 
             is_open: var(true),
             is_loaded: var(false),
@@ -474,6 +480,24 @@ impl WindowVars {
     /// The default value is `false`.
     pub fn modal(&self) -> &RcVar<bool> {
         &self.0.modal
+    }
+
+    /// Override the system theme.
+    ///
+    /// If set to `None` the system preference is used, see [`actual_theme`].
+    ///
+    /// [`actual_theme`]: Self::actual_theme
+    pub fn theme(&self) -> &RcVar<Option<WindowTheme>> {
+        &self.0.theme
+    }
+
+    /// Actual window theme.
+    ///
+    /// This is the system preference, or [`theme`] if it is set to a theme.
+    ///
+    /// [`theme`]: Self::theme
+    pub fn actual_theme(&self) -> ReadOnlyRcVar<WindowTheme> {
+        self.0.actual_theme.clone().into_read_only()
     }
 
     /// If the window is open.

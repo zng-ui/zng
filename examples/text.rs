@@ -72,7 +72,7 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         });
     }
     h_stack! {
-        button::theme::padding = (0, 5);
+        button::vis::padding = (0, 5);
         spacing = 5;
         corner_radius = 4;
         background_color = rgba(0, 0, 0, 40.pct());

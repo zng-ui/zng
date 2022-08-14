@@ -57,6 +57,7 @@ struct HeadedCtrl {
     icon_binding: Option<VarBindingHandle>,
     icon_deadline: Deadline,
     actual_state: Option<WindowState>, // for WindowChangedEvent
+    system_theme: Option<WindowTheme>,
 }
 impl HeadedCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -82,6 +83,7 @@ impl HeadedCtrl {
             icon: None,
             icon_binding: None,
             icon_deadline: Deadline::timeout(1.secs()),
+            system_theme: None,
 
             actual_state: None,
         }
@@ -372,6 +374,11 @@ impl HeadedCtrl {
                 }
                 // else indicator is send with init.
             }
+
+            if let Some(theme) = self.vars.theme().copy_new(ctx) {
+                let theme = theme.or(self.system_theme).unwrap_or(WindowTheme::Dark);
+                self.vars.0.actual_theme.set_ne(ctx, theme);
+            }
         }
 
         self.content.update(ctx);
@@ -478,6 +485,10 @@ impl HeadedCtrl {
                 self.vars.0.scale_factor.set_ne(ctx, args.data.scale_factor);
 
                 self.state = Some(args.data.state.clone());
+                self.system_theme = Some(args.data.theme);
+                if self.vars.theme().get(ctx).is_none() {
+                    self.vars.0.actual_theme.set_ne(ctx, args.data.theme);
+                }
 
                 ctx.updates.layout_and_render();
 
@@ -842,6 +853,11 @@ impl HeadlessWithRendererCtrl {
             ctx.updates.layout();
         }
 
+        if let Some(theme) = self.vars.theme().copy_new(ctx) {
+            let theme = theme.unwrap_or(WindowTheme::Dark);
+            self.vars.0.actual_theme.set_ne(ctx, theme);
+        }
+
         self.content.update(ctx);
     }
 
@@ -1017,6 +1033,11 @@ impl HeadlessCtrl {
 
             ctx.updates.layout();
             ctx.updates.render();
+        }
+
+        if let Some(theme) = self.vars.theme().copy_new(ctx) {
+            let theme = theme.unwrap_or(WindowTheme::Dark);
+            self.vars.0.actual_theme.set_ne(ctx, theme);
         }
 
         self.content.update(ctx);

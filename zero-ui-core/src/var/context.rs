@@ -653,6 +653,21 @@ mod properties {
             var: C,
             value: V,
         }
+        impl<U, T, C, V> WithContextVarNode<U, C, V>
+        where
+            U: UiNode,
+            T: VarValue,
+            C: ContextVar<Type = T>,
+            V: Var<T>,
+        {
+            fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&U) -> R) -> R {
+                vars.with_context_var(self.var, ContextVarData::in_vars_read(vars, &self.value), || f(&self.child))
+            }
+
+            fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut U) -> R) -> R {
+                vars.with_context_var(self.var, ContextVarData::in_vars(vars, &self.value, false), || f(&mut self.child))
+            }
+        }
         impl<U, T, C, V> UiNode for WithContextVarNode<U, C, V>
         where
             U: UiNode,
@@ -661,79 +676,143 @@ mod properties {
             V: Var<T>,
         {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
-                        self.child.info(ctx, info)
-                    });
+                self.with(ctx.vars, |c| c.info(ctx, info));
             }
 
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
-                        self.child.subscriptions(ctx, subs)
-                    });
+                self.with(ctx.vars, |c| c.subscriptions(ctx, subs));
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
-                        self.child.init(ctx)
-                    });
+                self.with_mut(ctx.vars, |c| c.init(ctx));
             }
 
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
-                        self.child.deinit(ctx)
-                    });
+                self.with_mut(ctx.vars, |c| c.deinit(ctx));
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
-                        self.child.update(ctx)
-                    });
+                self.with_mut(ctx.vars, |c| c.update(ctx));
             }
 
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
-                        self.child.event(ctx, args)
-                    });
+                self.with_mut(ctx.vars, |c| c.event(ctx, args));
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
-                        self.child.measure(ctx)
-                    })
+                self.with(ctx.vars, |c| c.measure(ctx))
             }
 
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
-                        self.child.layout(ctx, wl)
-                    })
+                self.with_mut(ctx.vars, |c| c.layout(ctx, wl))
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
-                        self.child.render(ctx, frame)
-                    });
+                self.with(ctx.vars, |c| c.render(ctx, frame));
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
-                        self.child.render_update(ctx, update)
-                    });
+                self.with(ctx.vars, |c| c.render_update(ctx, update));
             }
         }
         WithContextVarNode {
             child: child.cfg_boxed(),
             var,
             value: value.into_var(),
+        }
+        .cfg_boxed()
+    }
+
+    /// Helper for declaring properties that sets a context var to a value generated on init.
+    ///
+    /// The method calls the `init_value` closure on init to produce a *value* var that is presented as the [`ContextVar<Type=T>`]
+    /// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
+    ///
+    /// Apart from the value initialization this behaves just like [`with_context_var`].
+    pub fn with_context_var_init<T: VarValue, V: Var<T>>(
+        child: impl UiNode,
+        var: impl ContextVar<Type = T>,
+        init_value: impl FnMut(&mut WidgetContext) -> V + 'static,
+    ) -> impl UiNode {
+        struct WithContextVarInitNode<U, C, I, V> {
+            child: U,
+            var: C,
+            init_value: I,
+            value: Option<V>,
+        }
+        impl<U, T, C, I, V> WithContextVarInitNode<U, C, I, V>
+        where
+            U: UiNode,
+            T: VarValue,
+            C: ContextVar<Type = T>,
+            I: FnMut(&mut WidgetContext) -> V + 'static,
+            V: Var<T>,
+        {
+            fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&U) -> R) -> R {
+                let value = self.value.as_ref().expect("with_context_var_init not inited");
+                vars.with_context_var(self.var, ContextVarData::in_vars_read(vars, value), || f(&self.child))
+            }
+
+            fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut U) -> R) -> R {
+                let value = self.value.as_ref().expect("with_context_var_init not inited");
+                vars.with_context_var(self.var, ContextVarData::in_vars(vars, value, false), || f(&mut self.child))
+            }
+        }
+        impl<U, T, C, I, V> UiNode for WithContextVarInitNode<U, C, I, V>
+        where
+            U: UiNode,
+            T: VarValue,
+            C: ContextVar<Type = T>,
+            I: FnMut(&mut WidgetContext) -> V + 'static,
+            V: Var<T>,
+        {
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                self.with(ctx.vars, |c| c.info(ctx, info));
+            }
+
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                self.with(ctx.vars, |c| c.subscriptions(ctx, subs));
+            }
+
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.value = Some((self.init_value)(ctx));
+                self.with_mut(ctx.vars, |c| c.init(ctx));
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.with_mut(ctx.vars, |c| c.deinit(ctx));
+                self.value = None;
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                self.with_mut(ctx.vars, |c| c.update(ctx));
+            }
+
+            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+                self.with_mut(ctx.vars, |c| c.event(ctx, args));
+            }
+
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                self.with(ctx.vars, |c| c.measure(ctx))
+            }
+
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                self.with_mut(ctx.vars, |c| c.layout(ctx, wl))
+            }
+
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                self.with(ctx.vars, |c| c.render(ctx, frame));
+            }
+
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                self.with(ctx.vars, |c| c.render_update(ctx, update));
+            }
+        }
+        WithContextVarInitNode {
+            child: child.cfg_boxed(),
+            var,
+            init_value,
+            value: None,
         }
         .cfg_boxed()
     }

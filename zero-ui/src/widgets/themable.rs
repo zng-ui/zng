@@ -138,7 +138,7 @@ pub mod theme {
 
 /// Themable widget mix-in.
 ///
-/// Adds the `theme` property that can be set to a [`ThemeGenerator`] that generates properties that are dynamically injected
+/// Adds the `theme` and `theme_pair` property that can be set to a [`ThemeGenerator`] that generates properties that are dynamically injected
 /// into the widget to alter its appearance.
 #[widget_mixin($crate::widgets::mixins::theme_mixin)]
 pub mod theme_mixin {
@@ -153,6 +153,11 @@ pub mod theme_mixin {
         ///
         /// Is `nil` by default.
         properties::theme;
+
+        /// Theme generators, dark and light, used for the widget.
+        ///
+        /// Is `nil` by default.
+        properties::theme_pair;
 
         #[doc(hidden)]
         properties::insert_child_layout = ();
@@ -175,6 +180,29 @@ pub mod theme_mixin {
     /// Only the `theme` property is doc visible, the others are implementation details.
     pub mod properties {
         use super::*;
+
+        use crate::core::window::WindowTheme;
+        use crate::widgets::window::nodes::WindowThemeVar;
+
+        /// Theme generator pair used for the widget.
+        ///
+        /// This sets a dark or light theme depending of the [`WindowThemeVar`] property.
+        #[property(context, default(ThemeGenerator::nil(), ThemeGenerator::nil()))]
+        pub fn theme_pair(
+            child: impl UiNode,
+            dark_theme: impl IntoVar<ThemeGenerator>,
+            light_theme: impl IntoVar<ThemeGenerator>,
+        ) -> impl UiNode {
+            theme(
+                child,
+                merge_var!(WindowThemeVar::new(), dark_theme.into_var(), light_theme.into_var(), |w, d, l| {
+                    match w {
+                        WindowTheme::Dark => d.clone(),
+                        WindowTheme::Light => l.clone(),
+                    }
+                }),
+            )
+        }
 
         /// Theme generator used for the widget.
         ///

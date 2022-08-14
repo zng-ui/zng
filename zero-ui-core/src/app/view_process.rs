@@ -1154,6 +1154,9 @@ pub struct WindowOpenData {
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
+
+    /// System theme.
+    pub theme: WindowTheme,
 }
 impl WindowOpenData {
     fn new(data: zero_ui_view_api::WindowOpenData, map_monitor: impl FnOnce(zero_ui_view_api::MonitorId) -> MonitorId) -> Self {
@@ -1164,6 +1167,7 @@ impl WindowOpenData {
             size: data.size,
             scale_factor: data.scale_factor,
             render_mode: data.render_mode,
+            theme: data.theme,
         }
     }
 }

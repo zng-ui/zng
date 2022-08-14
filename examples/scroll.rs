@@ -59,14 +59,14 @@ fn commands() -> impl Widget {
         padding = 5;
         background_color = rgba(0, 0, 0, 90.pct());
         corner_radius = (0, 0, 8, 8);
-        button::theme::padding = 4;
+        button::vis::padding = 4;
         alt_focus_scope = true;
 
         items = widgets![
             v_stack! {
                 visibility = show.map_into();
                 spacing = 3;
-                button::theme::corner_radius = 0;
+                button::vis::corner_radius = 0;
 
                 items = widgets![
                     cmd_btn(ScrollUpCommand),

@@ -425,7 +425,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
                 // TODO allow setting only border.sides
                 border = {
                     sides: c_true_border,
-                    widths: button::theme::BorderWidthsVar,
+                    widths: button::vis::BorderWidthsVar,
                 };
             }
 
@@ -434,7 +434,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
 
                 border = {
                     sides: c_false_border,
-                    widths: button::theme::BorderWidthsVar,
+                    widths: button::vis::BorderWidthsVar,
                 };
             }
         }
@@ -488,7 +488,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                             focus_scope = true;
                             tab_nav = TabNav::Cycle;
                             directional_nav = DirectionalNav::Cycle;
-                            button::theme::corner_radius = 0;
+                            button::vis::corner_radius = 0;
                             drop_shadow = (0, 0), 4, colors::BLACK;
                             padding = 4;
                             content = v_stack! {

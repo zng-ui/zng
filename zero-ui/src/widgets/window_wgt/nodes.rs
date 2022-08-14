@@ -1,8 +1,12 @@
 //! UI nodes used for building a window widget.
 
+use zero_ui_core::window::WindowVars;
+
 use crate::prelude::new_property::*;
 
 use std::{cell::Cell, time::Duration};
+
+use crate::core::window::WindowTheme;
 
 use crate::crate_util::RunOnDrop;
 
@@ -834,6 +838,16 @@ impl_from_and_into_var! {
     fn from(enabled_timeout: Duration) -> BlockWindowLoad {
         BlockWindowLoad::enabled(enabled_timeout)
     }
+}
+
+context_var! {
+    /// Reads the [`WindowVars::actual_theme`].
+    pub struct WindowThemeVar: WindowTheme = WindowTheme::Dark;
+}
+
+/// Node that binds the [`WindowThemeVar`] to the [`WindowVars::actual_theme`].
+pub fn window_theme(child: impl UiNode) -> impl UiNode {
+    with_context_var_init(child, WindowThemeVar, |ctx| WindowVars::req(ctx).actual_theme())
 }
 
 #[cfg(test)]

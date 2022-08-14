@@ -309,6 +309,9 @@ pub mod window {
         #[allowed_in_when = false]
         render_mode(impl IntoValue<Option<RenderMode>>) = None;
 
+        /// Override the system theme selected for this window.
+        properties::theme;
+
         /// Save and restore the window state.
         properties::save_state = properties::SaveState::enabled();
 
@@ -470,6 +473,8 @@ pub mod window {
         headless_monitor: impl IntoValue<HeadlessMonitor>,
         start_focused: bool,
     ) -> Window {
+        let child = nodes::window_theme(child);
+
         Window::new_root(
             root_id,
             start_position,

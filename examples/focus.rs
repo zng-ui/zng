@@ -53,8 +53,8 @@ fn app_main() {
 fn alt_scope() -> impl Widget {
     h_stack! {
         alt_focus_scope = true;
-        button::theme::border = 0, BorderStyle::Solid;
-        button::theme::corner_radius = 0;
+        button::vis::border = 0, BorderStyle::Solid;
+        button::vis::corner_radius = 0;
         items = widgets![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),
@@ -223,8 +223,8 @@ fn delayed_focus() -> impl Widget {
 
             text! {
                 id = "target";
-                padding = zero_ui::widgets::button::theme::PaddingVar;
-                corner_radius = zero_ui::widgets::button::theme::CornerRadiusVar;
+                padding = zero_ui::widgets::button::vis::PaddingVar;
+                corner_radius = zero_ui::widgets::button::vis::CornerRadiusVar;
                 text = "delayed target";
                 font_style = FontStyle::Italic;
                 text_align = TextAlign::CENTER_MIDDLE;

@@ -84,7 +84,7 @@ fn example(vars: &Vars) -> impl Widget {
                 id = "easing-menu";
                 spacing = 2;
                 columns = 7;
-                button::theme::padding = 3;
+                button::vis::padding = 3;
                 items = widgets![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
