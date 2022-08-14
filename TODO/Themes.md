@@ -1,12 +1,13 @@
 # Themes TODO
 
-* The `theme!` init is not working, call to init does not go in.
-    - Instantiation is single thread, can we use a `thread_local` to collect the nodes?
+* Themable mix-in?
+    - Can use doc-hidden properties for each priority.
+    - Context priority can be the visible `theme` property.
+    * Advantages:
+        - Can inherit any widget that is not themable and make it themable.
+        - We don't want `text!` to be themable, but we want `text_input!`, and that inherits from `text!`.
+            - Worth implementing just for this.
+    * Disadvantages:
+        - Order or theme property and widget properties of the same priority is not as clearly defined as in a parent.
 
-* Create a `theme_mixin` using doc-hidden properties, can it work? Need to review mixin priority.
 * Implement a `button_theme` that inherits from `theme`.
-
-* Theme generator (selector):
-    - Themes can be selected via query that is a predicate closure that runs with the `InfoContext` of the target widget.
-    - BUT query runs on init, before info is collected, so there is no useful data to filter with.
-    - There is no way to dynamically identify a widget type, even with inspector metadata all we get is a string.

@@ -13,156 +13,70 @@ use crate::{core::NilUiNode, prelude::new_widget::*};
 /// Themes must only visually affect the themed widget, this is a semantic distinction only, any property can be set
 /// in a theme, so feel free to setup event handlers in themes, but only if they are used to affect the widget visually.
 ///
+/// # Derived Themes
+///
+/// Note that you can declare a custom theme *widget* using the same inheritance mechanism of normal widgets, if you override
+/// a constructor function you **must** delegate to the equivalent function defined here, each priority constructor captures
+/// the properties and returns a placeholder node that is the child of the next priority.
+///
 /// [`themable`]: mod@themable
 #[widget($crate::widgets::theme)]
 pub mod theme {
     use super::*;
 
-    fn new_child() -> impl UiNode {
-        struct ThemeChildNode {
-            child: Rc<RefCell<BoxedUiNode>>,
-        }
-        #[impl_ui_node(
-            delegate = self.child.borrow(),
-            delegate_mut = self.child.borrow_mut(),
-        )]
-        impl UiNode for ThemeChildNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(theme) = ctx.widget_state.get_mut(ThemeKey) {
-                    // theme init.
-                    self.child = theme.child_layout.child.clone();
-                } else {
-                    // themable init.
-                    self.child.borrow_mut().init(ctx);
-                }
-            }
-        }
-        ThemeChildNode {
-            child: Rc::new(RefCell::new(NilUiNode.boxed())),
-        }
+    /// Start constructing the theme.
+    pub fn new_child() -> impl UiNode {
+        Theme::new_child()
     }
 
-    macro_rules! theme_node {
-        ($Node:ident { $node:ident, $child:ident, $properties:ident, }) => {
-            struct $Node {
-                child: Rc<RefCell<BoxedUiNode>>,
-                properties: Option<BoxedUiNode>,
-            }
-            #[impl_ui_node(delegate = self.child.borrow(), delegate_mut = self.child.borrow_mut())]
-            impl UiNode for $Node {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    if let Some(theme) = ctx.widget_state.get_mut(ThemeKey) {
-                        // theme init.
-                        self.child = theme.$child.child.clone();
-                        *theme.$properties.properties.borrow_mut() = self.properties.take();
-                    } else {
-                        // themable init.
-                        self.child.borrow_mut().init(ctx);
-                    }
-                }
-            }
-            $Node {
-                child: Rc::new(RefCell::new(NilUiNode.boxed())),
-                properties: Some($node.boxed()),
-            }
-        };
-    }
-
+    /// Captures the *child-layout* priority properties for the theme.
     fn new_child_layout(child: impl UiNode) -> impl UiNode {
-        theme_node! {
-            ThemeChildLayoutNode {
-                child,
-                child_context,
-                child_layout,
-            }
-        }
+        Theme::new_priority(child.boxed(), |t| &t.child_layout, |t| &t.child_context)
     }
 
+    /// Captures the *child-context* priority properties for the theme.
     fn new_child_context(child: impl UiNode) -> impl UiNode {
-        theme_node! {
-            ThemeChildContextNode {
-                child,
-                fill,
-                child_context,
-            }
-        }
+        Theme::new_priority(child.boxed(), |t| &t.child_context, |t| &t.fill)
     }
 
+    /// Captures the *fill* priority properties for the theme.
     fn new_fill(child: impl UiNode) -> impl UiNode {
-        theme_node! {
-            ThemeChildContextNode {
-                child,
-                border,
-                fill,
-            }
-        }
+        Theme::new_priority(child.boxed(), |t| &t.fill, |t| &t.border)
     }
 
+    /// Captures the *border* priority properties for the theme.
     fn new_border(child: impl UiNode) -> impl UiNode {
-        theme_node! {
-            ThemeChildContextNode {
-                child,
-                size,
-                border,
-            }
-        }
+        Theme::new_priority(child.boxed(), |t| &t.border, |t| &t.size)
     }
 
+    /// Captures the *size* priority properties for the theme.
     fn new_size(child: impl UiNode) -> impl UiNode {
-        theme_node! {
-            ThemeChildContextNode {
-                child,
-                layout,
-                size,
-            }
-        }
+        Theme::new_priority(child.boxed(), |t| &t.size, |t| &t.layout)
     }
 
+    /// Captures the *layout* priority properties for the theme.
     fn new_layout(child: impl UiNode) -> impl UiNode {
-        theme_node! {
-            ThemeLayoutNode {
-                child,
-                event,
-                layout,
-            }
-        }
+        Theme::new_priority(child.boxed(), |t| &t.layout, |t| &t.event)
     }
 
+    /// Captures the *event* priority properties for the theme.
     fn new_event(child: impl UiNode) -> impl UiNode {
-        theme_node! {
-            ThemeEventNode {
-                child,
-                context,
-                event,
-            }
-        }
+        Theme::new_priority(child.boxed(), |t| &t.event, |t| &t.context)
     }
 
+    /// Captures the *context* priority properties for the theme.
+    ///
+    /// Any node that wraps the returned node are ignored, the theme is already completed here.
     fn new_context(child: impl UiNode) -> impl UiNode {
-        struct ThemeContextNode {
-            properties: Option<BoxedUiNode>,
-        }
-        #[impl_ui_node(none)]
-        impl UiNode for ThemeContextNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(theme) = ctx.widget_state.get_mut(ThemeKey) {
-                    // theme init.
-                    *theme.context.properties.borrow_mut() = self.properties.take();
-                } else {
-                    unreachable!()
-                }
-            }
-        }
-        ThemeContextNode {
-            properties: Some(child.boxed()),
-        }
+        Theme::new_context(child.boxed())
     }
 
-    fn new(child: impl UiNode) -> Theme {
-        Theme {
-            init: Some(child.boxed()),
-            theme: ThemeProperties::default(),
-        }
+    /// Finishes constructing the theme.
+    ///
+    /// Any node passed as the input here is ignored, the theme is completed in [`new_context`], this
+    /// final constructor only produces the [`Theme`].
+    fn new(_: impl UiNode) -> Theme {
+        Theme::new()
     }
 
     pub use super::{theme_generator, Theme, ThemeGenerator};
@@ -237,8 +151,12 @@ impl Default for ThemePriority {
     }
 }
 
-#[derive(Default)]
-struct ThemeProperties {
+/// Represents a theme instance.
+///
+/// Use the [`theme!`] *widget* to instantiate.
+///
+/// [`theme!`]: mod@theme
+pub struct Theme {
     child_layout: ThemePriority,
     child_context: ThemePriority,
     fill: ThemePriority,
@@ -248,28 +166,133 @@ struct ThemeProperties {
     event: ThemePriority,
     context: ThemePriority,
 }
-state_key! {
-    struct ThemeKey: ThemeProperties;
-}
-
-/// Represents a theme instance.
-///
-/// Use the [`theme!`] *widget* to instantiate.
-///
-/// [`theme!`]: mod@theme
-pub struct Theme {
-    init: Option<BoxedUiNode>,
-    theme: ThemeProperties,
+thread_local! {
+    static THEME: RefCell<Vec<Theme>> = RefCell::default();
 }
 impl Theme {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        if let Some(mut builder) = self.init.take() {
-            let mut state = OwnedStateMap::new();
-            state.borrow_mut().set(ThemeKey, ThemeProperties::default());
-            ctx.widget_context(ctx.path.widget_id(), ctx.widget_info, &mut state, |ctx| {
-                builder.init(ctx);
-            });
-            self.theme = state.remove(ThemeKey).unwrap();
+    fn new_child() -> impl UiNode {
+        let child = THEME.with(|t| {
+            let theme = Theme {
+                child_layout: ThemePriority::default(),
+                child_context: ThemePriority::default(),
+                fill: ThemePriority::default(),
+                border: ThemePriority::default(),
+                size: ThemePriority::default(),
+                layout: ThemePriority::default(),
+                event: ThemePriority::default(),
+                context: ThemePriority::default(),
+            };
+            let child = theme.child_layout.child.clone();
+            t.borrow_mut().push(theme);
+            child
+        });
+
+        struct ThemeChildNode {
+            child: Rc<RefCell<BoxedUiNode>>,
+        }
+        #[impl_ui_node(
+            delegate = self.child.borrow(),
+            delegate_mut = self.child.borrow_mut(),
+        )]
+        impl UiNode for ThemeChildNode {}
+
+        ThemeChildNode { child }
+    }
+
+    fn new_priority(
+        theme_child: BoxedUiNode,
+        priority: impl FnOnce(&Theme) -> &ThemePriority,
+        next_priority: impl FnOnce(&Theme) -> &ThemePriority,
+    ) -> impl UiNode {
+        let child = THEME.with(move |t| {
+            let t = t.borrow();
+            let t = t.last().expect("no theme instantiating");
+
+            let priority = priority(t);
+            let next_priority = next_priority(t);
+
+            *priority.properties.borrow_mut() = Some(theme_child);
+            next_priority.child.clone()
+        });
+
+        struct ThemePriorityNode {
+            child: Rc<RefCell<BoxedUiNode>>,
+        }
+        #[impl_ui_node(
+            delegate = self.child.borrow(),
+            delegate_mut = self.child.borrow_mut(),
+        )]
+        impl UiNode for ThemePriorityNode {}
+
+        ThemePriorityNode { child }
+    }
+
+    fn new_context(theme_child: BoxedUiNode) -> impl UiNode {
+        THEME.with(move |t| {
+            let t = t.borrow();
+            let t = t.last().expect("no theme instantiating");
+
+            *t.context.properties.borrow_mut() = Some(theme_child);
+        });
+
+        NilUiNode
+    }
+
+    fn new() -> Theme {
+        THEME.with(|t| t.borrow_mut().pop().expect("no theme instantiating"))
+    }
+
+    fn insert_priority(widget_child: BoxedUiNode, priority: impl Fn(&Theme) -> &ThemePriority + 'static) -> impl UiNode {
+        struct ThemablePriorityNode<P> {
+            priority: P,
+
+            wgt_child: Option<Rc<RefCell<BoxedUiNode>>>,
+            child: BoxedUiNode,
+        }
+        #[impl_ui_node(child)]
+        impl<P> UiNode for ThemablePriorityNode<P>
+        where
+            P: Fn(&Theme) -> &ThemePriority + 'static,
+        {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                debug_assert!(self.wgt_child.is_none());
+
+                let t = ActualThemeVar::get(ctx.vars);
+                if let (Some(id), Some(theme)) = (t.widget_id, &t.theme) {
+                    if id == ctx.path.widget_id() {
+                        // widget is themed, insert the theme
+
+                        let t = (self.priority)(theme);
+
+                        if let Some(properties) = t.properties.borrow_mut().take() {
+                            // child becomes the properties
+                            let prev_child = mem::replace(&mut self.child, properties);
+                            // prev_child becomes the theme child
+                            *t.child.borrow_mut() = prev_child;
+
+                            // preserve the original widget child so that we can remove the theme on deinit.
+                            self.wgt_child = Some(t.child.clone());
+                        }
+                    }
+                }
+
+                self.child.init(ctx);
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.child.deinit(ctx);
+
+                if let Some(w) = self.wgt_child.take() {
+                    // restore to not-themed state, where child is the widget child.
+                    self.child = mem::replace(&mut *w.borrow_mut(), NilUiNode.boxed());
+                }
+            }
+        }
+
+        ThemablePriorityNode {
+            priority,
+            wgt_child: None,
+            child: widget_child,
         }
     }
 }
@@ -306,13 +329,7 @@ impl ThemeGenerator {
     ///
     /// [`is_nil`]: Self::is_nil
     pub fn generate(&self, ctx: &mut WidgetContext) -> Option<Theme> {
-        if let Some(generate) = &self.0 {
-            let mut theme = generate(ctx);
-            theme.init(ctx);
-            Some(theme)
-        } else {
-            None
-        }
+        self.0.as_ref().map(|g| g(ctx))
     }
 }
 impl fmt::Debug for ThemeGenerator {
@@ -365,133 +382,44 @@ impl fmt::Debug for ActualTheme {
 pub mod nodes {
     use super::*;
 
-    macro_rules! insert_node {
-        ($Node:ident { $wgt_child:ident, $priority:ident, }) => {
-            struct $Node {
-                wgt_child: Option<Rc<RefCell<BoxedUiNode>>>,
-                child: BoxedUiNode,
-            }
-            #[impl_ui_node(child)]
-            impl UiNode for $Node {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    debug_assert!(self.wgt_child.is_none());
-
-                    let t = ActualThemeVar::get(ctx.vars);
-                    if let (Some(id), Some(theme)) = (t.widget_id, &t.theme) {
-                        if id == ctx.path.widget_id() {
-                            // widget is themed, insert the theme
-
-                            let t = &theme.theme.$priority;
-
-                            if let Some(properties) = t.properties.borrow_mut().take() {
-                                // child becomes the properties
-                                let prev_child = mem::replace(&mut self.child, properties);
-                                // prev_child becomes the theme child
-                                *t.child.borrow_mut() = prev_child;
-
-                                // preserve the original widget child so that we can remove the theme on deinit.
-                                self.wgt_child = Some(t.child.clone());
-                            }
-                        }
-                    }
-
-                    self.child.init(ctx);
-                }
-
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    self.child.deinit(ctx);
-
-                    if let Some(w) = self.wgt_child.take() {
-                        // restore to not-themed state, where child is the widget child.
-                        self.child = mem::replace(&mut *w.borrow_mut(), NilUiNode.boxed());
-                    }
-                }
-            }
-            $Node {
-                child: $wgt_child.boxed(),
-                wgt_child: None,
-            }
-        };
-    }
-
     /// Insert the *child-layout* priority properties from the theme.
     pub fn insert_child_layout(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertChildLayoutNode {
-                child,
-                child_layout,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.child_layout)
     }
 
     /// Insert the *child-context* priority properties from the theme.
     pub fn insert_child_context(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertChildContextNode {
-                child,
-                child_context,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.child_context)
     }
 
     /// Insert the *fill* priority properties from the theme.
     pub fn insert_fill(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertFillNode {
-                child,
-                fill,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.fill)
     }
 
     /// Insert the *border* priority properties from the theme.
     pub fn insert_border(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertBorderNode {
-                child,
-                border,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.border)
     }
 
     /// Insert the *size* priority properties from the theme.
     pub fn insert_size(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertSizeNode {
-                child,
-                size,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.size)
     }
 
     /// Insert the *layout* priority properties from the theme.
     pub fn insert_layout(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertLayoutNode {
-                child,
-                layout,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.layout)
     }
 
     /// Insert the *event* priority properties from the theme.
     pub fn insert_event(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertEventNode {
-                child,
-                event,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.event)
     }
 
     /// Insert the *context* priority properties from the theme.
     pub fn insert_context(child: impl UiNode) -> impl UiNode {
-        insert_node! {
-            InsertContextNode {
-                child,
-                context,
-            }
-        }
+        Theme::insert_priority(child.boxed(), |t| &t.context)
     }
 
     /// Generate the theme for the widget.
