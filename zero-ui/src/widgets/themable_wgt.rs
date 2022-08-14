@@ -165,7 +165,7 @@ pub mod theme {
         }
     }
 
-    pub use super::{Theme, ThemeGenerator};
+    pub use super::{theme_generator, Theme, ThemeGenerator};
 }
 
 /// Widget base that can by dynamically styled by a [`Theme`].
@@ -275,6 +275,8 @@ impl Theme {
 }
 
 /// Boxed shared closure that generates a theme instance for a given widget context.
+///
+/// You can also use the [`theme_generator!`] macro, it has the advantage of being clone move.
 #[derive(Clone)]
 pub struct ThemeGenerator(Option<Rc<dyn Fn(&mut WidgetContext) -> Theme>>);
 impl Default for ThemeGenerator {
@@ -301,6 +303,8 @@ impl ThemeGenerator {
     /// Generate a theme for the themable widget in the context.
     ///
     /// Returns `None` if [`is_nil`], otherwise returns the theme.
+    ///
+    /// [`is_nil`]: Self::is_nil
     pub fn generate(&self, ctx: &mut WidgetContext) -> Option<Theme> {
         if let Some(generate) = &self.0 {
             let mut theme = generate(ctx);
@@ -316,6 +320,22 @@ impl fmt::Debug for ThemeGenerator {
         write!(f, "ThemeGenerator(_)")
     }
 }
+
+/// <span data-del-macro-root></span> Declares a theme generator closure.
+///
+/// The output type is a [`ThemeGenerator`], the closure is [`clone_move!`].
+///
+/// [`clone_move!`]: crate::core::clone_move
+#[macro_export]
+macro_rules! theme_generator {
+    ($($tt:tt)+) => {
+        $crate::widgets::theme::ThemeGenerator::new($crate::core::clone_move! {
+            $($tt)+
+        })
+    }
+}
+#[doc(inline)]
+pub use crate::theme_generator;
 
 context_var! {
     struct ActualThemeVar: ActualTheme = ActualTheme::default();
