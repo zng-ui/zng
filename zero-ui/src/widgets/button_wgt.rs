@@ -37,6 +37,16 @@ pub mod button {
         /// Enabled by default.
         capture_mouse = true;
 
+        /// Button padding.
+        ///
+        /// Is `(7, 15)` by default.
+        padding = vis::PaddingVar;
+
+        /// Button content align.
+        /// 
+        /// Is `CENTER` by default.
+        content_align = vis::ContentAlignVar;
+
         /// Button dark and light themes.
         ///
         /// Set to [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
@@ -58,16 +68,6 @@ pub mod vis {
         inherit!(theme);
 
         properties! {
-            /// Button padding.
-            ///
-            /// Is `(7, 15)` by default.
-            padding;
-
-            /// Content alignment.
-            ///
-            /// Is `CENTER` by default.
-            child_align as content_align = Align::CENTER;
-
             /// Button corner radius.
             ///
             /// Is `4` by default.
@@ -209,6 +209,20 @@ pub mod vis {
         ///
         /// All other background states are derived by adjusting the brightness of this color.
         pub struct LightBaseColorVar: Rgba = rgb(0.2, 0.2, 0.2);
+
+        /// Button padding.
+        /// 
+        /// Use the [`button::vis::padding`] property to set.
+        ///
+        /// [`button::vis::padding`]: fn@padding
+        pub struct PaddingVar: SideOffsets = (7, 15);
+
+        /// Button content align.
+        /// 
+        /// Use the [`button::vis::content_align`] property to set.
+        ///
+        /// [`button::vis::content_align`]: fn@content_align
+        pub struct ContentAlignVar: Align = Align::CENTER;
     }
 
     /// Sets the [`DarkThemeVar`] that affects all buttons inside the widget.
