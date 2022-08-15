@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt};
+use std::{any::Any, borrow::Cow, fmt};
 
 use parking_lot::Mutex;
 
@@ -150,7 +150,7 @@ impl_from_and_into_var! {
 
 /// An Ui tree node.
 #[cfg_attr(doc_nightly, doc(notable_trait))]
-pub trait UiNode: 'static {
+pub trait UiNode: Any {
     /// Called every time the node is plugged into the UI tree.
     ///
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the initializing node it self
