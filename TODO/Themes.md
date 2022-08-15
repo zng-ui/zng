@@ -3,7 +3,7 @@
 * Because themes don't override properties, some unexpected results can happen, for example
     setting `padding` on a theme and on the widget causes a sum of both paddings to be set.
 
-* We need an alternative widget init that collects each property as a dynamic unit, like a `PropertyInstance` that
+* We need an alternative widget init that collects each property as a dynamic unit, like a `DynProperty` that
     is an `AdoptiveNode` with a property name field.
 * Maybe implemented in `widget_new`, triggered by the signature of the constructor functions:
     - Advantages:
@@ -43,7 +43,7 @@ mod foo {
     //      - Can be a warning when diagnostics are stabilized.
 }
 
-pub struct PropertyInstance {
+pub struct DynProperty {
     // Property node.
     pub node: AdoptiveNode,
     // Name used to set the property.
@@ -52,7 +52,7 @@ pub struct PropertyInstance {
     // If was auto set by widget declaration or was set locally in the instance.
     //
     // Dynamic widgets can use this value to *override* properties with the same name.
-    pub source: PropertySource,
+    pub source: DynPropertySource,
     
     // Unique id for each property, like a `TypeId`?.
     //
@@ -60,7 +60,7 @@ pub struct PropertyInstance {
     pub property_id: PropertyId,
 }
 
-pub enum PropertySource {
+pub enum DynPropertySource {
     // Set on the widget declaration.
     Widget,
     // Set on the widget instance.
