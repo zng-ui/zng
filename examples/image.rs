@@ -381,30 +381,12 @@ pub mod img_window {
             })
         });
 
-
-    }
-
-    fn new_child_context(child: impl UiNode) -> impl UiNode {
-        // button theme
-        container! {
-            content = child;
-
-            button::vis::background_color = button_color().lighten(4.pct());
-            button::vis::border = {
-                widths: 1,
-                sides: button_color().lighten(4.pct()),
-            };
-
-            button::vis::hovered::background_color = button_color().lighten(2.fct());
-            button::vis::hovered::border_sides = button_color().lighten(1.fct());
-
-            button::vis::pressed::background_color = button_color().lighten(3.fct());
-            button::vis::pressed::border_sides = button_color().lighten(2.fct());
-        }
-    }
-
-    fn button_color() -> Rgba {
-        rgb(0, 0, 20)
+        // button color
+        button::vis::dark = theme_generator!(|_| {
+            button::vis::dark_theme! {
+                base_color = rgb(0, 0, 50);
+            }
+        });
     }
 
     fn loading_color() -> Rgba {

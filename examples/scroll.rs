@@ -59,14 +59,12 @@ fn commands() -> impl Widget {
         padding = 5;
         background_color = rgba(0, 0, 0, 90.pct());
         corner_radius = (0, 0, 8, 8);
-        button::vis::padding = 4;
         alt_focus_scope = true;
 
         items = widgets![
             v_stack! {
                 visibility = show.map_into();
                 spacing = 3;
-                button::vis::corner_radius = 0;
 
                 items = widgets![
                     cmd_btn(ScrollUpCommand),
@@ -92,10 +90,12 @@ fn commands() -> impl Widget {
             button! {
                 content = text(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
                 margin = show.map(|s| if !s { 0.into() } else { (3, 0, 0, 0).into() });
-                corner_radius = (0, 0, 4, 4);
                 on_click = hn!(|ctx, _| {
                     show.modify(ctx, |mut s| *s = !*s);
                 });
+
+                corner_radius = (0, 0, 4, 4);
+                padding = 4;
             }
         ];
     }
@@ -108,7 +108,10 @@ fn cmd_btn(cmd: impl Command) -> impl Widget {
         // visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
             cmd.notify_cmd(ctx, None);
-        })
+        });
+
+        corner_radius = 0;
+        padding = 4;
     }
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl Widget {
@@ -122,6 +125,9 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl Widget {
         on_click = hn!(|ctx, _| {
             commands::scroll_to(ctx, scroll, target, mode.clone());
         });
+
+        corner_radius = 0;
+        padding = 4;
     }
 }
 fn separator() -> impl Widget {

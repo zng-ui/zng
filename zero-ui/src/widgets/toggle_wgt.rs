@@ -38,16 +38,6 @@ pub mod toggle {
         properties::tristate = properties::IsTristateVar;
 
         properties::is_checked;
-
-        /// When toggle is `Some(true)`.
-        when self.is_checked {
-            background_color = vis::hovered::BackgroundColorVar;
-            border = {
-                widths: vis::BorderWidthsVar,
-                sides: vis::hovered::BorderSidesVar,
-            };
-            text_color = vis::hovered::TextColorVar;
-        }
     }
 
     fn new_context(child: impl UiNode, tristate: impl IntoVar<bool>) -> impl UiNode {
@@ -195,8 +185,6 @@ pub mod checkbox {
     use super::*;
 
     properties! {
-        remove { background_color; border }
-
         content_align = Align::LEFT;
         padding = 0;
     }

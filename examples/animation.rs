@@ -84,7 +84,16 @@ fn example(vars: &Vars) -> impl Widget {
                 id = "easing-menu";
                 spacing = 2;
                 columns = 7;
-                button::vis::padding = 3;
+                button::vis::dark = theme_generator!(|_| {
+                    button::vis::dark_theme! {
+                        padding = 3;
+                    }
+                });
+                button::vis::light = theme_generator!(|_| {
+                    button::vis::light_theme! {
+                        padding = 3;
+                    }
+                });
                 items = widgets![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),

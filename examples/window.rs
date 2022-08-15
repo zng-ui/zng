@@ -422,10 +422,9 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
             when self.is_hovered && !*#{flag.clone()} {
                 background_color = c_false;
 
-                // TODO allow setting only border.sides
                 border = {
                     sides: c_true_border,
-                    widths: button::vis::BorderWidthsVar,
+                    widths: 1,
                 };
             }
 
@@ -434,7 +433,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
 
                 border = {
                     sides: c_false_border,
-                    widths: button::vis::BorderWidthsVar,
+                    widths: 1,
                 };
             }
         }
@@ -488,9 +487,19 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                             focus_scope = true;
                             tab_nav = TabNav::Cycle;
                             directional_nav = DirectionalNav::Cycle;
-                            button::vis::corner_radius = 0;
                             drop_shadow = (0, 0), 4, colors::BLACK;
-                            padding = 4;
+                            button::vis::dark = theme_generator!(|_| {
+                                button::vis::dark_theme! {
+                                    padding = 4;
+                                    corner_radius = unset!;
+                                }
+                            });
+                            button::vis::light = theme_generator!(|_| {
+                                button::vis::light_theme! {
+                                    padding = 4;
+                                    corner_radius = unset!;
+                                }
+                            });
                             content = v_stack! {
                                 items_align = Align::RIGHT;
                                 items = widgets![

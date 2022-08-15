@@ -182,6 +182,23 @@ impl Rgba {
         self.to_hsla().darken(amount).to_rgba()
     }
 
+    /// Subtracts the `amount` from the color *saturation*.
+    ///
+    /// This method converts to [`Hsla`] to desaturate and then converts back to `Rgba`.
+    ///
+    /// # Examples
+    ///
+    /// Removes `10%` of the current saturation from the `RED` color:
+    ///
+    /// ```
+    /// # use zero_ui_core::color::*;
+    /// # use zero_ui_core::units::*;
+    /// colors::RED.desaturate(10.pct())
+    /// # ;
+    pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
+        self.to_hsla().desaturate(amount).to_rgba()
+    }
+
     /// Returns a copy of this color with a new `lightness`.
     ///
     /// This method converts to [`Hsla`] to change the lightness and then converts back to `Rgba`.
@@ -377,11 +394,30 @@ impl Hsla {
     /// # ;
     /// ```
     ///
-    /// Removes `10%` of the current lightness of the `DARK_RED` color.
+    /// Removes `10%` of the current lightness of the `RED` color.
     pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
         let mut darker = self;
         darker.lightness = clamp_normal(darker.lightness - (darker.lightness * amount.into().0));
         darker
+    }
+
+    /// Subtracts the `amount` from the color *saturation*.
+    ///
+    /// This method converts to [`Hsla`] to desaturate and then converts back to `Rgba`.
+    ///
+    /// # Examples
+    ///
+    /// Removes `10%` of the current saturation from the `RED` color:
+    ///
+    /// ```
+    /// # use zero_ui_core::color::*;
+    /// # use zero_ui_core::units::*;
+    /// colors::RED.to_hsla().desaturate(10.pct())
+    /// #
+    pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
+        let mut desat = self;
+        desat.saturation = clamp_normal(desat.saturation - (desat.saturation * amount.into().0));
+        desat
     }
 
     /// Sets the [`hue`](Self::hue) color angle.
