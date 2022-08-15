@@ -242,7 +242,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     }
                 });
 
-            // tokens that handle the `arg0: impl UiNode`.
+            // tokens that handle the `arg0: impl UiNode, [arg1: Vec<DynProperty>]`.
             let mut child_decl = TokenStream::new();
             let mut child_pass = TokenStream::new();
             if *priority != FnPriority::NewChild {
@@ -255,7 +255,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 child_pass = quote_spanned! {span=> box_fix(#child_ident), };
 
                 if fn_.dynamic {
-                    let span = *arg_ty_spans.get(1).unwrap_or_else(|| non_user_error!(""));
                     let properties_ident = ident_spanned!(span=> "__properties");
                     let properties_ty = quote_spanned! {span=>
                         Vec<#crate_core::DynProperty>
@@ -286,8 +285,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             };
 
             // declare `__new_*`
-            let new_id = ident!("{priority}");
-            let new__ = ident!("__{priority}");
+            let dyn_suffix = if fn_.dynamic { "_dyn" } else { "" };
+            let new_id = ident!("{priority}{dyn_suffix}");
+            let new__ = ident!("__{priority}{dyn_suffix}");
 
             let mut r = TokenStream::new();
 

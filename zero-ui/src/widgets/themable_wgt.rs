@@ -1,9 +1,9 @@
 //! Theme building blocks.
 
-use std::{fmt, rc::Rc};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{
-    core::{DynProperties, DynProperty, DynPropertyPriority, DynPropertySource},
+    core::{DynProperties, DynPropertiesSnapshot, DynProperty, DynPropertyPriority, DynPropertySource},
     prelude::new_widget::*,
 };
 
@@ -141,8 +141,6 @@ pub mod themable {
         /// prefer property binding and `when` conditions to cause visual changes that happen often.
         #[property(context, default(ThemeGenerator::nil()))]
         pub fn theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-            let child = Theme::insert_priority(child.boxed(), |t| &t.context);
-
             struct ThemableContextNode<C, T> {
                 child: C,
                 theme: T,
@@ -165,7 +163,12 @@ pub mod themable {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     self.actual_theme = ActualTheme {
                         widget_id: Some(ctx.path.widget_id()),
-                        theme: self.theme.get(ctx.vars).generate(ctx),
+                        parts: self
+                            .theme
+                            .get(ctx.vars)
+                            .generate(ctx)
+                            .map(|t| t.split_priority())
+                            .unwrap_or_default(),
                     };
 
                     self.with_mut(ctx.vars, |c| {
@@ -204,10 +207,10 @@ pub mod themable {
                     if let Some(theme) = self.theme.get_new(ctx.vars) {
                         let actual_theme = ActualTheme {
                             widget_id: Some(ctx.path.widget_id()),
-                            theme: theme.generate(ctx),
+                            parts: theme.generate(ctx).map(|t| t.split_priority()).unwrap_or_default(),
                         };
 
-                        if self.actual_theme.theme.is_some() || actual_theme.theme.is_some() {
+                        if self.actual_theme.is_some() || actual_theme.is_some() {
                             self.child.deinit(ctx);
                             self.actual_theme = actual_theme;
                             self.child.init(ctx);
@@ -247,7 +250,46 @@ pub mod themable {
 
         /// The `new_*_dyn` constructors delegates to this.
         pub fn new_priority(child: impl UiNode, priority: DynPropertyPriority, properties: Vec<DynProperty>) -> impl UiNode {
-            todo!()
+            struct ThemableNode {
+                wgt_snapshot: Option<DynPropertiesSnapshot>,
+                properties: DynProperties,
+                priority: DynPropertyPriority,
+            }
+            #[impl_ui_node(
+                delegate = &self.properties,
+                delegate_mut = &mut self.properties,
+            )]
+            impl UiNode for ThemableNode {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let theme = ActualThemeVar::get(ctx.vars);
+                    if theme.widget_id == Some(ctx.path.widget_id()) {
+                        let theme = theme.parts[self.priority as usize].borrow_mut().take();
+                        if let Some(theme) = theme {
+                            if !theme.is_empty() {
+                                self.wgt_snapshot = Some(self.properties.snapshot());
+                                self.properties.insert_all(theme, DynPropertySource::Widget);
+                            }
+                        }
+                    }
+
+                    self.properties.init(ctx);
+                }
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.properties.deinit(ctx);
+                    if let Some(snap) = self.wgt_snapshot.take() {
+                        self.properties.restore(snap);
+                    }
+                }
+            }
+
+            let mut properties = DynProperties::new(priority, properties);
+            properties.replace_child(child.boxed());
+
+            ThemableNode {
+                properties,
+                priority,
+                wgt_snapshot: None,
+            }
         }
     }
 }
@@ -267,7 +309,7 @@ impl Theme {
     /// Note that each theme constructor function returns `Theme`, so the input child of the next constructor is
     /// `Theme`, unless an override changed a constructor.
     pub fn downcast(node: impl UiNode) -> Option<Theme> {
-        node.downcast_unbox()
+        node.downcast_unbox().ok()
     }
 
     /// Default `theme::new_child` constructor.
@@ -291,6 +333,11 @@ impl Theme {
             tracing::error!("theme constructor function `new` did not receive a `Theme` in the first parameter");
             Theme::default()
         })
+    }
+
+    fn split_priority(self) -> [RefCell<Option<DynProperties>>; DynPropertyPriority::LEN] {
+        let mut parts = self.properties.split_priority().into_iter();
+        std::array::from_fn(|_| RefCell::new(Some(parts.next().unwrap())))
     }
 }
 #[impl_ui_node(
@@ -363,7 +410,20 @@ context_var! {
 #[derive(Default)]
 struct ActualTheme {
     widget_id: Option<WidgetId>,
-    theme: Option<Theme>,
+
+    parts: [RefCell<Option<DynProperties>>; DynPropertyPriority::LEN],
+}
+impl ActualTheme {
+    fn is_some(&self) -> bool {
+        for part in &self.parts {
+            if let Some(part) = &*part.borrow() {
+                if !part.is_empty() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }
 impl Clone for ActualTheme {
     fn clone(&self) -> Self {

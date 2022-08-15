@@ -208,6 +208,7 @@ unique_id_64! {
 }
 */
 
+#[derive(Clone)]
 struct PropertyItem {
     // property child, the `Rc` does not change, only the interior.
     child: Rc<RefCell<BoxedUiNode>>,
@@ -271,10 +272,21 @@ impl DynPropertyPriority {
     pub const LEN: usize = DynPropertyPriority::Context as usize + 1;
 }
 
+unique_id_32! {
+    struct DynPropertiesId;
+}
+impl fmt::Debug for DynPropertiesId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("DynPropertiesId").field(&self.sequential()).finish()
+    }
+}
+
 /// Represents an editable chain of dynamic properties.
 ///
 /// This struct is a composite [`AdoptiveNode`].
 pub struct DynProperties {
+    id: DynPropertiesId,
+
     // innermost child.
     child: Rc<RefCell<BoxedUiNode>>,
     // outermost node.
@@ -290,6 +302,7 @@ pub struct DynProperties {
 impl fmt::Debug for DynProperties {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynProperties")
+            .field("id", &self.id)
             .field("properties", &self.properties)
             .field("is_inited", &self.is_inited)
             .finish_non_exhaustive()
@@ -308,6 +321,7 @@ impl DynProperties {
         let node = Rc::new(RefCell::new(NilUiNode.boxed()));
         if properties.is_empty() {
             DynProperties {
+                id: DynPropertiesId::new_unique(),
                 child: node.clone(),
                 node,
                 is_inited: false,
@@ -324,6 +338,7 @@ impl DynProperties {
             }
 
             DynProperties {
+                id: DynPropertiesId::new_unique(),
                 child: node.clone(),
                 node,
                 is_inited: false,
@@ -339,6 +354,11 @@ impl DynProperties {
         self.is_inited
     }
 
+    /// Returns `true` if this collection contains no properties.
+    pub fn is_empty(&self) -> bool {
+        self.properties.is_empty()
+    }
+
     /// Replaces the inner child node, panics if the node is inited.
     ///
     /// Returns the previous child, the initial child is a [`NilUiNode`].
@@ -351,6 +371,7 @@ impl DynProperties {
         debug_assert!(self.is_bound);
 
         if !self.properties.is_empty() {
+            // TODO !!: child is lost?
             self.child = Rc::new(RefCell::new(NilUiNode.boxed()));
             for i in 0..self.properties.len() {
                 let (a, b) = self.properties.split_at_mut(i + 1);
@@ -512,6 +533,56 @@ impl DynProperties {
             }
         }
     }
+
+    /// Create an snapshot of the current properties.
+    ///
+    /// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
+    ///
+    /// [`restore`]: DynProperties::restore
+    pub fn snapshot(&self) -> DynPropertiesSnapshot {
+        DynPropertiesSnapshot {
+            id: self.id,
+            properties: self.properties.clone(),
+            priority_ranges: self.priority_ranges,
+        }
+    }
+
+    /// Restores the properties to the snapshot, if it was taken from the same properties.
+    ///
+    /// Panics if the node is inited.
+    pub fn restore(&mut self, snapshot: DynPropertiesSnapshot) -> Result<(), DynPropertiesSnapshot> {
+        assert!(!self.is_inited);
+
+        if self.id == snapshot.id {
+            if self.is_bound {
+                self.unbind_all();
+            }
+
+            self.properties = snapshot.properties;
+            self.priority_ranges = snapshot.priority_ranges;
+
+            Ok(())
+        } else {
+            Err(snapshot)
+        }
+    }
+
+    /// Split the properties in a separate collection for each property priority.
+    pub fn split_priority(self) -> [DynProperties; DynPropertyPriority::LEN] {
+        todo!()
+    }
+}
+
+/// Represents a snapshot of a [`DynProperties`] value.
+///
+/// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
+///
+/// [`restore`]: DynProperties::restore
+#[derive(Debug)]
+pub struct DynPropertiesSnapshot {
+    id: DynPropertiesId,
+    properties: Vec<PropertyItem>,
+    priority_ranges: [usize; DynPropertyPriority::LEN],
 }
 
 #[impl_ui_node(
