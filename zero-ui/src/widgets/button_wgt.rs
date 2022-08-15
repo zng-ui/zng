@@ -10,7 +10,6 @@ pub mod button {
     pub use super::vis;
 
     inherit!(focusable_mixin);
-    inherit!(theme_mixin);
     inherit!(container);
 
     properties! {
@@ -37,10 +36,12 @@ pub mod button {
         /// Enabled by default.
         capture_mouse = true;
 
+        /*
         /// Button dark and light themes.
         ///
         /// Set to [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
         theme_pair = vis::DarkThemeVar, vis::LightThemeVar;
+        */
     }
 }
 

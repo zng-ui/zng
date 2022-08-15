@@ -1,4 +1,8 @@
-use std::{any::Any, borrow::Cow, fmt};
+use std::{
+    any::{Any, TypeId},
+    borrow::Cow,
+    fmt,
+};
 
 use parking_lot::Mutex;
 
@@ -373,10 +377,41 @@ pub trait UiNode: Any {
         let wgt = nodes::widget(node, WidgetId::new_unique());
         wgt.boxed_wgt()
     }
+
+    /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] or [`BoxedWidget`] that is `T`.
+    fn downcast_unbox<T: UiNode>(self) -> Result<T, Self>
+    where
+        Self: Sized,
+    {
+        match (Box::new(self) as Box<dyn Any>).downcast::<T>() {
+            Ok(r) => Ok(*r),
+            Err(e) => match e.downcast::<BoxedUiNode>() {
+                Ok(bn) => {
+                    if bn.type_id_boxed() == TypeId::of::<T>() {
+                        Ok(*bn.as_any_boxed().downcast::<T>().unwrap())
+                    } else {
+                        let e: Box<dyn Any> = bn;
+                        Err(*e.downcast::<Self>().unwrap())
+                    }
+                }
+                Err(e) => match e.downcast::<BoxedWidget>() {
+                    Ok(bw) => {
+                        if bw.type_id_boxed() == TypeId::of::<T>() {
+                            Ok(*bw.as_any_boxed().downcast::<T>().unwrap())
+                        } else {
+                            let e: Box<dyn Any> = bw;
+                            Err(*e.downcast::<Self>().unwrap())
+                        }
+                    }
+                    Err(e) => Err(*e.downcast::<Self>().unwrap()),
+                },
+            },
+        }
+    }
 }
 
 #[doc(hidden)]
-pub trait UiNodeBoxed: 'static {
+pub trait UiNodeBoxed: Any {
     fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
     fn subscriptions_boxed(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
@@ -395,6 +430,9 @@ pub trait UiNodeBoxed: 'static {
     fn try_bounds_info_boxed(&self) -> Option<&WidgetBoundsInfo>;
     fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo>;
     fn into_widget_boxed(self: Box<Self>) -> BoxedWidget;
+
+    fn type_id_boxed(&self) -> TypeId;
+    fn as_any_boxed(self: Box<Self>) -> Box<dyn Any>;
 }
 
 impl<U: UiNode> UiNodeBoxed for U {
@@ -464,6 +502,14 @@ impl<U: UiNode> UiNodeBoxed for U {
 
     fn into_widget_boxed(self: Box<Self>) -> BoxedWidget {
         self.into_widget()
+    }
+
+    fn type_id_boxed(&self) -> TypeId {
+        self.type_id()
+    }
+
+    fn as_any_boxed(self: Box<Self>) -> Box<dyn Any> {
+        self
     }
 }
 

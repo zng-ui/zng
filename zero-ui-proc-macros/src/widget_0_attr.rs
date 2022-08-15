@@ -109,12 +109,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
     if mixin {
-        for (_, fn_) in new_fns.drain(..) {
+        for fn_ in new_fns.drain(..) {
             errors.push(
-                format!("widget mixins do not have a `{}` function", &fn_.sig.ident),
-                fn_.sig.ident.span(),
+                format!("widget mixins do not have a `{}` function", &fn_.item.sig.ident),
+                fn_.item.sig.ident.span(),
             );
-            others.push(syn::Item::Fn(fn_))
+            others.push(syn::Item::Fn(fn_.item))
         }
     }
 
@@ -128,14 +128,33 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // Does some validation of new signatures.
     // Further type validation is done by `rustc` when we call the function
     // in the generated `__new_child` .. `__new` functions.
-    for (priority, fn_) in &mut new_fns {
+    for fn_ in &mut new_fns {
         validate_new_fn(fn_, &mut errors);
-        if *priority != FnPriority::NewChild && fn_.sig.inputs.is_empty() {
-            errors.push(
-                format!("`{}` must take at least one input that implements `UiNode`", fn_.sig.ident),
-                fn_.sig.paren_token.span,
-            );
-            fn_.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
+        if fn_.priority != FnPriority::NewChild {
+            if fn_.dynamic && fn_.item.sig.inputs.len() < 2 {
+                errors.push(
+                    format!(
+                        "`{}` must take at least two inputs, one that implements `UiNode` and one `Vec<DynProperty>`",
+                        fn_.item.sig.ident
+                    ),
+                    fn_.item.sig.paren_token.span,
+                );
+
+                if fn_.item.sig.inputs.is_empty() {
+                    fn_.item.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
+                } else {
+                    fn_.item
+                        .sig
+                        .inputs
+                        .push(parse_quote! { __properties: Vec<#crate_core::DynProperty> });
+                }
+            } else if fn_.item.sig.inputs.is_empty() {
+                errors.push(
+                    format!("`{}` must take at least one input that implements `UiNode`", fn_.item.sig.ident),
+                    fn_.item.sig.paren_token.span,
+                );
+                fn_.item.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
+            }
         }
     }
 
@@ -146,10 +165,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut captured_properties = HashMap::new();
 
     for priority in FnPriority::all() {
-        if let Some((_, fn_)) = new_fns.iter().find(|(k, _)| k == priority) {
-            let mut args = fn_.sig.inputs.iter();
+        if let Some(fn_) = new_fns.iter().find(|f| f.priority == *priority) {
+            let mut args = fn_.item.sig.inputs.iter();
             let mut ty_spans = vec![];
             if *priority != FnPriority::NewChild {
+                if fn_.dynamic {
+                    args.next();
+                }
                 let child_ty_span = args
                     .next()
                     .map(|a| if let FnArg::Typed(pt) = a { pt.ty.span() } else { a.span() })
@@ -185,7 +207,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut new_declarations = vec![]; // [FnPriority:TokenStream]
 
     for (i, priority) in FnPriority::all().iter().enumerate() {
-        if let Some((_, fn_)) = new_fns.iter().find(|(k, _)| k == priority) {
+        if let Some(fn_) = new_fns.iter().find(|f| f.priority == *priority) {
             let caps = &new_captures[i];
             let cfgs = &new_captures_cfg[i];
             let arg_ty_spans = &new_arg_ty_spans[i];
@@ -230,18 +252,31 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     impl #crate_core::UiNode
                 };
                 child_decl = quote! { #child_ident: #child_ty, };
-                child_pass = quote_spanned! {span=> box_fix(#child_ident), }
+                child_pass = quote_spanned! {span=> box_fix(#child_ident), };
+
+                if fn_.dynamic {
+                    let span = *arg_ty_spans.get(1).unwrap_or_else(|| non_user_error!(""));
+                    let properties_ident = ident_spanned!(span=> "__properties");
+                    let properties_ty = quote_spanned! {span=>
+                        Vec<#crate_core::DynProperty>
+                    };
+
+                    child_decl.extend(quote! {
+                        #properties_ident: #properties_ty,
+                    });
+                    child_pass.extend(quote_spanned! {span=> #properties_ident, });
+                }
             }
 
             // output type, for `new` is a copy, for others is `impl UiNode` to validate the type.
             let output;
             let out_ident;
             if *priority == FnPriority::New {
-                output = fn_.sig.output.to_token_stream();
+                output = fn_.item.sig.output.to_token_stream();
                 out_ident = ident!("out"); // not used
             } else {
-                let out_span = match &fn_.sig.output {
-                    syn::ReturnType::Default => fn_.block.span(),
+                let out_span = match &fn_.item.sig.output {
+                    syn::ReturnType::Default => fn_.item.block.span(),
                     syn::ReturnType::Type(_, t) => t.span(),
                 };
                 output = quote_spanned! {out_span=>
@@ -948,7 +983,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         TokenStream::new()
     };
 
-    let new_fns = new_fns.iter().map(|(_, v)| v);
+    let new_fns = new_fns.iter().map(|n| &n.item);
 
     let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
 
@@ -983,7 +1018,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             #[doc(hidden)]
             pub mod __core {
-                pub use #crate_core::{UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector, core_cfg_ok};
+                pub use #crate_core::{UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector, core_cfg_ok, DynProperty, DynPropertySource};
 
                 #crate_core::core_cfg_inspector! {
                     #[doc(hidden)]
@@ -1142,21 +1177,21 @@ fn new_fn_captures<'a, 'b>(
     (ids, cfgs, spans)
 }
 
-fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
-    if let Some(async_) = &fn_.sig.asyncness {
-        errors.push(format!("`{}` cannot be `async`", fn_.sig.ident), async_.span());
+fn validate_new_fn(fn_: &NewFn, errors: &mut Errors) {
+    if let Some(async_) = &fn_.item.sig.asyncness {
+        errors.push(format!("`{}` cannot be `async`", fn_.item.sig.ident), async_.span());
     }
-    if let Some(unsafe_) = &fn_.sig.unsafety {
-        errors.push(format!("`{}` cannot be `unsafe`", fn_.sig.ident), unsafe_.span());
+    if let Some(unsafe_) = &fn_.item.sig.unsafety {
+        errors.push(format!("`{}` cannot be `unsafe`", fn_.item.sig.ident), unsafe_.span());
     }
-    if let Some(abi) = &fn_.sig.abi {
-        errors.push(format!("`{}` cannot be `extern`", fn_.sig.ident), abi.span());
+    if let Some(abi) = &fn_.item.sig.abi {
+        errors.push(format!("`{}` cannot be `extern`", fn_.item.sig.ident), abi.span());
     }
-    if let Some(lifetime) = fn_.sig.generics.lifetimes().next() {
-        errors.push(format!("`{}` cannot declare lifetimes", fn_.sig.ident), lifetime.span());
+    if let Some(lifetime) = fn_.item.sig.generics.lifetimes().next() {
+        errors.push(format!("`{}` cannot declare lifetimes", fn_.item.sig.ident), lifetime.span());
     }
-    if let Some(const_) = fn_.sig.generics.const_params().next() {
-        errors.push(format!("`{}` does not support `const` generics", fn_.sig.ident), const_.span());
+    if let Some(const_) = fn_.item.sig.generics.const_params().next() {
+        errors.push(format!("`{}` does not support `const` generics", fn_.item.sig.ident), const_.span());
     }
 }
 
@@ -1178,8 +1213,10 @@ pub(crate) enum FnPriority {
     New,
 }
 impl FnPriority {
-    pub fn from_ident(ident: &Ident) -> Option<Self> {
-        match ident.to_string().as_str() {
+    pub fn from_ident(ident: &Ident) -> Option<(Self, bool)> {
+        let ident = ident.to_string();
+
+        let s = match ident.as_str() {
             "new_child" => Some(Self::NewChild),
             "new_child_layout" => Some(Self::NewChildLayout),
             "new_child_context" => Some(Self::NewChildContext),
@@ -1191,7 +1228,24 @@ impl FnPriority {
             "new_context" => Some(Self::NewContext),
             "new" => Some(Self::New),
             _ => None,
+        };
+        if let Some(s) = s {
+            return Some((s, false));
         }
+
+        let d = match ident.as_str() {
+            "new_child_layout_dyn" => Some(Self::NewChildLayout),
+            "new_child_context_dyn" => Some(Self::NewChildContext),
+            "new_fill_dyn" => Some(Self::NewFill),
+            "new_border_dyn" => Some(Self::NewBorder),
+            "new_size_dyn" => Some(Self::NewSize),
+            "new_layout_dyn" => Some(Self::NewLayout),
+            "new_event_dyn" => Some(Self::NewEvent),
+            "new_context_dyn" => Some(Self::NewContext),
+            _ => None,
+        };
+
+        d.map(|d| (d, true))
     }
 
     pub fn all() -> &'static [FnPriority] {
@@ -1226,11 +1280,17 @@ impl fmt::Display for FnPriority {
     }
 }
 
+struct NewFn {
+    priority: FnPriority,
+    dynamic: bool,
+    item: ItemFn,
+}
+
 struct WidgetItems {
     uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
-    new_fns: Vec<(FnPriority, ItemFn)>,
+    new_fns: Vec<NewFn>,
     others: Vec<Item>,
 }
 impl WidgetItems {
@@ -1238,7 +1298,7 @@ impl WidgetItems {
         let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
-        let mut new_fns = vec![];
+        let mut new_fns: Vec<NewFn> = vec![];
         let mut others = vec![];
 
         for item in items {
@@ -1291,9 +1351,13 @@ impl WidgetItems {
                         known_fn.is_some()
                     } =>
                 {
-                    let key = known_fn.unwrap();
-                    if !new_fns.iter().any(|(k, _)| k == &key) {
-                        new_fns.push((key, fn_));
+                    let (priority, dynamic) = known_fn.unwrap();
+                    if !new_fns.iter().any(|e| e.priority == priority) {
+                        new_fns.push(NewFn {
+                            priority,
+                            dynamic,
+                            item: fn_,
+                        });
                     }
                 }
                 // other user items.
