@@ -160,6 +160,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     // collects name of captured properties, spans new input types and validates inputs.
     let mut new_captures = vec![]; // [Vec<Ident>]
+    let mut new_dynamic = vec![]; // [Vec<bool>]
     let mut new_captures_cfg = vec![]; // [TokenStream]
     let mut new_arg_ty_spans = vec![]; // [child_ty:Span, cap_ty:Span..]
     let mut captured_properties = HashMap::new();
@@ -193,10 +194,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             new_captures.push(caps);
             new_captures_cfg.push(cfgs);
             new_arg_ty_spans.push(ty_spans);
+            new_dynamic.push(fn_.dynamic);
         } else {
             new_captures.push(vec![]);
             new_captures_cfg.push(vec![]);
             new_arg_ty_spans.push(vec![]);
+            new_dynamic.push(false);
         }
     }
 
@@ -327,7 +330,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             // declare `__new_*_inspect`
             {
-                let new_inspect__ = ident!("__{priority}_inspect");
+                let new_inspect__ = ident!("__{priority}_inspect{dyn_suffix}");
                 let names = caps.iter().map(|id| id.to_string());
                 let locations = caps.iter().map(|id| {
                     quote_spanned! {id.span()=>
@@ -1018,7 +1021,10 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             #[doc(hidden)]
             pub mod __core {
-                pub use #crate_core::{UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector, core_cfg_ok, DynProperty, DynPropertySource};
+                pub use #crate_core::{
+                    UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector,
+                    core_cfg_ok, DynProperty
+                };
 
                 #crate_core::core_cfg_inspector! {
                     #[doc(hidden)]
@@ -1066,6 +1072,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                                     cfg { #new_captures_has_cfg }
                                 })*
                             }
+                        )*
+                    }
+                    new_dynamic {
+                        #(
+                            #new_idents { #new_dynamic }
                         )*
                     }
                 }

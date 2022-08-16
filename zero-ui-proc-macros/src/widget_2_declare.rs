@@ -42,6 +42,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         whens,
         mut new_declarations,
         mut new_captures,
+        mut new_dynamic,
     } = widget;
 
     // same as args in widget_0_attr
@@ -129,19 +130,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         for (i, priority) in FnPriority::all().iter().enumerate() {
             if new_declarations[i].is_empty() {
                 let source_mod = &parent.module;
-                let new_ident = ident!("__{priority}");
+                let dyn_suffix = if parent.new_dynamic[i] { "_dyn" } else { "" };
+                let new_ident = ident!("__{priority}{dyn_suffix}");
                 new_reexports.extend(quote! {
                     #[doc(hidden)]
                     pub use #source_mod::#new_ident;
                 });
                 {
-                    let new_ident = ident!("__{priority}_inspect");
+                    let new_ident = ident!("__{priority}_inspect{dyn_suffix}");
                     new_reexports.extend(quote! { #source_mod::__core::core_cfg_inspector! {
                         #[doc(hidden)]
                         pub use #source_mod::#new_ident;
                     }});
                 }
                 new_captures[i] = parent.new_captures[i].clone();
+                new_dynamic[i] = parent.new_dynamic[i];
                 for cap in &new_captures[i] {
                     inherited_caps.insert(cap.ident.clone(), *priority);
                 }
@@ -167,6 +170,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
     let new_captures = new_captures;
+    let new_dynamic = new_dynamic;
 
     // collect inherited properties. Late inherits of the same ident override early inherits.
     // [property_ident => inherit]
@@ -938,7 +942,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }});
     }
 
-    let new_idents = FnPriority::all().iter().map(|p| ident!("{p}"));
+    let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
 
     let new_captures_idents = new_captures.iter().map(|c| c.iter().map(|c| &c.ident).collect::<Vec<_>>());
     let new_captures_cfg = new_captures.iter().map(|c| c.iter().map(|c| &c.cfg).collect::<Vec<_>>());
@@ -959,6 +963,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             cfg { #new_captures_cfg }
                         }
                     )*
+                }
+            )*
+        }
+        new_dynamic {
+            #(
+                #new_idents {
+                    #new_dynamic
                 }
             )*
         }
@@ -1238,6 +1249,7 @@ struct InheritedItem {
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
     new_captures: Vec<Vec<PropertyCapture>>,
+    new_dynamic: Vec<bool>,
 }
 impl Parse for InheritedItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1257,6 +1269,16 @@ impl Parse for InheritedItem {
                 FnPriority::all()
                     .iter()
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
+                    .collect()
+            },
+            new_dynamic: {
+                let input = non_user_braced!(input, "new_dynamic");
+                FnPriority::all()
+                    .iter()
+                    .map(|p| {
+                        let f: LitBool = non_user_braced!(&input, p.to_string()).parse().unwrap();
+                        f.value
+                    })
                     .collect()
             },
         })
@@ -1279,6 +1301,7 @@ struct WidgetItem {
 
     new_declarations: Vec<TokenStream>,
     new_captures: Vec<Vec<PropertyCapture>>,
+    new_dynamic: Vec<bool>,
 }
 impl Parse for WidgetItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1318,6 +1341,16 @@ impl Parse for WidgetItem {
                 FnPriority::all()
                     .iter()
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
+                    .collect()
+            },
+            new_dynamic: {
+                let input = named_braces!("new_dynamic");
+                FnPriority::all()
+                    .iter()
+                    .map(|p| {
+                        let f: LitBool = non_user_braced!(&input, p.to_string()).parse().unwrap();
+                        f.value
+                    })
                     .collect()
             },
         })

@@ -137,7 +137,7 @@ pub struct DynPropertyBuilderV1 {
 }
 impl DynPropertyBuilderV1 {
     #[doc(hidden)]
-    pub fn build(self, property: impl UiNode, name: &'static str, source: DynPropertySourceV1, is_when_condition: bool) -> DynProperty {
+    pub fn build(self, property: impl UiNode, name: &'static str, user_assigned: bool, is_when_condition: bool) -> DynProperty {
         let node = AdoptiveNode {
             child: self.child,
             node: property.boxed(),
@@ -147,7 +147,11 @@ impl DynPropertyBuilderV1 {
         DynProperty {
             node,
             name,
-            source,
+            source: if user_assigned {
+                DynPropertySource::Instance
+            } else {
+                DynPropertySource::Widget
+            },
             is_when_condition,
         }
     }

@@ -1412,6 +1412,7 @@ mod output {
             let set = if priority.is_capture_only() {
                 quote! {
                     (set $($tt:tt)*) => {};
+                    (set_dyn $($tt:tt)*) => {};
                 }
             } else {
                 // we need $__set as input because some errors of type mismatch
@@ -1433,6 +1434,25 @@ mod output {
                             };
                     };
                     (set $other:ident, $($ignore:tt)+) => { };
+
+                    (set_dyn #priority, $node:ident, $property_path: path, $args:ident,
+                        $property_name:expr, $source_location:expr, $user_assigned:tt, $__set:ident,
+                        $dyn_builder:expr, $dyn_props:ident) => {
+                            let ($node, dyn_builder__) = $dyn_builder;
+                            let $node = {
+                                use $property_path::{core_cfg_inspector as __core_cfg_inspector};
+                                __core_cfg_inspector! {
+                                    use $property_path::{set_inspect as $__set};
+                                    $__set($args, $node, $property_name, $source_location, $user_assigned)
+                                }
+                                __core_cfg_inspector! {@NOT
+                                    use $property_path::{set as $__set};
+                                    $__set($args, $node)
+                                }
+                            };
+                            $dyn_props.push(dyn_builder__.build($node, $property_name, $user_assigned, false)); // TODO !!: when used
+                    };
+                    (set_dyn $other:ident, $($ignore:tt)+) => { };
                 }
             };
 
