@@ -58,7 +58,7 @@ pub mod vis {
 
         properties! {
             /// Button padding.
-            /// 
+            ///
             /// Is `(7, 15)` by default.
             padding = (7, 15);
 

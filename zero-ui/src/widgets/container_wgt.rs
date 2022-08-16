@@ -1,9 +1,9 @@
 use crate::prelude::new_widget::*;
 
 /// Base single content container.
-/// 
+///
 /// See also [`element`], it behaves like container, but supports theming.
-/// 
+///
 /// [`element`]: mod@element
 #[widget($crate::widgets::container)]
 pub mod container {
@@ -35,9 +35,9 @@ pub mod container {
 }
 
 /// Base themable single element content container.
-/// 
+///
 /// This base widget has the same function as [`container`], but is also [`themable`].
-/// 
+///
 /// [`container`]: mod@container
 /// [`themable`]: mod@themable
 #[widget($crate::widgets::element)]

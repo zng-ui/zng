@@ -309,6 +309,10 @@ impl Theme {
     /// Note that each theme constructor function returns `Theme`, so the input child of the next constructor is
     /// `Theme`, unless an override changed a constructor.
     pub fn downcast(node: impl UiNode) -> Option<Theme> {
+        let node = node.boxed();
+        #[cfg(inspector)]
+        let node = crate::core::inspector::unwrap_new_fn(node);
+
         node.downcast_unbox().ok()
     }
 
@@ -320,7 +324,7 @@ impl Theme {
     /// Default `theme::new_*_dyn` constructor.
     pub fn new_priority(child: impl UiNode, priority: DynPropertyPriority, properties: Vec<DynProperty>) -> Theme {
         let mut theme = Self::downcast(child).unwrap_or_else(|| {
-            tracing::error!("theme constructor function for `{priority:?}` did not receive a `Theme` in the first parameter");
+            tracing::error!("expected `Theme` node in `{priority:?}` constructor");
             Theme::default()
         });
         theme.properties.insert(priority, properties, DynPropertySource::Widget);
@@ -330,7 +334,7 @@ impl Theme {
     /// Default `theme::new` constructor.
     pub fn new(child: impl UiNode) -> Theme {
         Self::downcast(child).unwrap_or_else(|| {
-            tracing::error!("theme constructor function `new` did not receive a `Theme` in the first parameter");
+            tracing::error!("expected `Theme` node in `new` constructor");
             Theme::default()
         })
     }

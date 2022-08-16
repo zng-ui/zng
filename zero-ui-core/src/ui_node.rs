@@ -292,6 +292,7 @@ pub trait UiNode: Any {
     where
         Self: Sized,
     {
+        debug_assert_ne!(self.type_id(), TypeId::of::<BoxedUiNode>());
         Box::new(self)
     }
 
@@ -378,40 +379,28 @@ pub trait UiNode: Any {
         wgt.boxed_wgt()
     }
 
-    /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] or [`BoxedWidget`] that is `T`.
-    fn downcast_unbox<T: UiNode>(self) -> Result<T, Self>
+    /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] that is `T`.
+    ///
+    /// Also see [`inspector::unwrap_new_fn`] if you are trying to downcast in a widget dynamic constructor.
+    ///
+    /// [`inspector::unwrap_new_fn`]: crate::inspector::unwrap_new_fn
+    fn downcast_unbox<T: UiNode>(self) -> Result<T, BoxedUiNode>
     where
         Self: Sized,
     {
-        match (Box::new(self) as Box<dyn Any>).downcast::<T>() {
-            Ok(r) => Ok(*r),
-            Err(e) => match e.downcast::<BoxedUiNode>() {
-                Ok(bn) => {
-                    if bn.type_id_boxed() == TypeId::of::<T>() {
-                        Ok(*bn.as_any_boxed().downcast::<T>().unwrap())
-                    } else {
-                        let e: Box<dyn Any> = bn;
-                        Err(*e.downcast::<Self>().unwrap())
-                    }
-                }
-                Err(e) => match e.downcast::<BoxedWidget>() {
-                    Ok(bw) => {
-                        if bw.type_id_boxed() == TypeId::of::<T>() {
-                            Ok(*bw.as_any_boxed().downcast::<T>().unwrap())
-                        } else {
-                            let e: Box<dyn Any> = bw;
-                            Err(*e.downcast::<Self>().unwrap())
-                        }
-                    }
-                    Err(e) => Err(*e.downcast::<Self>().unwrap()),
-                },
-            },
+        let boxed = self.boxed();
+        if boxed.as_ref().inner_type_id() == TypeId::of::<T>() {
+            Ok(*boxed.as_any_boxed().downcast().unwrap())
+        } else if TypeId::of::<T>() == TypeId::of::<BoxedUiNode>() {
+            Ok(*(Box::new(boxed) as Box<dyn Any>).downcast().unwrap())
+        } else {
+            Err(boxed)
         }
     }
 }
 
 #[doc(hidden)]
-pub trait UiNodeBoxed: Any {
+pub trait UiNodeBoxed: 'static {
     fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
     fn subscriptions_boxed(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
@@ -431,7 +420,7 @@ pub trait UiNodeBoxed: Any {
     fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo>;
     fn into_widget_boxed(self: Box<Self>) -> BoxedWidget;
 
-    fn type_id_boxed(&self) -> TypeId;
+    fn inner_type_id(&self) -> TypeId;
     fn as_any_boxed(self: Box<Self>) -> Box<dyn Any>;
 }
 
@@ -504,7 +493,7 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.into_widget()
     }
 
-    fn type_id_boxed(&self) -> TypeId {
+    fn inner_type_id(&self) -> TypeId {
         self.type_id()
     }
 
@@ -1123,5 +1112,46 @@ pub mod impl_ui_node_util {
                 child.render_update(ctx, update);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn downcast_unbox() {
+        fn node() -> impl UiNode {
+            NilUiNode
+        }
+
+        assert!(node().downcast_unbox::<NilUiNode>().is_ok())
+    }
+
+    #[test]
+    pub fn downcast_unbox_boxed() {
+        fn node() -> BoxedUiNode {
+            NilUiNode.boxed()
+        }
+
+        assert!(node().downcast_unbox::<NilUiNode>().is_ok())
+    }
+
+    #[test]
+    pub fn downcast_unbox_to_boxed() {
+        fn node() -> impl UiNode {
+            NilUiNode.boxed()
+        }
+
+        assert!(node().downcast_unbox::<BoxedUiNode>().is_ok())
+    }
+
+    #[test]
+    pub fn downcast_unbox_widget() {
+        fn node() -> impl Widget {
+            NilUiNode.into_widget()
+        }
+
+        assert!(node().downcast_unbox::<BoxedWidget>().is_ok())
     }
 }

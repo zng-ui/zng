@@ -559,6 +559,69 @@ context_var! {
 type PropertyMembersVars = Box<[BoxedVar<ValueInfo>]>;
 type PropertiesVars = Box<[PropertyMembersVars]>;
 
+/// Remove the constructor function info node from the `child`.
+///
+/// Widgets using dynamic constructors may try to cast the child parameter to the type returned by the
+/// inner constructor, but if the widget is instantiating with inspector that node was wrapped with the
+/// an inspector node, this function removes this inspector node.
+///
+/// # Examples
+///
+/// The example demonstrates a custom widget that passes a custom node that is modified in each constructor function,
+/// the [`downcast_unbox`] would fail without the unwrap, because the `FooNode` is auto wrapped in an info node.
+///
+/// [`downcast_unbox`]: UiNode::downcast_unbox
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::*;
+///
+/// #[derive(Default)]
+/// struct FooNode {
+///     properties: DynProperties,
+/// }
+/// #[impl_ui_node(
+///     delegate = &self.properties,
+///     delegate_mut = &mut self.properties,
+/// )]
+/// impl UiNode for FooNode { }
+///
+/// #[widget($crate::foo)]
+/// pub mod foo {
+///     use super::*;
+///
+///     fn new_child() -> impl UiNode {
+///         FooNode::default()
+///     }
+///     
+///     fn new_child_layout(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+///         let child = child.boxed();
+///         #[cfg(feature = "inspector")]
+///         let child = zero_ui_core::inspector::unwrap_new_fn(child);
+///
+///         let mut foo = child.downcast_unbox::<FooNode>().expect("expected foo");
+///
+///         foo.properties.insert(DynPropertyPriority::ChildLayout, properties, DynPropertySource::Widget);
+///         foo
+///     }
+///
+///     // .. other constructors
+/// }
+/// ```
+pub fn unwrap_new_fn(child: BoxedUiNode) -> BoxedUiNode {
+    let mut child = child;
+
+    loop {
+        match child.downcast_unbox::<WidgetNewFnInfoNode>() {
+            Ok(n) => child = n.child,
+            Err(w) => match w.downcast_unbox::<WidgetInstanceInfoNode>() {
+                Ok(n) => child = n.child.child,
+                Err(child) => return child,
+            },
+        }
+    }
+}
+
 // node that marks constructor functions of a widget, wrapping said function output.
 // The `WidgetNewFn::New` value is not used.
 #[doc(hidden)]
