@@ -1163,31 +1163,3 @@ macro_rules! measure_time {
 }
 
 pub type BoxedFut<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T>>>;
-
-pub struct TakeByRefIter<'a, I> {
-    iter: &'a mut I,
-    n: usize,
-}
-impl<'a, T, I: Iterator<Item = T>> Iterator for TakeByRefIter<'a, I> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.n = self.n.saturating_sub(1);
-        if self.n > 0 {
-            self.iter.next()
-        } else {
-            None
-        }
-    }
-}
-
-pub trait TakeByRefIterExt {
-    fn take_by_ref(&mut self, n: usize) -> TakeByRefIter<Self>
-    where
-        Self: Sized;
-}
-impl<T, I: Iterator<Item = T>> TakeByRefIterExt for I {
-    fn take_by_ref(&mut self, n: usize) -> TakeByRefIter<Self> {
-        TakeByRefIter { iter: self, n }
-    }
-}

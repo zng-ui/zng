@@ -1,7 +1,6 @@
 use std::fmt;
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::crate_util::TakeByRefIterExt;
 use crate::NilUiNode;
 use crate::{context::WidgetContext, impl_ui_node, BoxedUiNode, UiNode};
 
@@ -100,7 +99,7 @@ pub struct DynProperty {
     pub name: &'static str,
 
     /// Who assigned the property.
-    pub source: DynPropertySource,
+    pub importance: DynPropImportance,
 
     /// If this property is read in `when` conditions.
     ///
@@ -125,7 +124,7 @@ impl fmt::Debug for DynProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynProperty")
             .field("name", &self.name)
-            .field("source", &self.source)
+            .field("importance", &self.importance)
             .field("is_when_condition", &self.is_when_condition)
             .finish_non_exhaustive()
     }
@@ -147,23 +146,31 @@ impl DynPropertyBuilderV1 {
         DynProperty {
             node,
             name,
-            source: if user_assigned {
-                DynPropertySource::Instance
+            importance: if user_assigned {
+                DynPropImportance::INSTANCE
             } else {
-                DynPropertySource::Widget
+                DynPropImportance::WIDGET
             },
             is_when_condition,
         }
     }
 }
 
-#[doc(hidden)]
-pub type DynPropertySourceV1 = DynPropertySource;
+/// Importance index of a property in the group of properties of the same priority in the same widget.
+///
+/// Properties of a widget are grouped by [`DynPropertyPriority`], within these groups properties of the same name
+/// override by importance, zero is the least important, `u32::MAX` is the most.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DynPropImportance(pub u32);
+impl DynPropImportance {
+    /// Least important, is overridden by all others.
+    ///
+    /// Is `0`.
+    pub const LEAST: DynPropImportance = DynPropImportance(0);
 
-/// Represents who assigned the property that caused the [`DynProperty`].
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DynPropertySource {
-    /// Property assigned in the widget declaration and not overwritten in the instance.
+    /// Property assigned by the widget declaration.
+    ///
+    /// Is `u16::MAX`.
     ///
     /// ```
     /// # macro_rules! _demo { () => {
@@ -177,8 +184,11 @@ pub enum DynPropertySource {
     /// foo!() // `bar` assigned in the widget.
     /// # }}
     /// ```
-    Widget,
-    /// Property assigned in the widget instance.
+    pub const WIDGET: DynPropImportance = DynPropImportance(u16::MAX as u32);
+
+    ///  Property assigned by the widget instance.
+    ///
+    /// Is `u32::MAX - u16::MAX as u32`.
     ///
     /// ```
     /// # foo! { ($($tt:tt)*) => { } }
@@ -186,21 +196,21 @@ pub enum DynPropertySource {
     ///     bar = true;// assign in the instance.
     /// }
     /// ```
-    Instance,
+    pub const INSTANCE: DynPropImportance = DynPropImportance(u32::MAX - u16::MAX as u32);
+
+    /// Most important, overrides all others.
+    ///
+    /// Is `u32::MAX`.
+    pub const MOST: DynPropImportance = DynPropImportance(u32::MAX);
 }
-impl std::cmp::PartialOrd for DynPropertySource {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl std::cmp::Ord for DynPropertySource {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self == other {
-            std::cmp::Ordering::Equal
-        } else if let DynPropertySource::Instance = self {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Less
+impl fmt::Debug for DynPropImportance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            DynPropImportance::LEAST => write!(f, "LEAST"),
+            DynPropImportance::WIDGET => write!(f, "WIDGET"),
+            DynPropImportance::INSTANCE => write!(f, "INSTANCE"),
+            DynPropImportance::MOST => write!(f, "MOST"),
+            DynPropImportance(n) => write!(f, "{n}"),
         }
     }
 }
@@ -220,7 +230,7 @@ struct PropertyItem {
     node: Rc<RefCell<BoxedUiNode>>,
 
     name: &'static str,
-    source: DynPropertySource,
+    importance: DynPropImportance,
     is_when_condition: bool,
 }
 impl PropertyItem {
@@ -232,7 +242,7 @@ impl PropertyItem {
             child,
             node: Rc::new(RefCell::new(node)),
             name: property.name,
-            source: property.source,
+            importance: property.importance,
             is_when_condition: property.is_when_condition,
         }
     }
@@ -254,7 +264,7 @@ impl fmt::Debug for PropertyItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyItem")
             .field("name", &self.name)
-            .field("source", &self.source)
+            .field("importance", &self.importance)
             .field("is_when_condition", &self.is_when_condition)
             .finish_non_exhaustive()
     }
@@ -263,7 +273,7 @@ impl fmt::Debug for PropertyItem {
 /// Property priority of dynamic properties.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DynPropertyPriority {
+pub enum DynPropPriority {
     ChildLayout = 0,
     ChildContext,
     Fill,
@@ -273,13 +283,13 @@ pub enum DynPropertyPriority {
     Event,
     Context,
 }
-impl DynPropertyPriority {
+impl DynPropPriority {
     /// Number of priority items.
-    pub const LEN: usize = DynPropertyPriority::Context as usize + 1;
+    pub const LEN: usize = DynPropPriority::Context as usize + 1;
 
     /// Cast index to variant.
-    pub fn from_index(i: usize) -> Result<DynPropertyPriority, usize> {
-        use DynPropertyPriority::*;
+    pub fn from_index(i: usize) -> Result<DynPropPriority, usize> {
+        use DynPropPriority::*;
         match i {
             0 => Ok(ChildLayout),
             1 => Ok(ChildContext),
@@ -319,31 +329,50 @@ pub struct DynProperties {
 
     properties: Vec<PropertyItem>,
     // exclusive end of each priority range in `properties`
-    priority_ranges: [usize; DynPropertyPriority::LEN],
+    priority_ranges: [usize; DynPropPriority::LEN],
 }
 impl fmt::Debug for DynProperties {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[derive(Debug)]
+        #[allow(unused)]// used for debug print
+        struct DebugProperties<'a> {
+            priority: DynPropPriority,
+            entries: &'a [PropertyItem],
+        }
+        let mut properties = vec![];
+        let mut s = 0;
+        for (i, &e) in self.priority_ranges.iter().enumerate() {
+            if s < e {
+                properties.push(DebugProperties {
+                    priority: DynPropPriority::from_index(i).unwrap(),
+                    entries: &self.properties[s..e],
+                });
+            }
+            s = e;
+        }
+
         f.debug_struct("DynProperties")
             .field("id", &self.id)
-            .field("properties", &self.properties)
+            .field("properties", &properties)
             .field("is_inited", &self.is_inited)
+            .field("is_bound", &self.is_inited)
             .finish_non_exhaustive()
     }
 }
 impl Default for DynProperties {
     fn default() -> Self {
-        Self::new(DynPropertyPriority::ChildLayout, vec![])
+        Self::new(DynPropPriority::ChildLayout, vec![])
     }
 }
 impl DynProperties {
     /// New from properties of a priority.
     ///
     /// Panics if `properties` is inited.
-    pub fn new(priority: DynPropertyPriority, properties: Vec<DynProperty>) -> DynProperties {
+    pub fn new(priority: DynPropPriority, properties: Vec<DynProperty>) -> DynProperties {
         Self::new_impl(priority, properties.into_iter().map(PropertyItem::new).collect())
     }
 
-    fn new_impl(priority: DynPropertyPriority, properties: Vec<PropertyItem>) -> DynProperties {
+    fn new_impl(priority: DynPropPriority, properties: Vec<PropertyItem>) -> DynProperties {
         let node = Rc::new(RefCell::new(NilUiNode.boxed()));
         if properties.is_empty() {
             DynProperties {
@@ -353,11 +382,11 @@ impl DynProperties {
                 is_inited: false,
                 is_bound: false,
                 properties: vec![],
-                priority_ranges: [0; DynPropertyPriority::LEN],
+                priority_ranges: [0; DynPropPriority::LEN],
             }
         } else {
-            let mut priority_ranges = [0; DynPropertyPriority::LEN];
-            for e in &mut priority_ranges[(priority as usize)..DynPropertyPriority::LEN] {
+            let mut priority_ranges = [0; DynPropPriority::LEN];
+            for e in &mut priority_ranges[(priority as usize)..DynPropPriority::LEN] {
                 *e = properties.len();
             }
 
@@ -426,11 +455,11 @@ impl DynProperties {
         self.is_bound = true;
     }
 
-    /// Insert `properties` in the chain, overrides properties with the same name, priority and with source
+    /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
     /// less than or equal to `override_level`.
     ///
     /// Panics if `self` or `properties` are inited.
-    pub fn insert(&mut self, priority: DynPropertyPriority, properties: Vec<DynProperty>, override_level: DynPropertySource) {
+    pub fn insert(&mut self, priority: DynPropPriority, properties: Vec<DynProperty>) {
         assert!(!self.is_inited);
 
         if properties.is_empty() {
@@ -444,19 +473,13 @@ impl DynProperties {
             self.unbind_all();
         }
 
-        self.insert_impl(
-            priority as usize,
-            properties.len(),
-            properties.into_iter().map(PropertyItem::new),
-            override_level,
-        );
+        self.insert_impl(priority as usize, properties.len(), properties.into_iter().map(PropertyItem::new));
     }
 
-    /// Insert `properties` in the chain, overrides properties with the same name, priority and with source
-    /// less than or equal to `override_level`.
+    /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
     ///
     /// Panics if `self` or `properties` are inited.
-    pub fn insert_all(&mut self, properties: DynProperties, override_level: DynPropertySource) {
+    pub fn insert_all(&mut self, properties: DynProperties) {
         let mut other = properties;
 
         assert!(!self.is_inited);
@@ -472,25 +495,19 @@ impl DynProperties {
 
         let mut s = 0;
         let mut properties = other.properties.into_iter();
-        for p in 0..DynPropertyPriority::LEN {
+        for p in 0..DynPropPriority::LEN {
             let e = other.priority_ranges[p];
 
             let n = e - s;
             if n > 0 {
-                self.insert_impl(p, n, properties.take_by_ref(n), override_level);
+                self.insert_impl(p, n, properties.by_ref().take(n));
             }
 
             s = e;
         }
     }
 
-    fn insert_impl(
-        &mut self,
-        priority: usize,
-        properties_len: usize,
-        properties: impl Iterator<Item = PropertyItem>,
-        override_level: DynPropertySource,
-    ) {
+    fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = PropertyItem>) {
         let pe = priority as usize;
         let ps = pe.saturating_sub(1);
         let priority = self.priority_ranges[ps]..self.priority_ranges[pe];
@@ -522,18 +539,23 @@ impl DynProperties {
         } else {
             // already has properties of the priority, compute overrides.
 
-            let properties: Vec<_> = properties.collect();
+            let mut properties: Vec<_> = properties.collect();
 
             // collect overrides
             let mut removes = vec![];
+            let mut insert_removes = vec![];
+
             for (i, p) in self.properties[priority.clone()].iter().enumerate() {
                 if p.is_when_condition {
                     continue; // never remove when condition properties
                 }
 
-                if let Some(same_name) = properties.iter().find(|n| n.name == p.name) {
-                    if same_name.source <= override_level {
+                if let Some(insert_i) = properties.iter().position(|n| n.name == p.name) {
+                    let same_name = &properties[insert_i];
+                    if same_name.importance <= p.importance {
                         removes.push(priority.start + i);
+                    } else {
+                        insert_removes.push(insert_i);
                     }
                 }
             }
@@ -542,9 +564,20 @@ impl DynProperties {
             for i in removes.into_iter().rev() {
                 self.properties.remove(i);
             }
+            if !insert_removes.is_empty() {
+                insert_removes.sort();
+
+                for i in insert_removes.into_iter().rev() {
+                    properties.remove(i);
+                }
+
+                if properties.is_empty() {
+                    return;
+                }
+            }
 
             // insert new
-            let insert_len = properties_len;
+            let insert_len = properties.len();
 
             let insert_i = priority.end - remove_len;
             let _rmv = self.properties.splice(insert_i..insert_i, properties).next();
@@ -592,7 +625,7 @@ impl DynProperties {
     }
 
     /// Split the properties in a separate collection for each property priority.
-    pub fn split_priority(mut self) -> [DynProperties; DynPropertyPriority::LEN] {
+    pub fn split_priority(mut self) -> [DynProperties; DynPropPriority::LEN] {
         assert!(!self.is_inited);
 
         if self.is_bound {
@@ -601,12 +634,12 @@ impl DynProperties {
 
         let mut properties = self.properties.into_iter();
 
-        let mut r = Vec::with_capacity(DynPropertyPriority::LEN);
+        let mut r = Vec::with_capacity(DynPropPriority::LEN);
         let mut start = 0;
         for (i, end) in self.priority_ranges.iter().enumerate() {
             r.push(DynProperties::new_impl(
-                DynPropertyPriority::from_index(i).unwrap(),
-                properties.take_by_ref(end - start).collect(),
+                DynPropPriority::from_index(i).unwrap(),
+                properties.by_ref().take(end - start).collect(),
             ));
             start = *end;
         }
@@ -641,5 +674,5 @@ impl UiNode for DynProperties {
 pub struct DynPropertiesSnapshot {
     id: DynPropertiesId,
     properties: Vec<PropertyItem>,
-    priority_ranges: [usize; DynPropertyPriority::LEN],
+    priority_ranges: [usize; DynPropPriority::LEN],
 }
