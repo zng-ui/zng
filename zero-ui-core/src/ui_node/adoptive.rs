@@ -320,8 +320,14 @@ pub struct DynProperties {
     id: DynPropertiesId,
 
     // innermost child.
+    //
+    // The Rc changes to the `child` of the innermost property when bound and a new Rc when unbound,
+    // the interior only changes when `replace_child` is used.
     child: Rc<RefCell<BoxedUiNode>>,
+
     // outermost node.
+    //
+    // The Rc changes to the `node` of the outermost property, the interior is not modified from here.
     node: Rc<RefCell<BoxedUiNode>>,
 
     is_inited: bool,
@@ -334,7 +340,7 @@ pub struct DynProperties {
 impl fmt::Debug for DynProperties {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[derive(Debug)]
-        #[allow(unused)]// used for debug print
+        #[allow(unused)] // used for debug print
         struct DebugProperties<'a> {
             priority: DynPropPriority,
             entries: &'a [PropertyItem],
@@ -424,8 +430,9 @@ impl DynProperties {
         debug_assert!(self.is_bound);
 
         if !self.properties.is_empty() {
-            // TODO !!: child is lost?
-            self.child = Rc::new(RefCell::new(NilUiNode.boxed()));
+            let child = mem::replace(&mut *self.child.borrow_mut(), NilUiNode.boxed());
+            self.child = Rc::new(RefCell::new(child));
+
             for i in 0..self.properties.len() {
                 let (a, b) = self.properties.split_at_mut(i + 1);
                 if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
@@ -442,7 +449,9 @@ impl DynProperties {
         debug_assert!(!self.is_bound);
 
         if !self.properties.is_empty() {
+            mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
             self.child = self.properties[0].child.clone();
+
             for i in 0..self.properties.len() {
                 let (a, b) = self.properties.split_at_mut(i + 1);
                 if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {

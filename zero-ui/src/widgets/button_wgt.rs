@@ -66,6 +66,9 @@ pub mod vis {
             ///
             /// Is `4` by default.
             corner_radius = 4;
+
+            /// Button content align.
+            child_align as content_align = Align::CENTER;
         }
     }
 
