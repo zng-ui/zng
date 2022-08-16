@@ -228,7 +228,7 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 
         let mut prop_types = String::new();
 
-        if let Some(pfn_file) = resolve_property_href(file, href) {
+        if let Some(pfn_file) = resolve_property_href(file, href, 0) {
             if let Ok(pfn_html) = fs::read_to_string(&pfn_file) {
                 let base_path = file.parent().unwrap();
                 let pfn_base_path = pfn_file.parent().unwrap();
@@ -358,7 +358,16 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 
     Some(html)
 }
-fn resolve_property_href(mod_file: &Path, href: &str) -> Option<PathBuf> {
+fn resolve_property_href(mod_file: &Path, href: &str, depth: usize) -> Option<PathBuf> {
+    if depth > 1000 {
+        eprintln!(
+            "ERROR: reached the recursion limit in `resolve_property_href`\n  mod_file: {:?}\n    href: {:?}",
+            mod_file.display(),
+            href
+        );
+        return None;
+    }
+
     let mod_dir = mod_file.parent().unwrap();
     if let Some(name) = href.strip_prefix("fn@") {
         let pfn_file = format!("__DOCS/fn.__p_{name}.html");
@@ -380,8 +389,14 @@ fn resolve_property_href(mod_file: &Path, href: &str) -> Option<PathBuf> {
             );
 
             href.and_then(|href| {
-                let href = href.strip_prefix("../").unwrap_or(&href);
-                resolve_property_href(inner_mod_file.as_ref(), href)
+                let inner_mod_file = inner_mod_file.as_ref();
+                let inner_href = href.strip_prefix("../").unwrap_or(&href);
+
+                if inner_mod_file == mod_file && inner_href == href {
+                    None
+                } else {
+                    resolve_property_href(inner_mod_file, inner_href, depth + 1)
+                }
             })
         } else {
             None

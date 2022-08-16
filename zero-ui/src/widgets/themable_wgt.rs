@@ -27,6 +27,9 @@ use crate::{
 pub mod theme {
     use super::*;
 
+    use crate::core::window::WindowTheme;
+    use crate::widgets::window::nodes::WindowThemeVar;
+
     #[doc(inline)]
     pub use super::{theme_generator, Theme, ThemeGenerator};
 
@@ -73,12 +76,27 @@ pub mod theme {
     fn new(child: impl UiNode) -> Theme {
         Theme::new(child)
     }
+
+    /// Declare a dark and light theme that is selected depending on the window theme.
+    ///
+    /// This is a [`merge_var!`] that matches the [`WindowThemeVar`] to select the theme.
+    pub fn pair(dark_theme: impl IntoVar<ThemeGenerator>, light_theme: impl IntoVar<ThemeGenerator>) -> impl Var<ThemeGenerator> {
+        merge_var!(WindowThemeVar::new(), dark_theme.into_var(), light_theme.into_var(), |w, d, l| {
+            match w {
+                WindowTheme::Dark => d.clone(),
+                WindowTheme::Light => l.clone(),
+            }
+        })
+    }
 }
 
 /// Themable widget base.
 ///
-/// Widgets that inherit from this one have a `theme` and `theme_pair` property that can be set to a [`ThemeGenerator`]
+/// Widgets that inherit from this one have a `theme` property that can be set to a [`ThemeGenerator`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
+///
+/// You can also use the [`theme::pair`] to set `theme` to two themes, dark and light, that is selected according
+/// to the system or window preference.
 ///
 /// # Derived Widgets
 ///
@@ -97,12 +115,40 @@ pub mod themable {
         /// prefer property binding and `when` conditions to cause visual changes that happen often.
         ///
         /// Is `nil` by default.
-        properties::theme;
+        properties::theme = ThemeGenerator::nil();
+    }
 
-        /// Theme generators, dark and light, used for the widget.
-        ///
-        /// Is `nil` by default.
-        properties::theme_pair;
+    fn new_child_layout_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+        nodes::new_priority(child, DynPropertyPriority::ChildLayout, properties)
+    }
+
+    fn new_child_context_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+        nodes::new_priority(child, DynPropertyPriority::ChildContext, properties)
+    }
+
+    fn new_fill_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+        nodes::new_priority(child, DynPropertyPriority::Fill, properties)
+    }
+
+    fn new_border_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+        nodes::new_priority(child, DynPropertyPriority::Border, properties)
+    }
+
+    fn new_size_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+        nodes::new_priority(child, DynPropertyPriority::Size, properties)
+    }
+
+    fn new_layout_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+        nodes::new_priority(child, DynPropertyPriority::Layout, properties)
+    }
+
+    fn new_event_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+        nodes::new_priority(child, DynPropertyPriority::Event, properties)
+    }
+
+    fn new_context_dyn(child: impl UiNode, properties: Vec<DynProperty>, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        let child = nodes::new_priority(child, DynPropertyPriority::Context, properties);
+        properties::theme(child, theme)
     }
 
     /// Properties inserted by the mix-in.
@@ -110,29 +156,6 @@ pub mod themable {
     /// Only the `theme` property is doc visible, the others are implementation details.
     pub mod properties {
         use super::*;
-
-        use crate::core::window::WindowTheme;
-        use crate::widgets::window::nodes::WindowThemeVar;
-
-        /// Theme generator pair used for the widget.
-        ///
-        /// This sets a dark or light theme depending of the [`WindowThemeVar`] property.
-        #[property(context, default(ThemeGenerator::nil(), ThemeGenerator::nil()))]
-        pub fn theme_pair(
-            child: impl UiNode,
-            dark_theme: impl IntoVar<ThemeGenerator>,
-            light_theme: impl IntoVar<ThemeGenerator>,
-        ) -> impl UiNode {
-            theme(
-                child,
-                merge_var!(WindowThemeVar::new(), dark_theme.into_var(), light_theme.into_var(), |w, d, l| {
-                    match w {
-                        WindowTheme::Dark => d.clone(),
-                        WindowTheme::Light => l.clone(),
-                    }
-                }),
-            )
-        }
 
         /// Theme generator used for the widget.
         ///
@@ -247,8 +270,13 @@ pub mod themable {
                 actual_theme: ActualTheme::default(),
             }
         }
+    }
 
-        /// The `new_*_dyn` constructors delegates to this.
+    /// Nodes used for building the themable.
+    pub mod nodes {
+        use super::*;
+
+        /// The `new_*_dyn` constructors.
         pub fn new_priority(child: impl UiNode, priority: DynPropertyPriority, properties: Vec<DynProperty>) -> impl UiNode {
             struct ThemableNode {
                 wgt_snapshot: Option<DynPropertiesSnapshot>,

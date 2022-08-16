@@ -410,7 +410,7 @@ impl DynProperties {
     }
 
     fn bind_all(&mut self) {
-        debug_assert!(self.is_bound);
+        debug_assert!(!self.is_bound);
 
         if !self.properties.is_empty() {
             self.child = self.properties[0].child.clone();

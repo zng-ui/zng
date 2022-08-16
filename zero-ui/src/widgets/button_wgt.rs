@@ -38,8 +38,8 @@ pub mod button {
 
         /// Button dark and light themes.
         ///
-        /// Set to [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
-        theme_pair = vis::DarkThemeVar, vis::LightThemeVar;
+        /// Set to [`theme::pair`] of [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
+        theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
     }
 }
 
@@ -51,7 +51,7 @@ pub mod vis {
 
     /// Button base theme.
     #[widget($crate::widgets::button::vis::base_theme)]
-    mod base_theme {
+    pub mod base_theme {
         use super::*;
 
         inherit!(theme);
