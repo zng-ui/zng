@@ -249,13 +249,28 @@ impl PropertyItem {
 
     /// Set `self` as the child of `other`.
     fn set_parent(&mut self, other: &PropertyItem) {
+        debug_assert!(
+            {
+                let unset_placeholder = mem::replace(&mut *other.child.borrow_mut(), NilUiNode.boxed());
+                unset_placeholder.downcast_unbox::<NilUiNode>().is_ok()
+            },
+            "`{}` already has a child",
+            other.name
+        );
+
         mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
-        self.node = other.node.clone();
+        self.node = other.child.clone();
     }
 
     /// Unset `self` as the child of `other`.
     fn unset_parent(&mut self, other: &PropertyItem) {
-        debug_assert!(Rc::ptr_eq(&self.node, &other.child));
+        debug_assert!(
+            Rc::ptr_eq(&self.node, &other.child),
+            "`{}` is not the parent of `{}`",
+            other.name,
+            self.name
+        );
+
         self.node = Rc::new(RefCell::new(NilUiNode.boxed()));
         mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
     }
@@ -439,6 +454,7 @@ impl DynProperties {
                     inner.unset_parent(outer);
                 }
             }
+
             self.node = self.child.clone();
         }
 
@@ -458,6 +474,7 @@ impl DynProperties {
                     inner.set_parent(outer);
                 }
             }
+
             self.node = self.properties[self.properties.len() - 1].node.clone();
         }
 
