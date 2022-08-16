@@ -59,6 +59,8 @@ pub mod vis {
         inherit!(theme);
 
         properties! {
+            padding = (5, 8);
+
             /// Button corner radius.
             ///
             /// Is `4` by default.

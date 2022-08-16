@@ -225,6 +225,8 @@ struct PropertyItem {
 }
 impl PropertyItem {
     fn new(property: DynProperty) -> Self {
+        assert!(!property.node.is_inited());
+
         let (child, node) = property.node.into_parts();
         PropertyItem {
             child,
@@ -274,6 +276,22 @@ pub enum DynPropertyPriority {
 impl DynPropertyPriority {
     /// Number of priority items.
     pub const LEN: usize = DynPropertyPriority::Context as usize + 1;
+
+    /// Cast index to variant.
+    pub fn from_index(i: usize) -> Result<DynPropertyPriority, usize> {
+        use DynPropertyPriority::*;
+        match i {
+            0 => Ok(ChildLayout),
+            1 => Ok(ChildContext),
+            2 => Ok(Fill),
+            3 => Ok(Border),
+            4 => Ok(Size),
+            5 => Ok(Layout),
+            6 => Ok(Event),
+            7 => Ok(Context),
+            n => Err(n),
+        }
+    }
 }
 
 unique_id_32! {
@@ -322,6 +340,10 @@ impl DynProperties {
     ///
     /// Panics if `properties` is inited.
     pub fn new(priority: DynPropertyPriority, properties: Vec<DynProperty>) -> DynProperties {
+        Self::new_impl(priority, properties.into_iter().map(PropertyItem::new).collect())
+    }
+
+    fn new_impl(priority: DynPropertyPriority, properties: Vec<PropertyItem>) -> DynProperties {
         let node = Rc::new(RefCell::new(NilUiNode.boxed()));
         if properties.is_empty() {
             DynProperties {
@@ -334,8 +356,6 @@ impl DynProperties {
                 priority_ranges: [0; DynPropertyPriority::LEN],
             }
         } else {
-            assert!(!properties[0].node.is_inited());
-
             let mut priority_ranges = [0; DynPropertyPriority::LEN];
             for e in &mut priority_ranges[(priority as usize)..DynPropertyPriority::LEN] {
                 *e = properties.len();
@@ -347,7 +367,7 @@ impl DynProperties {
                 node,
                 is_inited: false,
                 is_bound: false,
-                properties: properties.into_iter().map(PropertyItem::new).collect(),
+                properties,
                 priority_ranges,
             }
         }
@@ -572,23 +592,28 @@ impl DynProperties {
     }
 
     /// Split the properties in a separate collection for each property priority.
-    pub fn split_priority(self) -> [DynProperties; DynPropertyPriority::LEN] {
-        todo!()
+    pub fn split_priority(mut self) -> [DynProperties; DynPropertyPriority::LEN] {
+        assert!(!self.is_inited);
+
+        if self.is_bound {
+            self.unbind_all();
+        }
+
+        let mut properties = self.properties.into_iter();
+
+        let mut r = Vec::with_capacity(DynPropertyPriority::LEN);
+        let mut start = 0;
+        for (i, end) in self.priority_ranges.iter().enumerate() {
+            r.push(DynProperties::new_impl(
+                DynPropertyPriority::from_index(i).unwrap(),
+                properties.take_by_ref(end - start).collect(),
+            ));
+            start = *end;
+        }
+
+        r.try_into().unwrap()
     }
 }
-
-/// Represents a snapshot of a [`DynProperties`] value.
-///
-/// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
-///
-/// [`restore`]: DynProperties::restore
-#[derive(Debug)]
-pub struct DynPropertiesSnapshot {
-    id: DynPropertiesId,
-    properties: Vec<PropertyItem>,
-    priority_ranges: [usize; DynPropertyPriority::LEN],
-}
-
 #[impl_ui_node(
     delegate = self.node.borrow(),
     delegate_mut = self.node.borrow_mut(),
@@ -605,4 +630,16 @@ impl UiNode for DynProperties {
         self.is_inited = false;
         self.node.borrow_mut().deinit(ctx);
     }
+}
+
+/// Represents a snapshot of a [`DynProperties`] value.
+///
+/// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
+///
+/// [`restore`]: DynProperties::restore
+#[derive(Debug)]
+pub struct DynPropertiesSnapshot {
+    id: DynPropertiesId,
+    properties: Vec<PropertyItem>,
+    priority_ranges: [usize; DynPropertyPriority::LEN],
 }

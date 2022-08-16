@@ -277,7 +277,7 @@ pub mod themable {
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     self.properties.deinit(ctx);
                     if let Some(snap) = self.wgt_snapshot.take() {
-                        self.properties.restore(snap);
+                        self.properties.restore(snap).unwrap();
                     }
                 }
             }
