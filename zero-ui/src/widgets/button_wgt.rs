@@ -1,6 +1,6 @@
 use crate::prelude::new_widget::*;
 
-/// A clickable container.
+/// A clickable element.
 #[widget($crate::widgets::button)]
 pub mod button {
     use super::*;
@@ -10,7 +10,7 @@ pub mod button {
     pub use super::vis;
 
     inherit!(focusable_mixin);
-    inherit!(container);
+    inherit!(element);
 
     properties! {
         /// Button click event.
@@ -36,12 +36,10 @@ pub mod button {
         /// Enabled by default.
         capture_mouse = true;
 
-        /*
         /// Button dark and light themes.
         ///
         /// Set to [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
         theme_pair = vis::DarkThemeVar, vis::LightThemeVar;
-        */
     }
 }
 
@@ -53,13 +51,16 @@ pub mod vis {
 
     /// Button base theme.
     #[widget($crate::widgets::button::vis::base_theme)]
-    pub mod base_theme {
+    mod base_theme {
         use super::*;
 
         inherit!(theme);
 
         properties! {
-            padding = (5, 8);
+            /// Button padding.
+            /// 
+            /// Is `(7, 15)` by default.
+            padding = (7, 15);
 
             /// Button corner radius.
             ///

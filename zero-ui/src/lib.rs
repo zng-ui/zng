@@ -1141,9 +1141,9 @@ pub mod prelude {
         };
         #[doc(no_inline)]
         pub use crate::widgets::{
-            container,
+            container, element,
             layouts::{stack_nodes, stack_nodes_layout_by},
-            theme,
+            themable, theme,
             theme::ThemeGenerator,
             view_generator, DataUpdate, ViewGenerator,
         };
