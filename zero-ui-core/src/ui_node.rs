@@ -389,13 +389,20 @@ pub trait UiNode: Any {
         Self: Sized,
     {
         let boxed = self.boxed();
-        if boxed.as_ref().inner_type_id() == TypeId::of::<T>() {
+        if boxed.actual_type_id() == TypeId::of::<T>() {
             Ok(*boxed.as_any_boxed().downcast().unwrap())
         } else if TypeId::of::<T>() == TypeId::of::<BoxedUiNode>() {
             Ok(*(Box::new(boxed) as Box<dyn Any>).downcast().unwrap())
         } else {
             Err(boxed)
         }
+    }
+
+    /// Returns the [`type_id`] of the unboxed node.
+    ///
+    /// [`type_id`]: Any::type_id
+    fn actual_type_id(&self) -> TypeId {
+        self.type_id()
     }
 
     /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with an [`InfoContext`]
@@ -432,7 +439,7 @@ pub trait UiNodeBoxed: 'static {
     fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo>;
     fn into_widget_boxed(self: Box<Self>) -> BoxedWidget;
 
-    fn inner_type_id(&self) -> TypeId;
+    fn actual_type_id_boxed(&self) -> TypeId;
     fn as_any_boxed(self: Box<Self>) -> Box<dyn Any>;
 }
 
@@ -505,7 +512,7 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.into_widget()
     }
 
-    fn inner_type_id(&self) -> TypeId {
+    fn actual_type_id_boxed(&self) -> TypeId {
         self.type_id()
     }
 
@@ -567,6 +574,10 @@ impl UiNode for BoxedUiNode {
         Self: Sized,
     {
         self
+    }
+
+    fn actual_type_id(&self) -> TypeId {
+        self.as_ref().actual_type_id_boxed()
     }
 
     fn is_widget(&self) -> bool {

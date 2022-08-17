@@ -231,6 +231,8 @@ struct PropertyItem {
     child: Rc<RefCell<BoxedUiNode>>,
     // property node, the `Rc` changes, but it always points to the same node.
     node: Rc<RefCell<BoxedUiNode>>,
+    // original `node`, preserved when parent is set, reused when unset.
+    snapshot_node: Option<Rc<RefCell<BoxedUiNode>>>,
 
     name: &'static str,
     importance: DynPropImportance,
@@ -244,6 +246,7 @@ impl PropertyItem {
         PropertyItem {
             child,
             node: Rc::new(RefCell::new(node)),
+            snapshot_node: None,
             name: property.name,
             importance: property.importance,
             is_when_condition: property.is_when_condition,
@@ -262,6 +265,7 @@ impl PropertyItem {
         );
 
         mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
+        self.snapshot_node = Some(self.node.clone());
         self.node = other.child.clone();
     }
 
@@ -274,7 +278,7 @@ impl PropertyItem {
             self.name
         );
 
-        self.node = Rc::new(RefCell::new(NilUiNode.boxed()));
+        self.node = self.snapshot_node.take().unwrap();
         mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
     }
 }
@@ -448,9 +452,12 @@ impl DynProperties {
         debug_assert!(!self.is_bound);
 
         if !self.properties.is_empty() {
+            // move the child to the innermost property child.
             mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
+            // save the new child address.
             self.child = self.properties[0].child.clone();
 
+            // chain properties.
             for i in 0..self.properties.len() {
                 let (a, b) = self.properties.split_at_mut(i + 1);
                 if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
@@ -458,6 +465,7 @@ impl DynProperties {
                 }
             }
 
+            // save the new outermost node address.
             self.node = self.properties[self.properties.len() - 1].node.clone();
         }
 
@@ -468,6 +476,7 @@ impl DynProperties {
 
         if !self.properties.is_empty() {
             let child = mem::replace(&mut *self.child.borrow_mut(), NilUiNode.boxed());
+
             self.child = Rc::new(RefCell::new(child));
 
             for i in 0..self.properties.len() {
@@ -635,7 +644,7 @@ impl DynProperties {
 
         DynPropertiesSnapshot {
             id: self.id,
-            properties: self.properties.clone(),
+            properties: self.properties.iter().map(PropertyItem::snapshot).collect(),
             priority_ranges: self.priority_ranges,
         }
     }
@@ -651,7 +660,8 @@ impl DynProperties {
                 self.unbind_all();
             }
 
-            self.properties = snapshot.properties;
+            self.properties.clear();
+            self.properties.extend(snapshot.properties.into_iter().map(PropertyItem::restore));
             self.priority_ranges = snapshot.priority_ranges;
 
             Ok(())
@@ -709,6 +719,44 @@ impl UiNode for DynProperties {
 #[derive(Debug)]
 pub struct DynPropertiesSnapshot {
     id: DynPropertiesId,
-    properties: Vec<PropertyItem>,
+    properties: Vec<PropertyItemSnapshot>,
     priority_ranges: [usize; DynPropPriority::LEN],
+}
+
+struct PropertyItemSnapshot {
+    node: Rc<RefCell<BoxedUiNode>>,
+    name: &'static str,
+    importance: DynPropImportance,
+    is_when_condition: bool,
+}
+impl fmt::Debug for PropertyItemSnapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PropertyItemSnapshot")
+            .field("name", &self.name)
+            .field("importance", &self.importance)
+            .field("is_when_condition", &self.is_when_condition)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PropertyItem {
+    fn snapshot(&self) -> PropertyItemSnapshot {
+        PropertyItemSnapshot {
+            node: self.node.clone(),
+            name: self.name,
+            importance: self.importance,
+            is_when_condition: self.is_when_condition,
+        }
+    }
+
+    fn restore(snapshot: PropertyItemSnapshot) -> Self {
+        PropertyItem {
+            child: Rc::new(RefCell::new(NilUiNode.boxed())),
+            node: snapshot.node,
+            snapshot_node: None,
+            name: snapshot.name,
+            importance: snapshot.importance,
+            is_when_condition: snapshot.is_when_condition,
+        }
+    }
 }
