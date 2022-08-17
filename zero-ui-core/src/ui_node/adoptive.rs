@@ -194,7 +194,7 @@ impl DynPropImportance {
     ///
     /// ```
     /// # fn main() { }
-    /// # foo! { ($($tt:tt)*) => { } }
+    /// # macro_rules! foo { ($($tt:tt)*) => { } }
     /// foo! {
     ///     bar = true;// assign in the instance.
     /// }
