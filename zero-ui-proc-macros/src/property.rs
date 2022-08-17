@@ -1437,7 +1437,7 @@ mod output {
 
                     (set_dyn #priority, $node:ident, $property_path: path, $args:ident,
                         $property_name:expr, $source_location:expr, $user_assigned:tt, $__set:ident,
-                        $dyn_builder:expr, $dyn_props:ident) => {
+                        $dyn_builder:expr, $dyn_props:ident, $is_when_condition:tt) => {
                             let ($node, dyn_builder__) = $dyn_builder;
                             let $node = {
                                 use $property_path::{core_cfg_inspector as __core_cfg_inspector};
@@ -1450,7 +1450,7 @@ mod output {
                                     $__set($args, $node)
                                 }
                             };
-                            $dyn_props.push(dyn_builder__.build($node, $property_name, $user_assigned, false)); // TODO !!: when used
+                            $dyn_props.push(dyn_builder__.build($node, $property_name, $user_assigned, $is_when_condition));
                     };
                     (set_dyn $other:ident, $($ignore:tt)+) => { };
                 }

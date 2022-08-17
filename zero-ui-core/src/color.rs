@@ -413,7 +413,7 @@ impl Hsla {
     /// # use zero_ui_core::color::*;
     /// # use zero_ui_core::units::*;
     /// colors::RED.to_hsla().desaturate(10.pct())
-    /// #
+    /// # ;
     pub fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
         let mut desat = self;
         desat.saturation = clamp_normal(desat.saturation - (desat.saturation * amount.into().0));

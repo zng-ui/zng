@@ -277,6 +277,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
     }});
 
+    // properties in when condition expressions.
+    let mut used_in_when_expr = HashSet::new();
+
     // map of { property => [(p_cfg, user_cfg, condition_var, when_value_ident, when_value_for_prop)] }
     #[allow(clippy::type_complexity)]
     let mut when_assigns: HashMap<Path, Vec<(Option<Ident>, TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
@@ -295,6 +298,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let ident = iw.ident;
         let dbg_ident = iw.dbg_ident;
         let cfg = if iw.cfg { Some(ident!("__cfg_{ident}")) } else { None };
+
+        used_in_when_expr.extend(iw.inputs.iter().cloned());
 
         // arg variables for each input, they should all have a default value or be required (already deactivated if any unset).
         let len = iw.inputs.len();
@@ -367,6 +372,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         };
         let inputs = condition.properties;
         let condition = condition.expr;
+
+        used_in_when_expr.extend(inputs.iter().map(|(_, i)| i.clone()));
 
         // empty when blocks don't need to generate any code,
         // but we still want to run all validations possible.
@@ -761,13 +768,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             let child = if dynamic { &dyn_node__ } else { &node__ };
 
+            let is_when_condition = dynamic && used_in_when_expr.contains(&ident!("{}", p_name.split(':').last().unwrap()));
+
             let set = ident_spanned!(*val_span=> "__set");
             let set_call = if dynamic {
                 quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
                         set_dyn #priority, #child, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set,
-                        #module::__core::DynProperty::start_v1(), #dyn_props__
+                        #module::__core::DynProperty::start_v1(), #dyn_props__, #is_when_condition
                     }
                 }
             } else {

@@ -92,9 +92,11 @@ pub struct DynProperty {
     /// All of these assigns have the same name `foo`:
     ///
     /// ```
+    /// # macro_rules! _demo { () => {
     /// path::to::foo = true;
     /// bar as foo = true;
     /// foo = true;
+    /// # }}
     /// ```
     pub name: &'static str,
 
@@ -158,7 +160,7 @@ impl DynPropertyBuilderV1 {
 
 /// Importance index of a property in the group of properties of the same priority in the same widget.
 ///
-/// Properties of a widget are grouped by [`DynPropertyPriority`], within these groups properties of the same name
+/// Properties of a widget are grouped by [`DynPropPriority`], within these groups properties of the same name
 /// override by importance, zero is the least important, `u32::MAX` is the most.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DynPropImportance(pub u32);
@@ -191,6 +193,7 @@ impl DynPropImportance {
     /// Is `u32::MAX - u16::MAX as u32`.
     ///
     /// ```
+    /// # fn main() { }
     /// # foo! { ($($tt:tt)*) => { } }
     /// foo! {
     ///     bar = true;// assign in the instance.
