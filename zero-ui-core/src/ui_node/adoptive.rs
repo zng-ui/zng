@@ -255,11 +255,9 @@ impl PropertyItem {
 
     /// Set `self` as the child of `other`.
     fn set_parent(&mut self, other: &PropertyItem) {
-        debug_assert!(
-            {
-                let unset_placeholder = mem::replace(&mut *other.child.borrow_mut(), NilUiNode.boxed());
-                unset_placeholder.downcast_unbox::<NilUiNode>().is_ok()
-            },
+        debug_assert_eq!(
+            other.child.borrow().actual_type_id(),
+            std::any::TypeId::of::<NilUiNode>(),
             "`{}` already has a child",
             other.name
         );
@@ -453,6 +451,13 @@ impl DynProperties {
 
         if !self.properties.is_empty() {
             // move the child to the innermost property child.
+
+            debug_assert_eq!(
+                self.properties[0].child.borrow().actual_type_id(),
+                std::any::TypeId::of::<NilUiNode>(),
+                "`{}` already has a child",
+                self.properties[0].name
+            );
             mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
             // save the new child address.
             self.child = self.properties[0].child.clone();
@@ -724,6 +729,7 @@ pub struct DynPropertiesSnapshot {
 }
 
 struct PropertyItemSnapshot {
+    child: Rc<RefCell<BoxedUiNode>>,
     node: Rc<RefCell<BoxedUiNode>>,
     name: &'static str,
     importance: DynPropImportance,
@@ -742,6 +748,7 @@ impl fmt::Debug for PropertyItemSnapshot {
 impl PropertyItem {
     fn snapshot(&self) -> PropertyItemSnapshot {
         PropertyItemSnapshot {
+            child: self.child.clone(),
             node: self.node.clone(),
             name: self.name,
             importance: self.importance,
@@ -751,7 +758,7 @@ impl PropertyItem {
 
     fn restore(snapshot: PropertyItemSnapshot) -> Self {
         PropertyItem {
-            child: Rc::new(RefCell::new(NilUiNode.boxed())),
+            child: snapshot.child,
             node: snapshot.node,
             snapshot_node: None,
             name: snapshot.name,

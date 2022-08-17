@@ -1,8 +1,8 @@
 # Themes TODO
 
-* Theme broken after widget re-init, see focus "Detach Button".
 * Finish button theme.
     - Implement color blending in `Rbga`, blend an overlay for hover/pressed.
+* Finish toggle theme.
 * Test All.
 * Merge.
 
