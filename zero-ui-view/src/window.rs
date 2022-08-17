@@ -816,6 +816,18 @@ impl Window {
         self.state.clone()
     }
 
+    #[cfg(windows)]
+    /// Returns the system theme for the window.
+    pub fn theme(&self) -> WindowTheme {
+        use glutin::platform::windows::WindowExtWindows;
+
+        match self.window.theme() {
+            glutin::window::Theme::Light => WindowTheme::Light,
+            glutin::window::Theme::Dark => WindowTheme::Dark,
+        }
+    }
+
+    #[cfg(not(windows))]
     /// Returns the system theme for the window. TODO
     pub fn theme(&self) -> WindowTheme {
         WindowTheme::Dark

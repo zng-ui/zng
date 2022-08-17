@@ -1,7 +1,7 @@
 use crate::core::focus::*;
 use crate::core::{
     render::RenderMode,
-    window::{HeadlessMonitor, StartPosition, Window},
+    window::{HeadlessMonitor, StartPosition, Window, WindowTheme},
 };
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
@@ -165,7 +165,10 @@ pub mod window {
         properties::auto_size_origin;
 
         /// Window background color.
-        background_color = rgb(0.1, 0.1, 0.1);
+        background_color = nodes::WindowThemeVar::new().map(|t| match t {
+            WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
+            WindowTheme::Light => rgb(0.9, 0.9, 0.9),
+        });
 
         /// Window clear color.
         ///

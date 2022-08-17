@@ -8,5 +8,3 @@
 # Others
 
 * Rename all "theme" sub-modules of widgets to `vis`.
-
-* Implement system theme initial value in view-process.
