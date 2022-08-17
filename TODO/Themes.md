@@ -2,9 +2,10 @@
 
 * Theme broken after widget re-init, see focus "Detach Button".
 * Finish button theme.
+    - Implement color blending in `Rbga`, blend an overlay for hover/pressed.
+* Test All.
+* Merge.
+
 * Make more widgets themable.
-
-
-# Others
-
 * Rename all "theme" sub-modules of widgets to `vis`.
+* Create a `ColorVars` in `window!` and derive all widget colors from it.

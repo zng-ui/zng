@@ -24,8 +24,8 @@ use crate::{
 mod rc_node;
 pub use rc_node::*;
 
-mod instrument;
-pub use instrument::InstrumentedNode;
+mod trace;
+pub use trace::TraceNode;
 
 mod adoptive;
 pub use adoptive::*;
@@ -396,6 +396,18 @@ pub trait UiNode: Any {
         } else {
             Err(boxed)
         }
+    }
+
+    /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with an [`InfoContext`]
+    /// and the method name as a `&'static str`, the closure can return a *span* that is dropped after the method delegation.
+    ///
+    /// You can use  the [`tracing`](https://docs.rs/tracing) crate to create the span.
+    fn trace<E, S>(self, enter_mtd: E) -> TraceNode<Self, E>
+    where
+        Self: Sized,
+        E: Fn(&mut InfoContext, &'static str) -> S + 'static,
+    {
+        TraceNode::new(self, enter_mtd)
     }
 }
 

@@ -8,7 +8,7 @@ use std::{
 use parking_lot::Mutex;
 use tracing::span;
 
-use crate::{app::AppExtension, event::Event, var::VarValue, window::WindowId, InstrumentedNode, UiNode, WidgetId};
+use crate::{app::AppExtension, event::Event, var::VarValue, window::WindowId, TraceNode, UiNode, WidgetId};
 
 use super::InfoContext;
 
@@ -24,7 +24,7 @@ pub trait UpdatesTraceUiNodeExt {
     fn instrument<S: Into<String>>(
         self,
         tag: S,
-    ) -> InstrumentedNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>>
+    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>>
     where
         Self: Sized;
 }
@@ -32,16 +32,16 @@ impl<U: UiNode> UpdatesTraceUiNodeExt for U {
     fn instrument<S: Into<String>>(
         self,
         tag: S,
-    ) -> InstrumentedNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>> {
+    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>> {
         #[cfg(inspector)]
         {
             let tag = tag.into();
-            InstrumentedNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
+            TraceNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
         }
         #[cfg(not(inspector))]
         {
             let _ = tag;
-            InstrumentedNode::new(self, Box::new(|_, _| tracing::Span::none().entered()))
+            TraceNode::new(self, Box::new(|_, _| tracing::Span::none().entered()))
         }
     }
 }

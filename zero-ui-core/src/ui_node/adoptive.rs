@@ -444,26 +444,6 @@ impl DynProperties {
         mem::replace(&mut *self.child.borrow_mut(), new_child.boxed())
     }
 
-    fn unbind_all(&mut self) {
-        debug_assert!(self.is_bound);
-
-        if !self.properties.is_empty() {
-            let child = mem::replace(&mut *self.child.borrow_mut(), NilUiNode.boxed());
-            self.child = Rc::new(RefCell::new(child));
-
-            for i in 0..self.properties.len() {
-                let (a, b) = self.properties.split_at_mut(i + 1);
-                if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
-                    inner.unset_parent(outer);
-                }
-            }
-
-            self.node = self.child.clone();
-        }
-
-        self.is_bound = false;
-    }
-
     fn bind_all(&mut self) {
         debug_assert!(!self.is_bound);
 
@@ -482,6 +462,25 @@ impl DynProperties {
         }
 
         self.is_bound = true;
+    }
+    fn unbind_all(&mut self) {
+        debug_assert!(self.is_bound);
+
+        if !self.properties.is_empty() {
+            let child = mem::replace(&mut *self.child.borrow_mut(), NilUiNode.boxed());
+            self.child = Rc::new(RefCell::new(child));
+
+            for i in 0..self.properties.len() {
+                let (a, b) = self.properties.split_at_mut(i + 1);
+                if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
+                    inner.unset_parent(outer);
+                }
+            }
+
+            self.node = self.child.clone();
+        }
+
+        self.is_bound = false;
     }
 
     /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
@@ -624,8 +623,16 @@ impl DynProperties {
     ///
     /// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
     ///
+    /// Panics if the node is inited.
+    ///
     /// [`restore`]: DynProperties::restore
-    pub fn snapshot(&self) -> DynPropertiesSnapshot {
+    pub fn snapshot(&mut self) -> DynPropertiesSnapshot {
+        assert!(!self.is_inited);
+
+        if self.is_bound {
+            self.unbind_all();
+        }
+
         DynPropertiesSnapshot {
             id: self.id,
             properties: self.properties.clone(),

@@ -2,7 +2,7 @@
 //!
 //! Note: Compile error tests are in the integration tests folder: `tests/build/impl_ui_node`
 
-use util::{assert_did_not_trace, assert_only_traced, TraceNode};
+use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 
 use crate::{
     color::RenderColor,
@@ -25,7 +25,7 @@ pub fn default_child() {
     impl<C: UiNode> UiNode for Node<C> {}
 
     test_trace(Node {
-        child: TraceNode::default(),
+        child: TestTraceNode::default(),
     });
 }
 #[test]
@@ -37,7 +37,7 @@ pub fn default_delegate() {
     impl<C: UiNode> UiNode for Node<C> {}
 
     test_trace(Node {
-        inner: TraceNode::default(),
+        inner: TestTraceNode::default(),
     });
 }
 #[test]
@@ -49,7 +49,7 @@ pub fn default_children() {
     impl<C: UiNodeList> UiNode for Node<C> {}
 
     test_trace(Node {
-        children: nodes![TraceNode::default(), TraceNode::default()],
+        children: nodes![TestTraceNode::default(), TestTraceNode::default()],
     });
 }
 #[test]
@@ -61,7 +61,7 @@ pub fn default_delegate_list() {
     impl<C: UiNodeList> UiNode for Node<C> {}
 
     test_trace(Node {
-        inner: nodes![TraceNode::default(), TraceNode::default()],
+        inner: nodes![TestTraceNode::default(), TestTraceNode::default()],
     });
 }
 #[test]
@@ -73,7 +73,7 @@ pub fn default_children_iter() {
     impl UiNode for Node {}
 
     test_trace(Node {
-        children: node_vec![TraceNode::default(), TraceNode::default()],
+        children: node_vec![TestTraceNode::default(), TestTraceNode::default()],
     })
 }
 #[test]
@@ -85,7 +85,7 @@ pub fn default_delegate_iter() {
     impl UiNode for Node {}
 
     test_trace(Node {
-        inner: node_vec![TraceNode::default(), TraceNode::default()],
+        inner: node_vec![TestTraceNode::default(), TestTraceNode::default()],
     })
 }
 fn test_trace(node: impl UiNode) {
@@ -132,7 +132,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
-    TraceNode::notify_render_update(&mut wgt, &mut ctx);
+    TestTraceNode::notify_render_update(&mut wgt, &mut ctx);
     assert_only_traced!(wgt.state(), "event");
 
     let mut update = FrameUpdate::new(
@@ -185,10 +185,10 @@ pub fn allow_missing_delegate() {
     }
 
     test(Node1 {
-        child: TraceNode::default(),
+        child: TestTraceNode::default(),
     });
     test(Node2 {
-        child: TraceNode::default(),
+        child: TestTraceNode::default(),
     });
 }
 
@@ -350,11 +350,11 @@ mod util {
     pub use __impl_ui_node_util_assert_did_not_trace as assert_did_not_trace;
 
     #[derive(Default)]
-    pub struct TraceNode {
+    pub struct TestTraceNode {
         trace: TraceRef,
     }
-    impl TraceNode {
-        fn trace(&self, method: &'static str) {
+    impl TestTraceNode {
+        fn test_trace(&self, method: &'static str) {
             self.trace.borrow_mut().push(method);
         }
 
@@ -362,34 +362,34 @@ mod util {
             wgt.test_event(ctx, &EventUpdate::new(RenderUpdateEvent, RenderUpdateArgs::now()));
         }
     }
-    impl UiNode for TraceNode {
+    impl UiNode for TestTraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let db = ctx.widget_state.entry(TraceKey).or_default();
             assert!(db.iter().all(|t| !Rc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
             db.push(Rc::clone(&self.trace));
 
-            self.trace("init");
+            self.test_trace("init");
         }
 
         fn info(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
-            self.trace("info");
+            self.test_trace("info");
         }
 
         fn subscriptions(&self, _: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.updates(&UpdateMask::all()).events(&EventMask::all());
-            self.trace("subscriptions");
+            self.test_trace("subscriptions");
         }
 
         fn deinit(&mut self, _: &mut WidgetContext) {
-            self.trace("deinit");
+            self.test_trace("deinit");
         }
 
         fn update(&mut self, _: &mut WidgetContext) {
-            self.trace("update");
+            self.test_trace("update");
         }
 
         fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U) {
-            self.trace("event");
+            self.test_trace("event");
 
             if RenderUpdateEvent.update(args).is_some() {
                 ctx.updates.render_update();
@@ -397,21 +397,21 @@ mod util {
         }
 
         fn measure(&self, _: &mut MeasureContext) -> PxSize {
-            self.trace("measure");
+            self.test_trace("measure");
             PxSize::zero()
         }
 
         fn layout(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-            self.trace("layout");
+            self.test_trace("layout");
             PxSize::zero()
         }
 
         fn render(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
-            self.trace("render");
+            self.test_trace("render");
         }
 
         fn render_update(&self, _: &mut RenderContext, _: &mut FrameUpdate) {
-            self.trace("render_update");
+            self.test_trace("render_update");
         }
     }
 
