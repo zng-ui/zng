@@ -623,6 +623,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // inherited whens pub uses.
     let mut when_reexports = TokenStream::default();
 
+    let mut inherited_whens = TokenStream::default();
+
     for inherited in &inherits {
         //inherited.module
         for bw in &inherited.whens {
@@ -685,7 +687,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 dbg_ident { #new_dbg_ident }
             };
 
-            wgt_whens.extend(quote! {
+            inherited_whens.extend(quote! {
                 #new_ident {
                     #dbg_ident_value
                     docs { #docs }
@@ -724,6 +726,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     }
+
+    inherited_whens.extend(wgt_whens);
+    let wgt_whens = inherited_whens;
 
     // all widget properties with and without values (excluding new when properties).
     let wgt_all_properties: HashSet<&Ident> = inherited_props

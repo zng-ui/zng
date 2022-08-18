@@ -141,40 +141,40 @@ pub mod vis {
             /// Button background color.
             ///
             /// Is the base color by default.
-            background_color = DarkBaseColorVar;
+            background_color = LightBaseColorVar;
 
             /// Button border.
             ///
             /// Is widths `1` and sides the base color lighten by 50%.
             border = {
                 widths: 1,
-                sides: DarkBaseColorVar::new().map(|c| c.lighten(50.pct()).into())
+                sides: LightBaseColorVar::new().map(|c| c.lighten(50.pct()).into())
             };
 
             /// When the pointer device is over this button.
             when self.is_cap_hovered {
-                background_color = DarkBaseColorVar::new().map(|c| c.lighten(5.pct()));
+                background_color = LightBaseColorVar::new().map(|c| c.lighten(5.pct()));
                 border = {
                     widths: 1,
-                    sides: DarkBaseColorVar::new().map(|c| c.lighten(55.pct()).into()),
+                    sides: LightBaseColorVar::new().map(|c| c.lighten(55.pct()).into()),
                 };
             }
 
             /// When the button is pressed in a way that press release will cause a button click.
             when self.is_pressed  {
-                background_color = DarkBaseColorVar::new().map(|c| c.lighten(10.pct()));
+                background_color = LightBaseColorVar::new().map(|c| c.lighten(10.pct()));
                 border = {
                     widths: 1,
-                    sides: DarkBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
+                    sides: LightBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
                 };
             }
 
             /// When the button is disabled.
             when self.is_disabled {
-                background_color = DarkBaseColorVar::new().map(|c| c.desaturate(10.pct()));
+                background_color = LightBaseColorVar::new().map(|c| c.desaturate(10.pct()));
                 border = {
                     widths: 1,
-                    sides: DarkBaseColorVar::new().map(|c| c.lighten(50.pct()).desaturate(10.pct()).into()),
+                    sides: LightBaseColorVar::new().map(|c| c.lighten(50.pct()).desaturate(10.pct()).into()),
                 };
                 text_color = TextColorVar::new().map(|c| c.darken(10.pct()).desaturate(100.pct()));
                 cursor = CursorIcon::NotAllowed;
@@ -205,7 +205,7 @@ pub mod vis {
         /// Idle background color in the light theme.
         ///
         /// All other background states are derived by adjusting the brightness of this color.
-        pub struct LightBaseColorVar: Rgba = rgb(0.2, 0.2, 0.2);
+        pub struct LightBaseColorVar: Rgba = rgb(0.9, 0.9, 0.9);
     }
 
     /// Sets the [`DarkThemeVar`] that affects all buttons inside the widget.
