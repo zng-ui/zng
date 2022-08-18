@@ -1,3 +1,7 @@
+* Remove filter from color?
+
+# Text
+
 * Text Editable
     - Caret.
     - Selection.
