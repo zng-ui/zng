@@ -43,12 +43,18 @@ pub mod toggle {
         /// Toggle dark and light themes.
         ///
         /// Set to [`theme::pair`] of [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
-        themable::properties::theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
+        theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
     }
 
-    fn new_context(child: impl UiNode, tristate: impl IntoVar<bool>) -> impl UiNode {
+    fn new_context_dyn(
+        child: impl UiNode,
+        properties: Vec<DynProperty>,
+        tristate: impl IntoVar<bool>,
+        theme: impl IntoVar<ThemeGenerator>,
+    ) -> impl UiNode {
         // ensure that the context var is set for other contexts.
-        properties::tristate(child, tristate)
+        let child = properties::tristate(child, tristate);
+        themable::nodes::new_context_dyn(child, properties, theme)
     }
 }
 
@@ -185,6 +191,8 @@ pub mod properties {
 pub mod vis {
     use super::*;
 
+    use crate::widgets::text::properties::TextColorVar;
+
     /// Default toggle dark theme.
     #[widget($crate::widgets::toggle::vis::dark_theme)]
     pub mod dark_theme {
@@ -218,10 +226,10 @@ pub mod vis {
 
             /// When the toggle is checked.
             when self.is_checked  {
-                background_color = crate::widgets::button::vis::LightBaseColorVar::new().map(|c| c.lighten(60.pct()));
+                background_color = crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()));
                 border = {
                     widths: 1,
-                    sides: crate::widgets::button::vis::LightBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
+                    sides: crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
                 };
             }
         }
@@ -243,13 +251,13 @@ pub mod vis {
         pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_| light_theme!());
     }
 
-    /// Sets the [`DarkThemeVar`] that affects all toggles inside the widget.
+    /// Sets the [`DarkThemeVar`] that affects all toggle buttons inside the widget.
     #[property(context, default(DarkThemeVar))]
     pub fn dark(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
         with_context_var(child, DarkThemeVar, theme)
     }
 
-    /// Sets the [`LightThemeVar`] that affects all toggles inside the widget.
+    /// Sets the [`LightThemeVar`] that affects all toggle buttons inside the widget.
     #[property(context, default(LightThemeVar))]
     pub fn light(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
         with_context_var(child, LightThemeVar, theme)

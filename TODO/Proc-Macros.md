@@ -2,6 +2,9 @@
 
 Proc-macros are mostly implemented, there are some improvements we can make:
 
+* Review constructor function errors.
+    - Override dyn with static is an error?
+
 * Add doc(cfg) badges to properties.
 * Improve property `allowed_in_when` validation for generics, generate a `new` like call for each
   argument, instead of all at once.

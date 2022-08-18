@@ -2,7 +2,7 @@
 
 * Finish button theme.
     - Implement color blending in `Rbga`, blend an overlay for hover/pressed.
-* Toggle hover does not work.
+* Toggle theme `when self.is_checked` does not override inherited `when.is_hovered`.
 * Test All.
 * Merge.
 

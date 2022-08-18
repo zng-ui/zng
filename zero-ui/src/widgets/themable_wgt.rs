@@ -3,7 +3,7 @@
 use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{
-    core::{DynPropPriority, DynProperties, DynPropertiesSnapshot, DynProperty},
+    core::{DynPropImportance, DynPropPriority, DynProperties, DynPropertiesSnapshot, DynProperty},
     prelude::new_widget::*,
 };
 
@@ -380,6 +380,16 @@ pub struct Theme {
     properties: DynProperties,
 }
 impl Theme {
+    /// Importance of theme properties set by default in theme widgets.
+    ///
+    /// Is `DynPropImportance::WIDGET - 10`.
+    pub const WIDGET_IMPORTANCE: DynPropImportance = DynPropImportance(DynPropImportance::WIDGET.0 - 10);
+
+    /// Importance of theme properties set in theme instances.
+    ///
+    /// Is `DynPropImportance::INSTANCE - 10`.
+    pub const INSTANCE_IMPORTANCE: DynPropImportance = DynPropImportance(DynPropImportance::INSTANCE.0 - 10);
+
     /// Cast the node to `Theme` if it is the same type.
     ///
     /// Note that each theme constructor function returns `Theme`, so the input child of the next constructor is
@@ -398,11 +408,18 @@ impl Theme {
     }
 
     /// Default `theme::new_*_dyn` constructor.
-    pub fn new_priority(child: impl UiNode, priority: DynPropPriority, properties: Vec<DynProperty>) -> Theme {
+    pub fn new_priority(child: impl UiNode, priority: DynPropPriority, mut properties: Vec<DynProperty>) -> Theme {
         let mut theme = Self::downcast(child).unwrap_or_else(|| {
             tracing::error!("expected `Theme` node in `{priority:?}` constructor");
             Theme::default()
         });
+        for p in &mut properties {
+            p.importance = match p.importance {
+                DynPropImportance::WIDGET => Self::WIDGET_IMPORTANCE,
+                DynPropImportance::INSTANCE => Self::INSTANCE_IMPORTANCE,
+                custom => custom,
+            };
+        }
         theme.properties.insert(priority, properties);
         theme
     }
