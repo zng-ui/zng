@@ -1,7 +1,9 @@
 # Themes TODO
 
-* Finish button theme.
-    - Implement color blending in `Rbga`, blend an overlay for hover/pressed.
+* Release build does not work.
+* Image example noticeable slower with new dynamic buttons.
+* Review docs of color mix methods, not clear what color is over the other.
+
 * Test All.
 * Merge.
 
