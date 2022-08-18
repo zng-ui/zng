@@ -84,12 +84,12 @@ fn example(vars: &Vars) -> impl Widget {
                 id = "easing-menu";
                 spacing = 2;
                 columns = 7;
-                button::vis::dark = theme_generator!(|_| {
+                button::vis::dark = theme_generator!(|_, _| {
                     button::vis::dark_theme! {
                         padding = 3;
                     }
                 });
-                button::vis::light = theme_generator!(|_| {
+                button::vis::light = theme_generator!(|_, _| {
                     button::vis::light_theme! {
                         padding = 3;
                     }

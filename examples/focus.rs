@@ -53,13 +53,13 @@ fn app_main() {
 fn alt_scope() -> impl Widget {
     h_stack! {
         alt_focus_scope = true;
-        button::vis::dark = theme_generator!(|_| {
+        button::vis::dark = theme_generator!(|_, _| {
             button::vis::dark_theme! {
                 border = unset!;
                 corner_radius = unset!;
             }
         });
-        button::vis::light = theme_generator!(|_| {
+        button::vis::light = theme_generator!(|_, _| {
             button::vis::light_theme! {
                 border = unset!;
                 corner_radius = unset!;

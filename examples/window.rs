@@ -488,13 +488,13 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                             tab_nav = TabNav::Cycle;
                             directional_nav = DirectionalNav::Cycle;
                             drop_shadow = (0, 0), 4, colors::BLACK;
-                            button::vis::dark = theme_generator!(|_| {
+                            button::vis::dark = theme_generator!(|_, _| {
                                 button::vis::dark_theme! {
                                     padding = 4;
                                     corner_radius = unset!;
                                 }
                             });
-                            button::vis::light = theme_generator!(|_| {
+                            button::vis::light = theme_generator!(|_, _| {
                                 button::vis::light_theme! {
                                     padding = 4;
                                     corner_radius = unset!;

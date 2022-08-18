@@ -188,14 +188,14 @@ pub mod vis {
         /// Use the [`button::vis::dark`] property to set.
         ///
         /// [`button::vis::dark`]: fn@dark
-        pub struct DarkThemeVar: ThemeGenerator = ThemeGenerator::new(|_| dark_theme!());
+        pub struct DarkThemeVar: ThemeGenerator = ThemeGenerator::new(|_, _| dark_theme!());
 
         /// Button light theme.
         ///
         /// Use the [`button::vis::light`] property to set.
         ///
         /// [`button::vis::light`]: fn@light
-        pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_| light_theme!());
+        pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_, _| light_theme!());
 
         /// Idle background color in the dark theme.
         ///

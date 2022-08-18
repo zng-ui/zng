@@ -46,15 +46,10 @@ pub mod toggle {
         theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
     }
 
-    fn new_context_dyn(
-        child: impl UiNode,
-        properties: Vec<DynProperty>,
-        tristate: impl IntoVar<bool>,
-        theme: impl IntoVar<ThemeGenerator>,
-    ) -> impl UiNode {
+    fn new_context_dyn(child: impl UiNode, properties: Vec<DynProperty>, tristate: impl IntoVar<bool>) -> impl UiNode {
         // ensure that the context var is set for other contexts.
         let child = properties::tristate(child, tristate);
-        themable::nodes::new_context_dyn(child, properties, theme)
+        themable::new_context_dyn(child, properties)
     }
 }
 
@@ -239,14 +234,14 @@ pub mod vis {
         /// Use the [`toggle::vis::dark`] property to set.
         ///
         /// [`toggle::vis::dark`]: fn@dark
-        pub struct DarkThemeVar: ThemeGenerator = ThemeGenerator::new(|_| dark_theme!());
+        pub struct DarkThemeVar: ThemeGenerator = ThemeGenerator::new(|_, _| dark_theme!());
 
         /// Toggle light theme.
         ///
         /// Use the [`toggle::vis::light`] property to set.
         ///
         /// [`toggle::vis::light`]: fn@light
-        pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_| light_theme!());
+        pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_, _| light_theme!());
     }
 
     /// Sets the [`DarkThemeVar`] that affects all toggle buttons inside the widget.

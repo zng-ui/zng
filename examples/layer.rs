@@ -79,12 +79,12 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             background_color = colors::GREEN.darken(80.pct());
-            button::vis::dark = theme_generator!(|_| {
+            button::vis::dark = theme_generator!(|_, _| {
                 button::vis::dark_theme! {
                     corner_radius = unset!;
                 }
             });
-            button::vis::light = theme_generator!(|_| {
+            button::vis::light = theme_generator!(|_, _| {
                 button::vis::light_theme! {
                     corner_radius = unset!;
                 }
