@@ -86,40 +86,36 @@ pub mod vis {
             /// Button background color.
             ///
             /// Is the base color by default.
-            background_color = DarkBaseColorVar;
+            background_color = DarkColorVar;
 
             /// Button border.
             ///
             /// Is widths `1` and sides the base color lighten by 30%.
             border = {
                 widths: 1,
-                sides: DarkBaseColorVar::new().map(|c| c.lighten(30.pct()).into())
+                sides: DarkColorVar::new().map_into()
             };
 
             /// When the pointer device is over this button.
             when self.is_cap_hovered {
-                background_color = DarkBaseColorVar::new().map(|c| c.lighten(15.pct()));
+                background_color = DarkColorVar::hovered();
                 border = {
                     widths: 1,
-                    sides: DarkBaseColorVar::new().map(|c| c.lighten(45.pct()).into()),
+                    sides: DarkColorVar::pressed().map_into(),
                 };
             }
 
             /// When the button is pressed in a way that press release will cause a button click.
             when self.is_pressed  {
-                background_color = DarkBaseColorVar::new().map(|c| c.lighten(60.pct()));
-                border = {
-                    widths: 1,
-                    sides: DarkBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
-                };
+                background_color = DarkColorVar::pressed();
             }
 
             /// When the button is disabled.
             when self.is_disabled {
-                background_color = DarkBaseColorVar::new().map(|c| c.desaturate(10.pct()));
+                background_color = DarkColorVar::disabled();
                 border = {
                     widths: 1,
-                    sides: DarkBaseColorVar::new().map(|c| c.lighten(20.pct()).into()),
+                    sides: DarkColorVar::disabled().map_into(),
                 };
                 text_color = TextColorVar::new().map(|c| c.darken(50.pct()).desaturate(100.pct()));
                 cursor = CursorIcon::NotAllowed;
@@ -141,42 +137,38 @@ pub mod vis {
             /// Button background color.
             ///
             /// Is the base color by default.
-            background_color = LightBaseColorVar;
+            background_color = LightColorVar;
 
             /// Button border.
             ///
             /// Is widths `1` and sides the base color lighten by 50%.
             border = {
                 widths: 1,
-                sides: LightBaseColorVar::new().map(|c| c.lighten(50.pct()).into())
+                sides: LightColorVar::new().map_into()
             };
 
             /// When the pointer device is over this button.
             when self.is_cap_hovered {
-                background_color = LightBaseColorVar::new().map(|c| c.lighten(5.pct()));
+                background_color = LightColorVar::hovered();
                 border = {
                     widths: 1,
-                    sides: LightBaseColorVar::new().map(|c| c.lighten(55.pct()).into()),
+                    sides: LightColorVar::pressed().map_into(),
                 };
             }
 
             /// When the button is pressed in a way that press release will cause a button click.
             when self.is_pressed  {
-                background_color = LightBaseColorVar::new().map(|c| c.lighten(10.pct()));
-                border = {
-                    widths: 1,
-                    sides: LightBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
-                };
+                background_color = LightColorVar::pressed();
             }
 
             /// When the button is disabled.
             when self.is_disabled {
-                background_color = LightBaseColorVar::new().map(|c| c.desaturate(10.pct()));
+                background_color = LightColorVar::disabled();
                 border = {
                     widths: 1,
-                    sides: LightBaseColorVar::new().map(|c| c.lighten(50.pct()).desaturate(10.pct()).into()),
+                    sides: LightColorVar::disabled().map_into(),
                 };
-                text_color = TextColorVar::new().map(|c| c.darken(10.pct()).desaturate(100.pct()));
+                text_color = TextColorVar::new().map(|c| c.lighten(10.pct()).desaturate(100.pct()));
                 cursor = CursorIcon::NotAllowed;
             }
         }
@@ -200,12 +192,12 @@ pub mod vis {
         /// Idle background color in the dark theme.
         ///
         /// All other background states are derived by adjusting the brightness of this color.
-        pub struct DarkBaseColorVar: Rgba = rgb(0.18, 0.18, 0.18);
+        pub struct DarkColorVar: Rgba = rgb(0.18, 0.18, 0.18);
 
         /// Idle background color in the light theme.
         ///
         /// All other background states are derived by adjusting the brightness of this color.
-        pub struct LightBaseColorVar: Rgba = rgb(0.9, 0.9, 0.9);
+        pub struct LightColorVar: Rgba = rgb(0.9, 0.9, 0.9);
     }
 
     /// Sets the [`DarkThemeVar`] that affects all buttons inside the widget.
@@ -221,14 +213,48 @@ pub mod vis {
     }
 
     /// Sets the [`DarkBaseColorVar`] that is used to compute all background and border colors in the dark theme.
-    #[property(context, default(DarkBaseColorVar))]
+    #[property(context, default(DarkColorVar))]
     pub fn dark_base_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-        with_context_var(child, DarkBaseColorVar, color)
+        with_context_var(child, DarkColorVar, color)
     }
 
     /// Sets the [`LightBaseColorVar`] that is used to compute all background and border colors in the light theme.
-    #[property(context, default(LightBaseColorVar))]
+    #[property(context, default(LightColorVar))]
     pub fn light_base_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-        with_context_var(child, LightBaseColorVar, color)
+        with_context_var(child, LightColorVar, color)
+    }
+
+    impl DarkColorVar {
+        /// Dark background hovered.
+        pub fn hovered() -> impl Var<Rgba> {
+            DarkColorVar::new().map(|&c| colors::WHITE.with_alpha(0.08).mix_normal(c))
+        }
+
+        /// Dark background pressed.
+        pub fn pressed() -> impl Var<Rgba> {
+            DarkColorVar::new().map(|&c| colors::WHITE.with_alpha(0.16).mix_normal(c))
+        }
+
+        /// Dark background disabled.
+        pub fn disabled() -> impl Var<Rgba> {
+            DarkColorVar::new().map(|&c| c.desaturate(100.pct()))
+        }
+    }
+
+    impl LightColorVar {
+        /// Dark background hovered.
+        pub fn hovered() -> impl Var<Rgba> {
+            LightColorVar::new().map(|&c| colors::BLACK.with_alpha(0.08).mix_normal(c))
+        }
+
+        /// Dark background pressed.
+        pub fn pressed() -> impl Var<Rgba> {
+            LightColorVar::new().map(|&c| colors::BLACK.with_alpha(0.16).mix_normal(c))
+        }
+
+        /// Dark background disabled.
+        pub fn disabled() -> impl Var<Rgba> {
+            LightColorVar::new().map(|&c| c.desaturate(100.pct()))
+        }
     }
 }

@@ -186,22 +186,24 @@ pub mod properties {
 pub mod vis {
     use super::*;
 
+    use crate::widgets::button::vis as btn_vis;
+
     /// Default toggle dark theme.
     #[widget($crate::widgets::toggle::vis::dark_theme)]
     pub mod dark_theme {
         use super::*;
 
-        inherit!(crate::widgets::button::vis::dark_theme);
+        inherit!(btn_vis::dark_theme);
 
         properties! {
             properties::is_checked;
 
             /// When the toggle is checked.
             when self.is_checked  {
-                background_color = crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()));
+                background_color = btn_vis::DarkColorVar::pressed();
                 border = {
                     widths: 1,
-                    sides: crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
+                    sides: btn_vis::DarkColorVar::pressed().map_into(),
                 };
             }
         }
@@ -212,17 +214,17 @@ pub mod vis {
     pub mod light_theme {
         use super::*;
 
-        inherit!(crate::widgets::button::vis::light_theme);
+        inherit!(btn_vis::light_theme);
 
         properties! {
             properties::is_checked;
 
             /// When the toggle is checked.
             when self.is_checked  {
-                background_color = crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()));
+                background_color = btn_vis::LightColorVar::pressed();
                 border = {
                     widths: 1,
-                    sides: crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
+                    sides: btn_vis::LightColorVar::pressed().map_into(),
                 };
             }
         }

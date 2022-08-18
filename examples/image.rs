@@ -384,7 +384,7 @@ pub mod img_window {
         // button color
         button::vis::dark = theme_generator!(|_, _| {
             button::vis::dark_theme! {
-                base_color = rgb(0, 0, 50);
+                base_color = rgb(0, 0, 40);
             }
         });
     }
