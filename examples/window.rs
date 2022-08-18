@@ -488,6 +488,8 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                             tab_nav = TabNav::Cycle;
                             directional_nav = DirectionalNav::Cycle;
                             drop_shadow = (0, 0), 4, colors::BLACK;
+                            padding = 4;
+
                             button::vis::dark = theme_generator!(|_, _| {
                                 button::vis::dark_theme! {
                                     padding = 4;
@@ -500,6 +502,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                                     corner_radius = unset!;
                                 }
                             });
+
                             content = v_stack! {
                                 items_align = Align::RIGHT;
                                 items = widgets![
