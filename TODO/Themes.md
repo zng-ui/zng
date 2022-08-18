@@ -2,7 +2,7 @@
 
 * Finish button theme.
     - Implement color blending in `Rbga`, blend an overlay for hover/pressed.
-* Finish toggle theme.
+* Toggle hover does not work.
 * Test All.
 * Merge.
 

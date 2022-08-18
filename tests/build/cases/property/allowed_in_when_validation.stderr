@@ -63,15 +63,15 @@ error[E0277]: the trait bound `LocalVar<<impl invalid2_Args as invalid2_Args>::T
    |                                            ^^^^ the trait `UiNode` is not implemented for `LocalVar<<impl invalid2_Args as invalid2_Args>::T_value>`
    |
    = help: the following other types implement trait `UiNode`:
+             AdoptiveChildNode
+             AdoptiveNode<U>
              Box<(dyn UiNodeBoxed + 'static)>
              Box<(dyn WidgetBoxed + 'static)>
+             DynProperties
              FillUiNode
-             InstrumentedNode<N, S>
              NilUiNode
              Option<U>
-             PropertyInfoNode
-             ViewGenerator<D>::presenter_map::ViewGenVarPresenter<G, S, U, M, V>
-           and 122 others
+           and 130 others
 note: required by a bound in `invalid2_ArgsImpl::<T_value>::new`
   --> cases/property/allowed_in_when_validation.rs:12:49
    |

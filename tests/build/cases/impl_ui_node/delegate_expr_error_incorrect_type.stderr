@@ -8,15 +8,15 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `UiNode`:
+            AdoptiveChildNode
+            AdoptiveNode<U>
             Box<(dyn UiNodeBoxed + 'static)>
             Box<(dyn WidgetBoxed + 'static)>
+            DynProperties
             FillUiNode
-            InstrumentedNode<N, S>
             MyNode
             NilUiNode
-            Option<U>
-            PropertyInfoNode
-          and 123 others
+          and 131 others
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
  --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
@@ -28,12 +28,12 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `UiNode`:
+            AdoptiveChildNode
+            AdoptiveNode<U>
             Box<(dyn UiNodeBoxed + 'static)>
             Box<(dyn WidgetBoxed + 'static)>
+            DynProperties
             FillUiNode
-            InstrumentedNode<N, S>
             MyNode
             NilUiNode
-            Option<U>
-            PropertyInfoNode
-          and 123 others
+          and 131 others

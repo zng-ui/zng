@@ -12,11 +12,12 @@ use crate::prelude::new_widget::*;
 pub mod toggle {
     use super::*;
 
+    #[doc(inline)]
     pub use super::properties::{self, IsCheckedVar};
+    #[doc(inline)]
+    pub use super::vis;
 
     inherit!(crate::widgets::button);
-
-    use crate::widgets::button::vis;
 
     properties! {
         remove { on_click }
@@ -38,6 +39,11 @@ pub mod toggle {
         properties::tristate = properties::IsTristateVar;
 
         properties::is_checked;
+
+        /// Toggle dark and light themes.
+        ///
+        /// Set to [`theme::pair`] of [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
+        themable::properties::theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
     }
 
     fn new_context(child: impl UiNode, tristate: impl IntoVar<bool>) -> impl UiNode {
@@ -172,6 +178,81 @@ pub mod properties {
     #[property(event)]
     pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
         bind_state(child, IsCheckedVar::new().map(|s| *s == Some(true)), state)
+    }
+}
+
+/// Toggle themes, visual properties and context vars.
+pub mod vis {
+    use super::*;
+
+    /// Default toggle dark theme.
+    #[widget($crate::widgets::toggle::vis::dark_theme)]
+    pub mod dark_theme {
+        use super::*;
+
+        inherit!(crate::widgets::button::vis::dark_theme);
+
+        properties! {
+            properties::is_checked;
+
+            /// When the toggle is checked.
+            when self.is_checked  {
+                background_color = crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()));
+                border = {
+                    widths: 1,
+                    sides: crate::widgets::button::vis::DarkBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
+                };
+            }
+        }
+    }
+
+    /// Default toggle light theme.
+    #[widget($crate::widgets::toggle::vis::light_theme)]
+    pub mod light_theme {
+        use super::*;
+
+        inherit!(crate::widgets::button::vis::light_theme);
+
+        properties! {
+            properties::is_checked;
+
+            /// When the toggle is checked.
+            when self.is_checked  {
+                background_color = crate::widgets::button::vis::LightBaseColorVar::new().map(|c| c.lighten(60.pct()));
+                border = {
+                    widths: 1,
+                    sides: crate::widgets::button::vis::LightBaseColorVar::new().map(|c| c.lighten(60.pct()).into()),
+                };
+            }
+        }
+    }
+
+    context_var! {
+        /// Toggle dark theme.
+        ///
+        /// Use the [`toggle::vis::dark`] property to set.
+        ///
+        /// [`toggle::vis::dark`]: fn@dark
+        pub struct DarkThemeVar: ThemeGenerator = ThemeGenerator::new(|_| dark_theme!());
+
+        /// Toggle light theme.
+        ///
+        /// Use the [`toggle::vis::light`] property to set.
+        ///
+        /// [`toggle::vis::light`]: fn@light
+        pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_| light_theme!());
+    }
+
+    /// Sets the [`DarkThemeVar`] that affects all toggles inside the widget.
+    #[property(context, default(DarkThemeVar))]
+    pub fn dark(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, DarkThemeVar, theme)
+    }
+
+    /// Sets the [`LightThemeVar`] that affects all toggles inside the widget.
+    #[property(context, default(LightThemeVar))]
+    pub fn light(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, LightThemeVar, theme)
     }
 }
 
