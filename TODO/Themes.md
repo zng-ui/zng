@@ -1,9 +1,9 @@
 # Themes TODO
 
-* Release build does not work.
 * Image example noticeable slower with new dynamic buttons.
 * Review docs of color mix methods, not clear what color is over the other.
 
+* Review all examples.
 * Test All.
 * Merge.
 
