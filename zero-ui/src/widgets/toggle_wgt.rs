@@ -191,8 +191,6 @@ pub mod properties {
 pub mod vis {
     use super::*;
 
-    use crate::widgets::text::properties::TextColorVar;
-
     /// Default toggle dark theme.
     #[widget($crate::widgets::toggle::vis::dark_theme)]
     pub mod dark_theme {
