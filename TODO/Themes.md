@@ -1,7 +1,10 @@
 # Themes TODO
 
-* Image example noticeable slower with new dynamic buttons.
 * Review docs of color mix methods, not clear what color is over the other.
+* Setting button `background_color` breaks `when`, previously the hovered color was still used.
+    - This affects examples that set background in `when` only too, see `window`.
+
+* Image example noticeable slower with new dynamic buttons.
 
 * Review all examples.
 * Test All.
