@@ -550,19 +550,20 @@ impl DynProperties {
     }
 
     fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = PropertyItem>) {
-        let pe = priority as usize;
-        let ps = pe.saturating_sub(1);
-        let priority = self.priority_ranges[ps]..self.priority_ranges[pe];
+        let ps = if priority == 0 { 0 } else { self.priority_ranges[priority - 1] };
+        let priority_range = ps..self.priority_ranges[priority];
 
-        if priority.is_empty() {
+        if priority_range.is_empty() {
             // no properties of the priority, can just append or override.
 
-            if priority.start == self.properties.len() {
+            let properties: Vec<_> = properties.collect();
+
+            if priority_range.start == self.properties.len() {
                 // append
                 self.properties.extend(properties);
 
                 // update ranges.
-                for p in &mut self.priority_ranges[pe..] {
+                for p in &mut self.priority_ranges[priority..] {
                     *p = self.properties.len();
                 }
             } else {
@@ -570,63 +571,64 @@ impl DynProperties {
 
                 let insert_len = properties_len;
 
-                let _rmv = self.properties.splice(priority, properties).next();
+                let _rmv = self.properties.splice(priority_range, properties).next();
                 debug_assert!(_rmv.is_none());
 
                 // update ranges.
-                for p in &mut self.priority_ranges[pe..] {
+                for p in &mut self.priority_ranges[priority..] {
                     *p += insert_len;
                 }
             }
         } else {
             // already has properties of the priority, compute overrides.
 
-            let mut properties: Vec<_> = properties.collect();
+            let mut new_properties: Vec<_> = properties.collect();
 
             // collect overrides
-            let mut removes = vec![];
-            let mut insert_removes = vec![];
+            let mut rmv_existing = vec![];
+            let mut rmv_new = vec![];
 
-            for (i, p) in self.properties[priority.clone()].iter().enumerate() {
-                if p.is_when_condition {
+            for (i, existing) in self.properties[priority_range.clone()].iter().enumerate() {
+                if existing.is_when_condition {
                     continue; // never remove when condition properties
                 }
 
-                if let Some(insert_i) = properties.iter().position(|n| n.name == p.name) {
-                    let same_name = &properties[insert_i];
-                    if same_name.importance <= p.importance {
-                        removes.push(priority.start + i);
+                if let Some(new_i) = new_properties.iter().position(|n| n.name == existing.name) {
+                    let new = &new_properties[new_i];
+
+                    if new.importance >= existing.importance {
+                        rmv_existing.push(priority_range.start + i);
                     } else {
-                        insert_removes.push(insert_i);
+                        rmv_new.push(new_i);
                     }
                 }
             }
             // remove overrides
-            let remove_len = removes.len();
-            for i in removes.into_iter().rev() {
+            let remove_len = rmv_existing.len();
+            for i in rmv_existing.into_iter().rev() {
                 self.properties.remove(i);
             }
-            if !insert_removes.is_empty() {
-                insert_removes.sort();
+            if !rmv_new.is_empty() {
+                rmv_new.sort();
 
-                for i in insert_removes.into_iter().rev() {
-                    properties.remove(i);
+                for i in rmv_new.into_iter().rev() {
+                    new_properties.remove(i);
                 }
 
-                if properties.is_empty() {
+                if new_properties.is_empty() {
                     return;
                 }
             }
 
             // insert new
-            let insert_len = properties.len();
+            let insert_len = new_properties.len();
 
-            let insert_i = priority.end - remove_len;
-            let _rmv = self.properties.splice(insert_i..insert_i, properties).next();
+            let insert_i = priority_range.end - remove_len;
+            let _rmv = self.properties.splice(insert_i..insert_i, new_properties).next();
             debug_assert!(_rmv.is_none());
 
             // update ranges.
-            for p in &mut self.priority_ranges[pe..] {
+            for p in &mut self.priority_ranges[priority..] {
                 *p -= remove_len;
                 *p += insert_len;
             }
