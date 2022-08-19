@@ -3,7 +3,7 @@
 use crate::{
     app::view_process::ViewRenderer,
     border::BorderSides,
-    color::{RenderColor, RenderFilter},
+    color::{filters::RenderFilter, RenderColor},
     context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,

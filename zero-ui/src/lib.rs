@@ -900,10 +900,7 @@ pub mod prelude {
         async_clone_move,
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
-        color::{
-            self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
-            sepia, Rgba,
-        },
+        color::{self, colors, filters, hex, hsl, hsla, rgb, rgba, Rgba},
         command::{Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope},
         context::{AppContext, WidgetContext, WindowContext},
         event::Events,

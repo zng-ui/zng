@@ -4,8 +4,6 @@
     - This affects examples that set background in `when` only too, see `window`.
 
 * Image example noticeable slower with new dynamic buttons.
-
-* Review all examples.
 * Test All.
 * Merge.
 
