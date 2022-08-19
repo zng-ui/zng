@@ -436,8 +436,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             property_reexports.extend(quote! {
                 #path::#cfg_ident! {
                     #[doc(hidden)]
-                    pub use #path::{#p_ident, #cfg_ident};
+                    pub use #path::#p_ident;
                 }
+                #[doc(hidden)]
+                pub use #path::#cfg_ident;
             });
         } else {
             property_reexports.extend(quote! {
@@ -556,8 +558,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         property_reexports.extend(quote! {
                             #inherited_source::#cfg_ident! {
                                 #[doc(hidden)]
-                                pub use #inherited_source::{#p_ident, #cfg_ident};
+                                pub use #inherited_source::#p_ident;
                             }
+                            #[doc(hidden)]
+                            pub use #inherited_source::#cfg_ident;
                         });
                     } else {
                         property_reexports.extend(quote! {
@@ -580,9 +584,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         property_reexports.extend(quote! {
                             #inherited_source::#cfg_ident! {
                                 #[doc(hidden)]
-                                pub use #inherited_source::{#inherited_ident as #p_ident, #cfg_ident as #new_cfg_ident};
+                                pub use #inherited_source::#inherited_ident as #p_ident;
                             }
-
+                            #[doc(hidden)]
+                            pub use #inherited_source::#cfg_ident as #new_cfg_ident;
                         });
                     } else {
                         property_reexports.extend(quote! {
@@ -716,10 +721,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 when_reexports.extend(quote! {
                     #module::#cfg_ident! {
                         #rexp
-
-                        #[doc(hidden)]
-                        pub use #module::#cfg_ident as #new_cfg_ident;
                     }
+                    #[doc(hidden)]
+                    pub use #module::#cfg_ident as #new_cfg_ident;
                 });
             } else {
                 when_reexports.extend(rexp);

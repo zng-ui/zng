@@ -1,9 +1,3 @@
-* Image example release build does not work.
-    - "failed to resolve: could not find `__cfg_can_inspect` in `img_window`"
-* Remove filter from color?
-
-# Text
-
 * Text Editable
     - Caret.
     - Selection.
