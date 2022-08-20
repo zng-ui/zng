@@ -20,10 +20,10 @@ use crate::{
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::color::opacity;
+/// use zero_ui_core::color::filters;
 /// use zero_ui_core::units::*;
 ///
-/// let filter = opacity(50.pct()).blur(3);
+/// let filter = filters::opacity(50.pct()).blur(3);
 /// ```
 ///
 /// The example above creates a filter that lowers the opacity to `50%` and blurs by `3px`.
