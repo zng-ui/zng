@@ -74,6 +74,8 @@ impl<L: Into<Length>> ops::Add<L> for Length {
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a + b),
             (PxF32(a), PxF32(b)) => PxF32(a + b),
             (DipF32(a), DipF32(b)) => DipF32(a + b),
+            (Px(a), PxF32(b)) | (PxF32(b), Px(a)) => PxF32(a.0 as f32 + b),
+            (Dip(a), DipF32(b)) | (DipF32(b), Dip(a)) => DipF32(a.to_f32() + b),
             (a, b) => Length::Expr(Box::new(LengthExpr::Add(a, b))),
         }
     }
@@ -103,6 +105,10 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a - b),
             (PxF32(a), PxF32(b)) => PxF32(a - b),
             (DipF32(a), DipF32(b)) => DipF32(a - b),
+            (Px(a), PxF32(b)) => PxF32(a.0 as f32 - b),
+            (PxF32(a), Px(b)) => PxF32(a - b.0 as f32),
+            (Dip(a), DipF32(b)) => DipF32(a.to_f32() - b),
+            (DipF32(a), Dip(b)) => DipF32(a - b.to_f32()),
             (a, b) => Length::Expr(Box::new(LengthExpr::Sub(a, b))),
         }
     }
@@ -284,7 +290,7 @@ impl fmt::Display for Length {
             ViewportHeight(vh) => write!(f, "{vh}vh"),
             ViewportMin(vmin) => write!(f, "{vmin}vmin"),
             ViewportMax(vmax) => write!(f, "{vmax}vmax"),
-            DipF32(l) => write!(f, "{l}"),
+            DipF32(l) => write!(f, "{l}dip"),
             PxF32(l) => write!(f, "{l}px"),
             Expr(e) => write!(f, "{e}"),
         }
