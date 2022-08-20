@@ -1,5 +1,8 @@
 # Bug
 
+* Animation example some times completely stops updating.
+    - The last update is not rendered, only after mouse hover causes a frame it snaps to the last position.
+
 * Fix pre-build view-process is always software mode because it fails to create `Dedicated`.
 ```txt
 Render mode selection log:
