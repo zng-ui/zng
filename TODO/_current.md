@@ -1,11 +1,6 @@
 # Bug
 
-* Image example noticeable slower with new dynamic buttons.
-    - Only in prebuild runs, 
-        - App-process built in release-lto, <1ms render.
-        - Prebuild redraw: 74ms
-        - Build redraw: 3ms
-        - Prebuild runs in Software mode.
+* Fix pre-build view-process is always software mode because it fails to create `Dedicated`.
 ```txt
 Render mode selection log:
 
@@ -19,13 +14,9 @@ OsError("GetClassInfoExW function failed: Esta classe não existe. (os error 141
 ```
 1411 is ERROR_CLASS_DOES_NOT_EXIST
 
-* This error also happens in master, so all pre-build examples where already running in software mode before.
-    - master prebuild redraw (software): 10ms
-    - theme-use prebuild redraw (software): 74ms
-
-* Two bugs to fix:
-    - See what is making Software render so slow in new theme.
-    - Fix glutin to use dedicated mode in pre-build.
+* Software mode rendering in the `image` example is much slower in the `theme-use` branch.
+    - Bug is not caused by button theme, using the old button in the new branch was still slow.
+    - Bug is not caused by any change in image example code, old image code was still slow.
 
 # Text
 
