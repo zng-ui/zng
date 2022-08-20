@@ -198,50 +198,38 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     struct OpacityNode<C, A> {
         child: C,
-        alpha_value: A,
-        frame_key: Option<FrameValueKey<f32>>,
+        alpha: A,
+        frame_key: FrameVarKey<f32>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, A: Var<Factor>> UiNode for OpacityNode<C, A> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.alpha_value);
+            subs.var(ctx, &self.alpha);
             self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.alpha_value.is_new(ctx) {
+            if self.alpha.is_new(ctx) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.alpha_value.get(ctx).0;
-            let opacity = if let Some(frame_key) = self.frame_key {
-                frame_key.bind(opacity)
-            } else {
-                FrameValue::Value(opacity)
-            };
+            let opacity = self.frame_key.bind(ctx, &self.alpha, |f| f.0);
             frame.push_inner_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            if let Some(frame_key) = self.frame_key {
-                update.update_f32(frame_key.update(self.alpha_value.get(ctx).0));
-            }
+            update.update_f32_opt(self.frame_key.update(ctx, &self.alpha, |f| f.0));
             self.child.render_update(ctx, update);
         }
     }
 
-    let alpha_value = alpha.into_var();
-    let frame_key = if alpha_value.can_update() {
-        Some(FrameValueKey::new_unique())
-    } else {
-        None
-    };
+    let alpha = alpha.into_var();
     OpacityNode {
         child,
-        alpha_value,
-        frame_key,
+        frame_key: FrameVarKey::new_unique(&alpha),
+        alpha,
     }
 }

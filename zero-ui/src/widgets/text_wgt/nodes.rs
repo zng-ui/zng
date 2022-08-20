@@ -821,7 +821,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 clip_rect.origin.y += padding.top;
 
                 //frame.push_line(clip_rect, LineOrientation::Vertical, colors::WHITE.into(), LineStyle::Solid);
-                frame.push_color(clip_rect, self.color_key.bind(colors::WHITE.into()));
+                frame.push_color(clip_rect, self.color_key.bind(colors::WHITE.into(), true));
             }
         }
 
@@ -829,7 +829,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render_update(ctx, update);
 
             if *TextEditableVar::get(ctx) {
-                update.update_color(self.color_key.update(colors::WHITE.into()))
+                update.update_color(self.color_key.update(colors::WHITE.into(), true))
             }
         }
     }
@@ -886,7 +886,7 @@ pub fn render_text() -> impl UiNode {
             let color_var = TextColorVar::new();
             let color = color_var.copy(ctx.vars);
             let color_value = if let Some(key) = self.color_key {
-                key.bind(color.into())
+                key.bind(color.into(), color_var.is_animating(ctx.vars))
             } else {
                 FrameValue::Value(color.into())
             };
@@ -918,7 +918,7 @@ pub fn render_text() -> impl UiNode {
                 let color_var = TextColorVar::new();
                 let color = color_var.copy(ctx.vars);
 
-                update.update_color(key.update(color.into()));
+                update.update_color(key.update(color.into(), color_var.is_animating(ctx.vars)));
 
                 let mut rendered = self.rendered.get().unwrap();
                 rendered.color = color;

@@ -852,7 +852,7 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render(&self, ctx: &mut TestWidgetContext, frame: &mut FrameBuilder) {
         let key = ctx.root_translation_key;
-        ctx.render_context(|ctx| frame.push_inner(ctx, key, |ctx, frame| self.render(ctx, frame)));
+        ctx.render_context(|ctx| frame.push_inner(ctx, key, false, |ctx, frame| self.render(ctx, frame)));
     }
 
     /// Run [`UiNode::render_update`] using the [`TestWidgetContext`].
@@ -860,7 +860,7 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render_update(&self, ctx: &mut TestWidgetContext, update: &mut FrameUpdate) {
         let key = ctx.root_translation_key;
-        ctx.render_context(|ctx| update.update_inner(ctx, key, |ctx, update| self.render_update(ctx, update)));
+        ctx.render_context(|ctx| update.update_inner(ctx, key, false, |ctx, update| self.render_update(ctx, update)));
     }
 
     /// Run [`UiNode::event`] using the [`TestWidgetContext`].

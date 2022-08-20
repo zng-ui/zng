@@ -445,6 +445,11 @@ pub enum FrameValue<T> {
         key: FrameValueKey<T>,
         /// Initial value.
         value: T,
+        /// If the value will update rapidly.
+        ///
+        /// This affects if the frame binding will be propagated to webrender,
+        /// see [`FrameValue::into_wr`] for details.
+        animating: bool,
     },
     /// Value is not updated, a new frame must be send to change this value.
     Value(T),
@@ -465,29 +470,43 @@ impl<T> FrameValue<T> {
     }
 
     /// Convert to webrender binding.
+    ///
+    /// Returns a webrender binding only if is animating, webrender behaves as if the value is animating
+    /// if it is bound, skipping some caching, this can have a large performance impact in software mode, if
+    /// a large area of the screen is painted with a bound color.
     pub fn into_wr<U>(self) -> wr::PropertyBinding<U>
     where
         U: From<T>,
     {
         match self {
-            FrameValue::Bind { key, value } => wr::PropertyBinding::Binding(
+            FrameValue::Bind {
+                key,
+                value,
+                animating: true,
+            } => wr::PropertyBinding::Binding(
                 wr::PropertyBindingKey {
                     id: key.id,
                     _phantom: std::marker::PhantomData,
                 },
                 value.into(),
             ),
+            FrameValue::Bind {
+                value, animating: false, ..
+            } => wr::PropertyBinding::Value(value.into()),
             FrameValue::Value(value) => wr::PropertyBinding::Value(value.into()),
         }
     }
 
     /// Returns `true` if a new frame must be generated.
-    fn update_bindable(value: &mut T, update: &FrameValueUpdate<T>) -> bool
+    fn update_bindable(value: &mut T, animation: &mut bool, update: &FrameValueUpdate<T>) -> bool
     where
         T: PartialEq + Copy,
     {
         *value = update.value;
-        false
+        let need_frame = *animation != update.animating;
+        *animation = update.animating;
+
+        need_frame
     }
 
     /// Returns `true` if a new frame must be generated.
@@ -511,19 +530,25 @@ pub struct FrameValueUpdate<T> {
     pub key: FrameValueKey<T>,
     /// New value.
     pub value: T,
+    /// If the value is updating rapidly.
+    pub animating: bool,
 }
 impl<T> FrameValueUpdate<T> {
     /// Convert to webrender binding update.
-    pub fn into_wr<U>(self) -> wr::PropertyValue<U>
+    pub fn into_wr<U>(self) -> Option<wr::PropertyValue<U>>
     where
         U: From<T>,
     {
-        wr::PropertyValue {
-            key: wr::PropertyBindingKey {
-                id: self.key.id,
-                _phantom: std::marker::PhantomData,
-            },
-            value: self.value.into(),
+        if self.animating {
+            Some(wr::PropertyValue {
+                key: wr::PropertyBindingKey {
+                    id: self.key.id,
+                    _phantom: std::marker::PhantomData,
+                },
+                value: self.value.into(),
+            })
+        } else {
+            None
         }
     }
 }
@@ -654,9 +679,9 @@ impl DisplayListCache {
             Err(r)
         } else {
             Ok(wr::DynamicProperties {
-                transforms: transforms.into_iter().map(FrameValueUpdate::into_wr).collect(),
-                floats: floats.into_iter().map(FrameValueUpdate::into_wr).collect(),
-                colors: colors.into_iter().map(FrameValueUpdate::into_wr).collect(),
+                transforms: transforms.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
+                floats: floats.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
+                colors: colors.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
             })
         }
     }
@@ -1108,9 +1133,14 @@ impl DisplayItem {
     fn update_transform(&mut self, t: &FrameValueUpdate<PxTransform>) -> bool {
         match self {
             DisplayItem::PushReferenceFrame {
-                transform: FrameValue::Bind { key, value },
+                transform:
+                    FrameValue::Bind {
+                        key,
+                        value,
+                        animating: animation,
+                    },
                 ..
-            } if *key == t.key => FrameValue::update_bindable(value, t),
+            } if *key == t.key => FrameValue::update_bindable(value, animation, t),
             _ => false,
         }
     }
@@ -1120,8 +1150,12 @@ impl DisplayItem {
                 let mut new_frame = false;
                 for filter in filters.iter_mut() {
                     match filter {
-                        FilterOp::Opacity(FrameValue::Bind { key, value }) if *key == t.key => {
-                            new_frame |= FrameValue::update_bindable(value, t);
+                        FilterOp::Opacity(FrameValue::Bind {
+                            key,
+                            value,
+                            animating: animation,
+                        }) if *key == t.key => {
+                            new_frame |= FrameValue::update_bindable(value, animation, t);
                         }
                         _ => {}
                     }
@@ -1134,9 +1168,14 @@ impl DisplayItem {
     fn update_color(&mut self, t: &FrameValueUpdate<wr::ColorF>) -> bool {
         match self {
             DisplayItem::Color {
-                color: FrameValue::Bind { key, value },
+                color:
+                    FrameValue::Bind {
+                        key,
+                        value,
+                        animating: animation,
+                    },
                 ..
-            } if *key == t.key => FrameValue::update_bindable(value, t),
+            } if *key == t.key => FrameValue::update_bindable(value, animation, t),
             DisplayItem::Text {
                 color: FrameValue::Bind { key, value, .. },
                 ..

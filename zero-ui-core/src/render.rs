@@ -9,7 +9,7 @@ use crate::{
     text::FontAntiAliasing,
     ui_list::ZIndex,
     units::*,
-    var::impl_from_and_into_var,
+    var::{self, impl_from_and_into_var},
     widget_info::{HitTestClips, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
     WidgetId,
 };
@@ -770,10 +770,16 @@ impl FrameBuilder {
     }
 
     /// Push the widget reference frame and stacking context then call `render` inside of it.
+    ///
+    /// If `layout_translation_animating` is `false` the view-process can still be updated using [`FrameUpdate::update_inner`], but
+    /// a full webrender frame will be generated for each update, if is `true` webrender frame updates are used, but webrender
+    /// skips some optimizations, such as auto-merging transforms. When in doubt setting this to `true` is better than `false` as
+    /// a webrender frame update is faster than a full frame, and the transform related optimizations don't gain much.
     pub fn push_inner(
         &mut self,
         ctx: &mut RenderContext,
         layout_translation_key: FrameValueKey<PxTransform>,
+        layout_translation_animating: bool,
         render: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
         if let Some(mut data) = self.widget_data.take() {
@@ -796,7 +802,7 @@ impl FrameBuilder {
             if self.visible {
                 self.display_list.push_reference_frame(
                     SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
-                    layout_translation_key.bind(inner_transform),
+                    layout_translation_key.bind(inner_transform, layout_translation_animating),
                     !data.has_transform,
                 );
 
@@ -1095,6 +1101,11 @@ impl FrameBuilder {
     }
 
     /// Push a color rectangle.
+    ///
+    /// The `color` can be bound and updated using [`FrameUpdate::update_color`], note that if the color binding or update
+    /// is flagged as `animating` webrender frame updates are used when color updates are send, but webrender disables some
+    /// caching for the entire `clip_rect` region, this can have a big performance impact in [`RenderMode::Software`] if a large
+    /// part of the screen is affected, as the entire region is redraw every full frame even if the color did not actually change.
     pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<RenderColor>) {
         expect_inner!(self.push_color);
 
@@ -1685,6 +1696,13 @@ impl FrameUpdate {
         }
     }
 
+    /// Update a transform value, if there is one.
+    pub fn update_transform_opt(&mut self, new_value: Option<FrameValueUpdate<PxTransform>>, hit_test: bool) {
+        if let Some(value) = new_value {
+            self.update_transform(value, hit_test)
+        }
+    }
+
     /// Update a transform that potentially affects widget bounds.
     ///
     /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
@@ -1696,6 +1714,21 @@ impl FrameUpdate {
     pub fn with_transform(&mut self, new_value: FrameValueUpdate<PxTransform>, hit_test: bool, render_update: impl FnOnce(&mut Self)) {
         self.with_transform_value(&new_value.value, render_update);
         self.update_transform(new_value, hit_test);
+    }
+
+    /// Update a transform that potentially affects widget bounds, if there is one.
+    ///
+    /// The `render_update` is always called.
+    pub fn with_transform_opt(
+        &mut self,
+        new_value: Option<FrameValueUpdate<PxTransform>>,
+        hit_test: bool,
+        render_update: impl FnOnce(&mut Self),
+    ) {
+        match new_value {
+            Some(value) => self.with_transform(value, hit_test, render_update),
+            None => render_update(self),
+        }
     }
 
     /// Calls `render_update` while the [`transform`] is updated to include the `value` space.
@@ -1826,16 +1859,19 @@ impl FrameUpdate {
     }
 
     /// Update the widget's inner transform.
+    ///
+    /// The `layout_translation_animating` affects some webrender caches, see [`FrameBuilder::push_inner`] for details.
     pub fn update_inner(
         &mut self,
         ctx: &mut RenderContext,
         layout_translation_key: FrameValueKey<PxTransform>,
+        layout_translation_animating: bool,
         render_update: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
         if let Some(inner_transform) = self.inner_transform.take() {
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = inner_transform.then_translate(translate.cast());
-            self.update_transform(layout_translation_key.update(inner_transform), false);
+            self.update_transform(layout_translation_key.update(inner_transform, layout_translation_animating), false);
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);
@@ -1861,10 +1897,26 @@ impl FrameUpdate {
         }
     }
 
+    /// Update a float value, if there is one.
+    pub fn update_f32_opt(&mut self, new_value: Option<FrameValueUpdate<f32>>) {
+        if let Some(value) = new_value {
+            self.update_f32(value)
+        }
+    }
+
     /// Update a color value.
+    ///
+    /// See [`FrameBuilder::push_color`] for details.
     pub fn update_color(&mut self, new_value: FrameValueUpdate<RenderColor>) {
         if self.visible {
             self.colors.push(new_value)
+        }
+    }
+
+    /// Update a color value, if there is one.
+    pub fn update_color_opt(&mut self, new_value: Option<FrameValueUpdate<RenderColor>>) {
+        if let Some(value) = new_value {
+            self.update_color(value)
         }
     }
 
@@ -1959,11 +2011,22 @@ impl SpatialFrameId {
 }
 
 /// Unique key of an updatable value in the view-process frame.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+///
+/// Also see [`FrameVarKey`].
+#[derive(Debug, PartialEq, Eq)]
 pub struct FrameValueKey<T> {
     id: FrameBindingKeyId,
     _type: PhantomData<T>,
 }
+impl<T> Clone for FrameValueKey<T> {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            _type: PhantomData,
+        }
+    }
+}
+impl<T> Copy for FrameValueKey<T> {}
 impl<T> FrameValueKey<T> {
     /// Generates a new unique ID.
     pub fn new_unique() -> Self {
@@ -1974,27 +2037,124 @@ impl<T> FrameValueKey<T> {
     }
 
     /// To view key.
-    pub fn view_key(&self) -> zero_ui_view_api::FrameValueKey<T> {
+    pub fn view_key(self) -> zero_ui_view_api::FrameValueKey<T> {
         zero_ui_view_api::FrameValueKey::new(self.id.get())
     }
 
     /// Create a binding with this key.
-    pub fn bind(self, value: T) -> FrameValue<T> {
+    ///
+    /// The `animating` flag controls if the binding will propagate to webrender, if `true`
+    /// webrender frame updates are generated for
+    pub fn bind(self, value: T, animating: bool) -> FrameValue<T> {
         FrameValue::Bind {
             key: self.view_key(),
             value,
+            animating,
         }
     }
 
     /// Create a value update with this key.
-    pub fn update(self, value: T) -> FrameValueUpdate<T> {
+    pub fn update(self, value: T, animating: bool) -> FrameValueUpdate<T> {
         FrameValueUpdate {
             key: self.view_key(),
             value,
+            animating,
         }
     }
 }
 assert_non_null!(FrameValueKey<RenderColor>);
+
+/// Unique key of an updatable value in the view-process frame that is sourced from a variable.
+///
+/// This is a helper type around [`FrameValueKey`] that correctly implements a var to frame value pipeline, first
+/// it only generates a key if the variable can update, and after, it helps track the `animating` flag.
+#[derive(Debug, PartialEq, Eq)]
+pub struct FrameVarKey<T> {
+    key: Option<FrameValueKey<T>>,
+}
+impl<T> Clone for FrameVarKey<T> {
+    fn clone(&self) -> Self {
+        Self { key: self.key }
+    }
+}
+impl<T> Copy for FrameVarKey<T> {}
+impl<T> FrameVarKey<T> {
+    /// Generates a new unique ID if the `var` can update.
+    pub fn new_unique<VT: var::VarValue>(var: &impl var::Var<VT>) -> Self {
+        FrameVarKey {
+            key: if var.can_update() {
+                Some(FrameValueKey::<T>::new_unique())
+            } else {
+                None
+            },
+        }
+    }
+
+    /// The value key.
+    pub fn key(self) -> Option<FrameValueKey<T>> {
+        self.key
+    }
+
+    /// The value key converted to view-process key.
+    pub fn view_key(self) -> Option<zero_ui_view_api::FrameValueKey<T>> {
+        self.key.map(FrameValueKey::view_key)
+    }
+
+    /// Create a binding with this key and `var`.
+    ///
+    /// The `map` must produce a copy or clone of the frame value.
+    pub fn bind<VT: var::VarValue>(
+        self,
+        vars: &impl var::WithVarsRead,
+        var: &impl var::Var<VT>,
+        map: impl FnOnce(&VT) -> T,
+    ) -> FrameValue<T> {
+        match self.view_key() {
+            Some(key) => {
+                let (value, animating) = vars.with_vars_read(|vars| (map(var.get(vars)), var.is_animating(vars)));
+                FrameValue::Bind { key, value, animating }
+            }
+            None => FrameValue::Value(vars.with_vars_read(|vars| map(var.get(vars)))),
+        }
+    }
+
+    /// Create a binding with this key, `var` and already mapped `value`.
+    pub fn bind_mapped<VT: var::VarValue>(self, vars: &impl var::WithVarsRead, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
+        match self.view_key() {
+            Some(key) => {
+                let animating = vars.with_vars_read(|vars| var.is_animating(vars));
+                FrameValue::Bind { key, value, animating }
+            }
+            None => FrameValue::Value(value),
+        }
+    }
+
+    /// Create a value update with this key and `var`.
+    pub fn update<VT: var::VarValue>(
+        self,
+        vars: &impl var::WithVarsRead,
+        var: &impl var::Var<VT>,
+        map: impl FnOnce(&VT) -> T,
+    ) -> Option<FrameValueUpdate<T>> {
+        self.view_key().map(|key| {
+            let (value, animating) = vars.with_vars_read(|vars| (map(var.get(vars)), var.is_animating(vars)));
+            FrameValueUpdate { key, value, animating }
+        })
+    }
+
+    /// Create a value update with this key, `var` and already mapped `value`.
+    pub fn update_mapped<VT: var::VarValue>(
+        self,
+        vars: &impl var::WithVarsRead,
+        var: &impl var::Var<VT>,
+        value: T,
+    ) -> Option<FrameValueUpdate<T>> {
+        self.view_key().map(|key| {
+            let animating = vars.with_vars_read(|vars| var.is_animating(vars));
+            FrameValueUpdate { key, value, animating }
+        })
+    }
+}
 
 bitflags! {
     /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.
