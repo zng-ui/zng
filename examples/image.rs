@@ -331,7 +331,7 @@ pub mod img_window {
     properties! {
         content_align = Align::CENTER;
 
-        // render_mode = zero_ui::core::window::RenderMode::Software;
+        // render_mode = RenderMode::Software;
 
         state = WindowState::Maximized;
         size = (1140, 770);// restore size
