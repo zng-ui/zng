@@ -569,3 +569,19 @@ pub(crate) extern "system" fn minimal_wndproc(
 ) -> windows::Win32::Foundation::LRESULT {
     unsafe { windows::Win32::UI::WindowsAndMessaging::DefWindowProcW(window, message, wparam, lparam) }
 }
+
+#[cfg(windows)]
+pub fn get_instance_handle() -> windows::Win32::Foundation::HINSTANCE {
+    // Gets the instance handle by taking the address of the
+    // pseudo-variable created by the Microsoft linker:
+    // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483
+
+    // This is preferred over GetModuleHandle(NULL) because it also works in DLLs:
+    // https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
+
+    extern "C" {
+        static __ImageBase: windows::Win32::System::SystemServices::IMAGE_DOS_HEADER;
+    }
+
+    unsafe { windows::Win32::Foundation::HINSTANCE((&__ImageBase) as *const _ as _) }
+}

@@ -21,14 +21,13 @@ fn config_listener(event_loop: crate::AppEventSender) {
     use windows::core::*;
     use windows::Win32::{
         Foundation::{GetLastError, LRESULT},
-        System::LibraryLoader,
         UI::WindowsAndMessaging::*,
     };
     use zero_ui_view_api::Event;
 
     use crate::util;
 
-    let class_name: Param<PCWSTR> = "zero-ui-view::config_listener".into_param();
+    let class_name: PCWSTR = windows::w!("zero-ui-view::config_listener").into();
 
     unsafe {
         let class = WNDCLASSEXW {
@@ -37,11 +36,11 @@ fn config_listener(event_loop: crate::AppEventSender) {
             lpfnWndProc: Some(util::minimal_wndproc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: LibraryLoader::GetModuleHandleW(None).unwrap(),
+            hInstance: util::get_instance_handle(),
             hIcon: Default::default(),
             hCursor: Default::default(), // must be null in order for cursor state to work properly
             hbrBackground: Default::default(),
-            lpszMenuName: Default::default(),
+            lpszMenuName: PCWSTR::null(),
             lpszClassName: class_name.abi(),
             hIconSm: Default::default(),
         };
@@ -64,7 +63,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
             0,
             None,
             None,
-            LibraryLoader::GetModuleHandleW(None).unwrap(),
+            util::get_instance_handle(),
             ptr::null(),
         );
         if r.0 == 0 {
