@@ -498,13 +498,19 @@ impl<T> FrameValue<T> {
     }
 
     /// Returns `true` if a new frame must be generated.
-    fn update_bindable(value: &mut T, animation: &mut bool, update: &FrameValueUpdate<T>) -> bool
+    fn update_bindable(value: &mut T, animating: &mut bool, update: &FrameValueUpdate<T>) -> bool
     where
         T: PartialEq + Copy,
     {
         *value = update.value;
-        let need_frame = *animation != update.animating;
-        *animation = update.animating;
+
+        // if changed to `true`, needs a frame to register the binding.
+        //
+        // if changed to `false`, needs a frame to un-register the binding so that webrender can start caching
+        // the tiles in the region again, we can't use the binding "one last time" because if a smaller region
+        // continues animating it would keep refreshing the large region too.
+        let need_frame = *animating != update.animating;
+        *animating = update.animating;
 
         need_frame
     }

@@ -1,5 +1,3 @@
-* Frame binding causes a new full frame when changing `animating` to `false`, does it need to?
-
 # Bug
 
 * Fix pre-build view-process is always software mode because it fails to create `Dedicated`.
