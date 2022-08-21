@@ -2,6 +2,8 @@
     - The problem is not in rendering, a release-lto with GPU in same-process profiled always rendered in under 2ms.
     - For most of the lag noting is logged, all idle, then winit starts awaking a lot, but no event is send, then all mouse move
         events are received coalesced into one event.
+    - Problem is in the timeout impl, if we don't use `recv_deadline_sp` there is no lag, 
+        - Probably `thread::yield_now()`, need to test.
 
 # Bug
 
