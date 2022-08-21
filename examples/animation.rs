@@ -1,4 +1,4 @@
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;

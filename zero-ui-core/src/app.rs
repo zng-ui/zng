@@ -1373,6 +1373,14 @@ impl<E: AppExtension> RunningApp<E> {
                         }
                     },
                 }
+
+                // let wait_time = Instant::now();
+                // if wait_time > time.0 {
+                //     let wait_error = wait_time - time.0;
+                //     if wait_error >= Duration::from_millis(1) {
+                //         eprintln!("timer error +{:?}", wait_error);
+                //     }
+                // }
             } else {
                 match self.receiver.recv() {
                     Ok(ev) => {

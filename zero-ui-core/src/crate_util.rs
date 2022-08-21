@@ -1054,19 +1054,10 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
                     interrupt => interrupt,
                 }
             } else if d > WORST_SPIN_ERR {
-                let spin_deadline = deadline.0 - WORST_SPIN_ERR;
-
-                // high-res sleep.
-                #[cfg(windows)]
-                if let Some(_hr) = windows_timer_util::HighResTimerRegion::begin() {
-                    return match self.recv_deadline(spin_deadline) {
-                        Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
-                        interrupt => interrupt,
-                    };
-                }
+                let spin_deadline = Deadline(deadline.0 - WORST_SPIN_ERR);
 
                 // try_recv spin
-                while spin_deadline > Instant::now() {
+                while !spin_deadline.has_elapsed() {
                     match self.try_recv() {
                         Err(flume::TryRecvError::Empty) => thread::yield_now(),
                         Err(flume::TryRecvError::Disconnected) => return Err(flume::RecvTimeoutError::Disconnected),
@@ -1085,42 +1076,6 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
             Err(flume::RecvTimeoutError::Timeout)
         }
     }
-}
-
-#[cfg(windows)]
-mod windows_timer_util {
-    use once_cell::sync::Lazy;
-    use windows::Win32::Media::*;
-
-    pub struct HighResTimerRegion(u32);
-    impl HighResTimerRegion {
-        pub fn begin() -> Option<Self> {
-            let res = *TIMER_CAP;
-            if unsafe { timeBeginPeriod(res) } == TIMERR_NOERROR {
-                Some(Self(res))
-            } else {
-                None
-            }
-        }
-    }
-    impl Drop for HighResTimerRegion {
-        fn drop(&mut self) {
-            unsafe { timeEndPeriod(self.0) };
-        }
-    }
-
-    pub static TIMER_CAP: Lazy<u32> = Lazy::new(|| unsafe {
-        let mut tc = TIMECAPS {
-            wPeriodMin: 0,
-            wPeriodMax: 0,
-        };
-
-        if timeGetDevCaps(&mut tc, std::mem::size_of::<TIMECAPS>() as u32) == MMSYSERR_NOERROR {
-            tc.wPeriodMin
-        } else {
-            1
-        }
-    });
 }
 
 /// Pre-compile generic variation so that dependent crates don't need to.
