@@ -1,3 +1,8 @@
+* In `animation` example, starting the animation and rapidly hovering buttons causes severe lag.
+    - The problem is not in rendering, a release-lto with GPU in same-process profiled always rendered in under 2ms.
+    - For most of the lag noting is logged, all idle, then winit starts awaking a lot, but no event is send, then all mouse move
+        events are received coalesced into one event.
+
 # Bug
 
 * Fix pre-build view-process is always software mode because it fails to create `Dedicated`.
