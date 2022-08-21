@@ -1050,6 +1050,13 @@ impl Window {
                 let size = self.window.inner_size();
                 let viewport_size = size.to_px().to_wr();
 
+                txn.reset_dynamic_properties();
+                txn.append_dynamic_properties(DynamicProperties {
+                    transforms: vec![],
+                    floats: vec![],
+                    colors: vec![],
+                });
+
                 txn.set_display_list(
                     frame.id.epoch(),
                     frame.clear_color.or(self.clear_color),

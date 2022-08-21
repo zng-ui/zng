@@ -1,7 +1,6 @@
-# Bug
+* Frame binding causes a new full frame when changing `animating` to `false`, does it need to?
 
-* Animation example some times completely stops updating.
-    - The last update is not rendered, only after mouse hover causes a frame it snaps to the last position.
+# Bug
 
 * Fix pre-build view-process is always software mode because it fails to create `Dedicated`.
 ```txt

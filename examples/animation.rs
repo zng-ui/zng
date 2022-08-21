@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -37,12 +37,10 @@ fn example(vars: &Vars) -> impl Widget {
     let x = var(0.dip());
     let color = var(FROM_COLOR);
 
-    // let mut t = std::time::Instant::now();
     // x.trace_value(vars, move |v| {
-    //     let now = std::time::Instant::now();
-    //     println!("{v:?} after {:?}", now - t);
-    //     t = now;
-    // }).perm();
+    //     tracing::debug_span!("x", value = ?v, thread = "<x>").entered()
+    // })
+    // .perm();
 
     use animation::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
