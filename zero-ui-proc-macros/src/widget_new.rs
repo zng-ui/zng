@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, mem};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -9,7 +9,7 @@ use syn::{
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
-    token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
+    token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token, AngleBracketedGenericArguments, PathArguments,
 };
 
 use crate::{
@@ -77,9 +77,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // inherited properties unset by the user.
     let mut unset_properties = HashSet::new();
 
-    // properties user assigned with `special!` values (valid and invalid).
     let mut user_properties = HashSet::new();
-
     // user assigns with valid values.
     let user_properties: Vec<_> = user_input
         .properties
@@ -1198,6 +1196,7 @@ impl Parse for UserInput {
 pub struct PropertyAssign {
     pub attrs: Vec<Attribute>,
     pub path: Path,
+    pub path_args: Option<AngleBracketedGenericArguments>,
     pub eq: Token![=],
     pub value: PropertyValue,
     pub value_span: Span,
@@ -1206,7 +1205,7 @@ pub struct PropertyAssign {
 impl Parse for PropertyAssign {
     /// Expects that outer attributes are already parsed and that ident, super or self was peeked.
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let path = input.parse::<Path>()?;
+        let mut path = input.parse::<Path>()?;
         let path_is_ident = path.get_ident().is_some();
 
         if path_is_ident && (input.is_empty() || input.peek(Token![;])) {
@@ -1218,6 +1217,7 @@ impl Parse for PropertyAssign {
             return Ok(PropertyAssign {
                 attrs: vec![],
                 path,
+                path_args: None,
                 eq,
                 value,
                 value_span,
@@ -1270,9 +1270,35 @@ impl Parse for PropertyAssign {
             e
         })?;
 
+        if let Some(t) = path.leading_colon.take() {
+            if path.segments.is_empty() {
+                return Err(syn::Error::new(t.span(), "expected property"));
+            }
+        }
+
+        let mut path_args = None;
+        let last = path.segments.len() - 1;
+        for (i, seg) in path.segments.iter_mut().enumerate() {
+            if seg.arguments.is_empty() {
+                continue;
+            }
+            match mem::replace(&mut seg.arguments, PathArguments::None) {
+                PathArguments::AngleBracketed(a) => {
+                    if i == last {
+                        path_args = Some(a);
+                    } else {
+                        return Err(syn::Error::new(a.span(), "unexpected in property path, type args are only allowed in the last segment"))
+                    }
+                },
+                PathArguments::Parenthesized(a) => return Err(syn::Error::new(a.span(), "unexpected in property path")),
+                PathArguments::None => unreachable!(),
+            }
+        }
+
         Ok(Self {
             attrs: vec![],
             path,
+            path_args,
             eq,
             value,
             value_span,
