@@ -3,7 +3,7 @@
 use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{
-    core::{DynPropImportance, DynPropPriority, DynProperties, DynPropertiesSnapshot, DynProperty},
+    core::{DynPropImportance, DynPropPriority, DynProperties, DynPropertiesSnapshot},
     prelude::new_widget::*,
 };
 
@@ -46,58 +46,58 @@ pub mod theme {
 
     /// Theme `new_child_layout_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_child_layout_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::ChildLayout, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::ChildLayout, part)
     }
 
     /// Theme `new_child_context_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_child_context_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::ChildContext, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_child_context_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::ChildContext, part)
     }
 
     /// Theme `new_fill_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_fill_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Fill, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::Fill, part)
     }
 
     /// Theme `new_border_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_border_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Border, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_border_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::Border, part)
     }
 
     /// Theme `new_size_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_size_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Size, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_size_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::Size, part)
     }
 
     /// Theme `new_layout_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_layout_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Layout, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::Layout, part)
     }
 
     /// Theme `new_event_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_event_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Event, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_event_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::Event, part)
     }
 
     /// Theme `new_context_dyn`.
     ///
-    /// Returns the [`Theme`] with the `properties` inserted.
-    fn new_context_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Context, properties)
+    /// Returns the [`Theme`] with the `part` inserted.
+    fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
+        nodes::new_priority(child, DynPropPriority::Context, part)
     }
 
     /// Theme `new_child`.
@@ -124,19 +124,19 @@ pub mod theme {
         use super::*;
 
         /// Default `theme::new_*_dyn` constructor.
-        pub fn new_priority(child: impl UiNode, priority: DynPropPriority, mut properties: Vec<DynProperty>) -> Theme {
+        pub fn new_priority(child: impl UiNode, priority: DynPropPriority, mut part: DynWidgetPart) -> Theme {
             let mut theme = Theme::downcast(child).unwrap_or_else(|| {
                 tracing::error!("expected `Theme` node in `{priority:?}` constructor");
                 Theme::default()
             });
-            for p in &mut properties {
+            for p in &mut part.properties {
                 p.importance = match p.importance {
                     DynPropImportance::WIDGET => Theme::WIDGET_IMPORTANCE,
                     DynPropImportance::INSTANCE => Theme::INSTANCE_IMPORTANCE,
                     custom => custom,
                 };
             }
-            theme.properties.insert(priority, properties);
+            theme.properties.insert(priority, part.properties);
             theme
         }
     }
@@ -180,64 +180,64 @@ pub mod themable {
     /// Themable `new_child_layout_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::ChildLayout`] and returns [`implicit_base::new_child_layout`].
-    pub fn new_child_layout_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::ChildLayout, properties);
+    pub fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::ChildLayout, part);
         implicit_base::new_child_layout(child)
     }
 
     /// Themable `new_child_context_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::ChildContext`] and returns [`implicit_base::new_child_context`].
-    pub fn new_child_context_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::ChildContext, properties);
+    pub fn new_child_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::ChildContext, part);
         implicit_base::new_child_context(child)
     }
 
     /// Themable `new_fill_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Fill`] and returns [`implicit_base::new_fill`].
-    pub fn new_fill_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Fill, properties);
+    pub fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::Fill, part);
         implicit_base::new_fill(child)
     }
 
     /// Themable `new_border_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Border`] and returns [`implicit_base::new_border`].
-    pub fn new_border_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Border, properties);
+    pub fn new_border_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::Border, part);
         implicit_base::new_border(child)
     }
 
     /// Themable `new_size_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Size`] and returns [`implicit_base::new_size`].
-    pub fn new_size_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Size, properties);
+    pub fn new_size_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::Size, part);
         implicit_base::new_size(child)
     }
 
     /// Themable `new_layout_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Layout`] and returns [`implicit_base::new_layout`].
-    pub fn new_layout_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Layout, properties);
+    pub fn new_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::Layout, part);
         implicit_base::new_layout(child)
     }
 
     /// Themable `new_event_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Event`] and returns [`implicit_base::new_event`].
-    pub fn new_event_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Event, properties);
+    pub fn new_event_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::Event, part);
         implicit_base::new_event(child)
     }
 
     /// Themable `new_context_dyn`.
     ///
     /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Context`] and returns [`implicit_base::new_context`].
-    pub fn new_context_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Context, properties);
+    pub fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::insert_priority(child, DynPropPriority::Context, part);
         implicit_base::new_context(child)
     }
 
@@ -363,7 +363,7 @@ pub mod themable {
         }
 
         /// Inserts the theme properties for the priority.
-        pub fn insert_priority(child: impl UiNode, priority: DynPropPriority, properties: Vec<DynProperty>) -> impl UiNode {
+        pub fn insert_priority(child: impl UiNode, priority: DynPropPriority, part: DynWidgetPart) -> impl UiNode {
             struct ThemableNode {
                 wgt_snapshot: Option<DynPropertiesSnapshot>,
                 properties: DynProperties,
@@ -396,7 +396,7 @@ pub mod themable {
                 }
             }
 
-            let mut properties = DynProperties::new(priority, properties);
+            let mut properties = DynProperties::new(priority, part.properties);
             properties.replace_child(child.boxed());
 
             ThemableNode {

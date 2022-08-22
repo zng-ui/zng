@@ -134,7 +134,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             if fn_.dynamic && fn_.item.sig.inputs.len() < 2 {
                 errors.push(
                     format!(
-                        "`{}` must take at least two inputs, one that implements `UiNode` and one `Vec<DynProperty>`",
+                        "`{}` must take at least two inputs, one that implements `UiNode` and one `DynWidgetPart`",
                         fn_.item.sig.ident
                     ),
                     fn_.item.sig.paren_token.span,
@@ -143,10 +143,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 if fn_.item.sig.inputs.is_empty() {
                     fn_.item.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
                 } else {
-                    fn_.item
-                        .sig
-                        .inputs
-                        .push(parse_quote! { __properties: Vec<#crate_core::DynProperty> });
+                    fn_.item.sig.inputs.push(parse_quote! { __part: #crate_core::DynWidgetPart });
                 }
             } else if fn_.item.sig.inputs.is_empty() {
                 errors.push(
@@ -245,7 +242,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     }
                 });
 
-            // tokens that handle the `arg0: impl UiNode, [arg1: Vec<DynProperty>]`.
+            // tokens that handle the `arg0: impl UiNode, [arg1: DynWidgetPart]`.
             let mut child_decl = TokenStream::new();
             let mut child_pass = TokenStream::new();
             if *priority != FnPriority::NewChild {
@@ -260,7 +257,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 if fn_.dynamic {
                     let properties_ident = ident_spanned!(span=> "__properties");
                     let properties_ty = quote_spanned! {span=>
-                        Vec<#crate_core::DynProperty>
+                        #crate_core::DynWidgetPart
                     };
 
                     child_decl.extend(quote! {
@@ -1023,7 +1020,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             pub mod __core {
                 pub use #crate_core::{
                     UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector,
-                    core_cfg_ok, DynProperty
+                    core_cfg_ok, DynWidgetPart
                 };
 
                 #crate_core::core_cfg_inspector! {

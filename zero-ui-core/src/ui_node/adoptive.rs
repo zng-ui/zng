@@ -78,11 +78,64 @@ impl AdoptiveChildNode {
 )]
 impl UiNode for AdoptiveChildNode {}
 
-/// Represents an widget property use in dynamic initialization.
+/// Represents the arguments for a dynamic widget constructor.
 ///
 /// See the [`#[widget]`] documentation for more details.
 ///
 /// [`#[widget]`]: macro@crate::widget
+pub struct DynWidgetPart {
+    /// Properties of the same priority level as the constructor that where set in the widget.
+    pub properties: Vec<DynProperty>,
+}
+impl DynWidgetPart {
+    #[doc(hidden)]
+    pub fn new_v1() -> Self {
+        DynWidgetPart { properties: vec![] }
+    }
+
+    #[doc(hidden)]
+    pub fn new_property_v1(&self) -> (AdoptiveChildNode, DynPropertyV1) {
+        let ad_child = AdoptiveChildNode::nil();
+        let child = ad_child.child.clone();
+        (ad_child, DynPropertyV1 { child })
+    }
+
+    #[doc(hidden)]
+    pub fn push_property_v1(
+        &mut self,
+        property: DynPropertyV1,
+        property_node: impl UiNode,
+        name: &'static str,
+        user_assigned: bool,
+        is_when_condition: bool,
+    ) {
+        let node = AdoptiveNode {
+            child: property.child,
+            node: property_node.boxed(),
+            is_inited: false,
+        };
+
+        self.properties.push(DynProperty {
+            node,
+            name,
+            importance: if user_assigned {
+                DynPropImportance::INSTANCE
+            } else {
+                DynPropImportance::WIDGET
+            },
+            is_when_condition,
+        });
+    }
+}
+
+#[doc(hidden)]
+pub struct DynPropertyV1 {
+    child: Rc<RefCell<BoxedUiNode>>,
+}
+
+/// Represents an widget property use in dynamic initialization.
+///
+/// See [`DynWidgetPart`] for details.
 pub struct DynProperty {
     /// The property node, setup as an adoptive node that allows swapping the child node.
     pub node: AdoptiveNode<BoxedUiNode>,
@@ -114,14 +167,6 @@ pub struct DynProperty {
                                  pub id: PropertyId,
                                  */
 }
-impl DynProperty {
-    #[doc(hidden)]
-    pub fn start_v1() -> (AdoptiveChildNode, DynPropertyBuilderV1) {
-        let ad_child = AdoptiveChildNode::nil();
-        let child = ad_child.child.clone();
-        (ad_child, DynPropertyBuilderV1 { child })
-    }
-}
 impl fmt::Debug for DynProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynProperty")
@@ -129,32 +174,6 @@ impl fmt::Debug for DynProperty {
             .field("importance", &self.importance)
             .field("is_when_condition", &self.is_when_condition)
             .finish_non_exhaustive()
-    }
-}
-
-#[doc(hidden)]
-pub struct DynPropertyBuilderV1 {
-    child: Rc<RefCell<BoxedUiNode>>,
-}
-impl DynPropertyBuilderV1 {
-    #[doc(hidden)]
-    pub fn build(self, property: impl UiNode, name: &'static str, user_assigned: bool, is_when_condition: bool) -> DynProperty {
-        let node = AdoptiveNode {
-            child: self.child,
-            node: property.boxed(),
-            is_inited: false,
-        };
-
-        DynProperty {
-            node,
-            name,
-            importance: if user_assigned {
-                DynPropImportance::INSTANCE
-            } else {
-                DynPropImportance::WIDGET
-            },
-            is_when_condition,
-        }
     }
 }
 

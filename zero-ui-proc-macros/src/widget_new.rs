@@ -747,7 +747,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let dyn_props__ = ident!("dyn_props__");
+    let dyn_wgt_part__ = ident!("dyn_wgt_part__");
 
     let settable_priorities = crate::property::Priority::all_settable();
     for (i, priority) in settable_priorities.iter().enumerate() {
@@ -759,7 +759,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             property_set_calls.extend(quote! {
                 #[allow(unreachable_code)]
                 #[allow(unused_mut)]
-                let mut #dyn_props__: Vec<#module::__core::DynProperty> = vec![];
+                let mut #dyn_wgt_part__ = #module::__core::DynWidgetPart::new_v1();
             });
         }
 
@@ -776,7 +776,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #cfg
                     #p_mod::code_gen! {
                         set_dyn #priority, #child, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set,
-                        #module::__core::DynProperty::start_v1(), #dyn_props__, #is_when_condition
+                        #dyn_wgt_part__, #is_when_condition
                     }
                 }
             } else {
@@ -803,7 +803,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let cap_user_set: Vec<_> = caps.iter().map(make_cap_user_set).collect();
 
         let (dyn_suffix, dyn_props__) = if dynamic {
-            ("_dyn", quote! { #dyn_props__, })
+            ("_dyn", quote! { #dyn_wgt_part__, })
         } else {
             ("", TokenStream::new())
         };

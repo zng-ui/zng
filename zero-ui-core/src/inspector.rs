@@ -594,14 +594,14 @@ type PropertiesVars = Box<[PropertyMembersVars]>;
 ///         FooNode::default()
 ///     }
 ///     
-///     fn new_child_layout_dyn(child: impl UiNode, properties: Vec<DynProperty>) -> impl UiNode {
+///     fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
 ///         let child = child.boxed();
 ///         #[cfg(feature = "inspector")]
 ///         let child = zero_ui_core::inspector::unwrap_new_fn(child);
 ///
 ///         let mut foo = child.downcast_unbox::<FooNode>().unwrap_or_else(|_| panic!("expected foo"));
 ///
-///         foo.properties.insert(DynPropPriority::ChildLayout, properties);
+///         foo.properties.insert(DynPropPriority::ChildLayout, part.properties);
 ///         foo
 ///     }
 ///

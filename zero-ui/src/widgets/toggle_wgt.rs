@@ -46,10 +46,10 @@ pub mod toggle {
         theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
     }
 
-    fn new_context_dyn(child: impl UiNode, properties: Vec<DynProperty>, tristate: impl IntoVar<bool>) -> impl UiNode {
+    fn new_context_dyn(child: impl UiNode, part: DynWidgetPart, tristate: impl IntoVar<bool>) -> impl UiNode {
         // ensure that the context var is set for other contexts.
         let child = properties::tristate(child, tristate);
-        themable::new_context_dyn(child, properties)
+        themable::new_context_dyn(child, part)
     }
 }
 

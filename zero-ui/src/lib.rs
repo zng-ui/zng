@@ -1113,7 +1113,7 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
                 WidgetLayout, WidgetSubscriptions,
             },
-            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, DynProperty, FillUiNode, UiNode, Widget, WidgetId,
+            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, DynWidgetPart, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
