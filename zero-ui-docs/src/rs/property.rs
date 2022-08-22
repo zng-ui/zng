@@ -87,7 +87,7 @@ fn transform_property_decl(pre: &str) -> String {
     let (name, pre) = pre.split_at(name_end);
 
     let (generic, pre) = if pre.starts_with("&lt;") {
-        pre.split_at(first_paren)
+        pre.split_at(first_paren - first_open_generic)
     } else {
         ("", pre)
     };

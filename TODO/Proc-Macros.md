@@ -2,6 +2,12 @@
 
 Proc-macros are mostly implemented, there are some improvements we can make:
 
+* Replace `when self.foo` with `#foo`, to allow widgets from associated value, e.g: `fn to_view(self) -> impl Widget { }`
+* Add `#base::new_*` syntax to allow calling the overridden constructor from inside the new constructor.
+    - This lets us avoid needing to make each constructor public and documented for each widget.
+    - Generate docs in a `ctor` module?
+    - Instead of re-exporting `__new_*` we could re-export in `ctor`?
+
 * Review constructor function errors.
     - Override dyn with static is an error?
 
@@ -9,8 +15,6 @@ Proc-macros are mostly implemented, there are some improvements we can make:
 * Improve property `allowed_in_when` validation for generics, generate a `new` like call for each
   argument, instead of all at once.
 * Allow "property as new_name" syntax in widget_new? Can be used for things like double fancy borders.
-* Use `get_` prefix for properties that only return a value, can teach as inverse of normal accessor methods where setting uses the `set_` prefix
-and getting only uses the name directly.
 * Custom lints for when widgets do not delegate to parent constructor functions that have custom nodes.
 * False positive, `deny_(zero_ui::missing_delegate)` fails for delegate inside macro, test `cfg!(self.child.layout())`.
 
