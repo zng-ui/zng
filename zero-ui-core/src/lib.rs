@@ -750,13 +750,14 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::{widget; property, UiNode, var::IntoVar};
+/// # use zero_ui_core::{widget, property, UiNode, var::{IntoVar, VarValue}};
 /// #[property(context)]
 /// pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
 ///     // ..
 /// # child
 /// }
 ///
+/// # #[widget($crate::foo)]
 /// # pub mod foo {
 /// #    use super::*;
 /// properties! {
@@ -961,13 +962,13 @@ pub use zero_ui_proc_macros::property;
 /// # #[property(layout)]
 /// # pub fn margin(child: impl UiNode, m: impl IntoVar<SideOffsets>) -> impl UiNode { child }
 /// # pub mod zero_ui { pub mod core {
-/// #    pub use zero_ui_core::{NilUiNode, units, var}; }
+/// #    pub use zero_ui_core::{NilUiNode, UiNode, units, var}; }
 /// #    pub mod properties { pub use crate::margin; }
 /// # }
 /// #[widget($crate::foo)]
 /// pub mod foo {
 /// #   use super::zero_ui;
-///     use zero_ui::core::{NilUiNode, units::SideOffsets, var::IntoVar};
+///     use zero_ui::core::{UiNode, units::SideOffsets, var::IntoVar};
 ///     use zero_ui::properties::margin;
 ///
 ///     properties! {
@@ -1037,10 +1038,8 @@ pub use zero_ui_proc_macros::property;
 /// #[widget($crate::foo)]
 /// pub mod foo {
 /// #   use super::zero_ui;
-///     use zero_ui::core::{NilUiNode, units::SideOffsets, var::IntoVar, implicit_base};
-///     use zero_ui::properties::margin;
-///
-///
+/// #   use zero_ui_core::{UiNode, units::SideOffsets, var::IntoVar, widget_base::implicit_base};
+/// #   use zero_ui::properties::margin;
 ///     fn new_layout(child: impl UiNode) -> impl UiNode {
 ///         let child = margin(child, 10);
 ///         implicit_base::new_layout(child)

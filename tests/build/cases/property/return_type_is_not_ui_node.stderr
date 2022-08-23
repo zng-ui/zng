@@ -15,7 +15,7 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
             FillUiNode
             NilUiNode
             Option<U>
-          and 130 others
+          and 131 others
 note: required by a bound in `__invalid_output_set::box_fix`
  --> cases/property/return_type_is_not_ui_node.rs:5:1
   |

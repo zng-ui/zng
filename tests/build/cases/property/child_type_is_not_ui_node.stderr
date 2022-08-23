@@ -13,7 +13,7 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
             FillUiNode
             NilUiNode
             Option<U>
-          and 130 others
+          and 131 others
 
 error[E0308]: mismatched types
  --> cases/property/child_type_is_not_ui_node.rs:6:29

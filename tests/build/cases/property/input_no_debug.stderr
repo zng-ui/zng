@@ -31,7 +31,7 @@ error[E0277]: `NoDebug` doesn't implement `Debug`
              <&'static str as IntoVar<FontNames>>
              <&'static str as IntoVar<GlyphSource>>
              <&'static str as IntoVar<WidgetId>>
-           and 408 others
+           and 411 others
    = note: required because of the requirements on the impl of `VarValue` for `NoDebug`
    = note: required because of the requirements on the impl of `IntoVar<NoDebug>` for `NoDebug`
 help: consider annotating `NoDebug` with `#[derive(Debug)]`

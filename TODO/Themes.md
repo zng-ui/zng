@@ -1,8 +1,5 @@
 # Themes TODO
 
-* Implement `toggle::value` and `toggle::selected_value` to allow implementing a radio button effect from `toggle`.
-    - Use this in all "when powered" radio button in examples.
-* Test All.
 * Merge.
 
 * Implement dynamic when states, so that the same property name can participate of `when` chains declared across

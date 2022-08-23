@@ -98,6 +98,7 @@ pub mod toggle {
         ///         .boxed_wgt()
         ///     }).collect::<WidgetVec>();
         /// }
+        /// # ;
         /// ```
         ///
         /// [`is_checked`]: #wp-is_checked
