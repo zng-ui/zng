@@ -80,6 +80,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 #wgt_cfg
                 #[allow(unused)]
                 mod #assert_mod_path {
+                    #[doc(hidden)]
                     macro_rules! #assert_mod_path {
                         () => {
                             use #mod_path;

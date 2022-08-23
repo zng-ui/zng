@@ -1397,7 +1397,7 @@ impl PropertyValue {
 
             match self {
                 PropertyValue::Unnamed(args) => Ok(quote_spanned! {span=>
-                    #property_path::code_gen! { unnamed_new #property_path, #args_impl #ty_args (#args) }
+                    #property_path::code_gen! { unnamed_new #property_path, #args_impl #ty_args #args }
                 }),
                 PropertyValue::Named(brace, fields) => {
                     let fields = quote_spanned! { brace.span=> { #fields } };
