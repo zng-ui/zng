@@ -46,11 +46,9 @@ fn app_main() {
                 align = Align::CENTER;
                 spacing = 5;
                 items = widgets![
-                    button! {
+                    toggle! {
                         content = text(checked.map(|c| formatx!("Checked: {c:?}")));
-                        on_click = hn!(checked, |ctx, _| {
-                            checked.modify(ctx, |mut c| *c = !*c).unwrap();
-                        });
+                        checked = checked.clone();
                     },
                     button! {
                         content = text(count.map(|c| formatx!("Count: {c:?}")));
