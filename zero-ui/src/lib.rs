@@ -931,7 +931,7 @@ pub mod prelude {
         },
         var::{
             animation, easing, expr_var, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver,
-            VarSender, Vars,
+            VarSender, VarValue, Vars,
         },
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility},

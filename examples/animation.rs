@@ -71,12 +71,19 @@ fn example(vars: &Vars) -> impl Widget {
             h_stack! {
                 id = "mod-menu";
                 spacing = 2;
-                items = widgets![
-                    easing_mod_btn(&easing_mod, EaseIn),
-                    easing_mod_btn(&easing_mod, EaseOut),
-                    easing_mod_btn(&easing_mod, EaseInOut),
-                    easing_mod_btn(&easing_mod, EaseOutIn),
-                ]
+                toggle::selection = toggle::SingleSel::new(easing_mod.clone());
+                items = {
+                    let mode = |m: animation::EasingModifierFn| toggle! {
+                        content = text(m.to_text());
+                        value = m;
+                    };
+                    widgets![
+                        mode(EaseIn),
+                        mode(EaseOut),
+                        mode(EaseInOut),
+                        mode(EaseOutIn),
+                    ]
+                }
             },
             uniform_grid! {
                 id = "easing-menu";
@@ -217,19 +224,6 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
             }
         }),
     )
-}
-
-fn easing_mod_btn(easing_mod: &RcVar<animation::EasingModifierFn>, value: animation::EasingModifierFn) -> impl Widget {
-    button! {
-        content = text(value.to_text());
-        on_click = hn!(easing_mod, |ctx, _| {
-            easing_mod.set_ne(ctx, value);
-        });
-
-        when *#{easing_mod.clone()} == value {
-            background_color = rgb(40, 40, 60);
-        }
-    }
 }
 
 fn ruler() -> impl Widget {

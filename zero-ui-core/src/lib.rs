@@ -742,12 +742,12 @@ pub use zero_ui_proc_macros::property;
 /// If the property is not explicitly marked however, widget inheritors can *remove* the property by declaring new
 /// constructor functions that no longer capture the property. If it **is** marked explicitly then in must be captured
 /// by inheritors, even if the source property was not `capture_only`.
-/// 
+///
 /// ## Generics
-/// 
+///
 /// Property generic parameters are auto-inferred most of the time, for times when an explicit type is is required a
 /// generics annotation can be added to the property name to set the type parameters:
-/// 
+///
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{widget; property, UiNode, var::IntoVar};
@@ -756,7 +756,7 @@ pub use zero_ui_proc_macros::property;
 ///     // ..
 /// # child
 /// }
-/// 
+///
 /// # pub mod foo {
 /// #    use super::*;
 /// properties! {
@@ -767,7 +767,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// The `value` property needs an explicit `T` to infer the variable type, the type is provided using the `name<T>` syntax, note
 /// that the *turbofish* syntax is also supported `name::<T>`, but it is not required.
-/// 
+///
 /// ## Property Order
 ///
 /// When a widget is initialized properties are set according with their [priority](zero_ui_core::property#priority) followed
@@ -950,7 +950,7 @@ pub use zero_ui_proc_macros::property;
 /// # Constructor Functions
 ///
 /// Widgets are can have a *constructor* functions for each property priority level, plus a constructor for the inner-most node
-/// and the outer-most type, the priority constructors are named `new_#{priority}` or `new_#{priority}_dyn`, the inner-most node 
+/// and the outer-most type, the priority constructors are named `new_#{priority}` or `new_#{priority}_dyn`, the inner-most node
 /// is named [`new_child`](#ctor-new_child) and the outer-most is named [`new`](#ctor-new).
 ///
 /// The functions can *capture* properties by having an input of the same name as a widget property.
@@ -996,7 +996,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// The `new_child` constructor function defines the inner most node of the widget, it must output a type that implements
 /// [`UiNode`]. A common pattern for widgets that have a child defined by the user is to capture it here and return it:
-/// 
+///
 /// ```
 /// # fn main() { }
 /// #[zero_ui_core::widget($crate::foo)]
@@ -1014,17 +1014,17 @@ pub use zero_ui_proc_macros::property;
 ///     }
 /// }
 /// ```
-/// 
+///
 /// In the example the `content` property is captured and returned as the inner-most node of the widget.
-/// 
+///
 /// ## Ctor Priority
-/// 
+///
 /// A constructor function can be declared for each property priority level, they have the name prefix `new_` followed
 /// by the priority, they must take at least one input that is a generic that allows any [`UiNode`] and must return a
 /// type that implements [`UiNode`]. The UI node input is the outer-most property node of the same priority or the
 /// returned node of the previous priority constructor, widgets can use these constructors to inject nodes at
 /// the appropriate priority.
-/// 
+///
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*, units::SideOffsets};
@@ -1047,11 +1047,11 @@ pub use zero_ui_proc_macros::property;
 ///     }
 /// }
 /// ```
-/// 
+///
 /// In the example the `margin` property is set as a built-in *layout* node of the widget that cannot be removed.
-/// 
+///
 /// ### Dynamic Constructors
-/// 
+///
 /// A variant of the priority constructor functions is supported, if the function has the suffix `_dyn`, as in `new_#{priority}_dyn`,
 /// the property for that priority level are constructed in a way that allows then to be dynamically inserted in the widget during
 /// runtime, the dynamic properties are provided in a second required input of type [`DynWidgetPart`]

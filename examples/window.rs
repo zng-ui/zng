@@ -84,8 +84,8 @@ fn main_window(ctx: &mut WindowContext) -> Window {
 
 fn background_color(color: impl Var<Rgba>) -> impl Widget {
     let color_btn = |c: Rgba| {
-        let color = color.clone();
-        button! {
+        toggle! {
+            value<Rgba> = c;
             content = h_stack! {
                 spacing = 4;
                 items_align = Align::LEFT;
@@ -97,17 +97,12 @@ fn background_color(color: impl Var<Rgba>) -> impl Widget {
                     text(c.to_text()),
                 ];
             };
-            on_click = hn!(color, |ctx, _| {
-                color.set_ne(ctx, c).unwrap();
-            });
-            when *#{color} == c {
-                background_color = selected_bkg();
-            }
         }
     };
 
-    section(
+    select(
         "Background Color",
+        color,
         widgets![
             color_btn(rgb(0.1, 0.1, 0.1)),
             color_btn(rgb(0.3, 0.0, 0.0)),
@@ -210,22 +205,14 @@ fn screenshot() -> impl Widget {
 
 fn icon(window_vars: &WindowVars) -> impl Widget {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
-        let icon = window_vars.icon().clone();
-
-        button! {
+        toggle! {
             content = text(label);
-            on_click = hn!(icon, ico, |ctx, _| {
-                icon.set_ne(ctx, ico.clone());
-            });
-
-            when *#{icon} == ico {
-                background_color = selected_bkg();
-            }
+            value = ico;
         }
     };
-
-    section(
+    select(
         "Icon",
+        window_vars.icon().clone(),
         widgets![
             icon_btn("Default", WindowIcon::Default),
             icon_btn("Png File", "examples/res/window/icon-file.png".into()),
@@ -261,22 +248,14 @@ fn icon(window_vars: &WindowVars) -> impl Widget {
 
 fn chrome(window_vars: &WindowVars) -> impl Widget {
     let chrome_btn = |c: WindowChrome| {
-        let chrome = window_vars.chrome().clone();
-
-        button! {
+        toggle! {
             content = text(formatx!("{c:?}"));
-            on_click = hn!(chrome, c, |ctx, _| {
-                chrome.set_ne(ctx, c.clone());
-            });
-
-            when *#{chrome} == c {
-                background_color = selected_bkg();
-            }
+            value = c;
         }
     };
-
-    section(
+    select(
         "Chrome",
+        window_vars.chrome().clone(),
         widgets![
             chrome_btn(WindowChrome::Default),
             chrome_btn(WindowChrome::None),
@@ -356,21 +335,15 @@ fn focus_control() -> impl Widget {
 
 fn state(window_vars: &WindowVars) -> impl Widget {
     let state_btn = |s: WindowState| {
-        let state = window_vars.state().clone();
-        button! {
+        toggle! {
             content = text(formatx!("{s:?}"));
-            on_click = hn!(state, |ctx, _| {
-                state.set_ne(ctx, s);
-            });
-
-            when *#{state} == s {
-                background_color = selected_bkg();
-            }
+            value = s;
         }
     };
 
-    section(
+    select(
         "State",
+        window_vars.state().clone(),
         widgets![
             state_btn(WindowState::Minimized),
             separator(),
@@ -402,48 +375,17 @@ fn visibility(window_vars: &WindowVars) -> impl Widget {
 }
 
 fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
-    fn flag_btn(label: &'static str, flag: RcVar<bool>) -> impl Widget {
-        let c_false = rgb(60, 40, 40);
-        let c_false_border = rgb(80, 40, 40);
-        let c_true = rgb(40, 60, 40);
-        let c_true_border = rgb(40, 80, 40);
-
-        button! {
-            content = text(label);
-            on_click = hn!(flag, |ctx, _| {
-                flag.modify(ctx, |mut f| *f = !*f);
-            });
-
-            background_color = c_false;
-            when *#{flag.clone()} {
-                background_color = c_true;
-            }
-
-            when self.is_hovered && !*#{flag.clone()} {
-                background_color = c_false;
-
-                border = {
-                    sides: c_true_border,
-                    widths: 1,
-                };
-            }
-
-            when self.is_hovered && *#{flag} {
-                background_color = c_true;
-
-                border = {
-                    sides: c_false_border,
-                    widths: 1,
-                };
-            }
-        }
-    }
-
     section(
         "Misc.",
         widgets![
-            flag_btn("Taskbar Visible", window_vars.taskbar_visible().clone()),
-            flag_btn("Always on Top", window_vars.always_on_top().clone()),
+            toggle! {
+                content = text("Taskbar Visible");
+                checked = window_vars.taskbar_visible().clone();
+            },
+            toggle! {
+                content = text("Always on Top");
+                checked = window_vars.always_on_top().clone();
+            },
             separator(),
             cmd_btn(zero_ui::widgets::window::commands::InspectCommand.scoped(window_id)),
             separator(),
@@ -563,14 +505,22 @@ fn section(header: &'static str, items: impl WidgetList) -> impl Widget {
     }
 }
 
+fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl WidgetList) -> impl Widget {
+    v_stack! {
+        spacing = 5;
+        toggle::selection = toggle::SingleSel::new(selection);
+        items = widgets![text! {
+            text = header;
+            font_weight = FontWeight::BOLD;
+            margin = (0, 4);
+        }].chain(items);
+    }
+}
+
 fn separator() -> impl Widget {
     hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         style = LineStyle::Dashed;
     }
-}
-
-fn selected_bkg() -> Rgba {
-    rgb(40, 40, 60)
 }
