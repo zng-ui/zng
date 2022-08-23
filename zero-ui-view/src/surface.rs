@@ -267,7 +267,9 @@ impl Surface {
 
         let frame_scope = match self.display_list_cache.update(frame.transforms, frame.floats, frame.colors) {
             Ok(p) => {
-                txn.append_dynamic_properties(p);
+                if let Some(p) = p {
+                    txn.append_dynamic_properties(p);
+                }
                 tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>")
             }
             Err(d) => {

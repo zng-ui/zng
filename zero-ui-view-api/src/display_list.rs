@@ -502,15 +502,17 @@ impl<T> FrameValue<T> {
     where
         T: PartialEq + Copy,
     {
-        *value = update.value;
-
         // if changed to `true`, needs a frame to register the binding.
         //
         // if changed to `false`, needs a frame to un-register the binding so that webrender can start caching
         // the tiles in the region again, we can't use the binding "one last time" because if a smaller region
         // continues animating it would keep refreshing the large region too.
-        let need_frame = *animating != update.animating;
+        //
+        // if continues to be `false` only needs to update if the value actually changed.
+        let need_frame = (*animating != update.animating) || (!*animating && *value != update.value);
+
         *animating = update.animating;
+        *value = update.value;
 
         need_frame
     }
@@ -651,13 +653,14 @@ impl DisplayListCache {
         None
     }
 
-    /// Apply updates, returns the webrender update if the renderer can also be updated, or returns a new frame if a new frame must be rendered.
+    /// Apply updates, returns the webrender update if the renderer can also be updated and there are any updates,
+    /// or returns a new frame if a new frame must be rendered.
     pub fn update(
         &mut self,
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
         colors: Vec<FrameValueUpdate<wr::ColorF>>,
-    ) -> Result<wr::DynamicProperties, wr::BuiltDisplayList> {
+    ) -> Result<Option<wr::DynamicProperties>, wr::BuiltDisplayList> {
         let mut new_frame = false;
 
         for t in &transforms {
@@ -684,11 +687,16 @@ impl DisplayListCache {
 
             Err(r)
         } else {
-            Ok(wr::DynamicProperties {
+            let r = wr::DynamicProperties {
                 transforms: transforms.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
                 floats: floats.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
                 colors: colors.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
-            })
+            };
+            if r.transforms.is_empty() && r.floats.is_empty() && r.colors.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(r))
+            }
         }
     }
 }
