@@ -1,7 +1,5 @@
 # Themes TODO
 
-* Merge.
-
 * Implement dynamic when states, so that the same property name can participate of `when` chains declared across
     multiple places.
 * Make more widgets themable.
