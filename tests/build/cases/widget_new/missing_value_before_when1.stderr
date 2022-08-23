@@ -4,14 +4,17 @@ error: expected `;`
 7 |         when self.is_pressed {
   |         ^^^^
 
+error: expected 1 value: margin
+ --> cases/widget_new/missing_value_before_when1.rs:7:9
+  |
+7 |         when self.is_pressed {
+  |         ^^^^
+
 error[E0061]: this function takes 1 argument but 0 arguments were supplied
   --> cases/widget_new/missing_value_before_when1.rs:7:9
    |
-6  | /         margin = // missing 0; here
-7  | |         when self.is_pressed {
-   | |         ^^^-
-   | |____________|
-   |              an argument is missing
+7  |         when self.is_pressed {
+   |         ^^^^ an argument is missing
    |
 note: associated function defined here
   --> $WORKSPACE/zero-ui/src/properties/layout.rs
@@ -21,5 +24,5 @@ note: associated function defined here
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-6  |         when(/* value */) self.is_pressed {
+7  |         when(/* value */) self.is_pressed {
    |         ~~~~~~~~~~~~~~~~~

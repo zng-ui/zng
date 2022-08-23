@@ -1588,7 +1588,7 @@ mod output {
                     };
 
                     // unnamed_new property::path, __ArgsImpl ::<[T, U]> a, b
-                    (unnamed_new $property_path:path, $ArgsImpl:ident ::<[$($type_args:tt)+]> $($fields:tt)+) => {
+                    (unnamed_new $property_path:path, $ArgsImpl:ident ::<[$($type_args:tt)+]> $($fields:tt)*) => {
                         {
                             use $property_path::{__property_new};
                             __property_new! {
@@ -1597,12 +1597,12 @@ mod output {
                                 arg_idents { #(#arg_idents)* }
                                 ty_args { $($type_args)* }
                                 generics_extra { #generics_extra }
-                                unnamed_input { $($fields)+ }
+                                unnamed_input { $($fields)* }
                             }
                         }
                     };
                     // unnamed_new property::path, __ArgsImpl a, b
-                    (unnamed_new $property_path:path, $ArgsImpl:ident $($fields:tt)+) => {
+                    (unnamed_new $property_path:path, $ArgsImpl:ident $($fields:tt)*) => {
                         {
                             use $property_path::{__property_new};
                             __property_new! {
@@ -1611,7 +1611,7 @@ mod output {
                                 arg_idents { #(#arg_idents)* }
                                 ty_args { }
                                 generics_extra { #generics_extra }
-                                unnamed_input { $($fields)+ }
+                                unnamed_input { $($fields)* }
                             }
                         }
                     };

@@ -1,3 +1,9 @@
+error: expected 2 values: axis, stops
+ --> cases/widget_new/missing_field_all_multi.rs:9:31
+  |
+9 |         background_gradient = { }
+  |                               ^
+
 error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
    --> cases/widget_new/missing_field_all_multi.rs:9:31
     |
@@ -27,9 +33,7 @@ error[E0061]: this function takes 2 arguments but 1 argument was supplied
    --> cases/widget_new/missing_field_all_multi.rs:9:31
     |
 9   |         background_gradient = { }
-    |         ----------------------^
-    |         |
-    |         an argument is missing
+    |                               ^ an argument is missing
     |
 note: associated function defined here
    --> $WORKSPACE/zero-ui/src/properties/visual.rs
@@ -42,5 +46,5 @@ note: associated function defined here
     = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
     |
-9   |         {({ }, /* value */) }
-    |         ~~~~~~~~~~~~~~~~~~~
+9   |         background_gradient = {({ }, /* value */) }
+    |                               ~~~~~~~~~~~~~~~~~~~

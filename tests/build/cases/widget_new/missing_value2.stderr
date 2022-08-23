@@ -1,10 +1,14 @@
+error: expected 1 value: margin
+ --> cases/widget_new/missing_value2.rs:6:16
+  |
+6 |         margin =
+  |                ^
+
 error[E0061]: this function takes 1 argument but 0 arguments were supplied
   --> cases/widget_new/missing_value2.rs:6:16
    |
 6  |         margin =
-   |         -------^
-   |         |
-   |         an argument is missing
+   |                ^ an argument is missing
    |
 note: associated function defined here
   --> $WORKSPACE/zero-ui/src/properties/layout.rs
@@ -14,5 +18,5 @@ note: associated function defined here
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-6  |         =(/* value */)
-   |
+6  |         margin =(/* value */)
+   |                ~~~~~~~~~~~~~~
