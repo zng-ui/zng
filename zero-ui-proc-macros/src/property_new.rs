@@ -79,11 +79,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         quote_spanned! {args_ident_from_wgt.span()=>  #[allow(unreachable_code)] }
     };
 
+    let generics = if property_data.ty_args.is_empty() {
+        TokenStream::default()
+    } else {
+        let ty_args = property_data.ty_args;
+        let extra = property_data.generics_extra;
+        quote_spanned!(args_ident_from_wgt.span()=> ::<#ty_args #extra>)
+    };
+
     let r = quote_spanned! {args_ident_from_wgt.span()=>
         #allow_unreachable {
             #errors
             use #path::ArgsImpl as #args_ident_from_wgt;
-            #args_ident_from_wgt::new(#(#args),*)
+            #args_ident_from_wgt #generics::new(#(#args),*)
         }
     };
     r.into()
@@ -106,6 +114,8 @@ struct PropertyData {
     property_path: Path,
     args_impl_spanned: Ident,
     arg_idents: Vec<Ident>,
+    ty_args: TokenStream,
+    generics_extra: TokenStream,
 }
 impl Parse for PropertyData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -117,6 +127,8 @@ impl Parse for PropertyData {
                 .parse()
                 .unwrap_or_else(|e| non_user_error!(e)),
             arg_idents: parse_all(&non_user_braced!(input, "arg_idents")).unwrap_or_else(|e| non_user_error!(e)),
+            ty_args: non_user_braced!(input, "ty_args").parse().unwrap(),
+            generics_extra: non_user_braced!(input, "generics_extra").parse().unwrap(),
         })
     }
 }

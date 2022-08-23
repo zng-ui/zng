@@ -698,7 +698,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ## Property Capture
 ///
-/// The [initialization functions](#initialization-functions) can *capture* a property.
+/// The [constructor functions](#constructor-functions) can *capture* a property.
 /// When a property is captured it is not set by the property implementation, the property value is redirected to
 /// the function and can be used in any way inside, some properties are [capture-only](zero_ui_core::property#capture_only),
 /// meaning they don't have an implementation and must be captured.
@@ -740,9 +740,34 @@ pub use zero_ui_proc_macros::property;
 /// annotate them with `#[required]`, during widget instantiation it behaves exactly like a required property.
 ///
 /// If the property is not explicitly marked however, widget inheritors can *remove* the property by declaring new
-/// initialization functions that no longer capture the property. If it **is** marked explicitly then in must be captured
+/// constructor functions that no longer capture the property. If it **is** marked explicitly then in must be captured
 /// by inheritors, even if the source property was not `capture_only`.
+/// 
+/// ## Generics
+/// 
+/// Property generic parameters are auto-inferred most of the time, for times when an explicit type is is required a
+/// generics annotation can be added to the property name to set the type parameters:
+/// 
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{widget; property, UiNode, var::IntoVar};
+/// #[property(context)]
+/// pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
+///     // ..
+/// # child
+/// }
+/// 
+/// # pub mod foo {
+/// #    use super::*;
+/// properties! {
+///     value<bool> = true;
+/// }
+/// # }
+/// ```
 ///
+/// The `value` property needs an explicit `T` to infer the variable type, the type is provided using the `name<T>` syntax, note
+/// that the *turbofish* syntax is also supported `name::<T>`, but it is not required.
+/// 
 /// ## Property Order
 ///
 /// When a widget is initialized properties are set according with their [priority](zero_ui_core::property#priority) followed
@@ -909,7 +934,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// In the example above a static value `ST_VALUE`, a context var `FooVar` and a function `bar` are used in the expression. The expression
-/// is (re)evaluated when the context var updates, `FooVar::var()` is evaluated only once during initialization.
+/// is (re)evaluated when the context var updates, `FooVar::var()` is evaluated only once during construction.
 ///
 /// ### Default States
 ///
@@ -922,10 +947,11 @@ pub use zero_ui_proc_macros::property;
 /// Properties added automatically show in the widget documentation like manual properties, the widget user can see and set
 /// then manually.
 ///
-/// # Initialization Functions
+/// # Constructor Functions
 ///
-/// Widgets are a *tree-rope* of [Ui nodes](zero_ui_core::UiNode), the two initialization functions define the
-/// inner ([`new_child`](#fn-new_child)) and outer ([`new`](#fn-new)) boundary of the widget.
+/// Widgets are can have a *constructor* functions for each property priority level, plus a constructor for the inner-most node
+/// and the outer-most type, the priority constructors are named `new_#{priority}` or `new_#{priority}_dyn`, the inner-most node 
+/// is named [`new_child`](#ctor-new_child) and the outer-most is named [`new`](#ctor-new).
 ///
 /// The functions can *capture* properties by having an input of the same name as a widget property.
 ///
@@ -948,37 +974,93 @@ pub use zero_ui_proc_macros::property;
 ///         margin = 10;
 ///     }
 ///
-///     fn new_child(margin: impl IntoVar<SideOffsets>) -> NilUiNode {
-///         // .. do something with margin.
-///         NilUiNode
+///     fn new_layout(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+///         // .. do something different with margin.
+/// #       child
 ///     }
 /// }
 /// ```
 ///
-/// In the example above the `margin` property is not applied during initialization,
-/// its value is redirected the the `new_child` function. The input type must match the captured property type,
+/// In the example above the `margin` property function is not added to the widget,
+/// its value is redirected the the `new_layout` constructor function. The input type must match the captured property type,
 /// if the property has more then one member the input type is a tuple of the property types.
 ///
-/// Initialization functions are not required, a the new widget inherits from another the functions from the other
-/// widget are used, if not a default implementation is provided. The functions don't need to be public either, only
+/// Constructor functions are not required, new widget declarations inherit the functions from the parent
+/// widget, or the implicit base widget. The functions don't need to be public either, only
 /// make then public is there is an utility in calling then manually.
 ///
 /// The functions are identified by name and have extra constrains that are validated during compile time. In general
 /// they cannot be `unsafe`, `async` nor `extern`, they also cannot declare lifetimes nor `const` generics.
 ///
-/// ## `fn new_child`
+/// ## Ctor `new_child`
 ///
-/// The `new_child` initialization function defines the inner most node of the widget, it must output a type that implements
-/// [`UiNode`].
+/// The `new_child` constructor function defines the inner most node of the widget, it must output a type that implements
+/// [`UiNode`]. A common pattern for widgets that have a child defined by the user is to capture it here and return it:
+/// 
+/// ```
+/// # fn main() { }
+/// #[zero_ui_core::widget($crate::foo)]
+/// pub mod foo {
+/// #   use zero_ui_core::*;
+/// #
+///     properties! {
+///         /// Widget content.
+///         #[allowed_in_when = false]
+///         content(impl UiNode);
+///     }
 ///
-/// The [default `new_child` function] does not capture any property and simply outputs
-/// the [`NilUiNode`] value.
+///     fn new_child(content: impl UiNode) -> impl UiNode {
+///         content
+///     }
+/// }
+/// ```
+/// 
+/// In the example the `content` property is captured and returned as the inner-most node of the widget.
+/// 
+/// ## Ctor Priority
+/// 
+/// A constructor function can be declared for each property priority level, they have the name prefix `new_` followed
+/// by the priority, they must take at least one input that is a generic that allows any [`UiNode`] and must return a
+/// type that implements [`UiNode`]. The UI node input is the outer-most property node of the same priority or the
+/// returned node of the previous priority constructor, widgets can use these constructors to inject nodes at
+/// the appropriate priority.
+/// 
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{*, var::*, units::SideOffsets};
+/// # #[property(layout)]
+/// # pub fn margin(child: impl UiNode, m: impl IntoVar<SideOffsets>) -> impl UiNode { child }
+/// # pub mod zero_ui { pub mod core {
+/// #    pub use zero_ui_core::{NilUiNode, units, var}; }
+/// #    pub mod properties { pub use crate::margin; }
+/// # }
+/// #[widget($crate::foo)]
+/// pub mod foo {
+/// #   use super::zero_ui;
+///     use zero_ui::core::{NilUiNode, units::SideOffsets, var::IntoVar, implicit_base};
+///     use zero_ui::properties::margin;
 ///
-/// ## `fn new`
 ///
-/// The `new` initialization function defines the outer most type of the widget, if must take at least one input that is a generic
-/// that allows any [`UiNode`], although not required you probably want to capture the
-/// implicit [`id`] property.
+///     fn new_layout(child: impl UiNode) -> impl UiNode {
+///         let child = margin(child, 10);
+///         implicit_base::new_layout(child)
+///     }
+/// }
+/// ```
+/// 
+/// In the example the `margin` property is set as a built-in *layout* node of the widget that cannot be removed.
+/// 
+/// ### Dynamic Constructors
+/// 
+/// A variant of the priority constructor functions is supported, if the function has the suffix `_dyn`, as in `new_#{priority}_dyn`,
+/// the property for that priority level are constructed in a way that allows then to be dynamically inserted in the widget during
+/// runtime, the dynamic properties are provided in a second required input of type [`DynWidgetPart`]
+///
+/// ## Ctor `new`
+///
+/// The `new` constructor function defines the outer most type of the widget, if must take at least one input that is a generic
+/// that allows any [`UiNode`], and although not required you probably want to capture the
+/// implicit [`id`] property too.
 ///
 /// The output can be any type, if you want the widget to be compatible with most layout slots the type must implement
 /// [`Widget`] and it is recommended that you use the [default new function]
@@ -989,7 +1071,7 @@ pub use zero_ui_proc_macros::property;
 /// # `inherit!`
 ///
 /// Widgets can inherit from one other widget and one or more other mix-ins using the pseudo-macro `inherit!(widget::path);`.
-/// An inherit is like an import/reexport of properties and initialization functions.
+/// An inherit is like an import/reexport of properties and constructor functions.
 ///
 /// ```
 /// # fn main() { }
@@ -1009,7 +1091,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// In the example above, the new widget `foo` inherits all the properties and
-/// initialization functions of `container`.
+/// constructor functions of `container`.
 ///
 /// ## Override
 ///
@@ -1093,7 +1175,7 @@ pub use zero_ui_proc_macros::widget;
 ///
 /// See the [`#[widget(..)]`][#widget] documentation for how to declare, the only difference
 /// from a full widget is that you can only inherit other mix-ins and cannot declare
-/// the initialization functions.
+/// the constructor functions.
 ///
 /// [#widget]: macro@widget
 ///

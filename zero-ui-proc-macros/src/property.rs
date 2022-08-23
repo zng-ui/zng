@@ -543,8 +543,13 @@ mod analysis {
             }
         }
         drop(unique_names);
+
+        // number of args generics that cannot be set by property::<T> because they where impl.
+        let anon_generics_len = embedded_impl_types.types.len() + impl_types.len();
+
         generic_types.extend(embedded_impl_types.types);
         generic_types.extend(impl_types);
+        let generic_types = generic_types;
 
         // convert `T:? bounds?` to `type T:? Self::?bounds?;`
         let mut to_assoc = GenericToAssocTypes {
@@ -786,6 +791,7 @@ mod analysis {
                 allowed_in_when,
                 arg_idents,
                 has_default_value,
+                anon_generics_len,
             },
             fn_,
             actual_fn,
@@ -1398,6 +1404,8 @@ mod output {
         pub arg_idents: Vec<Ident>,
 
         pub has_default_value: bool,
+
+        pub anon_generics_len: usize,
     }
     impl ToTokens for OutputMacro {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -1540,11 +1548,31 @@ mod output {
                 }
             };
 
+            let mut generics_extra = TokenStream::new();
+            for _ in 0..self.anon_generics_len {
+                generics_extra.extend(quote!(,_));
+            }
+
             tokens.extend(quote! {
                 #cfg
                 #[doc(hidden)]
                 #[macro_export]
                 macro_rules! #macro_ident {
+                    // named_new property::path, __ArgsImpl ::<[T, U]>? { a: a, b: b }
+                    (named_new $property_path:path, $ArgsImpl:ident ::<[$($type_args:tt)*]> $fields_block:tt) => {
+                        {
+                            use $property_path::{__property_new};
+                            __property_new! {
+                                property_path { $property_path }
+                                args_impl_spanned { $ArgsImpl }
+                                arg_idents { #(#arg_idents)* }
+                                ty_args { $($type_args)* }
+                                generics_extra { #generics_extra }
+
+                                $fields_block
+                            }
+                        }
+                    };
                     // named_new property::path, __ArgsImpl { a: a, b: b }
                     (named_new $property_path:path, $ArgsImpl:ident $fields_block:tt) => {
                         {
@@ -1553,9 +1581,26 @@ mod output {
                                 property_path { $property_path }
                                 args_impl_spanned { $ArgsImpl }
                                 arg_idents { #(#arg_idents)* }
+                                ty_args { }
+                                generics_extra { #generics_extra }
 
                                 $fields_block
                             }
+                        }
+                    };
+
+                    // unnamed_new property::path, __ArgsImpl ::<[T, U]> (a, b)
+                    (unnamed_new $property_path:path, $ArgsImpl:ident ::<[$($type_args:tt)+]> $fields:tt) => {
+                        {
+                            use $property_path::{ArgsImpl as $ArgsImpl};
+                            __ArgsImpl::<$($type_args)* #generics_extra>::new$fields
+                        }
+                    };
+                    // unnamed_new property::path, __ArgsImpl (a, b)
+                    (unnamed_new $property_path:path, $ArgsImpl:ident $fields:tt) => {
+                        {
+                            use $property_path::{ArgsImpl as $ArgsImpl};
+                            __ArgsImpl::new$fields
                         }
                     };
 

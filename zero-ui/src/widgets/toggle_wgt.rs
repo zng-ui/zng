@@ -76,7 +76,7 @@ pub mod toggle {
         ///
         /// Note that the value can be any type, but must be one of the types accepted by the contextual [`selection`], type
         /// validation happens in run-time, an error is logged if the type is not compatible. Because any type can be used in
-        /// this property type inference cannot resolve the type automatically and a *turbofish* annotation is required: `value::<T> = t;`.
+        /// this property type inference cannot resolve the type automatically and a type annotation is required: `value<T> = t;`.
         ///
         /// # Examples
         ///
@@ -93,7 +93,7 @@ pub mod toggle {
         ///     items = (1..=10_i32).map(|i| {
         ///         toggle! {
         ///             content = text(formatx!("Item {i}"));
-        ///             value::<i32> = i;
+        ///             value<i32> = i;
         ///         }
         ///         .boxed_wgt()
         ///     }).collect::<WidgetVec>();
@@ -127,7 +127,7 @@ pub mod toggle {
         /// toggle! {
         ///     checked = var(false);
         ///     // checked_opt = var(Some(false));
-        ///     // value::<i32> = 42;
+        ///     // value<i32> = 42;
         ///
         ///     content = text("Toggle Background");
         ///     background_color = colors::RED;

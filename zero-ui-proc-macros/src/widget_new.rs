@@ -1,4 +1,7 @@
-use std::{collections::{HashMap, HashSet}, mem};
+use std::{
+    collections::{HashMap, HashSet},
+    mem,
+};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -9,7 +12,7 @@ use syn::{
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
-    token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token, AngleBracketedGenericArguments, PathArguments,
+    token, AngleBracketedGenericArguments, Attribute, Expr, FieldValue, Ident, LitBool, Path, PathArguments, Token,
 };
 
 use crate::{
@@ -217,7 +220,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let init_expr = up
             .value
-            .expr_tokens(&p_mod, up.path.span(), up.value_span)
+            .expr_tokens(&p_mod, up.path.span(), up.value_span, &up.path_args)
             .unwrap_or_else(|e| non_user_error!(e));
 
         if let Some(p_cfg) = &p_cfg {
@@ -570,20 +573,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
             let a_lints = attrs.lints;
 
-            let (property_path, property_span, value_span) = match assign.path.get_ident() {
+            let (property_path, property_span, value_span, path_args) = match assign.path.get_ident() {
                 Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                     let p_ident = ident!("__p_{maybe_inherited}");
                     let span = maybe_inherited.span();
-                    (quote_spanned! {span=> #module::#p_ident }, span, span)
+                    (quote_spanned! {span=> #module::#p_ident }, span, span, &None)
                 }
-                _ => (assign.path.to_token_stream(), assign.path.span(), assign.value_span),
+                _ => (
+                    assign.path.to_token_stream(),
+                    assign.path.span(),
+                    assign.value_span,
+                    &assign.path_args,
+                ),
             };
 
             let not_allowed_error = format!("property `{}` is not allowed in when", util::display_path(&assign.path));
 
             let expr = assign
                 .value
-                .expr_tokens(&property_path, property_span, value_span)
+                .expr_tokens(&property_path, property_span, value_span, path_args)
                 .unwrap_or_else(|e| non_user_error!(e));
 
             when_inits.extend(quote_spanned! {util::path_span(&assign.path)=>
@@ -1285,11 +1293,23 @@ impl Parse for PropertyAssign {
             match mem::replace(&mut seg.arguments, PathArguments::None) {
                 PathArguments::AngleBracketed(a) => {
                     if i == last {
-                        path_args = Some(a);
+                        if !a.args.empty_or_trailing() {
+                            let mut a = a;
+                            if a.args.trailing_punct() {
+                                match a.args.pop().unwrap() {
+                                    syn::punctuated::Pair::Punctuated(item, _) => a.args.push(item),
+                                    syn::punctuated::Pair::End(_) => unreachable!(),
+                                }
+                            }
+                            path_args = Some(a);
+                        }
                     } else {
-                        return Err(syn::Error::new(a.span(), "unexpected in property path, type args are only allowed in the last segment"))
+                        return Err(syn::Error::new(
+                            a.span(),
+                            "unexpected in property path, type args are only allowed in the last segment",
+                        ));
                     }
-                },
+                }
                 PathArguments::Parenthesized(a) => return Err(syn::Error::new(a.span(), "unexpected in property path")),
                 PathArguments::None => unreachable!(),
             }
@@ -1319,7 +1339,13 @@ pub enum PropertyValue {
 }
 impl PropertyValue {
     /// Convert this value to an expr. Panics if `self` is [`Special`].
-    pub fn expr_tokens(&self, property_path: &TokenStream, span: Span, value_span: Span) -> Result<TokenStream, &'static str> {
+    pub fn expr_tokens(
+        &self,
+        property_path: &TokenStream,
+        span: Span,
+        value_span: Span,
+        path_args: &Option<AngleBracketedGenericArguments>,
+    ) -> Result<TokenStream, &'static str> {
         // property ArgsImpl alias with value span to show type errors involving generics in the
         // right place.
 
@@ -1352,21 +1378,31 @@ impl PropertyValue {
 
             Ok(out)
         } else {
-            match self {
-                PropertyValue::Unnamed(args) => {
-                    let args_impl = quote_spanned!(value_span=> __ArgsImpl::new);
-                    Ok(quote_spanned! {span=>
-                        #property_path::code_gen! {if resolved=>{
-                            use #property_path::{ArgsImpl as __ArgsImpl};
-                            #args_impl(#args)
-                        }}
-                    })
+            let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
+
+            let ty_args = if let Some(args) = path_args {
+                let params = &args.args;
+
+                #[cfg(debug_assertions)]
+                if params.trailing_punct() {
+                    non_user_error!("")
                 }
+
+                quote_spanned! {args.lt_token.span()=>
+                    ::<[#params]>
+                }
+            } else {
+                TokenStream::default()
+            };
+
+            match self {
+                PropertyValue::Unnamed(args) => Ok(quote_spanned! {span=>
+                    #property_path::code_gen! { unnamed_new #property_path, #args_impl #ty_args (#args) }
+                }),
                 PropertyValue::Named(brace, fields) => {
-                    let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
                     let fields = quote_spanned! { brace.span=> { #fields } };
                     Ok(quote_spanned! {span=>
-                        #property_path::code_gen! { named_new #property_path, #args_impl #fields }
+                        #property_path::code_gen! { named_new #property_path, #args_impl #ty_args #fields }
                     })
                 }
                 PropertyValue::Special(_, _) => Err("cannot expand special"),

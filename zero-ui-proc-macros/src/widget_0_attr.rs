@@ -6,6 +6,7 @@ use std::{
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
+use syn::PathArguments;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -502,6 +503,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         let p_ident = property.ident();
         let p_path_span = property.path_span();
         let p_value_span = property.value_span;
+        let p_path_args = &property.path_args;
 
         if !declared_properties.insert(p_ident) {
             errors.push(format_args!("property `{p_ident}` is already declared"), p_ident.span());
@@ -563,7 +565,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 let fn_ident = ident!("__d_{p_ident}");
                 let p_mod_ident = ident!("__p_{p_ident}");
                 let expr = default_value
-                    .expr_tokens(&quote_spanned! {p_path_span=> self::#p_mod_ident }, p_path_span, p_value_span)
+                    .expr_tokens(
+                        &quote_spanned! {p_path_span=> self::#p_mod_ident },
+                        p_path_span,
+                        p_value_span,
+                        p_path_args,
+                    )
                     .unwrap_or_else(|e| non_user_error!(e));
 
                 property_defaults.extend(quote! {
@@ -743,7 +750,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
                 let expr = assign
                     .value
-                    .expr_tokens(&quote_spanned!(prop_span=> self::#prop_ident), prop_span, assign.value_span)
+                    .expr_tokens(
+                        &quote_spanned!(prop_span=> self::#prop_ident),
+                        prop_span,
+                        assign.value_span,
+                        &assign.path_args,
+                    )
                     .unwrap_or_else(|e| non_user_error!(e));
                 let lints = attrs.lints;
 
@@ -1506,13 +1518,45 @@ struct ItemProperty {
     pub path: Path,
     pub alias: Option<(Token![as], Ident)>,
     pub type_: Option<(token::Paren, PropertyType)>,
+    pub path_args: Option<syn::AngleBracketedGenericArguments>,
     pub value: Option<(Token![=], PropertyValue)>,
     pub value_span: Span,
     pub semi: Option<Token![;]>,
 }
 impl Parse for ItemProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let path = input.parse::<Path>()?;
+        let mut path = input.parse::<Path>()?;
+
+        let mut path_args = None;
+        let last = path.segments.len() - 1;
+        for (i, seg) in path.segments.iter_mut().enumerate() {
+            if seg.arguments.is_empty() {
+                continue;
+            }
+            match mem::replace(&mut seg.arguments, PathArguments::None) {
+                PathArguments::AngleBracketed(a) => {
+                    if i == last {
+                        if !a.args.empty_or_trailing() {
+                            let mut a = a;
+                            if a.args.trailing_punct() {
+                                match a.args.pop().unwrap() {
+                                    syn::punctuated::Pair::Punctuated(item, _) => a.args.push(item),
+                                    syn::punctuated::Pair::End(_) => unreachable!(),
+                                }
+                            }
+                            path_args = Some(a);
+                        }
+                    } else {
+                        return Err(syn::Error::new(
+                            a.span(),
+                            "unexpected in property path, type args are only allowed in the last segment",
+                        ));
+                    }
+                }
+                PathArguments::Parenthesized(a) => return Err(syn::Error::new(a.span(), "unexpected in property path")),
+                PathArguments::None => unreachable!(),
+            }
+        }
 
         // as ident
         let alias = if input.peek(Token![as]) {
@@ -1580,6 +1624,7 @@ impl Parse for ItemProperty {
             path,
             alias,
             type_,
+            path_args,
             value,
             value_span,
             semi,
