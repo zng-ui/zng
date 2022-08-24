@@ -56,7 +56,7 @@ impl VarsAnimations {
                 let info = AnimationUpdateInfo {
                     animations_enabled: vars.ans.animations_enabled.copy(vars),
                     time_scale: vars.ans.animation_time_scale.copy(vars),
-                    now: Instant::now(),
+                    now: timer.now(),
                     next_frame: next_frame + vars.ans.frame_duration.copy(vars),
                 };
 

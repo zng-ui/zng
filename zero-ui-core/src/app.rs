@@ -1586,59 +1586,62 @@ impl<E: AppExtension> Drop for RunningApp<E> {
 share_generics!(RunningApp<Box<dyn AppExtensionBoxed>>::start);
 
 /// App main loop timer.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub(crate) struct LoopTimer {
-    awake: bool,
-    wake: Option<Deadline>,
-    next_wake: Option<Deadline>,
+    now: Instant,
+    deadline: Option<Deadline>,
+}
+impl Default for LoopTimer {
+    fn default() -> Self {
+        Self {
+            now: Instant::now(),
+            deadline: None,
+        }
+    }
 }
 impl LoopTimer {
     /// Returns `true` if the `deadline` has elapsed, `false` if the `deadline` was
     /// registered for future waking.
     pub fn elapsed(&mut self, deadline: Deadline) -> bool {
-        if self.awake {
-            if let Some(w) = self.wake {
-                if deadline <= w {
-                    return true;
-                }
-            }
+        if deadline.0 <= self.now {
+            true
+        } else {
+            self.register(deadline);
+            false
         }
-        self.register(deadline);
-        false
     }
 
     /// Register the future `deadline`.
     pub fn register(&mut self, deadline: Deadline) {
-        if let Some(nxt) = &mut self.next_wake {
-            if deadline < *nxt {
-                *nxt = deadline;
+        if let Some(d) = &mut self.deadline {
+            if deadline < *d {
+                *d = deadline;
             }
         } else {
-            self.next_wake = Some(deadline);
+            self.deadline = Some(deadline)
         }
     }
 
-    /// Get next sleep deadline.
+    /// Get next recv deadline.
     pub(crate) fn poll(&mut self) -> Option<Deadline> {
-        if self.awake {
-            if let Some(w) = self.next_wake.take() {
-                self.wake = Some(w.max(Deadline(Instant::now())));
-            } else {
-                self.wake = None;
-            }
-            self.awake = false;
-        } else if let Some(w) = self.next_wake.take() {
-            self.wake = Some(w.max(Deadline(Instant::now())));
-        }
-        self.wake
+        self.deadline
     }
 
     /// Maybe awake timer.
     pub(crate) fn awake(&mut self) -> bool {
-        if let Some(w) = self.wake {
-            self.awake = w.has_elapsed();
+        self.now = Instant::now();
+        if let Some(d) = self.deadline {
+            if d.0 <= self.now {
+                self.deadline = None;
+                return true;
+            }
         }
-        self.awake
+        false
+    }
+
+    /// Awake timestamp.
+    pub fn now(&self) -> Instant {
+        self.now
     }
 }
 
