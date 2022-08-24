@@ -1,7 +1,8 @@
 # Bugs
 
 * Make `ImageSource::render` use system theme.
-* Windows theme change does not affect already opened windows.
+    - Parent window theme?
+* 
 
 # Text
 

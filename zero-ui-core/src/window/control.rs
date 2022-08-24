@@ -6,7 +6,7 @@ use crate::{
     app::{
         raw_events::{
             RawFrameRenderedEvent, RawHeadlessOpenEvent, RawWindowChangedEvent, RawWindowFocusArgs, RawWindowFocusEvent,
-            RawWindowOpenEvent, RawWindowOrHeadlessOpenErrorEvent,
+            RawWindowOpenEvent, RawWindowOrHeadlessOpenErrorEvent, RawWindowThemeChangedEvent,
         },
         view_process::*,
     },
@@ -494,6 +494,13 @@ impl HeadedCtrl {
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.window);
+                }
+            }
+        } else if let Some(args) = RawWindowThemeChangedEvent.update(args) {
+            if args.window_id == self.window_id {
+                self.system_theme = Some(args.theme);
+                if self.vars.theme().get(ctx).is_none() {
+                    self.vars.0.actual_theme.set_ne(ctx, args.theme);
                 }
             }
         } else if let Some(args) = RawWindowOrHeadlessOpenErrorEvent.update(args) {
