@@ -364,7 +364,7 @@ impl PxConstrains2d {
     }
 
     /// Returns a copy of the current constrains that has `min_x` and `min_y` as the lower
-    /// bound and max adjusted to be >= min in both axis if the new min is greater then the current min.
+    /// bound and max adjusted to be >= min in both axis, if the new min is greater then the current min.
     pub fn with_min(mut self, min_x: Px, min_y: Px) -> Self {
         self.x = self.x.with_min(min_x);
         self.y = self.y.with_min(min_y);
@@ -378,7 +378,7 @@ impl PxConstrains2d {
     }
 
     /// Returns a copy of the current constrains that has `min` as the lower
-    /// bound and max adjusted to be >= min in both axis if the new min is greater then the current min.
+    /// bound and max adjusted to be >= min in both axis, if the new min is greater then the current min.
     pub fn with_min_size(self, min: PxSize) -> Self {
         self.with_min(min.width, min.height)
     }

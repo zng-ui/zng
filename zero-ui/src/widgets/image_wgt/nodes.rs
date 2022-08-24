@@ -375,7 +375,8 @@ pub fn image_presenter() -> impl UiNode {
             );
             let render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
 
-            ctx.constrains().fill_ratio(render_clip.size)
+            let min_size = ctx.constrains().clamp_size(render_clip.size);
+            ctx.constrains().with_min_size(min_size).fill_ratio(render_clip.size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             // Part 1 - Scale & Crop
@@ -412,7 +413,8 @@ pub fn image_presenter() -> impl UiNode {
                 align.y = 1.fct();
             }
 
-            let wgt_size = ctx.constrains().fill_ratio(render_clip.size);
+            let min_size = ctx.constrains().clamp_size(render_clip.size);
+            let wgt_size = ctx.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
 
             let mut fit = *ImageFitVar::get(ctx);
             if let ImageFit::ScaleDown = fit {

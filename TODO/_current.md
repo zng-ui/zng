@@ -1,3 +1,6 @@
+* Headless window not updating?
+    - It is, just not the theme..
+
 * Finish implementing window `parent`.
     - [x] Validation.
     - [x] Theme fallback.
