@@ -18,6 +18,7 @@ Proc-macros are mostly implemented, there are some improvements we can make:
 * Allow "property as new_name" syntax in widget_new? Can be used for things like double fancy borders.
 * Custom lints for when widgets do not delegate to parent constructor functions that have custom nodes.
 * False positive, `deny_(zero_ui::missing_delegate)` fails for delegate inside macro, test `cfg!(self.child.layout())`.
+* Allow trailing semicolon in widget_new (those are only warnings in Rust, not errors)
 
 ## Widget Bind-Self
 

@@ -170,6 +170,12 @@ pub mod window {
             WindowTheme::Light => rgb(0.9, 0.9, 0.9),
         });
 
+        /// Window text color.
+        text_color = nodes::WindowThemeVar::new().map(|t| match t {
+            WindowTheme::Dark => colors::WHITE,
+            WindowTheme::Light => colors::BLACK,
+        });
+
         /// Window clear color.
         ///
         /// Color used to *clear* the previous frame pixels before rendering a new frame.

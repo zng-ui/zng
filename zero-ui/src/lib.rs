@@ -966,7 +966,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::text::properties::{
         font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, text_align, text_color,
-        text_transform, word_spacing,
+        text_transform, word_spacing, TextColorVar,
     };
 
     #[doc(no_inline)]

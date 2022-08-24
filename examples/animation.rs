@@ -198,28 +198,28 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 })
             }
 
-            let meta_color = colors::WHITE.with_alpha(40.pct());
+            let meta_color = TextColorVar::new().map(|c| c.with_alpha(40.pct()));
 
             #[allow(clippy::precedence)]
             items.push(text! {
                 text = "v";
                 font_size = 12;
                 font_style = FontStyle::Italic;
-                color = meta_color;
+                color = meta_color.clone();
                 offset = (-3.dip() - 100.pct(), -3.dip());
             });
             items.push(text! {
                 text = "t";
                 font_size = 12;
                 font_style = FontStyle::Italic;
-                color = meta_color;
+                color = meta_color.clone();
                 offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
             });
             z_stack! {
                 items_align = Align::TOP_LEFT;
                 items;
                 size;
-                border = (0, 0, 1, 1), meta_color;
+                border = (0, 0, 1, 1), meta_color.map_into();
                 margin = 10;
             }
         }),
@@ -232,7 +232,7 @@ fn ruler() -> impl Widget {
         items = (0..=300).step_by(10)
             .map(|x| rule_line! {
                 orientation = LineOrientation::Vertical;
-                color = colors::WHITE.with_alpha(40.pct());
+                color = TextColorVar::new().map(|c| c.with_alpha(40.pct()));
                 x = x.dip();
                 height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
             }

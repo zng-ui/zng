@@ -197,7 +197,7 @@ pub mod vis {
         /// Idle background color in the light theme.
         ///
         /// All other background states are derived by adjusting the brightness of this color.
-        pub struct LightColorVar: Rgba = rgb(0.9, 0.9, 0.9);
+        pub struct LightColorVar: Rgba = rgb(0.82, 0.82, 0.82);
     }
 
     /// Sets the [`DarkThemeVar`] that affects all buttons inside the widget.
