@@ -164,6 +164,23 @@ pub mod window {
         /// [`start_position`]: #wp-start_position
         properties::auto_size_origin;
 
+        /// Parent window ID.
+        ///
+        /// If a parent is set this behavior applies:
+        ///
+        /// * If the parent is minimized, this window is also minimized.
+        /// * If the parent window is maximized, this window is restored.
+        /// * This window is always on-top of the parent window.
+        /// * If the parent window is closed, this window is also closed.
+        /// * If [`modal`] is set, the parent window cannot be focused while this window is open.
+        /// * If a [`theme`] is not set, the [`actual_theme`] fallback it the parent's actual theme.
+        ///
+        /// The default value is `None`.
+        ///
+        /// [`modal`]: Self::modal
+        /// [`theme`]: Self::actual_theme
+        properties::parent;
+
         /// Window background color.
         background_color = nodes::WindowThemeVar::new().map(|t| match t {
             WindowTheme::Dark => rgb(0.1, 0.1, 0.1),

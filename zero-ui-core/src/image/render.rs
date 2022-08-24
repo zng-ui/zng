@@ -108,6 +108,9 @@ impl ImageManager {
                         );
 
                         let vars = WindowVars::req(&ctx.window_state);
+                        if let Some(p) = req.config.parent {
+                            vars.parent().set_ne(ctx, p);
+                        }
 
                         vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All);
 
@@ -184,6 +187,13 @@ pub struct RenderConfig {
     /// If `None` the parent widget can override, otherwise is `1`.
     pub scale_factor: Option<Factor>,
 
+    /// Parent window used for the headless surface, this affects the default theme of the surface.
+    ///
+    /// If `None` the parent widget can override, default is `None`.
+    ///
+    /// Note that the theme can also be explicitly set during construction using the [`WindowsVars::theme`].
+    pub parent: Option<WindowId>,
+
     /// Render backend preference. Default is `Software`.
     pub render_mode: RenderMode,
 
@@ -198,6 +208,7 @@ impl Default for RenderConfig {
             root_id: None,
             size: None,
             scale_factor: None,
+            parent: None,
             render_mode: RenderMode::Software,
             clear_color: rgba(0, 0, 0, 0),
         }

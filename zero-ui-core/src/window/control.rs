@@ -58,6 +58,7 @@ struct HeadedCtrl {
     icon_deadline: Deadline,
     actual_state: Option<WindowState>, // for WindowChangedEvent
     system_theme: Option<WindowTheme>,
+    parent_theme: Option<ReadOnlyRcVar<WindowTheme>>,
 }
 impl HeadedCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -84,6 +85,7 @@ impl HeadedCtrl {
             icon_binding: None,
             icon_deadline: Deadline::timeout(1.secs()),
             system_theme: None,
+            parent_theme: None,
 
             actual_state: None,
         }
@@ -284,6 +286,9 @@ impl HeadedCtrl {
                         if cfg.scale_factor.is_none() {
                             cfg.scale_factor = Some(self.vars.0.scale_factor.copy(ctx.vars));
                         }
+                        if cfg.parent.is_none() {
+                            cfg.parent = Some(self.window_id);
+                        }
 
                         Some(Images::req(ctx.services).cache(ImageSource::Render(ico, cfg)))
                     }
@@ -375,8 +380,21 @@ impl HeadedCtrl {
                 // else indicator is send with init.
             }
 
-            if let Some(theme) = self.vars.theme().copy_new(ctx) {
-                let theme = theme.or(self.system_theme).unwrap_or(WindowTheme::Dark);
+            let mut update_theme = false;
+
+            if let Some(parent) = self.vars.parent().copy_new(ctx) {
+                self.parent_theme = parent.and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()));
+                update_theme = true;
+            }
+
+            if update_theme || self.vars.theme().is_new(ctx) || self.parent_theme.as_ref().map(|t| t.is_new(ctx)).unwrap_or(false) {
+                let theme = self
+                    .vars
+                    .theme()
+                    .copy(ctx)
+                    .or_else(|| self.parent_theme.as_ref().map(|t| t.copy(ctx)))
+                    .or(self.system_theme)
+                    .unwrap_or(WindowTheme::Dark);
                 self.vars.0.actual_theme.set_ne(ctx, theme);
             }
         }
@@ -486,9 +504,15 @@ impl HeadedCtrl {
 
                 self.state = Some(args.data.state.clone());
                 self.system_theme = Some(args.data.theme);
-                if self.vars.theme().get(ctx).is_none() {
-                    self.vars.0.actual_theme.set_ne(ctx, args.data.theme);
-                }
+
+                let theme = self
+                    .vars
+                    .theme()
+                    .copy(ctx)
+                    .or_else(|| self.parent_theme.as_ref().map(|t| t.copy(ctx)))
+                    .or(self.system_theme)
+                    .unwrap_or(WindowTheme::Dark);
+                self.vars.0.actual_theme.set_ne(ctx, theme);
 
                 ctx.updates.layout_and_render();
 
@@ -499,9 +523,15 @@ impl HeadedCtrl {
         } else if let Some(args) = RawWindowThemeChangedEvent.update(args) {
             if args.window_id == self.window_id {
                 self.system_theme = Some(args.theme);
-                if self.vars.theme().get(ctx).is_none() {
-                    self.vars.0.actual_theme.set_ne(ctx, args.theme);
-                }
+
+                let theme = self
+                    .vars
+                    .theme()
+                    .copy(ctx)
+                    .or_else(|| self.parent_theme.as_ref().map(|t| t.copy(ctx)))
+                    .or(self.system_theme)
+                    .unwrap_or(WindowTheme::Dark);
+                self.vars.0.actual_theme.set_ne(ctx, theme);
             }
         } else if let Some(args) = RawWindowOrHeadlessOpenErrorEvent.update(args) {
             if args.window_id == self.window_id && self.window.is_none() && self.waiting_view {
@@ -825,6 +855,8 @@ struct HeadlessWithRendererCtrl {
 
     // current state.
     size: DipSize,
+    // is Dark or the parent window `actual_theme`.
+    fallback_theme: ReadOnlyRcVar<WindowTheme>,
 }
 impl HeadlessWithRendererCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -842,6 +874,7 @@ impl HeadlessWithRendererCtrl {
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
 
             size: DipSize::zero(),
+            fallback_theme: var(WindowTheme::Dark).into_read_only(),
         }
     }
 
@@ -860,8 +893,18 @@ impl HeadlessWithRendererCtrl {
             ctx.updates.layout();
         }
 
-        if let Some(theme) = self.vars.theme().copy_new(ctx) {
-            let theme = theme.unwrap_or(WindowTheme::Dark);
+        let mut update_theme = false;
+
+        if let Some(parent) = self.vars.parent().copy_new(ctx) {
+            self.fallback_theme = parent
+                .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()))
+                .unwrap_or_else(|| var(WindowTheme::Dark).into_read_only());
+
+            update_theme = true;
+        }
+
+        if update_theme || self.vars.theme().is_new(ctx) || self.fallback_theme.is_new(ctx) {
+            let theme = self.vars.theme().copy(ctx).unwrap_or_else(|| self.fallback_theme.copy(ctx));
             self.vars.0.actual_theme.set_ne(ctx, theme);
         }
 
@@ -1013,6 +1056,9 @@ struct HeadlessCtrl {
 
     headless_monitor: HeadlessMonitor,
     headless_simulator: HeadlessSimulator,
+
+    // is Dark or the parent window `actual_theme`.
+    fallback_theme: ReadOnlyRcVar<WindowTheme>,
 }
 impl HeadlessCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -1021,6 +1067,7 @@ impl HeadlessCtrl {
             headless_monitor: content.headless_monitor,
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
             headless_simulator: HeadlessSimulator::new(),
+            fallback_theme: var(WindowTheme::Dark).into_read_only(),
         }
     }
 
@@ -1042,8 +1089,18 @@ impl HeadlessCtrl {
             ctx.updates.render();
         }
 
-        if let Some(theme) = self.vars.theme().copy_new(ctx) {
-            let theme = theme.unwrap_or(WindowTheme::Dark);
+        let mut update_theme = false;
+
+        if let Some(parent) = self.vars.parent().copy_new(ctx) {
+            self.fallback_theme = parent
+                .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()))
+                .unwrap_or_else(|| var(WindowTheme::Dark).into_read_only());
+
+            update_theme = true;
+        }
+
+        if update_theme || self.vars.theme().is_new(ctx) || self.fallback_theme.is_new(ctx) {
+            let theme = self.vars.theme().copy(ctx).unwrap_or_else(|| self.fallback_theme.copy(ctx));
             self.vars.0.actual_theme.set_ne(ctx, theme);
         }
 

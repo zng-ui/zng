@@ -64,6 +64,9 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     cfg.scale_factor = Some(fct.copy(ctx));
                     self.render_factor = Some(fct);
                 }
+                if cfg.parent.is_none() {
+                    cfg.parent = Some(ctx.path.window_id());
+                }
             }
 
             self.img = Images::req(ctx.services).image(source, mode, limits);
@@ -99,6 +102,10 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         }
                     } else if self.render_factor.take().is_some() {
                         ctx.updates.subscriptions();
+                    }
+
+                    if cfg.parent.is_none() {
+                        cfg.parent = Some(ctx.path.window_id());
                     }
                 }
 

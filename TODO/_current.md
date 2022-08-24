@@ -1,8 +1,9 @@
-# Bugs
-
-* Make `ImageSource::render` use system theme.
-    - Parent window theme?
-* 
+* Finish implementing window `parent`.
+    - [x] Validation.
+    - [x] Theme fallback.
+    - [ ] Close together.
+    - [ ] Minimize together.
+    - [ ] Z-order, always on-top of parent, but no focus stealing.
 
 # Text
 
