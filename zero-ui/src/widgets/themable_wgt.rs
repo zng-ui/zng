@@ -325,9 +325,9 @@ pub mod themable {
                         };
 
                         if self.actual_theme.is_some() || actual_theme.is_some() {
-                            self.child.deinit(ctx);
+                            self.with_mut(ctx.vars, |c| c.deinit(ctx));
                             self.actual_theme = actual_theme;
-                            self.child.init(ctx);
+                            self.with_mut(ctx.vars, |c| c.init(ctx));
 
                             ctx.updates.info_layout_and_render();
                         }
