@@ -472,7 +472,8 @@ impl WindowVars {
     /// The default value is `None`.
     ///
     /// [`modal`]: Self::modal
-    /// [`theme`]: Self::actual_theme
+    /// [`theme`]: Self::theme
+    /// [`actual_theme`]: Self::actual_theme
     pub fn parent(&self) -> &RcVar<Option<WindowId>> {
         &self.0.parent
     }

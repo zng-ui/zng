@@ -190,8 +190,6 @@ pub struct RenderConfig {
     /// Parent window used for the headless surface, this affects the default theme of the surface.
     ///
     /// If `None` the parent widget can override, default is `None`.
-    ///
-    /// Note that the theme can also be explicitly set during construction using the [`WindowsVars::theme`].
     pub parent: Option<WindowId>,
 
     /// Render backend preference. Default is `Software`.
