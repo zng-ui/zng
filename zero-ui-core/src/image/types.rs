@@ -495,7 +495,8 @@ impl ImageSource {
     ///
     /// The function is called every time the image source is resolved and it is not found in the cache.
     ///
-    /// See [`Images::render`] for more information.
+    /// Note that the generated [`UiNode`] is not a child of the widget that renders the image, it is the root widget of a headless
+    /// surface, not a part of the context where it is rendered. See [`Images::render`] for more information.
     ///
     /// # Examples
     ///

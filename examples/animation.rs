@@ -178,7 +178,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     let size = (64, 64);
     ImageSource::render(
         RenderMode::Software,
-        clone_move!(size, |_| {
+        clone_move!(size, |ctx| {
             let mut items = widget_vec![];
             let color_t = animation::Transition::new(FROM_COLOR, TO_COLOR);
             let fps_f = FPS as f32;
@@ -198,7 +198,10 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 })
             }
 
-            let meta_color = TextColorVar::new().map(|c| c.with_alpha(40.pct()));
+            let meta_color = WindowVars::req(&ctx.window_state).actual_theme().map(|t| match t {
+                WindowTheme::Light => rgba(0, 0, 0, 0.4),
+                WindowTheme::Dark => rgba(255, 255, 255, 0.4),
+            });
 
             #[allow(clippy::precedence)]
             items.push(text! {
