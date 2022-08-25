@@ -12,8 +12,6 @@
 
 # Render
 
-* Refactor clips to group into a clip-chain, the next webrender release (Firefox-104.0) will refactor the display list
-  to use clip-chains for every item.
 * Modify webrender to not (de)serialize it's display list.
   - Measure first, the DisplayList::build step is a bit slow, but it may not be due to the iteration.
   - If we do this, need to figure out how we will still apply patches from Firefox.

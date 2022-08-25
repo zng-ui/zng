@@ -1,4 +1,4 @@
-* Update webrender to 104.
+* Refactor view to use only use clip chains, this is a requirement of the new webrender version.
 * Review minimized render-update.
 
 * Finish implementing window `parent`.
