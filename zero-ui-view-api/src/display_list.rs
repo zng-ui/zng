@@ -875,7 +875,7 @@ impl DisplayItem {
                     },
                     *key,
                 );
-                sc.spatial.push(spatial_id);
+                sc.push_spatial(spatial_id);
             }
             DisplayItem::PopReferenceFrame => {
                 wr_list.pop_reference_frame();
@@ -888,7 +888,7 @@ impl DisplayItem {
                 filter_datas,
                 filter_primitives,
             } => {
-                let clip = wr_list.define_clip_chain(None, [sc.clip_id()]);
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_stacking_context(
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
@@ -908,14 +908,14 @@ impl DisplayItem {
             DisplayItem::PushClipRect { clip_rect, clip_out } => {
                 let clip_id = if *clip_out {
                     wr_list.define_clip_rounded_rect(
-                        &sc.info(),
+                        sc.spatial_id(),
                         wr::ComplexClipRegion::new(clip_rect.to_wr(), PxCornerRadius::zero().to_wr(), wr::ClipMode::ClipOut),
                     )
                 } else {
-                    wr_list.define_clip_rect(&sc.info(), clip_rect.to_wr())
+                    wr_list.define_clip_rect(sc.spatial_id(), clip_rect.to_wr())
                 };
 
-                sc.clip.push(clip_id);
+                sc.push_clip(clip_id);
             }
             DisplayItem::PushClipRoundedRect {
                 clip_rect,
@@ -923,14 +923,14 @@ impl DisplayItem {
                 clip_out,
             } => {
                 let clip_id = wr_list.define_clip_rounded_rect(
-                    &sc.info(),
+                    sc.spatial_id(),
                     wr::ComplexClipRegion::new(
                         clip_rect.to_wr(),
                         corners.to_wr(),
                         if *clip_out { wr::ClipMode::ClipOut } else { wr::ClipMode::Clip },
                     ),
                 );
-                sc.clip.push(clip_id);
+                sc.push_clip(clip_id);
             }
             DisplayItem::PopClip => sc.pop_clip(),
 
@@ -942,10 +942,11 @@ impl DisplayItem {
                 options,
             } => {
                 let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_text(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -959,10 +960,11 @@ impl DisplayItem {
 
             DisplayItem::Color { clip_rect, color } => {
                 let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_rect_with_animation(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -978,10 +980,11 @@ impl DisplayItem {
                 radius,
             } => {
                 let bounds = bounds.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_border(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -1006,10 +1009,11 @@ impl DisplayItem {
                 alpha_type,
             } => {
                 let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_image(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -1030,10 +1034,11 @@ impl DisplayItem {
             } => {
                 wr_list.push_stops(stops);
                 let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -1052,10 +1057,11 @@ impl DisplayItem {
             } => {
                 wr_list.push_stops(stops);
                 let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_radial_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -1074,10 +1080,11 @@ impl DisplayItem {
             } => {
                 wr_list.push_stops(stops);
                 let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_conic_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -1095,10 +1102,11 @@ impl DisplayItem {
                 orientation,
             } => {
                 let bounds = clip_rect.to_wr();
+                let clip = sc.clip_chain_id(wr_list);
                 wr_list.push_line(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
-                        clip_id: sc.clip_id(),
+                        clip_chain_id: clip,
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
@@ -1199,40 +1207,65 @@ impl DisplayItem {
     }
 }
 
-struct SpaceAndClip {
-    spatial: Vec<wr::SpatialId>,
-    clip: Vec<wr::ClipId>,
-}
-impl SpaceAndClip {
-    pub fn new(pipeline_id: PipelineId) -> Self {
-        let sid = wr::SpatialId::root_reference_frame(pipeline_id);
-        let cid = wr::ClipId::root(pipeline_id);
-        SpaceAndClip {
-            spatial: vec![sid],
-            clip: vec![cid],
+mod space_and_clip {
+    use super::*;
+
+    #[derive(Clone, Copy)]
+    enum ClipChain {
+        Pending(usize),
+        Id(wr::ClipChainId),
+    }
+
+    pub struct SpaceAndClip {
+        spatial_stack: Vec<wr::SpatialId>,
+        clip_stack: Vec<wr::ClipId>,
+        clip_chain: ClipChain,
+    }
+    impl SpaceAndClip {
+        pub fn new(pipeline_id: PipelineId) -> Self {
+            let sid = wr::SpatialId::root_reference_frame(pipeline_id);
+            let cid = wr::ClipId::root(pipeline_id);
+            SpaceAndClip {
+                spatial_stack: vec![sid],
+                clip_stack: vec![cid],
+                clip_chain: ClipChain::Pending(0),
+            }
+        }
+
+        pub fn spatial_id(&self) -> wr::SpatialId {
+            self.spatial_stack[self.spatial_stack.len() - 1]
+        }
+
+        pub fn clip_chain_id(&mut self, list: &mut wr::DisplayListBuilder) -> wr::ClipChainId {
+            match self.clip_chain {
+                ClipChain::Pending(i) => {
+                    let clips = self.clip_stack[i..].iter().copied();
+                    let id = list.define_clip_chain(None, clips);
+                    self.clip_chain = ClipChain::Id(id);
+                    id
+                }
+                ClipChain::Id(id) => id,
+            }
+        }
+
+        pub fn push_spatial(&mut self, spatial_id: wr::SpatialId) {
+            self.spatial_stack.push(spatial_id);
+        }
+
+        pub fn pop_spatial(&mut self) {
+            self.spatial_stack.truncate(self.spatial_stack.len() - 1);
+        }
+
+        pub fn push_clip(&mut self, clip: wr::ClipId) {
+            if let ClipChain::Id(_) = self.clip_chain {
+                self.clip_chain = ClipChain::Pending(self.clip_stack.len());
+            }
+            self.clip_stack.push(clip);
+        }
+
+        pub fn pop_clip(&mut self) {
+            self.clip_stack.truncate(self.clip_stack.len() - 1);
         }
     }
-
-    pub fn clip_id(&self) -> wr::ClipId {
-        self.clip[self.clip.len() - 1]
-    }
-
-    pub fn spatial_id(&self) -> wr::SpatialId {
-        self.spatial[self.spatial.len() - 1]
-    }
-
-    pub fn info(&self) -> wr::SpaceAndClipInfo {
-        wr::SpaceAndClipInfo {
-            spatial_id: self.spatial_id(),
-            clip_id: self.clip_id(),
-        }
-    }
-
-    pub fn pop_spatial(&mut self) {
-        self.spatial.truncate(self.spatial.len() - 1);
-    }
-
-    pub fn pop_clip(&mut self) {
-        self.clip.truncate(self.clip.len() - 1);
-    }
 }
+use space_and_clip::SpaceAndClip;
