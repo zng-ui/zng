@@ -18,7 +18,7 @@ use crate::{
     text::Text,
     units::*,
     var::{ReadOnlyRcVar, Var},
-    window::{Window, WindowId, WindowVars},
+    window::{FrameCaptureMode, Window, WindowId, WindowVars},
     UiNode,
 };
 
@@ -529,7 +529,17 @@ impl ImageSource {
     where
         F: Fn(&mut WindowContext, &ImageRenderArgs) -> Window + 'static,
     {
-        Self::Render(Rc::new(Box::new(new_img)), None)
+        Self::Render(
+            Rc::new(Box::new(move |ctx, args| {
+                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+                let r = new_img(ctx, args);
+                WindowVars::req(&ctx.window_state)
+                    .frame_capture_mode()
+                    .set_ne(ctx.vars, FrameCaptureMode::All);
+                r
+            })),
+            None,
+        )
     }
 
     /// New image from a function that generates a new [`UiNode`].

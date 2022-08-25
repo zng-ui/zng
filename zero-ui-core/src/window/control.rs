@@ -1342,6 +1342,7 @@ impl ContentCtrl {
                 }
 
                 let image = args.frame_image.as_ref().cloned().map(Image::new);
+
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
                 FrameImageReadyEvent.notify(ctx.events, args);
             }

@@ -1046,6 +1046,7 @@ impl Window {
                 if let Some(p) = p {
                     txn.append_dynamic_properties(p);
                 }
+
                 tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>")
             }
             Err(d) => {
@@ -1065,6 +1066,7 @@ impl Window {
                     viewport_size,
                     (self.pipeline_id, d),
                 );
+
                 tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = true, thread = "<webrender>")
             }
         };

@@ -28,7 +28,16 @@ impl Images {
         N: FnOnce(&mut WindowContext) -> Window + 'static,
     {
         let result = var(Image::new_none(None));
-        self.render_img(render, &result);
+        self.render_img(
+            move |ctx| {
+                let r = render(ctx);
+                WindowVars::req(&ctx.window_state)
+                    .frame_capture_mode()
+                    .set_ne(ctx.vars, FrameCaptureMode::All);
+                r
+            },
+            &result,
+        );
         result.into_read_only()
     }
 

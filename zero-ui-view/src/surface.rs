@@ -270,10 +270,18 @@ impl Surface {
                 if let Some(p) = p {
                     txn.append_dynamic_properties(p);
                 }
+
                 tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>")
             }
             Err(d) => {
                 let viewport_size = self.size.to_px(self.scale_factor).to_wr();
+
+                txn.reset_dynamic_properties();
+                txn.append_dynamic_properties(DynamicProperties {
+                    transforms: vec![],
+                    floats: vec![],
+                    colors: vec![],
+                });
 
                 txn.set_display_list(
                     frame.id.epoch(),
@@ -290,7 +298,8 @@ impl Surface {
 
         txn.generate_frame(self.frame_id().get(), render_reasons);
 
-        self.pending_frames.push_back((frame.id, false, Some(frame_scope.entered())));
+        self.pending_frames
+            .push_back((frame.id, frame.capture_image, Some(frame_scope.entered())));
 
         self.api.send_transaction(self.document_id(), txn);
     }

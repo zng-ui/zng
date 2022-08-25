@@ -1,4 +1,5 @@
 * Update webrender to 104.
+* Review minimized render-update.
 
 * Finish implementing window `parent`.
     - [x] Validation.
