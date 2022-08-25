@@ -1,3 +1,5 @@
+* Refactor image render to allow creating the headless window directly.
+    - Make `parent` scale-factor affect headless children.
 * Finish implementing window `parent`.
     - [x] Validation.
     - [x] Theme fallback.

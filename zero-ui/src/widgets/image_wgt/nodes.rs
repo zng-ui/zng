@@ -6,7 +6,7 @@ use super::properties::{
     ImageAlignVar, ImageCacheVar, ImageCropVar, ImageErrorArgs, ImageErrorViewVar, ImageFit, ImageFitVar, ImageLimitsVar, ImageLoadingArgs,
     ImageLoadingViewVar, ImageOffsetVar, ImageRenderingVar, ImageScaleFactorVar, ImageScalePpiVar, ImageScaleVar,
 };
-use crate::core::{image::*, window::WindowVars};
+use crate::core::image::*;
 
 use super::*;
 
@@ -31,7 +31,6 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     struct ImageSourceNode<C, S: Var<ImageSource>> {
         child: C,
         source: S,
-        render_factor: Option<ReadOnlyRcVar<Factor>>,
 
         img: ImageVar,
         ctx_img: RcVar<Image>,
@@ -41,9 +40,6 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.source);
-            if let Some(fct) = &self.render_factor {
-                subs.var(ctx, fct);
-            }
 
             self.child.subscriptions(ctx, subs);
         }
@@ -57,18 +53,11 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             let limits = ImageLimitsVar::get_clone(ctx);
 
             let mut source = self.source.get_clone(ctx.vars);
-            if let ImageSource::Render(_, cfg) = &mut source {
-                if cfg.scale_factor.is_none() {
-                    // Render without scale_factor can be configured by us, set it to our own scale factor.
-                    let fct = WindowVars::req(ctx).scale_factor();
-                    cfg.scale_factor = Some(fct.copy(ctx));
-                    self.render_factor = Some(fct);
-                }
-                if cfg.parent.is_none() {
-                    cfg.parent = Some(ctx.path.window_id());
-                }
+            if let ImageSource::Render(_, args) = &mut source {
+                args = Some(ImageRenderArgs {
+                    parent: Some(ctx.path.window_id()),
+                });
             }
-
             self.img = Images::req(ctx.services).image(source, mode, limits);
 
             self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
@@ -89,24 +78,10 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             if let Some(mut source) = self.source.clone_new(ctx) {
                 // source update:
 
-                if let ImageSource::Render(_, cfg) = &mut source {
-                    // update render factor.
-                    if cfg.scale_factor.is_none() {
-                        if let Some(fct) = &self.render_factor {
-                            cfg.scale_factor = Some(fct.copy(ctx));
-                        } else {
-                            let fct = WindowVars::req(ctx).scale_factor();
-                            cfg.scale_factor = Some(fct.copy(ctx));
-                            self.render_factor = Some(fct);
-                            ctx.updates.subscriptions();
-                        }
-                    } else if self.render_factor.take().is_some() {
-                        ctx.updates.subscriptions();
-                    }
-
-                    if cfg.parent.is_none() {
-                        cfg.parent = Some(ctx.path.window_id());
-                    }
+                if let ImageSource::Render(_, args) = &mut source {
+                    args = Some(ImageRenderArgs {
+                        parent: Some(ctx.path.window_id()),
+                    });
                 }
 
                 let mode = if *ImageCacheVar::get(ctx) {
@@ -141,26 +116,6 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
                     self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
                 }
-            } else if let Some(fct) = &self.render_factor {
-                if let Some(fct) = fct.copy_new(ctx) {
-                    let mut source = self.source.get_clone(ctx);
-                    match &mut source {
-                        ImageSource::Render(_, cfg) => {
-                            cfg.scale_factor = Some(fct);
-                        }
-                        _ => unreachable!(),
-                    }
-                    let mode = if *ImageCacheVar::get(ctx) {
-                        ImageCacheMode::Cache
-                    } else {
-                        ImageCacheMode::Ignore
-                    };
-                    let limits = ImageLimitsVar::get_clone(ctx);
-                    let img = Images::req(ctx.services).image(source, mode, limits);
-
-                    self.ctx_img.set(ctx.vars, img.get_clone(ctx.vars));
-                    self.ctx_binding = Some(img.bind(ctx.vars, &self.ctx_img));
-                }
             }
 
             self.child.update(ctx);
@@ -175,7 +130,6 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         ctx_img,
         ctx_binding: None,
         source: source.into_var(),
-        render_factor: None,
     }
     .cfg_boxed()
 }

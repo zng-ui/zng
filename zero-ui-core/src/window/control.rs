@@ -279,19 +279,12 @@ impl HeadedCtrl {
 
                 self.icon = match ico {
                     WindowIcon::Default => None,
-                    WindowIcon::Image(ImageSource::Render(ico, cfg)) => {
-                        let ico = ico.clone();
-                        let mut cfg = cfg.clone();
-
-                        if cfg.scale_factor.is_none() {
-                            cfg.scale_factor = Some(self.vars.0.scale_factor.copy(ctx.vars));
-                        }
-                        if cfg.parent.is_none() {
-                            cfg.parent = Some(self.window_id);
-                        }
-
-                        Some(Images::req(ctx.services).cache(ImageSource::Render(ico, cfg)))
-                    }
+                    WindowIcon::Image(ImageSource::Render(ico, _)) => Some(Images::req(ctx.services).cache(ImageSource::Render(
+                        ico.clone(),
+                        Some(crate::image::ImageRenderArgs {
+                            parent: Some(*ctx.window_id),
+                        }),
+                    ))),
                     WindowIcon::Image(source) => Some(Images::req(ctx.services).cache(source.clone())),
                 };
 
@@ -357,16 +350,6 @@ impl HeadedCtrl {
                 if m.scale_factor().is_new(ctx) || m.size().is_new(ctx) || m.ppi().is_new(ctx) {
                     self.content.layout_requested = true;
                     ctx.updates.layout();
-                }
-            }
-
-            if self.vars.0.scale_factor.is_new(ctx) {
-                use crate::image::*;
-                if let WindowIcon::Image(ImageSource::Render(_, RenderConfig { scale_factor, .. })) = self.vars.icon().get(ctx.vars) {
-                    if scale_factor.is_none() && (self.window.is_some() || self.waiting_view) {
-                        // scale_factor changed and we are configuring the icon image scale factor to be our own.
-                        self.vars.icon().touch(ctx.vars);
-                    }
                 }
             }
 

@@ -13,16 +13,16 @@ use crate::{
     app::view_process::{EncodeError, ViewImage, ViewRenderer},
     context::{LayoutMetrics, WindowContext},
     impl_from_and_into_var,
+    render::RenderMode,
     task::{self, SignalOnce},
     text::Text,
     units::*,
     var::{ReadOnlyRcVar, Var},
-    BoxedUiNode, UiNode,
+    window::{Window, WindowId},
+    UiNode,
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
-
-use super::RenderConfig;
 
 /// A custom proxy in [`Images`].
 ///
@@ -450,7 +450,16 @@ impl std::hash::Hasher for ImageHasher {
 }
 
 // We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderFn = Rc<Box<dyn Fn(&mut WindowContext) -> BoxedUiNode>>;
+type RenderFn = Rc<Box<dyn Fn(&mut WindowContext, &ImageRenderArgs) -> Window>>;
+
+/// Arguments for the [`ImageSource::Render`] closure.
+///
+/// The arguments are set by the widget that will render the image.
+#[derive(Default, Debug, Clone)]
+pub struct ImageRenderArgs {
+    /// Window that will render the image.
+    pub parent: Option<WindowId>,
+}
 
 /// The different sources of an image resource.
 #[derive(Clone)]
@@ -480,10 +489,12 @@ pub enum ImageSource {
     /// [`Images`]: super::Images
     Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
 
-    /// A boxed closure that instantiates a boxed [`UiNode`] that draws the image.
+    /// A boxed closure that instantiates a [`Window`] that draws the image.
     ///
-    /// Use the [`render`](Self::render) function to construct this variant.
-    Render(RenderFn, RenderConfig),
+    /// Use the [`render`](Self::render) or [`render_node`](Self::render_node) functions to construct this variant.
+    ///
+    /// The closure is set by the image widget user, the args is set by the image widget.
+    Render(RenderFn, Option<ImageRenderArgs>),
 
     /// Already loaded image.
     ///
@@ -491,6 +502,36 @@ pub enum ImageSource {
     Image(ImageVar),
 }
 impl ImageSource {
+    /// New image from a function that generates a headless window.
+    ///
+    /// The function is called every time the image source is resolved and it is not found in the cache.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui_core::{image::ImageSource, render::RenderMode};
+    /// # macro_rules! window { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
+    /// # let _ =
+    /// ImageSource::render(
+    ///     RenderMode::Software,
+    ///     |_ctx, args| window! {
+    ///         size = (500, 400);
+    ///         parent = args.parent;
+    ///         background_color = colors::GREEN;
+    ///         content = text("Rendered!");
+    ///     }
+    /// )
+    /// # ;
+    /// ```
+    ///
+    /// [`Images::render`]: crate::image::Images::render
+    pub fn render<F>(new_img: F) -> Self
+    where
+        F: Fn(&mut WindowContext, &ImageRenderArgs) -> Window + 'static,
+    {
+        Self::Render(Rc::new(Box::new(new_img)), None)
+    }
+
     /// New image from a function that generates a new [`UiNode`].
     ///
     /// The function is called every time the image source is resolved and it is not found in the cache.
@@ -501,12 +542,12 @@ impl ImageSource {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_core::{image::ImageSource, render::RenderMode};
+    /// # use zero_ui_core::{image::ImageSource, render::RenderMode, units::*};
     /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
     /// # let _ =
-    /// ImageSource::render(
+    /// ImageSource::render_node(
     ///     RenderMode::Software,
-    ///     |_ctx| container! {
+    ///     |_ctx, _args| container! {
     ///         size = (500, 400);
     ///         background_color = colors::GREEN;
     ///         content = text("Rendered!");
@@ -516,8 +557,24 @@ impl ImageSource {
     /// ```
     ///
     /// [`Images::render`]: crate::image::Images::render
-    pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(config: impl Into<RenderConfig>, new_img: F) -> Self {
-        Self::Render(Rc::new(Box::new(move |ctx| new_img(ctx).boxed())), config.into())
+    pub fn render_node<U, N>(render_mode: RenderMode, render: N) -> Self
+    where
+        U: UiNode,
+        N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + 'static,
+    {
+        Self::render(move |ctx, args| {
+            let node = render(ctx, args);
+            Window::new_container(
+                crate::WidgetId::new_unique(),
+                crate::window::StartPosition::Default,
+                false,
+                true,
+                render_mode,
+                crate::window::HeadlessMonitor::default(),
+                false,
+                node,
+            )
+        })
     }
 
     /// Returns the image hash, unless the source is [`Image`].
@@ -530,7 +587,7 @@ impl ImageSource {
             ImageSource::Download(u, a) => Some(Self::hash128_download(u, a)),
             ImageSource::Static(h, _, _) => Some(*h),
             ImageSource::Data(h, _, _) => Some(*h),
-            ImageSource::Render(rfn, cfg) => Some(Self::hash128_render(rfn, cfg)),
+            ImageSource::Render(rfn, _) => Some(Self::hash128_render(rfn)),
             ImageSource::Image(_) => None,
         }
     }
@@ -565,12 +622,11 @@ impl ImageSource {
     /// Pointer equality is used to identify the node closure.
     ///
     /// [`Render`]: Self::Render
-    pub fn hash128_render(rfn: &RenderFn, cfg: &RenderConfig) -> ImageHash {
+    pub fn hash128_render(rfn: &RenderFn) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         2u8.hash(&mut h);
         (Rc::as_ptr(rfn) as usize).hash(&mut h);
-        cfg.hash(&mut h);
         h.finish()
     }
 }
@@ -580,7 +636,7 @@ impl PartialEq for ImageSource {
             (Self::Read(l), Self::Read(r)) => l == r,
             #[cfg(http)]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
-            (Self::Render(lf, lc), Self::Render(rf, rc)) => Rc::ptr_eq(lf, rf) && lc == rc,
+            (Self::Render(lf, _), Self::Render(rf, _)) => Rc::ptr_eq(lf, rf),
             (Self::Image(l), Self::Image(r)) => l.ptr_eq(r),
             (l, r) => {
                 let l_hash = match l {
@@ -610,7 +666,7 @@ impl fmt::Debug for ImageSource {
             ImageSource::Download(u, a) => f.debug_tuple("Download").field(u).field(a).finish(),
             ImageSource::Static(key, _, fmt) => f.debug_tuple("Static").field(key).field(fmt).finish(),
             ImageSource::Data(key, _, fmt) => f.debug_tuple("Data").field(key).field(fmt).finish(),
-            ImageSource::Render(_, cfg) => write!(f, "Render(_, {cfg:?})"),
+            ImageSource::Render(_, _) => write!(f, "Render(_, _)"),
             ImageSource::Image(_) => write!(f, "Image(_)"),
         }
     }

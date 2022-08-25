@@ -1,71 +1,73 @@
 use crate::{
-    color::{rgba, Rgba},
-    context::{AppContext, RenderContext, WindowContext},
+    context::{AppContext, WindowContext},
     event::EventUpdateArgs,
-    impl_ui_node,
-    render::FrameBuilder,
     render::RenderMode,
     service::ServiceTuple,
     units::*,
     var::{types::WeakRcVar, *},
     widget_info::UpdateMask,
     window::*,
-    BoxedUiNode, UiNode, WidgetId,
+    UiNode, WidgetId,
 };
 
 use super::{Image, ImageManager, ImageVar, Images};
 
 impl Images {
-    /// Render the `node` to an image.
+    /// Render the *window* to an image.
     ///
-    /// The `node` is inited, updated, layout and rendered to an image of its desired size. If the `node`
+    /// The *window* is created as a headless surface and rendered to the returned image. If the *window*
     /// subscribes to any variable or event it is kept alive and updating, the returned image variable then updates
-    /// for every new render of the node. If the `node` does not subscribe to anything, or the returned image is dropped the
-    /// `node` is deinited and dropped.
+    /// for every new render of the node. If the *window* does not subscribe to anything, or the returned image is dropped the
+    /// is is closed and dropped.
     ///
-    /// The closure input is the [`WindowContext`] of the headless window used for rendering the node.
+    /// The closure input is the [`WindowContext`] of the headless window.
     ///
     /// Requires the [`Windows`] service.
-    pub fn render<U, N>(&mut self, node: N, config: RenderConfig) -> ImageVar
+    pub fn render<N>(&mut self, render: N) -> ImageVar
     where
-        U: UiNode,
-        N: FnOnce(&mut WindowContext) -> U + 'static,
+        N: FnOnce(&mut WindowContext) -> Window + 'static,
     {
         let result = var(Image::new_none(None));
-        self.render_image(node, config, &result);
+        self.render_img(render, &result);
         result.into_read_only()
     }
 
-    pub(super) fn render_image<U, N>(&mut self, node: N, config: RenderConfig, result: &RcVar<Image>)
+    pub(super) fn render_img<N>(&mut self, render: N, result: &RcVar<Image>)
+    where
+        N: FnOnce(&mut WindowContext) -> Window + 'static,
+    {
+        self.render.requests.push(RenderRequest {
+            render: Box::new(render),
+            image: result.downgrade(),
+        });
+        let _ = self.updates.send_update(UpdateMask::none());
+    }
+
+    /// Render an [`UiNode`] to an image.
+    ///
+    /// This method is a shortcut to [`render`] a node without needing to declare the headless window, note that
+    /// a headless window is still used, the node does not have the same context as the calling widget.
+    ///
+    /// [`render`]: Self::render
+    pub fn render_node<U, N>(&mut self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
     where
         U: UiNode,
         N: FnOnce(&mut WindowContext) -> U + 'static,
     {
-        struct ImageRenderNode<C> {
-            child: C,
-            clear_color: Rgba,
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode> UiNode for ImageRenderNode<C> {
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                frame.set_clear_color(self.clear_color.into());
-                self.child.render(ctx, frame);
-            }
-        }
-
-        self.render.requests.push(RenderRequest {
-            node: Box::new(move |ctx| {
-                ImageRenderNode {
-                    child: node(ctx),
-                    clear_color: config.clear_color,
-                }
-                .boxed()
-            }),
-            config,
-            image: result.downgrade(),
-        });
-
-        let _ = self.updates.send_update(UpdateMask::none());
+        let scale_factor = scale_factor.into();
+        self.render(move |ctx| {
+            let node = render(ctx);
+            Window::new_container(
+                WidgetId::new_unique(),
+                StartPosition::Default,
+                false,
+                true,
+                render_mode,
+                HeadlessMonitor::new_scale(scale_factor),
+                false,
+                node,
+            )
+        })
     }
 }
 
@@ -96,31 +98,14 @@ impl ImageManager {
             if let Some(img) = req.image.upgrade() {
                 windows.open_headless(
                     move |ctx| {
-                        let w = Window::new_container(
-                            req.config.root_id.unwrap_or_else(WidgetId::new_unique),
-                            StartPosition::Default,
-                            false,
-                            true,
-                            req.config.render_mode,
-                            HeadlessMonitor::new_scale(req.config.scale_factor.unwrap_or_else(|| 1.fct())),
-                            false,
-                            (req.node)(ctx),
-                        );
+                        let vars = WindowVars::req(&ctx.window_state);
+                        vars.auto_size().set(ctx.vars, true);
+                        vars.min_size().set(ctx.vars, (1.px(), 1.px()));
+
+                        let w = (req.render)(ctx);
 
                         let vars = WindowVars::req(&ctx.window_state);
-                        if let Some(p) = req.config.parent {
-                            vars.parent().set_ne(ctx, p);
-                        }
-
                         vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All);
-
-                        if let Some(size) = req.config.size {
-                            vars.size().set(ctx.vars, size);
-                        } else {
-                            vars.auto_size().set(ctx.vars, true);
-                        }
-
-                        vars.min_size().set(ctx.vars, (1.px(), 1.px()));
 
                         let a = ActiveRenderer {
                             window_id: *ctx.window_id,
@@ -165,58 +150,6 @@ struct ActiveRenderer {
 }
 
 struct RenderRequest {
-    node: Box<dyn FnOnce(&mut WindowContext) -> BoxedUiNode>,
-    config: RenderConfig,
+    render: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     image: WeakRcVar<Image>,
-}
-
-/// Configuration for the [`Images::render`] operation.
-#[derive(Debug, Clone, Hash, PartialEq)]
-pub struct RenderConfig {
-    /// Widget id for the root widget that hosts the rendering node.
-    ///
-    /// If `None` a random id is used.
-    pub root_id: Option<WidgetId>,
-    /// Size of the resulting image.
-    ///
-    /// If `None` the image auto-sizes to the node desired size.
-    pub size: Option<DipSize>,
-
-    /// Scale factor used during rendering and as the density of the resulting image.
-    ///
-    /// If `None` the parent widget can override, otherwise is `1`.
-    pub scale_factor: Option<Factor>,
-
-    /// Parent window used for the headless surface, this affects the default theme of the surface.
-    ///
-    /// If `None` the parent widget can override, default is `None`.
-    pub parent: Option<WindowId>,
-
-    /// Render backend preference. Default is `Software`.
-    pub render_mode: RenderMode,
-
-    /// Color the image is filled first before render.
-    ///
-    /// Is transparent black by default.
-    pub clear_color: Rgba,
-}
-impl Default for RenderConfig {
-    fn default() -> Self {
-        Self {
-            root_id: None,
-            size: None,
-            scale_factor: None,
-            parent: None,
-            render_mode: RenderMode::Software,
-            clear_color: rgba(0, 0, 0, 0),
-        }
-    }
-}
-impl_from_and_into_var! {
-    fn from(render_mode: RenderMode) -> RenderConfig {
-        RenderConfig {
-            render_mode,
-            ..Default::default()
-        }
-    }
 }

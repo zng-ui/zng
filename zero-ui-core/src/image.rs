@@ -24,7 +24,6 @@ mod types;
 pub use types::*;
 
 mod render;
-pub use render::*;
 
 /// Application extension that provides an image cache.
 ///
@@ -272,7 +271,7 @@ pub struct Images {
     cache: IdMap<ImageHash, CacheEntry>,
     not_cached: Vec<(WeakRcVar<Image>, ByteLength)>,
 
-    render: ImagesRender,
+    render: render::ImagesRender,
 }
 struct CacheEntry {
     img: RcVar<Image>,
@@ -292,7 +291,7 @@ impl Images {
             download_accept: Text::empty(),
             cache: HashMap::default(),
             not_cached: vec![],
-            render: ImagesRender::default(),
+            render: render::ImagesRender::default(),
         }
     }
 
@@ -682,9 +681,9 @@ impl Images {
                 };
                 self.load_task(key, mode, limits.max_decoded_size, async { r })
             }
-            ImageSource::Render(rfn, cfg) => {
+            ImageSource::Render(rfn, args) => {
                 let img = self.new_cache_image(key, mode, limits.max_decoded_size);
-                self.render_image(clone_move!(rfn, |ctx| rfn(ctx)), cfg, &img);
+                self.render_img(clone_move!(rfn, |ctx| rfn(ctx, &args.unwrap_or_default())), &img);
                 img.into_read_only()
             }
             ImageSource::Image(_) => unreachable!(),

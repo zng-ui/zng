@@ -12,7 +12,7 @@ use crate::{
     context::WindowContext,
     crate_util::NameIdMap,
     event, event_args,
-    image::{Image, ImageDataFormat, ImageSource, ImageVar, RenderConfig},
+    image::{Image, ImageDataFormat, ImageSource, ImageVar},
     render::{FrameId, RenderMode},
     text::Text,
     units::*,
@@ -457,7 +457,7 @@ impl WindowIcon {
     /// New window icon from a function that generates a new icon [`UiNode`] for the window.
     ///
     /// The function is called once on init and every time the window icon property changes,
-    /// the input is the window context, the result is a node that is rendered to create an icon.
+    /// the input is a headless window context, the result is a node that is rendered to create an icon.
     ///
     /// The icon node is updated like any other node and it can request a new render. Note that just
     /// because you can update the icon does not mean that animating it is a good idea.
@@ -469,7 +469,6 @@ impl WindowIcon {
     /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
     /// # let _ =
     /// WindowIcon::render(
-    ///     RenderMode::Software,
     ///     |_ctx| container! {
     ///         size = (36, 36);
     ///         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
@@ -481,12 +480,16 @@ impl WindowIcon {
     /// )
     /// # ;
     /// ```
-    pub fn render<I, F>(config: impl Into<RenderConfig>, new_icon: F) -> Self
+    pub fn render<I, F>(new_icon: F) -> Self
     where
         I: UiNode,
         F: Fn(&mut WindowContext) -> I + 'static,
     {
-        Self::Image(ImageSource::render(config, new_icon))
+        Self::Image(ImageSource::render_node(RenderMode::Software, move |ctx, args| {
+            let node = new_icon(ctx);
+            super::WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+            node
+        }))
     }
 }
 #[cfg(http)]
