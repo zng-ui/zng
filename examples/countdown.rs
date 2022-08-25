@@ -41,7 +41,7 @@ fn app_main() {
             start_position = StartPosition::CenterMonitor;
             resizable = false;
 
-            icon = WindowIcon::render(RenderMode::Software, clone_move!(background_color, |_| container! {
+            icon = WindowIcon::render(clone_move!(background_color, |_| container! {
                 size = (36, 36);
                 background_color = background_color.clone();
                 corner_radius = 8;

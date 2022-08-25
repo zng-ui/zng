@@ -230,7 +230,7 @@ fn icon(window_vars: &WindowVars) -> impl Widget {
             }),
             icon_btn(
                 "Render",
-                WindowIcon::render(RenderMode::Software, |_| text! {
+                WindowIcon::render(|_| text! {
                     size = (36, 36);
                     font_size = 28;
                     font_weight = FontWeight::BOLD;

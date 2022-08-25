@@ -171,8 +171,10 @@ impl Monitors {
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///
-    /// `1.0` by default.
-    pub scale_factor: Factor,
+    /// If set to `None`, falls-back to the [`parent`] scale-factor, or `1.0` if the headless window has not parent.
+    ///
+    /// `None` by default.
+    pub scale_factor: Option<Factor>,
 
     /// Size of the imaginary monitor screen that contains the headless window.
     ///
@@ -196,20 +198,24 @@ impl fmt::Debug for HeadlessMonitor {
                 .field("ppi", &self.ppi)
                 .finish()
         } else {
-            write!(f, "({}, ({}, {}))", self.scale_factor, self.size.width, self.size.height)
+            write!(f, "({:?}, ({}, {}))", self.scale_factor, self.size.width, self.size.height)
         }
     }
 }
 impl HeadlessMonitor {
-    /// New with custom size at `1.0` scale.
+    /// New with custom size at `None` scale.
     pub fn new(size: DipSize) -> Self {
-        Self::new_scaled(size, 1.0.fct())
+        HeadlessMonitor {
+            scale_factor: None,
+            size,
+            ppi: Monitors::DEFAULT_PPI,
+        }
     }
 
     /// New with custom size and scale.
     pub fn new_scaled(size: DipSize, scale_factor: Factor) -> Self {
         HeadlessMonitor {
-            scale_factor,
+            scale_factor: Some(scale_factor),
             size,
             ppi: Monitors::DEFAULT_PPI,
         }
@@ -218,13 +224,13 @@ impl HeadlessMonitor {
     /// New with default size `1920x1080` and custom scale.
     pub fn new_scale(scale_factor: Factor) -> Self {
         HeadlessMonitor {
-            scale_factor,
+            scale_factor: Some(scale_factor),
             ..Self::default()
         }
     }
 }
 impl Default for HeadlessMonitor {
-    /// New `1920x1080` at `1.0` scale.
+    /// New `1920x1080` at `None` scale.
     fn default() -> Self {
         (1920, 1080).into()
     }
@@ -334,15 +340,16 @@ impl MonitorInfo {
     /// Bogus metadata for the [`MonitorId::fallback`].
     pub fn fallback() -> Self {
         let defaults = HeadlessMonitor::default();
+        let fct = 1.fct();
 
         Self {
             id: MonitorId::fallback(),
             is_primary: var(false),
             name: var("<fallback>".into()),
             position: var(PxPoint::zero()),
-            size: var(defaults.size.to_px(defaults.scale_factor.0)),
+            size: var(defaults.size.to_px(fct.0)),
             video_modes: var(vec![]),
-            scale_factor: var(defaults.scale_factor),
+            scale_factor: var(fct),
             ppi: var(Monitors::DEFAULT_PPI),
         }
     }

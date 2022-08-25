@@ -54,7 +54,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
             let mut source = self.source.get_clone(ctx.vars);
             if let ImageSource::Render(_, args) = &mut source {
-                args = Some(ImageRenderArgs {
+                *args = Some(ImageRenderArgs {
                     parent: Some(ctx.path.window_id()),
                 });
             }
@@ -71,7 +71,6 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             self.ctx_img.set(ctx, ContextImageVar::default_value());
             self.img = var(ContextImageVar::default_value()).into_read_only();
             self.ctx_binding = None;
-            self.render_factor = None;
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -79,7 +78,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 // source update:
 
                 if let ImageSource::Render(_, args) = &mut source {
-                    args = Some(ImageRenderArgs {
+                    *args = Some(ImageRenderArgs {
                         parent: Some(ctx.path.window_id()),
                     });
                 }

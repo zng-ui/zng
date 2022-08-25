@@ -1,5 +1,5 @@
-* Refactor image render to allow creating the headless window directly.
-    - Make `parent` scale-factor affect headless children.
+* Update webrender to 104.
+
 * Finish implementing window `parent`.
     - [x] Validation.
     - [x] Theme fallback.

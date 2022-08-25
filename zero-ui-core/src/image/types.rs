@@ -18,7 +18,7 @@ use crate::{
     text::Text,
     units::*,
     var::{ReadOnlyRcVar, Var},
-    window::{Window, WindowId},
+    window::{Window, WindowId, WindowVars},
     UiNode,
 };
 
@@ -563,6 +563,7 @@ impl ImageSource {
         N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + 'static,
     {
         Self::render(move |ctx, args| {
+            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
             let node = render(ctx, args);
             Window::new_container(
                 crate::WidgetId::new_unique(),

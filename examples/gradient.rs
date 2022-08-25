@@ -16,7 +16,7 @@ fn app_main() {
         window! {
             title = "Gradient Example";
             auto_size = true;
-            icon = WindowIcon::render(RenderMode::Software, |_| icon());
+            icon = WindowIcon::render(|_| icon());
             content = scroll! {
                 padding = 20;
                 content = v_stack! {

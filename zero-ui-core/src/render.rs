@@ -3,7 +3,7 @@
 use crate::{
     app::view_process::ViewRenderer,
     border::BorderSides,
-    color::{filters::RenderFilter, RenderColor},
+    color::{self, filters::RenderFilter, RenderColor},
     context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
@@ -165,7 +165,7 @@ pub struct FrameBuilder {
     can_reuse: bool,
     open_reuse: Option<ReuseStart>,
 
-    clear_color: Option<RenderColor>,
+    clear_color: RenderColor,
 
     render_index: ZIndex,
 }
@@ -243,7 +243,7 @@ impl FrameBuilder {
 
             render_index: ZIndex(0),
 
-            clear_color: None,
+            clear_color: color::rgba(0, 0, 0, 0).into(),
         }
     }
 
@@ -276,13 +276,13 @@ impl FrameBuilder {
 
     /// Set the color used to clear the pixel frame before drawing this frame.
     ///
-    /// Note the default clear color is white, and it is not retained, a property
+    /// Note the default clear color is `rgba(0, 0, 0, 0)`, and it is not retained, a property
     /// that sets the clear color must set it every render.
     ///
     /// Note that the clear color is always *rendered* first before all other layers, if more then
     /// one layer sets the clear color only the value set on the top-most layer is used.
     pub fn set_clear_color(&mut self, color: RenderColor) {
-        self.clear_color = Some(color);
+        self.clear_color = color;
     }
 
     /// Connection to the renderer that will render this frame.
@@ -1366,7 +1366,7 @@ impl FrameBuilder {
 
         let (display_list, capacity) = self.display_list.finalize();
 
-        let clear_color = self.clear_color.unwrap_or(RenderColor::WHITE);
+        let clear_color = self.clear_color;
 
         let reuse = UsedFrameBuilder {
             pipeline_id: display_list.pipeline_id(),

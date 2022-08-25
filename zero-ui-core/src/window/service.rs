@@ -815,10 +815,6 @@ impl AppWindow {
             }
         }
 
-        if mode.is_headless() {
-            vars.0.scale_factor.set_ne(ctx, window.headless_monitor.scale_factor);
-        }
-
         let commands = WindowCommands::new(id, ctx.events);
 
         let root_id = window.id;

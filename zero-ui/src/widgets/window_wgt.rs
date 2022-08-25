@@ -174,11 +174,13 @@ pub mod window {
         /// * If the parent window is closed, this window is also closed.
         /// * If [`modal`] is set, the parent window cannot be focused while this window is open.
         /// * If a [`theme`] is not set, the [`actual_theme`] fallback it the parent's actual theme.
+        /// * the window is headless it takes on the [`scale_factor`] of the parent.
         ///
         /// The default value is `None`.
         ///
         /// [`modal`]: Self::modal
         /// [`theme`]: Self::actual_theme
+        /// [`scale_factor`]: WindowVars::scale_factor
         properties::parent;
 
         /// Window background color.
@@ -199,7 +201,10 @@ pub mod window {
         /// It is visible if window content does not completely fill the content area, this
         /// can happen if you do not set a background or the background is semi-transparent, also
         /// can happen during very fast resizes.
-        properties::clear_color = rgb(0.1, 0.1, 0.1);
+        properties::clear_color = nodes::WindowThemeVar::new().map(|t| match t {
+            WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
+            WindowTheme::Light => rgb(0.9, 0.9, 0.9),
+        });
 
         /// Unique identifier of the window root widget.
         #[allowed_in_when = false]

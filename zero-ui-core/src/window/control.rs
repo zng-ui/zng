@@ -838,8 +838,9 @@ struct HeadlessWithRendererCtrl {
 
     // current state.
     size: DipSize,
-    // is Dark or the parent window `actual_theme`.
-    fallback_theme: ReadOnlyRcVar<WindowTheme>,
+
+    /// actual_theme and scale_factor binding.
+    var_bindings: Option<VarBindingHandle>,
 }
 impl HeadlessWithRendererCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -857,7 +858,7 @@ impl HeadlessWithRendererCtrl {
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
 
             size: DipSize::zero(),
-            fallback_theme: var(WindowTheme::Dark).into_read_only(),
+            var_bindings: None,
         }
     }
 
@@ -876,19 +877,9 @@ impl HeadlessWithRendererCtrl {
             ctx.updates.layout();
         }
 
-        let mut update_theme = false;
-
-        if let Some(parent) = self.vars.parent().copy_new(ctx) {
-            self.fallback_theme = parent
-                .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()))
-                .unwrap_or_else(|| var(WindowTheme::Dark).into_read_only());
-
-            update_theme = true;
-        }
-
-        if update_theme || self.vars.theme().is_new(ctx) || self.fallback_theme.is_new(ctx) {
-            let theme = self.vars.theme().copy(ctx).unwrap_or_else(|| self.fallback_theme.copy(ctx));
-            self.vars.0.actual_theme.set_ne(ctx, theme);
+        if self.vars.parent().is_new(ctx) || self.var_bindings.is_none() {
+            let h = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = Some(h);
         }
 
         self.content.update(ctx);
@@ -958,7 +949,7 @@ impl HeadlessWithRendererCtrl {
             return;
         }
 
-        let scale_factor = self.headless_monitor.scale_factor;
+        let scale_factor = self.vars.0.scale_factor.copy(ctx);
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
@@ -1017,8 +1008,8 @@ impl HeadlessWithRendererCtrl {
         }
 
         if let Some(view) = &self.surface {
-            self.content
-                .render(ctx, Some(view.renderer()), self.headless_monitor.scale_factor, None);
+            let fct = self.vars.0.scale_factor.copy(ctx.vars);
+            self.content.render(ctx, Some(view.renderer()), fct, None);
         }
     }
 
@@ -1032,6 +1023,44 @@ impl HeadlessWithRendererCtrl {
     }
 }
 
+fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarBindingHandle {
+    let mut parent_scale_factor = None;
+    let mut parent_theme = None;
+    if let Some(parent_vars) = hvars.parent().copy(vars).and_then(|id| windows.vars(id).ok()) {
+        if mfactor.is_none() {
+            parent_scale_factor = Some(parent_vars.scale_factor());
+        }
+        parent_theme = Some(parent_vars.actual_theme());
+    }
+
+    let theme = hvars.theme().clone();
+    let actual_theme = hvars.0.actual_theme.clone();
+    let scale_factor = hvars.0.scale_factor.clone();
+
+    let update = move |vars: &Vars| {
+        let theme = match theme.copy(vars) {
+            Some(t) => t,
+            None => match &parent_theme {
+                Some(pt) => pt.copy(vars),
+                None => WindowTheme::Dark,
+            },
+        };
+        actual_theme.set_ne(vars, theme);
+
+        if let Some(psf) = &parent_scale_factor {
+            let factor = psf.copy(vars);
+            scale_factor.set_ne(vars, factor);
+        }
+    };
+
+    update(vars);
+    if let Some(fct) = mfactor {
+        hvars.0.scale_factor.set_ne(vars, fct);
+    }
+
+    vars.bind(move |vars, _| update(vars))
+}
+
 /// implementer of `App` only content management.
 struct HeadlessCtrl {
     vars: WindowVars,
@@ -1040,8 +1069,8 @@ struct HeadlessCtrl {
     headless_monitor: HeadlessMonitor,
     headless_simulator: HeadlessSimulator,
 
-    // is Dark or the parent window `actual_theme`.
-    fallback_theme: ReadOnlyRcVar<WindowTheme>,
+    /// actual_theme and scale_factor binding.
+    var_bindings: Option<VarBindingHandle>,
 }
 impl HeadlessCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -1050,7 +1079,7 @@ impl HeadlessCtrl {
             headless_monitor: content.headless_monitor,
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
             headless_simulator: HeadlessSimulator::new(),
-            fallback_theme: var(WindowTheme::Dark).into_read_only(),
+            var_bindings: None,
         }
     }
 
@@ -1072,19 +1101,9 @@ impl HeadlessCtrl {
             ctx.updates.render();
         }
 
-        let mut update_theme = false;
-
-        if let Some(parent) = self.vars.parent().copy_new(ctx) {
-            self.fallback_theme = parent
-                .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()))
-                .unwrap_or_else(|| var(WindowTheme::Dark).into_read_only());
-
-            update_theme = true;
-        }
-
-        if update_theme || self.vars.theme().is_new(ctx) || self.fallback_theme.is_new(ctx) {
-            let theme = self.vars.theme().copy(ctx).unwrap_or_else(|| self.fallback_theme.copy(ctx));
-            self.vars.0.actual_theme.set_ne(ctx, theme);
+        if self.vars.parent().is_new(ctx) || self.var_bindings.is_none() {
+            let h = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = Some(h);
         }
 
         self.content.update(ctx);
@@ -1112,7 +1131,7 @@ impl HeadlessCtrl {
             return;
         }
 
-        let scale_factor = self.headless_monitor.scale_factor;
+        let scale_factor = self.vars.0.scale_factor.copy(ctx);
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
@@ -1139,7 +1158,8 @@ impl HeadlessCtrl {
         if self.content.render_requested.is_none() {
             return;
         }
-        self.content.render(ctx, None, self.headless_monitor.scale_factor, None);
+        let fct = self.vars.0.scale_factor.copy(ctx);
+        self.content.render(ctx, None, fct, None);
     }
 
     pub fn focus(&mut self, ctx: &mut WindowContext) {

@@ -20,7 +20,7 @@ fn app_main() {
     App::default().extend(icons::MaterialFonts).run_window(|_| {
         window! {
             title = "Icon Example";
-            icon = WindowIcon::render(RenderMode::Software, |_| icon! {
+            icon = WindowIcon::render(|_| icon! {
                 icon = icons::filled::LIGHTBULB;
                 color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;

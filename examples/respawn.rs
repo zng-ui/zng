@@ -10,7 +10,7 @@ fn main() {
     App::default().run_window(|ctx| {
         window! {
             title = "View-Process Respawn Example";
-            icon = WindowIcon::render(RenderMode::Software, |_| icon());
+            icon = WindowIcon::render(|_| icon());
             start_position = StartPosition::CenterMonitor;
             on_key_down = hn!(|ctx, args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {

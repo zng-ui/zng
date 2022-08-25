@@ -176,9 +176,9 @@ fn ease_btn(
 }
 fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     let size = (64, 64);
-    ImageSource::render(
+    ImageSource::render_node(
         RenderMode::Software,
-        clone_move!(size, |ctx| {
+        clone_move!(size, |ctx, _| {
             let mut items = widget_vec![];
             let color_t = animation::Transition::new(FROM_COLOR, TO_COLOR);
             let fps_f = FPS as f32;
