@@ -455,7 +455,7 @@ type RenderFn = Rc<Box<dyn Fn(&mut WindowContext, &ImageRenderArgs) -> Window>>;
 /// Arguments for the [`ImageSource::Render`] closure.
 ///
 /// The arguments are set by the widget that will render the image.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImageRenderArgs {
     /// Window that will render the image.
     pub parent: Option<WindowId>,
@@ -597,7 +597,7 @@ impl ImageSource {
             ImageSource::Download(u, a) => Some(Self::hash128_download(u, a)),
             ImageSource::Static(h, _, _) => Some(*h),
             ImageSource::Data(h, _, _) => Some(*h),
-            ImageSource::Render(rfn, _) => Some(Self::hash128_render(rfn)),
+            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args)),
             ImageSource::Image(_) => None,
         }
     }
@@ -632,11 +632,12 @@ impl ImageSource {
     /// Pointer equality is used to identify the node closure.
     ///
     /// [`Render`]: Self::Render
-    pub fn hash128_render(rfn: &RenderFn) -> ImageHash {
+    pub fn hash128_render(rfn: &RenderFn, args: &Option<ImageRenderArgs>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         2u8.hash(&mut h);
         (Rc::as_ptr(rfn) as usize).hash(&mut h);
+        args.hash(&mut h);
         h.finish()
     }
 }
@@ -646,7 +647,7 @@ impl PartialEq for ImageSource {
             (Self::Read(l), Self::Read(r)) => l == r,
             #[cfg(http)]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
-            (Self::Render(lf, _), Self::Render(rf, _)) => Rc::ptr_eq(lf, rf),
+            (Self::Render(lf, la), Self::Render(rf, ra)) => Rc::ptr_eq(lf, rf) && la == ra,
             (Self::Image(l), Self::Image(r)) => l.ptr_eq(r),
             (l, r) => {
                 let l_hash = match l {

@@ -31,7 +31,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     let title = merge_var!(
         window_vars.actual_position(),
         window_vars.actual_size(),
-        move |p: &DipPoint, s: &DipSize| { formatx!("Window Example {} - position: {p:.0?}, size: {s:.0?}", window_id.sequential()) }
+        move |p: &DipPoint, s: &DipSize| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}") }
     );
 
     let background = var(rgb(0.1, 0.1, 0.1)).easing(150.ms(), easing::linear);
@@ -389,11 +389,46 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
             separator(),
             cmd_btn(zero_ui::widgets::window::commands::InspectCommand.scoped(window_id)),
             separator(),
-            button! {
-                content = text("Open Another Window");
-                on_click = hn!(|ctx, _| {
-                    Windows::req(ctx.services).open(main_window);
-                })
+            {
+                let mut child_count = 0;
+                button! {
+                    content = text("Open Child Window");
+                    on_click = hn!(|ctx, _| {
+                        child_count += 1;
+
+                        let parent = ctx.path.window_id();
+                        Windows::req(ctx.services).open(move |_| window! {
+                            title = formatx!("Window Example - Child {child_count}");
+                            size = (400, 300);
+                            parent = Some(parent);
+                            content_align = Align::CENTER;
+                            start_position = StartPosition::CenterParent;
+                            content = text! {
+                                text = formatx!("Child {child_count}");
+                                font_size = 20;
+                            };
+                        });
+                    })
+                }
+            },
+            {
+                let mut other_count = 0;
+                button! {
+                    content = text("Open Other Window");
+                    on_click = hn!(|ctx, _| {
+                        other_count += 1;
+
+                        Windows::req(ctx.services).open(move |_| window! {
+                            title = formatx!("Window Example - Other {other_count}");
+                            size = (400, 300);
+                            content_align = Align::CENTER;
+                            content = text! {
+                                text = formatx!("Other {other_count}");
+                                font_size = 20;
+                            };
+                        });
+                    })
+                }
             }
         ],
     )
@@ -415,6 +450,8 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
             CloseState::Ask => {
                 args.propagation().stop();
                 state.set(ctx, CloseState::Asking);
+
+                let windows = args.windows.clone();
 
                 WindowLayers::insert(
                     ctx,
@@ -449,7 +486,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                                 items_align = Align::RIGHT;
                                 items = widgets![
                                     text! {
-                                        text = "Example close confirmation?";
+                                        text = formatx!("Example close confirmation?\n\nWill close {} windows.", windows.len());
                                         margin = 15;
                                     },
                                     h_stack! {
@@ -457,9 +494,9 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                                         items = widgets![
                                             button! {
                                                 content = strong("Close");
-                                                on_click = hn!(state, |ctx, _| {
+                                                on_click = hn_once!(state, |ctx, _| {
                                                     state.set(ctx, CloseState::Close);
-                                                    Windows::req(ctx.services).close(ctx.path.window_id()).unwrap();
+                                                    Windows::req(ctx.services).close_together(windows).unwrap();
                                                 })
                                             },
                                             button! {

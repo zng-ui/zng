@@ -1,14 +1,12 @@
-* Add ImageSource args to equality.
-    - Otherwise if the same source is used in two different windows the cached image for the first window is shared,
-        and parents can have different scale_factor and theme.
 * Add other icon fonts to font example.
     - Add search.
-* Window example exit button closes the wrong window when there is more than one open.
 * Review minimized render-update.
+* Review Into/IntoVar of `T` for `Option<T>`
 
 * Finish implementing window `parent`.
     - [x] Validation.
     - [x] Theme fallback.
+    - [ ] Open center parent.
     - [ ] Close together.
     - [ ] Minimize together.
     - [ ] Z-order, always on-top of parent, but no focus stealing.

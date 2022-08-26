@@ -692,7 +692,7 @@ pub struct MouseManager {
     pos_window: Option<WindowId>,
     pos_device: Option<DeviceId>,
     // last cursor move hit-test.
-    pos_hits: HitTestInfo,
+    pos_hits: Option<HitTestInfo>,
 
     /// last modifiers.
     modifiers: ModifiersState,
@@ -712,7 +712,7 @@ impl Default for MouseManager {
             pos: DipPoint::zero(),
             pos_window: None,
             pos_device: None,
-            pos_hits: HitTestInfo::no_hits(WindowId::named("invalid")),
+            pos_hits: None,
 
             modifiers: ModifiersState::default(),
 
@@ -736,7 +736,7 @@ impl MouseManager {
         };
         let (windows, mouse) = <(Windows, Mouse)>::req(ctx.services);
 
-        let hits = self.pos_hits.clone();
+        let hits = self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
 
         let frame_info = windows.widget_tree(window_id).unwrap();
 
@@ -980,9 +980,10 @@ impl MouseManager {
                 }
             };
 
-            self.pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor().0));
+            let pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor().0));
+            self.pos_hits = Some(pos_hits.clone());
 
-            let target = if let Some(t) = self.pos_hits.target() {
+            let target = if let Some(t) = pos_hits.target() {
                 frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
                     tracing::error!("hits target `{}` not found", t.widget_id);
                     frame_info.root().interaction_path()
@@ -1001,7 +1002,7 @@ impl MouseManager {
                     window_id,
                     device_id,
                     position,
-                    self.pos_hits.clone(),
+                    pos_hits.clone(),
                     prev_target,
                     target.clone(),
                     capture.clone(),
@@ -1020,7 +1021,7 @@ impl MouseManager {
                     self.modifiers,
                     coalesced_pos,
                     position,
-                    self.pos_hits.clone(),
+                    pos_hits,
                     target,
                     capture,
                 );
@@ -1044,7 +1045,7 @@ impl MouseManager {
 
         let windows = Windows::req(ctx.services);
 
-        let hits = self.pos_hits.clone();
+        let hits = self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
 
         let frame_info = windows.widget_tree(window_id).unwrap();
 
@@ -1122,9 +1123,9 @@ impl AppExtension for MouseManager {
             if self.pos_window == Some(args.window_id) {
                 let (windows, mouse) = <(Windows, Mouse)>::req(ctx.services);
                 let frame_info = windows.widget_tree(args.window_id).unwrap();
-                self.pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
-                let target = self
-                    .pos_hits
+                let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
+                self.pos_hits = Some(pos_hits.clone());
+                let target = pos_hits
                     .target()
                     .and_then(|t| frame_info.get(t.widget_id))
                     .and_then(|w| w.interaction_path().unblocked());
@@ -1132,16 +1133,7 @@ impl AppExtension for MouseManager {
                 if self.hovered != target {
                     let capture = self.capture_info(mouse);
                     let prev = mem::replace(&mut self.hovered, target.clone());
-                    let args = MouseHoverArgs::now(
-                        args.window_id,
-                        None,
-                        self.pos,
-                        self.pos_hits.clone(),
-                        prev,
-                        target,
-                        capture.clone(),
-                        capture,
-                    );
+                    let args = MouseHoverArgs::now(args.window_id, None, self.pos, pos_hits, prev, target, capture.clone(), capture);
                     MouseHoveredEvent.notify(ctx.events, args);
                 }
             }
@@ -1220,7 +1212,7 @@ impl AppExtension for MouseManager {
                 self.pressed.clear();
                 self.pos_device = None;
                 self.pos_window = None;
-                self.pos_hits = HitTestInfo::no_hits(WindowId::named("invalid"));
+                self.pos_hits = None;
             }
         }
     }
@@ -1233,7 +1225,7 @@ impl AppExtension for MouseManager {
                         window_id,
                         self.pos_device.unwrap(),
                         self.pos,
-                        self.pos_hits.clone(),
+                        self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id)),
                         Some(path.clone()),
                         Some(path.clone()),
                         args.prev_capture.as_ref().map(|(path, mode)| CaptureInfo {
