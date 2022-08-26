@@ -1,5 +1,3 @@
-* Refactor view to use only use clip chains, this is a requirement of the new webrender version.
-
 * Image example background does not render.
 * Add ImageSource args to equality.
     - Otherwise if the same source is used in two different windows the cached image for the first window is shared,
