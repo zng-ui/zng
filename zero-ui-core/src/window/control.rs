@@ -884,8 +884,9 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
 
                     // insert new
                     *parent = Some(parent_id);
+                    let id = *ctx.window_id;
                     parent_vars.0.children.modify(ctx.vars, move |mut c| {
-                        c.insert(parent_id);
+                        c.insert(id);
                     });
 
                     true

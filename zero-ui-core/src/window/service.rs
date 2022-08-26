@@ -53,7 +53,7 @@ pub struct Windows {
     open_requests: Vec<OpenWindowRequest>,
     update_sender: AppEventSender,
     close_requests: Vec<CloseWindowRequest>,
-    close_responders: LinearMap<WindowId, ResponderVar<CloseWindowResult>>,
+    close_responders: LinearMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
     focus_request: Option<WindowId>,
     frame_images: Vec<RcVar<Image>>,
     loading_deadline: Option<DeadlineHandle>,
@@ -208,37 +208,18 @@ impl Windows {
     }
 
     /// Starts closing a window, the operation can be canceled by listeners of
-    /// [`WindowCloseRequestedEvent`].
+    /// [`WindowCloseRequestedEvent`]. If the window has children they are closed together.
     ///
     /// Returns a response var that will update once with the result of the operation.
     ///
     /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
     pub fn close(&mut self, window_id: impl Into<WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
-        self.close_impl(window_id.into())
-    }
-    fn close_impl(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
-        if self.windows_info.contains_key(&window_id) {
-            for req in &self.close_requests {
-                if req.windows.contains(&window_id) {
-                    return Ok(req.responder.response_var());
-                }
-            }
-
-            let (responder, response) = response_var();
-            self.close_requests.push(CloseWindowRequest {
-                responder,
-                windows: [window_id].into_iter().collect(),
-            });
-            let _ = self.update_sender.send_ext_update();
-
-            Ok(response)
-        } else {
-            Err(WindowNotFound(window_id))
-        }
+        self.close_together([window_id.into()])
     }
 
     /// Requests closing multiple windows together, the operation can be canceled by listeners of the
-    /// [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed.
+    /// [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed. Children of each window
+    /// are added to the close together set.
     ///
     /// Returns a response var that will update once with the result of the operation. Returns
     /// [`Cancel`] if `windows` is empty or only contained windows that already requested close
@@ -257,10 +238,7 @@ impl Windows {
             if !self.windows_info.contains_key(&w) {
                 return Err(WindowNotFound(w));
             }
-
-            if !self.close_requests.iter().any(|r| r.windows.contains(&w)) {
-                group.insert(w);
-            }
+            group.insert(w);
         }
 
         if group.is_empty() {
@@ -580,9 +558,13 @@ impl Windows {
                 if !args.propagation().is_stopped() {
                     // close requested by us and not canceled.
                     WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(args.windows.clone()));
-                    rsp.respond(ctx, CloseWindowResult::Closed);
+                    for r in rsp {
+                        r.respond(ctx, CloseWindowResult::Closed);
+                    }
                 } else {
-                    rsp.respond(ctx, CloseWindowResult::Cancel);
+                    for r in rsp {
+                        r.respond(ctx, CloseWindowResult::Cancel);
+                    }
                 }
             }
         } else if let Some(args) = WindowCloseEvent.update(args) {
@@ -693,10 +675,31 @@ impl Windows {
 
         // notify close requests, the request is fulfilled or canceled
         // in the `event` handler.
-        for r in close {
-            wns.close_responders.insert(*r.windows.iter().next().unwrap(), r.responder);
 
-            let args = WindowCloseRequestedArgs::now(r.windows);
+        let mut close_wns = LinearSet::new();
+        for r in close {
+            for w in r.windows {
+                if let Some(info) = wns.windows_info.get(&w) {
+                    if close_wns.insert(w) {
+                        wns.close_responders
+                            .entry(w)
+                            .or_insert_with(Default::default)
+                            .push(r.responder.clone());
+
+                        for &c in info.vars.0.children.get(ctx.vars) {
+                            if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
+                                wns.close_responders
+                                    .entry(c)
+                                    .or_insert_with(Default::default)
+                                    .push(r.responder.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !close_wns.is_empty() {
+            let args = WindowCloseRequestedArgs::now(close_wns);
             WindowCloseRequestedEvent.notify(ctx.events, args);
         }
 

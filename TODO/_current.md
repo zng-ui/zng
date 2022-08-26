@@ -8,7 +8,7 @@
     - [x] Open center parent.
     - [x] Children list var.
     - [x] Validation.
-    - [ ] Close together.
+    - [x] Close together.
     - [ ] Minimize together.
     - [ ] Z-order, always on-top of parent, but no focus stealing.
 
