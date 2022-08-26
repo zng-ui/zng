@@ -602,9 +602,10 @@ impl DisplayListCache {
         (list, sc)
     }
 
-    fn end_wr(&mut self, mut list: wr::DisplayListBuilder, sc: SpaceAndClip) -> wr::BuiltDisplayList {
+    fn end_wr(&mut self, mut list: wr::DisplayListBuilder, mut sc: SpaceAndClip) -> wr::BuiltDisplayList {
         let r = list.end().1;
         self.wr_list = Some(list);
+        sc.clear(self.pipeline_id);
         self.space_and_clip = Some(sc);
         r
     }
@@ -1210,16 +1211,10 @@ impl DisplayItem {
 mod space_and_clip {
     use super::*;
 
-    #[derive(Clone, Copy)]
-    enum ClipChain {
-        Pending(usize),
-        Id(wr::ClipChainId),
-    }
-
     pub struct SpaceAndClip {
         spatial_stack: Vec<wr::SpatialId>,
         clip_stack: Vec<wr::ClipId>,
-        clip_chain: ClipChain,
+        clip_chain_stack: Vec<(wr::ClipChainId, usize)>,
     }
     impl SpaceAndClip {
         pub fn new(pipeline_id: PipelineId) -> Self {
@@ -1228,7 +1223,7 @@ mod space_and_clip {
             SpaceAndClip {
                 spatial_stack: vec![sid],
                 clip_stack: vec![cid],
-                clip_chain: ClipChain::Pending(0),
+                clip_chain_stack: vec![],
             }
         }
 
@@ -1237,15 +1232,23 @@ mod space_and_clip {
         }
 
         pub fn clip_chain_id(&mut self, list: &mut wr::DisplayListBuilder) -> wr::ClipChainId {
-            match self.clip_chain {
-                ClipChain::Pending(i) => {
-                    let clips = self.clip_stack[i..].iter().copied();
-                    let id = list.define_clip_chain(None, clips);
-                    self.clip_chain = ClipChain::Id(id);
-                    id
+            let mut start = 0;
+            let mut parent = None;
+
+            if let Some((id, i)) = self.clip_chain_stack.last().copied() {
+                if i == self.clip_stack.len() {
+                    return id;
+                } else {
+                    start = i;
+                    parent = Some(id);
                 }
-                ClipChain::Id(id) => id,
             }
+
+            let clips = self.clip_stack[start..].iter().copied();
+            let id = list.define_clip_chain(parent, clips);
+            self.clip_chain_stack.push((id, self.clip_stack.len()));
+
+            id
         }
 
         pub fn push_spatial(&mut self, spatial_id: wr::SpatialId) {
@@ -1257,14 +1260,51 @@ mod space_and_clip {
         }
 
         pub fn push_clip(&mut self, clip: wr::ClipId) {
-            if let ClipChain::Id(_) = self.clip_chain {
-                self.clip_chain = ClipChain::Pending(self.clip_stack.len());
-            }
             self.clip_stack.push(clip);
         }
 
         pub fn pop_clip(&mut self) {
             self.clip_stack.truncate(self.clip_stack.len() - 1);
+
+            if let Some((_, i)) = self.clip_chain_stack.last() {
+                if *i > self.clip_stack.len() {
+                    self.clip_chain_stack.truncate(self.clip_chain_stack.len() - 1);
+                }
+            }
+        }
+
+        pub fn clear(&mut self, pipeline_id: PipelineId) {
+            #[cfg(debug_assertions)]
+            {
+                if self.clip_chain_stack.len() >= 2 {
+                    tracing::error!("found {} clip chains, expected 0 or 1", self.clip_chain_stack.len());
+                }
+                if self.clip_stack.len() != 1 {
+                    tracing::error!("found {} clips, expected 1 root", self.clip_stack.len());
+                } else {
+                    match self.clip_stack[0] {
+                        wr::ClipId::Clip(i, _) => {
+                            if i != 0 {
+                                tracing::error!("found other clip, expected root");
+                            }
+                        }
+                        wr::ClipId::ClipChain(_) => tracing::error!("found clip chain, expected root"),
+                    }
+                }
+                if self.spatial_stack.len() != 1 {
+                    tracing::error!("found {} spatial, expected 1 root_reference_frame", self.spatial_stack.len());
+                } else if self.spatial_stack[0].0 != 0 {
+                    tracing::error!("found other spatial id, expected root_reference_frame");
+                }
+            }
+
+            self.clip_stack.clear();
+            self.clip_stack.push(wr::ClipId::root(pipeline_id));
+
+            self.spatial_stack.clear();
+            self.spatial_stack.push(wr::SpatialId::root_reference_frame(pipeline_id));
+
+            self.clip_chain_stack.clear();
         }
     }
 }
