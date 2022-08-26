@@ -587,17 +587,17 @@ impl HeadedCtrl {
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().copy(ctx);
         let screen_ppi = m.ppi().copy(ctx);
-        let screen_size = m.size().copy(ctx);
+        let screen_rect = m.px_rect(ctx);
 
         // Layout min, max and size in the monitor space.
-        let (min_size, max_size, mut size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+        let (min_size, max_size, mut size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_rect.size, |ctx| {
             let min_size = self
                 .vars
                 .min_size()
                 .get(ctx.vars)
                 .layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
+            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_rect.size);
 
             let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
 
@@ -634,17 +634,35 @@ impl HeadedCtrl {
                     system_pos = true;
                     PxPoint::zero()
                 } else {
-                    self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                        pos.layout(ctx.metrics, |_| PxPoint::zero())
+                    self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_rect.size, |ctx| {
+                        pos.layout(ctx.metrics, |_| PxPoint::zero()) + screen_rect.origin.to_vector()
                     })
                 }
             }
             StartPosition::CenterMonitor => {
-                PxPoint::new((screen_size.width - size.width) / Px(2), (screen_size.height - size.height) / Px(2))
+                PxPoint::new(
+                    (screen_rect.size.width - size.width) / Px(2),
+                    (screen_rect.size.height - size.height) / Px(2),
+                ) + screen_rect.origin.to_vector()
             }
             StartPosition::CenterParent => {
                 // center monitor if no parent
-                todo!()
+                let mut parent_rect = screen_rect;
+
+                if let Some(parent) = self.vars.parent().copy(ctx) {
+                    if let Ok(w) = Windows::req(ctx.services).vars(parent) {
+                        let factor = w.scale_factor().copy(ctx.vars);
+                        let pos = w.actual_position().get(ctx.vars).to_px(factor.0);
+                        let size = w.actual_size().get(ctx.vars).to_px(factor.0);
+
+                        parent_rect = PxRect::new(pos, size);
+                    }
+                }
+
+                PxPoint::new(
+                    (parent_rect.size.width - size.width) / Px(2),
+                    (parent_rect.size.height - size.height) / Px(2),
+                ) + parent_rect.origin.to_vector()
             }
         };
 

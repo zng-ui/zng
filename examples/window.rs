@@ -375,6 +375,7 @@ fn visibility(window_vars: &WindowVars) -> impl Widget {
 }
 
 fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
+    let can_open_windows = window_vars.state().map(|&s| s != WindowState::Exclusive);
     section(
         "Misc.",
         widgets![
@@ -393,6 +394,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
                 let mut child_count = 0;
                 button! {
                     content = text("Open Child Window");
+                    enabled = can_open_windows.clone();
                     on_click = hn!(|ctx, _| {
                         child_count += 1;
 
@@ -415,6 +417,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
                 let mut other_count = 0;
                 button! {
                     content = text("Open Other Window");
+                    enabled = can_open_windows;
                     on_click = hn!(|ctx, _| {
                         other_count += 1;
 
@@ -486,7 +489,10 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                                 items_align = Align::RIGHT;
                                 items = widgets![
                                     text! {
-                                        text = formatx!("Example close confirmation?\n\nWill close {} windows.", windows.len());
+                                        text = match windows.len() {
+                                            1 => "Close Confirmation\n\nClose 1 window?".to_text(),
+                                            n => formatx!("Close Confirmation\n\nClose {n} windows?")
+                                        };
                                         margin = 15;
                                     },
                                     h_stack! {

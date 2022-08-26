@@ -4,9 +4,10 @@
 * Review Into/IntoVar of `T` for `Option<T>`
 
 * Finish implementing window `parent`.
-    - [x] Validation.
     - [x] Theme fallback.
-    - [ ] Open center parent.
+    - [x] Open center parent.
+    - [ ] Children list var.
+    - [ ] Validation.
     - [ ] Close together.
     - [ ] Minimize together.
     - [ ] Z-order, always on-top of parent, but no focus stealing.
