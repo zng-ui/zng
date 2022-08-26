@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use linear_map::set::LinearSet;
+
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
     context::{state_map, BorrowStateMap},
@@ -50,6 +52,7 @@ pub(super) struct WindowVarsData {
 
     parent: RcVar<Option<WindowId>>,
     modal: RcVar<bool>,
+    pub(super) children: RcVar<LinearSet<WindowId>>,
 
     theme: RcVar<Option<WindowTheme>>,
     pub(super) actual_theme: RcVar<WindowTheme>,
@@ -119,6 +122,7 @@ impl WindowVars {
 
             parent: var(None),
             modal: var(false),
+            children: var(LinearSet::new()),
 
             theme: var(None),
             actual_theme: var(WindowTheme::Dark),
@@ -458,7 +462,7 @@ impl WindowVars {
         &self.0.taskbar_visible
     }
 
-    /// The window parent.
+    /// Window parent.
     ///
     /// If a parent is set this behavior applies:
     ///
@@ -470,6 +474,11 @@ impl WindowVars {
     /// * If a [`theme`] is not set, the [`actual_theme`] fallback it the parent's actual theme.
     ///
     /// The default value is `None`.
+    ///
+    /// # Validation
+    ///
+    /// The parent window must exist, it cannot have a parent and the child window cannot have children, it also can't set itself as the parent.
+    /// If these condition are not met an error is logged and the parent is set to `None`.
     ///
     /// [`modal`]: Self::modal
     /// [`theme`]: Self::theme
@@ -485,6 +494,15 @@ impl WindowVars {
     /// The default value is `false`.
     pub fn modal(&self) -> &RcVar<bool> {
         &self.0.modal
+    }
+
+    /// Window children.
+    ///
+    /// This is a set of other windows that have this window as a [`parent`].
+    ///
+    /// [`parent`]: Self::parent
+    pub fn children(&self) -> ReadOnlyRcVar<LinearSet<WindowId>> {
+        self.0.children.clone().into_read_only()
     }
 
     /// Override the system theme.

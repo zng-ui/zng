@@ -59,6 +59,7 @@ struct HeadedCtrl {
     actual_state: Option<WindowState>, // for WindowChangedEvent
     system_theme: Option<WindowTheme>,
     parent_theme: Option<ReadOnlyRcVar<WindowTheme>>,
+    actual_parent: Option<WindowId>,
 }
 impl HeadedCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -86,7 +87,7 @@ impl HeadedCtrl {
             icon_deadline: Deadline::timeout(1.secs()),
             system_theme: None,
             parent_theme: None,
-
+            actual_parent: None,
             actual_state: None,
         }
     }
@@ -365,8 +366,10 @@ impl HeadedCtrl {
 
             let mut update_theme = false;
 
-            if let Some(parent) = self.vars.parent().copy_new(ctx) {
-                self.parent_theme = parent.and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()));
+            if update_parent(ctx, &mut self.actual_parent, &self.vars) {
+                self.parent_theme = self
+                    .actual_parent
+                    .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()));
                 update_theme = true;
             }
 
@@ -840,6 +843,77 @@ impl HeadedCtrl {
     }
 }
 
+/// Respond to `parent_var` updates, returns `true` if the `parent` value has changed.
+fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &WindowVars) -> bool {
+    let parent_var = vars.parent();
+    if let Some(parent_id) = parent_var.copy_new(ctx) {
+        if parent_id == *parent {
+            return false;
+        }
+
+        match parent_id {
+            Some(parent_id) => {
+                if parent_id == *ctx.window_id {
+                    tracing::error!("cannot set `{:?}` as it's own parent", parent_id);
+                    parent_var.set(ctx.vars, *parent);
+                    return false;
+                }
+                if !vars.0.children.get(ctx.vars).is_empty() {
+                    tracing::error!("cannot set parent for `{:?}` because it already has children", *ctx.window_id);
+                    parent_var.set(ctx.vars, *parent);
+                    return false;
+                }
+
+                let windows = Windows::req(ctx.services);
+                if let Ok(parent_vars) = windows.vars(parent_id) {
+                    if parent_vars.parent().get(ctx.vars).is_some() {
+                        tracing::error!("cannot use `{:?}` as a parent because it already has a parent", parent_id);
+                        parent_var.set(ctx.vars, *parent);
+                        return false;
+                    }
+
+                    // remove previous
+                    if let Some(parent_id) = parent.take() {
+                        if let Ok(parent_vars) = windows.vars(parent_id) {
+                            let id = *ctx.window_id;
+                            parent_vars.0.children.modify(ctx.vars, move |mut c| {
+                                c.remove(&id);
+                            });
+                        }
+                    }
+
+                    // insert new
+                    *parent = Some(parent_id);
+                    parent_vars.0.children.modify(ctx.vars, move |mut c| {
+                        c.insert(parent_id);
+                    });
+
+                    true
+                } else {
+                    tracing::error!("cannot use `{:?}` as a parent because it does not exist", parent_id);
+                    parent_var.set(ctx.vars, *parent);
+                    false
+                }
+            }
+            None => {
+                if let Some(parent_id) = parent.take() {
+                    if let Ok(parent_vars) = Windows::req(ctx.services).vars(parent_id) {
+                        let id = *ctx.window_id;
+                        parent_vars.0.children.modify(ctx.vars, move |mut c| {
+                            c.remove(&id);
+                        });
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    } else {
+        false
+    }
+}
+
 /// Implementer of `App <-> View` sync in a headless window.
 struct HeadlessWithRendererCtrl {
     window_id: WindowId,
@@ -857,6 +931,7 @@ struct HeadlessWithRendererCtrl {
     // current state.
     size: DipSize,
 
+    actual_parent: Option<WindowId>,
     /// actual_theme and scale_factor binding.
     var_bindings: Option<VarBindingHandle>,
 }
@@ -875,6 +950,7 @@ impl HeadlessWithRendererCtrl {
 
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
 
+            actual_parent: None,
             size: DipSize::zero(),
             var_bindings: None,
         }
@@ -895,7 +971,7 @@ impl HeadlessWithRendererCtrl {
             ctx.updates.layout();
         }
 
-        if self.vars.parent().is_new(ctx) || self.var_bindings.is_none() {
+        if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_none() {
             let h = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
             self.var_bindings = Some(h);
         }
@@ -1087,6 +1163,7 @@ struct HeadlessCtrl {
     headless_monitor: HeadlessMonitor,
     headless_simulator: HeadlessSimulator,
 
+    actual_parent: Option<WindowId>,
     /// actual_theme and scale_factor binding.
     var_bindings: Option<VarBindingHandle>,
 }
@@ -1097,6 +1174,7 @@ impl HeadlessCtrl {
             headless_monitor: content.headless_monitor,
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
             headless_simulator: HeadlessSimulator::new(),
+            actual_parent: None,
             var_bindings: None,
         }
     }
@@ -1119,7 +1197,7 @@ impl HeadlessCtrl {
             ctx.updates.render();
         }
 
-        if self.vars.parent().is_new(ctx) || self.var_bindings.is_none() {
+        if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_none() {
             let h = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
             self.var_bindings = Some(h);
         }

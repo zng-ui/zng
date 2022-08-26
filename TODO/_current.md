@@ -6,8 +6,8 @@
 * Finish implementing window `parent`.
     - [x] Theme fallback.
     - [x] Open center parent.
-    - [ ] Children list var.
-    - [ ] Validation.
+    - [x] Children list var.
+    - [x] Validation.
     - [ ] Close together.
     - [ ] Minimize together.
     - [ ] Z-order, always on-top of parent, but no focus stealing.
