@@ -1,4 +1,12 @@
 * Refactor view to use only use clip chains, this is a requirement of the new webrender version.
+
+* Image example background does not render.
+* Add ImageSource args to equality.
+    - Otherwise if the same source is used in two different windows the cached image for the first window is shared,
+        and parents can have different scale_factor and theme.
+* Add other icon fonts to font example.
+    - Add search.
+* Window example exit button closes the wrong window when there is more than one open.
 * Review minimized render-update.
 
 * Finish implementing window `parent`.
