@@ -510,10 +510,9 @@ impl ImageSource {
     ///
     /// ```
     /// # use zero_ui_core::{image::ImageSource, render::RenderMode};
-    /// # macro_rules! window { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
+    /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
     /// # let _ =
     /// ImageSource::render(
-    ///     RenderMode::Software,
     ///     |_ctx, args| window! {
     ///         size = (500, 400);
     ///         parent = args.parent;
