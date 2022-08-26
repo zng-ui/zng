@@ -174,7 +174,7 @@ pub struct HeadlessMonitor {
     /// If set to `None`, falls-back to the [`parent`] scale-factor, or `1.0` if the headless window has not parent.
     ///
     /// `None` by default.
-    /// 
+    ///
     /// [`parent`]: crate::window::WindowVars::parent
     pub scale_factor: Option<Factor>,
 

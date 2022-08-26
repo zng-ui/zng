@@ -1033,9 +1033,11 @@ impl DisplayItem {
                 tile_size,
                 tile_spacing,
             } => {
-                wr_list.push_stops(stops);
-                let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
+                let bounds = clip_rect.to_wr();
+                // stops needs to immediately followed by the gradient, if the clip-chain item
+                // is inserted in the between the stops are lost.
+                wr_list.push_stops(stops);
                 wr_list.push_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
@@ -1056,9 +1058,9 @@ impl DisplayItem {
                 tile_size,
                 tile_spacing,
             } => {
-                wr_list.push_stops(stops);
-                let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
+                let bounds = clip_rect.to_wr();
+                wr_list.push_stops(stops);
                 wr_list.push_radial_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,
@@ -1079,9 +1081,9 @@ impl DisplayItem {
                 tile_size,
                 tile_spacing,
             } => {
-                wr_list.push_stops(stops);
-                let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
+                let bounds = clip_rect.to_wr();
+                wr_list.push_stops(stops);
                 wr_list.push_conic_gradient(
                     &wr::CommonItemProperties {
                         clip_rect: bounds,

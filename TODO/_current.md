@@ -1,4 +1,3 @@
-* Image example background does not render.
 * Add ImageSource args to equality.
     - Otherwise if the same source is used in two different windows the cached image for the first window is shared,
         and parents can have different scale_factor and theme.
