@@ -26,9 +26,9 @@ use crate::{
 };
 
 use super::{
-    commands::WindowCommands, FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, Monitors,
-    MonitorsChangedEvent, StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId, WindowMode,
-    WindowVars, Windows,
+    commands::{MinimizeCommand, RestoreCommand, WindowCommands},
+    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, Monitors, MonitorsChangedEvent,
+    StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -417,6 +417,22 @@ impl HeadedCtrl {
                         let prev_state = self.actual_state.unwrap_or(WindowState::Normal);
                         state_change = Some((prev_state, new_state));
                         self.actual_state = Some(new_state);
+
+                        match (prev_state, new_state) {
+                            (_, WindowState::Minimized) => {
+                                // minimized, minimize children.
+                                for &c in self.vars.0.children.get(ctx.vars) {
+                                    MinimizeCommand.scoped(c).notify(ctx.events, None);
+                                }
+                            }
+                            (WindowState::Minimized, _) => {
+                                // restored, restore children.
+                                for &c in self.vars.0.children.get(ctx.vars) {
+                                    RestoreCommand.scoped(c).notify(ctx.events, None);
+                                }
+                            }
+                            _ => {}
+                        }
                     }
 
                     self.state = Some(state);

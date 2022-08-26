@@ -9,8 +9,11 @@
     - [x] Children list var.
     - [x] Validation.
     - [x] Close together.
-    - [ ] Minimize together.
+    - [x] Minimize/restore together.
     - [ ] Z-order, always on-top of parent, but no focus stealing.
+* Implement `modal`.
+    - [ ] Steal focus back to modal.
+    - [ ] Window level "interactivity", parent window must not receive any event (other than forced close).
 
 # Text
 
