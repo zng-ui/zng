@@ -402,7 +402,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
                         Windows::req(ctx.services).open(move |_| window! {
                             title = formatx!("Window Example - Child {child_count}");
                             size = (400, 300);
-                            parent = Some(parent);
+                            parent;
                             content_align = Align::CENTER;
                             start_position = StartPosition::CenterParent;
                             content = text! {

@@ -1,7 +1,6 @@
 * Add other icon fonts to font example.
     - Add search.
 * Review minimized render-update.
-* Review Into/IntoVar of `T` for `Option<T>`
 
 * Finish implementing window `parent`.
     - [x] Theme fallback.

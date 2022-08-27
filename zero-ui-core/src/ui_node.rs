@@ -151,6 +151,14 @@ impl_from_and_into_var! {
         WidgetId::named(name)
     }
 }
+impl crate::var::IntoVar<Option<WidgetId>> for WidgetId {
+    type Var = crate::var::LocalVar<Option<WidgetId>>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(Some(self))
+    }
+}
+impl crate::var::IntoValue<Option<WidgetId>> for WidgetId {}
 
 /// An Ui tree node.
 #[cfg_attr(doc_nightly, doc(notable_trait))]

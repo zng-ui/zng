@@ -929,3 +929,12 @@ impl crate::var::IntoVar<Option<RenderMode>> for RenderMode {
     }
 }
 impl crate::var::IntoValue<Option<RenderMode>> for RenderMode {}
+
+impl crate::var::IntoVar<Option<WindowId>> for WindowId {
+    type Var = crate::var::LocalVar<Option<WindowId>>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::LocalVar(Some(self))
+    }
+}
+impl crate::var::IntoValue<Option<WindowId>> for WindowId {}
