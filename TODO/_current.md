@@ -1,6 +1,5 @@
 * Add other icon fonts to font example.
     - Add search.
-* Review minimized render-update.
 
 * Finish implementing window `parent`.
     - [x] Theme fallback.

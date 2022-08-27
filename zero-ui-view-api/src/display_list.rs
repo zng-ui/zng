@@ -661,8 +661,9 @@ impl DisplayListCache {
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
         colors: Vec<FrameValueUpdate<wr::ColorF>>,
+        resized: bool,
     ) -> Result<Option<wr::DynamicProperties>, wr::BuiltDisplayList> {
-        let mut new_frame = false;
+        let mut new_frame = resized;
 
         for t in &transforms {
             if let Some(item) = self.get_update_target(t.key.id) {

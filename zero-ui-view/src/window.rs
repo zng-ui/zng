@@ -1036,12 +1036,17 @@ impl Window {
             self.renderer.as_mut().unwrap().set_clear_color(color);
         }
 
+        let resized = self.resized;
+
         let mut txn = Transaction::new();
-
-        // txn.skip_scene_builder();
         txn.set_root_pipeline(self.pipeline_id);
+        self.push_resize(&mut txn);
+        txn.generate_frame(self.frame_id().get(), render_reasons);
 
-        let frame_scope = match self.display_list_cache.update(frame.transforms, frame.floats, frame.colors) {
+        let frame_scope = match self
+            .display_list_cache
+            .update(frame.transforms, frame.floats, frame.colors, resized)
+        {
             Ok(p) => {
                 if let Some(p) = p {
                     txn.append_dynamic_properties(p);
@@ -1070,10 +1075,6 @@ impl Window {
                 tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = true, thread = "<webrender>")
             }
         };
-
-        self.push_resize(&mut txn);
-
-        txn.generate_frame(self.frame_id().get(), render_reasons);
 
         self.pending_frames.push_back((frame.id, false, Some(frame_scope.entered())));
 
