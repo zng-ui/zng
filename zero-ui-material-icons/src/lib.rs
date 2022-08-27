@@ -31,7 +31,7 @@ use zero_ui::{
 pub struct MaterialFonts;
 #[cfg(feature = "embedded")]
 impl MaterialFonts {
-    /// Register the material fonts.
+    /// Register the material fonts in an app.
     pub fn register(fonts: &mut Fonts) {
         let sets = [
             (outlined::meta::FONT_NAME, outlined::meta::FONT_BYTES),

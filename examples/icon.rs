@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use icons::MaterialIcon;
 use zero_ui::prelude::*;
 
 use zero_ui_material_icons as icons;
@@ -27,18 +28,60 @@ fn app_main() {
             });
             content = scroll! {
                 mode = ScrollMode::VERTICAL;
-                content = wrap! {
-                    padding = 10;
-                    spacing = 5;
-                    icon::theme::icon_size = 48;
-                    items = icons::outlined::all().into_iter()
-                            .map(|i| icon_btn(i).boxed_wgt())
-                            .collect::<WidgetVec>(),
-                }
+                content = icons();
             };
             // zero_ui::properties::inspector::show_hit_test = true;
         }
     })
+}
+
+fn icons() -> impl Widget {
+    let selected_font = var("outlined");
+    fn select_font(key: &'static str) -> impl Widget {
+        toggle! {
+            content = text(key);
+            value<&'static str> = key;
+        }
+    }
+    fn show_font(icons: Vec<MaterialIcon>) -> impl Widget {
+        wrap! {
+            spacing = 5;
+            icon::theme::icon_size = 48;
+            items = icons.into_iter()
+                    .map(|i| icon_btn(i).boxed_wgt())
+                    .collect::<WidgetVec>(),
+        }
+    }
+    v_stack! {
+        padding = (20, 5, 5, 5);
+        spacing = 20;
+        items = widgets![
+            h_stack! {
+                align = Align::CENTER;
+                toggle::selection = toggle::SingleSel::new(selected_font.clone());
+                spacing = 5;
+                items = widgets![
+                    select_font("filled"),
+                    select_font("outlined"),
+                    select_font("rounded"),
+                    select_font("sharp"),
+                    select_font("two_tone"),
+                ]
+            },
+            view(selected_font, show_font(icons::outlined::all()), |ctx, font| {
+                match font.copy_new(ctx) {
+                    Some("filled") => View::Update(show_font(icons::filled::all())),
+                    Some("outlined") => View::Update(show_font(icons::outlined::all())),
+                    Some("rounded") => View::Update(show_font(icons::rounded::all())),
+                    Some("sharp") => View::Update(show_font(icons::sharp::all())),
+                    Some("two_tone") => View::Update(show_font(icons::two_tone::all())),
+                    None => View::Same,
+                    Some(_) => unreachable!(),
+                }
+            }),
+            show_font(icons::outlined::all()),
+        ]
+    }
 }
 
 fn icon_btn(ico: icons::MaterialIcon) -> impl Widget {

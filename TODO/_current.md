@@ -1,5 +1,9 @@
 * Add other icon fonts to font example.
     - Add search.
+* Fix icon docs, font not loading for demos (not implemented?)
+
+* Fix wrap inside v_stack.
+    - It reserves one extra column but does not fill it.
 
 * Finish implementing window `parent`.
     - [x] Theme fallback.
