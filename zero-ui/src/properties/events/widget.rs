@@ -3,6 +3,8 @@
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
 //! and the event does not consider the widget's [`interactivity`](crate::core::widget_info::WidgetInfo::interactivity).
 
+use zero_ui_core::widget_info::UpdateSlot;
+
 use crate::core::handler::*;
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
@@ -29,6 +31,9 @@ pub struct OnInitArgs {
 /// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnInitArgs::count).
 /// to determinate if you are in the first init.
 ///
+/// Note that the widget is not in the [`WidgetInfoTree`] when this event happens, you can use [`on_info_init`] for initialization
+/// that depends on the widget info.
+///
 /// # Handlers
 ///
 /// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
@@ -38,6 +43,8 @@ pub struct OnInitArgs {
 ///
 /// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+///
+/// [`on_info_init`]: fn@on_info_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     struct OnInitNode<C, H> {
@@ -118,6 +125,66 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
     }
 
     OnPreviewInitNode { child, handler, count: 0 }
+}
+
+/// Widget inited and info collected event.
+///
+/// This event fires after the first [`UiNode::info`] construction after [`UiNode::init`]. This event can be used when
+/// some widget initialization needs to happen, but the widget must be in the [`WidgetInfoTree`] for it to work.
+///
+/// # Handlers
+///
+/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
+///
+/// ## Async
+///
+/// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
+/// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+#[property(event,  default( hn!(|_, _|{}) ))]
+pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
+    struct OnInfoInitNode<C, H> {
+        child: C,
+        handler: H,
+        count: usize,
+        pending: Option<UpdateSlot>,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, H: WidgetHandler<OnInitArgs>> UiNode for OnInfoInitNode<C, H> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+
+            let slot = UpdateSlot::next();
+            ctx.updates.update(slot.mask());
+            self.pending = Some(slot);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            if let Some(s) = self.pending {
+                subs.update(s);
+            }
+            subs.handler(&self.handler);
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if self.pending.take().is_some() {
+                ctx.updates.subscriptions();
+                self.count = self.count.wrapping_add(1);
+                self.handler.event(ctx, &OnInitArgs { count: self.count });
+            }
+
+            self.handler.update(ctx);
+        }
+    }
+    OnInfoInitNode {
+        child,
+        handler,
+        count: 0,
+        pending: None,
+    }
 }
 
 /// Arguments for the [`on_update`](fn@on_update) event.

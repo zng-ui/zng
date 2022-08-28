@@ -994,7 +994,7 @@ impl<'a> WidgetInfo<'a> {
     /// Gets the visibility of the widget or the widget's descendants in the last rendered frame.
     ///
     /// An widget is [`Visible`] if it rendered at least one display item, [`Hidden`] if it rendered only space and
-    /// hit-test items, [`Collapsed`] if it did not render.
+    /// hit-test items, [`Collapsed`] if it did not render. All widgets are [`Visible`] if no frame was ever rendered.
     ///
     /// [`Visible`]: Visibility::Visible
     /// [`Hidden`]: Visibility::Hidden
@@ -1008,7 +1008,13 @@ impl<'a> WidgetInfo<'a> {
                     Visibility::Hidden
                 }
             }
-            None => Visibility::Collapsed,
+            None => {
+                if self.tree.is_rendered() {
+                    Visibility::Collapsed
+                } else {
+                    Visibility::Visible
+                }
+            }
         }
     }
 

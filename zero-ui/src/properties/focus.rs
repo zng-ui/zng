@@ -488,3 +488,29 @@ pub fn is_return_focus_within(child: impl UiNode, state: StateVar) -> impl UiNod
         }
     })
 }
+
+/// If the widget is focused on init.
+///
+/// When the widget is inited a [`Focus::focus_widget_or_related`] request is made for the widget.
+#[property(context, default(false))]
+pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    struct FocusOnInitNode<C, E> {
+        child: C,
+        enabled: E,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, E: Var<bool>> UiNode for FocusOnInitNode<C, E> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+
+            if self.enabled.copy(ctx) {
+                Focus::req(ctx.services).focus_widget_or_related(ctx.path.widget_id(), false);
+            }
+        }
+    }
+    FocusOnInitNode {
+        child: child.cfg_boxed(),
+        enabled: enabled.into_var(),
+    }
+    .cfg_boxed()
+}

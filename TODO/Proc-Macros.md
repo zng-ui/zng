@@ -3,6 +3,12 @@
 Proc-macros are mostly implemented, there are some improvements we can make:
 
 * Test enabling const generics in properties now that turbofish is supported in assign.
+
+* More property priority sorting control, toggle has a `value` property that needs to be `context` because
+    it affects a state property (`event`), but we want to have other context properties that configure `value`,
+    so toggle needs to capture the config properties in `new_context` and manually cause the right priority sorting.
+    - What if we had an extra numeric index that sorts within the same priority?
+
 * Replace `when self.foo` with `#foo`, to allow widgets from associated value, e.g: `fn to_view(self) -> impl Widget { }`
 * Add `#base::new_*` syntax to allow calling the overridden constructor from inside the new constructor.
     - This lets us avoid needing to make each constructor public and documented for each widget.

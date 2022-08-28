@@ -112,7 +112,12 @@ pub mod toggle {
         /// this config is ignored.
         ///
         /// This is not enabled by default.
-        properties::tristate = properties::IsTristateVar;
+        properties::tristate;
+
+        /// If [`value`] is selected when the widget is inited.
+        ///
+        /// [`value`]: #wp-value
+        properties::select_on_init;
 
         /// If the toggle is checked from any of the three primary properties.
         ///
@@ -148,12 +153,6 @@ pub mod toggle {
         ///
         /// Set to [`theme::pair`] of [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
         theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
-    }
-
-    fn new_context_dyn(child: impl UiNode, part: DynWidgetPart, tristate: impl IntoVar<bool>) -> impl UiNode {
-        // ensure that the context var is set for other contexts.
-        let child = properties::tristate(child, tristate);
-        themable::new_context_dyn(child, part)
     }
 }
 
@@ -297,28 +296,87 @@ pub mod properties {
             child: C,
             value: V,
             checked: RcVar<Option<bool>>,
-            _type: PhantomData<T>,
+            prev_value: Option<T>,
+        }
+        impl<C, T: VarValue + PartialEq, V> ValueNode<C, T, V> {
+            fn select(ctx: &mut WidgetContext, value: &T) -> bool {
+                let mut selector = SelectorVar::get(ctx.vars).instance.borrow_mut();
+                match selector.select(ctx, Box::new(value.clone())) {
+                    Ok(()) => true,
+                    Err(e) => {
+                        let selected = selector.is_selected(&mut ctx.as_info(), value);
+                        if selected {
+                            tracing::error!("selected `{value:?}` with error, {e}");
+                        } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                            // ignore
+                        } else {
+                            tracing::error!("failed to select `{value:?}`, {e}");
+                        }
+                        selected
+                    }
+                }
+            }
+
+            fn deselect(ctx: &mut WidgetContext, value: &T) -> bool {
+                let mut selector = SelectorVar::get(ctx.vars).instance.borrow_mut();
+                match selector.deselect(ctx, value) {
+                    Ok(()) => true,
+                    Err(e) => {
+                        let deselected = !selector.is_selected(&mut ctx.as_info(), value);
+                        if deselected {
+                            tracing::error!("deselected `{value:?}` with error, {e}");
+                        } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                            // ignore
+                        } else {
+                            tracing::error!("failed to deselect `{value:?}`, {e}");
+                        }
+                        deselected
+                    }
+                }
+            }
+
+            fn is_selected(ctx: &mut WidgetContext, value: &T) -> bool {
+                SelectorVar::get(ctx.vars).instance.borrow().is_selected(&mut ctx.as_info(), value)
+            }
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, T: VarValue + PartialEq, V: Var<T>> UiNode for ValueNode<C, T, V> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let value = self.value.get(ctx.vars);
-                let selected = SelectorVar::get(ctx.vars).instance.borrow().is_selected(&mut ctx.as_info(), value);
+
+                let selected = if SelectOnInitVar::new().copy(ctx) {
+                    Self::select(ctx, value)
+                } else {
+                    Self::is_selected(ctx, value)
+                };
                 self.checked.set_ne(ctx.vars, Some(selected));
+
+                if DeselectOnNewVar::new().copy(ctx) {
+                    self.prev_value = Some(value.clone());
+                }
 
                 self.child.init(ctx);
             }
 
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                if self.checked.copy(ctx.vars) == Some(true) {
-                    // TODO, (de)select?
+                if self.checked.copy(ctx.vars) == Some(true) && DeselectOnDeinitVar::new().copy(ctx) {
+                    let value = self.value.get(ctx.vars);
+                    if Self::deselect(ctx, value) {
+                        self.checked.set_ne(ctx, Some(false));
+                    }
                 }
+
+                self.prev_value = None;
+
                 self.child.deinit(ctx);
             }
 
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 SelectorVar::get(ctx.vars).instance.borrow().subscribe(ctx, subs);
-                subs.var(ctx, &self.value);
+                subs.vars(ctx)
+                    .var(&self.value)
+                    .var(&SelectorVar::new())
+                    .var(&DeselectOnNewVar::new());
                 subs.event(ClickEvent);
                 self.child.subscriptions(ctx, subs);
             }
@@ -330,34 +388,14 @@ pub mod properties {
                     if args.is_primary() && !args.propagation().is_stopped() && args.is_enabled(ctx.path.widget_id()) {
                         args.propagation().stop();
 
-                        let selected = self.checked.copy(ctx) == Some(true);
                         let value = self.value.get(ctx.vars);
-                        let mut selector = SelectorVar::get(ctx.vars).instance.borrow_mut();
-                        let r = if selected {
-                            selector.deselect(ctx, value)
+                        let selected = self.checked.copy(ctx) == Some(true);
+                        let selected = if selected {
+                            !Self::deselect(ctx, value)
                         } else {
-                            selector.select(ctx, Box::new(value.clone()))
+                            Self::select(ctx, value)
                         };
-                        match r {
-                            Ok(()) => self.checked.set(ctx, Some(!selected)),
-                            Err(e) => match e {
-                                SelectorError::ReadOnly | SelectorError::CannotClear => {
-                                    debug_assert_eq!(
-                                        selector.is_selected(&mut ctx.as_info(), value),
-                                        selected,
-                                        "selection changed after {e:?}"
-                                    );
-                                }
-                                e => {
-                                    let selected = selector.is_selected(&mut ctx.as_info(), value);
-                                    if self.checked.set_ne(ctx.vars, Some(selected)) {
-                                        tracing::error!("{}selected `{:?}` with error, {}", if selected { "de" } else { "" }, value, e);
-                                    } else {
-                                        tracing::error!("failed to {}select `{:?}`, {}", if selected { "de" } else { "" }, value, e);
-                                    }
-                                }
-                            },
-                        }
+                        self.checked.set_ne(ctx, Some(selected));
                     }
                 } else {
                     self.child.event(ctx, args)
@@ -365,9 +403,38 @@ pub mod properties {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
-                let value = self.value.get(ctx.vars);
-                let selected = SelectorVar::get(ctx.vars).instance.borrow().is_selected(&mut ctx.as_info(), value);
+                let selected = if let Some(new) = self.value.get_new(ctx.vars) {
+                    // auto select new.
+                    let selected = if SelectOnNewVar::new().copy(ctx.vars) {
+                        Self::select(ctx, new)
+                    } else {
+                        Self::is_selected(ctx, new)
+                    };
+
+                    // auto deselect prev, need to be done after potential auto select new to avoid `CannotClear` error.
+                    if let Some(prev) = self.prev_value.take() {
+                        if DeselectOnNewVar::new().copy(ctx.vars) {
+                            Self::deselect(ctx, &prev);
+                            self.prev_value = Some(new.clone());
+                        }
+                    }
+
+                    selected
+                } else {
+                    // contextual selection can change in any update.
+                    let value = self.value.get(ctx.vars);
+                    Self::is_selected(ctx, value)
+                };
                 self.checked.set_ne(ctx.vars, selected);
+
+                if SelectOnNewVar::new().copy(ctx) {
+                    if self.prev_value.is_none() {
+                        let value = self.value.get_clone(ctx);
+                        self.prev_value = Some(value);
+                    }
+                } else {
+                    self.prev_value = None;
+                }
 
                 self.child.update(ctx);
             }
@@ -378,7 +445,7 @@ pub mod properties {
             child,
             value: value.into_var(),
             checked,
-            _type: PhantomData::<T>,
+            prev_value: None,
         }
     }
 
@@ -396,9 +463,74 @@ pub mod properties {
         with_context_var(child, SelectorVar, SelectorInstance::new(selector))
     }
 
+    /// If [`value`] is selected when the widget that has the value is inited.
+    ///
+    /// [`value`]: fn@value
+    #[property(context, default(SelectOnInitVar))]
+    pub fn select_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+        with_context_var(child, SelectOnInitVar, enabled)
+    }
+
+    /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
+    ///
+    /// [`value`]: fn@value
+    #[property(context, default(DeselectOnDeinitVar))]
+    pub fn deselect_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+        with_context_var(child, DeselectOnDeinitVar, enabled)
+    }
+
+    /// If [`value`] selects the new value when the value variable changes and the previous value was selected.
+    ///
+    /// [`value`]: fn@value
+    #[property(context, default(SelectOnNewVar))]
+    pub fn select_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+        with_context_var(child, SelectOnNewVar, enabled)
+    }
+
+    /// If [`value`] deselects the previously selected value when the value variable changes.
+    ///
+    /// [`value`]: fn@value
+    #[property(context, default(DeselectOnNewVar))]
+    pub fn deselect_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+        with_context_var(child, DeselectOnNewVar, enabled)
+    }
+
     context_var! {
         struct SelectorVar: SelectorInstance = SelectorInstance::new(NilSel);
+
+        /// If [`value`] is selected when the widget that has the value is inited.
+        ///
+        /// Use the [`select_on_init`] property to set. By default is `false`.
+        ///
+        /// [`value`]: fn@value
+        /// [`select_on_init`]: fn@select_on_init
+        pub struct SelectOnInitVar: bool = false;
+
+        /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
+        ///
+        /// Use the [`deselect_on_deinit`] property to set. By default is `false`.
+        ///
+        /// [`value`]: fn@value
+        /// [`deselect_on_deinit`]: fn@deselect_on_deinit
+        pub struct DeselectOnDeinitVar: bool = false;
+
+        /// If [`value`] selects the new value when the value variable changes and the previous value was selected.
+        ///
+        /// Use the [`select_on_new`] property to set. By default is `true`.
+        ///
+        /// [`value`]: fn@value
+        /// [`select_on_new`]: fn@select_on_new
+        pub struct SelectOnNewVar: bool = true;
+
+        /// If [`value`] deselects the previously selected value when the value variable changes.
+        ///
+        /// Use the [`deselect_on_new`] property to set. By default is `false`.
+        ///
+        /// [`value`]: fn@value
+        /// [`select_on_new`]: fn@select_on_new
+        pub struct DeselectOnNewVar: bool = false;
     }
+
     #[derive(Clone)]
     struct SelectorInstance {
         instance: Rc<RefCell<Box<dyn Selector>>>,

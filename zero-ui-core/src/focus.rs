@@ -1014,6 +1014,8 @@ impl Focus {
                     target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
                 }
             }
+        } else {
+            tracing::error!("cannot focus {widget_id:?}, widget not found");
         }
 
         if let Some((target, enabled_nav)) = target {

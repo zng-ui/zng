@@ -86,38 +86,38 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     }
 }
 
-fn color_btn(c: impl Var<Rgba>) -> impl Widget {
-    toggle! {
-        value<Rgba> = c.clone();
-        content = h_stack! {
-            spacing = 4;
-            items_align = Align::LEFT;
-            items = widgets![
-                blank! {
-                    background_color = c.clone();
-                    size = (16, 16);
-                },
-                text(c.map_to_text()),
-            ];
-        };
-    }
-}
-
 fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widget {
+    fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl Widget {
+        toggle! {
+            select_on_init;
+            value<Rgba> = c.clone();
+            content = h_stack! {
+                spacing = 4;
+                items_align = Align::LEFT;
+                items = widgets![
+                    blank! {
+                        background_color = c.clone();
+                        size = (16, 16);
+                    },
+                    text(c.map_to_text()),
+                ];
+            };
+        }
+    }
     fn primary_color(c: Rgba) -> impl Widget {
         let c = c.desaturate(50.pct());
         let c = WindowThemeVar::new().map(move |t| match t {
             WindowTheme::Light => rgba(255, 255, 255, 20.pct()).mix_normal(c),
             WindowTheme::Dark => rgba(0, 0, 0, 20.pct()).mix_normal(c),
         });
-        color_btn(c)
+        color_btn(c, false)
     }
 
     select(
         "Background Color",
         color,
         widgets![
-            color_btn(default),
+            color_btn(default, true),
             primary_color(rgb(1.0, 0.0, 0.0)),
             primary_color(rgb(0.0, 0.8, 0.0)),
             primary_color(rgb(0.0, 0.0, 1.0)),
