@@ -1,7 +1,3 @@
-* Add other icon fonts to font example.
-    - Add search.
-* Fix icon docs, font not loading for demos (not implemented?)
-
 * Finish implementing window `parent`.
     - [x] Theme fallback.
     - [x] Open center parent.

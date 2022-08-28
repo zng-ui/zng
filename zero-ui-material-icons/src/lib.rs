@@ -113,6 +113,16 @@ impl fmt::Display for MaterialIcon {
 /// Outline icons.
 ///  
 /// This is the "Material Icons Outlined" font.
+/// 
+/// <style>
+/// @font-face {
+///     font-family: "zero-ui-material-icons-extensions-outlined";
+///     src: url('../../zero-ui-material-icons-extensions/outlined');
+/// }
+/// .material-icons.outlined {
+///     font-family: "zero-ui-material-icons-extensions-outlined";
+/// }
+/// </style>
 #[cfg(feature = "outlined")]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "outlined")))]
 pub mod outlined {
@@ -137,6 +147,16 @@ pub mod outlined {
 /// Filled icons.
 ///
 /// This is the "Material Icons" font.
+/// 
+/// <style>
+/// @font-face {
+///     font-family: "zero-ui-material-icons-extensions-filled";
+///     src: url('../../zero-ui-material-icons-extensions/filled');
+/// }
+/// .material-icons.filled {
+///     font-family: "zero-ui-material-icons-extensions-filled";
+/// }
+/// </style>
 #[cfg(feature = "filled")]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "filled")))]
 pub mod filled {
@@ -161,6 +181,16 @@ pub mod filled {
 /// Rounded icons.
 ///  
 /// This is the "Material Icons Rounded" font.
+/// 
+/// <style>
+/// @font-face {
+///     font-family: "zero-ui-material-icons-extensions-rounded";
+///     src: url('../../zero-ui-material-icons-extensions/rounded');
+/// }
+/// .material-icons.rounded {
+///     font-family: "zero-ui-material-icons-extensions-rounded";
+/// }
+/// </style>
 #[cfg(feature = "rounded")]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "rounded")))]
 pub mod rounded {
@@ -185,6 +215,16 @@ pub mod rounded {
 /// Sharp icons.
 ///  
 /// This is the "Material Icons Sharp" font.
+/// 
+/// <style>
+/// @font-face {
+///     font-family: "zero-ui-material-icons-extensions-sharp";
+///     src: url('../../zero-ui-material-icons-extensions/sharp');
+/// }
+/// .material-icons.sharp {
+///     font-family: "zero-ui-material-icons-extensions-sharp";
+/// }
+/// </style>
 #[cfg(feature = "sharp")]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "sharp")))]
 pub mod sharp {
@@ -206,9 +246,19 @@ pub mod sharp {
     include!(concat!(env!("OUT_DIR"), "/generated.sharp.rs"));
 }
 
-/// Sharp icons.
+/// Two-tone icons.
 ///  
 /// This is the "Material Icons Two-Tone" font.
+/// 
+/// <style>
+/// @font-face {
+///     font-family: "zero-ui-material-icons-extensions-two_tone";
+///     src: url('../../zero-ui-material-icons-extensions/two_tone');
+/// }
+/// .material-icons.two_tone {
+///     font-family: "zero-ui-material-icons-extensions-two_tone";
+/// }
+/// </style>
 #[cfg(feature = "two_tone")]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "two_tone")))]
 pub mod two_tone {
