@@ -113,7 +113,7 @@ impl fmt::Display for MaterialIcon {
 /// Outline icons.
 ///  
 /// This is the "Material Icons Outlined" font.
-/// 
+///
 /// <style>
 /// @font-face {
 ///     font-family: "zero-ui-material-icons-extensions-outlined";
@@ -147,7 +147,7 @@ pub mod outlined {
 /// Filled icons.
 ///
 /// This is the "Material Icons" font.
-/// 
+///
 /// <style>
 /// @font-face {
 ///     font-family: "zero-ui-material-icons-extensions-filled";
@@ -181,7 +181,7 @@ pub mod filled {
 /// Rounded icons.
 ///  
 /// This is the "Material Icons Rounded" font.
-/// 
+///
 /// <style>
 /// @font-face {
 ///     font-family: "zero-ui-material-icons-extensions-rounded";
@@ -215,7 +215,7 @@ pub mod rounded {
 /// Sharp icons.
 ///  
 /// This is the "Material Icons Sharp" font.
-/// 
+///
 /// <style>
 /// @font-face {
 ///     font-family: "zero-ui-material-icons-extensions-sharp";
@@ -249,7 +249,7 @@ pub mod sharp {
 /// Two-tone icons.
 ///  
 /// This is the "Material Icons Two-Tone" font.
-/// 
+///
 /// <style>
 /// @font-face {
 ///     font-family: "zero-ui-material-icons-extensions-two_tone";

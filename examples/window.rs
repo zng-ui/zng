@@ -34,7 +34,11 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         move |p: &DipPoint, s: &DipSize| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}") }
     );
 
-    let background = var(rgb(0.1, 0.1, 0.1)).easing(150.ms(), easing::linear);
+    let default_background = WindowThemeVar::new().map(|t| match t {
+        WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
+        WindowTheme::Light => rgb(0.9, 0.9, 0.9),
+    });
+    let background = var(colors::BLACK).easing(150.ms(), easing::linear);
 
     window! {
         background_color = background.clone();
@@ -67,7 +71,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                     spacing = 20;
                     items = widgets![
                         icon(window_vars),
-                        background_color(background),
+                        background_color(background, default_background),
                     ];
                 },
                 v_stack! {
@@ -82,33 +86,42 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     }
 }
 
-fn background_color(color: impl Var<Rgba>) -> impl Widget {
-    let color_btn = |c: Rgba| {
-        toggle! {
-            value<Rgba> = c;
-            content = h_stack! {
-                spacing = 4;
-                items_align = Align::LEFT;
-                items = widgets![
-                    blank! {
-                        background_color = c;
-                        size = (16, 16);
-                    },
-                    text(c.to_text()),
-                ];
-            };
-        }
-    };
+fn color_btn(c: impl Var<Rgba>) -> impl Widget {
+    toggle! {
+        value<Rgba> = c.clone();
+        content = h_stack! {
+            spacing = 4;
+            items_align = Align::LEFT;
+            items = widgets![
+                blank! {
+                    background_color = c.clone();
+                    size = (16, 16);
+                },
+                text(c.map_to_text()),
+            ];
+        };
+    }
+}
+
+fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widget {
+    fn primary_color(c: Rgba) -> impl Widget {
+        let c = c.desaturate(50.pct());
+        let c = WindowThemeVar::new().map(move |t| match t {
+            WindowTheme::Light => rgba(255, 255, 255, 20.pct()).mix_normal(c),
+            WindowTheme::Dark => rgba(0, 0, 0, 20.pct()).mix_normal(c),
+        });
+        color_btn(c)
+    }
 
     select(
         "Background Color",
         color,
         widgets![
-            color_btn(rgb(0.1, 0.1, 0.1)),
-            color_btn(rgb(0.3, 0.0, 0.0)),
-            color_btn(rgb(0.0, 0.3, 0.0)),
-            color_btn(rgb(0.0, 0.0, 0.3)),
-            color_btn(rgba(0, 0, 240, 20.pct())),
+            color_btn(default),
+            primary_color(rgb(1.0, 0.0, 0.0)),
+            primary_color(rgb(0.0, 0.8, 0.0)),
+            primary_color(rgb(0.0, 0.0, 1.0)),
+            primary_color(rgba(0, 0, 240, 20.pct())),
         ],
     )
 }
@@ -437,15 +450,14 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
     )
 }
 
+#[derive(Debug, Clone, Copy)]
+enum CloseState {
+    Ask,
+    Asking,
+    Close,
+}
 fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     use zero_ui::widgets::window::*;
-
-    #[derive(Debug, Clone, Copy)]
-    enum CloseState {
-        Ask,
-        Asking,
-        Close,
-    }
 
     let state = var(CloseState::Ask);
     hn!(|ctx, args: &WindowCloseRequestedArgs| {
@@ -454,76 +466,77 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                 args.propagation().stop();
                 state.set(ctx, CloseState::Asking);
 
-                let windows = args.windows.clone();
-
-                WindowLayers::insert(
-                    ctx,
-                    LayerIndex::TOP_MOST,
-                    container! {
-                        id = "close-dialog";
-                        modal = true;
-                        background_color = colors::WHITE.with_alpha(10.pct());
-                        content_align = Align::CENTER;
-                        content = container! {
-                            background_color = colors::BLACK.with_alpha(90.pct());
-                            focus_scope = true;
-                            tab_nav = TabNav::Cycle;
-                            directional_nav = DirectionalNav::Cycle;
-                            drop_shadow = (0, 0), 4, colors::BLACK;
-                            padding = 4;
-
-                            button::vis::dark = theme_generator!(|_, _| {
-                                button::vis::dark_theme! {
-                                    padding = 4;
-                                    corner_radius = unset!;
-                                }
-                            });
-                            button::vis::light = theme_generator!(|_, _| {
-                                button::vis::light_theme! {
-                                    padding = 4;
-                                    corner_radius = unset!;
-                                }
-                            });
-
-                            content = v_stack! {
-                                items_align = Align::RIGHT;
-                                items = widgets![
-                                    text! {
-                                        text = match windows.len() {
-                                            1 => "Close Confirmation\n\nClose 1 window?".to_text(),
-                                            n => formatx!("Close Confirmation\n\nClose {n} windows?")
-                                        };
-                                        margin = 15;
-                                    },
-                                    h_stack! {
-                                        spacing = 4;
-                                        items = widgets![
-                                            button! {
-                                                content = strong("Close");
-                                                on_click = hn_once!(state, |ctx, _| {
-                                                    state.set(ctx, CloseState::Close);
-                                                    Windows::req(ctx.services).close_together(windows).unwrap();
-                                                })
-                                            },
-                                            button! {
-                                                content = text("Cancel");
-                                                on_click = hn!(state, |ctx, _| {
-                                                    state.set(ctx, CloseState::Ask);
-                                                    WindowLayers::remove(ctx, "close-dialog");
-                                                });
-                                            },
-                                        ]
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                )
+                WindowLayers::insert(ctx, LayerIndex::TOP_MOST, close_dialog(args.windows.clone().into(), state.clone()))
             }
             CloseState::Asking => args.propagation().stop(),
             CloseState::Close => {}
         }
     })
+}
+
+fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget {
+    container! {
+        id = "close-dialog";
+        modal = true;
+        background_color = colors::WHITE.with_alpha(10.pct());
+        content_align = Align::CENTER;
+        content = container! {
+            background_color = WindowThemeVar::new().map(|t| match t {
+                WindowTheme::Light => colors::WHITE.with_alpha(90.pct()),
+                WindowTheme::Dark => colors::BLACK.with_alpha(90.pct()),
+            });
+            focus_scope = true;
+            tab_nav = TabNav::Cycle;
+            directional_nav = DirectionalNav::Cycle;
+            drop_shadow = (0, 0), 4, colors::BLACK;
+            padding = 4;
+
+            button::vis::dark = theme_generator!(|_, _| {
+                button::vis::dark_theme! {
+                    padding = 4;
+                    corner_radius = unset!;
+                }
+            });
+            button::vis::light = theme_generator!(|_, _| {
+                button::vis::light_theme! {
+                    padding = 4;
+                    corner_radius = unset!;
+                }
+            });
+
+            content = v_stack! {
+                items_align = Align::RIGHT;
+                items = widgets![
+                    text! {
+                        text = match windows.len() {
+                            1 => "Close Confirmation\n\nClose 1 window?".to_text(),
+                            n => formatx!("Close Confirmation\n\nClose {n} windows?")
+                        };
+                        margin = 15;
+                    },
+                    h_stack! {
+                        spacing = 4;
+                        items = widgets![
+                            button! {
+                                content = strong("Close");
+                                on_click = hn_once!(state, |ctx, _| {
+                                    state.set(ctx, CloseState::Close);
+                                    Windows::req(ctx.services).close_together(windows).unwrap();
+                                })
+                            },
+                            button! {
+                                content = text("Cancel");
+                                on_click = hn!(state, |ctx, _| {
+                                    state.set(ctx, CloseState::Ask);
+                                    WindowLayers::remove(ctx, "close-dialog");
+                                });
+                            },
+                        ]
+                    }
+                ]
+            }
+        }
+    }
 }
 
 fn cmd_btn(cmd: impl Command) -> impl Widget {

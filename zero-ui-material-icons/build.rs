@@ -110,7 +110,6 @@ fn write_html_in_header() {
         let file = doc_dir.join(mod_name);
         fs::write(file, font).unwrap();
 
-
         writeln!(&mut css, ".material-icons.{mod_name} {{").unwrap();
         writeln!(&mut css, "   font-family: url('zero-ui-material-icons-extensions/{mod_name}');").unwrap();
         writeln!(&mut css, "}}").unwrap();

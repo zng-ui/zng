@@ -9,6 +9,7 @@
 * Implement `modal`.
     - [ ] Steal focus back to modal.
     - [ ] Window level "interactivity", parent window must not receive any event (other than forced close).
+* Review light theme in all examples.
 
 # Text
 
