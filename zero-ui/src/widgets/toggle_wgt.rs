@@ -341,10 +341,20 @@ pub mod properties {
                         match r {
                             Ok(()) => self.checked.set(ctx, Some(!selected)),
                             Err(e) => match e {
-                                SelectorError::ReadOnly => {}
+                                SelectorError::ReadOnly | SelectorError::CannotClear => {
+                                    debug_assert_eq!(
+                                        selector.is_selected(&mut ctx.as_info(), value),
+                                        selected,
+                                        "selection changed after {e:?}"
+                                    );
+                                }
                                 e => {
-                                    self.checked.set_ne(ctx, None);
-                                    tracing::error!("failed to {}select `{:?}`, {}", if selected { "de" } else { "" }, value, e);
+                                    let selected = selector.is_selected(&mut ctx.as_info(), value);
+                                    if self.checked.set_ne(ctx.vars, Some(selected)) {
+                                        tracing::error!("{}selected `{:?}` with error, {}", if selected { "de" } else { "" }, value, e);
+                                    } else {
+                                        tracing::error!("failed to {}select `{:?}`, {}", if selected { "de" } else { "" }, value, e);
+                                    }
                                 }
                             },
                         }
@@ -438,6 +448,8 @@ pub mod properties {
         WrongType,
         /// Cannot (de)select item because the selection is read-only.
         ReadOnly,
+        /// Cannot deselect item because the selection cannot be empty.
+        CannotClear,
         /// Cannot select item because of a selector specific reason.
         Custom(Rc<dyn Error + 'static>),
     }
@@ -455,6 +467,7 @@ pub mod properties {
             match self {
                 SelectorError::WrongType => write!(f, "wrong value type for selection"),
                 SelectorError::ReadOnly => write!(f, "selection is read-only"),
+                SelectorError::CannotClear => write!(f, "selection cannot be empty"),
                 SelectorError::Custom(e) => fmt::Display::fmt(e, f),
             }
         }
@@ -464,6 +477,7 @@ pub mod properties {
             match self {
                 SelectorError::WrongType => None,
                 SelectorError::ReadOnly => None,
+                SelectorError::CannotClear => None,
                 SelectorError::Custom(e) => Some(&**e),
             }
         }
@@ -540,7 +554,7 @@ pub mod properties {
 
         fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
             if self.is_selected(&mut ctx.as_info(), value) {
-                Err(SelectorError::custom_str("cannot unset selection"))
+                Err(SelectorError::CannotClear)
             } else {
                 Ok(())
             }
