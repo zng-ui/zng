@@ -55,9 +55,9 @@ fn icons() -> impl Widget {
     v_stack! {
         padding = (20, 5, 5, 5);
         spacing = 20;
+        items_align = Align::TOP;
         items = widgets![
             h_stack! {
-                align = Align::CENTER;
                 toggle::selection = toggle::SingleSel::new(selected_font.clone());
                 spacing = 5;
                 items = widgets![

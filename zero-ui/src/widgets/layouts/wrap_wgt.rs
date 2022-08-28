@@ -106,11 +106,12 @@ pub mod wrap {
                             if a.size == PxSize::zero() {
                                 return;
                             }
-                            let width = row_size.width + a.size.width + spacing.column;
-                            if width < max_width {
+
+                            let new_width = row_size.width + a.size.width;
+                            if new_width <= max_width {
                                 wl.translate(PxVector::new(row_size.width, panel_size.height));
 
-                                row_size.width = width;
+                                row_size.width = new_width + spacing.column;
                                 row_size.height = row_size.height.max(a.size.height);
                             } else {
                                 if row_size.width > Px(0) {
