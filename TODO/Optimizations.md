@@ -33,7 +33,7 @@
     - gleam uses a `Rc<dyn Gl>` for the OpenGL functions.
     - There are obscure bugs with sending OpenGL contexts across threads, maybe review using `surfman` again.
 
-# Debug Profiler
+# Inspector
 
 * Icon example changing the icon font, deinit + instantiate + init~>render all icon buttons:
   - debug + "inspector" (default) changes in 18s!
@@ -46,13 +46,20 @@ are pretty slow.
 
 Need to optimize the inspector nodes a bit, maybe some lazy stuff?
 
+# Profiler
+
+* Try `tracing-chrometrace`, see if it is faster than `profile/util`.
+
 # Parallel UI
 
 * How much overhead needed to add `rayon` join support for UiNode methods?
-    * Need to make every thing sync.
+    * Need to make everything Send+Sync.
     * Vars are already *locked* for updates due to their delayed assign, is only reading from `Arc` slower then from `Rc`?
     * Event `propagation` becomes indeterministic.
     * Services must become sync.
     * State must become sync!
 * Maybe can always have an AppContext for each UI thread, with a copy of services and such, after each update they merge into
   the main AppContext.
+
+* If nodes where at least `Send` we could init~>layout a large tree in a background thread, then swap it in, for very large trees
+   the initial cycle is the slowest, after only the parts the user interacts with change.
