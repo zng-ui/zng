@@ -29,17 +29,22 @@
 * Try to detect unsupported render mode without glutin.
 * Try to implement async context creation in default view crate.
     - Problem, glutin needs the event-loop window target to build a context (it is not send and must be in main).
-    - Can use `build_raw_context` that only requires a window handle, so we create the winit window blocking then offload
-      everything to a thread.
+      - glutin-v2 will not need this?
     - gleam uses a `Rc<dyn Gl>` for the OpenGL functions.
     - There are obscure bugs with sending OpenGL contexts across threads, maybe review using `surfman` again.
 
 # Debug Profiler
 
-* Tracing is very slow, investigate how to fix.
-  - Comparison of release mode with/out "inspector" and profiler shows that a 7ms frame turns into a 13ms frame.
-  - Some of it is due to all the boxing enabled by "inspector.
-  - Can we use the inspector collected metadata to batch generate tracing spans after the frame is send?
+* Icon example changing the icon font, deinit + instantiate + init~>render all icon buttons:
+  - debug + "inspector" (default) changes in 18s!
+  - release-lto + "inspector" changes in 4s!
+  - release-lto + "dyn_widget" (default) changes in 320ms. 
+  - release-lto + "dyn_node" changes in 525ms.
+
+This is are some rough timings, done while some other stuff was happening, but they indicate that the "inspector" nodes
+are pretty slow.
+
+Need to optimize the inspector nodes a bit, maybe some lazy stuff?
 
 # Parallel UI
 

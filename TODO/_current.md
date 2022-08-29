@@ -8,8 +8,6 @@
     - Window is not focused on open so the focus does not move?
     - Maybe we can move the focus_return of the window to the new focus request in cases like this?
 
-
-* Profile icon set change in debug compilation.
 * Finish implementing window `parent`.
     - [x] Theme fallback.
     - [x] Open center parent.
