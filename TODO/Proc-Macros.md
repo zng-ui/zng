@@ -2,8 +2,6 @@
 
 Proc-macros are mostly implemented, there are some improvements we can make:
 
-* Test enabling const generics in properties now that turbofish is supported in assign.
-
 * Replace `when self.foo` with `#foo`, to allow widgets from associated value, e.g: `fn to_view(self) -> impl Widget { }`
 * Add `#base::new_*` syntax to allow calling the overridden constructor from inside the new constructor.
     - This lets us avoid needing to make each constructor public and documented for each widget.
