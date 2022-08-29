@@ -1,0 +1,29 @@
+error: expected `=`
+  --> cases/widget/attr_priority_index.rs:11:11
+   |
+11 |         #[priority_index]
+   |           ^^^^^^^^^^^^^^
+
+error: unexpected end of input, expected integer literal
+  --> cases/widget/attr_priority_index.rs:14:26
+   |
+14 |         #[priority_index = ]
+   |                          ^
+
+error: expected integer literal
+  --> cases/widget/attr_priority_index.rs:17:28
+   |
+17 |         #[priority_index = 10.0]
+   |                            ^^^^
+
+error: expected integer literal
+  --> cases/widget/attr_priority_index.rs:20:28
+   |
+20 |         #[priority_index = "10"]
+   |                            ^^^^
+
+error: expected `=`
+  --> cases/widget/attr_priority_index.rs:23:25
+   |
+23 |         #[priority_index(10)]
+   |                         ^

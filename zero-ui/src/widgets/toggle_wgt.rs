@@ -45,6 +45,7 @@ pub mod toggle {
         /// Note that you can read the checked state of the widget using [`is_checked`].
         ///
         /// [`is_checked`]: #wp-is_checked
+        #[priority_index = 999]
         properties::checked;
 
         /// Toggle cycles between `Some(true)` and `Some(false)` and accepts `None`, if the
@@ -66,6 +67,7 @@ pub mod toggle {
         /// }
         /// # ;
         /// ```
+        #[priority_index = 999]
         properties::checked_opt;
 
         /// Values that is selected in the contextual [`selection`].
@@ -103,6 +105,7 @@ pub mod toggle {
         ///
         /// [`is_checked`]: #wp-is_checked
         /// [`selection`]: fn@selection
+        #[priority_index = 999]
         properties::value;
 
         /// Enables `None` as an input value.

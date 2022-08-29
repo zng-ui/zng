@@ -494,9 +494,31 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 false
             }
         };
+        let priority_index = {
+            if let Some(i) = attrs
+                .others
+                .iter()
+                .position(|a| a.path.get_ident().map(|id| id == "priority_index").unwrap_or_default())
+            {
+                let attr = attrs.others.remove(i);
+                match syn::parse2::<PriorityIndexInput>(attr.tokens) {
+                    Ok(t) => t.0,
+                    Err(mut e) => {
+                        if util::span_is_call_site(e.span()) {
+                            e = syn::Error::new(attr.path.span(), e);
+                        }
+                        errors.push_syn(e);
+
+                        0
+                    }
+                }
+            } else {
+                0
+            }
+        };
         for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
             errors.push(
-                "only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties",
+                "only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required` and lint attributes are allowed in properties",
                 util::path_span(&invalid_attr.path),
             );
         }
@@ -631,6 +653,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 default { #default }
                 required { #required }
                 declared { #declared }
+                priority_index { #priority_index }
             }
         });
     }
@@ -1759,5 +1782,20 @@ impl Parse for AllowedInWhenInput {
                 }
             })?,
         })
+    }
+}
+
+struct PriorityIndexInput(pub i16);
+impl Parse for PriorityIndexInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let eq: Token![=] = input.parse()?;
+        let i = input.parse::<syn::LitInt>().map_err(|e| {
+            if util::span_is_call_site(e.span()) {
+                syn::Error::new(eq.span(), e)
+            } else {
+                e
+            }
+        })?;
+        Ok(PriorityIndexInput(i.base10_parse()?))
     }
 }

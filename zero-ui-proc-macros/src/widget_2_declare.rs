@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{parse::Parse, Ident, LitBool};
+use syn::{parse::Parse, Ident, LitBool, LitInt};
 
 use crate::{
     util::{self, parse_all, Errors},
@@ -382,6 +382,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             cfg,
             mut default,
             mut required,
+            priority_index,
         } = ip;
 
         required |= inherited_required.contains(ident);
@@ -423,6 +424,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 cfg { #cfg }
                 default { #default }
                 required { #required }
+                priority_index { #priority_index }
             }
         });
 
@@ -487,6 +489,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             mut default,
             required,
             declared,
+            priority_index,
             ..
         } = p;
 
@@ -535,6 +538,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 cfg { #cfg }
                 default { #default }
                 required { #required }
+                priority_index { #priority_index }
             }
         });
 
@@ -887,6 +891,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 cfg { #has_cfg }
                 default { true }
                 required { false }
+                priority_index { 0 }
             }
         });
 
@@ -1375,6 +1380,7 @@ struct PropertyItem {
     default: bool,
     required: bool,
     declared: bool,
+    priority_index: i16,
 }
 impl Parse for PropertyItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1402,6 +1408,11 @@ impl Parse for PropertyItem {
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
+            priority_index: named_braces!("priority_index")
+                .parse::<LitInt>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .base10_parse()
+                .unwrap_or_else(|e| non_user_error!(e)),
         };
 
         Ok(property_item)

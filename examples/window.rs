@@ -89,8 +89,8 @@ fn main_window(ctx: &mut WindowContext) -> Window {
 fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widget {
     fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl Widget {
         toggle! {
-            select_on_init;
             value<Rgba> = c.clone();
+            select_on_init;
             content = h_stack! {
                 spacing = 4;
                 items_align = Align::LEFT;

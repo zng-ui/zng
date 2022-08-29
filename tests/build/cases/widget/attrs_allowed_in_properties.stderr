@@ -1,17 +1,17 @@
-error: only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties
-  --> $DIR/attrs_allowed_in_properties.rs:20:11
+error: only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required` and lint attributes are allowed in properties
+  --> cases/widget/attrs_allowed_in_properties.rs:20:11
    |
 20 |         #[inline]
    |           ^^^^^^
 
-error: only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties
-  --> $DIR/attrs_allowed_in_properties.rs:23:11
+error: only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required` and lint attributes are allowed in properties
+  --> cases/widget/attrs_allowed_in_properties.rs:23:11
    |
 23 |         #[foo(bar)]
    |           ^^^
 
-error: only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties
-  --> $DIR/attrs_allowed_in_properties.rs:26:16
+error: only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required` and lint attributes are allowed in properties
+  --> cases/widget/attrs_allowed_in_properties.rs:26:16
    |
 26 |         #[foo::bar(true)]
    |                ^^^

@@ -16,4 +16,4 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
             FillUiNode
             MyNode
             NilUiNode
-          and 132 others
+          and 133 others

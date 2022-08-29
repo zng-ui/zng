@@ -12,7 +12,7 @@ use syn::{
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
-    token, AngleBracketedGenericArguments, Attribute, Expr, FieldValue, Ident, LitBool, Path, PathArguments, Token,
+    token, AngleBracketedGenericArguments, Attribute, Expr, FieldValue, Ident, LitBool, LitInt, Path, PathArguments, Token,
 };
 
 use crate::{
@@ -68,7 +68,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut errors = user_input.errors;
 
-    let inherited_properties: HashMap<_, _> = widget_data.properties.iter().map(|p| (&p.ident, p.cfg)).collect();
+    let inherited_properties: HashMap<_, _> = widget_data
+        .properties
+        .iter()
+        .map(|p| (&p.ident, (p.cfg, p.priority_index)))
+        .collect();
 
     // properties that must be assigned by the user.
     let required_properties: HashSet<_> = widget_data.properties.iter().filter(|p| p.required).map(|p| &p.ident).collect();
@@ -140,6 +144,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt_properties = HashMap::<syn::Path, (Option<Ident>, Option<Ident>, TokenStream)>::new();
 
     let mut property_inits = TokenStream::default();
+    struct PropertySet {
+        priority_index: i16,
+
+        p_mod: TokenStream,
+        p_var_ident: Ident,
+        p_name: String,
+        source_loc: TokenStream,
+        p_cfg: Option<Ident>,
+        cfg: TokenStream,
+        user_assigned: bool,
+        p_span: Span,
+        val_span: Span,
+    }
     let mut prop_set_calls = vec![];
 
     // for each inherited property that has a default value and is not overridden by the user:
@@ -177,39 +194,38 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let p_mod_ident = ident!("__p_{ident}");
         // register data for the set call generation.
-        prop_set_calls.push((
-            quote! { #module::#p_mod_ident },
+        prop_set_calls.push(PropertySet {
+            priority_index: ip.priority_index,
+
+            p_mod: quote! { #module::#p_mod_ident },
             p_var_ident,
-            ip.ident.to_string(),
-            {
+            p_name: ip.ident.to_string(),
+            source_loc: {
                 let p_source_loc_ident = ident!("__loc_{}", ip.ident);
                 quote! { #module::#p_source_loc_ident() }
             },
-            p_cfg.clone(),
-            /* user_cfg: */ TokenStream::new(),
-            /* user_assigned: */ false,
-            call_site,
-            call_site,
-        ));
+            p_cfg: p_cfg.clone(),
+            cfg: TokenStream::new(),
+            user_assigned: false,
+            p_span: call_site,
+            val_span: call_site,
+        });
     }
 
     // for each property assigned in the widget instantiation call (excluding when blocks and `special!` values).
     for (i, up) in user_properties.iter().enumerate() {
         let p_name = util::display_path(&up.path);
 
-        let (p_mod, p_cfg) = match up.path.get_ident() {
+        let (p_mod, p_cfg, priority_index) = match up.path.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                 let p_ident = ident!("__p_{maybe_inherited}");
 
-                let p_cfg = if *inherited_properties.get(maybe_inherited).unwrap() {
-                    Some(ident!("__cfg_{maybe_inherited}"))
-                } else {
-                    None
-                };
+                let (has_cfg, index) = inherited_properties.get(maybe_inherited).unwrap();
+                let p_cfg = if *has_cfg { Some(ident!("__cfg_{maybe_inherited}")) } else { None };
 
-                (quote! { #module::#p_ident }, p_cfg)
+                (quote! { #module::#p_ident }, p_cfg, *index)
             }
-            _ => (up.path.to_token_stream(), None),
+            _ => (up.path.to_token_stream(), None, 0),
         };
         let p_var_ident = ident!("__u{}_{}", i, p_name.replace("::", "_"));
         let attrs = Attributes::new(up.attrs.clone());
@@ -245,19 +261,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
         // register data for the set call generation.
-        prop_set_calls.push((
-            p_mod.to_token_stream(),
+        prop_set_calls.push(PropertySet {
+            priority_index,
+
+            p_mod: p_mod.to_token_stream(),
             p_var_ident,
             p_name,
-            quote_spanned! {up.path.span()=>
+            source_loc: quote_spanned! {up.path.span()=>
                 #module::__core::source_location!()
             },
             p_cfg,
-            cfg.to_token_stream(),
-            /*user_assigned: */ true,
-            up.path.span(),
-            up.value_span,
-        ));
+            cfg: cfg.to_token_stream(),
+            user_assigned: true,
+            p_span: up.path.span(),
+            val_span: up.value_span,
+        });
     }
 
     // validate required properties.
@@ -614,12 +632,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for (property, (cfg, i)) in user_when_properties {
         let args_ident = ident!("__ud{i}_{}", util::path_to_ident_str(&property));
 
-        let property_path = match property.get_ident() {
+        let (property_path, priority_index) = match property.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
+                let (_, index) = inherited_properties.get(maybe_inherited).unwrap();
                 let p_ident = ident!("__p_{maybe_inherited}");
-                parse_quote! { #module::#p_ident }
+                (parse_quote! { #module::#p_ident }, *index)
             }
-            _ => property.clone(),
+            _ => (property.clone(), 0),
         };
 
         property_inits.extend(quote! {
@@ -649,21 +668,23 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let p_span = property_path.span();
 
         // register data for the set call generation.
-        prop_set_calls.push((
-            property_path.to_token_stream(),
-            args_ident.clone(),
-            util::display_path(&property_path),
-            {
+        prop_set_calls.push(PropertySet {
+            priority_index,
+
+            p_mod: property_path.to_token_stream(),
+            p_var_ident: args_ident.clone(),
+            p_name: util::display_path(&property_path),
+            source_loc: {
                 quote_spanned! {p_span=>
                     #module::__core::source_location!()
                 }
             },
-            None,
-            cfg.to_token_stream(),
-            /*user_assigned: */ true,
+            p_cfg: None,
+            cfg: cfg.to_token_stream(),
+            user_assigned: true,
             p_span,
-            /*val_span: */ call_site,
-        ));
+            val_span: call_site,
+        });
 
         wgt_properties.insert(property, (Some(args_ident), None, cfg.unwrap_or_default()));
     }
@@ -692,8 +713,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         })
         .collect();
 
+    prop_set_calls.sort_by_key(|p| p.priority_index);
+    let prop_set_calls = prop_set_calls;
+
     // generate capture_only asserts.
-    for (p_mod, _, p_name, _, p_cfg, cfg, _, p_span, _) in &prop_set_calls {
+    for PropertySet {
+        p_mod,
+        p_name,
+        p_cfg,
+        cfg,
+        p_span,
+        ..
+    } in &prop_set_calls
+    {
         let capture_only_error =
             format!("property `{p_name}` cannot be set because it is capture-only, but is not captured by the widget",);
         let assert = quote_spanned! {*p_span=>
@@ -769,7 +801,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
         }
 
-        for (p_mod, p_var_ident, p_name, source_loc, p_cfg, cfg, user_assigned, p_span, val_span) in prop_set_calls.iter().rev() {
+        for PropertySet {
+            p_mod,
+            p_var_ident,
+            p_name,
+            source_loc,
+            p_cfg,
+            cfg,
+            user_assigned,
+            p_span,
+            val_span,
+            ..
+        } in prop_set_calls.iter().rev()
+        {
             // __set @ value span
 
             let child = if dynamic { &dyn_node__ } else { &node__ };
@@ -1029,6 +1073,7 @@ pub struct BuiltProperty {
     pub cfg: bool,
     pub default: bool,
     pub required: bool,
+    pub priority_index: i16,
 }
 impl Parse for BuiltProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -1050,6 +1095,11 @@ impl Parse for BuiltProperty {
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
+            priority_index: non_user_braced!(&input, "priority_index")
+                .parse::<LitInt>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .base10_parse()
+                .unwrap_or_else(|e| non_user_error!(e)),
         };
         Ok(r)
     }

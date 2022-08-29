@@ -668,6 +668,47 @@ pub use zero_ui_proc_macros::property;
 ///
 /// Note that captured properties are also marked required without the need for the pseudo-attribute.
 ///
+/// ## Priority Index
+///
+/// Property priority can be tweaked using the pseudo-attribute `#[priority_index = <i16>]`. Properties of
+/// the same priority are sorted by this index, the higher the index the more *inner* the property node is placed,
+/// in the group of properties of the same priority.
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{*, var::*};
+/// # #[derive(Clone, Debug)] pub struct ValueConfig;
+/// # context_var! { struct ValueConfigVar: ValueConfig = ValueConfig; }
+/// #[property(context)]
+/// pub fn value<T: VarValue>(child: impl UiNode, m: impl IntoVar<T>) -> impl UiNode {
+///     // ..
+/// #    child
+/// }
+///
+/// #[property(context)]
+/// pub fn value_config(child: impl UiNode, cfg: impl IntoVar<ValueConfig>) -> impl UiNode {
+///     with_context_var(child, ValueConfigVar, cfg)
+/// }
+///
+/// # #[widget($crate::foo)]
+/// # pub mod foo {
+/// #   use super::*;
+/// properties! {
+///     #[priority_index = 999]
+///     value;
+///
+///     value_config;
+/// }
+/// # }
+/// ```
+///
+/// In the example both `value` and `value_config` are of the *context* priority, but the `value` property wants to read
+/// the config so it should be a descendant of the `value_config` independent of the order the user assigns each, this
+/// is resolved by giving value a higher priority index.
+///
+/// The pseudo-attribute accepts any [`i16`] literal and the default index is `0`, note that this value is not a `const`, it must
+/// be known at the proc-macro level so it most be an integer literal.
+///
 /// ## Remove
 ///
 /// Removes an [inherited](#inherit) property from the widget.

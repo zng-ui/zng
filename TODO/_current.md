@@ -1,5 +1,3 @@
-* Implemented extra priority sorting to fix `toggle::tristate` and other contextual properties.
-    - See `Proc-Macros.md`
 * Implement dynamic when states, see `Themes.md`.
 * Review dynamic property set in the widget declaration and set again in instance.
 * Review dynamic widget that captures set property.

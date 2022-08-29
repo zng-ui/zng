@@ -1442,6 +1442,183 @@ fn macro_rules_generated() {
     };
 }
 
+#[widget($crate::tests::widget::priority_index_wgt)]
+pub mod priority_index_wgt {
+    use super::util::*;
+
+    properties! {
+        count_context as context_0 = Position::next("context_0");
+        #[priority_index = 10]
+        count_context as context_10 = Position::next("context_10");
+        #[priority_index = 5]
+        count_context as context_5 = Position::next("context_5");
+
+        #[priority_index = -10]
+        count_context as context_n10 = Position::next("context_n10");
+
+        count_layout as layout_0 = Position::next("layout_0");
+        #[priority_index = 10]
+        count_layout as layout_10 = Position::next("layout_10");
+        #[priority_index = 5]
+        count_layout as layout_5 = Position::next("layout_5");
+
+        #[priority_index = -10]
+        count_layout as layout_n10 = Position::next("layout_n10");
+    }
+}
+
+#[test]
+fn priority_index_defaults_value_order() {
+    Position::reset();
+
+    let mut wgt = priority_index_wgt!();
+    wgt.test_init(&mut TestWidgetContext::new());
+
+    pretty_assertions::assert_eq!(
+        util::sorted_value_init(&wgt),
+        [
+            // value init is not sorted.
+            "context_0",
+            "context_10",
+            "context_5",
+            "context_n10",
+            "layout_0",
+            "layout_10",
+            "layout_5",
+            "layout_n10",
+        ]
+    );
+}
+
+#[test]
+fn priority_index_defaults_init_order() {
+    Position::reset();
+
+    let mut wgt = priority_index_wgt!();
+    wgt.test_init(&mut TestWidgetContext::new());
+
+    pretty_assertions::assert_eq!(
+        util::sorted_node_init(&wgt),
+        [
+            // each property wraps the next one and takes a position number before
+            // delegating to the next property (child node).
+            "context_n10",
+            "context_0",
+            "context_5",
+            "context_10",
+            "layout_n10",
+            "layout_0",
+            "layout_5",
+            "layout_10",
+        ]
+    );
+}
+
+#[test]
+fn priority_index_value_order() {
+    Position::reset();
+
+    let mut wgt = priority_index_wgt! {
+        layout_10 = Position::next("local_layout_10");
+        layout_n10 = Position::next("local_layout_n10");
+        layout_0 = Position::next("local_layout_0");
+        layout_5 = Position::next("local_layout_5");
+
+        context_10 = Position::next("local_context_10");
+        context_n10 = Position::next("local_context_n10");
+        context_0 = Position::next("local_context_0");
+        context_5 = Position::next("local_context_5");
+    };
+    wgt.test_init(&mut TestWidgetContext::new());
+
+    pretty_assertions::assert_eq!(
+        util::sorted_value_init(&wgt),
+        [
+            // value init is not sorted.
+            "local_layout_10",
+            "local_layout_n10",
+            "local_layout_0",
+            "local_layout_5",
+            "local_context_10",
+            "local_context_n10",
+            "local_context_0",
+            "local_context_5",
+        ]
+    );
+}
+
+#[test]
+fn priority_index_init_order() {
+    Position::reset();
+
+    let mut wgt = priority_index_wgt! {
+        layout_10 = Position::next("local_layout_10");
+        layout_n10 = Position::next("local_layout_n10");
+        layout_0 = Position::next("local_layout_0");
+        layout_5 = Position::next("local_layout_5");
+
+        context_10 = Position::next("local_context_10");
+        context_n10 = Position::next("local_context_n10");
+        context_0 = Position::next("local_context_0");
+        context_5 = Position::next("local_context_5");
+    };
+    wgt.test_init(&mut TestWidgetContext::new());
+
+    pretty_assertions::assert_eq!(
+        util::sorted_node_init(&wgt),
+        [
+            // each property wraps the next one and takes a position number before
+            // delegating to the next property (child node).
+            "local_context_n10",
+            "local_context_0",
+            "local_context_5",
+            "local_context_10",
+            "local_layout_n10",
+            "local_layout_0",
+            "local_layout_5",
+            "local_layout_10",
+        ]
+    );
+}
+
+#[widget($crate::tests::widget::priority_index_inherited_wgt)]
+pub mod priority_index_inherited_wgt {
+    use super::util::*;
+
+    inherit!(super::priority_index_wgt);
+
+    properties! {
+        context_10 = Position::next("context_override_10");
+        #[priority_index = 50]
+        context_5 = Position::next("context_override_50");
+    }
+}
+
+#[test]
+fn priority_index_inherited_order() {
+    Position::reset();
+
+    let mut wgt = priority_index_inherited_wgt!();
+    wgt.test_init(&mut TestWidgetContext::new());
+
+    pretty_assertions::assert_eq!(
+        util::sorted_node_init(&wgt),
+        [
+            // each property wraps the next one and takes a position number before
+            // delegating to the next property (child node).
+            "context_n10",
+            "context_0",
+            "context_override_10",
+            "context_override_50",
+            "layout_n10",
+            "layout_0",
+            "layout_5",
+            "layout_10",
+        ]
+    );
+}
+
+
 mod util {
     use std::{
         cell::Cell,
