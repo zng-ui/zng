@@ -1020,11 +1020,9 @@ impl Focus {
 
         if let Some((target, enabled_nav)) = target {
             if let Ok(false) = windows.is_focused(target.path.window_id()) {
-                let requested_win_focus;
                 if request.force_window_focus || windows.focused_window_id().is_some() {
                     // if can steal focus from other apps or focus is already in another window of the app.
                     windows.focus(target.path.window_id()).unwrap();
-                    requested_win_focus = true;
                 } else if request.window_indicator.is_some() {
                     // if app does not have focus, focus stealing is not allowed, but a request indicator can be set.
                     windows
@@ -1032,14 +1030,10 @@ impl Focus {
                         .unwrap()
                         .focus_indicator()
                         .set(vars, request.window_indicator);
-                    requested_win_focus = true;
-                } else {
-                    requested_win_focus = false;
                 }
 
-                if requested_win_focus {
-                    self.pending_window_focus = Some((target.path.window_id(), target.path.widget_id(), highlight));
-                }
+                // will focus when the window is focused
+                self.pending_window_focus = Some((target.path.window_id(), target.path.widget_id(), highlight));
                 None
             } else {
                 self.enabled_nav = enabled_nav;

@@ -1,10 +1,11 @@
+* Changing system theme while minimized causes panic:
+```log
+thread 'main' panicked at 'expected `LayoutText` in `render_underlines`', zero-ui\src\widgets\text_wgt\nodes.rs:675:47
+``` 
+
 * Implement dynamic when states, see `Themes.md`.
 * Review dynamic property set in the widget declaration and set again in instance.
 * Review dynamic widget that captures set property.
-
-* Fix `focus_on_init`.
-    - Window is not focused on open so the focus does not move?
-    - Maybe we can move the focus_return of the window to the new focus request in cases like this?
 
 * Finish implementing window `parent`.
     - [x] Theme fallback.
