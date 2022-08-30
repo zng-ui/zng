@@ -464,34 +464,36 @@ pub struct RcWhenVar<O: VarValue>(Rc<RcWhenVarData<O>>);
 /// A weak reference to a [`RcWhenVar`].
 pub struct WeakRcWhenVar<O: VarValue>(Weak<RcWhenVarData<O>>);
 
+struct WhenCondition<O: VarValue> {
+    condition: BoxedVar<bool>,
+    value: BoxedVar<O>,
+    condition_version: VarVersionCell,
+    value_version: VarVersionCell,
+}
+
 struct RcWhenVarData<O: VarValue> {
     default_: BoxedVar<O>,
     default_version: VarVersionCell,
 
-    whens: Box<[(BoxedVar<bool>, BoxedVar<O>)]>,
-    when_versions: Box<[(VarVersionCell, VarVersionCell)]>,
+    whens: Box<[WhenCondition<O>]>,
 
     self_version: Cell<u32>,
 }
 
 impl<O: VarValue> RcWhenVar<O> {
-    #[doc(hidden)]
-    pub fn new(default_: BoxedVar<O>, whens: Box<[(BoxedVar<bool>, BoxedVar<O>)]>) -> Self {
+    fn new(default_: BoxedVar<O>, whens: Box<[WhenCondition<O>]>) -> Self {
         RcWhenVar(Rc::new(RcWhenVarData {
             default_,
             default_version: VarVersionCell::new(0),
-
-            when_versions: whens.iter().map(|_| (VarVersionCell::new(0), VarVersionCell::new(0))).collect(),
             whens,
-
             self_version: Cell::new(0),
         }))
     }
 
     fn get_impl<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
-        for (c, v) in self.0.whens.iter() {
-            if c.copy(vars) {
-                return v.get(vars);
+        for c in self.0.whens.iter() {
+            if c.condition.copy(vars) {
+                return c.value.get(vars);
             }
         }
         self.0.default_.get(vars)
@@ -499,14 +501,14 @@ impl<O: VarValue> RcWhenVar<O> {
 
     fn get_new_impl<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
         let mut condition_is_new = false;
-        for (c, v) in self.0.whens.iter() {
-            condition_is_new |= c.is_new(vars);
-            if c.copy(vars) {
+        for c in self.0.whens.iter() {
+            condition_is_new |= c.condition.is_new(vars);
+            if c.condition.copy(vars) {
                 return if condition_is_new {
                     // a higher priority condition is new `false` of the current condition is new `true`.
-                    Some(v.get(vars))
+                    Some(c.value.get(vars))
                 } else {
-                    v.get_new(vars)
+                    c.value.get_new(vars)
                 };
             }
         }
@@ -559,10 +561,10 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|vars| {
             let mut condition_is_new = false;
-            for (c, v) in self.0.whens.iter() {
-                condition_is_new |= c.is_new(vars);
-                if c.copy(vars) {
-                    return condition_is_new || v.is_new(vars);
+            for c in self.0.whens.iter() {
+                condition_is_new |= c.condition.is_new(vars);
+                if c.condition.copy(vars) {
+                    return condition_is_new || c.value.is_new(vars);
                 }
             }
             condition_is_new || self.0.default_.is_new(vars)
@@ -575,9 +577,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
         match Rc::try_unwrap(self.0) {
             Ok(r) => vars.with_vars_read(move |vars| {
-                for (c, v) in Vec::from(r.whens) {
-                    if c.copy(vars) {
-                        return v.into_value(vars);
+                for c in Vec::from(r.whens) {
+                    if c.condition.copy(vars) {
+                        return c.value.into_value(vars);
                     }
                 }
 
@@ -600,16 +602,16 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
                 self.0.default_version.set(dv);
             }
 
-            for ((c, v), (w_cv, w_vv)) in self.0.whens.iter().zip(self.0.when_versions.iter()) {
-                let cv = c.version(vars);
-                if cv != w_cv.get() {
+            for c in self.0.whens.iter() {
+                let cv = c.condition.version(vars);
+                if cv != c.condition_version.get() {
                     changed = true;
-                    w_cv.set(cv);
+                    c.condition_version.set(cv);
                 }
-                let vv = v.version(vars);
-                if vv != w_vv.get() {
+                let vv = c.value.version(vars);
+                if vv != c.value_version.get() {
                     changed = true;
-                    w_vv.set(vv);
+                    c.value_version.set(vv);
                 }
             }
 
@@ -624,9 +626,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// If the [current value variable](Self::get) is read-only.
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|vars| {
-            for (c, v) in self.0.whens.iter() {
-                if c.copy(vars) {
-                    return v.is_read_only(vars);
+            for c in self.0.whens.iter() {
+                if c.condition.copy(vars) {
+                    return c.value.is_read_only(vars);
                 }
             }
             self.0.default_.is_read_only(vars)
@@ -635,9 +637,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
-            for (c, v) in self.0.whens.iter() {
-                if c.copy(vars) {
-                    return v.is_animating(vars);
+            for c in self.0.whens.iter() {
+                if c.condition.copy(vars) {
+                    return c.value.is_animating(vars);
                 }
             }
             self.0.default_.is_animating(vars)
@@ -646,12 +648,12 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 
     /// If all value variables (including default) are always read-only.
     fn always_read_only(&self) -> bool {
-        self.0.whens.iter().all(|(_, v)| v.always_read_only()) && self.0.default_.always_read_only()
+        self.0.whens.iter().all(|c| c.value.always_read_only()) && self.0.default_.always_read_only()
     }
 
     /// If any value variables (including default)
     fn is_contextual(&self) -> bool {
-        self.0.default_.is_contextual() || self.0.whens.iter().any(|(_, v)| v.is_contextual())
+        self.0.default_.is_contextual() || self.0.whens.iter().any(|c| c.value.is_contextual())
     }
 
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
@@ -660,8 +662,17 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
                 let var = RcWhenVar(Rc::new(RcWhenVarData {
                     default_: self.0.default_.actual_var(vars),
                     default_version: self.0.default_version.clone(),
-                    whens: self.0.whens.iter().map(|(c, v)| (c.actual_var(vars), v.actual_var(vars))).collect(),
-                    when_versions: self.0.when_versions.clone(),
+                    whens: self
+                        .0
+                        .whens
+                        .iter()
+                        .map(|c| WhenCondition {
+                            condition: c.condition.actual_var(vars),
+                            value: c.value.actual_var(vars),
+                            condition_version: c.condition_version.clone(),
+                            value_version: c.value_version.clone(),
+                        })
+                        .collect(),
                     self_version: self.0.self_version.clone(),
                 }));
                 var.boxed()
@@ -683,9 +694,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         N: Into<O>,
     {
         vars.with_vars(|vars| {
-            for (c, v) in self.0.whens.iter() {
-                if c.copy(vars) {
-                    return v.set(vars, new_value);
+            for c in self.0.whens.iter() {
+                if c.condition.copy(vars) {
+                    return c.value.set(vars, new_value);
                 }
             }
             self.0.default_.set(vars, new_value)
@@ -699,9 +710,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         O: PartialEq,
     {
         vars.with_vars(|vars| {
-            for (c, v) in self.0.whens.iter() {
-                if c.copy(vars) {
-                    return v.set_ne(vars, new_value);
+            for c in self.0.whens.iter() {
+                if c.condition.copy(vars) {
+                    return c.value.set_ne(vars, new_value);
                 }
             }
             self.0.default_.set_ne(vars, new_value)
@@ -711,9 +722,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// Modify the [current value variable](Self::get).
     fn modify<Vw: WithVars, F: FnOnce(VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
         vars.with_vars(|vars| {
-            for (c, v) in self.0.whens.iter() {
-                if c.copy(vars) {
-                    return v.modify(vars, change);
+            for c in self.0.whens.iter() {
+                if c.condition.copy(vars) {
+                    return c.value.modify(vars, change);
                 }
             }
             self.0.default_.modify(vars, change)
@@ -727,9 +738,9 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| {
             let mut r = self.0.default_.update_mask(vars);
-            for (c, v) in self.0.whens.iter() {
-                r |= c.update_mask(vars);
-                r |= v.update_mask(vars);
+            for c in self.0.whens.iter() {
+                r |= c.condition.update_mask(vars);
+                r |= c.value.update_mask(vars);
             }
             r
         })
@@ -792,7 +803,7 @@ impl<O: VarValue> any::AnyVar for RcWhenVar<O> {
 #[doc(hidden)]
 pub struct WhenVarBuilderDyn<O: VarValue> {
     default_: BoxedVar<O>,
-    whens: Vec<(BoxedVar<bool>, BoxedVar<O>)>,
+    whens: Vec<WhenCondition<O>>,
 }
 #[allow(missing_docs)] // this is hidden
 impl<O: VarValue> WhenVarBuilderDyn<O> {
@@ -804,7 +815,12 @@ impl<O: VarValue> WhenVarBuilderDyn<O> {
     }
 
     pub fn push<C: Var<bool>, V: IntoVar<O>>(mut self, condition: C, value: V) -> Self {
-        self.whens.push((condition.boxed(), value.into_var().boxed()));
+        self.whens.push(WhenCondition {
+            condition: condition.boxed(),
+            value: value.into_var().boxed(),
+            condition_version: VarVersionCell::new(0),
+            value_version: VarVersionCell::new(0),
+        });
         self
     }
 

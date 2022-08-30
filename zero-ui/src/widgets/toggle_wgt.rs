@@ -633,7 +633,7 @@ pub mod properties {
         fn subscribe(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
 
         fn select(&mut self, _: &mut WidgetContext, _: Box<dyn Any>) -> Result<(), SelectorError> {
-            Err(SelectorError::custom_str("no selection enabled"))
+            Err(SelectorError::custom_str("no contextual `selection`"))
         }
 
         fn deselect(&mut self, _: &mut WidgetContext, _: &dyn Any) -> Result<(), SelectorError> {
