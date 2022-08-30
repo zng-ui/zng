@@ -86,7 +86,7 @@ impl UiNode for AdoptiveChildNode {}
 #[derive(Debug)]
 pub struct DynWidgetPart {
     /// Properties of the same priority level as the constructor that where set in the widget.
-    /// 
+    ///
     /// The properties are sorted by the `priority_index` and reversed, innermost first.
     pub properties: Vec<DynProperty>,
 }
@@ -429,7 +429,7 @@ impl Default for DynProperties {
 impl DynProperties {
     /// New from properties of a priority.
     ///
-    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, 
+    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is,
     /// sorted by priority index and reversed, innermost first.
     ///
     /// Panics if any of the `properties` is inited.
@@ -500,15 +500,15 @@ impl DynProperties {
             mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
             // save the new child address.
             self.child = self.properties[0].child.clone();
-            
+
             // chain properties.
 
-           for i in 0..self.properties.len() {
-               let (a, b) = self.properties.split_at_mut(i + 1);
-               if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
-                   inner.set_parent(outer);
-               }
-           }
+            for i in 0..self.properties.len() {
+                let (a, b) = self.properties.split_at_mut(i + 1);
+                if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
+                    inner.set_parent(outer);
+                }
+            }
 
             // save the new outermost node address.
             self.node = self.properties[self.properties.len() - 1].node.clone();
@@ -539,7 +539,7 @@ impl DynProperties {
 
     /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
     ///
-    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, 
+    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is,
     /// sorted by priority index and reversed, innermost first.
     ///
     /// Panics if `self` or any of the `properties` are inited.
