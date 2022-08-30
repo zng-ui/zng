@@ -1100,6 +1100,68 @@ pub fn property_priority_sorting_defaults() {
     assert_node_order(&wgt);
 }
 
+#[widget($crate::tests::widget::property_priority_sorting_defaults_dyn_wgt)]
+pub mod property_priority_sorting_defaults_dyn_wgt {
+    use crate::{*, widget_base::implicit_base};
+
+    inherit!(super::property_priority_sorting_defaults_wgt);
+
+    fn insert_priority(child: impl UiNode, priority: DynPropPriority, part: DynWidgetPart) -> impl UiNode {
+        let mut properties = DynProperties::new(priority, part.properties);
+        properties.replace_child(child.boxed());
+        properties
+    }
+
+    fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::ChildLayout, part);
+        implicit_base::new_child_layout(child)
+    }
+
+    fn new_child_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::ChildContext, part);
+        implicit_base::new_child_context(child)
+    }
+
+    fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::Fill, part);
+        implicit_base::new_fill(child)
+    }
+
+    fn new_border_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::Border, part);
+        implicit_base::new_border(child)
+    }
+
+    fn new_size_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::Size, part);
+        implicit_base::new_size(child)
+    }
+
+    fn new_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::Layout, part);
+        implicit_base::new_layout(child)
+    }
+
+    fn new_event_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::Event, part);
+        implicit_base::new_event(child)
+    }
+
+    fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = insert_priority(child, DynPropPriority::Context, part);
+        implicit_base::new_context(child)
+    }
+}
+
+#[test]
+pub fn property_priority_sorting_defaults_dyn() {
+    Position::reset();
+
+    let mut wgt = property_priority_sorting_defaults_dyn_wgt!();
+    wgt.test_init(&mut TestWidgetContext::new());
+    assert_node_order(&wgt);
+}
+
 /*
  * Tests property member access in when
  */
@@ -1630,42 +1692,13 @@ pub mod priority_index_dyn_wgt {
         properties
     }
 
-    pub fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = insert_priority(child, DynPropPriority::ChildLayout, part);
-        implicit_base::new_child_layout(child)
-    }
-
-    pub fn new_child_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = insert_priority(child, DynPropPriority::ChildContext, part);
-        implicit_base::new_child_context(child)
-    }
-
-    pub fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = insert_priority(child, DynPropPriority::Fill, part);
-        implicit_base::new_fill(child)
-    }
-
-    pub fn new_border_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = insert_priority(child, DynPropPriority::Border, part);
-        implicit_base::new_border(child)
-    }
-
-    pub fn new_size_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = insert_priority(child, DynPropPriority::Size, part);
-        implicit_base::new_size(child)
-    }
-
-    pub fn new_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+    fn new_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
         let child = insert_priority(child, DynPropPriority::Layout, part);
         implicit_base::new_layout(child)
     }
 
-    pub fn new_event_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = insert_priority(child, DynPropPriority::Event, part);
-        implicit_base::new_event(child)
-    }
 
-    pub fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+    fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
         let child = insert_priority(child, DynPropPriority::Context, part);
         implicit_base::new_context(child)
     }

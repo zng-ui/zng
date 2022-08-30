@@ -826,7 +826,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set_dyn #priority, #child, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
+                        set_dyn #priority, #child, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, {#priority_index}, #set,
                         #dyn_wgt_part__, #is_when_condition
                     }
                 }

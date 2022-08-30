@@ -83,6 +83,7 @@ impl UiNode for AdoptiveChildNode {}
 /// See the [`#[widget]`] documentation for more details.
 ///
 /// [`#[widget]`]: macro@crate::widget
+#[derive(Debug)]
 pub struct DynWidgetPart {
     /// Properties of the same priority level as the constructor that where set in the widget.
     pub properties: Vec<DynProperty>,
@@ -181,6 +182,7 @@ impl fmt::Debug for DynProperty {
         f.debug_struct("DynProperty")
             .field("name", &self.name)
             .field("importance", &self.importance)
+            .field("priority_index", &self.priority_index)
             .field("is_when_condition", &self.is_when_condition)
             .finish_non_exhaustive()
     }
@@ -423,6 +425,9 @@ impl Default for DynProperties {
 }
 impl DynProperties {
     /// New from properties of a priority.
+    /// 
+    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, outermost
+    /// first and sorted by priority index.
     ///
     /// Panics if `properties` is inited.
     pub fn new(priority: DynPropPriority, properties: Vec<DynProperty>) -> DynProperties {
@@ -446,8 +451,6 @@ impl DynProperties {
             for e in &mut priority_ranges[(priority as usize)..DynPropPriority::LEN] {
                 *e = properties.len();
             }
-
-            let properties = properties;
 
             DynProperties {
                 id: DynPropertiesId::new_unique(),
