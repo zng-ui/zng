@@ -1444,7 +1444,7 @@ mod output {
                     (set $other:ident, $($ignore:tt)+) => { };
 
                     (set_dyn #priority, $node:ident, $property_path: path, $args:ident,
-                        $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:tt, $__set:ident,
+                        $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
                         $dyn_wgt_part:ident, $is_when_condition:tt) => {
                             let ($node, dyn_prop__) = $dyn_wgt_part.new_property_v1();
                             let $node = {

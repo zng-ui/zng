@@ -425,11 +425,11 @@ impl Default for DynProperties {
 }
 impl DynProperties {
     /// New from properties of a priority.
-    /// 
+    ///
     /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, outermost
     /// first and sorted by priority index.
     ///
-    /// Panics if `properties` is inited.
+    /// Panics if any of the `properties` is inited.
     pub fn new(priority: DynPropPriority, properties: Vec<DynProperty>) -> DynProperties {
         Self::new_impl(priority, properties.into_iter().map(PropertyItem::new).collect())
     }
@@ -534,9 +534,11 @@ impl DynProperties {
     }
 
     /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
-    /// less than or equal to `override_level`.
     ///
-    /// Panics if `self` or `properties` are inited.
+    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, outermost
+    /// first and sorted by priority index.
+    ///
+    /// Panics if `self` or any of the `properties` are inited.
     pub fn insert(&mut self, priority: DynPropPriority, properties: Vec<DynProperty>) {
         assert!(!self.is_inited);
 
@@ -616,7 +618,7 @@ impl DynProperties {
                 }
             }
         } else {
-            // already has properties of the priority, compute overrides.
+            // already has properties of the priority, compute overrides and resort.
 
             let mut new_properties: Vec<_> = properties.collect();
 
@@ -662,6 +664,9 @@ impl DynProperties {
             let insert_i = priority_range.end - remove_len;
             let _rmv = self.properties.splice(insert_i..insert_i, new_properties).next();
             debug_assert!(_rmv.is_none());
+
+            // resort priority.
+            self.properties[priority_range.start..priority_range.end + insert_len].sort_by_key(|p| p.priority_index);
 
             // update ranges.
             for p in &mut self.priority_ranges[priority..] {

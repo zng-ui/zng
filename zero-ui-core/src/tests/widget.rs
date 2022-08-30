@@ -1102,7 +1102,7 @@ pub fn property_priority_sorting_defaults() {
 
 #[widget($crate::tests::widget::property_priority_sorting_defaults_dyn_wgt)]
 pub mod property_priority_sorting_defaults_dyn_wgt {
-    use crate::{*, widget_base::implicit_base};
+    use crate::{widget_base::implicit_base, *};
 
     inherit!(super::property_priority_sorting_defaults_wgt);
 
@@ -1682,7 +1682,7 @@ fn priority_index_inherited_order() {
 
 #[widget($crate::tests::widget::priority_index_dyn_wgt)]
 pub mod priority_index_dyn_wgt {
-    use crate::{*, widget_base::implicit_base};
+    use crate::{widget_base::implicit_base, *};
 
     inherit!(super::priority_index_wgt);
 
@@ -1696,7 +1696,6 @@ pub mod priority_index_dyn_wgt {
         let child = insert_priority(child, DynPropPriority::Layout, part);
         implicit_base::new_layout(child)
     }
-
 
     fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
         let child = insert_priority(child, DynPropPriority::Context, part);
