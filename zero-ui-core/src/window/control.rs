@@ -430,6 +430,14 @@ impl HeadedCtrl {
                                 for &c in self.vars.0.children.get(ctx.vars) {
                                     RestoreCommand.scoped(c).notify(ctx.events, None);
                                 }
+
+                                // we skip layout & render when minimized.
+                                if self.content.layout_requested {
+                                    ctx.updates.layout();
+                                }
+                                if !self.content.render_requested.is_none() {
+                                    ctx.updates.render();
+                                }
                             }
                             _ => {}
                         }
@@ -841,6 +849,10 @@ impl HeadedCtrl {
         }
 
         if let Some(view) = &self.window {
+            if matches!(self.state.as_ref().map(|s| s.state), Some(WindowState::Minimized)) {
+                return;
+            }
+
             let scale_factor = self.monitor.as_ref().unwrap().scale_factor().copy(ctx);
             self.content
                 .render(ctx, Some(view.renderer()), scale_factor, self.resize_wait_id.take());
