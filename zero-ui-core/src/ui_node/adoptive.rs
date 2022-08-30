@@ -107,6 +107,7 @@ impl DynWidgetPart {
         property_node: impl UiNode,
         name: &'static str,
         user_assigned: bool,
+        priority_index: i16,
         is_when_condition: bool,
     ) {
         let node = AdoptiveNode {
@@ -118,6 +119,7 @@ impl DynWidgetPart {
         self.properties.push(DynProperty {
             node,
             name,
+            priority_index,
             importance: if user_assigned {
                 DynPropImportance::INSTANCE
             } else {
@@ -153,8 +155,15 @@ pub struct DynProperty {
     /// ```
     pub name: &'static str,
 
-    /// Who assigned the property.
+    /// Defines what instance of the same property replaces the other.
     pub importance: DynPropImportance,
+
+    /// Defines the property *position* within the same priority group, larger numbers means more likely to be inside
+    /// the other properties.
+    ///
+    /// Note that the property priority it self is recorded, but it is the same priority of the widget constructor function
+    /// that received this property instance.
+    pub priority_index: i16,
 
     /// If this property is read in `when` conditions.
     ///
@@ -254,6 +263,7 @@ struct PropertyItem {
     snapshot_node: Option<Rc<RefCell<BoxedUiNode>>>,
 
     name: &'static str,
+    priority_index: i16,
     importance: DynPropImportance,
     is_when_condition: bool,
 }
@@ -267,6 +277,7 @@ impl PropertyItem {
             node: Rc::new(RefCell::new(node)),
             snapshot_node: None,
             name: property.name,
+            priority_index: property.priority_index,
             importance: property.importance,
             is_when_condition: property.is_when_condition,
         }
@@ -303,6 +314,7 @@ impl fmt::Debug for PropertyItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyItem")
             .field("name", &self.name)
+            .field("priority_index", &self.priority_index)
             .field("importance", &self.importance)
             .field("is_when_condition", &self.is_when_condition)
             .finish_non_exhaustive()
@@ -434,6 +446,8 @@ impl DynProperties {
             for e in &mut priority_ranges[(priority as usize)..DynPropPriority::LEN] {
                 *e = properties.len();
             }
+
+            let properties = properties;
 
             DynProperties {
                 id: DynPropertiesId::new_unique(),
@@ -753,6 +767,7 @@ struct PropertyItemSnapshot {
     child: Rc<RefCell<BoxedUiNode>>,
     node: Rc<RefCell<BoxedUiNode>>,
     name: &'static str,
+    priority_index: i16,
     importance: DynPropImportance,
     is_when_condition: bool,
 }
@@ -760,6 +775,7 @@ impl fmt::Debug for PropertyItemSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyItemSnapshot")
             .field("name", &self.name)
+            .field("priority_index", &self.priority_index)
             .field("importance", &self.importance)
             .field("is_when_condition", &self.is_when_condition)
             .finish_non_exhaustive()
@@ -772,6 +788,7 @@ impl PropertyItem {
             child: self.child.clone(),
             node: self.node.clone(),
             name: self.name,
+            priority_index: self.priority_index,
             importance: self.importance,
             is_when_condition: self.is_when_condition,
         }
@@ -783,6 +800,7 @@ impl PropertyItem {
             node: snapshot.node,
             snapshot_node: None,
             name: snapshot.name,
+            priority_index: snapshot.priority_index,
             importance: snapshot.importance,
             is_when_condition: snapshot.is_when_condition,
         }

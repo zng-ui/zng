@@ -10,7 +10,7 @@ pub mod test_widget {
 
         #[priority_index]
         margin as e1;
-        
+
         #[priority_index = ]
         margin as e2;
 
@@ -19,12 +19,10 @@ pub mod test_widget {
 
         #[priority_index = "10"]
         margin as e4;
-        
+
         #[priority_index(10)]
         margin as e5;
     }
 }
 
-fn main() {
-
-}
+fn main() {}
