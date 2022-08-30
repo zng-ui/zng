@@ -86,6 +86,8 @@ impl UiNode for AdoptiveChildNode {}
 #[derive(Debug)]
 pub struct DynWidgetPart {
     /// Properties of the same priority level as the constructor that where set in the widget.
+    /// 
+    /// The properties are sorted by the `priority_index` and reversed, innermost first.
     pub properties: Vec<DynProperty>,
 }
 impl DynWidgetPart {
@@ -386,6 +388,7 @@ pub struct DynProperties {
     is_inited: bool,
     is_bound: bool,
 
+    // properties from innermost to outermost.
     properties: Vec<PropertyItem>,
     // exclusive end of each priority range in `properties`
     priority_ranges: [usize; DynPropPriority::LEN],
@@ -426,8 +429,8 @@ impl Default for DynProperties {
 impl DynProperties {
     /// New from properties of a priority.
     ///
-    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, outermost
-    /// first and sorted by priority index.
+    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, 
+    /// sorted by priority index and reversed, innermost first.
     ///
     /// Panics if any of the `properties` is inited.
     pub fn new(priority: DynPropPriority, properties: Vec<DynProperty>) -> DynProperties {
@@ -497,14 +500,15 @@ impl DynProperties {
             mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
             // save the new child address.
             self.child = self.properties[0].child.clone();
-
+            
             // chain properties.
-            for i in 0..self.properties.len() {
-                let (a, b) = self.properties.split_at_mut(i + 1);
-                if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
-                    inner.set_parent(outer);
-                }
-            }
+
+           for i in 0..self.properties.len() {
+               let (a, b) = self.properties.split_at_mut(i + 1);
+               if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
+                   inner.set_parent(outer);
+               }
+           }
 
             // save the new outermost node address.
             self.node = self.properties[self.properties.len() - 1].node.clone();
@@ -535,8 +539,8 @@ impl DynProperties {
 
     /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
     ///
-    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, outermost
-    /// first and sorted by priority index.
+    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is, 
+    /// sorted by priority index and reversed, innermost first.
     ///
     /// Panics if `self` or any of the `properties` are inited.
     pub fn insert(&mut self, priority: DynPropPriority, properties: Vec<DynProperty>) {
@@ -588,8 +592,7 @@ impl DynProperties {
     }
 
     fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = PropertyItem>) {
-        let ps = if priority == 0 { 0 } else { self.priority_ranges[priority - 1] };
-        let priority_range = ps..self.priority_ranges[priority];
+        let priority_range = self.priority_range(priority);
 
         if priority_range.is_empty() {
             // no properties of the priority, can just append or override.
@@ -641,13 +644,19 @@ impl DynProperties {
                     }
                 }
             }
-            // remove overrides
+            // remove overridden
             let remove_len = rmv_existing.len();
             for i in rmv_existing.into_iter().rev() {
                 self.properties.remove(i);
             }
+            for p in &mut self.priority_ranges[priority..] {
+                *p -= remove_len;
+            }
+            let priority_range = self.priority_range(priority);
+
+            // remove override attempts of less importance
             if !rmv_new.is_empty() {
-                rmv_new.sort();
+                rmv_new.sort_unstable();
 
                 for i in rmv_new.into_iter().rev() {
                     new_properties.remove(i);
@@ -660,20 +669,22 @@ impl DynProperties {
 
             // insert new
             let insert_len = new_properties.len();
-
-            let insert_i = priority_range.end - remove_len;
+            let insert_i = priority_range.start;
             let _rmv = self.properties.splice(insert_i..insert_i, new_properties).next();
             debug_assert!(_rmv.is_none());
-
-            // resort priority.
-            self.properties[priority_range.start..priority_range.end + insert_len].sort_by_key(|p| p.priority_index);
-
-            // update ranges.
             for p in &mut self.priority_ranges[priority..] {
-                *p -= remove_len;
                 *p += insert_len;
             }
+
+            // resort priority.
+            let priority_range = self.priority_range(priority);
+            self.properties[priority_range].sort_by_key(|p| -p.priority_index);
         }
+    }
+
+    fn priority_range(&self, priority: usize) -> std::ops::Range<usize> {
+        let ps = if priority == 0 { 0 } else { self.priority_ranges[priority - 1] };
+        ps..self.priority_ranges[priority]
     }
 
     /// Create an snapshot of the current properties.
