@@ -117,7 +117,8 @@ pub mod vis {
                     widths: 1,
                     sides: DarkColorVar::disabled().map_into(),
                 };
-                text_color = TextColorVar::new().map(|c| c.darken(50.pct()).desaturate(100.pct()));
+                //text_color = TextColorVar::new().map(|c| c.darken(50.pct()).desaturate(100.pct()));
+                text_color = TextColorVar::new().map(|&c| colors::BLACK.with_alpha(0.5).mix_normal(c));
                 cursor = CursorIcon::NotAllowed;
             }
         }
@@ -168,7 +169,8 @@ pub mod vis {
                     widths: 1,
                     sides: LightColorVar::disabled().map_into(),
                 };
-                text_color = TextColorVar::new().map(|c| c.lighten(10.pct()).desaturate(100.pct()));
+                //text_color = TextColorVar::new().map(|c| c.lighten(50.pct()).desaturate(100.pct()));
+                text_color = TextColorVar::new().map(|&c| colors::WHITE.with_alpha(0.5).mix_normal(c));
                 cursor = CursorIcon::NotAllowed;
             }
         }
