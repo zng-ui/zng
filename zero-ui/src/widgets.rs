@@ -56,6 +56,7 @@ mod toggle_wgt;
 pub use toggle_wgt::{checkbox, toggle};
 
 mod themable_wgt;
+#[doc(inline)]
 pub use themable_wgt::{themable, theme};
 
 mod view;

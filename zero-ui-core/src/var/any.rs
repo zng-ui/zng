@@ -196,7 +196,7 @@ mod tests {
             static FOO_VAR: bool = true;
         }
         let any_var = FOO_VAR.into_any();
-        assert!(any_var.as_any().downcast_ref::<&'static ContextVar<bool>>().is_some());
+        assert!(any_var.as_any().downcast_ref::<ContextVar<bool>>().is_some());
     }
 
     #[test]

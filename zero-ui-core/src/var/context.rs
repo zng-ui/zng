@@ -13,7 +13,7 @@ use super::*;
 ///
 /// context_var! {
 ///     /// Foo context variable.
-///     pub struct FooVar: bool = false;
+///     pub static FOO_VAR: bool = false;
 /// }
 ///
 /// struct FooNode<C> { child: C }
@@ -21,8 +21,8 @@ use super::*;
 /// #[impl_ui_node(child)]
 /// impl<C: UiNode> UiNode for FooNode<C> {
 ///     fn init(&mut self, ctx: &mut WidgetContext) {
-///         // `FooVar` is `true` inside `FooNode::init`.
-///         ctx.vars.with_context_var(FooVar, ContextVarData::fixed(&true), || {
+///         // `FOO_VAR` is `true` inside `FooNode::init`.
+///         ctx.vars.with_context_var(FOO_VAR, ContextVarData::fixed(&true), || {
 ///             self.child.init(ctx);
 ///         })
 ///     }
@@ -197,7 +197,7 @@ impl<T: VarValue> ContextVarValue<T> {
 ///     pub static FOO_VAR: u8 = 10;
 ///
 ///     // A private context var.
-///     struct BAR_VAR: NotConst = init_val();
+///     static BAR_VAR: NotConst = init_val();
 /// }
 /// ```
 ///
@@ -479,13 +479,13 @@ mod properties {
     /// }
     ///
     /// context_var! {
-    ///     pub struct CONFIG_VAR: Config = Config::default();
+    ///     pub static CONFIG_VAR: Config = Config::default();
     /// }
     ///
     /// /// Sets the *foo* config.
     /// #[property(context, default(false))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
+    ///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.foo = v;
     ///         c
@@ -495,7 +495,7 @@ mod properties {
     /// /// Sets the *bar* config.
     /// #[property(context, default(false))]
     /// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
+    ///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.bar = v;
     ///         c

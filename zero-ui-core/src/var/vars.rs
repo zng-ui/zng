@@ -73,18 +73,18 @@ type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
 ///
 /// ```
 /// # use zero_ui_core::{*, context::*, var::*};
-/// # context_var! { pub struct FooVar: bool = false; }
+/// # context_var! { pub static FOO_VAR: bool = false; }
 /// # struct FooNode<C, V> { child: C, var: V }
 /// # #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
 ///     fn update(&mut self, ctx: &mut WidgetContext) {
-///         ctx.vars.with_context_var(FooVar, ContextVarData::in_vars(ctx.vars, &self.var, false), || self.child.update(ctx));
+///         ctx.vars.with_context_var(FOO_VAR, ContextVarData::in_vars(ctx.vars, &self.var, false), || self.child.update(ctx));
 ///     }
 /// }
 /// ```
 ///
-/// The example binds a `FooVar` to another `var` for the duration of the [`update`] call. The `var` value and version
-/// are accessible in inner widgets using only the `FooVar`.
+/// The example binds a `FOO_VAR` to another `var` for the duration of the [`update`] call. The `var` value and version
+/// are accessible in inner widgets using only the `FOO_VAR`.
 ///
 /// Note that the example is incomplete, [`init`], [`deinit`] and the other methods should also be implemented. You can use
 /// the [`with_context_var`] helper function to declare a node that binds a context var in all [`UiNode`] methods.

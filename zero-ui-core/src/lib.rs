@@ -678,7 +678,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*};
 /// # #[derive(Clone, Debug)] pub struct ValueConfig;
-/// # context_var! { struct ValueConfigVar: ValueConfig = ValueConfig; }
+/// # context_var! { static VALUE_CONFIG_VAR: ValueConfig = ValueConfig; }
 /// #[property(context)]
 /// pub fn value<T: VarValue>(child: impl UiNode, m: impl IntoVar<T>) -> impl UiNode {
 ///     // ..
@@ -687,7 +687,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// #[property(context)]
 /// pub fn value_config(child: impl UiNode, cfg: impl IntoVar<ValueConfig>) -> impl UiNode {
-///     with_context_var(child, ValueConfigVar, cfg)
+///     with_context_var(child, VALUE_CONFIG_VAR, cfg)
 /// }
 ///
 /// # #[widget($crate::foo)]
@@ -961,14 +961,14 @@ pub use zero_ui_proc_macros::property;
 /// #   use super::*;
 /// static ST_VALUE: bool = true;
 ///
-/// context_var! { pub struct FooVar: bool = true; }
+/// context_var! { pub static FOO_VAR: bool = true; }
 ///
 /// fn bar() -> bool { true }
 ///
 /// properties! {
 ///     background_color = colors::BLACK;
 ///
-///     when ST_VALUE && *#{FooVar::new()} && bar() {
+///     when ST_VALUE && *#{FOO_VAR} && bar() {
 ///         background_color = colors::RED;
 ///     }
 /// }
