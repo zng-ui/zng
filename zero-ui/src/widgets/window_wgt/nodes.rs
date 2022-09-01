@@ -263,7 +263,7 @@ impl WindowLayers {
                                     if let AnchorSize::InnerBorder = mode.size {
                                         cr = cr.deflate(border.offsets());
                                     }
-                                    ctx.vars.with_context_var(CornerRadiusVar, ContextVarData::fixed(&cr.into()), || {
+                                    ctx.vars.with_context_var(CORNER_RADIUS_VAR, ContextVarData::fixed(&cr.into()), || {
                                         ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl))
                                     })
                                 } else {
@@ -843,12 +843,12 @@ impl_from_and_into_var! {
 
 context_var! {
     /// Reads the [`WindowVars::actual_theme`].
-    pub struct WindowThemeVar: WindowTheme = WindowTheme::Dark;
+    pub static WINDOW_THEME_VAR: WindowTheme = WindowTheme::Dark;
 }
 
-/// Node that binds the [`WindowThemeVar`] to the [`WindowVars::actual_theme`].
+/// Node that binds the [`WINDOW_THEME_VAR`] to the [`WindowVars::actual_theme`].
 pub fn window_theme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, WindowThemeVar, |ctx| WindowVars::req(ctx).actual_theme())
+    with_context_var_init(child, WINDOW_THEME_VAR, |ctx| WindowVars::req(ctx).actual_theme())
 }
 
 #[cfg(test)]

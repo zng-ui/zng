@@ -220,7 +220,7 @@ impl<D> ViewGenerator<D> {
     /// # pub struct Foo;
     /// context_var! {
     ///     /// View generator for `Foo` items.
-    ///     pub struct FooViewVar: ViewGenerator<Foo> = ViewGenerator::nil();
+    ///     pub static FOO_VIEW_VAR: ViewGenerator<Foo> = ViewGenerator::nil();
     /// }
     /// ```
     pub fn nil() -> Self {

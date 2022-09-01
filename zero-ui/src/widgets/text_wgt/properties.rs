@@ -5,138 +5,138 @@ use crate::prelude::new_property::*;
 
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
-    pub struct FontFamilyVar: FontNames = FontNames::default();
+    pub static FONT_FAMILY_VAR: FontNames = FontNames::default();
 
     /// Font weight of [`text`](crate::widgets::text) spans.
-    pub struct FontWeightVar: FontWeight = FontWeight::NORMAL;
+    pub static FONT_WEIGHT_VAR: FontWeight = FontWeight::NORMAL;
 
     /// Font style of [`text`](crate::widgets::text) spans.
-    pub struct FontStyleVar: FontStyle = FontStyle::Normal;
+    pub static FONT_STYLE_VAR: FontStyle = FontStyle::Normal;
 
     /// Font stretch of [`text`](crate::widgets::text) spans.
-    pub struct FontStretchVar: FontStretch = FontStretch::NORMAL;
+    pub static FONT_STRETCH_VAR: FontStretch = FontStretch::NORMAL;
 
     /// Font synthesis of [`text`](crate::widgets::text) spans.
-    pub struct FontSynthesisVar: FontSynthesis = FontSynthesis::ENABLED;
+    pub static FONT_SYNTHESIS_VAR: FontSynthesis = FontSynthesis::ENABLED;
 
     /// Font anti-aliasing of [`text`](crate::widgets::text) spans.
-    pub struct FontAaVar: FontAntiAliasing = FontAntiAliasing::Default;
+    pub static FONT_AA_VAR: FontAntiAliasing = FontAntiAliasing::Default;
 
     /// Font size of [`text`](crate::widgets::text) spans.
-    pub struct FontSizeVar: FontSize = FontSize::Pt(11.0);
+    pub static FONT_SIZE_VAR: FontSize = FontSize::Pt(11.0);
 
     /// Text color of [`text`](crate::widgets::text) spans.
-    pub struct TextColorVar: Rgba = colors::WHITE;
+    pub static TEXT_COLOR_VAR: Rgba = colors::WHITE;
 
     /// Text transformation function applied to [`text`](crate::widgets::text) spans.
-    pub struct TextTransformVar: TextTransformFn = TextTransformFn::None;
+    pub static TEXT_TRANSFORM_VAR: TextTransformFn = TextTransformFn::None;
 
     /// Text line height of [`text`](crate::widgets::text) spans.
-    pub struct LineHeightVar: LineHeight = LineHeight::Default;
+    pub static LINE_HEIGHT_VAR: LineHeight = LineHeight::Default;
 
     /// Extra spacing in between lines of [`text`](crate::widgets::text) spans.
-    pub struct LineSpacingVar: Length = Length::Px(Px(0));
+    pub static LINE_SPACING_VAR: Length = Length::Px(Px(0));
 
     /// Extra letter spacing of [`text`](crate::widgets::text) spans.
-    pub struct LetterSpacingVar: LetterSpacing = LetterSpacing::Default;
+    pub static LETTER_SPACING_VAR: LetterSpacing = LetterSpacing::Default;
 
     /// Extra word spacing of [`text`](crate::widgets::text) spans.
-    pub struct WordSpacingVar: WordSpacing = WordSpacing::Default;
+    pub static WORD_SPACING_VAR: WordSpacing = WordSpacing::Default;
 
     /// Extra paragraph spacing of text blocks.
-    pub struct ParagraphSpacingVar: ParagraphSpacing = Length::Px(Px(0));
+    pub static PARAGRAPH_SPACING_VAR: ParagraphSpacing = Length::Px(Px(0));
 
     /// Configuration of line breaks inside words during text wrap.
-    pub struct WordBreakVar: WordBreak = WordBreak::Normal;
+    pub static WORD_BREAK_VAR: WordBreak = WordBreak::Normal;
 
     /// Configuration of line breaks in Chinese, Japanese, or Korean text.
-    pub struct LineBreakVar: LineBreak = LineBreak::Auto;
+    pub static LINE_BREAK_VAR: LineBreak = LineBreak::Auto;
 
     /// Text line alignment in a text block.
-    pub struct TextAlignVar: TextAlign = TextAlign::START;
+    pub static TEXT_ALIGN_VAR: TextAlign = TextAlign::START;
 
     /// Length of the `TAB` space.
-    pub struct TabLengthVar: TabLength = 400.pct().into();
+    pub static TAB_LENGTH_VAR: TabLength = 400.pct().into();
 
     /// Text white space transform of [`text`](crate::widgets::text) spans.
-    pub struct WhiteSpaceVar: WhiteSpace = WhiteSpace::Preserve;
+    pub static WHITE_SPACE_VAR: WhiteSpace = WhiteSpace::Preserve;
 
     /// Font features of [`text`](crate::widgets::text) spans.
-    pub struct FontFeaturesVar: FontFeatures = FontFeatures::new();
+    pub static FONT_FEATURES_VAR: FontFeatures = FontFeatures::new();
 
     /// Font variations of [`text`](crate::widgets::text) spans.
-    pub struct FontVariationsVar: FontVariations = FontVariations::new();
+    pub static FONT_VARIATIONS_VAR: FontVariations = FontVariations::new();
 
     /// Language of [`text`](crate::widgets::text) spans.
-    pub struct LangVar: Lang = Lang::default();
+    pub static LANG_VAR: Lang = Lang::default();
 
     /// Underline thickness.
-    pub struct UnderlineThicknessVar: UnderlineThickness = 0.into();
+    pub static UNDERLINE_THICKNESS_VAR: UnderlineThickness = 0.into();
     /// Underline style.
-    pub struct UnderlineStyleVar: LineStyle = LineStyle::Hidden;
+    pub static UNDERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Underline color.
-    pub struct UnderlineColorVar: TextLineColor = TextLineColor::Text;
+    pub static UNDERLINE_COLOR_VAR: TextLineColor = TextLineColor::Text;
     /// Parts of text skipped by underline.
-    pub struct UnderlineSkipVar: UnderlineSkip = UnderlineSkip::DEFAULT;
+    pub static UNDERLINE_SKIP_VAR: UnderlineSkip = UnderlineSkip::DEFAULT;
     /// Position of the underline.
-    pub struct UnderlinePositionVar: UnderlinePosition = UnderlinePosition::Font;
+    pub static UNDERLINE_POSITION_VAR: UnderlinePosition = UnderlinePosition::Font;
 
     /// Overline thickness.
-    pub struct OverlineThicknessVar: TextLineThickness = 0.into();
+    pub static OVERLINE_THICKNESS_VAR: TextLineThickness = 0.into();
     /// Overline style.
-    pub struct OverlineStyleVar: LineStyle = LineStyle::Hidden;
+    pub static OVERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Overline color.
-    pub struct OverlineColorVar: TextLineColor = TextLineColor::Text;
+    pub static OVERLINE_COLOR_VAR: TextLineColor = TextLineColor::Text;
 
     /// Strikethrough thickness.
-    pub struct StrikethroughThicknessVar: TextLineThickness = 0.into();
+    pub static STRIKETHROUGH_THICKNESS_VAR: TextLineThickness = 0.into();
     /// Strikethrough style.
-    pub struct  StrikethroughStyleVar: LineStyle = LineStyle::Hidden;
+    pub static  STRIKETHROUGH_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Strikethrough color.
-    pub struct StrikethroughColorVar: TextLineColor = TextLineColor::Text;
+    pub static STRIKETHROUGH_COLOR_VAR: TextLineColor = TextLineColor::Text;
 
     /// Text is editable.
-    pub struct TextEditableVar: bool = false;
+    pub static TEXT_EDITABLE_VAR: bool = false;
 }
 
-/// Sets the [`FontFamilyVar`] context var.
-#[property(context, default(FontFamilyVar))]
+/// Sets the [`FONT_FAMILY_VAR`] context var.
+#[property(context, default(FONT_FAMILY_VAR))]
 pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl UiNode {
-    with_context_var(child, FontFamilyVar, names)
+    with_context_var(child, FONT_FAMILY_VAR, names)
 }
 
-/// Sets the [`FontStyleVar`] context var.
-#[property(context, default(FontStyleVar))]
+/// Sets the [`FONT_STYLE_VAR`] context var.
+#[property(context, default(FONT_STYLE_VAR))]
 pub fn font_style(child: impl UiNode, style: impl IntoVar<FontStyle>) -> impl UiNode {
-    with_context_var(child, FontStyleVar, style)
+    with_context_var(child, FONT_STYLE_VAR, style)
 }
 
-/// Sets the [`FontWeightVar`] context var.
-#[property(context, default(FontWeightVar))]
+/// Sets the [`FONT_WEIGHT_VAR`] context var.
+#[property(context, default(FONT_WEIGHT_VAR))]
 pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl UiNode {
-    with_context_var(child, FontWeightVar, weight)
+    with_context_var(child, FONT_WEIGHT_VAR, weight)
 }
 
-/// Sets the [`FontStretchVar`] context var.
-#[property(context, default(FontStretchVar))]
+/// Sets the [`FONT_STRETCH_VAR`] context var.
+#[property(context, default(FONT_STRETCH_VAR))]
 pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
-    with_context_var(child, FontStretchVar, stretch)
+    with_context_var(child, FONT_STRETCH_VAR, stretch)
 }
 
-/// Sets the [`FontSynthesisVar`] context var.
-#[property(context, default(FontSynthesisVar))]
+/// Sets the [`FONT_SYNTHESIS_VAR`] context var.
+#[property(context, default(FONT_SYNTHESIS_VAR))]
 pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
-    with_context_var(child, FontSynthesisVar, enabled)
+    with_context_var(child, FONT_SYNTHESIS_VAR, enabled)
 }
 
-/// Sets the [`FontAaVar`] context var.
-#[property(context, default(FontAaVar))]
+/// Sets the [`FONT_AA_VAR`] context var.
+#[property(context, default(FONT_AA_VAR))]
 pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl UiNode {
-    with_context_var(child, FontAaVar, aa)
+    with_context_var(child, FONT_AA_VAR, aa)
 }
 
-/// Sets the [`FontSizeVar`] context var and the [`LayoutMetrics::font_size`].
-#[property(context, default(FontSizeVar))]
+/// Sets the [`FONT_SIZE_VAR`] context var and the [`LayoutMetrics::font_size`].
+#[property(context, default(FONT_SIZE_VAR))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     struct FontSizeNode<C> {
         child: C,
@@ -148,111 +148,111 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &FontSizeVar::new());
+            subs.var(ctx, &FONT_SIZE_VAR);
             self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if FontSizeVar::is_new(ctx) {
+            if FONT_SIZE_VAR.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.child.update(ctx);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let font_size = FontSizeVar::get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
+            let font_size = FONT_SIZE_VAR.get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
             ctx.with_font_size(font_size, |ctx| self.child.measure(ctx))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let font_size = FontSizeVar::get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
+            let font_size = FONT_SIZE_VAR.get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
             ctx.with_font_size(font_size, |ctx| self.child.layout(ctx, wl))
         }
     }
     let child = FontSizeNode { child };
-    with_context_var(child, FontSizeVar, size)
+    with_context_var(child, FONT_SIZE_VAR, size)
 }
 
-/// Sets the [`TextColorVar`] context var.
-#[property(context, default(TextColorVar))]
+/// Sets the [`TEXT_COLOR_VAR`] context var.
+#[property(context, default(TEXT_COLOR_VAR))]
 pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    with_context_var(child, TextColorVar, color)
+    with_context_var(child, TEXT_COLOR_VAR, color)
 }
 
-/// Sets the [`TextTransformVar`] context var.
-#[property(context, default(TextTransformVar))]
+/// Sets the [`TEXT_TRANSFORM_VAR`] context var.
+#[property(context, default(TEXT_TRANSFORM_VAR))]
 pub fn text_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
-    with_context_var(child, TextTransformVar, transform)
+    with_context_var(child, TEXT_TRANSFORM_VAR, transform)
 }
 
-/// Sets the [`LineHeightVar`] context var.
-#[property(context, default(LineHeightVar))]
+/// Sets the [`LINE_HEIGHT_VAR`] context var.
+#[property(context, default(LINE_HEIGHT_VAR))]
 pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl UiNode {
-    with_context_var(child, LineHeightVar, height)
+    with_context_var(child, LINE_HEIGHT_VAR, height)
 }
 
-/// Sets the [`LetterSpacingVar`] context var.
-#[property(context, default(LetterSpacingVar))]
+/// Sets the [`LETTER_SPACING_VAR`] context var.
+#[property(context, default(LETTER_SPACING_VAR))]
 pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) -> impl UiNode {
-    with_context_var(child, LetterSpacingVar, extra)
+    with_context_var(child, LETTER_SPACING_VAR, extra)
 }
 
-/// Sets the [`LineSpacingVar`] context var.
-#[property(context, default(LineSpacingVar))]
+/// Sets the [`LINE_SPACING_VAR`] context var.
+#[property(context, default(LINE_SPACING_VAR))]
 pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> impl UiNode {
-    with_context_var(child, LineSpacingVar, extra)
+    with_context_var(child, LINE_SPACING_VAR, extra)
 }
 
-/// Sets the [`WordSpacingVar`] context var.
-#[property(context, default(WordSpacingVar))]
+/// Sets the [`WORD_SPACING_VAR`] context var.
+#[property(context, default(WORD_SPACING_VAR))]
 pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
-    with_context_var(child, WordSpacingVar, extra)
+    with_context_var(child, WORD_SPACING_VAR, extra)
 }
 
-/// Sets the [`ParagraphSpacingVar`] context var.
-#[property(context, default(ParagraphSpacingVar))]
+/// Sets the [`PARAGRAPH_SPACING_VAR`] context var.
+#[property(context, default(PARAGRAPH_SPACING_VAR))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
-    with_context_var(child, ParagraphSpacingVar, extra)
+    with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
 }
 
-/// Sets the [`WordBreakVar`] context var.
-#[property(context, default(WordBreakVar))]
+/// Sets the [`WORD_BREAK_VAR`] context var.
+#[property(context, default(WORD_BREAK_VAR))]
 pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiNode {
-    with_context_var(child, WordBreakVar, mode)
+    with_context_var(child, WORD_BREAK_VAR, mode)
 }
 
-/// Sets the [`LineBreakVar`] context var.
-#[property(context, default(LineBreakVar))]
+/// Sets the [`LINE_BREAK_VAR`] context var.
+#[property(context, default(LINE_BREAK_VAR))]
 pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiNode {
-    with_context_var(child, LineBreakVar, mode)
+    with_context_var(child, LINE_BREAK_VAR, mode)
 }
 
-/// Sets the [`TextAlignVar`] context var.
-#[property(context, default(TextAlignVar))]
+/// Sets the [`TEXT_ALIGN_VAR`] context var.
+#[property(context, default(TEXT_ALIGN_VAR))]
 pub fn text_align(child: impl UiNode, mode: impl IntoVar<TextAlign>) -> impl UiNode {
-    with_context_var(child, TextAlignVar, mode)
+    with_context_var(child, TEXT_ALIGN_VAR, mode)
 }
 
-/// Sets the [`TabLengthVar`] context var.
-#[property(context, default(TabLengthVar))]
+/// Sets the [`TAB_LENGTH_VAR`] context var.
+#[property(context, default(TAB_LENGTH_VAR))]
 pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl UiNode {
-    with_context_var(child, TabLengthVar, length)
+    with_context_var(child, TAB_LENGTH_VAR, length)
 }
 
-/// Sets the [`WhiteSpaceVar`] context var.
-#[property(context, default(WhiteSpaceVar))]
+/// Sets the [`WHITE_SPACE_VAR`] context var.
+#[property(context, default(WHITE_SPACE_VAR))]
 pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
-    with_context_var(child, WhiteSpaceVar, transform)
+    with_context_var(child, WHITE_SPACE_VAR, transform)
 }
 
 /// Includes the font variation config in the widget context.
 ///
-/// The variation `name` is set for the [`FontVariationsVar`] in this context, variations already set in the parent
+/// The variation `name` is set for the [`FONT_VARIATIONS_VAR`] in this context, variations already set in the parent
 /// context that are not the same `name` are also included.
 pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: impl IntoVar<f32>) -> impl UiNode {
     with_context_var(
         child,
-        FontVariationsVar,
-        merge_var!(FontVariationsVar::new(), value.into_var(), move |variations, value| {
+        FONT_VARIATIONS_VAR,
+        merge_var!(FONT_VARIATIONS_VAR, value.into_var(), move |variations, value| {
             let mut variations = variations.clone();
             variations.insert(name, *value);
             variations
@@ -262,7 +262,7 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
 
 /// Include the font feature config in the widget context.
 ///
-/// The modifications done in `set_feature` are visible only in the [`FontFeaturesVar`] in this context, and features
+/// The modifications done in `set_feature` are visible only in the [`FONT_FEATURES_VAR`] in this context, and features
 /// already set in a parent context are included.
 pub fn with_font_feature<C, S, V, D>(child: C, state: V, set_feature: D) -> impl UiNode
 where
@@ -274,8 +274,8 @@ where
     let mut set_feature = set_feature;
     with_context_var(
         child,
-        FontFeaturesVar,
-        merge_var!(FontFeaturesVar::new(), state.into_var(), move |features, state| {
+        FONT_FEATURES_VAR,
+        merge_var!(FONT_FEATURES_VAR, state.into_var(), move |features, state| {
             let mut features = features.clone();
             set_feature(&mut features, state.clone());
             features
@@ -289,7 +289,7 @@ where
 /// to create a property that sets a variation but retains others from the context.
 #[property(context)]
 pub fn font_variations(child: impl UiNode, variations: impl IntoVar<FontVariations>) -> impl UiNode {
-    with_context_var(child, FontVariationsVar, variations)
+    with_context_var(child, FONT_VARIATIONS_VAR, variations)
 }
 
 /// Sets font features.
@@ -298,7 +298,7 @@ pub fn font_variations(child: impl UiNode, variations: impl IntoVar<FontVariatio
 /// to create a property that sets a variation but retains others from the context.
 #[property(context)]
 pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -> impl UiNode {
-    with_context_var(child, FontFeaturesVar, features)
+    with_context_var(child, FONT_FEATURES_VAR, features)
 }
 
 /// Sets the font kerning feature.
@@ -421,62 +421,62 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
     with_font_feature(child, state, |f, s| f.ea_width().set(s))
 }
 
-/// Sets the [`LangVar`] context var.
-#[property(context, default(LangVar))]
+/// Sets the [`LANG_VAR`] context var.
+#[property(context, default(LANG_VAR))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
-    with_context_var(child, LangVar, lang)
+    with_context_var(child, LANG_VAR, lang)
 }
 
-/// Sets the [`UnderlineThicknessVar`] and [`UnderlineStyleVar`].
-#[property(context, default(UnderlineThicknessVar, UnderlineStyleVar))]
+/// Sets the [`UNDERLINE_THICKNESS_VAR`] and [`UNDERLINE_STYLE_VAR`].
+#[property(context, default(UNDERLINE_THICKNESS_VAR, UNDERLINE_STYLE_VAR))]
 pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
-    let child = with_context_var(child, UnderlineThicknessVar, thickness);
-    with_context_var(child, UnderlineStyleVar, style)
+    let child = with_context_var(child, UNDERLINE_THICKNESS_VAR, thickness);
+    with_context_var(child, UNDERLINE_STYLE_VAR, style)
 }
-/// Sets the [`UnderlineColorVar`].
-#[property(context, default(UnderlineColorVar))]
+/// Sets the [`UNDERLINE_COLOR_VAR`].
+#[property(context, default(UNDERLINE_COLOR_VAR))]
 pub fn underline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
-    with_context_var(child, UnderlineColorVar, color)
+    with_context_var(child, UNDERLINE_COLOR_VAR, color)
 }
-/// Sets the [`UnderlineSkipVar`].
-#[property(context, default(UnderlineSkipVar))]
+/// Sets the [`UNDERLINE_SKIP_VAR`].
+#[property(context, default(UNDERLINE_SKIP_VAR))]
 pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> impl UiNode {
-    with_context_var(child, UnderlineSkipVar, skip)
+    with_context_var(child, UNDERLINE_SKIP_VAR, skip)
 }
-/// Sets the [`UnderlinePosition`].
-#[property(context, default(UnderlinePositionVar))]
+/// Sets the [`UNDERLINE_POSITION_VAR`].
+#[property(context, default(UNDERLINE_POSITION_VAR))]
 pub fn underline_position(child: impl UiNode, position: impl IntoVar<UnderlinePosition>) -> impl UiNode {
-    with_context_var(child, UnderlinePositionVar, position)
+    with_context_var(child, UNDERLINE_POSITION_VAR, position)
 }
 
-/// Sets the [`OverlineThicknessVar`] and [`OverlineStyleVar`].
-#[property(context, default(OverlineThicknessVar, OverlineStyleVar))]
+/// Sets the [`OVERLINE_THICKNESS_VAR`] and [`OVERLINE_STYLE_VAR`].
+#[property(context, default(OVERLINE_THICKNESS_VAR, OVERLINE_STYLE_VAR))]
 pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
-    let child = with_context_var(child, OverlineThicknessVar, thickness);
-    with_context_var(child, OverlineStyleVar, style)
+    let child = with_context_var(child, OVERLINE_THICKNESS_VAR, thickness);
+    with_context_var(child, OVERLINE_STYLE_VAR, style)
 }
-/// Sets the [`OverlineColorVar`].
-#[property(context, default(OverlineColorVar))]
+/// Sets the [`OVERLINE_COLOR_VAR`].
+#[property(context, default(OVERLINE_COLOR_VAR))]
 pub fn overline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
-    with_context_var(child, OverlineColorVar, color)
+    with_context_var(child, OVERLINE_COLOR_VAR, color)
 }
 
-/// Sets the [`StrikethroughThicknessVar`] and [`StrikethroughStyleVar`].
-#[property(context, default(StrikethroughThicknessVar, StrikethroughStyleVar))]
+/// Sets the [`STRIKETHROUGH_THICKNESS_VAR`] and [`STRIKETHROUGH_STYLE_VAR`].
+#[property(context, default(STRIKETHROUGH_THICKNESS_VAR, STRIKETHROUGH_STYLE_VAR))]
 pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
-    let child = with_context_var(child, StrikethroughThicknessVar, thickness);
-    with_context_var(child, StrikethroughStyleVar, style)
+    let child = with_context_var(child, STRIKETHROUGH_THICKNESS_VAR, thickness);
+    with_context_var(child, STRIKETHROUGH_STYLE_VAR, style)
 }
-/// Sets the [`StrikethroughColorVar`].
-#[property(context, default(StrikethroughColorVar))]
+/// Sets the [`STRIKETHROUGH_COLOR_VAR`].
+#[property(context, default(STRIKETHROUGH_COLOR_VAR))]
 pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
-    with_context_var(child, StrikethroughColorVar, color)
+    with_context_var(child, STRIKETHROUGH_COLOR_VAR, color)
 }
 
-/// Sets the [`TextEditableVar`].
-#[property(context, default(TextEditableVar))]
+/// Sets the [`TEXT_EDITABLE_VAR`].
+#[property(context, default(TEXT_EDITABLE_VAR))]
 pub fn text_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    with_context_var(child, TextEditableVar, enabled)
+    with_context_var(child, TEXT_EDITABLE_VAR, enabled)
 }
 
 /// All the text contextual values.
@@ -564,37 +564,37 @@ impl<'a> TextContext<'a> {
     pub fn subscribe(vars: &VarsRead, widget: &mut WidgetSubscriptions) {
         widget
             .vars(vars)
-            .var(&LangVar::new())
-            .var(&FontFamilyVar::new())
-            .var(&FontStyleVar::new())
-            .var(&FontWeightVar::new())
-            .var(&FontStretchVar::new())
-            .var(&TextTransformVar::new())
-            .var(&WhiteSpaceVar::new())
-            .var(&FontSizeVar::new())
-            .var(&FontVariationsVar::new())
-            .var(&LineHeightVar::new())
-            .var(&LetterSpacingVar::new())
-            .var(&WordSpacingVar::new())
-            .var(&LineSpacingVar::new())
-            .var(&WordBreakVar::new())
-            .var(&LineBreakVar::new())
-            .var(&TabLengthVar::new())
-            .var(&FontFeaturesVar::new())
-            .var(&TextAlignVar::new())
-            .var(&TextColorVar::new())
-            .var(&FontSynthesisVar::new())
-            .var(&FontAaVar::new())
-            .var(&OverlineThicknessVar::new())
-            .var(&OverlineStyleVar::new())
-            .var(&OverlineColorVar::new())
-            .var(&StrikethroughThicknessVar::new())
-            .var(&StrikethroughStyleVar::new())
-            .var(&StrikethroughColorVar::new())
-            .var(&UnderlineThicknessVar::new())
-            .var(&UnderlineColorVar::new())
-            .var(&UnderlineSkipVar::new())
-            .var(&UnderlinePositionVar::new());
+            .var(&LANG_VAR)
+            .var(&FONT_FAMILY_VAR)
+            .var(&FONT_STYLE_VAR)
+            .var(&FONT_WEIGHT_VAR)
+            .var(&FONT_STRETCH_VAR)
+            .var(&TEXT_TRANSFORM_VAR)
+            .var(&WHITE_SPACE_VAR)
+            .var(&FONT_SIZE_VAR)
+            .var(&FONT_VARIATIONS_VAR)
+            .var(&LINE_HEIGHT_VAR)
+            .var(&LETTER_SPACING_VAR)
+            .var(&WORD_SPACING_VAR)
+            .var(&LINE_SPACING_VAR)
+            .var(&WORD_BREAK_VAR)
+            .var(&LINE_BREAK_VAR)
+            .var(&TAB_LENGTH_VAR)
+            .var(&FONT_FEATURES_VAR)
+            .var(&TEXT_ALIGN_VAR)
+            .var(&TEXT_COLOR_VAR)
+            .var(&FONT_SYNTHESIS_VAR)
+            .var(&FONT_AA_VAR)
+            .var(&OVERLINE_THICKNESS_VAR)
+            .var(&OVERLINE_STYLE_VAR)
+            .var(&OVERLINE_COLOR_VAR)
+            .var(&STRIKETHROUGH_THICKNESS_VAR)
+            .var(&STRIKETHROUGH_STYLE_VAR)
+            .var(&STRIKETHROUGH_COLOR_VAR)
+            .var(&UNDERLINE_THICKNESS_VAR)
+            .var(&UNDERLINE_COLOR_VAR)
+            .var(&UNDERLINE_SKIP_VAR)
+            .var(&UNDERLINE_POSITION_VAR);
     }
 
     /// Borrow or copy all the text contextual values.
@@ -602,44 +602,44 @@ impl<'a> TextContext<'a> {
         let vars = vars.as_ref();
 
         TextContext {
-            lang: LangVar::get(vars),
-            font_family: FontFamilyVar::get(vars),
-            font_style: *FontStyleVar::get(vars),
-            font_weight: *FontWeightVar::get(vars),
-            font_stretch: *FontStretchVar::get(vars),
+            lang: LANG_VAR.get(vars),
+            font_family: FONT_FAMILY_VAR.get(vars),
+            font_style: FONT_STYLE_VAR.copy(vars),
+            font_weight: FONT_WEIGHT_VAR.copy(vars),
+            font_stretch: FONT_STRETCH_VAR.copy(vars),
 
-            text_transform: TextTransformVar::get(vars).clone(),
-            white_space: *WhiteSpaceVar::get(vars),
+            text_transform: TEXT_TRANSFORM_VAR.get_clone(vars),
+            white_space: WHITE_SPACE_VAR.copy(vars),
 
-            font_size: FontSizeVar::get(vars),
-            font_variations: FontVariationsVar::get(vars),
+            font_size: FONT_SIZE_VAR.get(vars),
+            font_variations: FONT_VARIATIONS_VAR.get(vars),
 
-            line_height: LineHeightVar::get(vars),
-            letter_spacing: LetterSpacingVar::get(vars),
-            word_spacing: WordSpacingVar::get(vars),
-            line_spacing: LineSpacingVar::get(vars),
-            word_break: *WordBreakVar::get(vars),
-            line_break: *LineBreakVar::get(vars),
-            tab_length: TabLengthVar::get(vars),
-            font_features: FontFeaturesVar::get(vars),
+            line_height: LINE_HEIGHT_VAR.get(vars),
+            letter_spacing: LETTER_SPACING_VAR.get(vars),
+            word_spacing: WORD_SPACING_VAR.get(vars),
+            line_spacing: LINE_SPACING_VAR.get(vars),
+            word_break: WORD_BREAK_VAR.copy(vars),
+            line_break: LINE_BREAK_VAR.copy(vars),
+            tab_length: TAB_LENGTH_VAR.get(vars),
+            font_features: FONT_FEATURES_VAR.get(vars),
 
-            text_align: *TextAlignVar::get(vars),
+            text_align: TEXT_ALIGN_VAR.copy(vars),
 
-            text_color: *TextColorVar::get(vars),
+            text_color: TEXT_COLOR_VAR.copy(vars),
 
-            font_synthesis: *FontSynthesisVar::get(vars),
-            font_aa: *FontAaVar::get(vars),
+            font_synthesis: FONT_SYNTHESIS_VAR.copy(vars),
+            font_aa: FONT_AA_VAR.copy(vars),
 
-            overline: (OverlineThicknessVar::get(vars), *OverlineStyleVar::get(vars)),
-            overline_color: *OverlineColorVar::get(vars),
+            overline: (OVERLINE_THICKNESS_VAR.get(vars), OVERLINE_STYLE_VAR.copy(vars)),
+            overline_color: OVERLINE_COLOR_VAR.copy(vars),
 
-            strikethrough: (StrikethroughThicknessVar::get(vars), *StrikethroughStyleVar::get(vars)),
-            strikethrough_color: *StrikethroughColorVar::get(vars),
+            strikethrough: (STRIKETHROUGH_THICKNESS_VAR.get(vars), STRIKETHROUGH_STYLE_VAR.copy(vars)),
+            strikethrough_color: STRIKETHROUGH_COLOR_VAR.copy(vars),
 
-            underline: (UnderlineThicknessVar::get(vars), *UnderlineStyleVar::get(vars)),
-            underline_color: *UnderlineColorVar::get(vars),
-            underline_skip: *UnderlineSkipVar::get(vars),
-            underline_position: *UnderlinePositionVar::get(vars),
+            underline: (UNDERLINE_THICKNESS_VAR.get(vars), UNDERLINE_STYLE_VAR.copy(vars)),
+            underline_color: UNDERLINE_COLOR_VAR.copy(vars),
+            underline_skip: UNDERLINE_SKIP_VAR.copy(vars),
+            underline_position: UNDERLINE_POSITION_VAR.copy(vars),
         }
     }
 
@@ -647,21 +647,21 @@ impl<'a> TextContext<'a> {
     pub fn font_face<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a Lang, &'a [FontName], FontStyle, FontWeight, FontStretch) {
         let vars = vars.as_ref();
         (
-            LangVar::get(vars),
-            FontFamilyVar::get(vars),
-            *FontStyleVar::get(vars),
-            *FontWeightVar::get(vars),
-            *FontStretchVar::get(vars),
+            LANG_VAR.get(vars),
+            FONT_FAMILY_VAR.get(vars),
+            FONT_STYLE_VAR.copy(vars),
+            FONT_WEIGHT_VAR.copy(vars),
+            FONT_STRETCH_VAR.copy(vars),
         )
     }
     /// Gets [`font_face`](Self::font_face) if any of the properties updated.
     pub fn font_face_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a Lang, &'a [FontName], FontStyle, FontWeight, FontStretch)> {
         let vars = vars.as_ref();
-        if LangVar::is_new(vars)
-            || FontFamilyVar::is_new(vars)
-            || FontStyleVar::is_new(vars)
-            || FontWeightVar::is_new(vars)
-            || FontStretchVar::is_new(vars)
+        if LANG_VAR.is_new(vars)
+            || FONT_FAMILY_VAR.is_new(vars)
+            || FONT_STYLE_VAR.is_new(vars)
+            || FONT_WEIGHT_VAR.is_new(vars)
+            || FONT_STRETCH_VAR.is_new(vars)
         {
             Some(Self::font_face(vars))
         } else {
@@ -671,12 +671,12 @@ impl<'a> TextContext<'a> {
 
     /// Gets the properties that affect the text characters.
     pub fn text<Vr: WithVarsRead>(vars: &Vr) -> (TextTransformFn, WhiteSpace) {
-        vars.with_vars_read(|vars| (TextTransformVar::get(vars).clone(), *WhiteSpaceVar::get(vars)))
+        vars.with_vars_read(|vars| (TEXT_TRANSFORM_VAR.get_clone(vars), WHITE_SPACE_VAR.copy(vars)))
     }
     /// Gets [`text`](Self::text) if any of the properties updated.
     pub fn text_update<Vw: WithVars>(vars: &Vw) -> Option<(TextTransformFn, WhiteSpace)> {
         vars.with_vars(|vars| {
-            if TextTransformVar::is_new(vars) || WhiteSpaceVar::is_new(vars) {
+            if TEXT_TRANSFORM_VAR.is_new(vars) || WHITE_SPACE_VAR.is_new(vars) {
                 Some(Self::text(vars))
             } else {
                 None
@@ -687,12 +687,12 @@ impl<'a> TextContext<'a> {
     /// Gets the properties that affect the sized font.
     pub fn font<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a FontSize, &'a FontVariations) {
         let vars = vars.as_ref();
-        (FontSizeVar::get(vars), FontVariationsVar::get(vars))
+        (FONT_SIZE_VAR.get(vars), FONT_VARIATIONS_VAR.get(vars))
     }
     /// Gets [`font`](Self::font) if any of the properties updated.
     pub fn font_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a FontSize, &'a FontVariations)> {
         let vars = vars.as_ref();
-        if FontSizeVar::is_new(vars) || FontVariationsVar::is_new(vars) {
+        if FONT_SIZE_VAR.is_new(vars) || FONT_VARIATIONS_VAR.is_new(vars) {
             Some(Self::font(vars))
         } else {
             None
@@ -712,12 +712,12 @@ impl<'a> TextContext<'a> {
     ) {
         let vars = vars.as_ref();
         (
-            LetterSpacingVar::get(vars),
-            WordSpacingVar::get(vars),
-            LineSpacingVar::get(vars),
-            LineHeightVar::get(vars),
-            TabLengthVar::get(vars),
-            LangVar::get(vars),
+            LETTER_SPACING_VAR.get(vars),
+            WORD_SPACING_VAR.get(vars),
+            LINE_SPACING_VAR.get(vars),
+            LINE_HEIGHT_VAR.get(vars),
+            TAB_LENGTH_VAR.get(vars),
+            LANG_VAR.get(vars),
         )
     }
 
@@ -733,12 +733,12 @@ impl<'a> TextContext<'a> {
         &'a Lang,
     )> {
         let vars = vars.as_ref();
-        if LetterSpacingVar::is_new(vars)
-            || WordSpacingVar::is_new(vars)
-            || LineSpacingVar::is_new(vars)
-            || LineHeightVar::is_new(vars)
-            || TabLengthVar::is_new(vars)
-            || LangVar::is_new(vars)
+        if LETTER_SPACING_VAR.is_new(vars)
+            || WORD_SPACING_VAR.is_new(vars)
+            || LINE_SPACING_VAR.is_new(vars)
+            || LINE_HEIGHT_VAR.is_new(vars)
+            || TAB_LENGTH_VAR.is_new(vars)
+            || LANG_VAR.is_new(vars)
         {
             Some(Self::shaping(vars))
         } else {
@@ -747,15 +747,15 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the properties that affect text wrapping only.
-    pub fn wrapping<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (WordBreak, LineBreak) {
-        (*WordBreakVar::get(vars), *LineBreakVar::get(vars))
+    pub fn wrapping<Vr: WithVarsRead>(vars: &'a Vr) -> (WordBreak, LineBreak) {
+        vars.with_vars_read(|vars| (WORD_BREAK_VAR.copy(vars), LINE_BREAK_VAR.copy(vars)))
     }
 
     /// Gets [`wrapping`](Self::wrapping) if any of the properties updated.
     pub fn wrapping_update<Vw: WithVars>(vars: &'a Vw) -> Option<(WordBreak, LineBreak)> {
         vars.with_vars(|vars| {
-            if WordBreakVar::is_new(vars) || LineBreakVar::is_new(vars) {
-                Some((*WordBreakVar::get(vars), *LineBreakVar::get(vars)))
+            if WORD_BREAK_VAR.is_new(vars) || LINE_BREAK_VAR.is_new(vars) {
+                Some((WORD_BREAK_VAR.copy(vars), LINE_BREAK_VAR.copy(vars)))
             } else {
                 None
             }
@@ -763,23 +763,23 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the property that affect color.
-    pub fn color<Vr: AsRef<VarsRead>>(vars: &Vr) -> Rgba {
-        *TextColorVar::get(vars)
+    pub fn color<Vr: WithVarsRead>(vars: &Vr) -> Rgba {
+        TEXT_COLOR_VAR.copy(vars)
     }
     /// Gets [`color`](Self::color) if the property updated.
     pub fn color_update<Vw: WithVars>(vars: &Vw) -> Option<Rgba> {
-        vars.with_vars(|vars| TextColorVar::get_new(vars).copied())
+        TEXT_COLOR_VAR.copy_new(vars)
     }
 
     /// Gets the properties that affects what font synthesis is used.
     pub fn font_synthesis<Vr: WithVarsRead>(vars: &Vr) -> (FontSynthesis, FontStyle, FontWeight) {
-        vars.with_vars_read(|vars| (*FontSynthesisVar::get(vars), *FontStyleVar::get(vars), *FontWeightVar::get(vars)))
+        vars.with_vars_read(|vars| (FONT_SYNTHESIS_VAR.copy(vars), FONT_STYLE_VAR.copy(vars), FONT_WEIGHT_VAR.copy(vars)))
     }
 
     /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.
     pub fn font_synthesis_update<Vw: WithVars>(vars: &Vw) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
         vars.with_vars(|vars| {
-            if FontSynthesisVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) {
+            if FONT_SYNTHESIS_VAR.is_new(vars) || FONT_STYLE_VAR.is_new(vars) || FONT_WEIGHT_VAR.is_new(vars) {
                 Some(Self::font_synthesis(vars))
             } else {
                 None

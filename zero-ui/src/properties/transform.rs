@@ -47,7 +47,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
             let origin = ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(av_size),
-                |ctx| TransformOriginVar::get(ctx.vars).layout(ctx.metrics, |_| default_origin),
+                |ctx| TRANSFORM_ORIGIN_VAR.get(ctx.vars).layout(ctx.metrics, |_| default_origin),
             );
 
             let x = origin.x.0 as f32;
@@ -220,14 +220,14 @@ pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// Point relative to the widget inner bounds around which the [`transform`] is applied.
 ///
 /// This property sets the [`TransformOriginVar`] context variable.
-#[property(context, default(TransformOriginVar::new()))]
+#[property(context, default(TRANSFORM_ORIGIN_VAR))]
 pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
-    with_context_var(child, TransformOriginVar, origin)
+    with_context_var(child, TRANSFORM_ORIGIN_VAR, origin)
 }
 
 context_var! {
     /// Point relative to the widget inner bounds around which the [`transform`] is applied.
     ///
     /// Default origin is the center (50%, 50%).
-    pub struct TransformOriginVar: Point = Point::center();
+    pub static TRANSFORM_ORIGIN_VAR: Point = Point::center();
 }

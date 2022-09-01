@@ -34,7 +34,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         move |p: &DipPoint, s: &DipSize| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}") }
     );
 
-    let default_background = WindowThemeVar::new().map(|t| match t {
+    let default_background = WINDOW_THEME_VAR.map(|t| match t {
         WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
         WindowTheme::Light => rgb(0.9, 0.9, 0.9),
     });
@@ -106,7 +106,7 @@ fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widg
     }
     fn primary_color(c: Rgba) -> impl Widget {
         let c = c.desaturate(50.pct());
-        let c = WindowThemeVar::new().map(move |t| match t {
+        let c = WINDOW_THEME_VAR.map(move |t| match t {
             WindowTheme::Light => rgba(255, 255, 255, 20.pct()).mix_normal(c),
             WindowTheme::Dark => rgba(0, 0, 0, 20.pct()).mix_normal(c),
         });
@@ -481,7 +481,7 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
         background_color = colors::WHITE.with_alpha(10.pct());
         content_align = Align::CENTER;
         content = container! {
-            background_color = WindowThemeVar::new().map(|t| match t {
+            background_color = WINDOW_THEME_VAR.map(|t| match t {
                 WindowTheme::Light => colors::WHITE.with_alpha(90.pct()),
                 WindowTheme::Dark => colors::BLACK.with_alpha(90.pct()),
             });

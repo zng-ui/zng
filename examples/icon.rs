@@ -46,7 +46,7 @@ fn icons() -> impl Widget {
     fn show_font(icons: Vec<MaterialIcon>) -> impl Widget {
         wrap! {
             spacing = 5;
-            icon::theme::icon_size = 48;
+            icon::vis::icon_size = 48;
             items = icons.into_iter()
                     .map(|i| icon_btn(i).boxed_wgt())
                     .collect::<WidgetVec>(),
@@ -191,7 +191,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                 },
                 button! {
                     id = "close-btn";
-                    icon::theme::icon_size = 14;
+                    icon::vis::icon_size = 14;
                     content = icon(icons::filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;

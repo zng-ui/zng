@@ -184,13 +184,13 @@ pub mod window {
         properties::parent;
 
         /// Window background color.
-        background_color = nodes::WindowThemeVar::new().map(|t| match t {
+        background_color = nodes::WINDOW_THEME_VAR.map(|t| match t {
             WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
             WindowTheme::Light => rgb(0.9, 0.9, 0.9),
         });
 
         /// Window text color.
-        text_color = nodes::WindowThemeVar::new().map(|t| match t {
+        text_color = nodes::WINDOW_THEME_VAR.map(|t| match t {
             WindowTheme::Dark => colors::WHITE,
             WindowTheme::Light => colors::BLACK,
         });
@@ -201,7 +201,7 @@ pub mod window {
         /// It is visible if window content does not completely fill the content area, this
         /// can happen if you do not set a background or the background is semi-transparent, also
         /// can happen during very fast resizes.
-        properties::clear_color = nodes::WindowThemeVar::new().map(|t| match t {
+        properties::clear_color = nodes::WINDOW_THEME_VAR.map(|t| match t {
             WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
             WindowTheme::Light => rgb(0.9, 0.9, 0.9),
         });

@@ -119,15 +119,15 @@ fn toggle_buttons() -> impl Widget {
         spacing = 5;
         items = widgets![
             toggle! {
-                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle: {:?}", s.unwrap())));
+                content = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
                 checked = var(false);
             },
             toggle! {
-                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle: {:?}", s)));
+                content = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(None);
             },
             toggle! {
-                content = text(toggle::IsCheckedVar::new().map(|s| formatx!("Toggle: {:?}", s)));
+                content = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(Some(false));
                 tristate = true;
             },

@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{prelude::*, widgets::text::properties::TextColorVar};
+use zero_ui::{prelude::*, widgets::text::properties::TEXT_COLOR_VAR};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -19,7 +19,7 @@ fn app_main() {
     App::default().run_window(|ctx| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());
-        let shortcut_color = var(TextColorVar::default_value());
+        let shortcut_color = var(TEXT_COLOR_VAR.default_value());
 
         // examples_util::trace_var!(ctx, ?shortcut_text);
         // examples_util::trace_var!(ctx, ?keypress_text);
@@ -36,7 +36,7 @@ fn app_main() {
                             return;
                         }
                         shortcut_text.set(ctx, args.shortcut.to_text());
-                        shortcut_color.set(ctx, TextColorVar::default_value());
+                        shortcut_color.set(ctx, TEXT_COLOR_VAR.default_value());
                     }
                 ),
             )

@@ -370,7 +370,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// ## `fill`
 ///
 /// Properties that render inside the borders, they are the last properties to render in a widget before the widget child outer
-/// bounds, they use the [`WidgetLayout`] and [`BorderAlignVar`] to coordinate with the borders when positioning and clipping the
+/// bounds, they use the [`WidgetLayout`] and [`BORDER_ALIGN_VAR`] to coordinate with the borders when positioning and clipping the
 /// fill content, usually with the help of the [`fill_node`] function.
 ///
 /// ## `child_context`
@@ -482,7 +482,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// [`on_event`]: crate::event::on_event
 /// [`impl IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
-/// [`BorderAlignVar`]: crate::border::BorderAlignVar
+/// [`BORDER_ALIGN_VAR`]: crate::border::BORDER_ALIGN_VAR
 /// [`fill_node`]: crate::border::fill_node
 ///
 /// <div style='display:none'>

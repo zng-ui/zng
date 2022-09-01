@@ -9,7 +9,8 @@ pub mod focusable_mixin {
         foreground_highlight,
     };
 
-    pub use super::theme;
+    #[doc(inline)]
+    pub use super::vis;
 
     properties! {
         /// Enables keyboard focusing in the widget.
@@ -25,16 +26,16 @@ pub mod focusable_mixin {
         /// When widget has keyboard focus and highlight is requested.
         when self.is_focused_hgl {
             focus_highlight = {
-                offsets: theme::FocusHighlightOffsetsVar,
-                widths: theme::FocusHighlightWidthsVar,
-                sides: theme::FocusHighlightSidesVar,
+                offsets: vis::FOCUS_HIGHLIGHT_OFFSETS_VAR,
+                widths: vis::FOCUS_HIGHLIGHT_WIDTHS_VAR,
+                sides: vis::FOCUS_HIGHLIGHT_SIDES_VAR,
             };
         }
     }
 }
 
 /// Context variables and properties that affect the focusable visual from parent widgets.
-pub mod theme {
+pub mod vis {
     use crate::prelude::new_property::*;
 
     use crate::core::border::BorderSides;
@@ -44,23 +45,26 @@ pub mod theme {
 
     context_var! {
         /// Padding offsets of the `focus_highlight` when the widget is focused.
-        pub struct FocusHighlightOffsetsVar: SideOffsets = SideOffsets::new_all(1);
+        pub static FOCUS_HIGHLIGHT_OFFSETS_VAR: SideOffsets = SideOffsets::new_all(1);
         /// Border widths of the `focus_highlight` when the widget is focused.
-        pub struct FocusHighlightWidthsVar: SideOffsets = SideOffsets::new_all(0.5);
+        pub static FOCUS_HIGHLIGHT_WIDTHS_VAR: SideOffsets = SideOffsets::new_all(0.5);
         /// Border sides of the `focus_highlight` when the widget is focused.
-        pub struct FocusHighlightSidesVar: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
+        pub static FOCUS_HIGHLIGHT_SIDES_VAR: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
     }
 
     /// Sets the `focus_highlight` values used when the widget is focused and highlighted.
-    #[property(context, default(FocusHighlightOffsetsVar, FocusHighlightWidthsVar, FocusHighlightSidesVar))]
+    #[property(
+        context,
+        default(FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR, FOCUS_HIGHLIGHT_SIDES_VAR)
+    )]
     pub fn focus_highlight(
         child: impl UiNode,
         offsets: impl IntoVar<SideOffsets>,
         widths: impl IntoVar<SideOffsets>,
         sides: impl IntoVar<BorderSides>,
     ) -> impl UiNode {
-        let child = with_context_var(child, FocusHighlightWidthsVar, offsets);
-        let child = with_context_var(child, FocusHighlightOffsetsVar, widths);
-        with_context_var(child, FocusHighlightSidesVar, sides)
+        let child = with_context_var(child, FOCUS_HIGHLIGHT_WIDTHS_VAR, offsets);
+        let child = with_context_var(child, FOCUS_HIGHLIGHT_OFFSETS_VAR, widths);
+        with_context_var(child, FOCUS_HIGHLIGHT_SIDES_VAR, sides)
     }
 }

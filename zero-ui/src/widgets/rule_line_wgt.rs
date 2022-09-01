@@ -136,47 +136,47 @@ pub mod hr {
         orientation = LineOrientation::Horizontal;
 
         /// Line color.
-        color = theme::ColorVar;
+        color = vis::COLOR_VAR;
 
         /// Line stroke thickness.
-        stroke_thickness  = theme::StrokeThicknessVar;
+        stroke_thickness  = vis::STROKE_THICKNESS_VAR;
 
         /// Line style.
-        style = theme::StyleVar;
+        style = vis::STYLE_VAR;
     }
 
     /// Context variables and properties that affect the horizontal rule line appearance from parent widgets.
-    pub mod theme {
+    pub mod vis {
         use super::*;
-        use crate::widgets::text::properties::TextColorVar;
+        use crate::widgets::text::properties::TEXT_COLOR_VAR;
 
         context_var! {
-            /// Line color, default is the [`TextColorVar`] default.
-            pub struct ColorVar: Rgba = TextColorVar::default_value();
+            /// Line color, default is the [`TEXT_COLOR_VAR`] default.
+            pub static COLOR_VAR: Rgba = TEXT_COLOR_VAR.default_value();
 
             /// Line stroke thickness, default is `1.dip()`
-            pub struct StrokeThicknessVar: Length = 1.dip();
+            pub static STROKE_THICKNESS_VAR: Length = 1.dip();
 
             /// Line style, default is `Solid`.
-            pub struct StyleVar: LineStyle = LineStyle::Solid;
+            pub static STYLE_VAR: LineStyle = LineStyle::Solid;
         }
 
-        /// Sets the [`ColorVar`] that affects all horizontal rules inside the widget.
-        #[property(context, default(ColorVar))]
+        /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
+        #[property(context, default(COLOR_VAR))]
         pub fn color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-            with_context_var(child, ColorVar, color)
+            with_context_var(child, COLOR_VAR, color)
         }
 
-        /// Sets the [`StrokeThicknessVar`] that affects all horizontal rules inside the widget.
-        #[property(context, default(StrokeThicknessVar))]
+        /// Sets the [`STROKE_THICKNESS_VAR`] that affects all horizontal rules inside the widget.
+        #[property(context, default(STROKE_THICKNESS_VAR))]
         pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> impl UiNode {
-            with_context_var(child, StrokeThicknessVar, thickness)
+            with_context_var(child, STROKE_THICKNESS_VAR, thickness)
         }
 
-        /// Sets the [`StyleVar`] that affects all horizontal rules inside the widget.
-        #[property(context, default(StyleVar))]
+        /// Sets the [`STYLE_VAR`] that affects all horizontal rules inside the widget.
+        #[property(context, default(STYLE_VAR))]
         pub fn style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
-            with_context_var(child, StyleVar, style)
+            with_context_var(child, STYLE_VAR, style)
         }
     }
 }

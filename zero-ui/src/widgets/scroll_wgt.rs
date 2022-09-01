@@ -167,21 +167,21 @@ pub mod scroll {
 
                 // arrange
                 let final_size = viewport + self.joiner;
-                let content_size = ScrollContentSizeVar::get_clone(ctx);
+                let content_size = SCROLL_CONTENT_SIZE_VAR.get_clone(ctx);
 
                 if content_size.height > final_size.height {
-                    ScrollVerticalContentOverflowsVar::new().set_ne(ctx, true).unwrap();
-                    ScrollHorizontalContentOverflowsVar::new()
+                    SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, true).unwrap();
+                    SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
                         .set_ne(ctx, content_size.width > viewport.width)
                         .unwrap();
                 } else if content_size.width > final_size.width {
-                    ScrollHorizontalContentOverflowsVar::new().set_ne(ctx, true).unwrap();
-                    ScrollVerticalContentOverflowsVar::new()
+                    SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, true).unwrap();
+                    SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
                         .set_ne(ctx, content_size.height > viewport.height)
                         .unwrap();
                 } else {
-                    ScrollVerticalContentOverflowsVar::new().set_ne(ctx, false).unwrap();
-                    ScrollHorizontalContentOverflowsVar::new().set_ne(ctx, false).unwrap();
+                    SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, false).unwrap();
+                    SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, false).unwrap();
                 }
 
                 // collapse scrollbars if they take more the 1/3 of the total area.
@@ -279,19 +279,19 @@ pub mod scroll {
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {
-        let child = with_context_var(child, ScrollViewportSizeVar, var(PxSize::zero()));
-        let child = with_context_var(child, ScrollContentSizeVar, var(PxSize::zero()));
+        let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
+        let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
 
-        let child = with_context_var(child, ScrollVerticalRatioVar, var(0.fct()));
-        let child = with_context_var(child, ScrollHorizontalRatioVar, var(0.fct()));
+        let child = with_context_var(child, SCROLL_VERTICAL_RATIO_VAR, var(0.fct()));
+        let child = with_context_var(child, SCROLL_HORIZONTAL_RATIO_VAR, var(0.fct()));
 
-        let child = with_context_var(child, ScrollVerticalContentOverflowsVar, var(false));
-        let child = with_context_var(child, ScrollHorizontalContentOverflowsVar, var(false));
+        let child = with_context_var(child, SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR, var(false));
+        let child = with_context_var(child, SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR, var(false));
 
         let child = ScrollContext::config_node(child);
 
-        let child = with_context_var(child, ScrollVerticalOffsetVar, var(0.fct()));
-        with_context_var(child, ScrollHorizontalOffsetVar, var(0.fct()))
+        let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
+        with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
     }
 }
 

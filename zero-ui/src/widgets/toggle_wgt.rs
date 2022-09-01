@@ -15,7 +15,7 @@ pub mod toggle {
     use super::*;
 
     #[doc(inline)]
-    pub use super::properties::{self, selection, IsCheckedVar, SingleOptSel, SingleSel};
+    pub use super::properties::{self, selection, SingleOptSel, SingleSel, IS_CHECKED_VAR};
     #[doc(inline)]
     pub use super::vis;
 
@@ -123,7 +123,7 @@ pub mod toggle {
 
         /// If the toggle is checked from any of the three primary properties.
         ///
-        /// Note to read the tristate use [`IsCheckedVar`].
+        /// Note to read the tristate use [`IS_CHECKED_VAR`].
         ///
         /// # Examples
         ///
@@ -153,8 +153,8 @@ pub mod toggle {
 
         /// Toggle dark and light themes.
         ///
-        /// Set to [`theme::pair`] of [`vis::DarkThemeVar`], [`vis::LightThemeVar`] by default.
-        theme = theme::pair(vis::DarkThemeVar, vis::LightThemeVar);
+        /// Set to [`theme::pair`] of [`vis::DARK_THEME_VAR`], [`vis::LIGHT_THEME_VAR`] by default.
+        theme = theme::pair(vis::DARK_THEME_VAR, vis::LIGHT_THEME_VAR);
     }
 }
 
@@ -166,10 +166,10 @@ pub mod properties {
 
     context_var! {
         /// The toggle button checked state.
-        pub struct IsCheckedVar: Option<bool> = Some(false);
+        pub static IS_CHECKED_VAR: Option<bool> = Some(false);
 
         /// If toggle button cycles between `None`, `Some(false)` and `Some(true)` on click.
-        pub struct IsTristateVar: bool = false;
+        pub static IS_TRISTATE_VAR: bool = false;
     }
 
     /// Toggle `checked` on click and sets the [`IsCheckedVar`], disables the widget if `checked` is read-only.
@@ -211,10 +211,10 @@ pub mod properties {
             checked: checked.clone(),
         }
         .cfg_boxed();
-        with_context_var(node, IsCheckedVar, checked.map_into())
+        with_context_var(node, IS_CHECKED_VAR, checked.map_into())
     }
 
-    /// Three state toggle `checked` on click and sets the [`IsCheckedVar`], disables the widget if `checked` is read-only.
+    /// Three state toggle `checked` on click and sets the [`IS_CHECKED_VAR`], disables the widget if `checked` is read-only.
     ///
     /// Sets to `None` if [`IsTristateVar`] is `true`.
     #[property(context, default(None))]
@@ -241,7 +241,7 @@ pub mod properties {
                     {
                         args.propagation().stop();
 
-                        if *IsTristateVar::get(ctx) {
+                        if IS_TRISTATE_VAR.copy(ctx) {
                             let _ = self.checked.modify(ctx, |mut c| {
                                 *c = match *c {
                                     Some(true) => None,
@@ -271,24 +271,24 @@ pub mod properties {
         }
         .cfg_boxed();
 
-        with_context_var(node, IsCheckedVar, checked)
+        with_context_var(node, IS_CHECKED_VAR, checked)
     }
 
     /// Enables `None` as an input on toggle.
     ///
     /// If the toggle button is checking using [`checked_opt`] and this is enabled the toggle cycles between `None`, `Some(false)` and `Some(true)`.
-    #[property(context, default(IsTristateVar))]
+    #[property(context, default(IS_TRISTATE_VAR))]
     pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        with_context_var(child, IsTristateVar, enabled)
+        with_context_var(child, IS_TRISTATE_VAR, enabled)
     }
 
-    /// If [`IsCheckedVar`] is `Some(true)`.
+    /// If [`IS_CHECKED_VAR`] is `Some(true)`.
     #[property(event)]
     pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
-        bind_state(child, IsCheckedVar::new().map(|s| *s == Some(true)), state)
+        bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
     }
 
-    /// Selects `value` on click and sets [`IsCheckedVar`] if the `value` is selected.
+    /// Selects `value` on click and sets [`IS_CHECKED_VAR`] if the `value` is selected.
     ///
     /// This property interacts with the contextual [`selection`], when the widget is clicked or the `value` variable changes
     /// the contextual [`Selector`] is used to implement the behavior.
@@ -302,7 +302,7 @@ pub mod properties {
         }
         impl<C, T: VarValue + PartialEq, V> ValueNode<C, T, V> {
             fn select(ctx: &mut WidgetContext, value: &T) -> bool {
-                let mut selector = SelectorVar::get(ctx.vars).instance.borrow_mut();
+                let mut selector = SELECTOR_VAR.get(ctx.vars).instance.borrow_mut();
                 match selector.select(ctx, Box::new(value.clone())) {
                     Ok(()) => true,
                     Err(e) => {
@@ -320,7 +320,7 @@ pub mod properties {
             }
 
             fn deselect(ctx: &mut WidgetContext, value: &T) -> bool {
-                let mut selector = SelectorVar::get(ctx.vars).instance.borrow_mut();
+                let mut selector = SELECTOR_VAR.get(ctx.vars).instance.borrow_mut();
                 match selector.deselect(ctx, value) {
                     Ok(()) => true,
                     Err(e) => {
@@ -338,7 +338,7 @@ pub mod properties {
             }
 
             fn is_selected(ctx: &mut WidgetContext, value: &T) -> bool {
-                SelectorVar::get(ctx.vars).instance.borrow().is_selected(&mut ctx.as_info(), value)
+                SELECTOR_VAR.get(ctx.vars).instance.borrow().is_selected(&mut ctx.as_info(), value)
             }
         }
         #[impl_ui_node(child)]
@@ -346,14 +346,14 @@ pub mod properties {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let value = self.value.get(ctx.vars);
 
-                let selected = if SelectOnInitVar::new().copy(ctx) {
+                let selected = if SELECT_ON_INIT_VAR.copy(ctx) {
                     Self::select(ctx, value)
                 } else {
                     Self::is_selected(ctx, value)
                 };
                 self.checked.set_ne(ctx.vars, Some(selected));
 
-                if DeselectOnNewVar::new().copy(ctx) {
+                if DESELECT_ON_DEINIT_VAR.copy(ctx) {
                     self.prev_value = Some(value.clone());
                 }
 
@@ -361,7 +361,7 @@ pub mod properties {
             }
 
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                if self.checked.copy(ctx.vars) == Some(true) && DeselectOnDeinitVar::new().copy(ctx) {
+                if self.checked.copy(ctx.vars) == Some(true) && DESELECT_ON_DEINIT_VAR.copy(ctx) {
                     let value = self.value.get(ctx.vars);
                     if Self::deselect(ctx, value) {
                         self.checked.set_ne(ctx, Some(false));
@@ -374,11 +374,8 @@ pub mod properties {
             }
 
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                SelectorVar::get(ctx.vars).instance.borrow().subscribe(ctx, subs);
-                subs.vars(ctx)
-                    .var(&self.value)
-                    .var(&SelectorVar::new())
-                    .var(&DeselectOnNewVar::new());
+                SELECTOR_VAR.get(ctx.vars).instance.borrow().subscribe(ctx, subs);
+                subs.vars(ctx).var(&self.value).var(&SELECTOR_VAR).var(&DESELECT_ON_DEINIT_VAR);
                 subs.event(ClickEvent);
                 self.child.subscriptions(ctx, subs);
             }
@@ -407,7 +404,7 @@ pub mod properties {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 let selected = if let Some(new) = self.value.get_new(ctx.vars) {
                     // auto select new.
-                    let selected = if SelectOnNewVar::new().copy(ctx.vars) {
+                    let selected = if SELECT_ON_NEW_VAR.copy(ctx.vars) {
                         Self::select(ctx, new)
                     } else {
                         Self::is_selected(ctx, new)
@@ -415,7 +412,7 @@ pub mod properties {
 
                     // auto deselect prev, need to be done after potential auto select new to avoid `CannotClear` error.
                     if let Some(prev) = self.prev_value.take() {
-                        if DeselectOnNewVar::new().copy(ctx.vars) {
+                        if DESELECT_ON_NEW_VAR.copy(ctx.vars) {
                             Self::deselect(ctx, &prev);
                             self.prev_value = Some(new.clone());
                         }
@@ -429,7 +426,7 @@ pub mod properties {
                 };
                 self.checked.set_ne(ctx.vars, selected);
 
-                if SelectOnNewVar::new().copy(ctx) {
+                if SELECT_ON_NEW_VAR.copy(ctx) {
                     if self.prev_value.is_none() {
                         let value = self.value.get_clone(ctx);
                         self.prev_value = Some(value);
@@ -442,7 +439,7 @@ pub mod properties {
             }
         }
         let checked = var(Some(false));
-        let child = with_context_var(child, IsCheckedVar, checked.clone());
+        let child = with_context_var(child, IS_CHECKED_VAR, checked.clone());
         ValueNode {
             child,
             value: value.into_var(),
@@ -462,43 +459,43 @@ pub mod properties {
     /// [`value`]: fn@value
     #[property(context, allowed_in_when = false, default(NilSel))]
     pub fn selection(child: impl UiNode, selector: impl Selector) -> impl UiNode {
-        with_context_var(child, SelectorVar, SelectorInstance::new(selector))
+        with_context_var(child, SELECTOR_VAR, SelectorInstance::new(selector))
     }
 
     /// If [`value`] is selected when the widget that has the value is inited.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(SelectOnInitVar))]
+    #[property(context, default(SELECT_ON_INIT_VAR))]
     pub fn select_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        with_context_var(child, SelectOnInitVar, enabled)
+        with_context_var(child, SELECT_ON_INIT_VAR, enabled)
     }
 
     /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(DeselectOnDeinitVar))]
+    #[property(context, default(DESELECT_ON_DEINIT_VAR))]
     pub fn deselect_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        with_context_var(child, DeselectOnDeinitVar, enabled)
+        with_context_var(child, DESELECT_ON_DEINIT_VAR, enabled)
     }
 
     /// If [`value`] selects the new value when the value variable changes and the previous value was selected.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(SelectOnNewVar))]
+    #[property(context, default(SELECT_ON_NEW_VAR))]
     pub fn select_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        with_context_var(child, SelectOnNewVar, enabled)
+        with_context_var(child, SELECT_ON_NEW_VAR, enabled)
     }
 
     /// If [`value`] deselects the previously selected value when the value variable changes.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(DeselectOnNewVar))]
+    #[property(context, default(DESELECT_ON_NEW_VAR))]
     pub fn deselect_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        with_context_var(child, DeselectOnNewVar, enabled)
+        with_context_var(child, DESELECT_ON_NEW_VAR, enabled)
     }
 
     context_var! {
-        struct SelectorVar: SelectorInstance = SelectorInstance::new(NilSel);
+        static SELECTOR_VAR: SelectorInstance = SelectorInstance::new(NilSel);
 
         /// If [`value`] is selected when the widget that has the value is inited.
         ///
@@ -506,7 +503,7 @@ pub mod properties {
         ///
         /// [`value`]: fn@value
         /// [`select_on_init`]: fn@select_on_init
-        pub struct SelectOnInitVar: bool = false;
+        pub static SELECT_ON_INIT_VAR: bool = false;
 
         /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
         ///
@@ -514,7 +511,7 @@ pub mod properties {
         ///
         /// [`value`]: fn@value
         /// [`deselect_on_deinit`]: fn@deselect_on_deinit
-        pub struct DeselectOnDeinitVar: bool = false;
+        pub static DESELECT_ON_DEINIT_VAR: bool = false;
 
         /// If [`value`] selects the new value when the value variable changes and the previous value was selected.
         ///
@@ -522,7 +519,7 @@ pub mod properties {
         ///
         /// [`value`]: fn@value
         /// [`select_on_new`]: fn@select_on_new
-        pub struct SelectOnNewVar: bool = true;
+        pub static SELECT_ON_NEW_VAR: bool = true;
 
         /// If [`value`] deselects the previously selected value when the value variable changes.
         ///
@@ -530,7 +527,7 @@ pub mod properties {
         ///
         /// [`value`]: fn@value
         /// [`select_on_new`]: fn@select_on_new
-        pub struct DeselectOnNewVar: bool = false;
+        pub static DESELECT_ON_NEW_VAR: bool = false;
     }
 
     #[derive(Clone)]
@@ -811,10 +808,10 @@ pub mod vis {
 
             /// When the toggle is checked.
             when self.is_checked  {
-                background_color = btn_vis::DarkColorVar::pressed();
+                background_color = btn_vis::dark_color_pressed();
                 border = {
                     widths: 1,
-                    sides: btn_vis::DarkColorVar::pressed().map_into(),
+                    sides: btn_vis::dark_color_pressed().map_into(),
                 };
             }
         }
@@ -832,10 +829,10 @@ pub mod vis {
 
             /// When the toggle is checked.
             when self.is_checked  {
-                background_color = btn_vis::LightColorVar::pressed();
+                background_color = btn_vis::light_color_pressed();
                 border = {
                     widths: 1,
-                    sides: btn_vis::LightColorVar::pressed().map_into(),
+                    sides: btn_vis::light_color_pressed().map_into(),
                 };
             }
         }
@@ -847,26 +844,26 @@ pub mod vis {
         /// Use the [`toggle::vis::dark`] property to set.
         ///
         /// [`toggle::vis::dark`]: fn@dark
-        pub struct DarkThemeVar: ThemeGenerator = ThemeGenerator::new(|_, _| dark_theme!());
+        pub static DARK_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| dark_theme!());
 
         /// Toggle light theme.
         ///
         /// Use the [`toggle::vis::light`] property to set.
         ///
         /// [`toggle::vis::light`]: fn@light
-        pub struct LightThemeVar: ThemeGenerator = ThemeGenerator::new(|_, _| light_theme!());
+        pub static LIGHT_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| light_theme!());
     }
 
-    /// Sets the [`DarkThemeVar`] that affects all toggle buttons inside the widget.
-    #[property(context, default(DarkThemeVar))]
+    /// Sets the [`DARK_THEME_VAR`] that affects all toggle buttons inside the widget.
+    #[property(context, default(DARK_THEME_VAR))]
     pub fn dark(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, DarkThemeVar, theme)
+        with_context_var(child, DARK_THEME_VAR, theme)
     }
 
-    /// Sets the [`LightThemeVar`] that affects all toggle buttons inside the widget.
-    #[property(context, default(LightThemeVar))]
+    /// Sets the [`LIGHT_THEME_VAR`] that affects all toggle buttons inside the widget.
+    #[property(context, default(LIGHT_THEME_VAR))]
     pub fn light(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, LightThemeVar, theme)
+        with_context_var(child, LIGHT_THEME_VAR, theme)
     }
 }
 
@@ -875,7 +872,7 @@ pub mod vis {
 pub mod checkbox {
     inherit!(super::toggle);
 
-    pub use super::toggle::IsCheckedVar;
+    pub use super::toggle::IS_CHECKED_VAR;
 
     use super::*;
 

@@ -19,8 +19,8 @@ pub mod scrollbar {
         #[allowed_in_when = false]
         thumb(impl UiNode);
 
-        /// Fills the track with [`theme::BackgroundVar`]
-        background_color = theme::BackgroundVar;
+        /// Fills the track with [`vis::BACKGROUND_VAR`]
+        background_color = vis::BACKGROUND_VAR;
 
         /// Scrollbar orientation.
         ///
@@ -44,12 +44,12 @@ pub mod scrollbar {
     }
 
     /// Theme variables and properties.
-    pub mod theme {
+    pub mod vis {
         use crate::prelude::new_property::*;
 
         context_var! {
             /// Scrollbar track background color
-            pub struct BackgroundVar: Rgba = rgba(80, 80, 80, 50.pct());
+            pub static BACKGROUND_VAR: Rgba = rgba(80, 80, 80, 50.pct());
         }
     }
 
@@ -86,8 +86,8 @@ pub mod thumb {
         /// Width if orientation is vertical, otherwise height if orientation is horizontal.
         cross_length(impl IntoVar<Length>) = 16;
 
-        /// Fills the thumb with [`theme::BackgroundVar`].
-        background_color = theme::BackgroundVar;
+        /// Fills the thumb with [`theme::BACKGROUND_VAR`].
+        background_color = vis::BACKGROUND_VAR;
 
         /// Enabled by default.
         ///
@@ -96,12 +96,12 @@ pub mod thumb {
 
         /// When the pointer device is over this thumb.
         when self.is_hovered {
-            background_color = theme::hovered::BackgroundVar;
+            background_color = vis::hovered::BACKGROUND_VAR;
         }
 
         /// When the thumb is pressed.
         when self.is_cap_pressed  {
-            background_color = theme::pressed::BackgroundVar;
+            background_color = vis::pressed::BACKGROUND_VAR;
         }
     }
 
@@ -109,8 +109,8 @@ pub mod thumb {
         size(
             child,
             merge_var!(
-                ThumbOrientationVar::new(),
-                ThumbViewportRatioVar::new(),
+                THUMB_ORIENTATION_VAR,
+                THUMB_VIEWPORT_RATIO_VAR,
                 cross_length.into_var(),
                 |o, r, l| {
                     match o {
@@ -135,14 +135,14 @@ pub mod thumb {
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(MouseMoveEvent).event(MouseInputEvent).var(ctx, &ThumbOffsetVar::new());
+                subs.event(MouseMoveEvent).event(MouseInputEvent).var(ctx, &THUMB_OFFSET_VAR);
                 self.child.subscriptions(ctx, subs);
             }
 
             fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MouseMoveEvent.update(args) {
-                        let offset = match *ThumbOrientationVar::get(ctx) {
+                        let offset = match THUMB_ORIENTATION_VAR.copy(ctx) {
                             scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
                             scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         } - mouse_down;
@@ -158,7 +158,7 @@ pub mod thumb {
                         let offset = max_length * offset;
                         let offset = offset.0 as f32 / max_length.0 as f32;
 
-                        ThumbOffsetVar::new()
+                        THUMB_OFFSET_VAR
                             .set_ne(ctx.vars, Factor(offset))
                             .expect("ThumbOffsetVar is read-only");
 
@@ -174,11 +174,11 @@ pub mod thumb {
                     }
                 } else if let Some(args) = MouseInputEvent.update(args) {
                     if args.is_primary() && args.is_mouse_down() {
-                        let a = match *ThumbOrientationVar::get(ctx) {
+                        let a = match THUMB_ORIENTATION_VAR.copy(ctx) {
                             scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
                             scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         };
-                        self.mouse_down = Some((a, *ThumbOffsetVar::get(ctx.vars)));
+                        self.mouse_down = Some((a, THUMB_OFFSET_VAR.copy(ctx.vars)));
                     }
                     self.child.event(ctx, args);
                 } else {
@@ -187,7 +187,7 @@ pub mod thumb {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
-                if ThumbOffsetVar::is_new(ctx) {
+                if THUMB_OFFSET_VAR.is_new(ctx) {
                     ctx.updates.layout();
                 }
 
@@ -201,14 +201,14 @@ pub mod thumb {
                 let final_size = ctx.constrains().fill_size();
 
                 let mut final_offset = PxVector::zero();
-                let (px_vp_length, final_offset_d) = match *ThumbOrientationVar::get(ctx) {
+                let (px_vp_length, final_offset_d) = match THUMB_ORIENTATION_VAR.copy(ctx) {
                     scrollbar::Orientation::Vertical => (final_size.height, &mut final_offset.y),
                     scrollbar::Orientation::Horizontal => (final_size.width, &mut final_offset.x),
                 };
 
-                let ratio = *ThumbViewportRatioVar::get(ctx);
+                let ratio = THUMB_VIEWPORT_RATIO_VAR.copy(ctx);
                 let px_tb_length = px_vp_length * ratio;
-                *final_offset_d = (px_vp_length - px_tb_length) * ThumbOffsetVar::get_clone(ctx.vars);
+                *final_offset_d = (px_vp_length - px_tb_length) * THUMB_OFFSET_VAR.get_clone(ctx.vars);
 
                 self.scale_factor = ctx.metrics.scale_factor();
                 self.content_length = px_vp_length / ratio;
@@ -237,24 +237,24 @@ pub mod thumb {
         viewport_ratio: impl IntoVar<Factor>,
         offset: impl IntoVar<Factor>,
     ) -> impl UiNode {
-        let child = with_context_var(child, ThumbOrientationVar, orientation);
-        let child = with_context_var(child, ThumbViewportRatioVar, viewport_ratio);
-        with_context_var(child, ThumbOffsetVar, offset)
+        let child = with_context_var(child, THUMB_ORIENTATION_VAR, orientation);
+        let child = with_context_var(child, THUMB_VIEWPORT_RATIO_VAR, viewport_ratio);
+        with_context_var(child, THUMB_OFFSET_VAR, offset)
     }
 
     context_var! {
-        struct ThumbOrientationVar: scrollbar::Orientation = scrollbar::Orientation::Vertical;
-        struct ThumbViewportRatioVar: Factor = 1.fct();
-        struct ThumbOffsetVar: Factor = 0.fct();
+        static THUMB_ORIENTATION_VAR: scrollbar::Orientation = scrollbar::Orientation::Vertical;
+        static THUMB_VIEWPORT_RATIO_VAR: Factor = 1.fct();
+        static THUMB_OFFSET_VAR: Factor = 0.fct();
     }
 
     /// Theme variables.
-    pub mod theme {
+    pub mod vis {
         use crate::prelude::new_property::*;
 
         context_var! {
             /// Fill color.
-            pub struct BackgroundVar: Rgba = rgba(200, 200, 200, 50.pct());
+            pub static BACKGROUND_VAR: Rgba = rgba(200, 200, 200, 50.pct());
         }
 
         /// Variables when the pointer device is over the thumb.
@@ -263,7 +263,7 @@ pub mod thumb {
 
             context_var! {
                 /// Fill color.
-                pub struct BackgroundVar: Rgba = rgba(200, 200, 200, 70.pct());
+                pub static BACKGROUND_VAR: Rgba = rgba(200, 200, 200, 70.pct());
             }
         }
 
@@ -273,7 +273,7 @@ pub mod thumb {
 
             context_var! {
                 /// Fill color.
-                pub struct BackgroundVar: Rgba = rgba(200, 200, 200, 90.pct());
+                pub static BACKGROUND_VAR: Rgba = rgba(200, 200, 200, 90.pct());
             }
         }
     }

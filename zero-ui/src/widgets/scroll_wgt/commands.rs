@@ -347,7 +347,7 @@ impl_notify_alt! {
 pub struct ScrollRequest {
     /// If the [alt factor] should be applied to the base scroll unit when scrolling.
     ///
-    /// [alt factor]: super::properties::AltFactorVar
+    /// [alt factor]: super::properties::ALT_FACTOR_VAR
     pub alternate: bool,
 }
 impl ScrollRequest {

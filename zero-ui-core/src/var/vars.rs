@@ -137,7 +137,7 @@ impl VarsRead {
     ///
     /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
-    pub fn with_context_var<T, R, F>(&self, context_var: ContextVar<T>, data: ContextVarData<T>, f: F) -> R
+    pub fn with_context_var<T, R, F>(&self, context_var: ContextVar<T>, mut data: ContextVarData<T>, f: F) -> R
     where
         T: VarValue,
         F: FnOnce() -> R,
@@ -1483,7 +1483,7 @@ mod tests {
         let ctx = TestWidgetContext::new();
         let value = ctx
             .vars
-            .with_context_var(&TEST_VAR, ContextVarData::fixed(&"with value"), || *TEST_VAR.get(&ctx.vars));
+            .with_context_var(TEST_VAR, ContextVarData::fixed(&"with value"), || *TEST_VAR.get(&ctx.vars));
 
         assert_eq!("with value", value);
 
@@ -1497,7 +1497,7 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(&TEST_VAR, ContextVarData::in_vars(&ctx.vars, &&TEST_VAR2, false), || {
+            .with_context_var(TEST_VAR, ContextVarData::in_vars(&ctx.vars, &TEST_VAR2, false), || {
                 *TEST_VAR.get(&ctx.vars)
             });
 
@@ -1510,7 +1510,7 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(&TEST_VAR, ContextVarData::in_vars(&ctx.vars, &&TEST_VAR, false), || {
+            .with_context_var(TEST_VAR, ContextVarData::in_vars(&ctx.vars, &TEST_VAR, false), || {
                 *TEST_VAR.get(&ctx.vars)
             });
 
@@ -1523,10 +1523,10 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(&TEST_VAR, ContextVarData::in_vars(&ctx.vars, &&TEST_VAR2, false), || {
+            .with_context_var(TEST_VAR, ContextVarData::in_vars(&ctx.vars, &TEST_VAR2, false), || {
                 // set to "default value 2"
                 ctx.vars
-                    .with_context_var(&TEST_VAR2, ContextVarData::in_vars(&ctx.vars, &TEST_VAR, false), || {
+                    .with_context_var(TEST_VAR2, ContextVarData::in_vars(&ctx.vars, &TEST_VAR, false), || {
                         // set to "default value 2"
                         *TEST_VAR.get(&ctx.vars)
                     })

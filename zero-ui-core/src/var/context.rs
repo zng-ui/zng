@@ -235,6 +235,12 @@ macro_rules! context_var {
 }
 #[doc(inline)]
 pub use crate::context_var;
+use crate::var::types;
+
+/// The [`ContextVar<T>`] into read-only var type.
+///
+/// Ensures that even if the context is set to a read-write variable it cannot be set.
+pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
 
 /// Represents a context var.
 ///
@@ -304,7 +310,7 @@ impl<T: VarValue> any::AnyVar for ContextVar<T> {
     any_var_impls!(Var);
 }
 impl<T: VarValue> Var<T> for ContextVar<T> {
-    type AsReadOnly = crate::var::types::ReadOnlyVar<T, Self>;
+    type AsReadOnly = types::ReadOnlyVar<T, Self>;
 
     type Weak = NoneWeakVar<T>;
 
@@ -369,7 +375,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| self.local.with(|l| l.is_animating.get()))
+        vars.with_vars_read(|_vars| self.local.with(|l| l.is_animating.get()))
     }
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
@@ -409,7 +415,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn into_read_only(self) -> Self::AsReadOnly {
-        crate::var::types::ReadOnlyVar::new(self)
+        types::ReadOnlyVar::new(self)
     }
 
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
@@ -768,7 +774,7 @@ mod tests {
             test_prop = "test!";
 
             child = test_wgt! {
-                probe = &TEST_VAR;
+                probe = TEST_VAR;
             }
         });
 

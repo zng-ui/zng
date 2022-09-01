@@ -966,7 +966,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::text::properties::{
         font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, text_align, text_color,
-        text_transform, word_spacing, TextColorVar,
+        text_transform, word_spacing, TEXT_COLOR_VAR,
     };
 
     #[doc(no_inline)]
@@ -978,7 +978,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::theme::theme_generator;
     #[doc(no_inline)]
-    pub use crate::widgets::window::{nodes::WindowThemeVar, AnchorMode, LayerIndex, WindowLayers};
+    pub use crate::widgets::window::{nodes::WINDOW_THEME_VAR, AnchorMode, LayerIndex, WindowLayers};
 
     /// All the types you need to declare a new property.
     ///

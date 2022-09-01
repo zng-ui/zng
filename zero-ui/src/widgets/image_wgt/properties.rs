@@ -11,7 +11,7 @@ pub use crate::core::image::ImageLimits;
 pub use crate::core::render::ImageRendering;
 use crate::core::window::{WindowLoadingHandle, Windows};
 use crate::widgets::window::nodes::BlockWindowLoad;
-use nodes::ContextImageVar;
+use nodes::CONTEXT_IMAGE_VAR;
 
 /// Image layout mode.
 ///
@@ -59,56 +59,56 @@ context_var! {
     /// The Image scaling algorithm in the renderer.
     ///
     /// Is [`ImageRendering::Auto`] by default.
-    pub struct ImageRenderingVar: ImageRendering = ImageRendering::Auto;
+    pub static IMAGE_RENDERING_VAR: ImageRendering = ImageRendering::Auto;
 
     /// If the image is cached.
     ///
     /// Is `true` by default.
-    pub struct ImageCacheVar: bool = true;
+    pub static IMAGE_CACHE_VAR: bool = true;
 
     /// View generator for the content shown when the image does not load.
-    pub struct ImageErrorViewVar: ViewGenerator<ImageErrorArgs> = ViewGenerator::nil();
+    pub static IMAGE_ERROR_VIEW_VAR: ViewGenerator<ImageErrorArgs> = ViewGenerator::nil();
 
     /// View generator for the content shown when the image is still loading.
-    pub struct ImageLoadingViewVar: ViewGenerator<ImageLoadingArgs> = ViewGenerator::nil();
+    pub static IMAGE_LOADING_VIEW_VAR: ViewGenerator<ImageLoadingArgs> = ViewGenerator::nil();
 
     /// Custom image load and decode limits.
     ///
     /// Set to `None` to use the [`Images::limits`].
-    pub struct ImageLimitsVar: Option<ImageLimits> = None;
+    pub static IMAGE_LIMITS_VAR: Option<ImageLimits> = None;
 
     /// The image layout mode.
     ///
     /// Is [`ImageFit::Contain`] by default.
-    pub struct ImageFitVar: ImageFit = ImageFit::Contain;
+    pub static IMAGE_FIT_VAR: ImageFit = ImageFit::Contain;
 
     /// Scaling applied to the image desired size.
     ///
     /// Does not scale by default, `1.0`.
-    pub struct ImageScaleVar: Factor2d = Factor2d::identity();
+    pub static IMAGE_SCALE_VAR: Factor2d = Factor2d::identity();
 
     /// If the image desired size is scaled by the screen scale factor.
     ///
     /// Is `true` by default.
-    pub struct ImageScaleFactorVar: bool = true;
+    pub static IMAGE_SCALE_FACTOR_VAR: bool = true;
 
     /// If the image desired size is scaled considering the image and screen PPIs.
     ///
     /// Is `false` by default.
-    pub struct ImageScalePpiVar: bool = false;
+    pub static IMAGE_SCALE_PPI_VAR: bool = false;
 
     /// Align of the image in relation to the image widget final size.
     ///
     /// Is [`Align::CENTER`] by default.
-    pub struct ImageAlignVar: Align = Align::CENTER;
+    pub static IMAGE_ALIGN_VAR: Align = Align::CENTER;
 
     /// Offset applied to the image after all measure and arrange.
-    pub struct ImageOffsetVar: Vector = Vector::default();
+    pub static IMAGE_OFFSET_VAR: Vector = Vector::default();
 
     /// Simple clip applied to the image before layout.
     ///
     /// No cropping is done by default.
-    pub struct ImageCropVar: Rect = Rect::default();
+    pub static IMAGE_CROP_VAR: Rect = Rect::default();
 }
 
 /// Sets the [`ImageFit`] of all inner images.
@@ -116,9 +116,9 @@ context_var! {
 /// See the [`fit`] property in the widget for more details.
 ///
 /// [`fit`]: mod@crate::widgets::image#wp-fit
-#[property(context, default(ImageFit::Contain))]
+#[property(context, default(IMAGE_FIT_VAR))]
 pub fn image_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
-    with_context_var(child, ImageFitVar, fit)
+    with_context_var(child, IMAGE_FIT_VAR, fit)
 }
 
 /// Sets the scale applied to all inner images.
@@ -126,15 +126,15 @@ pub fn image_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode
 /// See the [`scale`] property in the widget for more details.
 ///
 /// [`scale`]: mod@crate::widgets::image#wp-scale
-#[property(context, default(Factor2d::identity()))]
+#[property(context, default(IMAGE_SCALE_VAR))]
 pub fn image_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
-    with_context_var(child, ImageScaleVar, scale)
+    with_context_var(child, IMAGE_SCALE_VAR, scale)
 }
 
 /// Sets if the image desired size is scaled by the screen scale factor.
-#[property(context, default(true))]
+#[property(context, default(IMAGE_SCALE_FACTOR_VAR))]
 pub fn image_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    with_context_var(child, ImageScaleFactorVar, enabled)
+    with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)
 }
 
 /// Sets if the image desired size is scaled considering the image and monitor PPI.
@@ -142,9 +142,9 @@ pub fn image_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> im
 /// See the [`scape_ppi`] property in the widget for more details.
 ///
 /// [`scape_ppi`]: mod@crate::widgets::image#wp-scape_ppi
-#[property(context, default(false))]
+#[property(context, default(IMAGE_SCALE_PPI_VAR))]
 pub fn image_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    with_context_var(child, ImageScalePpiVar, enabled)
+    with_context_var(child, IMAGE_SCALE_PPI_VAR, enabled)
 }
 
 /// Sets the [`Align`] of all inner images within each image widget area.
@@ -152,9 +152,9 @@ pub fn image_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl 
 /// See the [`image_align`] property in the widget for more details.
 ///
 /// [`image_align`]: mod@crate::widgets::image#wp-image_align
-#[property(context, default(Align::CENTER))]
+#[property(context, default(IMAGE_ALIGN_VAR))]
 pub fn image_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
-    with_context_var(child, ImageAlignVar, fit)
+    with_context_var(child, IMAGE_ALIGN_VAR, fit)
 }
 
 /// Sets a [`Point`] that is an offset applied to all inner images within each image widget area.
@@ -162,9 +162,9 @@ pub fn image_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode 
 /// See the [`image_offset`] property in the widget for more details.
 ///
 /// [`image_offset`]: mod@crate::widgets::image#wp-image_offset
-#[property(context, default(Vector::default()))]
+#[property(context, default(IMAGE_OFFSET_VAR))]
 pub fn image_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
-    with_context_var(child, ImageOffsetVar, offset)
+    with_context_var(child, IMAGE_OFFSET_VAR, offset)
 }
 
 /// Sets a [`Rect`] that is a clip applied to all inner images before their layout.
@@ -172,9 +172,9 @@ pub fn image_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl Ui
 /// See the [`crop`] property in the widget for more details.
 ///
 /// [`crop`]: mod@crate::widgets::image#wp-crop
-#[property(context, default(Rect::default()))]
+#[property(context, default(IMAGE_CROP_VAR))]
 pub fn image_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
-    with_context_var(child, ImageCropVar, crop)
+    with_context_var(child, IMAGE_CROP_VAR, crop)
 }
 
 /// Sets the [`ImageRendering`] of all inner images.
@@ -182,9 +182,9 @@ pub fn image_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
 /// See the [`rendering`] property in the widget for more details.
 ///
 /// [`rendering`]: mod@crate::widgets::image#wp-rendering
-#[property(context, default(ImageRendering::Auto))]
+#[property(context, default(IMAGE_RENDERING_VAR))]
 pub fn image_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
-    with_context_var(child, ImageRenderingVar, rendering)
+    with_context_var(child, IMAGE_RENDERING_VAR, rendering)
 }
 
 /// Sets the cache mode of all inner images.
@@ -192,9 +192,9 @@ pub fn image_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRenderin
 /// See the [`cache`] property in the widget for more details.
 ///
 /// [`cache`]: mod@crate::widgets::image#wp-cache
-#[property(context, default(true))]
+#[property(context, default(IMAGE_CACHE_VAR))]
 pub fn image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    with_context_var(child, ImageCacheVar, enabled)
+    with_context_var(child, IMAGE_CACHE_VAR, enabled)
 }
 
 /// Sets custom image load and decode limits.
@@ -202,37 +202,37 @@ pub fn image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 /// If not set or set to `None` the [`Images::limits`] is used.
 ///
 /// [`Images::limits`]: crate::core::image::Images::limits
-#[property(context, default(None))]
+#[property(context, default(IMAGE_LIMITS_VAR))]
 pub fn image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
-    with_context_var(child, ImageLimitsVar, limits)
+    with_context_var(child, IMAGE_LIMITS_VAR, limits)
 }
 
 /// If the [`ContextImageVar`] is an error.
 #[property(layout)]
 pub fn is_error(child: impl UiNode, state: StateVar) -> impl UiNode {
-    bind_state(child, ContextImageVar::new().map(|m| m.is_error()), state)
+    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
 }
 
 /// If the [`ContextImageVar`] is a successfully loaded image.
 #[property(layout)]
 pub fn is_loaded(child: impl UiNode, state: StateVar) -> impl UiNode {
-    bind_state(child, ContextImageVar::new().map(|m| m.is_loaded()), state)
+    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
 }
 
 /// Sets the [view generator] that is used to create a content for the error message.
 ///
 /// [view generator]: crate::widgets::view_generator
-#[property(context)]
+#[property(context, default(IMAGE_ERROR_VIEW_VAR))]
 pub fn image_error_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ImageErrorArgs>>) -> impl UiNode {
-    with_context_var(child, ImageErrorViewVar, generator)
+    with_context_var(child, IMAGE_ERROR_VIEW_VAR, generator)
 }
 
 /// Sets the [view generator] that is used to create a content for the error message.
 ///
 /// [view generator]: crate::widgets::view_generator
-#[property(context)]
+#[property(context, default(IMAGE_LOADING_VIEW_VAR))]
 pub fn image_loading_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ImageLoadingArgs>>) -> impl UiNode {
-    with_context_var(child, ImageLoadingViewVar, generator)
+    with_context_var(child, IMAGE_LOADING_VIEW_VAR, generator)
 }
 
 /// Arguments for [`image_loading_view`].
@@ -279,7 +279,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<ImageErrorArgs>> UiNode for OnErrorNode<C, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(error) = ContextImageVar::get(ctx.vars).error() {
+            if let Some(error) = CONTEXT_IMAGE_VAR.get(ctx.vars).error() {
                 self.error = error.to_owned().into();
                 self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
             }
@@ -287,12 +287,12 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &ContextImageVar::new()).handler(&self.handler);
+            subs.var(ctx, &CONTEXT_IMAGE_VAR).handler(&self.handler);
             self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
+            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 if let Some(error) = new_img.error() {
                     if self.error != error {
                         self.error = error.to_owned().into();
@@ -335,19 +335,19 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<ImageLoadArgs>> UiNode for OnLoadNode<C, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if ContextImageVar::get(ctx.vars).is_loaded() {
+            if CONTEXT_IMAGE_VAR.get(ctx.vars).is_loaded() {
                 self.handler.event(ctx, &ImageLoadArgs {});
             }
             self.child.init(ctx);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &ContextImageVar::new()).handler(&self.handler);
+            subs.var(ctx, &CONTEXT_IMAGE_VAR).handler(&self.handler);
             self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
+            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 if new_img.is_loaded() {
                     self.handler.event(ctx, &ImageLoadArgs {});
                 }
@@ -381,13 +381,13 @@ pub fn image_block_window_load(child: impl UiNode, enabled: impl IntoValue<Block
         }
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             if self.block.is_some() {
-                subs.var(ctx, &ContextImageVar::new());
+                subs.var(ctx, &CONTEXT_IMAGE_VAR);
             }
             self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.block.is_some() && !ContextImageVar::get(ctx).is_loading() {
+            if self.block.is_some() && !CONTEXT_IMAGE_VAR.get(ctx).is_loading() {
                 self.block = None;
                 ctx.updates.subscriptions();
             }

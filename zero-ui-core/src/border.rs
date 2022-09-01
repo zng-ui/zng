@@ -967,7 +967,7 @@ impl ContextBorders {
         ctx.vars.with_context_var(BORDER_DATA_VAR, ContextVarData::fixed(&data), || f(ctx))
     }
 
-    /// Indicates a boundary point where the [`CornerRadiusVar`] backing context changes during layout.
+    /// Indicates a boundary point where the [`CORNER_RADIUS_VAR`] backing context changes during layout.
     ///
     /// The variable must have been just rebound before this call, the [`corner_radius`] property implements this method.
     ///

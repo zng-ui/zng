@@ -235,7 +235,7 @@ fn ruler() -> impl Widget {
         items = (0..=300).step_by(10)
             .map(|x| rule_line! {
                 orientation = LineOrientation::Vertical;
-                color = TextColorVar::new().map(|c| c.with_alpha(40.pct()));
+                color = TEXT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
                 x = x.dip();
                 height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
             }

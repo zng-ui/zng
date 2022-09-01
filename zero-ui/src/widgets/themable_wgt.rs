@@ -28,7 +28,7 @@ pub mod theme {
     use super::*;
 
     use crate::core::window::WindowTheme;
-    use crate::widgets::window::nodes::WindowThemeVar;
+    use crate::widgets::window::nodes::WINDOW_THEME_VAR;
 
     #[doc(inline)]
     pub use super::{theme_generator, Theme, ThemeGenerator};
@@ -109,9 +109,9 @@ pub mod theme {
 
     /// Declare a dark and light theme that is selected depending on the window theme.
     ///
-    /// This is a [`merge_var!`] that matches the [`WindowThemeVar`] to select the theme.
+    /// This is a [`merge_var!`] that matches the [`WINDOW_THEME_VAR`] to select the theme.
     pub fn pair(dark_theme: impl IntoVar<ThemeGenerator>, light_theme: impl IntoVar<ThemeGenerator>) -> impl Var<ThemeGenerator> {
-        merge_var!(WindowThemeVar::new(), dark_theme.into_var(), light_theme.into_var(), |w, d, l| {
+        merge_var!(WINDOW_THEME_VAR, dark_theme.into_var(), light_theme.into_var(), |w, d, l| {
             match w {
                 WindowTheme::Dark => d.clone(),
                 WindowTheme::Light => l.clone(),
@@ -262,11 +262,11 @@ pub mod themable {
             }
             impl<C, T> GenerateThemeNode<C, T> {
                 fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-                    vars.with_context_var(ActualThemeVar, ContextVarData::fixed(&self.actual_theme), || f(&mut self.child))
+                    vars.with_context_var(ACTUAL_THEME_VAR, ContextVarData::fixed(&self.actual_theme), || f(&mut self.child))
                 }
 
                 fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&C) -> R) -> R {
-                    vars.with_context_var(ActualThemeVar, ContextVarData::fixed(&self.actual_theme), || f(&self.child))
+                    vars.with_context_var(ACTUAL_THEME_VAR, ContextVarData::fixed(&self.actual_theme), || f(&self.child))
                 }
             }
             impl<C, T> UiNode for GenerateThemeNode<C, T>
@@ -375,7 +375,7 @@ pub mod themable {
             )]
             impl UiNode for ThemableNode {
                 fn init(&mut self, ctx: &mut WidgetContext) {
-                    let theme = ActualThemeVar::get(ctx.vars);
+                    let theme = ACTUAL_THEME_VAR.get(ctx.vars);
                     if theme.widget_id == Some(ctx.path.widget_id()) {
                         let theme = theme.parts[self.priority as usize].borrow_mut().take();
                         if let Some(theme) = theme {
@@ -565,7 +565,7 @@ macro_rules! theme_generator {
 pub use crate::theme_generator;
 
 context_var! {
-    struct ActualThemeVar: ActualTheme = ActualTheme::default();
+    static ACTUAL_THEME_VAR: ActualTheme = ActualTheme::default();
 }
 
 #[derive(Default)]

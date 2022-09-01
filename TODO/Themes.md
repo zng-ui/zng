@@ -54,5 +54,4 @@ when self.is_another_state {
 ## Other
 
 * Make more widgets themable.
-* Rename all "theme" sub-modules of widgets to `vis`.
 * Create a `ColorVars` in `window!` and derive all widget colors from it.
