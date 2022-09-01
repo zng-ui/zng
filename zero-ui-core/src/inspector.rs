@@ -558,7 +558,7 @@ unique_id_64! {
 }
 
 context_var! {
-    struct ParentName: Cow<'static, str> = Cow::Borrowed("");
+    static PARENT_NAME: Cow<'static, str> = Cow::Borrowed("");
 }
 
 type PropertyMembersVars = Box<[BoxedVar<ValueInfo>]>;
@@ -709,7 +709,7 @@ impl UiNode for WidgetNewFnInfoNode {
             name.push(')');
             drop(info);
 
-            ctx.vars.with_context_var(ParentName, ContextVarData::fixed(&Cow::Owned(name)), || {
+            ctx.vars.with_context_var(&PARENT_NAME, ContextVarData::fixed(&Cow::Owned(name)), || {
                 self.child.init(ctx);
             });
         }
@@ -872,7 +872,7 @@ impl UiNode for WidgetInstanceInfoNode {
             when.condition_version = var.version(ctx);
         }
 
-        info.parent_name = ParentName::get_clone(ctx);
+        info.parent_name = PARENT_NAME.as_ref().get_clone(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -1022,7 +1022,7 @@ impl UiNode for PropertyInfoNode {
         let _span = UpdatesTrace::property_span(property_name, "init");
 
         ctx.vars
-            .with_context_var(ParentName, ContextVarData::fixed(&Cow::Borrowed(property_name)), || {
+            .with_context_var(&PARENT_NAME, ContextVarData::fixed(&Cow::Borrowed(property_name)), || {
                 let t = Instant::now();
                 self.child.init(ctx);
                 let d = t.elapsed();

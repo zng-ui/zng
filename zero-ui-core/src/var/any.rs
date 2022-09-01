@@ -193,10 +193,10 @@ mod tests {
     #[test]
     fn downcast_context_var() {
         context_var! {
-            struct FooVar: bool = true;
+            static FOO_VAR: bool = true;
         }
-        let any_var = FooVar::new().into_any();
-        assert!(any_var.as_any().downcast_ref::<ContextVarProxy<FooVar>>().is_some());
+        let any_var = FOO_VAR.into_any();
+        assert!(any_var.as_any().downcast_ref::<&'static ContextVar<bool>>().is_some());
     }
 
     #[test]

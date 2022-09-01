@@ -137,28 +137,20 @@ impl VarsRead {
     ///
     /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
-    pub fn with_context_var<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
+    pub fn with_context_var<T, R, F>(&self, context_var: &'static ContextVar<T>, data: ContextVarData<T>, f: F) -> R
     where
-        C: ContextVar,
+        T: VarValue,
         F: FnOnce() -> R,
     {
         #[cfg(dyn_closure)]
         let f: Box<dyn FnOnce() -> R> = Box::new(f);
 
-        let _ = context_var;
-        self.with_context_var_impl(C::thread_local_value(), data, f)
-    }
-
-    fn with_context_var_impl<T, R, F>(&self, thread_local_value: ContextVarLocalKey<T>, mut data: ContextVarData<T>, f: F) -> R
-    where
-        T: VarValue,
-        F: FnOnce() -> R,
-    {
+        
         // SAFETY: `ContextVar` makes safety assumptions about this code
         // don't change before studying it.
 
         if let Some(context_id) = self.context_id.get() {
-            let prev_version = thread_local_value.version();
+            let prev_version = context_var.current_version();
             data.version.set_widget_context(&prev_version, context_id);
         } else {
             let count = self.contextless_count.get().wrapping_add(1);
@@ -166,9 +158,9 @@ impl VarsRead {
             data.version.set_app_context(count);
         }
 
-        let prev = thread_local_value.enter_context(data.into_raw());
+        let prev = context_var.enter_context(data.into_raw());
         let _restore = RunOnDrop::new(move || {
-            thread_local_value.exit_context(prev);
+            context_var.exit_context(prev);
         });
 
         f()
@@ -1483,7 +1475,7 @@ mod tests {
     #[test]
     fn context_var_default() {
         let ctx = TestWidgetContext::new();
-        let value = *TestVar::new().get(&ctx.vars);
+        let value = *TEST_VAR.as_ref().get(&ctx.vars);
         assert_eq!("default value", value);
     }
 
@@ -1492,11 +1484,11 @@ mod tests {
         let ctx = TestWidgetContext::new();
         let value = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::fixed(&"with value"), || *TestVar::new().get(&ctx.vars));
+            .with_context_var(&TEST_VAR, ContextVarData::fixed(&"with value"), || *TEST_VAR.as_ref().get(&ctx.vars));
 
         assert_eq!("with value", value);
 
-        let value = *TestVar::new().get(&ctx.vars);
+        let value = *TEST_VAR.as_ref().get(&ctx.vars);
         assert_eq!("default value", value);
     }
 
@@ -1506,8 +1498,8 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::in_vars(&ctx.vars, &TestVar2::new(), false), || {
-                *TestVar::new().get(&ctx.vars)
+            .with_context_var(&TEST_VAR, ContextVarData::in_vars(&ctx.vars, &&TEST_VAR2, false), || {
+                *TEST_VAR.as_ref().get(&ctx.vars)
             });
 
         assert_eq!("default value 2", value);
@@ -1519,8 +1511,8 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::in_vars(&ctx.vars, &TestVar::new(), false), || {
-                *TestVar::new().get(&ctx.vars)
+            .with_context_var(&TEST_VAR, ContextVarData::in_vars(&ctx.vars, &&TEST_VAR, false), || {
+                *TEST_VAR.as_ref().get(&ctx.vars)
             });
 
         assert_eq!("default value", value);
@@ -1532,12 +1524,12 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::in_vars(&ctx.vars, &TestVar2::new(), false), || {
+            .with_context_var(&TEST_VAR, ContextVarData::in_vars(&ctx.vars, &&TEST_VAR2, false), || {
                 // set to "default value 2"
                 ctx.vars
-                    .with_context_var(TestVar2, ContextVarData::in_vars(&ctx.vars, &TestVar::new(), false), || {
+                    .with_context_var(&TEST_VAR2, ContextVarData::in_vars(&ctx.vars, &TEST_VAR, false), || {
                         // set to "default value 2"
-                        *TestVar::new().get(&ctx.vars)
+                        *TEST_VAR.as_ref().get(&ctx.vars)
                     })
             });
 
@@ -1664,7 +1656,7 @@ mod tests {
     }
 
     context_var! {
-        struct TestVar: &'static str = "default value";
-        struct TestVar2: &'static str = "default value 2";
+        static TEST_VAR: &'static str = "default value";
+        static TEST_VAR2: &'static str = "default value 2";
     }
 }

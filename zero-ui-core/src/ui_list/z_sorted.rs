@@ -346,7 +346,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let z_ctx = ZIndexContextVar::get(ctx.vars);
+            let z_ctx = Z_INDEX_VAR.as_ref().get(ctx.vars);
             if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
                 tracing::error!(
                     "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
@@ -368,7 +368,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.valid {
                 if let Some(i) = self.index.copy_new(ctx) {
-                    let z_ctx = ZIndexContextVar::get(ctx.vars);
+                    let z_ctx = Z_INDEX_VAR.as_ref().get(ctx.vars);
 
                     debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
 
@@ -559,10 +559,10 @@ impl ZIndexContext {
             panel_id: Some(panel_id),
             resort: Cell::new(false),
         };
-        vars.with_context_var(ZIndexContextVar, ContextVarData::fixed(&ctx), action);
+        vars.with_context_var(&Z_INDEX_VAR, ContextVarData::fixed(&ctx), action);
         ctx.resort.get()
     }
 }
 context_var! {
-    struct ZIndexContextVar: ZIndexContext = ZIndexContext::default();
+    static Z_INDEX_VAR: ZIndexContext = ZIndexContext::default();
 }

@@ -543,7 +543,7 @@ pub mod implicit_base {
 }
 
 context_var! {
-    struct IsEnabledVar: bool = true;
+    static IS_ENABLED_VAR: bool = true;
 }
 
 /// If default interaction is allowed in the widget and its descendants.
@@ -611,8 +611,8 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             child,
             local_enabled: enabled.clone(),
         },
-        IsEnabledVar,
-        merge_var!(IsEnabledVar::new(), enabled, |&a, &b| a && b),
+        &IS_ENABLED_VAR,
+        merge_var!(&IS_ENABLED_VAR, enabled, |&a, &b| a && b),
     )
 }
 
@@ -923,24 +923,24 @@ impl HitTestMode {
 
     /// Gets the hit-test mode of the current widget context.
     pub fn get<Vr: WithVarsRead>(vars: &Vr) -> HitTestMode {
-        HitTestModeVar::get_clone(vars)
+        HIT_TEST_MODE_VAR.as_ref().get_clone(vars)
     }
 
     /// Gets the new hit-test mode of the current widget context.
     pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<HitTestMode> {
-        HitTestModeVar::clone_new(vars)
+        HIT_TEST_MODE_VAR.as_ref().clone_new(vars)
     }
 
     /// Gets if the hit-test mode has changed.
     pub fn is_new<Vw: WithVars>(vars: &Vw) -> bool {
-        HitTestModeVar::is_new(vars)
+        HIT_TEST_MODE_VAR.as_ref().is_new(vars)
     }
 
     /// Gets the update mask for [`WidgetSubscriptions`].
     ///
     /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
     pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|vars| HitTestModeVar::new().update_mask(vars))
+        vars.with_vars_read(|vars| HIT_TEST_MODE_VAR.as_ref().update_mask(vars))
     }
 }
 impl fmt::Debug for HitTestMode {
@@ -972,7 +972,7 @@ impl_from_and_into_var! {
 }
 
 context_var! {
-    struct HitTestModeVar: HitTestMode = HitTestMode::default();
+    static HIT_TEST_MODE_VAR: HitTestMode = HitTestMode::default();
 }
 
 /// Defines how the widget is hit-tested.
@@ -987,7 +987,7 @@ context_var! {
 ///
 /// [`hit_testable`]: fn@hit_testable
 /// [`corner_radius`]: fn@crate::border::corner_radius
-#[property(context, default(HitTestModeVar))]
+#[property(context, default(&HIT_TEST_MODE_VAR))]
 pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
     struct HitTestModeNode<C> {
         child: C,
@@ -1025,8 +1025,8 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 
     with_context_var(
         HitTestModeNode { child },
-        HitTestModeVar,
-        merge_var!(HitTestModeVar::new(), mode.into_var(), |&a, &b| match (a, b) {
+        &HIT_TEST_MODE_VAR,
+        merge_var!(&HIT_TEST_MODE_VAR, mode.into_var(), |&a, &b| match (a, b) {
             (HitTestMode::Disabled, _) | (_, HitTestMode::Disabled) => HitTestMode::Disabled,
             (_, b) => b,
         }),
@@ -1042,5 +1042,5 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 /// [`hit_test_mode`]: fn@hit_test_mode
 #[property(event)]
 pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
-    bind_state(child, HitTestModeVar::new().map(|m| m.is_hit_testable()), state)
+    bind_state(child, HIT_TEST_MODE_VAR.as_ref().map(|m| m.is_hit_testable()), state)
 }

@@ -94,37 +94,6 @@ pub use types::{
 pub trait VarValue: fmt::Debug + Clone + 'static {}
 impl<T: fmt::Debug + Clone + 'static> VarValue for T {}
 
-/// Represents a context variable.
-///
-/// Context variables are [`Var`] implements with different values defined in different **contexts**,
-/// usually a parent widget.
-///
-/// Use [`context_var!`] to declare.
-///
-/// See [`ContextVarProxy<C>`] for details about context var behavior as a var.
-#[cfg_attr(doc_nightly, doc(notable_trait))]
-pub trait ContextVar: Clone + Copy + 'static {
-    /// The variable type.
-    type Type: VarValue;
-
-    /// New default value.
-    ///
-    /// Returns a value that is equal to the variable value when it is not set in any context.
-    fn default_value() -> Self::Type;
-
-    /// Gets the variable.
-    fn new() -> ContextVarProxy<Self> {
-        ContextVarProxy::new()
-    }
-
-    /// Use [`context_var!`] to implement context vars.
-    ///
-    /// If that is not possible copy the `thread_local` implementation generated
-    /// by the macro as close as possible.
-    #[doc(hidden)]
-    fn thread_local_value() -> ContextVarLocalKey<Self::Type>;
-}
-
 /// Error when trying to set or modify a read-only variable.
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct VarIsReadOnly;

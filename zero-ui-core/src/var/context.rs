@@ -1,160 +1,6 @@
-use std::{marker::PhantomData, thread::LocalKey};
+use std::thread::LocalKey;
 
 use super::*;
-
-/// A [`Var`] that represents a [`ContextVar`].
-///
-/// Context var types don't implement [`Var`] directly, to avoid problems with overlapping generics
-/// this *proxy* zero-sized type is used.
-///
-/// The context var can have different values when read in different contexts, also the [`VarVersion`] is always different
-/// in different contexts. Context vars are mostly read-only but can be settable if bound to a read/write variable.
-#[derive(Clone)]
-pub struct ContextVarProxy<C: ContextVar>(PhantomData<C>);
-impl<C: ContextVar> ContextVarProxy<C> {
-    /// New context var proxy.
-    ///
-    /// Prefer using [`ContextVar::new`] or the `new` generated using the [`context_var!`] macro.
-    pub fn new() -> Self {
-        ContextVarProxy(PhantomData)
-    }
-
-    #[doc(hidden)]
-
-    pub fn static_ref() -> &'static Self {
-        &ContextVarProxy(PhantomData)
-    }
-}
-
-impl<C: ContextVar> Default for ContextVarProxy<C> {
-    fn default() -> Self {
-        ContextVarProxy(PhantomData)
-    }
-}
-
-impl<C: ContextVar> crate::private::Sealed for ContextVarProxy<C> {}
-impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
-    type AsReadOnly = Self;
-
-    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a C::Type {
-        let _vars = vars.as_ref();
-        let ptr = C::thread_local_value().value();
-        // SAFETY: this is safe because the pointer is either 'static or a reference held by
-        // Vars::with_context_var.
-        unsafe { &*ptr }
-    }
-
-    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a C::Type> {
-        let vars = vars.as_ref();
-        let key = C::thread_local_value();
-        if key.is_new() {
-            Some(self.get(vars))
-        } else {
-            None
-        }
-    }
-
-    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|_v| C::thread_local_value().is_new())
-    }
-
-    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> C::Type {
-        self.get_clone(vars)
-    }
-
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|_v| C::thread_local_value().version())
-    }
-
-    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|_v| C::thread_local_value().is_read_only())
-    }
-
-    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|_v| C::thread_local_value().is_animating())
-    }
-
-    fn always_read_only(&self) -> bool {
-        false
-    }
-
-    fn is_contextual(&self) -> bool {
-        true
-    }
-
-    fn can_update(&self) -> bool {
-        true
-    }
-
-    fn strong_count(&self) -> usize {
-        0
-    }
-
-    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        M: FnOnce(VarModify<C::Type>) + 'static,
-    {
-        vars.with_vars(|vars| {
-            if let Some(actual) = C::thread_local_value().actual_var() {
-                // SAFETY, we hold a ref to this closure box in the context.
-                let actual = unsafe { &*actual };
-                actual(vars).modify(vars, modify)
-            } else {
-                Err(VarIsReadOnly)
-            }
-        })
-    }
-
-    fn into_read_only(self) -> Self::AsReadOnly {
-        self
-    }
-
-    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|_v| C::thread_local_value().update_mask())
-    }
-
-    type Weak = NoneWeakVar<C::Type>;
-
-    fn is_rc(&self) -> bool {
-        false
-    }
-
-    fn downgrade(&self) -> Option<Self::Weak> {
-        None
-    }
-
-    fn weak_count(&self) -> usize {
-        0
-    }
-
-    fn as_ptr(&self) -> *const () {
-        std::ptr::null()
-    }
-
-    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<C::Type> {
-        vars.with_vars(|vars| {
-            if let Some(actual) = C::thread_local_value().actual_var() {
-                // SAFETY, we hold a ref to this closure box in the context.
-                let actual = unsafe { &*actual };
-                actual(vars)
-            } else {
-                let value = self.get_clone(vars);
-                LocalVar(value).boxed()
-            }
-        })
-    }
-}
-impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
-    type Var = Self;
-
-    fn into_var(self) -> Self::Var {
-        self
-    }
-}
-impl<C: ContextVar> any::AnyVar for ContextVarProxy<C> {
-    any_var_impls!(Var);
-}
 
 /// Value bound to a [`ContextVar`] at a context.
 ///
@@ -337,43 +183,98 @@ impl<T: VarValue> ContextVarValue<T> {
     }
 }
 
-/// See `ContextVar::thread_local_value`.
-#[doc(hidden)]
-pub struct ContextVarLocalKey<T: VarValue> {
-    local: &'static LocalKey<ContextVarValue<T>>,
+///<span data-del-macro-root></span> Declares new [`ContextVar`] keys.
+///
+/// # Examples
+/// ```
+/// # use zero_ui_core::var::context_var;
+/// # #[derive(Debug, Clone)]
+/// # struct NotConst(u8);
+/// # fn init_val() -> NotConst { NotConst(10) }
+/// #
+/// context_var! {
+///     /// A public documented context var.
+///     pub static FOO_VAR: u8 = 10;
+///
+///     // A private context var.
+///     struct BAR_VAR: NotConst = init_val();
+/// }
+/// ```
+///
+/// # Default Value
+///
+/// All context variable have a default fallback value that is used when the variable is not setted in the context.
+///
+/// The default value is instantiated once per app thread and is the value of the variable when it is not set in the context.
+/// Other instances of the default value can be created by calls to [`ContextVar::default_value`], so the code after the `=` should
+/// always generate a value equal to the first value generated.
+///
+/// # Naming Convention
+///
+/// It is recommended that the type name ends with the `_VAR` suffix.
+#[macro_export]
+macro_rules! context_var {
+    ($(
+        $(#[$attr:meta])*
+        $vis:vis static $NAME:ident : $Type:ty = $default:expr;
+    )+) => {$(
+        paste::paste! {
+            std::thread_local! {
+                #[doc(hidden)]
+                static [<$NAME _LOCAL>]: $crate::var::ContextVarValue<$Type> = $crate::var::ContextVarValue::init([<$NAME:lower _default>]());
+            }
+
+            fn [<$NAME:lower _default>]() -> $Type {
+                $default
+            }
+        }
+
+        $(#[$attr])*
+        $vis static $NAME: $crate::var::ContextVar<$Type> = paste::paste! { $crate::var::ContextVar::new(&[<$NAME _LOCAL>], [<$NAME:lower _default>]) };
+    )+}
 }
-#[allow(missing_docs)]
-impl<T: VarValue> ContextVarLocalKey<T> {
-    pub fn new(local: &'static LocalKey<ContextVarValue<T>>) -> Self {
-        ContextVarLocalKey { local }
+#[doc(inline)]
+pub use crate::context_var;
+
+/// Represents a context var.
+/// 
+/// Context variables are [`Var<T>`] implementers that represent a contextual value, unlike other variables it does not own the value it represents. 
+/// Note that [`Var<T>`] is implemented for `&'static ContextVar<T>`, not the struct directly.
+/// 
+/// The context var can have different values when read in different contexts, also the [`VarVersion`] is always different
+/// in different contexts. Context vars are mostly read-only but can be settable if bound to a read/write variable.
+///
+/// Use [`context_var!`] do declare.
+pub struct ContextVar<T: VarValue> {
+    local: &'static LocalKey<ContextVarValue<T>>,
+    default_value: fn() -> T,
+}
+impl<T: VarValue> ContextVar<T> {
+    #[doc(hidden)]
+    pub const fn new(local: &'static LocalKey<ContextVarValue<T>>, default_value: fn() -> T) -> Self {
+        Self { local, default_value }
     }
 
-    pub(super) fn value(&self) -> *const T {
-        self.local.with(|l| l.value.get())
+    /// Borrow as a [`Var<T>`].
+    /// 
+    /// Because [`Var<T>`] is implemented to `&'static ContextVar<T>` type inference may match another trait first,
+    /// you can use this method to ensure the var methods are called, for example `FOO_VAR.map(..)` tries to resolve
+    /// to the iterator map, `FOO_VAR.as_ref().map(..)` resolves to the variable map.
+    pub fn as_ref(&'static self) -> &'static Self {
+        self
     }
 
-    pub(super) fn is_new(&self) -> bool {
-        self.local.with(|l| l.is_new.get())
+    fn get<'a, Vr: AsRef<VarsRead>>(&'static self, vars: &'a Vr) -> &'a T {
+        Var::get(&self, vars) // !!: FIX ME, CRITICAL
     }
 
-    pub(super) fn version(&self) -> VarVersion {
+    /// New default value.
+    pub fn default_value(&self) -> T {
+        (self.default_value)()
+    }
+
+    pub(super) fn current_version(&self) -> VarVersion {
         self.local.with(|l| l.version.get())
-    }
-
-    pub(super) fn update_mask(&self) -> UpdateMask {
-        self.local.with(|l| l.update_mask.get())
-    }
-
-    pub(super) fn is_read_only(&self) -> bool {
-        self.local.with(|l| l.is_read_only.get())
-    }
-
-    pub(super) fn is_animating(&self) -> bool {
-        self.local.with(|l| l.is_animating.get())
-    }
-
-    pub(super) fn actual_var(&self) -> Option<*mut DynActualVarFn<T>> {
-        self.local.with(|l| l.actual_var.get())
     }
 
     pub(super) fn enter_context(&self, new: ContextVarDataRaw<T>) -> ContextVarDataRaw<T> {
@@ -402,176 +303,137 @@ impl<T: VarValue> ContextVarLocalKey<T> {
         })
     }
 }
-
-///<span data-del-macro-root></span> Declares new [`ContextVar`](crate::var::ContextVar) types.
-///
-/// # Examples
-/// ```
-/// # use zero_ui_core::var::context_var;
-/// # #[derive(Debug, Clone)]
-/// # struct NotConst(u8);
-/// # fn init_val() -> NotConst { NotConst(10) }
-/// #
-/// context_var! {
-///     /// A public documented context var.
-///     pub struct FooVar: u8 = 10;
-///
-///     // A private context var.
-///     struct BarVar: NotConst = init_val();
-/// }
-/// ```
-///
-/// # Default Value
-///
-/// All context variable have a default fallback value that is used when the variable is not setted in the context.
-///
-/// The default value is instantiated once per app thread and is the value of the variable when it is not set in the context.
-/// Other instances of the default value can be created by calls to [`ContextVar::default_value`], so the code after the `=` should
-/// always generate a value equal to the first value generated.
-///
-/// # Naming Convention
-///
-/// It is recommended that the type name ends with the `Var` suffix.
-#[macro_export]
-macro_rules! context_var {
-    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $default:expr;)+) => {$(
-        $(#[$outer])*
-        ///
-        /// # ContextVar
-        ///
-        /// This `struct` is a [`ContextVar`](crate::var::ContextVar).
-        #[derive(Debug, Clone, Copy)]
-        $vis struct $ident;
-
-        impl $ident {
-            std::thread_local! {
-                static THREAD_LOCAL_VALUE: $crate::var::ContextVarValue<$type> = $crate::var::ContextVarValue::init($ident::default_value());
-            }
-
-            /// [`Var`](crate::var::Var) implementer that represents this context var.
-            #[allow(unused)]
-            pub fn new() -> $crate::var::ContextVarProxy<Self> {
-                $crate::var::ContextVarProxy::new()
-            }
-
-            /// New default value.
-            ///
-            /// Returns a value that is equal to the variable value when it is not set in any context.
-            pub fn default_value() -> $type {
-                $default
-            }
-
-            /// References the value in the current `vars` context.
-            #[allow(unused)]
-            pub fn get<'a, Vr: AsRef<$crate::var::VarsRead>>(vars: &'a Vr) -> &'a $type {
-                $crate::var::Var::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
-            }
-
-            /// Returns a clone of the value in the current `vars` context.
-            #[allow(unused)]
-            pub fn get_clone<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $type {
-                $crate::var::Var::get_clone($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
-            }
-
-            /// References the value in the current `vars` context if it is marked as new.
-            #[allow(unused)]
-            pub fn get_new<'a, Vw: AsRef<$crate::var::Vars>>(vars: &'a Vw) -> Option<&'a $type> {
-                $crate::var::Var::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
-            }
-
-            /// Returns a clone of the value in the current `vars` context if it is marked as new.
-            #[allow(unused)]
-            pub fn clone_new<Vw: $crate::var::WithVars>(vars: &Vw) -> Option<$type> {
-                $crate::var::Var::clone_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
-            }
-
-            // TODO generate copy and set_ne fns when https://github.com/rust-lang/rust/issues/48214 is stable
-
-            /// If the value in the current `vars` context is marked as new.
-            #[allow(unused)]
-            pub fn is_new<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
-                $crate::var::Var::is_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
-            }
-
-            /// Gets the version of the value in the current `vars` context.
-            #[allow(unused)]
-            pub fn version<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $crate::var::VarVersion {
-                $crate::var::Var::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
-            }
-
-            /// If the value in the current `vars` context cannot be set or modified right now.
-            ///
-            /// If this is `false` the context var can [`set`] or [`modify`], the value is change
-            /// is applied in the backing source of the current value.
-            ///
-            /// [`set`]: Self::set
-            /// [`modify`]: Self::modify
-            #[allow(unused)]
-            pub fn is_read_only<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
-                $crate::var::Var::is_read_only($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
-            }
-
-            /// Schedule a modification of the variable value source in the current `vars` context.
-            ///
-            /// If the backing source [`is_read_only`] returns an error.
-            ///
-            /// [`is_read_only`]: Self::is_read_only
-            #[allow(unused)]
-            pub fn modify<Vw, M>(vars: &Vw, modify: M) -> std::result::Result<(), $crate::var::VarIsReadOnly>
-            where
-                Vw: $crate::var::WithVars,
-                M: std::ops::FnOnce($crate::var::VarModify<$type>) + 'static
-            {
-                $crate::var::Var::modify($crate::var::ContextVarProxy::<Self>::static_ref(), vars, modify)
-            }
-
-            /// Schedule a new value for the variable value source in the current `vars` context.
-            ///
-            /// If the backing source [`is_read_only`] returns an error.
-            ///
-            /// [`is_read_only`]: Self::is_read_only
-            #[allow(unused)]
-            pub fn set<Vw, N>(vars: &Vw, new_value: N) -> std::result::Result<(), $crate::var::VarIsReadOnly>
-            where
-                Vw: $crate::var::WithVars,
-                N: std::convert::Into<$type>,
-            {
-                $crate::var::Var::set($crate::var::ContextVarProxy::<Self>::static_ref(), vars, new_value)
-            }
-        }
-
-        impl $crate::var::ContextVar for $ident {
-            type Type = $type;
-
-
-            fn default_value() -> Self::Type {
-               Self::default_value()
-            }
-
-
-            fn thread_local_value() -> $crate::var::ContextVarLocalKey<$type> {
-                $crate::var::ContextVarLocalKey::new(&Self::THREAD_LOCAL_VALUE)
-            }
-        }
-
-        impl $crate::var::IntoVar<$type> for $ident {
-            type Var = $crate::var::ContextVarProxy<Self>;
-
-            fn into_var(self) -> Self::Var {
-                $crate::var::ContextVarProxy::default()
-            }
-        }
-    )+};
+impl<T: VarValue> crate::private::Sealed for &'static ContextVar<T> {}
+impl<T: VarValue> any::AnyVar for &'static ContextVar<T> {
+    any_var_impls!(Var);
 }
-#[doc(inline)]
-pub use crate::context_var;
+impl<T: VarValue> Var<T> for &'static ContextVar<T> {
+    type AsReadOnly = crate::var::types::ReadOnlyVar<T, Self>;
+
+    type Weak = NoneWeakVar<T>;
+
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
+        let _vars = vars.as_ref();
+        let ptr = self.local.with(|l| l.value.get());
+        // SAFETY: this is safe because the pointer is either 'static or a reference held by
+        // Vars::with_context_var.
+        unsafe { &*ptr }
+    }
+
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
+        let vars = vars.as_ref();
+        if self.local.with(|l| l.is_new.get()) {
+            Some(self.get(vars))
+        } else {
+            None
+        }
+    }
+
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with_vars(|_vars| self.local.with(|l| l.is_new.get()))
+    }
+
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
+        vars.with_vars_read(|_vars| self.local.with(|l| l.version.get()))
+    }
+
+    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
+        vars.with_vars(|_vars| self.local.with(|l| l.is_read_only.get()))
+    }
+
+    fn always_read_only(&self) -> bool {
+        false
+    }
+
+    fn is_contextual(&self) -> bool {
+        true
+    }
+
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
+        vars.with_vars(|vars| {
+            self.local.with(|l| {
+                if let Some(actual) = l.actual_var.get() {
+                    // SAFETY, we hold a ref to this closure box in the context.
+                    let actual = unsafe { &*actual };
+                    actual(vars)
+                } else {
+                    let value = self.get_clone(vars);
+                    LocalVar(value).boxed()
+                }
+            })
+        })
+    }
+
+    fn is_rc(&self) -> bool {
+        false
+    }
+
+    fn can_update(&self) -> bool {
+        true
+    }
+
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with_vars_read(|vars| self.local.with(|l| l.is_animating.get()))
+    }
+
+    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
+        self.get_clone(vars)
+    }
+
+    fn downgrade(&self) -> Option<Self::Weak> {
+        None
+    }
+
+    fn strong_count(&self) -> usize {
+        0
+    }
+
+    fn weak_count(&self) -> usize {
+        0
+    }
+
+    fn as_ptr(&self) -> *const () {
+        std::ptr::null()
+    }
+
+    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        M: FnOnce(VarModify<T>) + 'static,
+    {
+        vars.with_vars(|vars| {
+            if let Some(actual) = self.local.with(|l| l.actual_var.get()) {
+                // SAFETY, we hold a ref to this closure box in the context.
+                let actual = unsafe { &*actual };
+                actual(vars).modify(vars, modify)
+            } else {
+                Err(VarIsReadOnly)
+            }
+        })
+    }
+
+    fn into_read_only(self) -> Self::AsReadOnly {
+        crate::var::types::ReadOnlyVar::new(self)
+    }
+
+    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
+        vars.with_vars_read(|_vars| self.local.with(|l| l.update_mask.get()))
+    }
+}
+impl<T: VarValue> IntoVar<T> for &'static ContextVar<T> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
 
 mod properties {
     use crate::{context::*, event::*, render::*, units::*, var::*, widget_info::*, *};
 
     /// Helper for declaring properties that sets a context var.
     ///
-    /// The method presents the `value` as the [`ContextVar<Type=T>`] in the widget and widget descendants.
+    /// The method presents the `value` as the [`ContextVar<T>`] in the widget and widget descendants.
     /// The context var [`is_new`] and [`is_read_only`] status are always equal to the `value` var status. Users
     /// of the context var can also retrieve the `value` var using [`actual_var`].
     ///
@@ -585,21 +447,21 @@ mod properties {
     /// # fn main() -> () { }
     /// # use zero_ui_core::{*, var::*};
     /// context_var! {
-    ///     pub struct FooVar: u32 = 0;
+    ///     pub static FOO_VAR: u32 = 0;
     /// }
     ///
     /// /// Sets the [`FooVar`] in the widgets and its content.
-    /// #[property(context, default(FooVar))]
+    /// #[property(context, default(&FOO_VAR))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
-    ///     with_context_var(child, FooVar, value)
+    ///     with_context_var(child, &FOO_VAR, value)
     /// }
     /// ```
     ///
-    /// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FooVar::get`, and if `value` is set to a
-    /// variable the `FooVar` will also reflect its [`is_new`] and [`is_read_only`]. If the `value` var is not read-only inner nodes
-    /// can modify it using `FooVar::set` or `FooVar::modify`.
+    /// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FOO_VAR.get`, and if `value` is set to a
+    /// variable the `FOO_VAR` will also reflect its [`is_new`] and [`is_read_only`]. If the `value` var is not read-only inner nodes
+    /// can modify it using `FOO_VAR.set` or `FOO_VAR.modify`.
     ///
-    /// Also note that the property [`default`] is set to the same `FooVar`, this causes the property to *pass-through* the outer context
+    /// Also note that the property [`default`] is set to the same `FOO_VAR`, this causes the property to *pass-through* the outer context
     /// value, as if it was not set.
     ///
     /// **Tip:** You can use a [`merge_var!`] to merge a new value to the previous context value:
@@ -615,13 +477,13 @@ mod properties {
     /// }
     ///
     /// context_var! {
-    ///     pub struct ConfigVar: Config = Config::default();
+    ///     pub struct CONFIG_VAR: Config = Config::default();
     /// }
     ///
     /// /// Sets the *foo* config.
     /// #[property(context, default(false))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, ConfigVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
+    ///     with_context_var(child, &CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.foo = v;
     ///         c
@@ -631,7 +493,7 @@ mod properties {
     /// /// Sets the *bar* config.
     /// #[property(context, default(false))]
     /// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, ConfigVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
+    ///     with_context_var(child, &CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.bar = v;
     ///         c
@@ -647,17 +509,16 @@ mod properties {
     /// [`is_read_only`]: Var::is_read_only
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
-    pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
-        struct WithContextVarNode<U, C, V> {
+    pub fn with_context_var<T: VarValue>(child: impl UiNode, var: &'static ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
+        struct WithContextVarNode<U, T: VarValue, V> {
             child: U,
-            var: C,
+            var: &'static ContextVar<T>,
             value: V,
         }
-        impl<U, T, C, V> WithContextVarNode<U, C, V>
+        impl<U, T, V> WithContextVarNode<U, T, V>
         where
             U: UiNode,
             T: VarValue,
-            C: ContextVar<Type = T>,
             V: Var<T>,
         {
             fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&U) -> R) -> R {
@@ -668,11 +529,10 @@ mod properties {
                 vars.with_context_var(self.var, ContextVarData::in_vars(vars, &self.value, false), || f(&mut self.child))
             }
         }
-        impl<U, T, C, V> UiNode for WithContextVarNode<U, C, V>
+        impl<U, T, V> UiNode for WithContextVarNode<U, T, V>
         where
             U: UiNode,
             T: VarValue,
-            C: ContextVar<Type = T>,
             V: Var<T>,
         {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -725,26 +585,25 @@ mod properties {
 
     /// Helper for declaring properties that sets a context var to a value generated on init.
     ///
-    /// The method calls the `init_value` closure on init to produce a *value* var that is presented as the [`ContextVar<Type=T>`]
+    /// The method calls the `init_value` closure on init to produce a *value* var that is presented as the [`ContextVar<T>`]
     /// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
     ///
     /// Apart from the value initialization this behaves just like [`with_context_var`].
     pub fn with_context_var_init<T: VarValue, V: Var<T>>(
         child: impl UiNode,
-        var: impl ContextVar<Type = T>,
+        var: &'static ContextVar<T>,
         init_value: impl FnMut(&mut WidgetContext) -> V + 'static,
     ) -> impl UiNode {
-        struct WithContextVarInitNode<U, C, I, V> {
+        struct WithContextVarInitNode<U, T: VarValue, I, V> {
             child: U,
-            var: C,
+            var: &'static ContextVar<T>,
             init_value: I,
             value: Option<V>,
         }
-        impl<U, T, C, I, V> WithContextVarInitNode<U, C, I, V>
+        impl<U, T, I, V> WithContextVarInitNode<U, T, I, V>
         where
             U: UiNode,
             T: VarValue,
-            C: ContextVar<Type = T>,
             I: FnMut(&mut WidgetContext) -> V + 'static,
             V: Var<T>,
         {
@@ -758,11 +617,10 @@ mod properties {
                 vars.with_context_var(self.var, ContextVarData::in_vars(vars, value, false), || f(&mut self.child))
             }
         }
-        impl<U, T, C, I, V> UiNode for WithContextVarInitNode<U, C, I, V>
+        impl<U, T, I, V> UiNode for WithContextVarInitNode<U, T, I, V>
         where
             U: UiNode,
             T: VarValue,
-            C: ContextVar<Type = T>,
             I: FnMut(&mut WidgetContext) -> V + 'static,
             V: Var<T>,
         {
@@ -825,14 +683,14 @@ mod tests {
     use crate::{app::*, context::*, text::*, var::*, *};
 
     context_var! {
-        struct TestVar: Text = "".into();
+        static TEST_VAR: Text = "".into();
     }
 
     static PROBE_ID: StaticStateId<Text> = StaticStateId::new_unique();
 
-    #[property(context, default(TestVar))]
+    #[property(context, default(&TEST_VAR))]
     fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
-        with_context_var(child, TestVar, value)
+        with_context_var(child, &TEST_VAR, value)
     }
 
     #[property(context)]
@@ -914,7 +772,7 @@ mod tests {
             test_prop = "test!";
 
             child = test_wgt! {
-                probe = TestVar;
+                probe = &TEST_VAR;
             }
         });
 
@@ -927,7 +785,7 @@ mod tests {
             test_prop = "test!";
 
             child = test_wgt! {
-                probe = TestVar::new().map(|t| formatx!("map {t}"));
+                probe = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
             }
         });
 
@@ -938,7 +796,7 @@ mod tests {
     fn context_var_map_cloned() {
         // mapped context var should depend on the context.
 
-        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
@@ -962,7 +820,7 @@ mod tests {
     fn context_var_map_cloned3() {
         // mapped context var should depend on the context.
 
-        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
         let mut test = test_app(test_wgt! {
             test_prop = "A!";
 
@@ -996,11 +854,11 @@ mod tests {
             test_prop_a = "A!";
 
             child = test_wgt! {
-                probe = TestVar::new().map(|t| formatx!("map {t}"));
+                probe = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
                 test_prop_b = "B!";
 
                 child = test_wgt! {
-                    probe = TestVar::new().map(|t| formatx!("map {t}"));
+                    probe = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
                 }
             }
         });
@@ -1012,24 +870,24 @@ mod tests {
     fn context_var_map_moved_app_ctx() {
         // need to support different value using the same variable instance too.
 
-        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
 
         let mut app = test_app(NilUiNode);
         let ctx = app.ctx();
 
         let a = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::fixed(&"A".into()), || mapped.get_clone(ctx.vars));
+            .with_context_var(&TEST_VAR, ContextVarData::fixed(&"A".into()), || mapped.get_clone(ctx.vars));
         let b = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::fixed(&"B".into()), || mapped.get_clone(ctx.vars));
+            .with_context_var(&TEST_VAR, ContextVarData::fixed(&"B".into()), || mapped.get_clone(ctx.vars));
 
         assert_ne!(a, b);
     }
 
     #[test]
     fn context_var_cloned_same_widget() {
-        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
         use self::probe as probe_a;
         use self::probe as probe_b;
         use self::test_prop as test_prop_a;
@@ -1053,8 +911,8 @@ mod tests {
 
         let ctx = app.ctx();
         ctx.vars
-            .with_context_var(TestVar, ContextVarData::in_vars(ctx.vars, &backing_var, false), || {
-                let t = TestVar::new();
+            .with_context_var(&TEST_VAR, ContextVarData::in_vars(ctx.vars, &backing_var, false), || {
+                let t = &TEST_VAR;
                 assert!(!t.is_read_only(ctx.vars));
                 t.set(ctx.vars, "set!").unwrap();
             });
@@ -1072,7 +930,7 @@ mod tests {
         let mut test = test_app(test_wgt! {
             test_prop = input_var.clone();
             on_init = hn_once!(other_var, |ctx, _| {
-                TestVar::new().bind(ctx, &other_var).perm();
+                TEST_VAR.as_ref().bind(ctx, &other_var).perm();
             });
             child = NilUiNode;
         });
