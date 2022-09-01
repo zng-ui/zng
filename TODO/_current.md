@@ -1,3 +1,6 @@
+* "Loading.." of panorama image vanishes if scroll to far right.
+* Focus request made on removed button? Now that we added a log this is visible.
+
 * Implement dynamic when states, see `Themes.md`.
 * Review dynamic property set in the widget declaration and set again in instance.
 * Review dynamic widget that captures set property.
