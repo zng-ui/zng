@@ -137,7 +137,16 @@ impl VarsRead {
     ///
     /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
-    pub fn with_context_var<T, R, F>(&self, context_var: ContextVar<T>, mut data: ContextVarData<T>, f: F) -> R
+    pub fn with_context_var<T, R, F>(&self, context_var: ContextVar<T>, data: ContextVarData<T>, f: F) -> R
+    where
+        T: VarValue,
+        F: FnOnce() -> R,
+    {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce() -> R> = Box::new(f);
+        self.with_context_var_impl(context_var, data, f)
+    }
+    fn with_context_var_impl<T, R, F>(&self, context_var: ContextVar<T>, mut data: ContextVarData<T>, f: F) -> R
     where
         T: VarValue,
         F: FnOnce() -> R,
