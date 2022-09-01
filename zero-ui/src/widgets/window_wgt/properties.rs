@@ -181,7 +181,7 @@ pub enum SaveState {
     Enabled {
         /// Config key that identifies the window.
         ///
-        /// If `None` a key is generated for the window, using the [`state_key`] method.
+        /// If `None` a key is generated for the window, using the [`window_key`] method.
         ///
         /// [`window_key`]: Self::window_key
         key: Option<ConfigKey>,
@@ -210,8 +210,8 @@ impl SaveState {
         Self::default()
     }
 
-    /// Gets the state key used for the window identified by `id`.
-    pub fn state_key(&self, id: WindowId) -> Option<ConfigKey> {
+    /// Gets the config key used for the window identified by `id`.
+    pub fn window_key(&self, id: WindowId) -> Option<ConfigKey> {
         match self {
             SaveState::Enabled { key, .. } => Some(key.clone().unwrap_or_else(|| {
                 let name = id.name();
@@ -284,7 +284,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for SaveStateNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(key) = self.enabled.state_key(ctx.path.window_id()) {
+            if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
                 let rsp = Config::req(ctx.services).read(key);
                 let loading = self
                     .enabled
@@ -317,7 +317,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                 self.child.event(ctx, args);
 
                 if !args.propagation().is_stopped() {
-                    if let Some(key) = self.enabled.state_key(ctx.path.window_id()) {
+                    if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
                         match &self.task {
                             Task::None => {
                                 // request write.

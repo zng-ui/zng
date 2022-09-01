@@ -575,7 +575,7 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget focus metadata.
     pub fn focus_info(self) -> FocusInfo {
         if self.mode_allows_focus() {
-            if let Some(builder) = self.info.meta().get(FocusInfoKey) {
+            if let Some(builder) = self.info.meta().get(&FOCUS_INFO_ID) {
                 return builder.build();
             }
         }
@@ -646,7 +646,7 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
     fn inner_alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
-        if let Some(id) = self.info.meta().get(FocusInfoKey).unwrap().inner_alt.get() {
+        if let Some(id) = self.info.meta().get(&FOCUS_INFO_ID).unwrap().inner_alt.get() {
             if let Some(wgt) = self.info.tree().get(id) {
                 let wgt = wgt.as_focus_info(self.focus_disabled_widgets(), self.focus_hidden_widgets());
                 if wgt.is_alt_scope() && wgt.info.is_descendant(self.info) {
@@ -1547,10 +1547,8 @@ impl FocusInfo {
     }
 }
 
-state_key! {
-    struct FocusInfoKey: FocusInfoData;
-    struct FocusTreeKey: FocusTreeData;
-}
+static FOCUS_INFO_ID: StaticStateId<FocusInfoData> = StaticStateId::new_unique();
+static FOCUS_TREE_ID: StaticStateId<FocusTreeData> = StaticStateId::new_unique();
 
 #[derive(Default)]
 pub(super) struct FocusTreeData {
@@ -1562,21 +1560,21 @@ impl FocusTreeData {
 
         let prev = prev_tree
             .build_meta()
-            .get(FocusTreeKey)
+            .get(&FOCUS_TREE_ID)
             .map(|d| d.alt_scopes.clone())
             .unwrap_or_default();
 
         let mut alt_scopes = prev;
-        if let Some(data) = new_tree.build_meta().get(FocusTreeKey) {
+        if let Some(data) = new_tree.build_meta().get(&FOCUS_TREE_ID) {
             alt_scopes.extend(&data.alt_scopes);
         }
 
         alt_scopes.retain(|id| {
             if let Some(wgt) = new_tree.get(*id) {
-                if let Some(info) = wgt.meta().get(FocusInfoKey) {
+                if let Some(info) = wgt.meta().get(&FOCUS_INFO_ID) {
                     if info.build().is_alt_scope() {
                         for parent in wgt.ancestors() {
-                            if let Some(info) = parent.meta().get(FocusInfoKey) {
+                            if let Some(info) = parent.meta().get(&FOCUS_INFO_ID) {
                                 if info.build().is_scope() {
                                     info.inner_alt.set(Some(*id));
                                     break;
@@ -1689,11 +1687,11 @@ impl<'a> FocusInfoBuilder<'a> {
     }
 
     fn data(&mut self) -> &mut FocusInfoData {
-        self.0.meta().into_entry(FocusInfoKey).or_default()
+        self.0.meta().into_entry(&FOCUS_INFO_ID).or_default()
     }
 
     fn tree_data(&mut self) -> &mut FocusTreeData {
-        self.0.build_meta().into_entry(FocusTreeKey).or_default()
+        self.0.build_meta().into_entry(&FOCUS_TREE_ID).or_default()
     }
 
     /// If the widget is definitely focusable or not.

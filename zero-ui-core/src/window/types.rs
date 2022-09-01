@@ -144,6 +144,12 @@ impl_from_and_into_var! {
         WindowId::named(name)
     }
 }
+impl fmt::Debug for StaticWindowId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.get(), f)
+    }
+}
+impl crate::var::IntoValue<WindowId> for &'static StaticWindowId {}
 
 /// Window startup configuration.
 ///

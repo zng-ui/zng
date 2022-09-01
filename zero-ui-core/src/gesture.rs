@@ -4,7 +4,7 @@ use linear_map::{set::LinearSet, LinearMap};
 
 use crate::{
     app::*,
-    command::{AnyCommand, Command, CommandMetaVar, CommandScope},
+    command::{AnyCommand, Command, CommandMetaVar, CommandScope, StaticCommandMetaVarId},
     context::*,
     crate_util::{Handle, HandleOwner, WeakHandle},
     event::*,
@@ -1769,11 +1769,11 @@ pub trait CommandShortcutExt {
 }
 impl<C: Command> CommandShortcutExt for C {
     fn shortcut(self) -> CommandMetaVar<Shortcuts> {
-        self.with_meta(|m| m.get_var_or_default(CommandShortcutKey))
+        self.with_meta(|m| m.get_var_or_default(&COMMAND_SHORTCUT_ID))
     }
 
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self {
-        self.with_meta(|m| m.init_var(CommandShortcutKey, shortcut.into()));
+        self.with_meta(|m| m.init_var(&COMMAND_SHORTCUT_ID, shortcut.into()));
         self
     }
 
@@ -1781,6 +1781,5 @@ impl<C: Command> CommandShortcutExt for C {
         self.enabled_value().is_some() && vars.with_vars_read(|vars| self.shortcut().get(vars).contains(shortcut))
     }
 }
-state_key! {
-    struct CommandShortcutKey: Shortcuts;
-}
+
+static COMMAND_SHORTCUT_ID: StaticCommandMetaVarId<Shortcuts> = StaticCommandMetaVarId::new_unique();

@@ -1,7 +1,8 @@
 use std::{cell::Cell, fmt, ops};
 
 use crate::{
-    impl_from_and_into_var, impl_ui_node, property, state_key,
+    context::StaticStateId,
+    impl_from_and_into_var, impl_ui_node, property,
     var::{context_var, ContextVarData, IntoVar, Var, Vars},
 };
 
@@ -358,7 +359,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                 let index = self.index.copy(ctx);
                 if index != ZIndex::DEFAULT {
                     z_ctx.resort.set(true);
-                    ctx.widget_state.set(ZIndexKey, self.index.copy(ctx));
+                    ctx.widget_state.set(&Z_INDEX_ID, self.index.copy(ctx));
                 }
             }
             self.child.init(ctx);
@@ -372,7 +373,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                     debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
 
                     z_ctx.resort.set(true);
-                    ctx.widget_state.set(ZIndexKey, i);
+                    ctx.widget_state.set(&Z_INDEX_ID, i);
                 }
             }
 
@@ -439,7 +440,7 @@ impl ZIndex {
 
     /// Gets the index set on a widget.
     pub fn get(widget: &impl Widget) -> ZIndex {
-        widget.state().copy(ZIndexKey).unwrap_or_default()
+        widget.state().copy(&Z_INDEX_ID).unwrap_or_default()
     }
 }
 impl Default for ZIndex {
@@ -500,7 +501,7 @@ pub trait WidgetZIndexExt {
 }
 impl<W: Widget> WidgetZIndexExt for W {
     fn z_index(&self) -> ZIndex {
-        self.state().copy(ZIndexKey).unwrap_or_default()
+        self.state().copy(&Z_INDEX_ID).unwrap_or_default()
     }
 }
 
@@ -531,7 +532,7 @@ pub trait WidgetListZIndexExt {
 }
 impl<L: WidgetList> WidgetListZIndexExt for L {
     fn widget_z_index(&self, index: usize) -> ZIndex {
-        self.item_state(index).copy(ZIndexKey).unwrap_or_default()
+        self.item_state(index).copy(&Z_INDEX_ID).unwrap_or_default()
     }
 
     fn init_all_z(&mut self, ctx: &mut WidgetContext, sort_z: &mut bool) {
@@ -543,9 +544,7 @@ impl<L: WidgetList> WidgetListZIndexExt for L {
     }
 }
 
-state_key! {
-    struct ZIndexKey: ZIndex;
-}
+static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
 
 #[derive(Default, Clone, Debug)]
 struct ZIndexContext {

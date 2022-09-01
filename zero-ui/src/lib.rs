@@ -694,11 +694,11 @@
 //! # use zero_ui::prelude::*;
 //! # fn test() -> impl WidgetHandler<()> {
 //! # let foo_var = var(true);
-//! # zero_ui::core::state_key! { pub struct FooKey: bool; }
+//! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
 //! hn!(|ctx, _| {
 //!     let value_ref = foo_var.get(ctx.vars);
 //!     let service_ref = Windows::req(ctx.services);
-//!     let state_ref = ctx.widget_state.get(FooKey);
+//!     let state_ref = ctx.widget_state.get(&FOO_ID);
 //! })
 //! # }
 //! ```

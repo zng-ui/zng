@@ -4,10 +4,9 @@ use linear_map::set::LinearSet;
 
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
-    context::{state_map, BorrowStateMap},
+    context::{state_map, BorrowStateMap, StaticStateId},
     image::Image,
     render::RenderMode,
-    state_key,
     text::{Text, ToText},
     units::*,
     var::*,
@@ -146,12 +145,12 @@ impl WindowVars {
     ///
     /// Panics if not called using the window state or called in a custom window context that did not setup the variables.
     pub fn req(window_state: &impl BorrowStateMap<state_map::Window>) -> &Self {
-        window_state.borrow().req(WindowVarsKey)
+        window_state.borrow().req(&WINDOW_VARS_ID)
     }
 
     /// Tries to get the window vars from the window state.
     pub fn get(window_state: &impl BorrowStateMap<state_map::Window>) -> Option<&Self> {
-        window_state.borrow().get(WindowVarsKey)
+        window_state.borrow().get(&WINDOW_VARS_ID)
     }
 
     /// Window chrome, the non-client area of the window.
@@ -583,6 +582,5 @@ impl WindowVars {
         self.0.render_mode.clone().into_read_only()
     }
 }
-state_key! {
-    pub(super) struct WindowVarsKey: WindowVars;
-}
+
+pub(super) static WINDOW_VARS_ID: StaticStateId<WindowVars> = StaticStateId::new_unique();

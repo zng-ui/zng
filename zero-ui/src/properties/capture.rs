@@ -113,9 +113,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         child: C,
         enabled: E,
     }
-    state_key! {
-        struct ModalWidgets: Rc<RefCell<ModalWidgetsData>>;
-    }
+    static MODAL_WIDGETS: StaticStateId<Rc<RefCell<ModalWidgetsData>>> = StaticStateId::new_unique();
     #[derive(Default)]
     struct ModalWidgetsData {
         widgets: linear_map::set::LinearSet<WidgetId>,
@@ -125,7 +123,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for ModalNode<C, E> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            let mws = ctx.window_state.get(ModalWidgets).unwrap();
+            let mws = ctx.window_state.get(&MODAL_WIDGETS).unwrap();
 
             if self.enabled.copy(ctx) {
                 let insert_filter = {
@@ -191,13 +189,13 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.window_state.entry(ModalWidgets).or_default(); // insert window state
+            ctx.window_state.entry(&MODAL_WIDGETS).or_default(); // insert window state
             self.child.init(ctx);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             {
-                let mws = ctx.window_state.get(ModalWidgets).unwrap();
+                let mws = ctx.window_state.get(&MODAL_WIDGETS).unwrap();
 
                 // maybe unregister.
                 let mut mws = mws.borrow_mut();

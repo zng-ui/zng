@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::core::{
-    context::state_key,
+    context::StaticStateId,
     units::*,
     var::{animation::EasingFn, *},
     widget_info::WidgetInfo,
@@ -330,15 +330,15 @@ pub trait WidgetInfoExt {
 }
 impl<'a> WidgetInfoExt for WidgetInfo<'a> {
     fn is_scroll(self) -> bool {
-        self.meta().get(ScrollInfoKey).is_some()
+        self.meta().get(&SCROLL_INFO_ID).is_some()
     }
 
     fn scroll_info(self) -> Option<ScrollInfo> {
-        self.meta().get(ScrollInfoKey).cloned()
+        self.meta().get(&SCROLL_INFO_ID).cloned()
     }
 
     fn viewport(self) -> Option<PxRect> {
-        self.meta().get(ScrollInfoKey).map(|r| r.viewport())
+        self.meta().get(&SCROLL_INFO_ID).map(|r| r.viewport())
     }
 }
 
@@ -379,9 +379,7 @@ impl ScrollInfo {
     }
 }
 
-state_key! {
-    pub(super) struct ScrollInfoKey: ScrollInfo;
-}
+pub(super) static SCROLL_INFO_ID: StaticStateId<ScrollInfo> = StaticStateId::new_unique();
 
 /// Smooth scrolling config.
 ///

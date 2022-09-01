@@ -28,7 +28,7 @@ use std::{
 };
 
 use crate::{
-    context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMapMut, UpdatesTrace, WidgetContext, WidgetContextMut, WindowContext},
+    context::{InfoContext, OwnedStateMap, StateId, StateMapMut, StateValue, UpdatesTrace, WidgetContext, WidgetContextMut, WindowContext},
     crate_util::{Handle, HandleOwner},
     event::{Event, EventPropagationHandle, Events, WithEvents},
     handler::WidgetHandler,
@@ -894,22 +894,46 @@ impl Command for AnyCommand {
     }
 }
 
-#[derive(Clone, Copy)]
-struct AppCommandMetaKey<S>(S);
-impl<S: StateKey> StateKey for AppCommandMetaKey<S>
-where
-    S::Type: VarValue,
-{
-    type Type = RcVar<S::Type>;
+unique_id_64! {
+    /// Unique identifier of a command metadata state variable.
+    ///
+    /// This type is very similar to [`StateId`], but `T` is the value type of the metadata variable.
+    pub struct CommandMetaVarId<T: (StateValue + VarValue)>: StateId;
+}
+impl<T: StateValue + VarValue> CommandMetaVarId<T> {
+    fn app(self) -> StateId<RcVar<T>> {
+        let id = self.get();
+        // SAFETY:
+        // id: We "inherit" from `StateId` so there is no repeated IDs.
+        // type: only our private code can get this ID and we only use it in the app level state-map.
+        unsafe { StateId::from_raw(id) }
+    }
+
+    fn scope(self) -> StateId<RcCowVar<T, RcVar<T>>> {
+        let id = self.get();
+        // SAFETY:
+        // id: We "inherit" from `StateId` so there is no repeated IDs.
+        // type: only our private code can get this ID and we only use it in the scope level state-map.
+        unsafe { StateId::from_raw(id) }
+    }
 }
 
-#[derive(Clone, Copy)]
-struct ScopedCommandMetaKey<S>(S);
-impl<S: StateKey> StateKey for ScopedCommandMetaKey<S>
-where
-    S::Type: VarValue,
-{
-    type Type = RcCowVar<S::Type, RcVar<S::Type>>;
+impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[cfg(debug_assertions)]
+        let t = std::any::type_name::<T>();
+        #[cfg(not(debug_assertions))]
+        let t = "$T";
+
+        if f.alternate() {
+            writeln!(f, "CommandMetaVarId<{t} {{")?;
+            writeln!(f, "   id: {},", self.get())?;
+            writeln!(f, "   sequential: {}", self.sequential())?;
+            writeln!(f, "}}")
+        } else {
+            write!(f, "CommandMetaVarId<{t}>({})", self.sequential())
+        }
+    }
 }
 
 /// Access to metadata of a command.
@@ -922,12 +946,10 @@ where
 /// # Examples
 ///
 /// ```
-/// use zero_ui_core::{command::*, context::state_key, var::*};
+/// use zero_ui_core::{command::*, var::*};
 ///
-/// state_key! {
-///     struct CommandFooKey: bool;
-///     struct CommandBarKey: bool;
-/// }
+/// static COMMAND_FOO_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
+/// static COMMAND_BAR_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
 ///
 /// /// FooBar command values.
 /// pub trait CommandFooBarExt {
@@ -949,11 +971,11 @@ where
 ///
 /// impl<C: Command> CommandFooBarExt for C {
 ///     fn foo(self) -> CommandMetaVar<bool> {
-///         self.with_meta(|m| m.get_var_or_default(CommandFooKey))
+///         self.with_meta(|m| m.get_var_or_default(&COMMAND_FOO_ID))
 ///     }
 ///
 ///     fn bar(self) -> ReadOnlyCommandMetaVar<bool> {
-///         self.with_meta(|m| m.get_var_or_insert(CommandBarKey, ||true)).into_read_only()
+///         self.with_meta(|m| m.get_var_or_insert(&COMMAND_BAR_ID, ||true)).into_read_only()
 ///     }
 ///
 ///     fn foo_and_bar(self) -> BoxedVar<bool> {
@@ -961,12 +983,12 @@ where
 ///     }
 ///
 ///     fn init_foo(self, foo: bool) -> Self {
-///         self.with_meta(|m| m.init_var(CommandFooKey, foo));
+///         self.with_meta(|m| m.init_var(&COMMAND_FOO_ID, foo));
 ///         self
 ///     }
 ///
 ///     fn init_bar(self, bar: bool) -> Self {
-///         self.with_meta(|m| m.init_var(CommandBarKey, bar));
+///         self.with_meta(|m| m.init_var(&COMMAND_BAR_ID, bar));
 ///         self
 ///     }
 /// }
@@ -978,119 +1000,110 @@ pub struct CommandMeta<'a> {
     scope: Option<StateMapMut<'a, CommandMetaState>>,
 }
 impl<'a> CommandMeta<'a> {
-    /// Clone a meta value identified by a [`StateKey`] type.
+    /// Clone a meta value identified by a [`StateId`].
     ///
     /// If the key is not set in the app, insert it using `init` to produce a value.
-    pub fn get_or_insert<S, F>(&mut self, key: S, init: F) -> S::Type
+    pub fn get_or_insert<T, F>(&mut self, id: impl Into<StateId<T>>, init: F) -> T
     where
-        S: StateKey,
-        F: FnOnce() -> S::Type,
-        S::Type: Clone,
+        T: StateValue + Clone,
+        F: FnOnce() -> T,
     {
+        let id = id.into();
         if let Some(scope) = &mut self.scope {
-            if let Some(value) = scope.get(key) {
+            if let Some(value) = scope.get(id) {
                 value.clone()
-            } else if let Some(value) = self.meta.get(key) {
+            } else if let Some(value) = self.meta.get(id) {
                 value.clone()
             } else {
                 let value = init();
                 let r = value.clone();
-                scope.set(key, value);
+                scope.set(id, value);
                 r
             }
         } else {
-            self.meta.entry(key).or_insert_with(init).clone()
+            self.meta.entry(id).or_insert_with(init).clone()
         }
     }
 
-    /// Clone a meta value identified by a [`StateKey`] type.
+    /// Clone a meta value identified by a [`StateId`].
     ///
     /// If the key is not set, insert the default value and returns a clone of it.
-    pub fn get_or_default<S>(&mut self, key: S) -> S::Type
+    pub fn get_or_default<T>(&mut self, id: impl Into<StateId<T>>) -> T
     where
-        S: StateKey,
-        S::Type: Clone + Default,
+        T: StateValue + Clone + Default,
     {
-        self.get_or_insert(key, Default::default)
+        self.get_or_insert(id, Default::default)
     }
 
-    /// Set the meta value associated with the [`StateKey`] type.
+    /// Set the meta value associated with the [`StateId`].
     ///
     /// Returns the previous value if any was set.
-    pub fn set<S>(&mut self, key: S, value: S::Type)
+    pub fn set<T>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>)
     where
-        S: StateKey,
-        S::Type: Clone,
+        T: StateValue + Clone,
     {
         if let Some(scope) = &mut self.scope {
-            scope.set(key, value);
+            scope.set(id, value);
         } else {
-            self.meta.set(key, value);
+            self.meta.set(id, value);
         }
     }
 
     /// Set the metadata value only if it was not set.
     ///
     /// This does not set the scoped override, only the command type metadata.
-    pub fn init<S>(&mut self, key: S, value: S::Type)
+    pub fn init<T>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>)
     where
-        S: StateKey,
-        S::Type: Clone,
+        T: StateValue + Clone,
     {
-        self.meta.entry(key).or_insert(value);
+        self.meta.entry(id).or_insert(value);
     }
 
-    /// Clone a meta variable identified by a [`StateKey`] type.
+    /// Clone a meta variable identified by a [`CommandMetaVarId`].
     ///
     /// The variable is read-write and is clone-on-write if the command is scoped,
     /// call [`into_read_only`] to make it read-only.
     ///
-    /// Note that the the [`StateKey`] type is the variable value type, the variable
-    /// type is [`CommandMetaVar<S::Type>`]. This is done to ensure that the associated
-    /// metadata implements the *scoped inheritance* of values correctly.
-    ///
     /// [`into_read_only`]: Var::into_read_only
-    pub fn get_var_or_insert<S, F>(&mut self, key: S, init: F) -> CommandMetaVar<S::Type>
+    pub fn get_var_or_insert<T, F>(&mut self, id: impl Into<CommandMetaVarId<T>>, init: F) -> CommandMetaVar<T>
     where
-        S: StateKey,
-        F: FnOnce() -> S::Type,
-        S::Type: VarValue,
+        T: StateValue + VarValue,
+        F: FnOnce() -> T,
     {
+        let id = id.into();
         if let Some(scope) = &mut self.scope {
             let meta = &mut self.meta;
             scope
-                .entry(ScopedCommandMetaKey(key))
+                .entry(id.scope())
                 .or_insert_with(|| {
-                    let var = meta.entry(AppCommandMetaKey(key)).or_insert_with(|| var(init())).clone();
+                    let var = meta.entry(id.app()).or_insert_with(|| var(init())).clone();
                     CommandMetaVar::new(var)
                 })
                 .clone()
         } else {
-            let var = self.meta.entry(AppCommandMetaKey(key)).or_insert_with(|| var(init())).clone();
+            let var = self.meta.entry(id.app()).or_insert_with(|| var(init())).clone();
             CommandMetaVar::pass_through(var)
         }
     }
 
-    /// Clone a meta variable identified by a [`StateKey`] type.
+    /// Clone a meta variable identified by a [`CommandMetaVarId`].
     ///
     /// Inserts a variable with the default value if no variable is in the metadata.
-    pub fn get_var_or_default<S>(&mut self, key: S) -> CommandMetaVar<S::Type>
+    pub fn get_var_or_default<T>(&mut self, id: impl Into<CommandMetaVarId<T>>) -> CommandMetaVar<T>
     where
-        S: StateKey,
-        S::Type: VarValue + Default,
+        T: StateValue + VarValue + Default,
     {
-        self.get_var_or_insert(key, Default::default)
+        self.get_var_or_insert(id, Default::default)
     }
 
     /// Set the metadata variable if it was not set.
     ///
     /// This does not set the scoped override, only the command type metadata.
-    pub fn init_var<S>(&mut self, key: S, value: S::Type)
+    pub fn init_var<T>(&mut self, id: impl Into<CommandMetaVarId<T>>, value: impl Into<T>)
     where
-        S: StateKey,
-        S::Type: VarValue,
+        T: StateValue + VarValue,
     {
-        self.meta.entry(AppCommandMetaKey(key)).or_insert_with(|| var(value));
+        self.meta.entry(id.into().app()).or_insert_with(|| var(value.into()));
     }
 }
 
@@ -1128,13 +1141,11 @@ pub trait CommandNameExt: Command {
     where
         Self: crate::gesture::CommandShortcutExt;
 }
-state_key! {
-    struct CommandNameKey: Text;
-}
+static COMMAND_NAME_ID: StaticCommandMetaVarId<Text> = StaticCommandMetaVarId::new_unique();
 impl<C: Command> CommandNameExt for C {
     fn name(self) -> CommandMetaVar<Text> {
         self.with_meta(|m| {
-            m.get_var_or_insert(CommandNameKey, || {
+            m.get_var_or_insert(&COMMAND_NAME_ID, || {
                 let name = type_name::<C>();
                 name.strip_suffix("Command").unwrap_or(name).to_text()
             })
@@ -1142,7 +1153,7 @@ impl<C: Command> CommandNameExt for C {
     }
 
     fn init_name(self, name: impl Into<Text>) -> Self {
-        self.with_meta(|m| m.init_var(CommandNameKey, name.into()));
+        self.with_meta(|m| m.init_var(&COMMAND_NAME_ID, name.into()));
         self
     }
 
@@ -1169,16 +1180,14 @@ pub trait CommandInfoExt: Command {
     /// Sets the initial info if it is not set.
     fn init_info(self, info: impl Into<Text>) -> Self;
 }
-state_key! {
-    struct CommandInfoKey: Text;
-}
+static COMMAND_INFO_ID: StaticCommandMetaVarId<Text> = StaticCommandMetaVarId::new_unique();
 impl<C: Command> CommandInfoExt for C {
     fn info(self) -> CommandMetaVar<Text> {
-        self.with_meta(|m| m.get_var_or_insert(CommandInfoKey, || "".to_text()))
+        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, || "".to_text()))
     }
 
     fn init_info(self, info: impl Into<Text>) -> Self {
-        self.with_meta(|m| m.init_var(CommandNameKey, info.into()));
+        self.with_meta(|m| m.init_var(&COMMAND_INFO_ID, info.into()));
         self
     }
 }

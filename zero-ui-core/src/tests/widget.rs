@@ -1757,8 +1757,8 @@ mod util {
     };
 
     use crate::{
-        context::{InfoContext, TestWidgetContext, WidgetContext},
-        impl_ui_node, property, state_key,
+        context::{InfoContext, StaticStateId, TestWidgetContext, WidgetContext},
+        impl_ui_node, property,
         var::{IntoVar, StateVar, Var},
         widget_info::{UpdateMask, WidgetSubscriptions},
         UiNode, Widget,
@@ -1772,12 +1772,11 @@ mod util {
 
     /// Probe for a [`trace`] in the widget state.
     pub fn traced(wgt: &impl Widget, trace: &'static str) -> bool {
-        wgt.state().get(TraceKey).map(|t| t.contains(trace)).unwrap_or_default()
+        wgt.state().get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default()
     }
 
-    state_key! {
-        struct TraceKey: HashSet<&'static str>;
-    }
+    static TRACE_ID: StaticStateId<HashSet<&'static str>> = StaticStateId::new_unique();
+
     struct TraceNode<C: UiNode> {
         child: C,
         trace: &'static str,
@@ -1786,7 +1785,7 @@ mod util {
     impl<C: UiNode> UiNode for TraceNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry(TraceKey).or_default().insert(self.trace);
+            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace);
         }
     }
 
@@ -1873,7 +1872,7 @@ mod util {
     /// Gets the [`Position`] tags sorted by call to [`Position::next`].
     pub fn sorted_value_init(wgt: &impl Widget) -> Vec<&'static str> {
         wgt.state()
-            .get(ValuePositionKey)
+            .get(&VALUE_POSITION_ID)
             .map(|m| {
                 let mut vec: Vec<_> = m.iter().collect();
                 vec.sort_by_key(|(_, i)| *i);
@@ -1885,7 +1884,7 @@ mod util {
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
     pub fn sorted_node_init(wgt: &impl Widget) -> Vec<&'static str> {
         wgt.state()
-            .get(NodePositionKey)
+            .get(&NODE_POSITION_ID)
             .map(|m| {
                 let mut vec: Vec<_> = m.iter().collect();
                 vec.sort_by_key(|(_, i)| *i);
@@ -1894,10 +1893,8 @@ mod util {
             .unwrap_or_default()
     }
 
-    state_key! {
-        struct ValuePositionKey: HashMap<&'static str, u32>;
-        struct NodePositionKey: HashMap<&'static str, u32>;
-    }
+    static VALUE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
+    static NODE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
 
     struct CountNode<C: UiNode> {
         child: C,
@@ -1907,12 +1904,12 @@ mod util {
     impl<C: UiNode> UiNode for CountNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.widget_state
-                .entry(ValuePositionKey)
+                .entry(&VALUE_POSITION_ID)
                 .or_default()
                 .insert(self.value_pos.tag, self.value_pos.pos);
 
             ctx.widget_state
-                .entry(NodePositionKey)
+                .entry(&NODE_POSITION_ID)
                 .or_default()
                 .insert(self.value_pos.tag, Position::next_init());
 
@@ -1931,7 +1928,7 @@ mod util {
     pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl Widget, state: bool) {
         ctx.set_current_update(UpdateMask::all());
         ctx.updates.update(UpdateMask::all());
-        *wgt.state_mut().entry(IsStateKey).or_default() = state;
+        *wgt.state_mut().entry(&IS_STATE_ID).or_default() = state;
     }
     struct IsStateNode<C: UiNode> {
         child: C,
@@ -1939,7 +1936,7 @@ mod util {
     }
     impl<C: UiNode> IsStateNode<C> {
         fn update_state(&mut self, ctx: &mut WidgetContext) {
-            let wgt_state = ctx.widget_state.get(IsStateKey).copied().unwrap_or_default();
+            let wgt_state = ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default();
             if wgt_state != self.state.copy(ctx) {
                 self.state.set(ctx.vars, wgt_state);
             }
@@ -1963,9 +1960,7 @@ mod util {
         }
     }
 
-    state_key! {
-        struct IsStateKey: bool;
-    }
+    static IS_STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
 
     /// A [trace] that can update.
     #[property(context)]
@@ -1991,7 +1986,7 @@ mod util {
     impl<C: UiNode, T: Var<&'static str>> UiNode for LiveTraceNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry(TraceKey).or_default().insert(self.trace.copy(ctx.vars));
+            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace.copy(ctx.vars));
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
@@ -2002,7 +1997,7 @@ mod util {
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             if let Some(trace) = self.trace.copy_new(ctx) {
-                ctx.widget_state.entry(TraceKey).or_default().insert(trace);
+                ctx.widget_state.entry(&TRACE_ID).or_default().insert(trace);
             }
         }
     }

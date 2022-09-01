@@ -4,22 +4,22 @@
 //! Helper types for debugging an UI tree.
 
 use crate::{
-    context::RenderContext,
-    crate_util::IdMap,
-    event::EventUpdateArgs,
-    formatx,
-    text::{Text, ToText},
-    widget_info::WidgetInfoBuilder,
-    BoxedUiNode,
-};
-use crate::{
-    context::{state_key, InfoContext, UpdatesTrace, WidgetContext},
+    context::{InfoContext, UpdatesTrace, WidgetContext},
     context::{LayoutContext, MeasureContext},
     render::{FrameBuilder, FrameUpdate},
     units::*,
     var::{context_var, BoxedVar, ContextVarData, Var, VarVersion},
     widget_info::{Visibility, WidgetInfo, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
     UiNode,
+};
+use crate::{
+    context::{RenderContext, StaticStateId},
+    crate_util::IdMap,
+    event::EventUpdateArgs,
+    formatx,
+    text::{Text, ToText},
+    widget_info::WidgetInfoBuilder,
+    BoxedUiNode,
 };
 
 use std::{
@@ -537,11 +537,16 @@ pub struct WhenInfo {
     pub user_declared: bool,
 }
 
-state_key! {
-    struct PropertiesInfoKey: Vec<PropertyInstance>;
-    struct WidgetNewFnInfoKey: Vec<WidgetNewFnInstance>;
-    struct WidgetInstanceInfoKey: WidgetInstance;
+struct StateIds {
+    properties_info: StaticStateId<Vec<PropertyInstance>>,
+    widget_new_fn_info: StaticStateId<Vec<WidgetNewFnInstance>>,
+    widget_instance_info: StaticStateId<WidgetInstance>,
 }
+static STATE_IDS: StateIds = StateIds {
+    properties_info: StaticStateId::new_unique(),
+    widget_new_fn_info: StaticStateId::new_unique(),
+    widget_instance_info: StaticStateId::new_unique(),
+};
 
 unique_id_64! {
     /// Unique ID of a widget instance.
@@ -676,7 +681,10 @@ impl UiNode for WidgetNewFnInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_mtd = "info").entered();
 
-        info.meta().entry(WidgetNewFnInfoKey).or_default().push(self.info.clone());
+        info.meta()
+            .entry(&STATE_IDS.widget_new_fn_info)
+            .or_default()
+            .push(self.info.clone());
 
         self.child.info(ctx, info);
     }
@@ -841,7 +849,7 @@ impl UiNode for WidgetInstanceInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_mtd = "info").entered();
 
-        info.meta().set(WidgetInstanceInfoKey, self.info.clone());
+        info.meta().set(&STATE_IDS.widget_instance_info, self.info.clone());
         self.child.info(ctx, info);
     }
 
@@ -984,7 +992,11 @@ impl UiNode for PropertyInfoNode {
     fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
         let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_mtd = "info").entered();
 
-        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(self.info.clone());
+        wgt_info
+            .meta()
+            .entry(&STATE_IDS.properties_info)
+            .or_default()
+            .push(self.info.clone());
 
         let t = Instant::now();
         self.child.info(ctx, wgt_info);
@@ -1407,11 +1419,11 @@ pub trait WidgetInspectorInfo<'a> {
 }
 impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     fn is_inspected(self) -> bool {
-        self.meta().contains(WidgetInstanceInfoKey)
+        self.meta().contains(&STATE_IDS.widget_instance_info)
     }
 
     fn instance(self) -> Option<&'a WidgetInstance> {
-        self.meta().get(WidgetInstanceInfoKey)
+        self.meta().get(&STATE_IDS.widget_instance_info)
     }
 
     fn child_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>> {
@@ -1437,7 +1449,7 @@ impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     }
 
     fn new_fns(self) -> &'a [WidgetNewFnInstance] {
-        self.meta().get(WidgetNewFnInfoKey).map(|v| &v[..]).unwrap_or(&[])
+        self.meta().get(&STATE_IDS.widget_new_fn_info).map(|v| &v[..]).unwrap_or(&[])
     }
 
     fn new_fn(self, new_fn: WidgetNewFn) -> Option<&'a WidgetNewFnInstance> {
@@ -1445,7 +1457,7 @@ impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     }
 
     fn properties(self) -> &'a [PropertyInstance] {
-        self.meta().get(PropertiesInfoKey).map(|v| &v[..]).unwrap_or(&[])
+        self.meta().get(&STATE_IDS.properties_info).map(|v| &v[..]).unwrap_or(&[])
     }
 
     fn property(self, property_name: &str) -> Option<PropertyOrCaptureInstance> {

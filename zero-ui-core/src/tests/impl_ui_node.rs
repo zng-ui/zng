@@ -291,19 +291,16 @@ mod util {
     use std::{cell::RefCell, rc::Rc};
 
     use crate::{
-        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, TestWidgetContext, WidgetContext},
+        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, TestWidgetContext, WidgetContext},
         event::{event, event_args, EventUpdate, EventUpdateArgs},
         render::{FrameBuilder, FrameUpdate},
-        state_key,
         units::*,
         widget_base::implicit_base,
         widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
         UiNode, Widget,
     };
 
-    state_key! {
-        pub struct TraceKey: Vec<TraceRef>;
-    }
+    pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();
 
     type TraceRef = Rc<RefCell<Vec<&'static str>>>;
 
@@ -313,7 +310,7 @@ mod util {
         ($state:expr, $method:expr) => {{
             let state = $state;
             let method = $method;
-            if let Some(db) = state.get(util::TraceKey) {
+            if let Some(db) = state.get(&util::TRACE_ID) {
                 for (i, trace_ref) in db.iter().enumerate() {
                     let mut any = false;
                     for trace_entry in trace_ref.borrow_mut().drain(..) {
@@ -334,7 +331,7 @@ mod util {
     macro_rules! __impl_ui_node_util_assert_did_not_trace {
         ($state:expr) => {{
             let state = $state;
-            if let Some(db) = state.get(util::TraceKey) {
+            if let Some(db) = state.get(&util::TRACE_ID) {
                 for (i, trace_ref) in db.iter().enumerate() {
                     let mut any = false;
                     for trace_entry in trace_ref.borrow().iter() {
@@ -364,7 +361,7 @@ mod util {
     }
     impl UiNode for TestTraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let db = ctx.widget_state.entry(TraceKey).or_default();
+            let db = ctx.widget_state.entry(&TRACE_ID).or_default();
             assert!(db.iter().all(|t| !Rc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
             db.push(Rc::clone(&self.trace));
 

@@ -159,6 +159,12 @@ impl crate::var::IntoVar<Option<WidgetId>> for WidgetId {
     }
 }
 impl crate::var::IntoValue<Option<WidgetId>> for WidgetId {}
+impl fmt::Debug for StaticWidgetId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.get(), f)
+    }
+}
+impl crate::var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 
 /// An Ui tree node.
 #[cfg_attr(doc_nightly, doc(notable_trait))]

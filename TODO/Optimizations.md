@@ -2,12 +2,9 @@
 
 * Refactor code to stop using TypeId as unique identifiers.
   - Context var: `struct FooVar: bool = true;` becomes `static FOO_VAR: ContextVar<bool> = ContextVar::new_unique(|| true);`.
-    - On first read the default value is inited and an `unique_id!` generated to represent the var.
+    - On first read the default value is inited and the static contextual pointer is owned by the `ContextVar`.
     - `ContextVar<T>` is a `Var<T>` struct, no more trait, no more `context_var!`.
     - Get becomes `FOO_VAR.get(vars)`.
-  - State key: `struct FooKey: u32` becomes `static FOO_KEY: StateKey<u32> = StateKey::new_unique()`.
-    - On first usage initializes to an `unique_id!`.
-    - `StateKey<u32>` is a struct and is `Copy`.
 
 # Update Mask
 

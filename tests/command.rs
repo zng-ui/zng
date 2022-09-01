@@ -2,7 +2,7 @@ use zero_ui::core::command::CommandHandle;
 use zero_ui::core::context::InfoContext;
 use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
 use zero_ui::core::widget_info::WidgetSubscriptions;
-use zero_ui::core::{command::command, context::state_key, event::EventUpdateArgs, impl_ui_node};
+use zero_ui::core::{command::command, context::StaticStateId, event::EventUpdateArgs, impl_ui_node};
 use zero_ui::prelude::*;
 
 #[test]
@@ -15,10 +15,10 @@ fn notify() {
 
     let _ = app.update(false);
 
-    let trace = app.ctx().app_state.into_req(TestTrace);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
     assert_eq!(trace, &vec!["no-scope / App".to_owned()]);
 
-    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE_IGNORE_PROPAGATION);
     assert_eq!(trace, &vec!["no-scope / App".to_owned(), "no-scope / App".to_owned()]);
     // two handlers
 }
@@ -35,10 +35,10 @@ fn notify_scoped() {
 
     let _ = app.update(false);
 
-    let trace = app.ctx().app_state.into_req(TestTrace);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
     assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
 
-    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE_IGNORE_PROPAGATION);
     assert_eq!(
         trace,
         &vec![
@@ -57,12 +57,12 @@ fn shortcut() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.into_req(TestTrace);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
     let widget_id = WidgetId::named("test-widget");
     // because we target the scoped first.
     assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 
-    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE_IGNORE_PROPAGATION);
     assert_eq!(
         trace,
         &vec![
@@ -84,12 +84,12 @@ fn shortcut_with_focused_scope() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.into_req(TestTrace);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
     let widget_id = WidgetId::named("other-widget");
     assert_eq!(1, trace.len()); // because we target the focused first.
     assert_eq!(&trace[0], &format!("scoped-wgt / Widget({widget_id:?})"));
 
-    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE_IGNORE_PROPAGATION);
     assert_eq!(
         trace,
         &vec![
@@ -113,11 +113,11 @@ fn shortcut_scoped() {
     app.press_key(window_id, Key::G);
 
     {
-        let trace = app.ctx().app_state.into_req_mut(TestTrace);
+        let trace = app.ctx().app_state.into_req_mut(&TEST_TRACE);
         assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
         trace.clear();
 
-        let trace = app.ctx().app_state.into_req_mut(TestTraceIgnorePropagation);
+        let trace = app.ctx().app_state.into_req_mut(&TEST_TRACE_IGNORE_PROPAGATION);
         assert_eq!(
             trace,
             &vec![
@@ -130,11 +130,11 @@ fn shortcut_scoped() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.into_req(TestTrace);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
     let widget_id = WidgetId::named("test-widget");
     assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 
-    let trace = app.ctx().app_state.into_req(TestTraceIgnorePropagation);
+    let trace = app.ctx().app_state.into_req(&TEST_TRACE_IGNORE_PROPAGATION);
     assert_eq!(
         trace,
         &vec![
@@ -165,13 +165,13 @@ fn listener_window(focused_wgt: bool) -> Window {
             if let Some(args) = FooCommand.update(args) {
                 args.handle(|args| {
                     ctx.app_state
-                        .entry(TestTrace)
+                        .entry(&TEST_TRACE)
                         .or_default()
                         .push(format!("no-scope / {:?}", args.scope));
                 });
 
                 ctx.app_state
-                    .entry(TestTraceIgnorePropagation)
+                    .entry(&TEST_TRACE_IGNORE_PROPAGATION)
                     .or_default()
                     .push(format!("no-scope / {:?}", args.scope));
             }
@@ -179,13 +179,13 @@ fn listener_window(focused_wgt: bool) -> Window {
             if let Some(args) = FooCommand.scoped(ctx.path.window_id()).update(args) {
                 args.handle(|args| {
                     ctx.app_state
-                        .entry(TestTrace)
+                        .entry(&TEST_TRACE)
                         .or_default()
                         .push(format!("scoped-win / {:?}", args.scope));
                 });
 
                 ctx.app_state
-                    .entry(TestTraceIgnorePropagation)
+                    .entry(&TEST_TRACE_IGNORE_PROPAGATION)
                     .or_default()
                     .push(format!("scoped-win / {:?}", args.scope));
             }
@@ -193,13 +193,13 @@ fn listener_window(focused_wgt: bool) -> Window {
             if let Some(args) = FooCommand.scoped(ctx.path.widget_id()).update(args) {
                 args.handle(|args| {
                     ctx.app_state
-                        .entry(TestTrace)
+                        .entry(&TEST_TRACE)
                         .or_default()
                         .push(format!("scoped-wgt / {:?}", args.scope));
                 });
 
                 ctx.app_state
-                    .entry(TestTraceIgnorePropagation)
+                    .entry(&TEST_TRACE_IGNORE_PROPAGATION)
                     .or_default()
                     .push(format!("scoped-wgt / {:?}", args.scope));
             }
@@ -232,7 +232,5 @@ command! {
     pub FooCommand;
 }
 
-state_key! {
-    struct TestTrace: Vec<String>;
-    struct TestTraceIgnorePropagation: Vec<String>;
-}
+static TEST_TRACE: StaticStateId<Vec<String>> = StaticStateId::new_unique();
+static TEST_TRACE_IGNORE_PROPAGATION: StaticStateId<Vec<String>> = StaticStateId::new_unique();

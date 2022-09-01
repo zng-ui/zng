@@ -40,7 +40,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
             if let Some(args) = MouseHoveredEvent.update(args) {
                 self.child.event(ctx, args);
 
-                let state = *ctx.update_state.entry(CursorStateKey).or_default();
+                let state = *ctx.update_state.entry(&CURSOR_STATE_ID).or_default();
                 match state {
                     CursorState::Default => {
                         // child did not set
@@ -57,7 +57,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                             }
 
                             // flag parent
-                            ctx.update_state.set(CursorStateKey, CursorState::Set);
+                            ctx.update_state.set(&CURSOR_STATE_ID, CursorState::Set);
                         } else if self.hovered_binding.is_some() {
                             // we are set, unbind.
 
@@ -100,6 +100,4 @@ impl Default for CursorState {
     }
 }
 
-state_key! {
-    struct CursorStateKey: CursorState;
-}
+static CURSOR_STATE_ID: StaticStateId<CursorState> = StaticStateId::new_unique();

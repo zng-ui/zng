@@ -46,14 +46,17 @@ impl WindowLayers {
             )]
         impl<L: Var<LayerIndex>, W: Widget> UiNode for LayeredWidget<L, W> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.widget.state_mut().set(LayerIndexKey, self.layer.copy(ctx.vars));
+                self.widget.state_mut().set(&LAYER_INDEX_ID, self.layer.copy(ctx.vars));
                 self.widget.init(ctx);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
                 if let Some(index) = self.layer.copy_new(ctx) {
-                    self.widget.state_mut().set(LayerIndexKey, index);
-                    ctx.window_state.req(WindowLayersKey).items.sort(ctx.updates, ctx.path.widget_id());
+                    self.widget.state_mut().set(&LAYER_INDEX_ID, index);
+                    ctx.window_state
+                        .req(&WINDOW_LAYERS_ID)
+                        .items
+                        .sort(ctx.updates, ctx.path.widget_id());
                 }
                 self.widget.update(ctx);
             }
@@ -80,7 +83,7 @@ impl WindowLayers {
             }
         }
 
-        ctx.window_state.req(WindowLayersKey).items.insert(
+        ctx.window_state.req(&WINDOW_LAYERS_ID).items.insert(
             ctx.updates,
             LayeredWidget {
                 layer: layer.into_var(),
@@ -443,14 +446,12 @@ impl WindowLayers {
     ///
     /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
     pub fn remove(ctx: &mut WidgetContext, id: impl Into<WidgetId>) {
-        ctx.window_state.req(WindowLayersKey).items.remove(ctx.updates, id);
+        ctx.window_state.req(&WINDOW_LAYERS_ID).items.remove(ctx.updates, id);
     }
 }
 
-state_key! {
-    struct WindowLayersKey: WindowLayers;
-    struct LayerIndexKey: LayerIndex;
-}
+static WINDOW_LAYERS_ID: StaticStateId<WindowLayers> = StaticStateId::new_unique();
+static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 
 /// Wrap around the window outer-most event node to create the layers.
 ///
@@ -464,7 +465,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
     impl<C: UiNodeList> UiNode for LayersNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.window_state.set(
-                WindowLayersKey,
+                &WINDOW_LAYERS_ID,
                 WindowLayers {
                     items: self.layered.clone(),
                 },
@@ -503,8 +504,8 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
     }
 
     let layers_vec = SortedWidgetVec::new(|a, b| {
-        let a = a.state().req(LayerIndexKey);
-        let b = b.state().req(LayerIndexKey);
+        let a = a.state().req(&LAYER_INDEX_ID);
+        let b = b.state().req(&LAYER_INDEX_ID);
 
         a.cmp(b)
     });

@@ -828,9 +828,7 @@ mod tests {
         struct TestVar: Text = "".into();
     }
 
-    state_key! {
-        pub struct ProbeKey: Text;
-    }
+    static PROBE_ID: StaticStateId<Text> = StaticStateId::new_unique();
 
     #[property(context, default(TestVar))]
     fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
@@ -846,7 +844,7 @@ mod tests {
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<Text>> UiNode for ProbeNode<C, V> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.app_state.set(ProbeKey, self.var.get_clone(ctx.vars));
+                ctx.app_state.set(&PROBE_ID, self.var.get_clone(ctx.vars));
                 self.child.init(ctx);
             }
         }
@@ -920,7 +918,7 @@ mod tests {
             }
         });
 
-        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("test!")));
+        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("test!")));
     }
 
     #[test]
@@ -933,7 +931,7 @@ mod tests {
             }
         });
 
-        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map test!")));
+        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map test!")));
     }
 
     #[test]
@@ -957,7 +955,7 @@ mod tests {
             }
         });
 
-        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
+        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
     }
 
     #[test]
@@ -984,7 +982,7 @@ mod tests {
             }
         });
 
-        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map C!")));
+        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map C!")));
     }
 
     #[test]
@@ -1007,7 +1005,7 @@ mod tests {
             }
         });
 
-        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
+        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
     }
 
     #[test]
@@ -1044,7 +1042,7 @@ mod tests {
             probe_b = mapped;
         });
 
-        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
+        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
     }
 
     #[test]

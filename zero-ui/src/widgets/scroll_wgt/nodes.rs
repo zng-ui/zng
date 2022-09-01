@@ -34,7 +34,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
         fn info(&self, ctx: &mut InfoContext, builder: &mut WidgetInfoBuilder) {
-            builder.meta().set(ScrollInfoKey, self.info.clone());
+            builder.meta().set(&SCROLL_INFO_ID, self.info.clone());
             self.child.info(ctx, builder);
         }
 
