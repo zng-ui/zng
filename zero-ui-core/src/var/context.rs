@@ -275,8 +275,32 @@ impl<T: VarValue> ContextVar<T> {
         (self.default_value)()
     }
 
+    fn current_value_ptr(&self) -> *const T {
+        self.local.with(|l| l.value.get())
+    }
+
+    fn current_is_new(&self) -> bool {
+        self.local.with(|l| l.is_new.get())
+    }
+
+    fn current_is_animating(&self) -> bool {
+        self.local.with(|l| l.is_animating.get())
+    }
+
+    fn current_is_read_only(&self) -> bool {
+        self.local.with(|l| l.is_read_only.get())
+    }
+
     pub(super) fn current_version(&self) -> VarVersion {
         self.local.with(|l| l.version.get())
+    }
+
+    fn current_actual_var_fn(&self) -> Option<*mut DynActualVarFn<T>> {
+        self.local.with(|l| l.actual_var.get())
+    }
+
+    fn current_update_mask(&self) -> UpdateMask {
+        self.local.with(|l| l.update_mask.get())
     }
 
     pub(super) fn enter_context(&self, new: ContextVarDataRaw<T>) -> ContextVarDataRaw<T> {
@@ -316,7 +340,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         let _vars = vars.as_ref();
-        let ptr = self.local.with(|l| l.value.get());
+        let ptr = self.current_value_ptr();
         // SAFETY: this is safe because the pointer is either 'static or a reference held by
         // Vars::with_context_var.
         unsafe { &*ptr }
@@ -324,7 +348,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         let vars = vars.as_ref();
-        if self.local.with(|l| l.is_new.get()) {
+        if self.current_is_new() {
             Some(self.get(vars))
         } else {
             None
@@ -332,15 +356,15 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|_vars| self.local.with(|l| l.is_new.get()))
+        vars.with_vars(|_vars| self.current_is_new())
     }
 
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|_vars| self.local.with(|l| l.version.get()))
+        vars.with_vars_read(|_vars| self.current_version())
     }
 
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|_vars| self.local.with(|l| l.is_read_only.get()))
+        vars.with_vars(|_vars| self.current_is_read_only())
     }
 
     fn always_read_only(&self) -> bool {
@@ -353,16 +377,14 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
         vars.with_vars(|vars| {
-            self.local.with(|l| {
-                if let Some(actual) = l.actual_var.get() {
-                    // SAFETY, we hold a ref to this closure box in the context.
-                    let actual = unsafe { &*actual };
-                    actual(vars)
-                } else {
-                    let value = self.get_clone(vars);
-                    LocalVar(value).boxed()
-                }
-            })
+            if let Some(actual) = self.current_actual_var_fn() {
+                // SAFETY, we hold a ref to this closure box in the context.
+                let actual = unsafe { &*actual };
+                actual(vars)
+            } else {
+                let value = self.get_clone(vars);
+                LocalVar(value).boxed()
+            }
         })
     }
 
@@ -375,7 +397,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|_vars| self.local.with(|l| l.is_animating.get()))
+        vars.with_vars_read(|_vars| self.current_is_animating())
     }
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
@@ -404,7 +426,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
         M: FnOnce(VarModify<T>) + 'static,
     {
         vars.with_vars(|vars| {
-            if let Some(actual) = self.local.with(|l| l.actual_var.get()) {
+            if let Some(actual) = self.current_actual_var_fn() {
                 // SAFETY, we hold a ref to this closure box in the context.
                 let actual = unsafe { &*actual };
                 actual(vars).modify(vars, modify)
@@ -419,7 +441,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|_vars| self.local.with(|l| l.update_mask.get()))
+        vars.with_vars_read(|_vars| self.current_update_mask())
     }
 }
 impl<T: VarValue> IntoVar<T> for ContextVar<T> {
