@@ -709,9 +709,10 @@ impl UiNode for WidgetNewFnInfoNode {
             name.push(')');
             drop(info);
 
-            ctx.vars.with_context_var(&PARENT_NAME, ContextVarData::fixed(&Cow::Owned(name)), || {
-                self.child.init(ctx);
-            });
+            ctx.vars
+                .with_context_var(PARENT_NAME, ContextVarData::fixed(&Cow::Owned(name)), || {
+                    self.child.init(ctx);
+                });
         }
 
         let mut info = self.info.borrow_mut();
@@ -872,7 +873,7 @@ impl UiNode for WidgetInstanceInfoNode {
             when.condition_version = var.version(ctx);
         }
 
-        info.parent_name = PARENT_NAME.as_ref().get_clone(ctx);
+        info.parent_name = PARENT_NAME.get_clone(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -1022,7 +1023,7 @@ impl UiNode for PropertyInfoNode {
         let _span = UpdatesTrace::property_span(property_name, "init");
 
         ctx.vars
-            .with_context_var(&PARENT_NAME, ContextVarData::fixed(&Cow::Borrowed(property_name)), || {
+            .with_context_var(PARENT_NAME, ContextVarData::fixed(&Cow::Borrowed(property_name)), || {
                 let t = Instant::now();
                 self.child.init(ctx);
                 let d = t.elapsed();

@@ -619,7 +619,7 @@ impl fmt::Debug for CornerRadiusFit {
 /// The [`Default`] value is calculated to fit inside the parent widget corner curve, see [`corner_radius_fit`].
 ///
 /// [`Default`]: crate::units::Length::Default
-#[property(context, default(&CORNER_RADIUS_VAR))]
+#[property(context, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
     struct CornerRadiusNode<C> {
         child: C,
@@ -633,16 +633,16 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
             ContextBorders::with_corner_radius(ctx, |ctx| self.child.layout(ctx, wl))
         }
     }
-    with_context_var(CornerRadiusNode { child }, &CORNER_RADIUS_VAR, radius)
+    with_context_var(CornerRadiusNode { child }, CORNER_RADIUS_VAR, radius)
 }
 
 /// Defines how the [`corner_radius`] is computed for each usage.
 ///
 /// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`ContextBorders`]
 /// coordinator can adjusts the radius inside each border to match the inside curve of the border.
-#[property(context, default(&CORNER_RADIUS_FIT_VAR))]
+#[property(context, default(CORNER_RADIUS_FIT_VAR))]
 pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
-    with_context_var(child, &CORNER_RADIUS_FIT_VAR, fit)
+    with_context_var(child, CORNER_RADIUS_FIT_VAR, fit)
 }
 
 /// Position of a widget borders in relation to the widget fill.
@@ -658,9 +658,9 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
 /// Fill property implementers, see [`fill_node`], a helper function for quickly implementing support for `border_align`.
 ///
 /// [`corner_radius`]: fn@corner_radius
-#[property(context, default(&BORDER_ALIGN_VAR))]
+#[property(context, default(BORDER_ALIGN_VAR))]
 pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
-    with_context_var(child, &BORDER_ALIGN_VAR, align)
+    with_context_var(child, BORDER_ALIGN_VAR, align)
 }
 
 context_var! {
@@ -708,12 +708,12 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
     )]
     impl<C: UiNode> UiNode for FillNodeNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &&BORDER_ALIGN_VAR);
+            subs.var(ctx, &BORDER_ALIGN_VAR);
             self.content.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if BORDER_ALIGN_VAR.as_ref().is_new(ctx) {
+            if BORDER_ALIGN_VAR.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.content.update(ctx);
@@ -721,7 +721,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let offsets = ContextBorders::inner_offsets(ctx.path.widget_id(), ctx.vars);
-            let align = BORDER_ALIGN_VAR.as_ref().get_clone(ctx.vars);
+            let align = BORDER_ALIGN_VAR.get_clone(ctx.vars);
 
             let our_offsets = offsets * align;
             let size_offset = offsets - our_offsets;
@@ -736,7 +736,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             // .. ( layout ( new_border/inner ( border_nodes ( FILL_NODES ( new_child_context ( new_child_layout ( ..
 
             let offsets = ContextBorders::inner_offsets(ctx.path.widget_id(), ctx.vars);
-            let align = BORDER_ALIGN_VAR.as_ref().get_clone(ctx.vars);
+            let align = BORDER_ALIGN_VAR.get_clone(ctx.vars);
 
             let our_offsets = offsets * align;
             self.offset = PxVector::new(our_offsets.left, our_offsets.top);
@@ -887,7 +887,7 @@ impl ContextBorders {
     /// This is only valid to call during layout.
     pub fn border_offsets<Vr: WithVarsRead>(widget_id: WidgetId, vars: &Vr) -> PxSideOffsets {
         vars.with_vars_read(|vars| {
-            let data = BORDER_DATA_VAR.as_ref().get(vars);
+            let data = BORDER_DATA_VAR.get(vars);
             if data.widget_id == Some(widget_id) {
                 data.wgt_offsets
             } else {
@@ -899,7 +899,7 @@ impl ContextBorders {
     /// Gets the accumulated border offsets including the current border.
     pub fn inner_offsets<Vr: WithVarsRead>(widget_id: WidgetId, vars: &Vr) -> PxSideOffsets {
         vars.with_vars_read(|vars| {
-            let data = BORDER_DATA_VAR.as_ref().get(vars);
+            let data = BORDER_DATA_VAR.get(vars);
             if data.widget_id == Some(widget_id) {
                 data.wgt_inner_offsets
             } else {
@@ -912,41 +912,41 @@ impl ContextBorders {
     ///
     /// This value is influenced by [`CORNER_RADIUS_VAR`], [`CORNER_RADIUS_FIT_VAR`] and all contextual borders.
     pub fn border_radius(ctx: &mut LayoutContext) -> PxCornerRadius {
-        match CORNER_RADIUS_FIT_VAR.as_ref().get_clone(ctx) {
-            CornerRadiusFit::Tree => BORDER_DATA_VAR.as_ref().get(ctx.vars).border_radius(),
+        match CORNER_RADIUS_FIT_VAR.get_clone(ctx) {
+            CornerRadiusFit::Tree => BORDER_DATA_VAR.get(ctx.vars).border_radius(),
             CornerRadiusFit::Widget => {
-                let data = BORDER_DATA_VAR.as_ref().get(ctx.vars);
+                let data = BORDER_DATA_VAR.get(ctx.vars);
                 if data.widget_id == Some(ctx.path.widget_id()) {
                     data.border_radius()
                 } else {
-                    CORNER_RADIUS_VAR.as_ref().get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero())
+                    CORNER_RADIUS_VAR.get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero())
                 }
             }
-            _ => CORNER_RADIUS_VAR.as_ref().get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero()),
+            _ => CORNER_RADIUS_VAR.get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero()),
         }
     }
 
     /// Gets the corner radius for the inside of the current border at the current context.
     pub fn inner_radius(ctx: &mut LayoutContext) -> PxCornerRadius {
-        match CORNER_RADIUS_FIT_VAR.as_ref().get_clone(ctx) {
-            CornerRadiusFit::Tree => BORDER_DATA_VAR.as_ref().get(ctx.vars).inner_radius(),
+        match CORNER_RADIUS_FIT_VAR.get_clone(ctx) {
+            CornerRadiusFit::Tree => BORDER_DATA_VAR.get(ctx.vars).inner_radius(),
             CornerRadiusFit::Widget => {
-                let data = BORDER_DATA_VAR.as_ref().get(ctx.vars);
+                let data = BORDER_DATA_VAR.get(ctx.vars);
                 if data.widget_id == Some(ctx.path.widget_id()) {
                     data.inner_radius()
                 } else {
-                    CORNER_RADIUS_VAR.as_ref().get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero())
+                    CORNER_RADIUS_VAR.get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero())
                 }
             }
-            _ => CORNER_RADIUS_VAR.as_ref().get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero()),
+            _ => CORNER_RADIUS_VAR.get(ctx.vars).layout(ctx.metrics, |_| PxCornerRadius::zero()),
         }
     }
 
     pub(super) fn with_inner(ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        let mut data = BORDER_DATA_VAR.as_ref().get_clone(ctx);
+        let mut data = BORDER_DATA_VAR.get_clone(ctx);
         data.add_inner(&ctx.widget_info.border, ctx.path.widget_id(), ctx.vars, ctx.metrics);
 
-        ctx.vars.with_context_var(&BORDER_DATA_VAR, ContextVarData::fixed(&data), || {
+        ctx.vars.with_context_var(BORDER_DATA_VAR, ContextVarData::fixed(&data), || {
             let corner_radius = ContextBorders::border_radius(ctx);
             ctx.widget_info.border.set_corner_radius(corner_radius);
             ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
@@ -956,15 +956,15 @@ impl ContextBorders {
     }
 
     fn with_border(ctx: &mut LayoutContext, offsets: PxSideOffsets, f: impl FnOnce(&mut LayoutContext)) {
-        let mut data = BORDER_DATA_VAR.as_ref().get_clone(ctx);
+        let mut data = BORDER_DATA_VAR.get_clone(ctx);
         data.add_offset(Some(&ctx.widget_info.border), ctx.path.widget_id(), ctx.vars, ctx.metrics, offsets);
-        ctx.vars.with_context_var(&BORDER_DATA_VAR, ContextVarData::fixed(&data), || f(ctx));
+        ctx.vars.with_context_var(BORDER_DATA_VAR, ContextVarData::fixed(&data), || f(ctx));
     }
 
     fn measure_with_border(ctx: &mut MeasureContext, offsets: PxSideOffsets, f: impl FnOnce(&mut MeasureContext) -> PxSize) -> PxSize {
-        let mut data = BORDER_DATA_VAR.as_ref().get_clone(ctx);
+        let mut data = BORDER_DATA_VAR.get_clone(ctx);
         data.add_offset(None, ctx.path.widget_id(), ctx.vars, ctx.metrics, offsets);
-        ctx.vars.with_context_var(&BORDER_DATA_VAR, ContextVarData::fixed(&data), || f(ctx))
+        ctx.vars.with_context_var(BORDER_DATA_VAR, ContextVarData::fixed(&data), || f(ctx))
     }
 
     /// Indicates a boundary point where the [`CornerRadiusVar`] backing context changes during layout.
@@ -976,24 +976,24 @@ impl ContextBorders {
     /// [`corner_radius`]: fn@corner_radius
     /// [`measure`]: UiNode::measure
     pub fn with_corner_radius<R>(ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut data = BORDER_DATA_VAR.as_ref().get_clone(ctx.vars);
+        let mut data = BORDER_DATA_VAR.get_clone(ctx.vars);
         data.set_corner_radius(ctx.vars);
 
-        ctx.vars.with_context_var(&BORDER_DATA_VAR, ContextVarData::fixed(&data), || f(ctx))
+        ctx.vars.with_context_var(BORDER_DATA_VAR, ContextVarData::fixed(&data), || f(ctx))
     }
 
     /// Gets the computed border rect and side offsets for the border visual.
     ///
     /// This is only valid to call in the border visual node (in [`border_node`]) during layout and render.
     pub fn border_layout<Vr: WithVarsRead>(vars: &Vr) -> (PxRect, PxSideOffsets) {
-        BORDER_LAYOUT_VAR.as_ref().get_clone(vars).unwrap_or_else(|| {
+        BORDER_LAYOUT_VAR.get_clone(vars).unwrap_or_else(|| {
             #[cfg(debug_assertions)]
             tracing::error!("the `border_layout` is only available inside the layout and render methods of the border visual node");
             (PxRect::zero(), PxSideOffsets::zero())
         })
     }
     fn with_border_layout(vars: &VarsRead, rect: PxRect, offsets: PxSideOffsets, f: impl FnOnce()) {
-        vars.with_context_var(&BORDER_LAYOUT_VAR, ContextVarData::fixed(&Some((rect, offsets))), f);
+        vars.with_context_var(BORDER_LAYOUT_VAR, ContextVarData::fixed(&Some((rect, offsets))), f);
     }
 }
 
@@ -1032,13 +1032,13 @@ impl BorderOffsetsData {
             self.widget_id = widget_id;
             self.wgt_offsets = PxSideOffsets::zero();
             self.wgt_inner_offsets = PxSideOffsets::zero();
-            self.eval_cr |= layout_info.is_some() && matches!(CORNER_RADIUS_FIT_VAR.as_ref().get(vars), CornerRadiusFit::Widget);
+            self.eval_cr |= layout_info.is_some() && matches!(CORNER_RADIUS_FIT_VAR.get(vars), CornerRadiusFit::Widget);
         }
         self.wgt_offsets = self.wgt_inner_offsets;
         self.wgt_inner_offsets += offset;
 
         if mem::take(&mut self.eval_cr) {
-            self.corner_radius = CORNER_RADIUS_VAR.as_ref().get(vars).layout(metrics, |_| PxCornerRadius::zero());
+            self.corner_radius = CORNER_RADIUS_VAR.get(vars).layout(metrics, |_| PxCornerRadius::zero());
             self.cr_offsets = PxSideOffsets::zero();
             self.cr_inner_offsets = PxSideOffsets::zero();
         }
@@ -1059,7 +1059,7 @@ impl BorderOffsetsData {
     }
 
     fn set_corner_radius(&mut self, vars: &VarsRead) {
-        self.eval_cr = matches!(CORNER_RADIUS_FIT_VAR.as_ref().get(vars), CornerRadiusFit::Tree);
+        self.eval_cr = matches!(CORNER_RADIUS_FIT_VAR.get(vars), CornerRadiusFit::Tree);
     }
 
     fn border_radius(&self) -> PxCornerRadius {

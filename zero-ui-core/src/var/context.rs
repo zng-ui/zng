@@ -237,10 +237,10 @@ macro_rules! context_var {
 pub use crate::context_var;
 
 /// Represents a context var.
-/// 
-/// Context variables are [`Var<T>`] implementers that represent a contextual value, unlike other variables it does not own the value it represents. 
-/// Note that [`Var<T>`] is implemented for `&'static ContextVar<T>`, not the struct directly.
-/// 
+///
+/// Context variables are [`Var<T>`] implementers that represent a contextual value, unlike other variables it does not own
+/// the value it represents.
+///
 /// The context var can have different values when read in different contexts, also the [`VarVersion`] is always different
 /// in different contexts. Context vars are mostly read-only but can be settable if bound to a read/write variable.
 ///
@@ -249,23 +249,19 @@ pub struct ContextVar<T: VarValue> {
     local: &'static LocalKey<ContextVarValue<T>>,
     default_value: fn() -> T,
 }
+impl<T: VarValue> Clone for ContextVar<T> {
+    fn clone(&self) -> Self {
+        Self {
+            local: self.local,
+            default_value: self.default_value,
+        }
+    }
+}
+impl<T: VarValue> Copy for ContextVar<T> {}
 impl<T: VarValue> ContextVar<T> {
     #[doc(hidden)]
     pub const fn new(local: &'static LocalKey<ContextVarValue<T>>, default_value: fn() -> T) -> Self {
         Self { local, default_value }
-    }
-
-    /// Borrow as a [`Var<T>`].
-    /// 
-    /// Because [`Var<T>`] is implemented to `&'static ContextVar<T>` type inference may match another trait first,
-    /// you can use this method to ensure the var methods are called, for example `FOO_VAR.map(..)` tries to resolve
-    /// to the iterator map, `FOO_VAR.as_ref().map(..)` resolves to the variable map.
-    pub fn as_ref(&'static self) -> &'static Self {
-        self
-    }
-
-    fn get<'a, Vr: AsRef<VarsRead>>(&'static self, vars: &'a Vr) -> &'a T {
-        Var::get(&self, vars) // !!: FIX ME, CRITICAL
     }
 
     /// New default value.
@@ -303,11 +299,11 @@ impl<T: VarValue> ContextVar<T> {
         })
     }
 }
-impl<T: VarValue> crate::private::Sealed for &'static ContextVar<T> {}
-impl<T: VarValue> any::AnyVar for &'static ContextVar<T> {
+impl<T: VarValue> crate::private::Sealed for ContextVar<T> {}
+impl<T: VarValue> any::AnyVar for ContextVar<T> {
     any_var_impls!(Var);
 }
-impl<T: VarValue> Var<T> for &'static ContextVar<T> {
+impl<T: VarValue> Var<T> for ContextVar<T> {
     type AsReadOnly = crate::var::types::ReadOnlyVar<T, Self>;
 
     type Weak = NoneWeakVar<T>;
@@ -393,7 +389,7 @@ impl<T: VarValue> Var<T> for &'static ContextVar<T> {
     }
 
     fn as_ptr(&self) -> *const () {
-        std::ptr::null()
+        std::ptr::null() // TODO !!: review this, can return the static pointer?
     }
 
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
@@ -420,7 +416,7 @@ impl<T: VarValue> Var<T> for &'static ContextVar<T> {
         vars.with_vars_read(|_vars| self.local.with(|l| l.update_mask.get()))
     }
 }
-impl<T: VarValue> IntoVar<T> for &'static ContextVar<T> {
+impl<T: VarValue> IntoVar<T> for ContextVar<T> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -451,9 +447,9 @@ mod properties {
     /// }
     ///
     /// /// Sets the [`FooVar`] in the widgets and its content.
-    /// #[property(context, default(&FOO_VAR))]
+    /// #[property(context, default(FOO_VAR))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
-    ///     with_context_var(child, &FOO_VAR, value)
+    ///     with_context_var(child, FOO_VAR, value)
     /// }
     /// ```
     ///
@@ -483,7 +479,7 @@ mod properties {
     /// /// Sets the *foo* config.
     /// #[property(context, default(false))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, &CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
+    ///     with_context_var(child, CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.foo = v;
     ///         c
@@ -493,7 +489,7 @@ mod properties {
     /// /// Sets the *bar* config.
     /// #[property(context, default(false))]
     /// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, &CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
+    ///     with_context_var(child, CONFIG_VAR, merge_var!(&CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.bar = v;
     ///         c
@@ -509,10 +505,10 @@ mod properties {
     /// [`is_read_only`]: Var::is_read_only
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
-    pub fn with_context_var<T: VarValue>(child: impl UiNode, var: &'static ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
+    pub fn with_context_var<T: VarValue>(child: impl UiNode, var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
         struct WithContextVarNode<U, T: VarValue, V> {
             child: U,
-            var: &'static ContextVar<T>,
+            var: ContextVar<T>,
             value: V,
         }
         impl<U, T, V> WithContextVarNode<U, T, V>
@@ -591,12 +587,12 @@ mod properties {
     /// Apart from the value initialization this behaves just like [`with_context_var`].
     pub fn with_context_var_init<T: VarValue, V: Var<T>>(
         child: impl UiNode,
-        var: &'static ContextVar<T>,
+        var: ContextVar<T>,
         init_value: impl FnMut(&mut WidgetContext) -> V + 'static,
     ) -> impl UiNode {
         struct WithContextVarInitNode<U, T: VarValue, I, V> {
             child: U,
-            var: &'static ContextVar<T>,
+            var: ContextVar<T>,
             init_value: I,
             value: Option<V>,
         }
@@ -688,9 +684,9 @@ mod tests {
 
     static PROBE_ID: StaticStateId<Text> = StaticStateId::new_unique();
 
-    #[property(context, default(&TEST_VAR))]
+    #[property(context, default(TEST_VAR))]
     fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
-        with_context_var(child, &TEST_VAR, value)
+        with_context_var(child, TEST_VAR, value)
     }
 
     #[property(context)]
@@ -785,7 +781,7 @@ mod tests {
             test_prop = "test!";
 
             child = test_wgt! {
-                probe = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
+                probe = TEST_VAR.map(|t| formatx!("map {t}"));
             }
         });
 
@@ -796,7 +792,7 @@ mod tests {
     fn context_var_map_cloned() {
         // mapped context var should depend on the context.
 
-        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
@@ -820,7 +816,7 @@ mod tests {
     fn context_var_map_cloned3() {
         // mapped context var should depend on the context.
 
-        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         let mut test = test_app(test_wgt! {
             test_prop = "A!";
 
@@ -854,11 +850,11 @@ mod tests {
             test_prop_a = "A!";
 
             child = test_wgt! {
-                probe = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
+                probe = TEST_VAR.map(|t| formatx!("map {t}"));
                 test_prop_b = "B!";
 
                 child = test_wgt! {
-                    probe = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
+                    probe = TEST_VAR.map(|t| formatx!("map {t}"));
                 }
             }
         });
@@ -870,24 +866,24 @@ mod tests {
     fn context_var_map_moved_app_ctx() {
         // need to support different value using the same variable instance too.
 
-        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
 
         let mut app = test_app(NilUiNode);
         let ctx = app.ctx();
 
         let a = ctx
             .vars
-            .with_context_var(&TEST_VAR, ContextVarData::fixed(&"A".into()), || mapped.get_clone(ctx.vars));
+            .with_context_var(TEST_VAR, ContextVarData::fixed(&"A".into()), || mapped.get_clone(ctx.vars));
         let b = ctx
             .vars
-            .with_context_var(&TEST_VAR, ContextVarData::fixed(&"B".into()), || mapped.get_clone(ctx.vars));
+            .with_context_var(TEST_VAR, ContextVarData::fixed(&"B".into()), || mapped.get_clone(ctx.vars));
 
         assert_ne!(a, b);
     }
 
     #[test]
     fn context_var_cloned_same_widget() {
-        let mapped = TEST_VAR.as_ref().map(|t| formatx!("map {t}"));
+        let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         use self::probe as probe_a;
         use self::probe as probe_b;
         use self::test_prop as test_prop_a;
@@ -911,8 +907,8 @@ mod tests {
 
         let ctx = app.ctx();
         ctx.vars
-            .with_context_var(&TEST_VAR, ContextVarData::in_vars(ctx.vars, &backing_var, false), || {
-                let t = &TEST_VAR;
+            .with_context_var(TEST_VAR, ContextVarData::in_vars(ctx.vars, &backing_var, false), || {
+                let t = TEST_VAR;
                 assert!(!t.is_read_only(ctx.vars));
                 t.set(ctx.vars, "set!").unwrap();
             });
@@ -930,7 +926,7 @@ mod tests {
         let mut test = test_app(test_wgt! {
             test_prop = input_var.clone();
             on_init = hn_once!(other_var, |ctx, _| {
-                TEST_VAR.as_ref().bind(ctx, &other_var).perm();
+                TEST_VAR.bind(ctx, &other_var).perm();
             });
             child = NilUiNode;
         });
