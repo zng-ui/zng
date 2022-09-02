@@ -5,7 +5,7 @@ use std::{
     fmt,
     fs::File,
     io::{BufWriter, Write},
-    path::Path,
+    path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
     thread,
     time::Duration,
@@ -78,8 +78,8 @@ impl<'a> FilterArgs<'a> {
 ///
 /// # Output
 ///
-/// The `path` is a JSON file that will be written too as the profiler records. Returns a
-/// [`Recording`] struct, you must call [`Recording::finish`] to stop recording and correctly
+/// The `path` is a JSON file that will be written too as the profiler records, the extension will be set to `.json` or
+/// `.json.gz` depending the `"deflate"` feature. Returns a [`Recording`] struct, you must call [`Recording::finish`] to stop recording and correctly
 /// terminate the JSON file. If `finish` is not called the output file will not be valid JSON,
 /// you can probably fix it manually in this case by removing the last incomplete event entry and adding
 /// `]}`.
@@ -101,18 +101,28 @@ impl<'a> FilterArgs<'a> {
 ///
 /// If a event has an attribute `"message"` the message is taken as a name.
 pub fn record_profile(
-    path: impl AsRef<Path>,
+    path: impl Into<PathBuf>,
     about: &[(&str, &dyn std::fmt::Display)],
     filter: impl FnMut(FilterArgs) -> bool + Send + 'static,
 ) -> Recording {
-    record_profile_impl(path.as_ref(), about, Box::new(filter))
+    record_profile_impl(path.into(), about, Box::new(filter))
 }
 fn record_profile_impl(
-    path: &Path,
+    mut path: PathBuf,
     about: &[(&str, &dyn std::fmt::Display)],
     mut filter: Box<dyn FnMut(FilterArgs) -> bool + Send>,
 ) -> Recording {
-    let file = BufWriter::new(File::create(path).unwrap());
+    if cfg!(feature = "deflate") {
+        path.set_extension("json.gz");
+    } else {
+        path.set_extension("json");
+    }
+    let path = path;
+
+    #[allow(unused_mut)]
+    let mut file = BufWriter::new(File::create(&path).unwrap());
+
+    #[cfg(feature = "deflate")]
     let mut file = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
 
     // specs: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lpfof2aylapb
@@ -296,12 +306,17 @@ fn record_profile_impl(
                         .unwrap();
                         comma = ",";
                     }
-                    Msg::Finish => break,
+                    Msg::Finish => {
+                        println!("saving profile `{}`", path.display());
+                        break
+                    },
                 }
             }
             write!(&mut file, "]}}").unwrap();
 
-            file.finish().unwrap().flush().unwrap();
+            #[cfg(feature = "deflate")]
+            let mut file = file.finish().unwrap();
+            file.flush().unwrap();
         })
         .unwrap();
 

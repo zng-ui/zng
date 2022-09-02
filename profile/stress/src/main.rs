@@ -183,7 +183,7 @@ fn main() {
     }
 
     let profile_file = format!(
-        "profile-stress-{}{}{}{}{}{}{}{}.json.gz",
+        "profile-stress-{}{}{}{}{}{}{}{}",
         name,
         if cfg!(debug_assertions) { "-dbg" } else { "" },
         if SAME_PROCESS { "" } else { "-no_vp" },

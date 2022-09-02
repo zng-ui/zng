@@ -132,7 +132,7 @@ fn panic_msg(payload: &dyn std::any::Any) -> &str {
 /// See [`profile_util::record_profile`] for more details.
 pub fn record_profile(example: &'static str) -> Recording {
     profile_util::record_profile(
-        format!("profile-{example}{}.json.gz", if cfg!(debug_assertions) { "-dbg" } else { "" }),
+        format!("profile-{example}{}", if cfg!(debug_assertions) { "-dbg" } else { "" }),
         &[("example", &example), ("debug", &cfg!(debug_assertions))],
         default_profile_filter,
     )

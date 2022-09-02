@@ -33,24 +33,24 @@
     - gleam uses a `Rc<dyn Gl>` for the OpenGL functions.
     - There are obscure bugs with sending OpenGL contexts across threads, maybe review using `surfman` again.
 
-# Inspector
+# Inspector + Profiler
 
 * Icon example changing the icon font, time to `on_info_init` in all icon buttons:
   - debug (default) changes in 5s.
-  - debug + trace (default) changes in 11s.
+  - debug + trace-json.gz (default) changes in 11s.
+  - debug + trace-json changes in 10s.
   - release-lto + "inspector" changes in 850ms.
   - release-lto + "inspector" + trace changes in 1.9s.
   - release-lto + "dyn_widget" (default) changes in 180ms. 
   - release-lto + "dyn_node" changes in 181ms.
 
-This is are some rough timings, done while some other stuff was happening, but they indicate that the "inspector" nodes
-are pretty slow.
-
 Need to optimize the inspector nodes a bit, maybe some lazy stuff?
 
-# Profiler
+Profiler has a huge impact, but is also generating so much data that chrome struggles to display.
 
 * Try `minitrace-rust` see if it is faster/more accurate than `tracing`.
+* Try filtering more data, only 
+
 
 # Parallel UI
 
