@@ -6,7 +6,7 @@ use zero_ui_material_icons as icons;
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    examples_util::print_info();
+    // examples_util::print_info();
     zero_ui_view::init();
 
     // let rec = examples_util::record_profile("icon");
@@ -44,8 +44,12 @@ fn icons() -> impl Widget {
         }
     }
     fn show_font(icons: Vec<MaterialIcon>) -> impl Widget {
+        // let now = std::time::Instant::now();
         wrap! {
             spacing = 5;
+            // zero_ui::properties::events::widget::on_info_init = hn_once!(|_, _| {
+            //     println!("INIT: {:?}", start.elapsed());
+            // });
             icon::vis::icon_size = 48;
             items = icons.into_iter()
                     .map(|i| icon_btn(i).boxed_wgt())
@@ -79,7 +83,6 @@ fn icons() -> impl Widget {
                     Some(_) => unreachable!(),
                 }
             }),
-            show_font(icons::outlined::all()),
         ]
     }
 }

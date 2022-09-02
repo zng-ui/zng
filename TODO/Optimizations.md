@@ -35,11 +35,13 @@
 
 # Inspector
 
-* Icon example changing the icon font, deinit + instantiate + init~>render all icon buttons:
-  - debug + "inspector" (default) changes in 18s!
-  - release-lto + "inspector" changes in 4s!
-  - release-lto + "dyn_widget" (default) changes in 320ms. 
-  - release-lto + "dyn_node" changes in 525ms.
+* Icon example changing the icon font, time to `on_info_init` in all icon buttons:
+  - debug (default) changes in 5s.
+  - debug + trace (default) changes in 11s.
+  - release-lto + "inspector" changes in 850ms.
+  - release-lto + "inspector" + trace changes in 1.9s.
+  - release-lto + "dyn_widget" (default) changes in 180ms. 
+  - release-lto + "dyn_node" changes in 181ms.
 
 This is are some rough timings, done while some other stuff was happening, but they indicate that the "inspector" nodes
 are pretty slow.
@@ -48,7 +50,7 @@ Need to optimize the inspector nodes a bit, maybe some lazy stuff?
 
 # Profiler
 
-* Try `tracing-chrometrace`, see if it is faster than `profile/util`.
+* Try `minitrace-rust` see if it is faster/more accurate than `tracing`.
 
 # Parallel UI
 
