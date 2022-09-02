@@ -830,7 +830,7 @@ impl Focus {
             (_, FocusTarget::DirectOrExit(widget_id)) => {
                 self.focus_direct(vars, windows, widget_id, request.highlight, false, true, request)
             }
-            (_, FocusTarget::DirectOrEnder(widget_id)) => {
+            (_, FocusTarget::DirectOrEnter(widget_id)) => {
                 self.focus_direct(vars, windows, widget_id, request.highlight, true, false, request)
             }
             (_, FocusTarget::DirectOrRelated(widget_id)) => {
@@ -872,7 +872,7 @@ impl Focus {
                             // cases covered by parent match
                             FocusTarget::Direct { .. }
                             | FocusTarget::DirectOrExit { .. }
-                            | FocusTarget::DirectOrEnder { .. }
+                            | FocusTarget::DirectOrEnter { .. }
                             | FocusTarget::DirectOrRelated { .. } => {
                                 unreachable!()
                             }
@@ -1014,8 +1014,6 @@ impl Focus {
                     target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
                 }
             }
-        } else {
-            tracing::error!("cannot focus {widget_id:?}, widget not found");
         }
 
         if let Some((target, enabled_nav)) = target {

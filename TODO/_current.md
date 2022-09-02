@@ -1,5 +1,7 @@
 * "Loading.." of panorama image vanishes if scroll to far right.
-* Focus request made on removed button? Now that we added a log this is visible.
+    - Its getting culled because culling is done using the outer-bounds, but `x` sets the inner-bounds.
+    - Merge outer/inner into a single bounds, there used to be a TODO for this.
+    - Move culling to `push_inner` and use inner bounds, check performance in icon example.
 
 * Implement dynamic when states, see `Themes.md`.
 * Review dynamic property set in the widget declaration and set again in instance.
@@ -35,7 +37,7 @@
 
 # Light Theme
 
-- example    - desc
+- example    - description
 - border     - text color
 - calculator - display number color is not themed
 - config     - text input and update status are not themed

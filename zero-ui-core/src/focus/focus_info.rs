@@ -212,9 +212,9 @@ impl FocusRequest {
     pub fn direct_or_exit(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::DirectOrExit(widget_id), highlight)
     }
-    /// New [`FocusTarget::DirectOrEnder`] request.
+    /// New [`FocusTarget::DirectOrEnter`] request.
     pub fn direct_or_enter(widget_id: WidgetId, highlight: bool) -> Self {
-        Self::new(FocusTarget::DirectOrEnder(widget_id), highlight)
+        Self::new(FocusTarget::DirectOrEnter(widget_id), highlight)
     }
     /// New [`FocusTarget::DirectOrRelated`] request.
     pub fn direct_or_related(widget_id: WidgetId, highlight: bool) -> Self {
@@ -278,7 +278,7 @@ pub enum FocusTarget {
     /// Move focus to the widget if it is focusable or to the first focusable ancestor.
     DirectOrExit(WidgetId),
     /// Move focus to the widget if it is focusable or to first focusable descendant.
-    DirectOrEnder(WidgetId),
+    DirectOrEnter(WidgetId),
     /// Move focus to the widget if it is focusable, or to the first focusable descendant or
     /// to the first focusable ancestor.
     DirectOrRelated(WidgetId),
