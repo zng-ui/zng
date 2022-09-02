@@ -576,6 +576,11 @@ fn profile(mut args: Vec<&str>) {
     } else if take_flag(&mut args, &["-b", "--build"]) {
         let diff = take_flag(&mut args, &["--diff"]);
 
+        if take_flag(&mut args, &["--release-lto"]) {
+            args.push("--profile");
+            args.push("release-lto");
+        }
+
         if !args.contains(&"--") {
             args.push("--");
         }
