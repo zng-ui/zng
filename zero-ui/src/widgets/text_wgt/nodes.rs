@@ -255,6 +255,23 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             }
 
             // update decoration line colors, affects render
+            if let Some(c) = TEXT_COLOR_VAR.copy_new(ctx) {
+                let c = OVERLINE_COLOR_VAR.copy(ctx).unwrap_or(c);
+                if c != r.overline_color {
+                    r.overline_color = c;
+                    ctx.updates.render();
+                }
+                let c = STRIKETHROUGH_COLOR_VAR.copy(ctx).unwrap_or(c);
+                if c != r.strikethrough_color {
+                    r.strikethrough_color = c;
+                    ctx.updates.render();
+                }
+                let c = UNDERLINE_COLOR_VAR.copy(ctx).unwrap_or(c);
+                if c != r.underline_color {
+                    r.underline_color = c;
+                    ctx.updates.render();
+                }
+            }
             if let Some(c) = OVERLINE_COLOR_VAR.copy_new(ctx) {
                 let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
                 if c != r.overline_color {
