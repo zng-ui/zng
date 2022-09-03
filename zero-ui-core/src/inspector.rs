@@ -1199,7 +1199,7 @@ impl PartialEq for ValueInfo {
 
 #[doc(hidden)]
 pub mod debug_var_util {
-    use std::fmt::Debug;
+    use std::{fmt::Debug, any::Any};
 
     use crate::var::{BoxedVar, IntoValue, IntoVar, LocalVar, Var, VarValue};
 
@@ -1224,7 +1224,7 @@ pub mod debug_var_util {
     pub trait FromIntoValueDebug<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<ValueInfo>;
     }
-    impl<T: Debug, V: IntoValue<T>> FromIntoValueDebug<T> for &Wrap<&V> {
+    impl<T: Debug + Any, V: IntoValue<T>> FromIntoValueDebug<T> for &Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
             LocalVar(ValueInfo::new(&self.0.clone().into())).boxed()
         }

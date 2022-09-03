@@ -9,7 +9,7 @@ use std::{
     ops::{self, Deref, DerefMut},
     rc::Rc,
     str::FromStr,
-    time::Duration,
+    time::Duration, any::Any,
 };
 
 use crate::{
@@ -289,8 +289,8 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// [inspected]: crate::inspector
 /// [`Debug`]: std::fmt::Debug
 /// [`impl_from_and_into_var`]: crate::var::impl_from_and_into_var
-pub trait IntoValue<T: fmt::Debug>: Into<T> + Clone {}
-impl<T: fmt::Debug + Clone> IntoValue<T> for T {}
+pub trait IntoValue<T: fmt::Debug + Any>: Into<T> + Clone {}
+impl<T: fmt::Debug + Clone + Any> IntoValue<T> for T {}
 
 /// Represents a weak reference to a [`Var<T>`] that is a shared pointer.
 pub trait WeakVar<T: VarValue>: Clone + any::AnyWeakVar + crate::private::Sealed + 'static {
