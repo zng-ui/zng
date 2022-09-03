@@ -36,11 +36,10 @@
 # Inspector + Profiler
 
 * Icon example changing the icon font, time to `on_info_init` in all icon buttons:
-  - debug (default) changes in 5s.
-  - debug + trace-json.gz (default) changes in 11s.
-  - debug + trace-json changes in 10s.
-  - release-lto + "inspector" changes in 850ms.
-  - release-lto + "inspector" + trace changes in 1.9s.
+  - debug (default) changes in 3.5s.
+  - debug + trace-json.gz (default) changes in 8s.
+  - release-lto + "inspector" changes in 390ms.
+  - release-lto + "inspector" + trace changes in 1.6s.
   - release-lto + "dyn_widget" (default) changes in 180ms. 
   - release-lto + "dyn_node" changes in 181ms.
 

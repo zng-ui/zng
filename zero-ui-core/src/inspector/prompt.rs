@@ -174,7 +174,7 @@ fn write_impl(vars: &VarsRead, updates_from: &WriteTreeState, widget: WidgetInfo
 
         write_info(widget, fmt);
 
-        fmt.writeln();
+        // fmt.writeln();
 
         for child in widget.children() {
             write_impl(vars, updates_from, child, info.meta.widget_name, fmt);

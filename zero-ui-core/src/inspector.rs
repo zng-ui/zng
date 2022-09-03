@@ -139,7 +139,7 @@ impl fmt::Debug for PropertyValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.fmt {
             Some(fmt) => fmt(&*self.value, f),
-            None => write!(f, "<{}>", self.type_name),
+            None => write!(f, "<{}>", self.type_name_display()),
         }
     }
 }
