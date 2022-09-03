@@ -52,8 +52,7 @@
 - scroll     - background color and commands menu background color are not themed
 - shortcuts  - shortcut text color is not themed
 
-- text       - overline, underline and strikethrough default colors are not themed
-             - colored text is hard to see in light theme
+- text       - colored text is hard to see in light theme
              - font size widget background is not themed
 
 - transform  - red
