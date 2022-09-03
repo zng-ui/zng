@@ -18,9 +18,8 @@ use std::any::type_name;
 use std::fmt;
 use std::{any::Any, rc::Rc};
 
-use linear_map::set::LinearSet;
-
-use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId};
+use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, UpdatesTrace};
+use crate::render::FrameUpdate;
 use crate::text::Text;
 use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions};
 use crate::{units::*, var::*, *};
@@ -312,6 +311,8 @@ impl WidgetInstanceParent {
 }
 
 /// Debug information about a widget instance.
+///
+/// Use  the [`WidgetInfoInspectorExt::instance`] to get the inspection info for a [`WidgetInfo`].
 pub struct WidgetInstanceInfo {
     /// About the widget.
     pub meta: WidgetInstanceMeta,
@@ -331,23 +332,13 @@ pub struct WidgetInstanceInfo {
     pub parent_name: WidgetInstanceParent,
 }
 impl WidgetInstanceInfo {
-    /// Get the widget inspect info, if the widget is inspected.
-    pub fn get(info: WidgetInfo) -> Option<&WidgetInstanceInfo> {
-        info.meta().get(&WIDGET_INSTANCE_INFO_ID)
-    }
-
-    /// Require the widget inspect info, panics if not present.
-    pub fn req(info: WidgetInfo) -> &WidgetInstanceInfo {
-        info.meta().req(&WIDGET_INSTANCE_INFO_ID)
-    }
-
     /// Find the static or dynamic constructor function for the given static name.
     ///
     /// If `static_ctor` is `"new_context"` searches for it and `"new_context_dyn"`.
     pub fn constructor(&self, static_ctor: &str) -> Option<&WidgetConstructorInfo> {
         for ctor in &self.constructors {
             if let Some(maybe_dyn) = ctor.fn_name.strip_prefix(static_ctor) {
-                if maybe_dyn == "" || maybe_dyn == "_dyn" {
+                if maybe_dyn.is_empty() || maybe_dyn == "_dyn" {
                     return Some(ctor);
                 }
             }
@@ -399,7 +390,7 @@ pub enum PropertyOrCapture<'a> {
 }
 impl<'a> PropertyOrCapture<'a> {
     /// Get the property name.
-    pub fn property_name(&self) -> &'a str {
+    pub fn property_name(&self) -> &'static str {
         match self {
             PropertyOrCapture::Property(p) => p.meta.property_name,
             PropertyOrCapture::Capture(p) => p.property_name,
@@ -436,14 +427,64 @@ impl<'a> PropertyOrCapture<'a> {
     }
 }
 
-/// Adds the `instance` method to [`WidgetInfo`].
-pub trait WidgetInfoExt<'a> {
-    /// Calls [`WidgetInstanceInfo::get`].
+/// Adds the the inspector methods to [`WidgetInfo`].
+pub trait WidgetInfoInspectorExt<'a> {
+    /// If the widget contains inspected info.
+    #[allow(clippy::wrong_self_convention)] // WidgetInfo is a reference.
+    fn is_inspected(self) -> bool;
+
+    /// Gets the inspector info about the widget, if it is inspected.
     fn instance(self) -> Option<&'a WidgetInstanceInfo>;
+
+    /// Find for an inspected child widget with the `widget_name`.
+    fn child_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>>;
+
+    /// Find for an inspected descendant widget with the `widget_name`.
+    fn descendant_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>>;
+
+    /// Find for an inspected parent widget with the `widget_name`.
+    fn ancestor_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>>;
 }
-impl<'a> WidgetInfoExt<'a> for WidgetInfo<'a> {
+impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
+    fn is_inspected(self) -> bool {
+        self.meta().contains(&WIDGET_INSTANCE_INFO_ID)
+    }
+
     fn instance(self) -> Option<&'a WidgetInstanceInfo> {
-        WidgetInstanceInfo::get(self)
+        self.meta().get(&WIDGET_INSTANCE_INFO_ID)
+    }
+
+    fn child_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>> {
+        for c in self.children() {
+            if let Some(inst) = c.instance() {
+                if inst.meta.widget_name == widget_name {
+                    return Some(c);
+                }
+            }
+        }
+        None
+    }
+
+    fn descendant_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>> {
+        for c in self.descendants() {
+            if let Some(inst) = c.instance() {
+                if inst.meta.widget_name == widget_name {
+                    return Some(c);
+                }
+            }
+        }
+        None
+    }
+
+    fn ancestor_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>> {
+        for c in self.ancestors() {
+            if let Some(inst) = c.instance() {
+                if inst.meta.widget_name == widget_name {
+                    return Some(c);
+                }
+            }
+        }
+        None
     }
 }
 
@@ -534,7 +575,7 @@ pub struct WhenInfo {
     pub condition: BoxedVar<bool>,
 
     /// Properties affected by this when block.
-    pub properties: LinearSet<&'static str>,
+    pub properties: Box<[&'static str]>,
 
     /// Source-code location of the when block declaration.
     pub decl_location: SourceLocation,
@@ -567,19 +608,20 @@ struct InspectPropertyNode {
     meta: PropertyInstanceMeta,
     args: Box<[PropertyArg]>,
 }
+#[impl_ui_node(child)]
 impl UiNode for InspectPropertyNode {
     fn init(&mut self, ctx: &mut context::WidgetContext) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "init").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "init");
         self.child.init(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut context::WidgetContext) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "deinit").entered();
-        self.child.init(ctx);
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "deinit");
+        self.child.deinit(ctx);
     }
 
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "info").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "info");
         if let Some(wgt) = info.meta().get_mut(&WIDGET_INSTANCE_INFO_ID) {
             wgt.properties.push(PropertyInstanceInfo {
                 meta: self.meta.clone(),
@@ -596,37 +638,37 @@ impl UiNode for InspectPropertyNode {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "subscriptions").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "subscriptions");
         self.child.subscriptions(ctx, subs);
     }
 
     fn event<A: event::EventUpdateArgs>(&mut self, ctx: &mut context::WidgetContext, args: &A) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "event").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "event");
         self.child.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut context::WidgetContext) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "update").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "update");
         self.child.update(ctx);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "measure").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "measure");
         self.child.measure(ctx)
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> units::PxSize {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "layout").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "layout");
         self.child.layout(ctx, wl)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut render::FrameBuilder) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "render").entered();
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "render");
         self.child.render(ctx, frame);
     }
 
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut render::FrameUpdate) {
-        let _span = tracing::trace_span!("property", name = self.meta.property_name, node_mtd = "render_update").entered();
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let _span = UpdatesTrace::property_span(self.meta.property_name, "render_update");
         self.child.render_update(ctx, update);
     }
 }
@@ -645,19 +687,20 @@ struct InspectWidgetNode {
     meta: WidgetInstanceMeta,
     whens: Box<[WhenInfo]>,
 }
+#[impl_ui_node(child)]
 impl UiNode for InspectWidgetNode {
     fn init(&mut self, ctx: &mut context::WidgetContext) {
-        let _span = tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "init").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "init");
         self.child.init(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut context::WidgetContext) {
-        let _span = tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "deinit").entered();
-        self.child.init(ctx);
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "deinit");
+        self.child.deinit(ctx);
     }
 
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _span = tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "info").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "info");
         info.meta().set(
             &WIDGET_INSTANCE_INFO_ID,
             WidgetInstanceInfo {
@@ -672,40 +715,37 @@ impl UiNode for InspectWidgetNode {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span =
-            tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "subscriptions").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "subscriptions");
         self.child.subscriptions(ctx, subs);
     }
 
     fn event<A: event::EventUpdateArgs>(&mut self, ctx: &mut context::WidgetContext, args: &A) {
-        let _span = tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "event").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "event");
         self.child.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut context::WidgetContext) {
-        let _span = tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "update").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "update");
         self.child.update(ctx);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-        let _span =
-            tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "measure").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "measure");
         self.child.measure(ctx)
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let _span = tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "layout").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "layout");
         self.child.layout(ctx, wl)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut render::FrameBuilder) {
-        let _span = tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "render").entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "render");
         self.child.render(ctx, frame);
     }
 
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut render::FrameUpdate) {
-        let _span =
-            tracing::trace_span!("widget", name = self.meta.widget_name, id = ?ctx.path.widget_id(), node_mtd = "render_update").entered();
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "render_update");
         self.child.render_update(ctx, update);
     }
 }
@@ -724,19 +764,20 @@ struct InspectConstructorNode {
     fn_name: &'static str,
     captures: Box<[CapturedPropertyInfo]>,
 }
+#[impl_ui_node(child)]
 impl UiNode for InspectConstructorNode {
     fn init(&mut self, ctx: &mut context::WidgetContext) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "init").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "init");
         self.child.init(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut context::WidgetContext) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "deinit").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "deinit");
         self.child.deinit(ctx);
     }
 
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "info").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "info");
 
         if let Some(wgt) = info.meta().get_mut(&WIDGET_INSTANCE_INFO_ID) {
             wgt.constructors.push(WidgetConstructorInfo {
@@ -754,37 +795,37 @@ impl UiNode for InspectConstructorNode {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "subscriptions").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "subscriptions");
         self.child.subscriptions(ctx, subs);
     }
 
     fn event<A: event::EventUpdateArgs>(&mut self, ctx: &mut context::WidgetContext, args: &A) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "event").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "event");
         self.child.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut context::WidgetContext) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "update").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "update");
         self.child.update(ctx);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "measure").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "measure");
         self.child.measure(ctx)
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "layout").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "layout");
         self.child.layout(ctx, wl)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut render::FrameBuilder) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "render").entered();
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "render");
         self.child.render(ctx, frame);
     }
 
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut render::FrameUpdate) {
-        let _scope = tracing::trace_span!("constructor", name = %self.fn_name, node_mtd = "render_update").entered();
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let _span = UpdatesTrace::constructor_span(self.fn_name, "render_update");
         self.child.render_update(ctx, update);
     }
 }
@@ -831,7 +872,7 @@ context_var! {
 ///     fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
 ///         let child = child.boxed();
 ///         #[cfg(feature = "inspector")]
-///         let child = zero_ui_core::inspector::unwrap_new_fn(child);
+///         let child = zero_ui_core::inspector::unwrap_constructor(child);
 ///
 ///         let mut foo = child.downcast_unbox::<FooNode>().unwrap_or_else(|_| panic!("expected foo"));
 ///
@@ -842,14 +883,19 @@ context_var! {
 ///     // .. other constructors
 /// }
 /// ```
-pub fn unwrap_new_fn(child: BoxedUiNode) -> BoxedUiNode {
+pub fn unwrap_constructor(child: BoxedUiNode) -> BoxedUiNode {
     let mut child = child;
 
     loop {
         match child.downcast_unbox::<InspectConstructorNode>() {
             Ok(n) => child = n.child,
             Err(w) => match w.downcast_unbox::<InspectWidgetNode>() {
-                Ok(n) => child = n.child,
+                Ok(n) => {
+                    child = match n.child.downcast_unbox::<InspectConstructorNode>() {
+                        Ok(n) => n.child,
+                        Err(child) => child,
+                    }
+                }
                 Err(child) => return child,
             },
         }
@@ -1031,4 +1077,14 @@ pub mod debug_var_util {
             assert!(format!("{:?}", r.get(&ctx.vars)).contains("Foo"));
         }
     }
+}
+
+#[doc(hidden)]
+pub mod v1 {
+    // types used by the proc-macro instrumentation.
+
+    pub use super::{
+        debug_var_util, inspect_constructor, inspect_property, inspect_widget, source_location, CapturedPropertyInfo, PropertyArg,
+        PropertyInstanceMeta, PropertyPriority, SourceLocation, WhenInfo, WidgetInstanceId, WidgetInstanceMeta,
+    };
 }

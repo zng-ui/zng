@@ -1660,9 +1660,10 @@ impl TestApp {
 
     #[allow(unused)]
     pub fn write_tree(&mut self) {
-        use zero_ui::core::inspector::*;
+        use zero_ui::core::inspector::prompt::*;
 
-        let tree = Windows::req(&mut self.app).widget_tree(self.window_id).unwrap();
-        write_tree(tree, &WriteTreeState::none(), &mut std::io::stdout());
+        let ctx = self.app.ctx();
+        let tree = Windows::req(ctx.services).widget_tree(self.window_id).unwrap();
+        write_tree(ctx.vars, tree, &WriteTreeState::none(), &mut std::io::stdout());
     }
 }

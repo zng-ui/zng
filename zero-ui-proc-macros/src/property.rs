@@ -1077,17 +1077,26 @@ mod output {
                     let mut lid = lid.clone();
                     lid.set_span(ty.span());
                     quote_spanned! {ty.span()=>
-                        #[allow(clippy::needless_borrow)] {
-                            use #crate_core::inspector::debug_var_util::*;
-                            (&&&&Wrap(#lid)).debug_var()
+                         {
+                            use #crate_core::inspector::v1::debug_var_util::*;
+                            (&&&&&Wrap(#lid)).debug_var()
                         },
                     }
                 });
+
+                let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
+
                 quote! {
                     let arg_debug_vars = {
                         let ( #(#arg_locals),* ) = self_.unwrap_ref();
+                        #[allow(clippy::needless_borrow)]
                         let __r: [_; #args_len] = [
-                            #(#debug_var_calls)*
+                            #(
+                                #crate_core::inspector::v1::PropertyArg {
+                                    name: #arg_idents_str,
+                                    value: #debug_var_calls
+                                },
+                            )*
                         ];
                         Box::new(__r)
                     };
@@ -1128,7 +1137,6 @@ mod output {
                     let out_ident = ident_spanned!(output_span=> "out");
                     set.extend(quote! {
                         #[doc(hidden)]
-
                         pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #output_ty {
                             fn box_fix(node: impl #crate_core::UiNode) -> #output_ty {
                                 #crate_core::UiNode::cfg_boxed(node)
@@ -1143,7 +1151,7 @@ mod output {
                 {
                     let set_inspect_ident = ident!("__{ident}_set_inspect");
                     let ident_str = ident.to_string();
-                    let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
+
                     let priority = match self.priority {
                         Priority::Context(_) => quote!(Context),
                         Priority::Event(_) => quote!(Event),
@@ -1158,14 +1166,13 @@ mod output {
                     set.extend(quote! {
                         #crate_core::core_cfg_inspector! {
                             #[doc(hidden)]
-
                             pub fn #set_inspect_ident(
                                 self_: impl #args_ident,
                                 #child_arg,
                                 property_name: &'static str,
-                                instance_location: #crate_core::inspector::SourceLocation,
+                                instance_location: #crate_core::inspector::v1::SourceLocation,
                                 user_assigned: bool,
-                            ) -> #crate_core::inspector::PropertyInfoNode {
+                            ) -> #crate_core::BoxedUiNode {
                                 #arg_debug_vars
 
                                 fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
@@ -1173,16 +1180,17 @@ mod output {
                                 }
                                 let node = box_fix(#set_ident(self_, #child_arg_use));
 
-                                #crate_core::inspector::PropertyInfoNode::new_v1(
+                                #crate_core::inspector::v1::inspect_property(
                                     node,
-                                    #crate_core::inspector::PropertyPriority::#priority,
-                                    #ident_str,
-                                    #crate_core::inspector::source_location!(),
-                                    property_name,
-                                    instance_location,
-                                    &[#( #arg_idents_str ),*],
+                                    #crate_core::inspector::v1::PropertyInstanceMeta {
+                                        priority: #crate_core::inspector::v1::PropertyPriority::#priority,
+                                        original_name: #ident_str,
+                                        decl_location: #crate_core::inspector::v1::source_location!(),
+                                        property_name,
+                                        instance_location,
+                                        user_assigned
+                                    },
                                     arg_debug_vars,
-                                    user_assigned
                                 )
                             }
                         }
@@ -1192,25 +1200,22 @@ mod output {
 
             let cap_debug = {
                 let cap_ident = ident!("__{ident}_captured_inspect");
-                let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
 
                 quote! {
                     #crate_core::core_cfg_inspector! {
                         #[doc(hidden)]
-
                         pub fn #cap_ident(
                             self_: &impl #args_ident,
                             property_name: &'static str,
-                            instance_location: #crate_core::inspector::SourceLocation,
+                            instance_location: #crate_core::inspector::v1::SourceLocation,
                             user_assigned: bool
-                        ) -> #crate_core::inspector::CapturedPropertyV1 {
+                        ) -> #crate_core::inspector::v1::CapturedPropertyInfo {
                             #arg_debug_vars
-                            #crate_core::inspector::CapturedPropertyV1 {
+                            #crate_core::inspector::v1::CapturedPropertyInfo {
                                 property_name,
                                 instance_location,
-                                arg_names: &[#( #arg_idents_str ),*],
-                                arg_debug_vars,
                                 user_assigned,
+                                args: arg_debug_vars,
                             }
                         }
                     }

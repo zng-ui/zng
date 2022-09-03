@@ -28,7 +28,7 @@ command! {
 
 #[cfg(inspector)]
 pub(super) fn inspect_node(child: impl crate::core::UiNode, can_inspect: impl crate::core::var::IntoVar<bool>) -> impl crate::core::UiNode {
-    use crate::core::inspector::{write_tree, WriteTreeState};
+    use crate::core::inspector::prompt::{write_tree, WriteTreeState};
     use crate::core::{handler::hn, task};
 
     let mut state = WriteTreeState::none();
@@ -47,9 +47,9 @@ pub(super) fn inspect_node(child: impl crate::core::UiNode, can_inspect: impl cr
             args.propagation().stop();
 
             let mut buffer = vec![];
-            write_tree(ctx.info_tree, &state, &mut buffer);
+            write_tree(ctx.vars, ctx.info_tree, &state, &mut buffer);
 
-            state = WriteTreeState::new(ctx.info_tree);
+            state = WriteTreeState::new(ctx.vars, ctx.info_tree);
 
             task::spawn_wait(move || {
                 use std::io::*;

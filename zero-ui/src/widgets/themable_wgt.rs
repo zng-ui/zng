@@ -435,7 +435,7 @@ impl Theme {
     pub fn downcast(node: impl UiNode) -> Option<Theme> {
         let node = node.boxed();
         #[cfg(inspector)]
-        let node = crate::core::inspector::unwrap_new_fn(node);
+        let node = crate::core::inspector::unwrap_constructor(node);
 
         node.downcast_unbox().ok()
     }

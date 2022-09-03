@@ -1,6 +1,7 @@
 //! Variables.
 
 use std::{
+    any::Any,
     cell::{Cell, RefCell},
     convert::{TryFrom, TryInto},
     fmt,
@@ -9,7 +10,7 @@ use std::{
     ops::{self, Deref, DerefMut},
     rc::Rc,
     str::FromStr,
-    time::Duration, any::Any,
+    time::Duration,
 };
 
 use crate::{

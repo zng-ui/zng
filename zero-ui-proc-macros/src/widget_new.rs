@@ -293,7 +293,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     when_inits.extend(quote! { #module::__core::core_cfg_inspector! {
         #[allow(unused_mut)]
-        let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
+        let mut when_infos__: std::vec::Vec<#module::__core::WhenInfo> = std::vec![];
     }});
 
     // properties in when condition expressions.
@@ -538,12 +538,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let assign_names = w.assigns.iter().map(|a| util::display_path(&a.path));
             when_inits.extend(quote! { #module::__core::core_cfg_inspector! {
                 #cfg
-                when_infos__.push(#module::__core::WhenInfoV1 {
+                when_infos__.push(#module::__core::WhenInfo {
                     condition_expr: #expr_str,
-                    condition_var: Some(#module::__core::var::Var::boxed(std::clone::Clone::clone(&#ident))),
-                    properties: std::vec![
+                    condition: #module::__core::var::Var::boxed(std::clone::Clone::clone(&#ident)),
+                    properties: Box::new([
                         #(#assign_names),*
-                    ],
+                    ]),
                     decl_location: #module::__core::source_location!(),
                     user_declared: false,
                 });
@@ -859,18 +859,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ("", TokenStream::new())
         };
 
-        let new_fn_ident = ident!("__new_{}_inspect{}", priority, dyn_suffix);
+        let ctor_ident = ident!("__new_{}_inspect{}", priority, dyn_suffix);
         let cap_idents2 = cap_idents.iter();
 
         property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
             #[allow(unreachable_code)]
-            let #node__ = #module::#new_fn_ident(#node__, #dyn_props__ #(#cap_idents2,)* #(#cap_user_set),*);
+            let #node__ = #module::#ctor_ident(#node__, #dyn_props__ #(#cap_idents2,)* #(#cap_user_set),*);
         }});
 
-        let new_fn_ident = ident!("__new_{}{}", priority, dyn_suffix);
+        let ctor_ident = ident!("__new_{}{}", priority, dyn_suffix);
         property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
             #[allow(unreachable_code)]
-            let #node__ = #module::#new_fn_ident(#node__, #dyn_props__ #(#cap_idents),*);
+            let #node__ = #module::#ctor_ident(#node__, #dyn_props__ #(#cap_idents),*);
         }});
     }
     let property_set_calls = property_set_calls;

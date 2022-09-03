@@ -870,8 +870,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if default=>
 
                 #[doc(hidden)]
-                pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
-                    #crate_core::inspector::source_location!()
+                pub fn #loc_ident() -> #crate_core::inspector::v1::SourceLocation {
+                    #crate_core::inspector::v1::source_location!()
                 }
             }
         }});
@@ -949,8 +949,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if default=>
 
                 #[doc(hidden)]
-                pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
-                    #crate_core::inspector::source_location!()
+                pub fn #loc_ident() -> #crate_core::inspector::v1::SourceLocation {
+                    #crate_core::inspector::v1::source_location!()
                 }
             }
         }});

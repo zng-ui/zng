@@ -395,9 +395,9 @@ pub trait UiNode: Any {
 
     /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] that is `T`.
     ///
-    /// Also see [`inspector::unwrap_new_fn`] if you are trying to downcast in a widget dynamic constructor.
+    /// Also see [`inspector::unwrap_constructor`] if you are trying to downcast in a widget dynamic constructor.
     ///
-    /// [`inspector::unwrap_new_fn`]: crate::inspector::unwrap_new_fn
+    /// [`inspector::unwrap_constructor`]: crate::inspector::unwrap_constructor
     fn downcast_unbox<T: UiNode>(self) -> Result<T, BoxedUiNode>
     where
         Self: Sized,

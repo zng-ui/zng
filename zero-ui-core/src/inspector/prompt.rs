@@ -127,30 +127,7 @@ fn write_impl(vars: &VarsRead, updates_from: &WriteTreeState, widget: WidgetInfo
     if let Some(info) = widget.instance() {
         fmt.open_widget(info.meta.widget_name, parent_name, info.parent_name.as_str());
 
-        let new_props = info
-            .constructor("new")
-            .into_iter()
-            .flat_map(|c| c.captures.iter().map(|p| (PropertyOrCapture::Capture(p), "new")));
-
-        let priority_props = PropertyPriority::context_to_child_layout().into_iter().flat_map(|&p| {
-            let ctor = info
-                .constructor(p.name_constructor())
-                .into_iter()
-                .flat_map(|c| c.captures.iter().map(|p| (PropertyOrCapture::Capture(p), c.fn_name)));
-            let full = info
-                .properties
-                .iter()
-                .filter(|pr| pr.meta.priority == p)
-                .map(|pr| (PropertyOrCapture::Property(pr), p.name()));
-            ctor.chain(full)
-        });
-
-        let new_child_props = info
-            .constructor("new_child")
-            .into_iter()
-            .flat_map(|c| c.captures.iter().map(|p| (PropertyOrCapture::Capture(p), c.fn_name)));
-
-        for (prop, group) in new_props.chain(priority_props).chain(new_child_props) {
+        let mut write_property = |prop: PropertyOrCapture, group: &'static str| {
             let property_name = prop.property_name();
             let args = prop.args();
 
@@ -165,10 +142,33 @@ fn write_impl(vars: &VarsRead, updates_from: &WriteTreeState, widget: WidgetInfo
                         arg.name,
                         user_assigned,
                         arg.value.can_update(),
-                        updates_from.arg_diff(vars, info.meta.instance_id, property_name, &arg),
+                        updates_from.arg_diff(vars, info.meta.instance_id, property_name, arg),
                     );
                 }
                 fmt.close_property(user_assigned);
+            }
+        };
+
+        if let Some(ctor) = info.constructor("new") {
+            for cap in ctor.captures.iter() {
+                write_property(PropertyOrCapture::Capture(cap), "new");
+            }
+        }
+        for &priority in PropertyPriority::context_to_child_layout() {
+            if let Some(ctor) = info.constructor(priority.name_constructor()) {
+                for cap in ctor.captures.iter() {
+                    write_property(PropertyOrCapture::Capture(cap), ctor.fn_name);
+                }
+            }
+
+            let group = priority.name();
+            for prop in info.properties.iter().filter(|p| p.meta.priority == priority) {
+                write_property(PropertyOrCapture::Property(prop), group);
+            }
+        }
+        if let Some(ctor) = info.constructor("new_child") {
+            for cap in ctor.captures.iter() {
+                write_property(PropertyOrCapture::Capture(cap), "new_child");
             }
         }
 

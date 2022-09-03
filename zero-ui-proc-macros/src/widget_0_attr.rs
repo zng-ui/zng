@@ -101,7 +101,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         uses,
         inherits,
         mut properties,
-        mut new_fns,
+        mut constructors,
         mut others,
     } = WidgetItems::new(items, &mut errors);
 
@@ -111,7 +111,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
     if mixin {
-        for fn_ in new_fns.drain(..) {
+        for fn_ in constructors.drain(..) {
             errors.push(
                 format!("widget mixins do not have a `{}` function", &fn_.item.sig.ident),
                 fn_.item.sig.ident.span(),
@@ -123,15 +123,15 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     if is_base {
         #[cfg(inspector)]
         for priority in FnPriority::all() {
-            assert!(new_fns.iter().any(|(k, _)| k == priority));
+            assert!(constructors.iter().any(|(k, _)| k == priority));
         }
     }
 
     // Does some validation of new signatures.
     // Further type validation is done by `rustc` when we call the function
     // in the generated `__new_child` .. `__new` functions.
-    for fn_ in &mut new_fns {
-        validate_new_fn(fn_, &mut errors);
+    for fn_ in &mut constructors {
+        validate_constructor(fn_, &mut errors);
         if fn_.priority != FnPriority::NewChild {
             if fn_.dynamic && fn_.item.sig.inputs.len() < 2 {
                 errors.push(
@@ -165,7 +165,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut captured_properties = HashMap::new();
 
     for priority in FnPriority::all() {
-        if let Some(fn_) = new_fns.iter().find(|f| f.priority == *priority) {
+        if let Some(fn_) = constructors.iter().find(|f| f.priority == *priority) {
             let mut args = fn_.item.sig.inputs.iter();
             let mut ty_spans = vec![];
             if *priority != FnPriority::NewChild {
@@ -180,7 +180,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             } else {
                 ty_spans.push(Span::call_site());
             }
-            let (caps, cfgs, cap_ty_spans) = new_fn_captures(args, &mut errors);
+            let (caps, cfgs, cap_ty_spans) = ctor_captures(args, &mut errors);
             ty_spans.extend(cap_ty_spans);
 
             for cap in &caps {
@@ -205,11 +205,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // generate `__new_child` .. `__new` if new functions are defined in the widget.
     //
     // we use generic types to provide an error message for compile errors like the one in
-    // `widget/new_fn_mismatched_capture_type1.rs`
+    // `widget/ctor_mismatched_capture_type1.rs`
     let mut new_declarations = vec![]; // [FnPriority:TokenStream]
 
     for (i, priority) in FnPriority::all().iter().enumerate() {
-        if let Some(fn_) = new_fns.iter().find(|f| f.priority == *priority) {
+        if let Some(fn_) = constructors.iter().find(|f| f.priority == *priority) {
             let caps = &new_captures[i];
             let cfgs = &new_captures_cfg[i];
             let arg_ty_spans = &new_arg_ty_spans[i];
@@ -333,7 +333,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 let names = caps.iter().map(|id| id.to_string());
                 let locations = caps.iter().map(|id| {
                     quote_spanned! {id.span()=>
-                        #crate_core::inspector::source_location!()
+                        #crate_core::inspector::v1::source_location!()
                     }
                 });
                 let assigned_flags: Vec<_> = caps.iter().enumerate().map(|(i, id)| ident!("__{i}_{id}_user_set")).collect();
@@ -348,9 +348,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
                             __widget_name: &'static str,
-                            __whens: std::vec::Vec<#crate_core::inspector::WhenInfoV1>,
-                            __decl_location: #crate_core::inspector::SourceLocation,
-                            __instance_location: #crate_core::inspector::SourceLocation,
+                            __whens: std::vec::Vec<#crate_core::inspector::v1::WhenInfo>,
+                            __decl_location: #crate_core::inspector::v1::SourceLocation,
+                            __instance_location: #crate_core::inspector::v1::SourceLocation,
                         ) #output {
                             let __child = #crate_core::UiNode::boxed(__child);
                             #[allow(unused_mut)]
@@ -359,24 +359,24 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                                 #cfgs
                                 __captures.push(self::#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
                             )*
-                            let __child = #crate_core::inspector::WidgetNewFnInfoNode::new_v1(
+
+                            let __child = #crate_core::inspector::v1::inspect_constructor(__child, "new", __captures.into_boxed_slice());
+                            let __child = #crate_core::inspector::v1::inspect_widget(
                                 __child,
-                                #crate_core::inspector::WidgetNewFnV1::New,
-                                __captures,
-                            );
-                            let __child = #crate_core::inspector::WidgetInstanceInfoNode::new_v1(
-                                __child,
-                                __widget_name,
-                                __decl_location,
-                                __instance_location,
-                                __whens,
+                                #crate_core::inspector::v1::WidgetInstanceMeta {
+                                    instance_id: #crate_core::inspector::v1::WidgetInstanceId::new_unique(),
+                                    widget_name: __widget_name,
+                                    decl_location: __decl_location,
+                                    instance_location: __instance_location
+                                },
+                                __whens.into_boxed_slice()
                             );
                             self::__new(__child, #(#cfgs #caps),*)
                         }
 
                     }});
                 } else {
-                    let priority_variant = ident!("{priority:?}");
+                    let fn_name = format!("{priority}{dyn_suffix}");
                     r.extend(quote! { #crate_core::core_cfg_inspector! {
                         #[doc(hidden)]
                         #[allow(clippy::too_many_arguments)]
@@ -384,7 +384,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             #child_decl
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
-                        ) -> #crate_core::inspector::WidgetNewFnInfoNode {
+                        ) -> #crate_core::BoxedUiNode {
                             #[allow(unused_mut)]
                             let mut __captures = std::vec![];
                             #(
@@ -396,10 +396,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
                                 #crate_core::UiNode::boxed(node)
                             }
-                            #crate_core::inspector::WidgetNewFnInfoNode::new_v1(
+
+                            #crate_core::inspector::v1::inspect_constructor(
                                 box_fix(out),
-                                #crate_core::inspector::WidgetNewFnV1::#priority_variant,
-                                __captures,
+                                #fn_name,
+                                __captures.into_boxed_slice(),
                             )
                         }
                     }});
@@ -413,7 +414,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     }
 
     let debug_info = {
-        let decl_location = quote_spanned!(ident.span()=> #crate_core::inspector::source_location!());
+        let decl_location = quote_spanned!(ident.span()=> #crate_core::inspector::v1::source_location!());
         let wgt_name = ident.to_string();
         quote! { #crate_core::core_cfg_inspector! {
             #[doc(hidden)]
@@ -422,7 +423,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
 
             #[doc(hidden)]
-            pub fn __decl_location() -> #crate_core::inspector::SourceLocation {
+            pub fn __decl_location() -> #crate_core::inspector::v1::SourceLocation {
                 #decl_location
             }
         }}
@@ -611,8 +612,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #crate_core::core_cfg_inspector! {
                             #cfg
                             #[doc(hidden)]
-                            pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
-                                #crate_core::inspector::source_location!()
+                            pub fn #loc_ident() -> #crate_core::inspector::v1::SourceLocation {
+                                #crate_core::inspector::v1::source_location!()
                             }
                         }
                     });
@@ -873,16 +874,16 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             #[doc(hidden)]
             pub fn #dbg_ident(
                 #(#input_idents : &(impl self::#prop_idents::Args + 'static),)*
-                when_infos: &mut std::vec::Vec<#crate_core::inspector::WhenInfoV1>
+                when_infos: &mut std::vec::Vec<#crate_core::inspector::v1::WhenInfo>
             ) -> impl #crate_core::var::Var<bool> + 'static {
                 let var = self::#ident(#(#input_idents),*);
-                when_infos.push(#crate_core::inspector::WhenInfoV1 {
+                when_infos.push(#crate_core::inspector::v1::WhenInfo {
                     condition_expr: #expr_str,
-                    condition_var: Some(#crate_core::var::Var::boxed(std::clone::Clone::clone(&var))),
-                    properties: std::vec![
+                    condition: #crate_core::var::Var::boxed(std::clone::Clone::clone(&var)),
+                    properties: Box::new([
                         #(#assign_names),*
-                    ],
-                    decl_location: #crate_core::inspector::source_location!(),
+                    ]),
+                    decl_location: #crate_core::inspector::v1::source_location!(),
                     user_declared: false,
                 });
                 var
@@ -1019,7 +1020,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         TokenStream::new()
     };
 
-    let new_fns = new_fns.iter().map(|n| &n.item);
+    let constructors = constructors.iter().map(|n| &n.item);
 
     let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
 
@@ -1044,7 +1045,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             #debug_info
 
-            #(#new_fns)*
+            #(#constructors)*
 
             #property_declarations
             #property_defaults
@@ -1061,7 +1062,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
                 #crate_core::core_cfg_inspector! {
                     #[doc(hidden)]
-                    pub use #crate_core::inspector::{source_location, WhenInfoV1, WidgetNewFnV1};
+                    pub use #crate_core::inspector::v1::{source_location, WhenInfo};
                 }
             }
 
@@ -1170,10 +1171,7 @@ impl Parse for ArgPath {
     }
 }
 
-fn new_fn_captures<'a, 'b>(
-    fn_inputs: impl Iterator<Item = &'a FnArg>,
-    errors: &'b mut Errors,
-) -> (Vec<Ident>, Vec<TokenStream>, Vec<Span>) {
+fn ctor_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &'b mut Errors) -> (Vec<Ident>, Vec<TokenStream>, Vec<Span>) {
     let mut ids = vec![];
     let mut cfgs = vec![];
     let mut spans = vec![];
@@ -1221,7 +1219,7 @@ fn new_fn_captures<'a, 'b>(
     (ids, cfgs, spans)
 }
 
-fn validate_new_fn(fn_: &NewFn, errors: &mut Errors) {
+fn validate_constructor(fn_: &Constructor, errors: &mut Errors) {
     if let Some(async_) = &fn_.item.sig.asyncness {
         errors.push(format!("`{}` cannot be `async`", fn_.item.sig.ident), async_.span());
     }
@@ -1324,7 +1322,7 @@ impl fmt::Display for FnPriority {
     }
 }
 
-struct NewFn {
+struct Constructor {
     priority: FnPriority,
     dynamic: bool,
     item: ItemFn,
@@ -1334,7 +1332,7 @@ struct WidgetItems {
     uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
-    new_fns: Vec<NewFn>,
+    constructors: Vec<Constructor>,
     others: Vec<Item>,
 }
 impl WidgetItems {
@@ -1342,7 +1340,7 @@ impl WidgetItems {
         let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
-        let mut new_fns: Vec<NewFn> = vec![];
+        let mut constructors: Vec<Constructor> = vec![];
         let mut others = vec![];
 
         for item in items {
@@ -1396,8 +1394,8 @@ impl WidgetItems {
                     } =>
                 {
                     let (priority, dynamic) = known_fn.unwrap();
-                    if !new_fns.iter().any(|e| e.priority == priority) {
-                        new_fns.push(NewFn {
+                    if !constructors.iter().any(|e| e.priority == priority) {
+                        constructors.push(Constructor {
                             priority,
                             dynamic,
                             item: fn_,
@@ -1413,7 +1411,7 @@ impl WidgetItems {
             uses,
             inherits,
             properties,
-            new_fns,
+            constructors,
             others,
         }
     }

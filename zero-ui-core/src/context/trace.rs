@@ -75,7 +75,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
     fn new_span(&self, span: &span::Attributes<'_>) -> span::Id {
         let r = match span.metadata().name() {
-            "property" | "new_fn" => {
+            "property" | "constructor" => {
                 let name = visit_str(|v| span.record(v), "name");
                 let mut ctx = self.context.lock();
 
@@ -240,10 +240,10 @@ impl UpdatesTrace {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
     }
 
-    /// Opens a new function span.
+    /// Opens a new widget constructor span.
     #[cfg(inspector)]
-    pub fn new_fn_span(new_fn: crate::inspector::WidgetNewFn, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "new_fn", name = %new_fn, %node_mtd).entered()
+    pub fn constructor_span(fn_name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "constructor", name = %fn_name, %node_mtd).entered()
     }
 
     /// Opens a custom named span.

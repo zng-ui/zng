@@ -334,8 +334,8 @@ fn trace_focus(events: &mut Events) {
                 } else {
                     println!(
                         "{} -> {}",
-                        inspect::focus(&args.prev_focus, ctx.services),
-                        inspect::focus(&args.new_focus, ctx.services)
+                        inspect::focus(ctx.vars, ctx.services, &args.prev_focus),
+                        inspect::focus(ctx.vars, ctx.services, &args.new_focus)
                     );
                 }
             }),
@@ -409,9 +409,9 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl Widget {
 mod inspect {
     use super::*;
     use zero_ui::core::focus::WidgetInfoFocusExt;
-    use zero_ui::core::inspector::WidgetInspectorInfo;
+    use zero_ui::core::inspector::WidgetInfoInspectorExt;
 
-    pub fn focus(path: &Option<InteractionPath>, services: &mut Services) -> String {
+    pub fn focus(vars: &VarsRead, services: &mut Services, path: &Option<InteractionPath>) -> String {
         path.as_ref()
             .map(|p| {
                 let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
@@ -424,37 +424,38 @@ mod inspect {
                 } else {
                     return format!("<{p}>");
                 };
-                let info = widget.instance().expect("expected debug info").borrow();
+                let info = widget.instance().expect("expected debug info");
 
-                if info.widget_name == "button" {
+                if info.meta.widget_name == "button" {
                     format!(
-                        "button({})",
+                        "button({:?})",
                         widget
                             .descendant_instance("text")
                             .expect("expected text in button")
+                            .instance()
+                            .unwrap()
                             .property("text")
                             .expect("expected text property")
-                            .borrow()
                             .arg(0)
                             .value
-                            .debug
+                            .get(vars)
                     )
-                } else if info.widget_name == "window" {
-                    let title = widget
-                        .properties()
+                } else if info.meta.widget_name == "window" {
+                    let title = info
+                        .properties
                         .iter()
-                        .find(|p| p.borrow().property_name == "title")
-                        .map(|p| p.borrow().args[0].value.debug.clone())
+                        .find(|p| p.meta.property_name == "title")
+                        .map(|p| format!("{:?}", p.args[0].value.get(vars)))
                         .unwrap_or_default();
                     format!("window({title})")
                 } else {
                     let focus_info = widget.as_focus_info(true, true);
                     if focus_info.is_alt_scope() {
-                        format!("{}(is_alt_scope)", info.widget_name)
+                        format!("{}(is_alt_scope)", info.meta.widget_name)
                     } else if focus_info.is_scope() {
-                        format!("{}(is_scope)", info.widget_name)
+                        format!("{}(is_scope)", info.meta.widget_name)
                     } else {
-                        format!("{}({})", info.widget_name, p.widget_id())
+                        format!("{}({})", info.meta.widget_name, p.widget_id())
                     }
                 }
             })
