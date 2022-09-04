@@ -318,6 +318,9 @@ pub mod text_input_vis {
             ///
             /// Is `(7, 15)` by default.
             padding = (7, 15);
+
+            /// Text cursor.
+            cursor = CursorIcon::Text;
         }
     }
 
@@ -346,7 +349,7 @@ pub mod text_input_vis {
             };
 
             /// When the pointer device is over this button.
-            when self.is_cap_hovered {
+            when self.is_cap_hovered || self.is_return_focus {
                 border = {
                     widths: 1,
                     sides: dark_color_hovered().map_into(),
@@ -354,7 +357,7 @@ pub mod text_input_vis {
             }
 
             /// When the button is pressed in a way that press release will cause a button click.
-            when self.is_focused /*|| self.is_return_focused */  {
+            when self.is_focused {
                 border = {
                     widths: 1,
                     sides: dark_color_focused().map_into(),
@@ -399,7 +402,7 @@ pub mod text_input_vis {
             };
 
             /// When the pointer device is over this button or it is the return focus of a scope.
-            when self.is_cap_hovered /*|| self.is_return_focused */ {
+            when self.is_cap_hovered || self.is_return_focus {
                 border = {
                     widths: 1,
                     sides: light_color_hovered().map_into(),

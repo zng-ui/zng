@@ -913,7 +913,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 docs { #(#docs)* }
                 cfg { #cfg }
                 inputs {
-                    #(#inputs),*
+                    #(#inputs)*
                 }
                 assigns {
                     #assigns_tokens
