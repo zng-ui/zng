@@ -3,39 +3,12 @@ use crate::prelude::new_widget::*;
 pub mod nodes;
 pub mod properties;
 
-/// A configured text run.
-///
-/// # Examples
-///
-/// ```
-/// use zero_ui::prelude::text;
-///
-/// let hello_txt = text! {
-///     font_family = "Arial";
-///     font_size = 18;
-///     text = "Hello!";
-/// };
-/// ```
-/// # As Function
-///
-/// If you don't need to configure the text, you can just use the function [`text`](fn@text).
-#[widget($crate::widgets::text)]
-pub mod text {
-    use crate::prelude::new_widget::*;
-
-    pub use super::{nodes, properties};
+/// Common text properties.
+#[widget_mixin($crate::widgets::text_mixin)]
+pub mod text_mixin {
+    use super::*;
 
     properties! {
-        /// The [`Text`](crate::core::types::Text) value.
-        ///
-        /// Set to an empty string (`""`) by default.
-        text(impl IntoVar<Text>) = "";
-
-        /// Spacing in between the text and background edges or border.
-        ///
-        /// Set to `0` by default.
-        padding = 0;
-
         /// The text font. If not set inherits the `font_family` from the parent widget.
         properties::font_family;
         /// The font style. If not set inherits the `font_style` from the parent widget.
@@ -134,6 +107,43 @@ pub mod text {
         /// If the `text` variable is read-only, this only enables text selection, if the var is writeable this
         /// enables text input and modifies the variable.
         properties::text_editable as editable;
+    }
+}
+
+/// A configured text run.
+///
+/// # Examples
+///
+/// ```
+/// use zero_ui::prelude::text;
+///
+/// let hello_txt = text! {
+///     font_family = "Arial";
+///     font_size = 18;
+///     text = "Hello!";
+/// };
+/// ```
+/// # As Function
+///
+/// If you don't need to configure the text, you can just use the function [`text`](fn@text).
+#[widget($crate::widgets::text)]
+pub mod text {
+    use crate::prelude::new_widget::*;
+
+    pub use super::{nodes, properties};
+
+    inherit!(super::text_mixin);
+
+    properties! {
+        /// The [`Text`](crate::core::types::Text) value.
+        ///
+        /// Set to an empty string (`""`) by default.
+        text(impl IntoVar<Text>) = "";
+
+        /// Spacing in between the text and background edges or border.
+        ///
+        /// Set to `0` by default.
+        padding = 0;
     }
 
     fn new_child() -> impl UiNode {
@@ -241,9 +251,18 @@ pub fn em(text: impl IntoVar<Text> + 'static) -> impl Widget {
 pub mod text_input {
     use super::*;
 
-    inherit!(super::text); // TODO !!: refactor to themable
+    use crate::widgets::themable;
+
+    inherit!(themable);
+    inherit!(super::text_mixin);
 
     properties! {
+        /// The [`Text`](crate::core::types::Text) value.
+        ///
+        /// Set to an empty string (`""`) by default.
+        text(impl IntoVar<Text>) = "";
+
+        /// Enabled by default.
         editable = true;
 
         /// Enabled by default.
@@ -253,5 +272,249 @@ pub mod text_input {
 
         /// Enables keyboard focusing in the widget.
         focusable = true;
+
+        /// Text input dark and light themes.
+        ///
+        /// Set to [`theme::pair`] of [`vis::DARK_THEME_VAR`], [`vis::LIGHT_THEME_VAR`] by default.
+        theme = theme::pair(vis::DARK_THEME_VAR, vis::LIGHT_THEME_VAR);
+    }
+
+    fn new_child() -> impl UiNode {
+        let child = nodes::render_text();
+        let child = nodes::render_caret(child);
+        let child = nodes::render_overlines(child);
+        let child = nodes::render_strikethroughs(child);
+        nodes::render_underlines(child)
+    }
+
+    fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+        let child = nodes::layout_text(child, vis::PADDING_VAR);
+        themable::new_fill_dyn(child, part)
+    }
+
+    fn new_event_dyn(child: impl UiNode, part: DynWidgetPart, text: impl IntoVar<Text>) -> impl UiNode {
+        let child = nodes::resolve_text(child, text);
+        themable::new_event_dyn(child, part)
+    }
+
+    #[doc(inline)]
+    pub use super::text_input_vis as vis;
+}
+/// Text input themes.
+pub mod text_input_vis {
+    use super::*;
+
+    use crate::widgets::text::properties::TEXT_COLOR_VAR;
+
+    /// Text input base theme.
+    #[widget($crate::widgets::text_input::vis::base_theme)]
+    pub mod base_theme {
+        use super::*;
+
+        inherit!(theme);
+
+        properties! {
+            /// Button padding.
+            ///
+            /// Is `(7, 15)` by default.
+            padding = (7, 15);
+        }
+    }
+
+    /// Default text input dark theme.
+    #[widget($crate::widgets::text_input::vis::dark_theme)]
+    pub mod dark_theme {
+        use super::*;
+
+        inherit!(base_theme);
+
+        properties! {
+            /// Text input base color, all background and border colors are derived from this color.
+            dark_color as base_color;
+
+            /// Text input background color.
+            ///
+            /// Is the base color by default.
+            background_color = rgb(0.12, 0.12, 0.12);
+
+            /// Button border.
+            ///
+            /// Is widths `1` and sides the base color lighten by 30%.
+            border = {
+                widths: 1,
+                sides: DARK_COLOR_VAR.map_into(),
+            };
+
+            /// When the pointer device is over this button.
+            when self.is_cap_hovered {
+                border = {
+                    widths: 1,
+                    sides: dark_color_hovered().map_into(),
+                };
+            }
+
+            /// When the button is pressed in a way that press release will cause a button click.
+            when self.is_focused /*|| self.is_return_focused */  {
+                border = {
+                    widths: 1,
+                    sides: dark_color_focused().map_into(),
+                };
+            }
+
+            /// When the button is disabled.
+            when self.is_disabled {
+                background_color = dark_color_disabled();
+                border = {
+                    widths: 1,
+                    sides: dark_color_hovered().map_into(),
+                };
+                text_color = TEXT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.5).mix_normal(c));
+                cursor = CursorIcon::NotAllowed;
+            }
+        }
+    }
+
+    /// Default text input light theme.
+    #[widget($crate::widgets::text_input::vis::light_theme)]
+    pub mod light_theme {
+        use super::*;
+
+        inherit!(base_theme);
+
+        properties! {
+            /// Text input base color, all background and border colors are derived from this color.
+            light_color as base_color;
+
+            /// Text input background color.
+            ///
+            /// Is the base color by default.
+            background_color = rgb(0.88, 0.88, 0.88);
+
+            /// Button border.
+            ///
+            /// Is widths `1` and sides the base color lighten by 30%.
+            border = {
+                widths: 1,
+                sides: LIGHT_COLOR_VAR.map_into(),
+            };
+
+            /// When the pointer device is over this button or it is the return focus of a scope.
+            when self.is_cap_hovered /*|| self.is_return_focused */ {
+                border = {
+                    widths: 1,
+                    sides: light_color_hovered().map_into(),
+                };
+            }
+
+            /// When the button is pressed in a way that press release will cause a button click.
+            when self.is_focused {
+                border = {
+                    widths: 1,
+                    sides: light_color_focused().map_into(),
+                };
+            }
+
+            /// When the button is disabled.
+            when self.is_disabled {
+                background_color = light_color_disabled();
+                border = {
+                    widths: 1,
+                    sides: light_color_hovered().map_into(),
+                };
+                text_color = TEXT_COLOR_VAR.map(|&c| colors::WHITE.with_alpha(0.5).mix_normal(c));
+                cursor = CursorIcon::NotAllowed;
+            }
+        }
+    }
+
+    context_var! {
+        /// Text input dark theme.
+        ///
+        /// Use the [`text_input::vis::dark`] property to set.
+        ///
+        /// [`text_input::vis::dark`]: fn@dark
+        pub static DARK_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| dark_theme!());
+
+        /// Text input light theme.
+        ///
+        /// Use the [`text_input::vis::light`] property to set.
+        ///
+        /// [`text_input::vis::light`]: fn@light
+        pub static LIGHT_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| light_theme!());
+
+        /// Idle border color in the dark theme.
+        ///
+        /// All other border states are derived by adjusting the brightness of this color.
+        pub static DARK_COLOR_VAR: Rgba = rgb(0.3, 0.3, 0.3);
+
+        /// Idle border color in the light theme.
+        ///
+        /// All other border states are derived by adjusting the brightness of this color.
+        pub static LIGHT_COLOR_VAR: Rgba = rgb(0.7, 0.7, 0.7);
+
+        /// Text input padding.
+        ///
+        /// Text padding is computed directly on the text layout,
+        pub static PADDING_VAR: SideOffsets = 0.into();
+    }
+
+    /// Sets the [`DARK_THEME_VAR`] that affects all text inputs inside the widget.
+    #[property(context, default(DARK_THEME_VAR))]
+    pub fn dark(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, DARK_THEME_VAR, theme)
+    }
+
+    /// Sets the [`LIGHT_THEME_VAR`] that affects all text inputs inside the widget.
+    #[property(context, default(LIGHT_THEME_VAR))]
+    pub fn light(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, LIGHT_THEME_VAR, theme)
+    }
+
+    /// Sets the [`DARK_COLOR_VAR`] that is used to compute all background and border colors in the text input's dark theme.
+    #[property(context, default(DARK_COLOR_VAR))]
+    pub fn dark_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+        with_context_var(child, DARK_COLOR_VAR, color)
+    }
+
+    /// Sets the [`LIGH_COLOR_VAR`] that is used to compute all background and border colors in the text input's light theme.
+    #[property(context, default(LIGHT_COLOR_VAR))]
+    pub fn light_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+        with_context_var(child, LIGHT_COLOR_VAR, color)
+    }
+
+    /// Sets the [`PADDING_VAR`] that is used in the text-input layout.
+    #[property(context, default(PADDING_VAR))]
+    pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+        with_context_var(child, PADDING_VAR, padding)
+    }
+
+    /// Dark border hovered.
+    pub fn dark_color_hovered() -> impl Var<Rgba> {
+        DARK_COLOR_VAR.map(|&c| colors::WHITE.with_alpha(0.2).mix_normal(c))
+    }
+
+    /// Dark border focused.
+    pub fn dark_color_focused() -> impl Var<Rgba> {
+        DARK_COLOR_VAR.map(|&c| colors::WHITE.with_alpha(0.35).mix_normal(c))
+    }
+
+    /// Dark background disabled.
+    pub fn dark_color_disabled() -> impl Var<Rgba> {
+        DARK_COLOR_VAR.map(|&c| c.desaturate(100.pct()))
+    }
+
+    /// Dark background hovered.
+    pub fn light_color_hovered() -> impl Var<Rgba> {
+        LIGHT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.2).mix_normal(c))
+    }
+
+    /// Dark border focused.
+    pub fn light_color_focused() -> impl Var<Rgba> {
+        LIGHT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.35).mix_normal(c))
+    }
+
+    /// Dark background disabled.
+    pub fn light_color_disabled() -> impl Var<Rgba> {
+        LIGHT_COLOR_VAR.map(|&c| c.desaturate(100.pct()))
     }
 }
