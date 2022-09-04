@@ -1,41 +1,13 @@
 * "Loading.." of panorama image vanishes if scroll to far right.
     - Its getting culled because culling is done using the outer-bounds, but `x` sets the inner-bounds.
     - Merge outer/inner into a single bounds, there used to be a TODO for this.
+        - Don't remember why the TODO was removed, maybe because if implemented we need to enter every widget up-to inner
+            to reuse?
     - Move culling to `push_inner` and use inner bounds, check performance in icon example.
 
-* Implement dynamic when states, see `Themes.md`.
-* Review dynamic property set in the widget declaration and set again in instance.
-* Review dynamic widget that captures set property.
-
-* Finish implementing window `parent`.
-    - [x] Theme fallback.
-    - [x] Open center parent.
-    - [x] Children list var.
-    - [x] Validation.
-    - [x] Close together.
-    - [x] Minimize/restore together.
-    - [ ] Z-order, always on-top of parent, but no focus stealing.
-* Implement `modal`.
-    - [ ] Steal focus back to modal.
-    - [ ] Window level "interactivity", parent window must not receive any event (other than forced close).
+# Light Theme
 
 * Review light theme in all examples.
-* Implement `WindowThemeVar::map_match<T>(dark: T, light: T) -> impl Var<T>`.
-
-# Text
-
-* Text Editable
-    - Caret.
-    - Selection.
-* `text_input!`.
-    - Inherit from `text!`.
-    - Appearance of a text-box.
-* IME.
-* `LineBreakVar`.
-    - When char is `\n` or `\r` read this var and insert it instead. 
-    - Review https://en.wikipedia.org/wiki/Newline
-
-# Light Theme
 
 - example    - description
 - border     - text color

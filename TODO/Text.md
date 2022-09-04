@@ -1,5 +1,13 @@
 # Text TODO
 
+* Text Editable
+    - Caret.
+    - Selection.
+* IME.
+* `LineBreakVar`.
+    - When char is `\n` or `\r` read this var and insert it instead. 
+    - Review https://en.wikipedia.org/wiki/Newline
+
 * Implement text align demo in text example.
  - Need to make space, implement tabbed content?
 * Implement text start/end aligns.

@@ -48,8 +48,7 @@ Need to optimize the inspector nodes a bit, maybe some lazy stuff?
 Profiler has a huge impact, but is also generating so much data that chrome struggles to display.
 
 * Try `minitrace-rust` see if it is faster/more accurate than `tracing`.
-* Try filtering more data, only 
-
+* Try filtering more data?
 
 # Parallel UI
 
