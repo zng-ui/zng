@@ -27,8 +27,8 @@ pub use rc_node::*;
 mod trace;
 pub use trace::TraceNode;
 
-mod adoptive;
-pub use adoptive::*;
+mod dynamic;
+pub use dynamic::*;
 
 unique_id_64! {
     /// Unique id of a widget.

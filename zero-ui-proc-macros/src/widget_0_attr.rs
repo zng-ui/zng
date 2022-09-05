@@ -132,46 +132,39 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // in the generated `__new_child` .. `__new` functions.
     for fn_ in &mut constructors {
         validate_constructor(fn_, &mut errors);
-        if fn_.priority != FnPriority::NewChild {
-            if fn_.dynamic && fn_.item.sig.inputs.len() < 2 {
+        if fn_.priority == FnPriority::NewDyn {
+            if fn_.item.sig.inputs.is_empty() {
                 errors.push(
-                    format!(
-                        "`{}` must take at least two inputs, one that implements `UiNode` and one `DynWidgetPart`",
-                        fn_.item.sig.ident
-                    ),
+                    format!("`{}` must take at least one input that implements `DynWidget`", fn_.item.sig.ident),
                     fn_.item.sig.paren_token.span,
                 );
-
-                if fn_.item.sig.inputs.is_empty() {
-                    fn_.item.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
-                } else {
-                    fn_.item.sig.inputs.push(parse_quote! { __part: #crate_core::DynWidgetPart });
-                }
-            } else if fn_.item.sig.inputs.is_empty() {
-                errors.push(
-                    format!("`{}` must take at least one input that implements `UiNode`", fn_.item.sig.ident),
-                    fn_.item.sig.paren_token.span,
-                );
-                fn_.item.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
+                fn_.item.sig.inputs.push(parse_quote! { __child: #crate_core::DynWidget });
             }
+        } else if fn_.priority != FnPriority::NewChild && fn_.item.sig.inputs.is_empty() {
+            errors.push(
+                format!("`{}` must take at least one input that implements `UiNode`", fn_.item.sig.ident),
+                fn_.item.sig.paren_token.span,
+            );
+            fn_.item.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
         }
     }
 
     // collects name of captured properties, spans new input types and validates inputs.
     let mut new_captures = vec![]; // [Vec<Ident>]
-    let mut new_dynamic = vec![]; // [Vec<bool>]
     let mut new_captures_cfg = vec![]; // [TokenStream]
     let mut new_arg_ty_spans = vec![]; // [child_ty:Span, cap_ty:Span..]
     let mut captured_properties = HashMap::new();
+    let mut dynamic = false;
 
-    for priority in FnPriority::all() {
-        if let Some(fn_) = constructors.iter().find(|f| f.priority == *priority) {
+    for &priority in FnPriority::all_no_dyn() {
+        if let Some(fn_) = constructors
+            .iter()
+            .find(|f| f.priority == priority || (f.priority == FnPriority::NewDyn && priority == FnPriority::New))
+        {
+            let priority = fn_.priority;
             let mut args = fn_.item.sig.inputs.iter();
             let mut ty_spans = vec![];
-            if *priority != FnPriority::NewChild {
-                if fn_.dynamic {
-                    args.next();
-                }
+            if priority != FnPriority::NewChild {
                 let child_ty_span = args
                     .next()
                     .map(|a| if let FnArg::Typed(pt) = a { pt.ty.span() } else { a.span() })
@@ -184,7 +177,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             ty_spans.extend(cap_ty_spans);
 
             for cap in &caps {
-                if let Some(other_fn) = captured_properties.insert(cap.clone(), *priority) {
+                if let Some(other_fn) = captured_properties.insert(cap.clone(), priority) {
                     captured_properties.insert(cap.clone(), other_fn);
                     errors.push(format_args!("property `{cap}` already captured in `{other_fn}`"), cap.span());
                 }
@@ -193,12 +186,10 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             new_captures.push(caps);
             new_captures_cfg.push(cfgs);
             new_arg_ty_spans.push(ty_spans);
-            new_dynamic.push(fn_.dynamic);
         } else {
             new_captures.push(vec![]);
             new_captures_cfg.push(vec![]);
             new_arg_ty_spans.push(vec![]);
-            new_dynamic.push(false);
         }
     }
 
@@ -208,8 +199,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // `widget/ctor_mismatched_capture_type1.rs`
     let mut new_declarations = vec![]; // [FnPriority:TokenStream]
 
-    for (i, priority) in FnPriority::all().iter().enumerate() {
-        if let Some(fn_) = constructors.iter().find(|f| f.priority == *priority) {
+    for (i, &priority) in FnPriority::all_no_dyn().iter().enumerate() {
+        if let Some(fn_) = constructors
+            .iter()
+            .find(|f| f.priority == priority || (f.priority == FnPriority::NewDyn && priority == FnPriority::New))
+        {
+            let priority = fn_.priority;
+
             let caps = &new_captures[i];
             let cfgs = &new_captures_cfg[i];
             let arg_ty_spans = &new_arg_ty_spans[i];
@@ -247,7 +243,14 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             // tokens that handle the `arg0: impl UiNode, [arg1: DynWidgetPart]`.
             let mut child_decl = TokenStream::new();
             let mut child_pass = TokenStream::new();
-            if *priority != FnPriority::NewChild {
+
+            if priority == FnPriority::NewDyn {
+                let span = *arg_ty_spans.get(0).unwrap_or_else(|| non_user_error!(""));
+                let wgt_ident = ident_spanned!(span=> "__widget");
+                let wgt_ty = quote_spanned! {span=> impl #crate_core::DynWidget };
+                child_decl = quote! { #wgt_ident: #wgt_ty, };
+                child_pass = quote_spanned! {span=> #wgt_ident, };
+            } else if priority != FnPriority::NewChild {
                 let span = *arg_ty_spans.get(0).unwrap_or_else(|| non_user_error!(""));
                 let child_ident = ident_spanned!(span=> "__child");
                 let child_ty = quote_spanned! {span=>
@@ -255,24 +258,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 };
                 child_decl = quote! { #child_ident: #child_ty, };
                 child_pass = quote_spanned! {span=> box_fix(#child_ident), };
-
-                if fn_.dynamic {
-                    let properties_ident = ident_spanned!(span=> "__properties");
-                    let properties_ty = quote_spanned! {span=>
-                        #crate_core::DynWidgetPart
-                    };
-
-                    child_decl.extend(quote! {
-                        #properties_ident: #properties_ty,
-                    });
-                    child_pass.extend(quote_spanned! {span=> #properties_ident, });
-                }
             }
 
             // output type, for `new` is a copy, for others is `impl UiNode` to validate the type.
             let output;
             let out_ident;
-            if *priority == FnPriority::New {
+            if let FnPriority::New | FnPriority::NewDyn = priority {
                 output = fn_.item.sig.output.to_token_stream();
                 out_ident = ident!("out"); // not used
             } else {
@@ -284,30 +275,15 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     -> impl #crate_core::UiNode
                 };
                 out_ident = ident_spanned!(out_span=> "out");
-            };
+            }
 
             // declare `__new_*`
-            let dyn_suffix = if fn_.dynamic { "_dyn" } else { "" };
-            let new_id = ident!("{priority}{dyn_suffix}");
-            let new__ = ident!("__{priority}{dyn_suffix}");
+            let new_id = ident!("{priority}");
+            let new__ = ident!("__{priority}");
 
             let mut r = TokenStream::new();
 
-            if *priority != FnPriority::New {
-                r.extend(quote! {
-                    #[doc(hidden)]
-                    #[allow(clippy::too_many_arguments)]
-                    pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
-                        // rustc gets confused about lifetimes if we call cfg_boxed directly
-                        fn box_fix(node: impl #crate_core::UiNode)#output {
-                            #crate_core::UiNode::cfg_boxed(node)
-                        }
-                        let #out_ident = self::#new_id(#child_pass #(#spanned_unwrap),*);
-                        box_fix(#out_ident)
-                    }
-                });
-            } else {
-                debug_assert_eq!(*priority, FnPriority::New);
+            if priority == FnPriority::New {
                 r.extend(quote! {
                     #[doc(hidden)]
                     #[allow(clippy::too_many_arguments)]
@@ -325,11 +301,32 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         self::#new_id(#child_pass #(#spanned_unwrap),*)
                     }
                 });
+            } else if priority == FnPriority::NewDyn {
+                r.extend(quote! {
+                    #[doc(hidden)]
+                    #[allow(clippy::too_many_arguments)]
+                    pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
+                        self::#new_id(#child_pass #(#spanned_unwrap),*)
+                    }
+                })
+            } else {
+                r.extend(quote! {
+                    #[doc(hidden)]
+                    #[allow(clippy::too_many_arguments)]
+                    pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
+                        // rustc gets confused about lifetimes if we call cfg_boxed directly
+                        fn box_fix(node: impl #crate_core::UiNode)#output {
+                            #crate_core::UiNode::cfg_boxed(node)
+                        }
+                        let #out_ident = self::#new_id(#child_pass #(#spanned_unwrap),*);
+                        box_fix(#out_ident)
+                    }
+                });
             }
 
             // declare `__new_*_inspect`
             {
-                let new_inspect__ = ident!("__{priority}_inspect{dyn_suffix}");
+                let new_inspect__ = ident!("__{priority}_inspect");
                 let names = caps.iter().map(|id| id.to_string());
                 let locations = caps.iter().map(|id| {
                     quote_spanned! {id.span()=>
@@ -338,7 +335,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 });
                 let assigned_flags: Vec<_> = caps.iter().enumerate().map(|(i, id)| ident!("__{i}_{id}_user_set")).collect();
 
-                if *priority == FnPriority::New {
+                if priority == FnPriority::New {
                     r.extend(quote! { #crate_core::core_cfg_inspector! {
 
                         #[doc(hidden)]
@@ -375,8 +372,45 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         }
 
                     }});
+                } else if priority == FnPriority::NewDyn {
+                    r.extend(quote! { #crate_core::core_cfg_inspector! {
+
+                        #[doc(hidden)]
+                        #[allow(clippy::too_many_arguments)]
+                        pub fn #new_inspect__(
+                            __widget: impl #crate_core::DynWidget,
+                            #(#cfgs #caps : impl self::#prop_idents::Args,)*
+                            #(#cfgs #assigned_flags: bool,)*
+                            __widget_name: &'static str,
+                            __whens: std::vec::Vec<#crate_core::inspector::v1::WhenInfo>,
+                            __decl_location: #crate_core::inspector::v1::SourceLocation,
+                            __instance_location: #crate_core::inspector::v1::SourceLocation,
+                        ) #output {
+                            #[allow(unused_mut)]
+                            let mut __captures = std::vec![];
+                            #(
+                                #cfgs
+                                __captures.push(self::#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
+                            )*
+
+                            // TODO !!: replace context intrinsic with this wrap?
+                            let __child = #crate_core::inspector::v1::inspect_constructor(__child, "new", __captures.into_boxed_slice());
+                            let __child = #crate_core::inspector::v1::inspect_widget(
+                                __child,
+                                #crate_core::inspector::v1::WidgetInstanceMeta {
+                                    instance_id: #crate_core::inspector::v1::WidgetInstanceId::new_unique(),
+                                    widget_name: __widget_name,
+                                    decl_location: __decl_location,
+                                    instance_location: __instance_location
+                                },
+                                __whens.into_boxed_slice()
+                            );
+                            self::__new_dyn(__widget, #(#cfgs #caps),*)
+                        }
+
+                    }});
                 } else {
-                    let fn_name = format!("{priority}{dyn_suffix}");
+                    let fn_name = format!("{priority}");
                     r.extend(quote! { #crate_core::core_cfg_inspector! {
                         #[doc(hidden)]
                         #[allow(clippy::too_many_arguments)]
@@ -1108,11 +1142,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             }
                         )*
                     }
-                    new_dynamic {
-                        #(
-                            #new_idents { #new_dynamic }
-                        )*
-                    }
                 }
             }
 
@@ -1253,12 +1282,13 @@ pub(crate) enum FnPriority {
     NewContext,
 
     New,
+    NewDyn,
 }
 impl FnPriority {
-    pub fn from_ident(ident: &Ident) -> Option<(Self, bool)> {
+    pub fn from_ident(ident: &Ident) -> Option<Self> {
         let ident = ident.to_string();
 
-        let s = match ident.as_str() {
+        match ident.as_str() {
             "new_child" => Some(Self::NewChild),
             "new_child_layout" => Some(Self::NewChildLayout),
             "new_child_context" => Some(Self::NewChildContext),
@@ -1269,28 +1299,12 @@ impl FnPriority {
             "new_event" => Some(Self::NewEvent),
             "new_context" => Some(Self::NewContext),
             "new" => Some(Self::New),
+            "new_dyn" => Some(Self::NewDyn),
             _ => None,
-        };
-        if let Some(s) = s {
-            return Some((s, false));
         }
-
-        let d = match ident.as_str() {
-            "new_child_layout_dyn" => Some(Self::NewChildLayout),
-            "new_child_context_dyn" => Some(Self::NewChildContext),
-            "new_fill_dyn" => Some(Self::NewFill),
-            "new_border_dyn" => Some(Self::NewBorder),
-            "new_size_dyn" => Some(Self::NewSize),
-            "new_layout_dyn" => Some(Self::NewLayout),
-            "new_event_dyn" => Some(Self::NewEvent),
-            "new_context_dyn" => Some(Self::NewContext),
-            _ => None,
-        };
-
-        d.map(|d| (d, true))
     }
 
-    pub fn all() -> &'static [FnPriority] {
+    pub fn all_no_dyn() -> &'static [FnPriority] {
         &[
             Self::NewChild,
             Self::NewChildLayout,
@@ -1318,13 +1332,13 @@ impl fmt::Display for FnPriority {
             FnPriority::NewEvent => write!(f, "new_event"),
             FnPriority::NewContext => write!(f, "new_context"),
             FnPriority::New => write!(f, "new"),
+            FnPriority::NewDyn => write!(f, "new_dyn"),
         }
     }
 }
 
 struct Constructor {
     priority: FnPriority,
-    dynamic: bool,
     item: ItemFn,
 }
 
@@ -1393,13 +1407,9 @@ impl WidgetItems {
                         known_fn.is_some()
                     } =>
                 {
-                    let (priority, dynamic) = known_fn.unwrap();
+                    let priority = known_fn.unwrap();
                     if !constructors.iter().any(|e| e.priority == priority) {
-                        constructors.push(Constructor {
-                            priority,
-                            dynamic,
-                            item: fn_,
-                        });
+                        constructors.push(Constructor { priority, item: fn_ });
                     }
                 }
                 // other user items.

@@ -42,7 +42,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         whens,
         mut new_declarations,
         mut new_captures,
-        mut new_dynamic,
     } = widget;
 
     // same as args in widget_0_attr
@@ -127,10 +126,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .find(|i| !i.mixin)
             .unwrap_or_else(|| non_user_error!("expected a parent widget"));
 
-        for (i, priority) in FnPriority::all().iter().enumerate() {
+        for (i, &priority) in FnPriority::all().iter().enumerate() {
+            let new = priority == FnPriority::New;
+
             if new_declarations[i].is_empty() {
                 let source_mod = &parent.module;
-                let dyn_suffix = if parent.new_dynamic[i] { "_dyn" } else { "" };
+                let dyn_suffix = if new && parent.dynamic { "_dyn" } else { "" };
                 let new_ident = ident!("__{priority}{dyn_suffix}");
                 new_reexports.extend(quote! {
                     #[doc(hidden)]
@@ -152,6 +153,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             } else {
                 inherited_new_sources.push(None);
             }
+
+            if new {
+                break;
+            }
         }
 
         // validate captures again, if there is an error here we assume is
@@ -170,7 +175,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
     let new_captures = new_captures;
-    let new_dynamic = new_dynamic;
 
     // collect inherited properties. Late inherits of the same ident override early inherits.
     // [property_ident => inherit]
@@ -1263,7 +1267,7 @@ struct InheritedItem {
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
     new_captures: Vec<Vec<PropertyCapture>>,
-    new_dynamic: Vec<bool>,
+    dynamic: bool,
 }
 impl Parse for InheritedItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1285,16 +1289,10 @@ impl Parse for InheritedItem {
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
                     .collect()
             },
-            new_dynamic: {
-                let input = non_user_braced!(input, "new_dynamic");
-                FnPriority::all()
-                    .iter()
-                    .map(|p| {
-                        let f: LitBool = non_user_braced!(&input, p.to_string()).parse().unwrap();
-                        f.value
-                    })
-                    .collect()
-            },
+            dynamic: non_user_braced!(input, "dynamic")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
         })
     }
 }
@@ -1315,7 +1313,8 @@ struct WidgetItem {
 
     new_declarations: Vec<TokenStream>,
     new_captures: Vec<Vec<PropertyCapture>>,
-    new_dynamic: Vec<bool>,
+
+    dynamic: bool,
 }
 impl Parse for WidgetItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1357,16 +1356,10 @@ impl Parse for WidgetItem {
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
                     .collect()
             },
-            new_dynamic: {
-                let input = named_braces!("new_dynamic");
-                FnPriority::all()
-                    .iter()
-                    .map(|p| {
-                        let f: LitBool = non_user_braced!(&input, p.to_string()).parse().unwrap();
-                        f.value
-                    })
-                    .collect()
-            },
+            dynamic: named_braces!("dynamic")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
         })
     }
 }
