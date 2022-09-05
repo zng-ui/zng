@@ -315,6 +315,7 @@ fn center_viewport(msg: impl Widget) -> impl Widget {
         // because it is centered on the image.
         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vw() * fct);
         y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+        zero_ui::core::widget_base::can_auto_hide = false;
         max_size = (1.vw(), 1.vh());
         content_align = Align::CENTER;
 

@@ -1,10 +1,3 @@
-* "Loading.." of panorama image vanishes if scroll to far right.
-    - Its getting culled because culling is done using the outer-bounds, but `x` sets the inner-bounds.
-    - Merge outer/inner into a single bounds, there used to be a TODO for this.
-        - Don't remember why the TODO was removed, maybe because if implemented we need to enter every widget up-to inner
-            to reuse?
-    - Move culling to `push_inner` and use inner bounds, check performance in icon example.
-
 # Light Theme
 
 * Review light theme in all examples.

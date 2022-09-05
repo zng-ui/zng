@@ -406,20 +406,24 @@ impl FrameBuilder {
 
         let parent_visible = self.visible;
 
-        match self.auto_hide_rect.intersection(&outer_bounds) {
-            Some(cull) => {
-                let partial = cull != outer_bounds;
-                if partial || ctx.widget_info.bounds.is_partially_culled() {
-                    // partial cull, cannot reuse because descendant vis may have changed.
-                    *reuse = None;
-                    ctx.widget_info.bounds.set_is_partially_culled(partial);
+        if ctx.widget_info.bounds.can_auto_hide() {
+            match self.auto_hide_rect.intersection(&outer_bounds) {
+                Some(cull) => {
+                    let partial = cull != outer_bounds;
+                    if partial || ctx.widget_info.bounds.is_partially_culled() {
+                        // partial cull, cannot reuse because descendant vis may have changed.
+                        *reuse = None;
+                        ctx.widget_info.bounds.set_is_partially_culled(partial);
+                    }
+                }
+                None => {
+                    // full cull
+                    self.visible = false;
                 }
             }
-            None => {
-                // full cull
-                self.visible = false;
-            }
-        }
+        } else {
+            ctx.widget_info.bounds.set_is_partially_culled(false);
+        }        
 
         let can_reuse = match ctx.widget_info.bounds.rendered() {
             Some(i) => i.visible == self.visible,

@@ -299,6 +299,7 @@ impl WidgetLayout {
                 offset_buf: PxVector::zero(),
                 baseline: Px(0),
                 offset_baseline: false,
+                can_auto_hide: true,
                 known: None,
                 known_target: KnownTarget::Outer,
             },
@@ -345,6 +346,7 @@ impl WidgetLayout {
         self.finish_known(); // in case of WidgetList.
         self.baseline = Px(0);
         self.offset_baseline = false;
+        self.can_auto_hide = true;
         let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
 
         ctx.widget_info.bounds.begin_pass(self.pass_id); // record prev state
@@ -399,6 +401,9 @@ impl WidgetLayout {
         ctx.widget_info
             .bounds
             .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
+        ctx.widget_info
+            .bounds
+            .set_can_auto_hide(mem::replace(&mut self.can_auto_hide, true));
 
         let size = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
 
@@ -433,6 +438,9 @@ impl WidgetLayout {
             ctx.widget_info
                 .bounds
                 .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
+            ctx.widget_info
+                .bounds
+                .set_can_auto_hide(mem::replace(&mut self.can_auto_hide, true));
 
             // setup returning translations target.
             self.finish_known();
@@ -531,6 +539,7 @@ impl WidgetLayout {
                 pass_id: self.pass_id,
                 offset_buf: PxVector::zero(),
                 offset_baseline: false,
+                can_auto_hide: true,
                 baseline: Px(0),
                 known: Some(bounds),
                 known_target: KnownTarget::Outer,
@@ -566,6 +575,7 @@ impl WidgetLayout {
                 info.bounds_info.set_inner_size(PxSize::zero());
                 info.bounds_info.set_baseline(Px(0));
                 info.bounds_info.set_inner_offset_baseline(false);
+                info.bounds_info.set_can_auto_hide(true);
                 info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
@@ -590,6 +600,7 @@ impl WidgetLayout {
                 info.bounds_info.set_inner_size(PxSize::zero());
                 info.bounds_info.set_baseline(Px(0));
                 info.bounds_info.set_inner_offset_baseline(false);
+                info.bounds_info.set_can_auto_hide(true);
                 info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
@@ -633,6 +644,7 @@ pub struct WidgetLayoutTranslation {
     offset_buf: PxVector,
     baseline: Px,
     offset_baseline: bool,
+    can_auto_hide: bool,
 
     known: Option<WidgetBoundsInfo>,
     known_target: KnownTarget,
@@ -685,6 +697,20 @@ impl WidgetLayoutTranslation {
             info.set_inner_offset_baseline(enabled);
         } else {
             self.offset_baseline = enabled;
+        }
+    }
+
+    /// Sets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
+    ///
+    /// This is `true` by default.
+    ///
+    /// [`outer_bounds`]: WidgetBoundsInfo::outer_bounds
+    /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
+    pub fn allow_auto_hide(&mut self, enabled: bool) {
+        if let Some(info) = &self.known {
+            info.set_can_auto_hide(enabled)
+        } else {
+            self.can_auto_hide = enabled;
         }
     }
 }

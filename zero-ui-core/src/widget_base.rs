@@ -1044,3 +1044,73 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
     bind_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
 }
+
+/// Sets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
+///
+/// The auto-hide rect is usually *one viewport* of extra space around the  viewport, so only widgets that transform
+/// themselves very far need to set this, disabling auto-hide for an widget does not disable it for descendants.
+/// 
+/// # Examples
+/// 
+/// The example demonstrates a `container` that is *fixed* in the scroll viewport, it sets the `x` and `y` properties
+/// to always stay in frame, but transforms set by a widget on itself always affects  the [`inner_bounds`], the
+/// [`outer_bounds`] will still be the transform set by the parent so the container may end-up auto-hidden.
+/// 
+/// Note that auto-hide is not disabled for the `content` widget, but it's [`outer_bounds`] is affected by the `container`
+/// so it is auto-hidden correctly.
+/// 
+/// ```
+/// # macro_rules! container { ($($tt:tt)*) => { widget_base::implicit_base::nodes::widget(FillUiNode, WidgetId::new_unique()) } }
+/// # use zero_ui_core::*;
+/// fn center_viewport(content: impl Widget) -> impl Widget {
+///     container! {
+///         zero_ui::core::widget_base::can_auto_hide = false;
+/// 
+///         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vw() * fct);
+///         y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+///         max_size = (1.vw(), 1.vh());
+///         content_align = Align::CENTER;
+///      
+///         content;
+///     }
+/// }
+/// ```
+///  
+/// [`outer_bounds`]: WidgetBoundsInfo::outer_bounds
+/// [`inner_bounds`]: WidgetBoundsInfo::inner_bounds
+#[property(context, default(true))]
+pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    struct CanAutoHideNode<C, E> {
+        child: C,
+        enabled: E,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, E: Var<bool>> UiNode for CanAutoHideNode<C, E> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.enabled);
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if let Some(new) = self.enabled.copy_new(ctx) {
+                if ctx.widget_info.bounds.can_auto_hide() != new {
+                    ctx.updates.layout_and_render();
+                }
+            }
+            self.child.update(ctx);
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx)
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.allow_auto_hide(self.enabled.copy(ctx));
+            self.child.layout(ctx, wl)
+        }
+    }
+    CanAutoHideNode {
+        child,
+        enabled: enabled.into_var()
+    }
+}

@@ -326,6 +326,7 @@ struct WidgetBoundsData {
 
     is_in_bounds: Cell<Option<bool>>,
     is_partially_culled: Cell<bool>,
+    cannot_auto_hide: Cell<bool>,
 }
 
 /// Info abound the last time a widget was rendered.
@@ -477,6 +478,22 @@ impl WidgetBoundsInfo {
     /// [`inner_bounds`]: Self::inner_bounds
     pub fn is_in_bounds(&self) -> bool {
         self.0.is_in_bounds.get().unwrap_or(false)
+    }
+
+    /// Gets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
+    ///
+    /// This is `true` by default and can be disabled using [`allow_auto_hide`]. If set to `false`
+    /// the widget is always rendered, but descendant widgets are still auto-hidden.
+    ///
+    /// [`outer_bounds`]: Self::outer_bounds
+    /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
+    /// [`allow_auto_hide`]: WidgetLayoutTranslation::allow_auto_hide
+    pub fn can_auto_hide(&self) -> bool {
+        !self.0.cannot_auto_hide.get()
+    }
+
+    fn set_can_auto_hide(&self, enabled: bool) {
+        self.0.cannot_auto_hide.set(!enabled)
     }
 
     pub(super) fn is_actually_out_of_bounds(&self) -> bool {
