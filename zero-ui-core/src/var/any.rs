@@ -11,6 +11,10 @@ pub trait AnyVar: Any + crate::private::Sealed {
     fn into_any(self) -> Box<dyn AnyVar>;
     /// Cast to [`Any`].
     fn as_any(&self) -> &dyn Any;
+
+    /// Cast to `Box<dyn Any>`.
+    fn as_box_any(self: Box<Self>) -> Box<dyn Any>;
+
     /// Type erased [`Var::boxed`].
     ///
     /// Returns a value that can be down-casted to `BoxedVar<T>` if the value type is known.
@@ -56,6 +60,9 @@ pub trait AnyWeakVar: Any + crate::private::Sealed {
     fn into_any(self) -> Box<dyn AnyWeakVar>;
     /// Cast to [`Any`].
     fn as_any(&self) -> &dyn Any;
+    /// Cast to `Box<dyn Any>`.
+    fn as_box_any(self: Box<Self>) -> Box<dyn Any>;
+
     /// Type erased [`WeakVar::boxed`].
     ///
     /// Returns a value that can be down-casted to `BoxedWeakVar<T>` if the value type is known.
@@ -81,6 +88,10 @@ macro_rules! any_var_impls {
         }
 
         fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn as_box_any(self: Box<Self>) -> Box<dyn std::any::Any> {
             self
         }
 
@@ -148,6 +159,10 @@ macro_rules! any_var_impls {
             Box::new(self)
         }
 
+        fn as_box_any(self: Box<Self>) -> Box<dyn std::any::Any> {
+            self
+        }
+
         fn as_any(&self) -> &dyn std::any::Any {
             self
         }
@@ -179,19 +194,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn downcast_rc() {
+    fn downcast_ref_rc() {
         let any_var = var(true).into_any();
         assert!(any_var.as_any().downcast_ref::<RcVar<bool>>().is_some())
     }
 
     #[test]
-    fn downcast_boxed() {
+    fn downcast_ref_boxed() {
         let any_var = var(true).boxed().into_any();
         assert!(any_var.as_any().downcast_ref::<BoxedVar<bool>>().is_some())
     }
 
     #[test]
-    fn downcast_context_var() {
+    fn downcast_ref_context_var() {
         context_var! {
             static FOO_VAR: bool = true;
         }
@@ -200,8 +215,29 @@ mod tests {
     }
 
     #[test]
-    fn downcast_any_boxed() {
+    fn downcast_ref_any_boxed() {
         let any_var = var(true).into_any().boxed_any();
         assert!(any_var.as_any().downcast_ref::<BoxedVar<bool>>().is_some())
+    }
+
+    #[test]
+    fn downcast_rc() {
+        let any_var = var(true).into_any();
+        let any_box = any_var.as_box_any();
+        assert!(any_box.downcast::<RcVar<bool>>().is_ok());
+    }
+
+    #[test]
+    fn downcast_boxed() {
+        let any_var = var(true).boxed().into_any();
+        let any_box = any_var.as_box_any();
+        assert!(any_box.downcast::<BoxedVar<bool>>().is_ok());
+    }
+
+    #[test]
+    fn downcast_any_boxed() {
+        let any_var = var(true).into_any().boxed_any();
+        let any_box = any_var.as_box_any();
+        assert!(any_box.downcast::<BoxedVar<bool>>().is_ok());
     }
 }

@@ -423,7 +423,7 @@ impl FrameBuilder {
             }
         } else {
             ctx.widget_info.bounds.set_is_partially_culled(false);
-        }        
+        }
 
         let can_reuse = match ctx.widget_info.bounds.rendered() {
             Some(i) => i.visible == self.visible,

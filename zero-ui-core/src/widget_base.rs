@@ -1049,23 +1049,23 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// The auto-hide rect is usually *one viewport* of extra space around the  viewport, so only widgets that transform
 /// themselves very far need to set this, disabling auto-hide for an widget does not disable it for descendants.
-/// 
+///
 /// # Examples
-/// 
+///
 /// The example demonstrates a `container` that is *fixed* in the scroll viewport, it sets the `x` and `y` properties
 /// to always stay in frame, but transforms set by a widget on itself always affects  the [`inner_bounds`], the
 /// [`outer_bounds`] will still be the transform set by the parent so the container may end-up auto-hidden.
-/// 
+///
 /// Note that auto-hide is not disabled for the `content` widget, but it's [`outer_bounds`] is affected by the `container`
 /// so it is auto-hidden correctly.
-/// 
+///
 /// ```
 /// # macro_rules! container { ($($tt:tt)*) => { widget_base::implicit_base::nodes::widget(FillUiNode, WidgetId::new_unique()) } }
 /// # use zero_ui_core::*;
 /// fn center_viewport(content: impl Widget) -> impl Widget {
 ///     container! {
 ///         zero_ui::core::widget_base::can_auto_hide = false;
-/// 
+///
 ///         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vw() * fct);
 ///         y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vh() * fct);
 ///         max_size = (1.vw(), 1.vh());
@@ -1111,6 +1111,6 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
     }
     CanAutoHideNode {
         child,
-        enabled: enabled.into_var()
+        enabled: enabled.into_var(),
     }
 }

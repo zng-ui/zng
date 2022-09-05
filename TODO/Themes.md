@@ -45,11 +45,24 @@ when self.is_another_state {
 * Properties needs to setup with a variable that can upgrade to a when var.
     - Performance impact? Most properties only set with the LocalVar that gets inlined, changing to a dynamic var will ruin that.
     - What if DynProperty is a closure that generates the property node?
+    - Better, we generate the normal node, type like the user sets, and a closure that can instantiate a new node from boxed any vars.
 
 * Implicitly generated properties for when assigns need to be marked so that they are only used if the widget does not already have another default.
     - Not an issue if the only a property factory is recorded.
 
 * Properties that are not `allowed_in_when` can be just instances.
+
+```rust
+impl DynProperty {
+    fn construct(&self, args: Box<[Box<dyn AnyVar>]>) -> Result<BoxedUiNode, DynPropertyCtorError> { }
+}
+
+pub enum DynPropertyCtorError {
+    NotAllowedInWhenError,
+    WrongArgsCount,
+    WrongArgType,
+}
+```
 
 ## Other
 
