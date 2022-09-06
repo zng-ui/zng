@@ -1,3 +1,6 @@
+* `checkbox` sets padding to `0`, but parent padding is applied?
+* `text_input` margin not applied.
+
 # Themes TODO
 
 * Implement dynamic when in `DynWidget`.

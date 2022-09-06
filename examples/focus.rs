@@ -123,7 +123,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                 let detach_focused = RcNode::new_cyclic(|wk| {
                     let btn = button! {
                         content = text("Detach Button");
-                        focus_on_init = true;
+                        // focus_on_init = true;
                         on_click = hn!(|ctx, _| {
                             let wwk = wk.clone();
                             Windows::req(ctx.services).open(move |_| {
