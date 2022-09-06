@@ -74,7 +74,7 @@ pub mod theme {
 
     /// Theme constructor.
     pub fn new_dyn(widget: DynWidget) -> Theme {
-        Theme::from_node(widget.into_node(false))
+        Theme::from_dyn_widget(widget)
     }
 
     /// Declare a dark and light theme that is selected depending on the window theme.
@@ -213,7 +213,23 @@ impl Theme {
         self.node
     }
 
-    /// New theme from dynamic properties.
+    /// New theme from dynamic widget input.
+    /// 
+    /// The importance index of properties is adjusted, the intrinsic constructor and child nodes are discarded.
+    pub fn from_dyn_widget(mut wgt: DynWidget) -> Theme {
+        for part in &mut wgt.parts {
+            for p in &mut part.properties {
+                p.importance = match p.importance {
+                    DynPropImportance::WIDGET => Theme::WIDGET_IMPORTANCE,
+                    DynPropImportance::INSTANCE => Theme::INSTANCE_IMPORTANCE,
+                    custom => custom,
+                };
+            }
+        }
+        wgt.into_node(false).into()
+    }
+
+    /// New theme from built dynamic widget.
     pub fn from_node(node: DynWidgetNode) -> Theme {
         Self { node }
     }
@@ -236,6 +252,11 @@ impl From<Theme> for DynWidgetNode {
 impl From<DynWidgetNode> for Theme {
     fn from(p: DynWidgetNode) -> Self {
         Theme::from_node(p)
+    }
+}
+impl From<DynWidget> for Theme {
+    fn from(p: DynWidget) -> Self {
+        Theme::from_dyn_widget(p)
     }
 }
 
