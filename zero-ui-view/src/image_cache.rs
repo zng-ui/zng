@@ -1,7 +1,7 @@
 use std::{fmt, sync::Arc};
 
-use glutin::window::Icon;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
+use winit::window::Icon;
 use zero_ui_view_api::{
     units::{Px, PxSize},
     Event, ImageDataFormat, ImageId, ImageLoadedData, ImagePpi, IpcBytes, IpcBytesReceiver,
@@ -473,12 +473,12 @@ impl Image {
             use image::GenericImageView;
             let (width, height) = img.dimensions();
             let buf = img.into_rgba8().into_raw();
-            glutin::window::Icon::from_rgba(buf, width, height).ok()
+            winit::window::Icon::from_rgba(buf, width, height).ok()
         } else {
             let mut buf = self.0.bgra8.as_ref().to_vec();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
-            glutin::window::Icon::from_rgba(buf, width, height).ok()
+            winit::window::Icon::from_rgba(buf, width, height).ok()
         }
     }
 

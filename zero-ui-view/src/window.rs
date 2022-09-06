@@ -1,10 +1,5 @@
 use std::{collections::VecDeque, fmt, mem};
 
-use glutin::{
-    event_loop::EventLoopWindowTarget,
-    monitor::{MonitorHandle, VideoMode as GVideoMode},
-    window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
-};
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{
@@ -12,6 +7,11 @@ use webrender::{
         IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
+};
+use winit::{
+    event_loop::EventLoopWindowTarget,
+    monitor::{MonitorHandle, VideoMode as GVideoMode},
+    window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_view_api::{
     units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData,
@@ -171,7 +171,7 @@ impl Window {
         #[cfg(windows)]
         {
             let event_sender = event_sender.clone();
-            use glutin::platform::windows::WindowExtWindows;
+            use winit::platform::windows::WindowExtWindows;
 
             let mut first_focus = false;
 
@@ -317,11 +317,11 @@ impl Window {
         self.id
     }
 
-    pub fn monitor(&self) -> Option<glutin::monitor::MonitorHandle> {
+    pub fn monitor(&self) -> Option<winit::monitor::MonitorHandle> {
         self.window.current_monitor()
     }
 
-    pub fn window_id(&self) -> glutin::window::WindowId {
+    pub fn window_id(&self) -> winit::window::WindowId {
         self.window.id()
     }
 
@@ -361,7 +361,7 @@ impl Window {
 
     #[cfg(windows)]
     fn windows_is_foreground(&self) -> bool {
-        use glutin::platform::windows::WindowExtWindows;
+        use winit::platform::windows::WindowExtWindows;
 
         let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
         foreground.0 == self.window.hwnd() as isize
@@ -449,7 +449,7 @@ impl Window {
         self.window.set_resizable(resizable)
     }
 
-    pub fn set_parent(&mut self, parent: Option<glutin::window::WindowId>, modal: bool) {
+    pub fn set_parent(&mut self, parent: Option<winit::window::WindowId>, modal: bool) {
         todo!("implement parent & modal: {:?}", (parent, modal));
     }
 
@@ -499,13 +499,13 @@ impl Window {
 
     #[cfg(windows)]
     fn windows_set_restore(&self) {
-        use glutin::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
         use windows::Win32::Foundation::{BOOL, HWND};
         use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO, MONITORINFOEXW};
         use windows::Win32::{
             Foundation::{POINT, RECT},
             UI::WindowsAndMessaging::*,
         };
+        use winit::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
 
         if let Some(monitor) = self.window.current_monitor() {
             let hwnd = HWND(self.window.hwnd() as _);
@@ -590,8 +590,8 @@ impl Window {
             self.init_focus_request = request;
         } else {
             self.window.request_user_attention(request.map(|r| match r {
-                FocusIndicator::Critical => glutin::window::UserAttentionType::Critical,
-                FocusIndicator::Info => glutin::window::UserAttentionType::Informational,
+                FocusIndicator::Critical => winit::window::UserAttentionType::Critical,
+                FocusIndicator::Info => winit::window::UserAttentionType::Informational,
             }));
         }
     }
@@ -628,7 +628,7 @@ impl Window {
     fn is_maximized(&self) -> bool {
         #[cfg(windows)]
         {
-            let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
+            let hwnd = winit::platform::windows::WindowExtWindows::hwnd(&self.window);
             // SAFETY: function does not fail.
             return unsafe { windows::Win32::UI::WindowsAndMessaging::IsZoomed(windows::Win32::Foundation::HWND(hwnd as _)) }
                 != windows::Win32::Foundation::BOOL(0);
@@ -650,7 +650,7 @@ impl Window {
 
         #[cfg(windows)]
         {
-            let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
+            let hwnd = winit::platform::windows::WindowExtWindows::hwnd(&self.window);
             // SAFETY: function does not fail.
             return unsafe { windows::Win32::UI::WindowsAndMessaging::IsIconic(windows::Win32::Foundation::HWND(hwnd as _)) }
                 != windows::Win32::Foundation::BOOL(0);
@@ -774,10 +774,10 @@ impl Window {
         }
         self.taskbar_visible = visible;
 
-        use glutin::platform::windows::WindowExtWindows;
         use windows::Win32::Foundation::*;
         use windows::Win32::System::Com::*;
         use windows::Win32::UI::Shell::*;
+        use winit::platform::windows::WindowExtWindows;
 
         // winit already initializes COM
 
@@ -819,11 +819,11 @@ impl Window {
     #[cfg(windows)]
     /// Returns the system theme for the window.
     pub fn theme(&self) -> WindowTheme {
-        use glutin::platform::windows::WindowExtWindows;
+        use winit::platform::windows::WindowExtWindows;
 
         match self.window.theme() {
-            glutin::window::Theme::Light => WindowTheme::Light,
-            glutin::window::Theme::Dark => WindowTheme::Dark,
+            winit::window::Theme::Light => WindowTheme::Light,
+            winit::window::Theme::Dark => WindowTheme::Dark,
         }
     }
 

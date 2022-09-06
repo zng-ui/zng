@@ -96,14 +96,14 @@ use std::{
 };
 
 use gl::GlContextManager;
-use glutin::{
+use image_cache::ImageCache;
+use util::WinitToPx;
+use winit::{
     event::{DeviceEvent, ModifiersState, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     platform::run_return::EventLoopExtRunReturn,
 };
-use image_cache::ImageCache;
-use util::WinitToPx;
 
 // /*
 
@@ -333,7 +333,7 @@ pub(crate) struct App {
     pub monitors: Vec<(MonitorId, MonitorHandle)>,
 
     device_id_gen: DeviceId,
-    devices: Vec<(DeviceId, glutin::event::DeviceId)>,
+    devices: Vec<(DeviceId, winit::event::DeviceId)>,
 
     resize_frame_wait_id_gen: FrameWaitId,
 
@@ -369,7 +369,7 @@ impl App {
         self.device_events = false;
 
         if let Some(t) = t {
-            t.set_device_event_filter(glutin::event_loop::DeviceEventFilter::Always);
+            t.set_device_event_filter(winit::event_loop::DeviceEventFilter::Always);
         }
 
         #[cfg(windows)]
@@ -506,12 +506,12 @@ impl App {
             if app.exited {
                 *flow = ControlFlow::Exit;
             } else {
-                use glutin::event::Event as GEvent;
+                use winit::event::Event as WEvent;
                 match event {
-                    GEvent::NewEvents(_) => {}
-                    GEvent::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
-                    GEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
-                    GEvent::UserEvent(ev) => match ev {
+                    WEvent::NewEvents(_) => {}
+                    WEvent::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
+                    WEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
+                    WEvent::UserEvent(ev) => match ev {
                         AppEvent::Request => {
                             while let Ok(req) = app.request_recv.try_recv() {
                                 match req {
@@ -541,9 +541,9 @@ impl App {
                             app.disable_device_events(Some(target));
                         }
                     },
-                    GEvent::Suspended => {}
-                    GEvent::Resumed => {}
-                    GEvent::MainEventsCleared => {
+                    WEvent::Suspended => {}
+                    WEvent::Resumed => {}
+                    WEvent::MainEventsCleared => {
                         app.finish_cursor_entered_move();
                         app.update_modifiers();
                         app.flush_coalesced();
@@ -552,9 +552,9 @@ impl App {
                             app.skip_ralt = false;
                         }
                     }
-                    GEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
-                    GEvent::RedrawEventsCleared => {}
-                    GEvent::LoopDestroyed => {}
+                    WEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
+                    WEvent::RedrawEventsCleared => {}
+                    WEvent::LoopDestroyed => {}
                 }
             }
 
@@ -610,7 +610,7 @@ impl App {
         });
     }
 
-    fn on_window_event(&mut self, window_id: glutin::window::WindowId, event: WindowEvent) {
+    fn on_window_event(&mut self, window_id: winit::window::WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.window_id() == window_id) {
             i
         } else {
@@ -795,7 +795,7 @@ impl App {
                     #[cfg(windows)]
                     if self.skip_ralt {
                         // see the Window::focus comments.
-                        if let Some(glutin::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
+                        if let Some(winit::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
                             return;
                         }
                     }
@@ -1151,7 +1151,7 @@ impl App {
         }
     }
 
-    fn on_device_event(&mut self, device_id: glutin::event::DeviceId, event: DeviceEvent) {
+    fn on_device_event(&mut self, device_id: winit::event::DeviceId, event: DeviceEvent) {
         if self.device_events {
             let _s = tracing::trace_span!("on_device_event", ?event);
 
@@ -1184,7 +1184,7 @@ impl App {
         }
     }
 
-    fn on_redraw(&mut self, window_id: glutin::window::WindowId) {
+    fn on_redraw(&mut self, window_id: winit::window::WindowId) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.window_id() == window_id) {
             w.redraw();
         }
@@ -1218,7 +1218,7 @@ impl App {
         }
     }
 
-    fn device_id(&mut self, device_id: glutin::event::DeviceId) -> DeviceId {
+    fn device_id(&mut self, device_id: winit::event::DeviceId) -> DeviceId {
         if let Some((id, _)) = self.devices.iter().find(|(_, id)| *id == device_id) {
             *id
         } else {
@@ -1609,7 +1609,7 @@ pub(crate) enum AppEvent {
 
     /// Simulate winit window event Focused.
     #[cfg_attr(not(windows), allow(unused))]
-    WinitFocused(glutin::window::WindowId, bool),
+    WinitFocused(winit::window::WindowId, bool),
 
     /// Lost connection with app-process.
     ParentProcessExited,

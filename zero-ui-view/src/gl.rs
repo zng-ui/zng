@@ -7,8 +7,8 @@ use std::{
 
 use crate::util::{self, panic_msg, PxToWinit};
 use gleam::gl::{self, Gl};
-use glutin::{event_loop::EventLoopWindowTarget, window::WindowBuilder, PossiblyCurrent};
 use linear_map::set::LinearSet;
+use winit::{event_loop::EventLoopWindowTarget, window::WindowBuilder};
 use zero_ui_view_api::{
     units::{Px, PxSize},
     RenderMode, WindowId,
@@ -37,7 +37,7 @@ enum GlContextInner {
 }
 
 struct HeadlessData {
-    ctx: glutin::Context<PossiblyCurrent>,
+    ctx: winit::Context<PossiblyCurrent>,
     gl: Rc<dyn Gl>,
 
     // webrender requirements
@@ -45,7 +45,7 @@ struct HeadlessData {
     fbo: u32,
 }
 impl HeadlessData {
-    fn new(ctx: glutin::Context<PossiblyCurrent>, gl: Rc<dyn Gl>) -> Self {
+    fn new(ctx: winit::Context<PossiblyCurrent>, gl: Rc<dyn Gl>) -> Self {
         // manually create a surface for Webrender:
 
         let rbos = gl.gen_renderbuffers(2);
@@ -151,7 +151,7 @@ impl GlContext {
         assert!(self.is_current());
 
         match &self.inner {
-            GlContextInner::Headed(ctx) => ctx.resize(glutin::dpi::PhysicalSize::new(width as _, height as _)),
+            GlContextInner::Headed(ctx) => ctx.resize(winit::dpi::PhysicalSize::new(width as _, height as _)),
             GlContextInner::Headless(ctx) => ctx.resize(width, height),
             #[cfg(software)]
             GlContextInner::Software(ctx, _) => {
@@ -256,7 +256,7 @@ impl GlContextManager {
         window: WindowBuilder,
         window_target: &EventLoopWindowTarget<crate::AppEvent>,
         mode_pref: RenderMode,
-    ) -> (GlContext, glutin::window::Window) {
+    ) -> (GlContext, winit::window::Window) {
         let mut error_log = String::new();
 
         for config in TryConfig::iter(mode_pref) {
@@ -303,8 +303,8 @@ impl GlContextManager {
                     let _span = tracing::trace_span!("create-glutin-ctx", ?config).entered();
 
                     let panic_result = util::catch_supress(assert_unwind_safe(|| {
-                        glutin::ContextBuilder::new()
-                            .with_gl(glutin::GlRequest::Latest)
+                        winit::ContextBuilder::new()
+                            .with_gl(winit::GlRequest::Latest)
                             .with_hardware_acceleration(config.hardware_acceleration)
                             .build_windowed(window.clone(), window_target)
                     }));
@@ -324,11 +324,11 @@ impl GlContextManager {
                             };
 
                             let gl = match ctx.get_api() {
-                                glutin::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
-                                glutin::Api::OpenGlEs => unsafe {
+                                winit::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
+                                winit::Api::OpenGlEs => unsafe {
                                     gl::GlesFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _)
                                 },
-                                glutin::Api::WebGl => {
+                                winit::Api::WebGl => {
                                     log_error(&"WebGL is not supported");
                                     self.insert_unsupported(config);
                                     continue;
@@ -415,8 +415,8 @@ impl GlContextManager {
                         let _ = write!(error_log, "\n{e:?}");
                     };
 
-                    let context_builder = glutin::ContextBuilder::new()
-                        .with_gl(glutin::GlRequest::Latest)
+                    let context_builder = winit::ContextBuilder::new()
+                        .with_gl(winit::GlRequest::Latest)
                         .with_hardware_acceleration(config.hardware_acceleration);
 
                     // On Linux, try "surfaceless" first.
@@ -428,7 +428,7 @@ impl GlContextManager {
                         target_os = "openbsd",
                     ))]
                     let panic_result = {
-                        use glutin::platform::unix::HeadlessContextExt;
+                        use winit::platform::unix::HeadlessContextExt;
 
                         let c = context_builder.clone();
                         let r = util::catch_supress(assert_unwind_safe(|| c.build_surfaceless(window_target)));
@@ -481,11 +481,11 @@ impl GlContextManager {
                             };
 
                             let gl = match ctx.get_api() {
-                                glutin::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
-                                glutin::Api::OpenGlEs => unsafe {
+                                winit::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
+                                winit::Api::OpenGlEs => unsafe {
                                     gl::GlesFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _)
                                 },
-                                glutin::Api::WebGl => {
+                                winit::Api::WebGl => {
                                     log_error(&"WebGL is not supported");
                                     self.insert_unsupported(config);
                                     continue;
@@ -660,7 +660,7 @@ mod blit {
     pub struct NotImplementedBlit {}
     #[allow(unused)]
     impl NotImplementedBlit {
-        pub fn new(_window: &glutin::window::Window) -> Self {
+        pub fn new(_window: &winit::window::Window) -> Self {
             NotImplementedBlit {}
         }
 
@@ -676,16 +676,16 @@ mod blit {
     #[cfg(windows)]
     mod windows_blit {
 
-        use glutin::platform::windows::WindowExtWindows;
         use windows::Win32::Foundation::HWND;
         use windows::Win32::Graphics::Gdi::*;
+        use winit::platform::windows::WindowExtWindows;
 
         pub struct GdiBlit {
             hwnd: HWND,
         }
 
         impl GdiBlit {
-            pub fn new(window: &glutin::window::Window) -> Self {
+            pub fn new(window: &winit::window::Window) -> Self {
                 GdiBlit {
                     hwnd: HWND(window.hwnd() as _),
                 }
@@ -762,8 +762,8 @@ mod blit {
         target_os = "openbsd",
     ))]
     mod linux_blit {
-        use glutin::platform::unix::{x11::ffi::*, WindowExtUnix};
         use wayland_client::protocol::wl_surface::WlSurface;
+        use winit::platform::unix::{x11::ffi::*, WindowExtUnix};
 
         #[allow(clippy::large_enum_variant)]
         pub enum XLibOrWaylandBlit {
@@ -772,7 +772,7 @@ mod blit {
         }
 
         impl XLibOrWaylandBlit {
-            pub fn new(window: &glutin::window::Window) -> Self {
+            pub fn new(window: &winit::window::Window) -> Self {
                 if let Some(d) = window.xlib_display() {
                     Self::XLib {
                         xlib: Xlib::open().unwrap(),

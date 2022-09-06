@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, fmt};
 
-use glutin::event_loop::EventLoopWindowTarget;
+use winit::event_loop::EventLoopWindowTarget;
 
 use tracing::span::EnteredSpan;
 use webrender::{

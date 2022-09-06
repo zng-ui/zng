@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use glutin::{event::ElementState, monitor::MonitorHandle};
+use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
     units::*, ButtonState, CursorIcon, Force, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase, VideoMode, WindowTheme,
 };
@@ -156,22 +156,22 @@ pub(crate) trait PxToWinit {
 }
 
 impl PxToWinit for PxSize {
-    type AsWinit = glutin::dpi::PhysicalSize<u32>;
+    type AsWinit = winit::dpi::PhysicalSize<u32>;
 
     fn to_winit(self) -> Self::AsWinit {
-        glutin::dpi::PhysicalSize::new(self.width.0 as _, self.height.0 as _)
+        winit::dpi::PhysicalSize::new(self.width.0 as _, self.height.0 as _)
     }
 }
 
 impl DipToWinit for DipPoint {
-    type AsWinit = glutin::dpi::LogicalPosition<f32>;
+    type AsWinit = winit::dpi::LogicalPosition<f32>;
 
     fn to_winit(self) -> Self::AsWinit {
-        glutin::dpi::LogicalPosition::new(self.x.to_f32(), self.y.to_f32())
+        winit::dpi::LogicalPosition::new(self.x.to_f32(), self.y.to_f32())
     }
 }
 
-impl WinitToDip for glutin::dpi::LogicalPosition<f64> {
+impl WinitToDip for winit::dpi::LogicalPosition<f64> {
     type AsDip = DipPoint;
 
     fn to_dip(self) -> Self::AsDip {
@@ -179,7 +179,7 @@ impl WinitToDip for glutin::dpi::LogicalPosition<f64> {
     }
 }
 
-impl WinitToPx for glutin::dpi::PhysicalPosition<i32> {
+impl WinitToPx for winit::dpi::PhysicalPosition<i32> {
     type AsPx = PxPoint;
 
     fn to_px(self) -> Self::AsPx {
@@ -187,7 +187,7 @@ impl WinitToPx for glutin::dpi::PhysicalPosition<i32> {
     }
 }
 
-impl WinitToPx for glutin::dpi::PhysicalPosition<f64> {
+impl WinitToPx for winit::dpi::PhysicalPosition<f64> {
     type AsPx = PxPoint;
 
     fn to_px(self) -> Self::AsPx {
@@ -196,14 +196,14 @@ impl WinitToPx for glutin::dpi::PhysicalPosition<f64> {
 }
 
 impl DipToWinit for DipSize {
-    type AsWinit = glutin::dpi::LogicalSize<f32>;
+    type AsWinit = winit::dpi::LogicalSize<f32>;
 
     fn to_winit(self) -> Self::AsWinit {
-        glutin::dpi::LogicalSize::new(self.width.to_f32(), self.height.to_f32())
+        winit::dpi::LogicalSize::new(self.width.to_f32(), self.height.to_f32())
     }
 }
 
-impl WinitToDip for glutin::dpi::LogicalSize<f64> {
+impl WinitToDip for winit::dpi::LogicalSize<f64> {
     type AsDip = DipSize;
 
     fn to_dip(self) -> Self::AsDip {
@@ -211,7 +211,7 @@ impl WinitToDip for glutin::dpi::LogicalSize<f64> {
     }
 }
 
-impl WinitToPx for glutin::dpi::PhysicalSize<u32> {
+impl WinitToPx for winit::dpi::PhysicalSize<u32> {
     type AsPx = PxSize;
 
     fn to_px(self) -> Self::AsPx {
@@ -220,11 +220,11 @@ impl WinitToPx for glutin::dpi::PhysicalSize<u32> {
 }
 
 pub trait CursorToWinit {
-    fn to_winit(self) -> glutin::window::CursorIcon;
+    fn to_winit(self) -> winit::window::CursorIcon;
 }
 impl CursorToWinit for CursorIcon {
-    fn to_winit(self) -> glutin::window::CursorIcon {
-        use glutin::window::CursorIcon::*;
+    fn to_winit(self) -> winit::window::CursorIcon {
+        use winit::window::CursorIcon::*;
         match self {
             CursorIcon::Default => Default,
             CursorIcon::Crosshair => Crosshair,
@@ -278,7 +278,7 @@ pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
     }
 }
 
-pub(crate) fn glutin_video_mode_to_video_mode(v: glutin::monitor::VideoMode) -> VideoMode {
+pub(crate) fn glutin_video_mode_to_video_mode(v: winit::monitor::VideoMode) -> VideoMode {
     let size = v.size();
     VideoMode {
         size: PxSize::new(Px(size.width as i32), Px(size.height as i32)),
@@ -301,25 +301,25 @@ pub(crate) fn element_state_to_button_state(s: ElementState) -> ButtonState {
     }
 }
 
-pub(crate) fn winit_mouse_wheel_delta_to_zui(w: glutin::event::MouseScrollDelta) -> MouseScrollDelta {
+pub(crate) fn winit_mouse_wheel_delta_to_zui(w: winit::event::MouseScrollDelta) -> MouseScrollDelta {
     match w {
-        glutin::event::MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(x, y),
-        glutin::event::MouseScrollDelta::PixelDelta(d) => MouseScrollDelta::PixelDelta(d.x as f32, d.y as f32),
+        winit::event::MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(x, y),
+        winit::event::MouseScrollDelta::PixelDelta(d) => MouseScrollDelta::PixelDelta(d.x as f32, d.y as f32),
     }
 }
 
-pub(crate) fn winit_touch_phase_to_zui(w: glutin::event::TouchPhase) -> TouchPhase {
+pub(crate) fn winit_touch_phase_to_zui(w: winit::event::TouchPhase) -> TouchPhase {
     match w {
-        glutin::event::TouchPhase::Started => TouchPhase::Started,
-        glutin::event::TouchPhase::Moved => TouchPhase::Moved,
-        glutin::event::TouchPhase::Ended => TouchPhase::Ended,
-        glutin::event::TouchPhase::Cancelled => TouchPhase::Cancelled,
+        winit::event::TouchPhase::Started => TouchPhase::Started,
+        winit::event::TouchPhase::Moved => TouchPhase::Moved,
+        winit::event::TouchPhase::Ended => TouchPhase::Ended,
+        winit::event::TouchPhase::Cancelled => TouchPhase::Cancelled,
     }
 }
 
-pub(crate) fn winit_force_to_zui(f: glutin::event::Force) -> Force {
+pub(crate) fn winit_force_to_zui(f: winit::event::Force) -> Force {
     match f {
-        glutin::event::Force::Calibrated {
+        winit::event::Force::Calibrated {
             force,
             max_possible_force,
             altitude_angle,
@@ -328,27 +328,27 @@ pub(crate) fn winit_force_to_zui(f: glutin::event::Force) -> Force {
             max_possible_force,
             altitude_angle,
         },
-        glutin::event::Force::Normalized(f) => Force::Normalized(f),
+        winit::event::Force::Normalized(f) => Force::Normalized(f),
     }
 }
 
-pub(crate) fn winit_mouse_button_to_zui(b: glutin::event::MouseButton) -> MouseButton {
+pub(crate) fn winit_mouse_button_to_zui(b: winit::event::MouseButton) -> MouseButton {
     match b {
-        glutin::event::MouseButton::Left => MouseButton::Left,
-        glutin::event::MouseButton::Right => MouseButton::Right,
-        glutin::event::MouseButton::Middle => MouseButton::Middle,
-        glutin::event::MouseButton::Other(btn) => MouseButton::Other(btn),
+        winit::event::MouseButton::Left => MouseButton::Left,
+        winit::event::MouseButton::Right => MouseButton::Right,
+        winit::event::MouseButton::Middle => MouseButton::Middle,
+        winit::event::MouseButton::Other(btn) => MouseButton::Other(btn),
     }
 }
 
-pub(crate) fn winit_theme_to_zui(t: glutin::window::Theme) -> WindowTheme {
+pub(crate) fn winit_theme_to_zui(t: winit::window::Theme) -> WindowTheme {
     match t {
-        glutin::window::Theme::Light => WindowTheme::Light,
-        glutin::window::Theme::Dark => WindowTheme::Dark,
+        winit::window::Theme::Light => WindowTheme::Light,
+        winit::window::Theme::Dark => WindowTheme::Dark,
     }
 }
 
-use glutin::event::VirtualKeyCode as VKey;
+use winit::event::VirtualKeyCode as VKey;
 pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
     #[cfg(debug_assertions)]
     let _assert = match v_key {

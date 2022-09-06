@@ -37,7 +37,8 @@ webrender = { path = "../dependencies/webrender/webrender" }
 swgl = { path = "../dependencies/webrender/swgl", optional = true }
 tracing = "0.1"
 gleam = "0.13.1" # matches webrender
-glutin = { git = "https://github.com/SamRodri/glutin", branch = "get-module-fix", default-features = false, features = ["x11", "wayland", "wayland-dlopen"] } # wayland-csd-adwaita feature breaks font-kit
+winit = { version =  "0.27", default-features = false, features = ["x11", "wayland", "wayland-dlopen"] }
+glutin = { git = "https://github.com/rust-windowing/glutin", version = "0.30.0-beta.2" }
 flume = "0.10"
 is_main_thread = "0.1"
 image = "0.24"
@@ -48,8 +49,20 @@ rayon = "1"
 backtrace = "0.3"
 linear-map = "1"
 
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.39.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Devices_HumanInterfaceDevice", "Win32_UI_Input", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Gdi", "Win32_Graphics_OpenGL", "Win32_System_Com", "Win32_System_SystemServices"] }
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.39.0"
+features = [
+    "Win32_Foundation", 
+    "Win32_UI_Shell", 
+    "Win32_UI_WindowsAndMessaging", 
+    "Win32_Devices_HumanInterfaceDevice", 
+    "Win32_UI_Input", 
+    "Win32_UI_Input_KeyboardAndMouse", 
+    "Win32_Graphics_Gdi", 
+    "Win32_Graphics_OpenGL", 
+    "Win32_System_Com", 
+    "Win32_System_SystemServices"
+] 
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 wayland-client = { version = "0.29", default_features = false,  features = ["use_system_lib"] }
