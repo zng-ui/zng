@@ -257,14 +257,15 @@ pub mod text_input {
         /// Enables keyboard focusing in the widget.
         focusable = true;
 
-        /// Text input dark and light themes.
+        /// Theme generator used for the widget.
         ///
         /// Set to [`theme::pair`] of [`vis::DARK_THEME_VAR`], [`vis::LIGHT_THEME_VAR`] by default.
-        theme = theme::pair(vis::DARK_THEME_VAR, vis::LIGHT_THEME_VAR);
+        theme(impl IntoVar<ThemeGenerator>) = theme::pair(vis::DARK_THEME_VAR, vis::LIGHT_THEME_VAR);
     }
 
-    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgeId>) -> impl Widget {
-        implicit_base::new(widget, id)
+    /// Themable `new`, captures the `id` and `theme` properties.
+    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, theme: impl IntoVar<ThemeGenerator>) -> impl Widget {
+        themable::new_dyn(widget, id, theme)
     }
 
     #[doc(inline)]

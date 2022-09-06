@@ -1,9 +1,9 @@
 //! Theme building blocks.
 
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{fmt, rc::Rc};
 
 use crate::{
-    core::{DynPropImportance, DynPropPriority, DynWidget, NilUiNode},
+    core::{DynPropImportance, DynWidget, DynWidgetNode, DynWidgetSnapshot, NilUiNode},
     prelude::new_widget::*,
 };
 
@@ -74,7 +74,7 @@ pub mod theme {
 
     /// Theme constructor.
     pub fn new_dyn(widget: DynWidget) -> Theme {
-        todo!()
+        Theme::from_node(widget.into_node())
     }
 
     /// Declare a dark and light theme that is selected depending on the window theme.
@@ -118,241 +118,52 @@ pub mod themable {
         theme(impl IntoVar<ThemeGenerator>) = ThemeGenerator::nil();
     }
 
-    /// Themable `new_child_layout_dyn`.
-    ///
-    /// Returns [`implicit_base::new_child`].
-    pub fn new_child() -> impl UiNode {
-        implicit_base::new_child()
-    }
-
-    /// Themable `new_child_layout_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::ChildLayout`] and returns [`implicit_base::new_child_layout`].
-    pub fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::ChildLayout, part);
-        implicit_base::new_child_layout(child)
-    }
-
-    /// Themable `new_child_context_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::ChildContext`] and returns [`implicit_base::new_child_context`].
-    pub fn new_child_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::ChildContext, part);
-        implicit_base::new_child_context(child)
-    }
-
-    /// Themable `new_fill_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Fill`] and returns [`implicit_base::new_fill`].
-    pub fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Fill, part);
-        implicit_base::new_fill(child)
-    }
-
-    /// Themable `new_border_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Border`] and returns [`implicit_base::new_border`].
-    pub fn new_border_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Border, part);
-        implicit_base::new_border(child)
-    }
-
-    /// Themable `new_size_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Size`] and returns [`implicit_base::new_size`].
-    pub fn new_size_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Size, part);
-        implicit_base::new_size(child)
-    }
-
-    /// Themable `new_layout_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Layout`] and returns [`implicit_base::new_layout`].
-    pub fn new_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Layout, part);
-        implicit_base::new_layout(child)
-    }
-
-    /// Themable `new_event_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Event`] and returns [`implicit_base::new_event`].
-    pub fn new_event_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Event, part);
-        implicit_base::new_event(child)
-    }
-
-    /// Themable `new_context_dyn`.
-    ///
-    /// Introduces the [`nodes::insert_priority`] node for [`DynPropPriority::Context`] and returns [`implicit_base::new_context`].
-    pub fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::insert_priority(child, DynPropPriority::Context, part);
-        implicit_base::new_context(child)
-    }
-
     /// Themable `new`, captures the `id` and `theme` properties.
     ///
     /// Introduces the [`nodes::generate_theme`] and returns [`implicit_base::new`].
-    pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>, theme: impl IntoVar<ThemeGenerator>) -> impl Widget {
-        let child = nodes::generate_theme(child, theme);
+    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, theme: impl IntoVar<ThemeGenerator>) -> impl Widget {
+        struct ThemableNode<T> {
+            child: DynWidgetNode,
+            snapshot: Option<DynWidgetSnapshot>,
+            theme: T,
+        }
+        #[impl_ui_node(child)]
+        impl<T: Var<ThemeGenerator>> UiNode for ThemableNode<T> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                if let Some(theme) = self.theme.get(ctx.vars).generate(ctx, &ThemeArgs {}) {
+                    self.snapshot = Some(self.child.snapshot());
+                    self.child.insert_all(theme.into_node());
+                }
+                self.child.init(ctx);
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                if let Some(snap) = self.snapshot.take() {
+                    self.child.restore(snap).unwrap();
+                }
+                self.child.deinit(ctx);
+            }
+
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                subs.var(ctx, &self.theme);
+                self.child.subscriptions(ctx, subs);
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                if self.theme.is_new(ctx.vars) {
+                    self.deinit(ctx);
+                    self.init(ctx);
+                } else {
+                    self.child.update(ctx);
+                }
+            }
+        }
+        let child = ThemableNode {
+            child: widget.into_node(),
+            snapshot: None,
+            theme: theme.into_var(),
+        };
         implicit_base::new(child, id)
-    }
-
-    /// Nodes used for building the themable.
-    pub mod nodes {
-        use super::*;
-
-        /// Generates the theme that is used by the [`insert_priority`] nodes on the same widget.
-        pub fn generate_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-            struct GenerateThemeNode<C, T> {
-                child: C,
-                theme: T,
-                actual_theme: ActualTheme,
-            }
-            impl<C, T> GenerateThemeNode<C, T> {
-                fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-                    vars.with_context_var(ACTUAL_THEME_VAR, ContextVarData::fixed(&self.actual_theme), || f(&mut self.child))
-                }
-
-                fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&C) -> R) -> R {
-                    vars.with_context_var(ACTUAL_THEME_VAR, ContextVarData::fixed(&self.actual_theme), || f(&self.child))
-                }
-            }
-            impl<C, T> UiNode for GenerateThemeNode<C, T>
-            where
-                C: UiNode,
-                T: Var<ThemeGenerator>,
-            {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    self.actual_theme = ActualTheme {
-                        widget_id: Some(ctx.path.widget_id()),
-                        parts: self
-                            .theme
-                            .get(ctx.vars)
-                            .generate(ctx, &ThemeArgs {})
-                            .map(|t| t.split_priority())
-                            .unwrap_or_default(),
-                    };
-
-                    self.with_mut(ctx.vars, |c| {
-                        c.init(ctx);
-                    })
-                }
-
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    self.with_mut(ctx.vars, |c| {
-                        c.deinit(ctx);
-                    });
-                    self.actual_theme = ActualTheme::default();
-                }
-
-                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    self.with(ctx.vars, |c| {
-                        c.info(ctx, info);
-                    })
-                }
-
-                fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                    subs.var(ctx, &self.theme);
-
-                    self.with(ctx.vars, |c| {
-                        c.subscriptions(ctx, subs);
-                    })
-                }
-
-                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                    self.with_mut(ctx.vars, |c| {
-                        c.event(ctx, args);
-                    })
-                }
-
-                fn update(&mut self, ctx: &mut WidgetContext) {
-                    if let Some(theme) = self.theme.get_new(ctx.vars) {
-                        let actual_theme = ActualTheme {
-                            widget_id: Some(ctx.path.widget_id()),
-                            parts: theme.generate(ctx, &ThemeArgs {}).map(|t| t.split_priority()).unwrap_or_default(),
-                        };
-
-                        if self.actual_theme.is_some() || actual_theme.is_some() {
-                            self.with_mut(ctx.vars, |c| c.deinit(ctx));
-                            self.actual_theme = actual_theme;
-                            self.with_mut(ctx.vars, |c| c.init(ctx));
-
-                            ctx.updates.info_layout_and_render();
-                        }
-                    } else {
-                        self.with_mut(ctx.vars, |c| {
-                            c.update(ctx);
-                        })
-                    }
-                }
-
-                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                    self.with(ctx.vars, |c| c.measure(ctx))
-                }
-
-                fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    self.with_mut(ctx.vars, |c| c.layout(ctx, wl))
-                }
-
-                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    self.with(ctx.vars, |c| c.render(ctx, frame));
-                }
-
-                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    self.with(ctx.vars, |c| c.render_update(ctx, update));
-                }
-            }
-
-            GenerateThemeNode {
-                child,
-                theme: theme.into_var(),
-                actual_theme: ActualTheme::default(),
-            }
-        }
-
-        /// Inserts the theme properties for the priority.
-        pub fn insert_priority(child: impl UiNode, priority: DynPropPriority, part: DynWidgetPart) -> impl UiNode {
-            struct ThemableNode {
-                wgt_snapshot: Option<DynPropertiesSnapshot>,
-                properties: DynProperties,
-                priority: DynPropPriority,
-            }
-            #[impl_ui_node(
-                delegate = &self.properties,
-                delegate_mut = &mut self.properties,
-            )]
-            impl UiNode for ThemableNode {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    let theme = ACTUAL_THEME_VAR.get(ctx.vars);
-                    if theme.widget_id == Some(ctx.path.widget_id()) {
-                        let theme = theme.parts[self.priority as usize].borrow_mut().take();
-                        if let Some(theme) = theme {
-                            if !theme.is_empty() {
-                                self.wgt_snapshot = Some(self.properties.snapshot());
-                                self.properties.insert_all(theme);
-                            }
-                        }
-                    }
-
-                    self.properties.init(ctx);
-                }
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    self.properties.deinit(ctx);
-                    if let Some(snap) = self.wgt_snapshot.take() {
-                        self.properties.restore(snap).unwrap();
-                    }
-                }
-            }
-
-            let mut properties = DynProperties::new(priority, part.properties);
-            properties.replace_child(child.boxed());
-
-            ThemableNode {
-                properties,
-                priority,
-                wgt_snapshot: None,
-            }
-        }
     }
 }
 
@@ -363,7 +174,7 @@ pub mod themable {
 /// [`theme!`]: mod@theme
 #[derive(Default, Debug)]
 pub struct Theme {
-    properties: DynProperties,
+    node: DynWidgetNode,
 }
 impl Theme {
     /// Importance of theme properties set by default in theme widgets.
@@ -388,49 +199,44 @@ impl Theme {
         node.downcast_unbox().ok()
     }
 
-    /// Properties of this theme.
-    pub fn properties(&self) -> &DynProperties {
-        &self.properties
+    /// Properties and when blocks of this theme.
+    pub fn node(&self) -> &DynWidgetNode {
+        &self.node
     }
 
-    /// Mutable reference to the properties of this theme.
-    pub fn properties_mut(&mut self) -> &mut DynProperties {
-        &mut self.properties
+    /// Mutable reference to the properties and when blocks of this theme.
+    pub fn node_mut(&mut self) -> &mut DynWidgetNode {
+        &mut self.node
     }
 
     /// Unwrap the theme properties.
-    pub fn into_properties(self) -> DynProperties {
-        self.properties
+    pub fn into_node(self) -> DynWidgetNode {
+        self.node
     }
 
     /// New theme from dynamic properties.
-    pub fn from_properties(properties: DynProperties) -> Theme {
-        Self { properties }
+    pub fn from_node(node: DynWidgetNode) -> Theme {
+        Self { node }
     }
 
     /// Overrides `self` with `other`.
     pub fn insert_all(&mut self, other: Theme) {
-        self.properties.insert_all(other.properties);
-    }
-
-    fn split_priority(self) -> [RefCell<Option<DynProperties>>; DynPropPriority::LEN] {
-        let mut parts = self.properties.split_priority().into_iter();
-        std::array::from_fn(|_| RefCell::new(Some(parts.next().unwrap())))
+        self.node.insert_all(other.node);
     }
 }
 #[impl_ui_node(
-    delegate = &self.properties,
-    delegate_mut = &mut self.properties,
+    delegate = &self.node,
+    delegate_mut = &mut self.node,
 )]
 impl UiNode for Theme {}
-impl From<Theme> for DynProperties {
+impl From<Theme> for DynWidgetNode {
     fn from(t: Theme) -> Self {
-        t.into_properties()
+        t.into_node()
     }
 }
-impl From<DynProperties> for Theme {
-    fn from(p: DynProperties) -> Self {
-        Theme::from_properties(p)
+impl From<DynWidgetNode> for Theme {
+    fn from(p: DynWidgetNode) -> Self {
+        Theme::from_node(p)
     }
 }
 
@@ -511,44 +317,3 @@ macro_rules! theme_generator {
 }
 #[doc(inline)]
 pub use crate::theme_generator;
-
-context_var! {
-    static ACTUAL_THEME_VAR: ActualTheme = ActualTheme::default();
-}
-
-#[derive(Default)]
-struct ActualTheme {
-    widget_id: Option<WidgetId>,
-
-    parts: [RefCell<Option<DynProperties>>; DynPropPriority::LEN],
-}
-impl ActualTheme {
-    fn is_some(&self) -> bool {
-        for part in &self.parts {
-            if let Some(part) = &*part.borrow() {
-                if !part.is_empty() {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-}
-impl Clone for ActualTheme {
-    fn clone(&self) -> Self {
-        // need clone to be `VarValue`, but we only use this type in
-        // `ActualThemesVar` that we control and don't clone.
-        unreachable!()
-    }
-}
-impl fmt::Debug for ActualTheme {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let parts = self.parts.iter().map(|p| p.borrow()).collect::<Vec<_>>();
-        let parts = parts.iter().map(|p| &**p).collect::<Vec<_>>();
-        let parts = <[&Option<DynProperties>; DynPropPriority::LEN]>::try_from(parts).unwrap();
-        f.debug_struct("ActualTheme")
-            .field("widget_id", &self.widget_id)
-            .field("parts", &parts)
-            .finish_non_exhaustive()
-    }
-}

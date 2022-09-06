@@ -299,7 +299,7 @@ impl fmt::Debug for DynWidget {
 impl DynWidget {
     /// Convert the widget to an editable [`UiNode`].
     pub fn into_node(self) -> DynWidgetNode {
-        DynWidgetNode {}
+        DynWidgetNode::new(self)
     }
 
     #[doc(hidden)]
@@ -307,12 +307,6 @@ impl DynWidget {
         self.parts[DynPropPriority::Context as usize].modify_intrinsic(build);
     }
 }
-
-/// Represents a [`DynamicWidget`] that can be used as the *outermost* node of a widget and *edited*
-/// with property overrides and new `when` blocks.
-pub struct DynWidgetNode {}
-#[impl_ui_node(none)]
-impl UiNode for DynWidgetNode {}
 
 /// Importance index of a property in the group of properties of the same priority in the same widget.
 ///
@@ -462,542 +456,482 @@ pub struct DynPropertyBuilderV1 {
     child: Rc<RefCell<BoxedUiNode>>,
 }
 
-macro_rules! reimplement {
-    () => {
-        #[derive(Clone)]
-        struct PropertyItem {
-            // property child, the `Rc` does not change, only the interior.
-            child: Rc<RefCell<BoxedUiNode>>,
-            // property node, the `Rc` changes, but it always points to the same node.
-            node: Rc<RefCell<BoxedUiNode>>,
-            // original `node`, preserved when parent is set, reused when unset.
-            snapshot_node: Option<Rc<RefCell<BoxedUiNode>>>,
+/// Represents a [`DynamicWidget`] that can be used as the *outermost* node of a widget and *edited*
+/// with property overrides and new `when` blocks.
+pub struct DynWidgetNode {
+    // Unique ID used to validate snapshots.
+    id: DynWidgetNodeId,
 
-            name: &'static str,
-            priority_index: i16,
-            importance: DynPropImportance,
+    // innermost child.
+    //
+    // The Rc changes to the `child` of the innermost property when bound and a new Rc when unbound,
+    // the interior only changes when `replace_child` is used.
+    child: Rc<RefCell<BoxedUiNode>>,
+
+    // properties from innermost to outermost.
+    properties: Vec<PropertyItem>,
+    // exclusive end of each priority range in `properties`
+    priority_ranges: [usize; DynPropPriority::LEN],
+
+    // outermost node.
+    //
+    // The Rc changes to the `node` of the outermost property, the interior is not modified from here.
+    node: Rc<RefCell<BoxedUiNode>>,
+
+    is_inited: bool,
+    is_bound: bool,
+}
+impl Default for DynWidgetNode {
+    fn default() -> Self {
+        let nil = Rc::new(RefCell::new(NilUiNode.boxed()));
+        Self {
+            id: DynWidgetNodeId::new_unique(),
+            child: nil.clone(),
+            properties: vec![],
+            priority_ranges: [0; DynPropPriority::LEN],
+            node: nil,
+            is_inited: false,
+            is_bound: true,
         }
-        impl PropertyItem {
-            fn new(property: DynProperty) -> Self {
-                assert!(!property.node.is_inited());
+    }
+}
+impl fmt::Debug for DynWidgetNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DynWidgetNode")
+            .field("id", &self.id)
+            .field("properties", &self.properties)
+            .field("is_inited", &self.is_inited)
+            .field("is_bound", &self.is_bound)
+            .finish_non_exhaustive()
+    }
+}
+impl DynWidgetNode {
+    fn new(wgt: DynWidget) -> Self {
+        let mut priority_ranges = [0; DynPropPriority::LEN];
+        let mut properties = vec![];
+        for (i, part) in wgt.parts.into_iter().enumerate() {
+            properties.extend(part.properties.into_iter().map(PropertyItem::new));
+            priority_ranges[i] = properties.len();
+        }
 
-                let (child, node) = property.node.into_parts();
-                PropertyItem {
-                    child,
-                    node: Rc::new(RefCell::new(node)),
-                    snapshot_node: None,
-                    name: property.name,
-                    priority_index: property.priority_index,
-                    importance: property.importance,
+        let node = Rc::new(RefCell::new(wgt.child));
+
+        DynWidgetNode {
+            id: DynWidgetNodeId::new_unique(),
+            child: node.clone(),
+            node,
+            properties,
+            priority_ranges,
+            is_inited: false,
+            is_bound: false,
+        }
+    }
+
+    /// Returns `true` if this node is initialized in a UI tree.
+    pub fn is_inited(&self) -> bool {
+        self.is_inited
+    }
+
+    /// Returns `true` if this node contains no properties, note that it can still contain a child node.
+    pub fn is_empty(&self) -> bool {
+        self.properties.is_empty()
+    }
+
+    /// Replaces the inner child node, panics if the node is inited.
+    ///
+    /// Returns the previous child, the initial child is the [`DynWidget::child`] or a [`NilUiNode`] for the default.
+    pub fn replace_child(&mut self, new_child: impl UiNode) -> BoxedUiNode {
+        assert!(!self.is_inited);
+        mem::replace(&mut *self.child.borrow_mut(), new_child.boxed())
+    }
+
+    /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
+    ///
+    /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is,
+    /// sorted by priority index and reversed, innermost first.
+    ///
+    /// Panics if `self` or any of the `properties` are inited.
+    pub fn insert(&mut self, priority: DynPropPriority, properties: Vec<DynProperty>) {
+        assert!(!self.is_inited);
+
+        if properties.is_empty() {
+            return;
+        }
+
+        assert!(!properties[0].node.is_inited());
+
+        if self.is_bound {
+            // will rebind next init.
+            self.unbind_all();
+        }
+
+        self.insert_impl(priority as usize, properties.len(), properties.into_iter().map(PropertyItem::new));
+    }
+
+    /// Insert `other` in the properties chain, overrides properties with the same name, priority and with less or equal importance.
+    ///
+    /// Panics if `self` or `other` are inited, ignores the `other` child.
+    pub fn insert_all(&mut self, other: DynWidgetNode) {
+        let mut other = other;
+
+        assert!(!self.is_inited);
+        assert!(!other.is_inited);
+
+        if self.is_bound {
+            // will rebind next init.
+            self.unbind_all();
+        }
+        if other.is_bound {
+            other.unbind_all();
+        }
+
+        let mut s = 0;
+        let mut properties = other.properties.into_iter();
+        for p in 0..DynPropPriority::LEN {
+            let e = other.priority_ranges[p];
+
+            let n = e - s;
+            if n > 0 {
+                self.insert_impl(p, n, properties.by_ref().take(n));
+            }
+
+            s = e;
+        }
+    }
+
+    /// Create an snapshot of the current properties.
+    ///
+    /// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
+    ///
+    /// Panics if the node is inited.
+    ///
+    /// [`restore`]: DynProperties::restore
+    pub fn snapshot(&mut self) -> DynWidgetSnapshot {
+        assert!(!self.is_inited);
+
+        if self.is_bound {
+            self.unbind_all();
+        }
+
+        DynWidgetSnapshot {
+            id: self.id,
+            properties: self.properties.iter().map(PropertyItem::snapshot).collect(),
+            priority_ranges: self.priority_ranges,
+        }
+    }
+
+    /// Restores the properties to the snapshot, if it was taken from the same properties.
+    ///
+    /// Panics if the node is inited.
+    pub fn restore(&mut self, snapshot: DynWidgetSnapshot) -> Result<(), DynWidgetSnapshot> {
+        assert!(!self.is_inited);
+
+        if self.id == snapshot.id {
+            if self.is_bound {
+                self.unbind_all();
+            }
+
+            self.properties.clear();
+            self.properties.extend(snapshot.properties.into_iter().map(PropertyItem::restore));
+            self.priority_ranges = snapshot.priority_ranges;
+
+            Ok(())
+        } else {
+            Err(snapshot)
+        }
+    }
+
+    fn bind_all(&mut self) {
+        debug_assert!(!self.is_bound);
+
+        if !self.properties.is_empty() {
+            // move the child to the innermost property child.
+
+            debug_assert_eq!(
+                self.properties[0].child.borrow().actual_type_id(),
+                std::any::TypeId::of::<NilUiNode>(),
+                "`{}` already has a child",
+                self.properties[0].name
+            );
+            mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
+            // save the new child address.
+            self.child = self.properties[0].child.clone();
+
+            // chain properties.
+
+            for i in 0..self.properties.len() {
+                let (a, b) = self.properties.split_at_mut(i + 1);
+                if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
+                    inner.set_parent(outer);
                 }
             }
 
-            /// Set `self` as the child of `other`.
-            fn set_parent(&mut self, other: &PropertyItem) {
-                debug_assert_eq!(
-                    other.child.borrow().actual_type_id(),
-                    std::any::TypeId::of::<NilUiNode>(),
-                    "`{}` already has a child",
-                    other.name
-                );
-
-                mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
-                self.snapshot_node = Some(self.node.clone());
-                self.node = other.child.clone();
-            }
-
-            /// Unset `self` as the child of `other`.
-            fn unset_parent(&mut self, other: &PropertyItem) {
-                debug_assert!(
-                    Rc::ptr_eq(&self.node, &other.child),
-                    "`{}` is not the parent of `{}`",
-                    other.name,
-                    self.name
-                );
-
-                self.node = self.snapshot_node.take().unwrap();
-                mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
-            }
-        }
-        impl fmt::Debug for PropertyItem {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct("PropertyItem")
-                    .field("name", &self.name)
-                    .field("priority_index", &self.priority_index)
-                    .field("importance", &self.importance)
-                    .finish_non_exhaustive()
-            }
+            // save the new outermost node address.
+            self.node = self.properties[self.properties.len() - 1].node.clone();
         }
 
-        unique_id_32! {
-            struct DynPropertiesId;
-        }
-        impl fmt::Debug for DynPropertiesId {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_tuple("DynPropertiesId").field(&self.sequential()).finish()
-            }
-        }
+        self.is_bound = true;
+    }
 
-        /// Represents an editable chain of dynamic properties.
-        ///
-        /// This struct is a composite [`AdoptiveNode`].
-        pub struct DynProperties {
-            id: DynPropertiesId,
+    fn unbind_all(&mut self) {
+        debug_assert!(self.is_bound);
 
-            // innermost child.
-            //
-            // The Rc changes to the `child` of the innermost property when bound and a new Rc when unbound,
-            // the interior only changes when `replace_child` is used.
-            child: Rc<RefCell<BoxedUiNode>>,
+        if !self.properties.is_empty() {
+            let child = mem::replace(&mut *self.child.borrow_mut(), NilUiNode.boxed());
 
-            // outermost node.
-            //
-            // The Rc changes to the `node` of the outermost property, the interior is not modified from here.
-            node: Rc<RefCell<BoxedUiNode>>,
+            self.child = Rc::new(RefCell::new(child));
 
-            is_inited: bool,
-            is_bound: bool,
-
-            // properties from innermost to outermost.
-            properties: Vec<PropertyItem>,
-            // exclusive end of each priority range in `properties`
-            priority_ranges: [usize; DynPropPriority::LEN],
-        }
-        impl fmt::Debug for DynProperties {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                #[derive(Debug)]
-                #[allow(unused)] // used for debug print
-                struct DebugProperties<'a> {
-                    priority: DynPropPriority,
-                    entries: &'a [PropertyItem],
-                }
-                let mut properties = vec![];
-                let mut s = 0;
-                for (i, &e) in self.priority_ranges.iter().enumerate() {
-                    if s < e {
-                        properties.push(DebugProperties {
-                            priority: DynPropPriority::from_index(i).unwrap(),
-                            entries: &self.properties[s..e],
-                        });
-                    }
-                    s = e;
-                }
-
-                f.debug_struct("DynProperties")
-                    .field("id", &self.id)
-                    .field("properties", &properties)
-                    .field("is_inited", &self.is_inited)
-                    .field("is_bound", &self.is_inited)
-                    .finish_non_exhaustive()
-            }
-        }
-        impl Default for DynProperties {
-            fn default() -> Self {
-                Self::new(DynPropPriority::ChildLayout, vec![])
-            }
-        }
-        impl DynProperties {
-            /// New from properties of a priority.
-            ///
-            /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is,
-            /// sorted by priority index and reversed, innermost first.
-            ///
-            /// Panics if any of the `properties` is inited.
-            pub fn new(priority: DynPropPriority, properties: Vec<DynProperty>) -> DynProperties {
-                Self::new_impl(priority, properties.into_iter().map(PropertyItem::new).collect())
-            }
-
-            fn new_impl(priority: DynPropPriority, properties: Vec<PropertyItem>) -> DynProperties {
-                let node = Rc::new(RefCell::new(NilUiNode.boxed()));
-                if properties.is_empty() {
-                    DynProperties {
-                        id: DynPropertiesId::new_unique(),
-                        child: node.clone(),
-                        node,
-                        is_inited: false,
-                        is_bound: false,
-                        properties: vec![],
-                        priority_ranges: [0; DynPropPriority::LEN],
-                    }
-                } else {
-                    let mut priority_ranges = [0; DynPropPriority::LEN];
-                    for e in &mut priority_ranges[(priority as usize)..DynPropPriority::LEN] {
-                        *e = properties.len();
-                    }
-
-                    DynProperties {
-                        id: DynPropertiesId::new_unique(),
-                        child: node.clone(),
-                        node,
-                        is_inited: false,
-                        is_bound: false,
-                        properties,
-                        priority_ranges,
-                    }
+            for i in 0..self.properties.len() {
+                let (a, b) = self.properties.split_at_mut(i + 1);
+                if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
+                    inner.unset_parent(outer);
                 }
             }
 
-            /// Returns `true` if this node is initialized in a UI tree.
-            pub fn is_inited(&self) -> bool {
-                self.is_inited
+            self.node = self.child.clone();
+        }
+
+        self.is_bound = false;
+    }
+
+    fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = PropertyItem>) {
+        let priority_range = self.priority_range(priority);
+
+        if priority_range.is_empty() {
+            // no properties of the priority, can just append or override.
+
+            let properties: Vec<_> = properties.collect();
+
+            if priority_range.start == self.properties.len() {
+                // append
+                self.properties.extend(properties);
+
+                // update ranges.
+                for p in &mut self.priority_ranges[priority..] {
+                    *p = self.properties.len();
+                }
+            } else {
+                // insert
+
+                let insert_len = properties_len;
+
+                let _rmv = self.properties.splice(priority_range, properties).next();
+                debug_assert!(_rmv.is_none());
+
+                // update ranges.
+                for p in &mut self.priority_ranges[priority..] {
+                    *p += insert_len;
+                }
             }
+        } else {
+            // already has properties of the priority, compute overrides and resort.
 
-            /// Returns `true` if this collection contains no properties.
-            pub fn is_empty(&self) -> bool {
-                self.properties.is_empty()
-            }
+            let mut new_properties: Vec<_> = properties.collect();
 
-            /// Replaces the inner child node, panics if the node is inited.
-            ///
-            /// Returns the previous child, the initial child is a [`NilUiNode`].
-            pub fn replace_child(&mut self, new_child: impl UiNode) -> BoxedUiNode {
-                assert!(!self.is_inited);
-                mem::replace(&mut *self.child.borrow_mut(), new_child.boxed())
-            }
+            // collect overrides
+            let mut rmv_existing = vec![];
+            let mut rmv_new = vec![];
 
-            fn bind_all(&mut self) {
-                debug_assert!(!self.is_bound);
+            for (i, existing) in self.properties[priority_range.clone()].iter().enumerate() {
+                if let Some(new_i) = new_properties.iter().position(|n| n.name == existing.name) {
+                    let new = &new_properties[new_i];
 
-                if !self.properties.is_empty() {
-                    // move the child to the innermost property child.
-
-                    debug_assert_eq!(
-                        self.properties[0].child.borrow().actual_type_id(),
-                        std::any::TypeId::of::<NilUiNode>(),
-                        "`{}` already has a child",
-                        self.properties[0].name
-                    );
-                    mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
-                    // save the new child address.
-                    self.child = self.properties[0].child.clone();
-
-                    // chain properties.
-
-                    for i in 0..self.properties.len() {
-                        let (a, b) = self.properties.split_at_mut(i + 1);
-                        if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
-                            inner.set_parent(outer);
-                        }
+                    if new.importance >= existing.importance {
+                        rmv_existing.push(priority_range.start + i);
+                    } else {
+                        rmv_new.push(new_i);
                     }
+                }
+            }
+            // remove overridden
+            let remove_len = rmv_existing.len();
+            for i in rmv_existing.into_iter().rev() {
+                self.properties.remove(i);
+            }
+            for p in &mut self.priority_ranges[priority..] {
+                *p -= remove_len;
+            }
+            let priority_range = self.priority_range(priority);
 
-                    // save the new outermost node address.
-                    self.node = self.properties[self.properties.len() - 1].node.clone();
+            // remove override attempts of less importance
+            if !rmv_new.is_empty() {
+                rmv_new.sort_unstable();
+
+                for i in rmv_new.into_iter().rev() {
+                    new_properties.remove(i);
                 }
 
-                self.is_bound = true;
-            }
-            fn unbind_all(&mut self) {
-                debug_assert!(self.is_bound);
-
-                if !self.properties.is_empty() {
-                    let child = mem::replace(&mut *self.child.borrow_mut(), NilUiNode.boxed());
-
-                    self.child = Rc::new(RefCell::new(child));
-
-                    for i in 0..self.properties.len() {
-                        let (a, b) = self.properties.split_at_mut(i + 1);
-                        if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
-                            inner.unset_parent(outer);
-                        }
-                    }
-
-                    self.node = self.child.clone();
-                }
-
-                self.is_bound = false;
-            }
-
-            /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
-            ///
-            /// Assumes the `properties` are in the same order as received in a widget's dynamic constructor, that is,
-            /// sorted by priority index and reversed, innermost first.
-            ///
-            /// Panics if `self` or any of the `properties` are inited.
-            pub fn insert(&mut self, priority: DynPropPriority, properties: Vec<DynProperty>) {
-                assert!(!self.is_inited);
-
-                if properties.is_empty() {
+                if new_properties.is_empty() {
                     return;
                 }
-
-                assert!(!properties[0].node.is_inited());
-
-                if self.is_bound {
-                    // will rebind next init.
-                    self.unbind_all();
-                }
-
-                self.insert_impl(
-                    priority as usize,
-                    properties.len(),
-                    properties.into_iter().map(PropertyItem::new),
-                );
             }
 
-            /// Insert `properties` in the chain, overrides properties with the same name, priority and with less or equal importance.
-            ///
-            /// Panics if `self` or `properties` are inited.
-            pub fn insert_all(&mut self, properties: DynProperties) {
-                let mut other = properties;
-
-                assert!(!self.is_inited);
-                assert!(!other.is_inited);
-
-                if self.is_bound {
-                    // will rebind next init.
-                    self.unbind_all();
-                }
-                if other.is_bound {
-                    other.unbind_all();
-                }
-
-                let mut s = 0;
-                let mut properties = other.properties.into_iter();
-                for p in 0..DynPropPriority::LEN {
-                    let e = other.priority_ranges[p];
-
-                    let n = e - s;
-                    if n > 0 {
-                        self.insert_impl(p, n, properties.by_ref().take(n));
-                    }
-
-                    s = e;
-                }
+            // insert new
+            let insert_len = new_properties.len();
+            let insert_i = priority_range.start;
+            let _rmv = self.properties.splice(insert_i..insert_i, new_properties).next();
+            debug_assert!(_rmv.is_none());
+            for p in &mut self.priority_ranges[priority..] {
+                *p += insert_len;
             }
 
-            fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = PropertyItem>) {
-                let priority_range = self.priority_range(priority);
-
-                if priority_range.is_empty() {
-                    // no properties of the priority, can just append or override.
-
-                    let properties: Vec<_> = properties.collect();
-
-                    if priority_range.start == self.properties.len() {
-                        // append
-                        self.properties.extend(properties);
-
-                        // update ranges.
-                        for p in &mut self.priority_ranges[priority..] {
-                            *p = self.properties.len();
-                        }
-                    } else {
-                        // insert
-
-                        let insert_len = properties_len;
-
-                        let _rmv = self.properties.splice(priority_range, properties).next();
-                        debug_assert!(_rmv.is_none());
-
-                        // update ranges.
-                        for p in &mut self.priority_ranges[priority..] {
-                            *p += insert_len;
-                        }
-                    }
-                } else {
-                    // already has properties of the priority, compute overrides and resort.
-
-                    let mut new_properties: Vec<_> = properties.collect();
-
-                    // collect overrides
-                    let mut rmv_existing = vec![];
-                    let mut rmv_new = vec![];
-
-                    for (i, existing) in self.properties[priority_range.clone()].iter().enumerate() {
-                        if let Some(new_i) = new_properties.iter().position(|n| n.name == existing.name) {
-                            let new = &new_properties[new_i];
-
-                            if new.importance >= existing.importance {
-                                rmv_existing.push(priority_range.start + i);
-                            } else {
-                                rmv_new.push(new_i);
-                            }
-                        }
-                    }
-                    // remove overridden
-                    let remove_len = rmv_existing.len();
-                    for i in rmv_existing.into_iter().rev() {
-                        self.properties.remove(i);
-                    }
-                    for p in &mut self.priority_ranges[priority..] {
-                        *p -= remove_len;
-                    }
-                    let priority_range = self.priority_range(priority);
-
-                    // remove override attempts of less importance
-                    if !rmv_new.is_empty() {
-                        rmv_new.sort_unstable();
-
-                        for i in rmv_new.into_iter().rev() {
-                            new_properties.remove(i);
-                        }
-
-                        if new_properties.is_empty() {
-                            return;
-                        }
-                    }
-
-                    // insert new
-                    let insert_len = new_properties.len();
-                    let insert_i = priority_range.start;
-                    let _rmv = self.properties.splice(insert_i..insert_i, new_properties).next();
-                    debug_assert!(_rmv.is_none());
-                    for p in &mut self.priority_ranges[priority..] {
-                        *p += insert_len;
-                    }
-
-                    // resort priority.
-                    let priority_range = self.priority_range(priority);
-                    self.properties[priority_range].sort_by_key(|p| -p.priority_index);
-                }
-            }
-
-            fn priority_range(&self, priority: usize) -> std::ops::Range<usize> {
-                let ps = if priority == 0 {
-                    0
-                } else {
-                    self.priority_ranges[priority - 1]
-                };
-                ps..self.priority_ranges[priority]
-            }
-
-            /// Create an snapshot of the current properties.
-            ///
-            /// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
-            ///
-            /// Panics if the node is inited.
-            ///
-            /// [`restore`]: DynProperties::restore
-            pub fn snapshot(&mut self) -> DynPropertiesSnapshot {
-                assert!(!self.is_inited);
-
-                if self.is_bound {
-                    self.unbind_all();
-                }
-
-                DynPropertiesSnapshot {
-                    id: self.id,
-                    properties: self.properties.iter().map(PropertyItem::snapshot).collect(),
-                    priority_ranges: self.priority_ranges,
-                }
-            }
-
-            /// Restores the properties to the snapshot, if it was taken from the same properties.
-            ///
-            /// Panics if the node is inited.
-            pub fn restore(&mut self, snapshot: DynPropertiesSnapshot) -> Result<(), DynPropertiesSnapshot> {
-                assert!(!self.is_inited);
-
-                if self.id == snapshot.id {
-                    if self.is_bound {
-                        self.unbind_all();
-                    }
-
-                    self.properties.clear();
-                    self.properties
-                        .extend(snapshot.properties.into_iter().map(PropertyItem::restore));
-                    self.priority_ranges = snapshot.priority_ranges;
-
-                    Ok(())
-                } else {
-                    Err(snapshot)
-                }
-            }
-
-            /// Split the properties in a separate collection for each property priority.
-            pub fn split_priority(mut self) -> [DynProperties; DynPropPriority::LEN] {
-                assert!(!self.is_inited);
-
-                if self.is_bound {
-                    self.unbind_all();
-                }
-
-                let mut properties = self.properties.into_iter();
-
-                let mut r = Vec::with_capacity(DynPropPriority::LEN);
-                let mut start = 0;
-                for (i, end) in self.priority_ranges.iter().enumerate() {
-                    r.push(DynProperties::new_impl(
-                        DynPropPriority::from_index(i).unwrap(),
-                        properties.by_ref().take(end - start).collect(),
-                    ));
-                    start = *end;
-                }
-
-                r.try_into().unwrap()
-            }
+            // resort priority.
+            let priority_range = self.priority_range(priority);
+            self.properties[priority_range].sort_by_key(|p| -p.priority_index);
         }
-        #[impl_ui_node(
-                                                                                                    delegate = self.node.borrow(),
-                                                                                                    delegate_mut = self.node.borrow_mut(),
-                                                                                                )]
-        impl UiNode for DynProperties {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.is_inited = true;
-                if !self.is_bound {
-                    self.bind_all();
-                }
-                self.node.borrow_mut().init(ctx);
-            }
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.is_inited = false;
-                self.node.borrow_mut().deinit(ctx);
-            }
-        }
+    }
 
-        /// Represents a snapshot of a [`DynProperties`] value.
-        ///
-        /// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
-        ///
-        /// [`restore`]: DynProperties::restore
-        #[derive(Debug)]
-        pub struct DynPropertiesSnapshot {
-            id: DynPropertiesId,
-            properties: Vec<PropertyItemSnapshot>,
-            priority_ranges: [usize; DynPropPriority::LEN],
+    fn priority_range(&self, priority: usize) -> std::ops::Range<usize> {
+        let ps = if priority == 0 { 0 } else { self.priority_ranges[priority - 1] };
+        ps..self.priority_ranges[priority]
+    }
+}
+#[impl_ui_node(
+    delegate = self.node.borrow(),
+    delegate_mut = self.node.borrow_mut(),
+)]
+impl UiNode for DynWidgetNode {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.is_inited = true;
+        if !self.is_bound {
+            self.bind_all();
         }
+        self.node.borrow_mut().init(ctx);
+    }
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.is_inited = false;
+        self.node.borrow_mut().deinit(ctx);
+    }
+}
 
-        struct PropertyItemSnapshot {
-            child: Rc<RefCell<BoxedUiNode>>,
-            node: Rc<RefCell<BoxedUiNode>>,
-            name: &'static str,
-            priority_index: i16,
-            importance: DynPropImportance,
-            is_when_condition: bool,
-        }
-        impl fmt::Debug for PropertyItemSnapshot {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct("PropertyItemSnapshot")
-                    .field("name", &self.name)
-                    .field("priority_index", &self.priority_index)
-                    .field("importance", &self.importance)
-                    .field("is_when_condition", &self.is_when_condition)
-                    .finish_non_exhaustive()
-            }
-        }
+/// Represents a snapshot of a [`DynWidgetNode`] value.
+///
+/// The snapshot can be used to [`restore`] the properties to a state before it was overridden by an insert.
+///
+/// [`restore`]: DynWidgetNode::restore
+pub struct DynWidgetSnapshot {
+    id: DynWidgetNodeId,
+    properties: Vec<PropertyItemSnapshot>,
+    priority_ranges: [usize; DynPropPriority::LEN],
+}
+impl fmt::Debug for DynWidgetSnapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DynWidgetSnapshot")
+            .field("id", &self.id)
+            .field("properties", &self.properties)
+            .finish_non_exhaustive()
+    }
+}
 
-        impl PropertyItem {
-            fn snapshot(&self) -> PropertyItemSnapshot {
-                PropertyItemSnapshot {
-                    child: self.child.clone(),
-                    node: self.node.clone(),
-                    name: self.name,
-                    priority_index: self.priority_index,
-                    importance: self.importance,
-                    is_when_condition: self.is_when_condition,
-                }
-            }
+struct PropertyItem {
+    // property child, the `Rc` does not change, only the interior.
+    child: Rc<RefCell<BoxedUiNode>>,
+    // property node, the `Rc` changes, but it always points to the same node.
+    node: Rc<RefCell<BoxedUiNode>>,
+    // original `node`, preserved when parent is set, reused when unset.
+    snapshot_node: Option<Rc<RefCell<BoxedUiNode>>>,
 
-            fn restore(snapshot: PropertyItemSnapshot) -> Self {
-                PropertyItem {
-                    child: snapshot.child,
-                    node: snapshot.node,
-                    snapshot_node: None,
-                    name: snapshot.name,
-                    priority_index: snapshot.priority_index,
-                    importance: snapshot.importance,
-                }
-            }
+    name: &'static str,
+    priority_index: i16,
+    importance: DynPropImportance,
+}
+impl PropertyItem {
+    fn new(property: DynProperty) -> Self {
+        assert!(!property.node.is_inited());
+
+        let (child, node) = property.node.into_parts();
+        PropertyItem {
+            child,
+            node: Rc::new(RefCell::new(node)),
+            snapshot_node: None,
+            name: property.name,
+            priority_index: property.priority_index,
+            importance: property.importance,
         }
-    };
+    }
+
+    /// Set `self` as the child of `other`.
+    fn set_parent(&mut self, other: &PropertyItem) {
+        debug_assert_eq!(
+            other.child.borrow().actual_type_id(),
+            std::any::TypeId::of::<NilUiNode>(),
+            "`{}` already has a child",
+            other.name
+        );
+
+        mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
+        self.snapshot_node = Some(self.node.clone());
+        self.node = other.child.clone();
+    }
+
+    /// Unset `self` as the child of `other`.
+    fn unset_parent(&mut self, other: &PropertyItem) {
+        debug_assert!(
+            Rc::ptr_eq(&self.node, &other.child),
+            "`{}` is not the parent of `{}`",
+            other.name,
+            self.name
+        );
+
+        self.node = self.snapshot_node.take().unwrap();
+        mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
+    }
+}
+impl fmt::Debug for PropertyItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PropertyItem")
+            .field("name", &self.name)
+            .field("priority_index", &self.priority_index)
+            .field("importance", &self.importance)
+            .finish_non_exhaustive()
+    }
+}
+
+unique_id_32! {
+    struct DynWidgetNodeId;
+}
+impl fmt::Debug for DynWidgetNodeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("DynWidgetNodeId").field(&self.sequential()).finish()
+    }
+}
+
+struct PropertyItemSnapshot {
+    child: Rc<RefCell<BoxedUiNode>>,
+    node: Rc<RefCell<BoxedUiNode>>,
+    name: &'static str,
+    priority_index: i16,
+    importance: DynPropImportance,
+}
+impl fmt::Debug for PropertyItemSnapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PropertyItemSnapshot")
+            .field("name", &self.name)
+            .field("priority_index", &self.priority_index)
+            .field("importance", &self.importance)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PropertyItem {
+    fn snapshot(&self) -> PropertyItemSnapshot {
+        PropertyItemSnapshot {
+            child: self.child.clone(),
+            node: self.node.clone(),
+            name: self.name,
+            priority_index: self.priority_index,
+            importance: self.importance,
+        }
+    }
+
+    fn restore(snapshot: PropertyItemSnapshot) -> Self {
+        PropertyItem {
+            child: snapshot.child,
+            node: snapshot.node,
+            snapshot_node: None,
+            name: snapshot.name,
+            priority_index: snapshot.priority_index,
+            importance: snapshot.importance,
+        }
+    }
 }

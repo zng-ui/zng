@@ -138,7 +138,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     pub use #source_mod::#new_ident;
                 });
                 {
-                    let new_ident = ident!("__{priority}_inspect{dyn_suffix}");
+                    let new_ident = ident!("__{priority}{dyn_suffix}_inspect");
                     new_reexports.extend(quote! { #source_mod::__core::core_cfg_inspector! {
                         #[doc(hidden)]
                         pub use #source_mod::#new_ident;
