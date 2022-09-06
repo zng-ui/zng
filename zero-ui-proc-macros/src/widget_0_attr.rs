@@ -127,12 +127,15 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         }
     }
 
+    let mut dynamic = false;
+
     // Does some validation of new signatures.
     // Further type validation is done by `rustc` when we call the function
     // in the generated `__new_child` .. `__new` functions.
     for fn_ in &mut constructors {
         validate_constructor(fn_, &mut errors);
         if fn_.priority == FnPriority::NewDyn {
+            dynamic = true;
             if fn_.item.sig.inputs.is_empty() {
                 errors.push(
                     format!("`{}` must take at least one input that implements `DynWidget`", fn_.item.sig.ident),
@@ -148,6 +151,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             fn_.item.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
         }
     }
+    let dynamic = dynamic;
 
     // collects name of captured properties, spans new input types and validates inputs.
     let mut new_captures = vec![]; // [Vec<Ident>]
@@ -246,7 +250,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             if priority == FnPriority::NewDyn {
                 let span = *arg_ty_spans.get(0).unwrap_or_else(|| non_user_error!(""));
                 let wgt_ident = ident_spanned!(span=> "__widget");
-                let wgt_ty = quote_spanned! {span=> impl #crate_core::DynWidget };
+                let wgt_ty = quote_spanned! {span=> #crate_core::DynWidget };
                 child_decl = quote! { #wgt_ident: #wgt_ty, };
                 child_pass = quote_spanned! {span=> #wgt_ident, };
             } else if priority != FnPriority::NewChild {
@@ -377,7 +381,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #[doc(hidden)]
                         #[allow(clippy::too_many_arguments)]
                         pub fn #new_inspect__(
-                            __widget: impl #crate_core::DynWidget,
+                            mut __widget: #crate_core::DynWidget,
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
                             __widget_name: &'static str,
@@ -392,18 +396,20 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                                 __captures.push(self::#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
                             )*
 
-                            // TODO !!: replace context intrinsic with this wrap?
-                            let __child = #crate_core::inspector::v1::inspect_constructor(__child, "new", __captures.into_boxed_slice());
-                            let __child = #crate_core::inspector::v1::inspect_widget(
-                                __child,
-                                #crate_core::inspector::v1::WidgetInstanceMeta {
-                                    instance_id: #crate_core::inspector::v1::WidgetInstanceId::new_unique(),
-                                    widget_name: __widget_name,
-                                    decl_location: __decl_location,
-                                    instance_location: __instance_location
-                                },
-                                __whens.into_boxed_slice()
-                            );
+                            __widget.modify_context_intrinsic_v1(move |__child| {
+                                let __child = #crate_core::inspector::v1::inspect_constructor(__child, "new", __captures.into_boxed_slice());
+                                #crate_core::inspector::v1::inspect_widget(
+                                    __child,
+                                    #crate_core::inspector::v1::WidgetInstanceMeta {
+                                        instance_id: #crate_core::inspector::v1::WidgetInstanceId::new_unique(),
+                                        widget_name: __widget_name,
+                                        decl_location: __decl_location,
+                                        instance_location: __instance_location
+                                    },
+                                    __whens.into_boxed_slice()
+                                )
+                            });
+
                             self::__new_dyn(__widget, #(#cfgs #caps),*)
                         }
 
@@ -1140,6 +1146,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                                 })*
                             }
                         )*
+                    }
+                    dynamic {
+                        #dynamic
                     }
                 }
             }

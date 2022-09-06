@@ -145,7 +145,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }});
                 }
                 new_captures[i] = parent.new_captures[i].clone();
-                dynamic = new_dyn;
+                dynamic |= new_dyn;
                 for cap in &new_captures[i] {
                     inherited_caps.insert(cap.ident.clone(), priority);
                 }

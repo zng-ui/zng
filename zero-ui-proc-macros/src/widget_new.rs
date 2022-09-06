@@ -789,14 +789,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let dyn_wgt_child__ = ident!("dyn_wgt_child_part__");
     let dyn_wgt_part__ = ident!("dyn_wgt_part__");
 
-    if dynamic {
-        property_set_calls.extend(quote! {
-            #[allow(unreachable_code)]
-            #[allow(unused_mut)]
-            let mut #dyn_wgt__ = #module::__core::DynWidgetBuilderV1::begin(#node__);
-        });
-    }    
-
     let settable_priorities = crate::property::Priority::all_settable();
     for (i, priority) in settable_priorities.iter().enumerate() {
         let caps_i = i + 1;
@@ -859,31 +851,37 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let cap_idents: Vec<_> = caps.iter().map(make_cap_idents).collect();
         let cap_user_set: Vec<_> = caps.iter().map(make_cap_user_set).collect();
-        
+
         let inspect_ctor_ident = ident!("__new_{}_inspect", priority);
         let ctor_ident = ident!("__new_{}", priority);
 
         if dynamic {
-            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
-                #[allow(unreachable_code)]
-                let #node__ = #module::#inspect_ctor_ident(#dyn_wgt_child__, #(#cap_idents,)* #(#cap_user_set),*);
-            }});
-    
-            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
-                #[allow(unreachable_code)]
-                let #node__ = #module::#ctor_ident(#dyn_wgt_child__, #(#cap_idents),*);
-            }});
+            property_set_calls.extend(quote! {
+                #module::__core::core_cfg_inspector! {
+                    #[allow(unreachable_code)]
+                    let #node__ = #module::#inspect_ctor_ident(#dyn_wgt_child__, #(#cap_idents,)* #(#cap_user_set),*);
+                }
+
+                #module::__core::core_cfg_inspector! {@NOT
+                    #[allow(unreachable_code)]
+                    let #node__ = #module::#ctor_ident(#dyn_wgt_child__, #(#cap_idents),*);
+                }
+
+                #dyn_wgt__.finish_part(#dyn_wgt_part__, #node__);
+            });
         } else {
-            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
-                #[allow(unreachable_code)]
-                let #node__ = #module::#inspect_ctor_ident(#node__, #(#cap_idents,)* #(#cap_user_set),*);
-            }});
-    
-            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
-                #[allow(unreachable_code)]
-                let #node__ = #module::#ctor_ident(#node__, #(#cap_idents),*);
-            }});
-        }        
+            property_set_calls.extend(quote! {
+                #module::__core::core_cfg_inspector! {
+                    #[allow(unreachable_code)]
+                    let #node__ = #module::#inspect_ctor_ident(#node__, #(#cap_idents,)* #(#cap_user_set),*);
+                }
+
+                #module::__core::core_cfg_inspector! {@NOT
+                    #[allow(unreachable_code)]
+                    let #node__ = #module::#ctor_ident(#node__, #(#cap_idents),*);
+                }
+            });
+        }
     }
     let property_set_calls = property_set_calls;
 
@@ -978,6 +976,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let ncc_idents2 = ncc_idents.iter();
         let ncc_cap_user_set: Vec<_> = new_child_caps.iter().map(make_cap_user_set).collect();
 
+        let dyn_init = if dynamic {
+            quote! {
+                #[allow(unreachable_code)]
+                #[allow(unused_mut)]
+                let mut #dyn_wgt__ = #module::__core::DynWidgetBuilderV1::begin(#node__);
+            }
+        } else {
+            TokenStream::new()
+        };
+
         quote! {
             #module::__core::core_cfg_inspector! {
                 #[allow(unreachable_code)]
@@ -987,6 +995,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #[allow(unreachable_code)]
                 let node__ = #module::__new_child(#(#ncc_idents),*);
             }
+
+            #dyn_init
         }
     };
 
@@ -995,22 +1005,44 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let nc_idents: Vec<_> = new_caps.iter().map(make_cap_idents).collect();
         let nc_idents2 = nc_idents.iter();
         let nc_cap_user_set: Vec<_> = new_caps.iter().map(make_cap_user_set).collect();
-        quote! {
-            #module::__core::core_cfg_inspector! {
-                #[allow(unreachable_code)]
-                #module::__new_inspect(
-                    node__,
-                    #(#nc_idents2,)*
-                    #(#nc_cap_user_set,)*
-                    #module::__widget_name(),
-                    when_infos__,
-                    #module::__decl_location(),
-                    #module::__core::source_location!()
-                )
+
+        if dynamic {
+            quote! {
+                #module::__core::core_cfg_inspector! {
+                    #[allow(unreachable_code)]
+                    #module::__new_dyn_inspect(
+                        #dyn_wgt__.finish(),
+                        #(#nc_idents2,)*
+                        #(#nc_cap_user_set,)*
+                        #module::__widget_name(),
+                        when_infos__,
+                        #module::__decl_location(),
+                        #module::__core::source_location!()
+                    )
+                }
+                #module::__core::core_cfg_inspector! {@NOT
+                    #[allow(unreachable_code)]
+                    #module::__new_dyn(#dyn_wgt__.finish(), #(#nc_idents),*)
+                }
             }
-            #module::__core::core_cfg_inspector! {@NOT
-                #[allow(unreachable_code)]
-                #module::__new(node__, #(#nc_idents),*)
+        } else {
+            quote! {
+                #module::__core::core_cfg_inspector! {
+                    #[allow(unreachable_code)]
+                    #module::__new_inspect(
+                        node__,
+                        #(#nc_idents2,)*
+                        #(#nc_cap_user_set,)*
+                        #module::__widget_name(),
+                        when_infos__,
+                        #module::__decl_location(),
+                        #module::__core::source_location!()
+                    )
+                }
+                #module::__core::core_cfg_inspector! {@NOT
+                    #[allow(unreachable_code)]
+                    #module::__new(node__, #(#nc_idents),*)
+                }
             }
         }
     };
@@ -1064,10 +1096,10 @@ impl Parse for WidgetData {
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
                     .collect()
             },
-           dynamic: non_user_braced!(&input, "dynamic")
-           .parse::<LitBool>()
-           .unwrap_or_else(|e| non_user_error!(e))
-           .value,
+            dynamic: non_user_braced!(&input, "dynamic")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
         });
 
         r

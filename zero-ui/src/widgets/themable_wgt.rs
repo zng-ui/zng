@@ -3,7 +3,7 @@
 use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{
-    core::{DynPropImportance, DynPropPriority, DynProperties, DynPropertiesSnapshot},
+    core::{DynPropImportance, DynPropPriority, DynWidget, NilUiNode},
     prelude::new_widget::*,
 };
 
@@ -18,9 +18,8 @@ use crate::{
 ///
 /// # Derived Themes
 ///
-/// Note that you can declare a custom theme *widget* using the same inheritance mechanism of normal widgets, if you override
-/// a constructor function you **must** delegate to the equivalent function defined in [`Theme::new_priority`], note that the
-/// dynamic constructors must be used.
+/// Note that you can declare a custom theme *widget* using the same inheritance mechanism of normal widgets, all widget
+/// constructors are no-op and can be ignored, except the [`new_dyn`].
 ///
 /// [`themable`]: mod@themable
 #[widget($crate::widgets::theme)]
@@ -37,74 +36,45 @@ pub mod theme {
         remove { id; visibility; enabled }
     }
 
-    /// Theme `new_child`.
-    ///
-    /// Returns the [`Theme`] that will be modified by the other widget constructor functions.
-    pub fn new_child() -> Theme {
-        Theme::default()
+    fn new_child() -> NilUiNode {
+        NilUiNode
     }
 
-    /// Theme `new_child_layout_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::ChildLayout, part)
+    fn new_child_layout(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_child_context_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_child_context_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::ChildContext, part)
+    fn new_child_context(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_fill_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Fill, part)
+    fn new_fill(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_border_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_border_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Border, part)
+    fn new_border(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_size_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_size_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Size, part)
+    fn new_size(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_layout_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Layout, part)
+    fn new_layout(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_event_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_event_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Event, part)
+    fn new_event(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_context_dyn`.
-    ///
-    /// Returns the [`Theme`] with the `part` inserted.
-    fn new_context_dyn(child: impl UiNode, part: DynWidgetPart) -> Theme {
-        nodes::new_priority(child, DynPropPriority::Context, part)
+    fn new_context(child: impl UiNode) -> impl UiNode {
+        child
     }
 
-    /// Theme `new_child`.
-    ///
-    /// Finishes the
-    pub fn new(child: impl UiNode) -> Theme {
-        Theme::downcast(child).expect("expected `Theme` node in `new` constructor")
+    /// Theme constructor.
+    pub fn new_dyn(widget: DynWidget) -> Theme {
+        todo!()
     }
 
     /// Declare a dark and light theme that is selected depending on the window theme.
@@ -117,28 +87,6 @@ pub mod theme {
                 WindowTheme::Light => l.clone(),
             }
         })
-    }
-
-    /// Nodes used for building the theme.
-    pub mod nodes {
-        use super::*;
-
-        /// Default `theme::new_*_dyn` constructor.
-        pub fn new_priority(child: impl UiNode, priority: DynPropPriority, mut part: DynWidgetPart) -> Theme {
-            let mut theme = Theme::downcast(child).unwrap_or_else(|| {
-                tracing::error!("expected `Theme` node in `{priority:?}` constructor");
-                Theme::default()
-            });
-            for p in &mut part.properties {
-                p.importance = match p.importance {
-                    DynPropImportance::WIDGET => Theme::WIDGET_IMPORTANCE,
-                    DynPropImportance::INSTANCE => Theme::INSTANCE_IMPORTANCE,
-                    custom => custom,
-                };
-            }
-            theme.properties.insert(priority, part.properties);
-            theme
-        }
     }
 }
 

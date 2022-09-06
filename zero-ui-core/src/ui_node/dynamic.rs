@@ -258,6 +258,17 @@ pub struct DynWidgetPart {
     /// Intrinsic node constructed for the priority.
     pub intrinsic: AdoptiveNode<BoxedUiNode>,
 }
+impl DynWidgetPart {
+    /// Modify/replace the `intrinsic` node.
+    ///
+    /// Panics is called in an inited context.
+    pub fn modify_intrinsic(&mut self, build: impl FnOnce(BoxedUiNode) -> BoxedUiNode) {
+        assert!(!self.intrinsic.is_inited());
+
+        let node = mem::replace(&mut self.intrinsic.node, NilUiNode.boxed());
+        self.intrinsic.node = build(node);
+    }
+}
 impl fmt::Debug for DynWidgetPart {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynWidgetPart")
@@ -285,6 +296,23 @@ impl fmt::Debug for DynWidget {
             .finish_non_exhaustive()
     }
 }
+impl DynWidget {
+    /// Convert the widget to an editable [`UiNode`].
+    pub fn into_node(self) -> DynWidgetNode {
+        DynWidgetNode {}
+    }
+
+    #[doc(hidden)]
+    pub fn modify_context_intrinsic_v1(&mut self, build: impl FnOnce(BoxedUiNode) -> BoxedUiNode) {
+        self.parts[DynPropPriority::Context as usize].modify_intrinsic(build);
+    }
+}
+
+/// Represents a [`DynamicWidget`] that can be used as the *outermost* node of a widget and *edited*
+/// with property overrides and new `when` blocks.
+pub struct DynWidgetNode {}
+#[impl_ui_node(none)]
+impl UiNode for DynWidgetNode {}
 
 /// Importance index of a property in the group of properties of the same priority in the same widget.
 ///
@@ -359,7 +387,7 @@ impl DynWidgetBuilderV1 {
         }
     }
 
-    pub fn begin_part() -> (AdoptiveChildNode, DynWidgetPartBuilderV1) {
+    pub fn begin_part(&self) -> (AdoptiveChildNode, DynWidgetPartBuilderV1) {
         let ad_child = AdoptiveChildNode::nil();
         let child = ad_child.child.clone();
 
@@ -900,9 +928,9 @@ macro_rules! reimplement {
             }
         }
         #[impl_ui_node(
-                                                                    delegate = self.node.borrow(),
-                                                                    delegate_mut = self.node.borrow_mut(),
-                                                                )]
+                                                                                                    delegate = self.node.borrow(),
+                                                                                                    delegate_mut = self.node.borrow_mut(),
+                                                                                                )]
         impl UiNode for DynProperties {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.is_inited = true;

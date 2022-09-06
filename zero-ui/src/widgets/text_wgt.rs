@@ -3,12 +3,39 @@ use crate::prelude::new_widget::*;
 pub mod nodes;
 pub mod properties;
 
-/// Common text properties.
-#[widget_mixin($crate::widgets::text_mixin)]
-pub mod text_mixin {
-    use super::*;
+/// A configured text run.
+///
+/// # Examples
+///
+/// ```
+/// use zero_ui::prelude::text;
+///
+/// let hello_txt = text! {
+///     font_family = "Arial";
+///     font_size = 18;
+///     text = "Hello!";
+/// };
+/// ```
+/// # As Function
+///
+/// If you don't need to configure the text, you can just use the function [`text`](fn@text).
+#[widget($crate::widgets::text)]
+pub mod text {
+    use crate::prelude::new_widget::*;
+
+    pub use super::{nodes, properties};
 
     properties! {
+        /// The [`Text`](crate::core::types::Text) value.
+        ///
+        /// Set to an empty string (`""`) by default.
+        text(impl IntoVar<Text>) = "";
+
+        /// Spacing in between the text and background edges or border.
+        ///
+        /// Set to `0` by default.
+        padding = 0;
+
         /// The text font. If not set inherits the `font_family` from the parent widget.
         properties::font_family;
         /// The font style. If not set inherits the `font_style` from the parent widget.
@@ -107,43 +134,6 @@ pub mod text_mixin {
         /// If the `text` variable is read-only, this only enables text selection, if the var is writeable this
         /// enables text input and modifies the variable.
         properties::text_editable as editable;
-    }
-}
-
-/// A configured text run.
-///
-/// # Examples
-///
-/// ```
-/// use zero_ui::prelude::text;
-///
-/// let hello_txt = text! {
-///     font_family = "Arial";
-///     font_size = 18;
-///     text = "Hello!";
-/// };
-/// ```
-/// # As Function
-///
-/// If you don't need to configure the text, you can just use the function [`text`](fn@text).
-#[widget($crate::widgets::text)]
-pub mod text {
-    use crate::prelude::new_widget::*;
-
-    pub use super::{nodes, properties};
-
-    inherit!(super::text_mixin);
-
-    properties! {
-        /// The [`Text`](crate::core::types::Text) value.
-        ///
-        /// Set to an empty string (`""`) by default.
-        text(impl IntoVar<Text>) = "";
-
-        /// Spacing in between the text and background edges or border.
-        ///
-        /// Set to `0` by default.
-        padding = 0;
     }
 
     fn new_child() -> impl UiNode {
@@ -253,15 +243,9 @@ pub mod text_input {
 
     use crate::widgets::themable;
 
-    inherit!(themable);
-    inherit!(super::text_mixin);
+    inherit!(super::text);
 
     properties! {
-        /// The [`Text`](crate::core::types::Text) value.
-        ///
-        /// Set to an empty string (`""`) by default.
-        text(impl IntoVar<Text>) = "";
-
         /// Enabled by default.
         editable = true;
 
@@ -279,22 +263,8 @@ pub mod text_input {
         theme = theme::pair(vis::DARK_THEME_VAR, vis::LIGHT_THEME_VAR);
     }
 
-    fn new_child() -> impl UiNode {
-        let child = nodes::render_text();
-        let child = nodes::render_caret(child);
-        let child = nodes::render_overlines(child);
-        let child = nodes::render_strikethroughs(child);
-        nodes::render_underlines(child)
-    }
-
-    fn new_fill_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
-        let child = nodes::layout_text(child, vis::PADDING_VAR);
-        themable::new_fill_dyn(child, part)
-    }
-
-    fn new_event_dyn(child: impl UiNode, part: DynWidgetPart, text: impl IntoVar<Text>) -> impl UiNode {
-        let child = nodes::resolve_text(child, text);
-        themable::new_event_dyn(child, part)
+    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgeId>) -> impl Widget {
+        implicit_base::new(widget, id)
     }
 
     #[doc(inline)]
