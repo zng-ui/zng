@@ -214,7 +214,7 @@ impl Theme {
     }
 
     /// New theme from dynamic widget input.
-    /// 
+    ///
     /// The importance index of properties is adjusted, the intrinsic constructor and child nodes are discarded.
     pub fn from_dyn_widget(mut wgt: DynWidget) -> Theme {
         for part in &mut wgt.parts {
