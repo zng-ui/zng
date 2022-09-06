@@ -121,7 +121,7 @@ impl DynPropPriority {
     }
 }
 
-/// Error in call to [`DynProperty::new`].
+/// Error in call to [`DynPropertyFn`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DynPropError {
     /// Property is `allowed_in_when = false`, it does not have variable inputs.
@@ -429,7 +429,7 @@ impl DynWidgetPartBuilderV1 {
         name: &'static str,
         user_assigned: bool,
         priority_index: i16,
-        is_when_condition: bool,
+        _is_when_condition: bool,
     ) {
         let node = AdoptiveNode {
             child: property.child,
@@ -456,7 +456,7 @@ pub struct DynPropertyBuilderV1 {
     child: Rc<RefCell<BoxedUiNode>>,
 }
 
-/// Represents a [`DynamicWidget`] that can be used as the *outermost* node of a widget and *edited*
+/// Represents a [`DynWidget`] that can be used as the *outermost* node of a widget and *edited*
 /// with property overrides and new `when` blocks.
 pub struct DynWidgetNode {
     // Unique ID used to validate snapshots.
@@ -605,7 +605,7 @@ impl DynWidgetNode {
     ///
     /// Panics if the node is inited.
     ///
-    /// [`restore`]: DynProperties::restore
+    /// [`restore`]: DynWidgetNode::restore
     pub fn snapshot(&mut self) -> DynWidgetSnapshot {
         assert!(!self.is_inited);
 

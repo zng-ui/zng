@@ -119,8 +119,6 @@ pub mod themable {
     }
 
     /// Themable `new`, captures the `id` and `theme` properties.
-    ///
-    /// Introduces the [`nodes::generate_theme`] and returns [`implicit_base::new`].
     pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, theme: impl IntoVar<ThemeGenerator>) -> impl Widget {
         struct ThemableNode<T> {
             child: DynWidgetNode,

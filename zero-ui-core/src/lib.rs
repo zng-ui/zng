@@ -992,8 +992,8 @@ pub use zero_ui_proc_macros::property;
 /// # Constructor Functions
 ///
 /// Widgets are can have a *constructor* functions for each property priority level, plus a constructor for the inner-most node
-/// and the outer-most type, the priority constructors are named `new_#{priority}` or `new_#{priority}_dyn`, the inner-most node
-/// is named [`new_child`](#ctor-new_child) and the outer-most is named [`new`](#ctor-new).
+/// and the outer-most type, the priority constructors are named `new_#{priority}`, the inner-most node
+/// is named [`new_child`](#ctor-new_child) and the outer-most is named [`new`](#ctor-new) or [`new_dyn`](#ctor-new_dyn).
 ///
 /// The functions can *capture* properties by having an input of the same name as a widget property.
 ///
@@ -1090,12 +1090,6 @@ pub use zero_ui_proc_macros::property;
 ///
 /// In the example the `margin` property is set as a built-in *layout* node of the widget that cannot be removed.
 ///
-/// ### Dynamic Constructors
-///
-/// A variant of the priority constructor functions is supported, if the function has the suffix `_dyn`, as in `new_#{priority}_dyn`,
-/// the property for that priority level are constructed in a way that allows then to be dynamically inserted in the widget during
-/// runtime, the dynamic properties are provided in a second required input of type [`DynWidgetPart`]
-///
 /// ## Ctor `new`
 ///
 /// The `new` constructor function defines the outer most type of the widget, if must take at least one input that is a generic
@@ -1107,6 +1101,15 @@ pub use zero_ui_proc_macros::property;
 /// to generate the widget.
 ///
 /// The [default new function] captures the [`id`] property and returns a [`Widget`] node that establishes a widget context.
+/// 
+/// ## Ctor `new_dyn`
+/// 
+/// A variant of the `new` constructor, if present all widget properties, when blocks and other constructor nodes are collected
+/// in a [`DynWidget`] that is passed as the first argument of the `new_dyn` constructor, this allows a widget to be dynamically
+/// altered during runtime, such as the application of a * theme*. The `new_dyn` constructor may capture other properties and can
+/// return any type, just like the `new` constructor
+/// 
+/// Only one of the `new` and `new_dyn` must be present in a widget.
 ///
 /// # `inherit!`
 ///
