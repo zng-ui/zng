@@ -30,7 +30,7 @@ pub mod icon {
         /// Spacing in between the icon and background edges or border.
         ///
         /// Set to `0` by default.
-        padding = 0;
+        text::properties::text_padding as padding = 0;
 
         // TODO, this panics in the `#[widget]`
         // /// Disabled color.
@@ -43,8 +43,8 @@ pub mod icon {
         text::nodes::render_text()
     }
 
-    fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
-        text::nodes::layout_text(child, padding)
+    fn new_fill(child: impl UiNode) -> impl UiNode {
+        text::nodes::layout_text(child)
     }
 
     fn new_event(child: impl UiNode, icon: impl IntoVar<GlyphIcon>) -> impl UiNode {

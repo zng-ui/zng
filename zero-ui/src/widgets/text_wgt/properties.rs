@@ -97,6 +97,9 @@ context_var! {
 
     /// Text is editable.
     pub static TEXT_EDITABLE_VAR: bool = false;
+
+    /// Text padding.
+    pub static TEXT_PADDING_VAR: SideOffsets = 0.into();
 }
 
 /// Sets the [`FONT_FAMILY_VAR`] context var.
@@ -477,6 +480,12 @@ pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<TextLineColor
 #[property(context, default(TEXT_EDITABLE_VAR))]
 pub fn text_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_EDITABLE_VAR, enabled)
+}
+
+/// Sets the [`TEXT_PADDING_VAR`] that is used in the text-input layout.
+#[property(context, default(TEXT_PADDING_VAR))]
+pub fn text_padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+    with_context_var(child, TEXT_PADDING_VAR, padding)
 }
 
 /// All the text contextual values.

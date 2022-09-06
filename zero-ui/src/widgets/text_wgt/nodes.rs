@@ -330,7 +330,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 ///
 /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
 /// node at the `new_fill` constructor, so all properties with priority `fill` have access to the [`LayoutText::get`] function.
-pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+pub fn layout_text(child: impl UiNode) -> impl UiNode {
     bitflags::bitflags! {
         struct Layout: u8 {
             const UNDERLINE     = 0b0000_0001;
@@ -349,19 +349,12 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             ctx.constrains().fill_or_exact()
         }
 
-        fn layout(
-            &mut self,
-            vars: &VarsRead,
-            metrics: &LayoutMetrics,
-            padding: &SideOffsets,
-            t: &ResolvedText,
-            pending: &mut Layout,
-        ) -> PxSize {
+        fn layout(&mut self, vars: &VarsRead, metrics: &LayoutMetrics, t: &ResolvedText, pending: &mut Layout) -> PxSize {
             if t.reshape {
                 pending.insert(Layout::RESHAPE);
             }
 
-            let padding = padding.layout(metrics, |_| PxSideOffsets::zero());
+            let padding = TEXT_PADDING_VAR.get(vars).layout(metrics, |_| PxSideOffsets::zero());
 
             let (font_size, variations) = TextContext::font(vars);
 
@@ -555,13 +548,12 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             r.shaped_text.align_box().size
         }
     }
-    struct LayoutTextNode<C, P> {
+    struct LayoutTextNode<C> {
         child: C,
-        padding: P,
         txt: RefCell<FinalText>,
         pending: Layout,
     }
-    impl<C: UiNode, P> LayoutTextNode<C, P> {
+    impl<C: UiNode> LayoutTextNode<C> {
         fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
             let txt = self.txt.borrow();
             vars.with_context_var(LAYOUT_TEXT_VAR, ContextVarData::fixed(&txt.layout), || f(&mut self.child))
@@ -572,9 +564,9 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
         }
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, P: Var<SideOffsets>> UiNode for LayoutTextNode<C, P> {
+    impl<C: UiNode> UiNode for LayoutTextNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.padding);
+            subs.var(ctx, &TEXT_PADDING_VAR);
             // other subscriptions are handled by the `resolve_text` node.
 
             self.child.subscriptions(ctx, subs)
@@ -605,7 +597,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             if OVERLINE_THICKNESS_VAR.is_new(ctx)
                 || STRIKETHROUGH_THICKNESS_VAR.is_new(ctx)
                 || UNDERLINE_THICKNESS_VAR.is_new(ctx)
-                || self.padding.is_new(ctx)
+                || TEXT_PADDING_VAR.is_new(ctx)
             {
                 ctx.updates.layout();
             }
@@ -621,16 +613,13 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             } else {
                 let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `measure`");
                 let mut pending = self.pending;
-                txt.layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut pending)
+                txt.layout(ctx.vars, ctx.metrics, t, &mut pending)
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout`");
 
-            let size = self
-                .txt
-                .get_mut()
-                .layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut self.pending);
+            let size = self.txt.get_mut().layout(ctx.vars, ctx.metrics, t, &mut self.pending);
 
             if self.pending != Layout::empty() {
                 ctx.updates.render();
@@ -658,7 +647,6 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
     }
     LayoutTextNode {
         child: child.cfg_boxed(),
-        padding: padding.into_var(),
         txt: RefCell::new(FinalText {
             layout: None,
             shaping_args: TextShapingArgs::default(),

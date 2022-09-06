@@ -32,9 +32,7 @@ pub mod text {
         text(impl IntoVar<Text>) = "";
 
         /// Spacing in between the text and background edges or border.
-        ///
-        /// Set to `0` by default.
-        padding = 0;
+        properties::text_padding as padding;
 
         /// The text font. If not set inherits the `font_family` from the parent widget.
         properties::font_family;
@@ -144,8 +142,8 @@ pub mod text {
         nodes::render_underlines(child)
     }
 
-    fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
-        nodes::layout_text(child, padding)
+    fn new_fill(child: impl UiNode) -> impl UiNode {
+        nodes::layout_text(child)
     }
 
     fn new_event(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
@@ -196,7 +194,7 @@ mod strong {
 
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
         let child = nodes::render_text();
-        let child = nodes::layout_text(child, 0);
+        let child = nodes::layout_text(child);
         let child = nodes::resolve_text(child, text);
         font_weight(child, FontWeight::BOLD)
     }
@@ -221,7 +219,7 @@ mod em {
 
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
         let child = nodes::render_text();
-        let child = nodes::layout_text(child, 0);
+        let child = nodes::layout_text(child);
         let child = nodes::resolve_text(child, text);
         font_style(child, FontStyle::Italic)
     }
@@ -285,10 +283,10 @@ pub mod text_input_vis {
         inherit!(theme);
 
         properties! {
-            /// Button padding.
+            /// Text padding.
             ///
             /// Is `(7, 15)` by default.
-            padding = (7, 15);
+            properties::text_padding as padding = (7, 15);
 
             /// Text cursor.
             cursor = CursorIcon::Text;
@@ -425,11 +423,6 @@ pub mod text_input_vis {
         ///
         /// All other border states are derived by adjusting the brightness of this color.
         pub static LIGHT_COLOR_VAR: Rgba = rgb(0.7, 0.7, 0.7);
-
-        /// Text input padding.
-        ///
-        /// Text padding is computed directly on the text layout,
-        pub static PADDING_VAR: SideOffsets = 0.into();
     }
 
     /// Sets the [`DARK_THEME_VAR`] that affects all text inputs inside the widget.
@@ -454,12 +447,6 @@ pub mod text_input_vis {
     #[property(context, default(LIGHT_COLOR_VAR))]
     pub fn light_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
         with_context_var(child, LIGHT_COLOR_VAR, color)
-    }
-
-    /// Sets the [`PADDING_VAR`] that is used in the text-input layout.
-    #[property(context, default(PADDING_VAR))]
-    pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
-        with_context_var(child, PADDING_VAR, padding)
     }
 
     /// Dark border hovered.
