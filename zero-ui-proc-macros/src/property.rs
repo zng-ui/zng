@@ -1451,7 +1451,7 @@ mod output {
                     (set_dyn #priority, $node:ident, $property_path: path, $args:ident,
                         $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
                         $dyn_wgt_part:ident, $is_when_condition:tt) => {
-                            let ($node, dyn_prop__) = $dyn_wgt_part.new_property_v1();
+                            let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                             let $node = {
                                 use $property_path::{core_cfg_inspector as __core_cfg_inspector};
                                 __core_cfg_inspector! {
@@ -1463,7 +1463,7 @@ mod output {
                                     $__set($args, $node)
                                 }
                             };
-                            $dyn_wgt_part.push_property_v1(dyn_prop__, $node, $property_name, $user_assigned, $priority_index, $is_when_condition);
+                            $dyn_wgt_part.finish_property(dyn_prop__, $node, $property_name, $user_assigned, $priority_index, $is_when_condition);
                     };
                     (set_dyn $other:ident, $($ignore:tt)+) => { };
                 }

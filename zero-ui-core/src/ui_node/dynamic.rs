@@ -267,15 +267,24 @@ impl fmt::Debug for DynWidgetPart {
 }
 
 /// Represents a dynamic widget final part, available in `new_dyn`.
-#[derive(Debug)]
 pub struct DynWidget {
+    /// Innermost node, returned by `new_child`.
+    pub child: BoxedUiNode,
+
     /// Parts for each priority, from `child_layout` to `context`.
     pub parts: [DynWidgetPart; DynPropPriority::LEN],
 
     /// When conditions set in the widget.
     pub whens: Vec<DynWhenCondition>,
 }
-impl DynWidget {}
+impl fmt::Debug for DynWidget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DynWidget")
+            .field("parts", &self.parts)
+            .field("whens", &self.whens)
+            .finish_non_exhaustive()
+    }
+}
 
 /// Importance index of a property in the group of properties of the same priority in the same widget.
 ///
@@ -336,6 +345,95 @@ impl fmt::Debug for DynPropImportance {
         }
     }
 }
+
+#[doc(hidden)]
+pub struct DynWidgetBuilderV1 {
+    child: BoxedUiNode,
+    parts: Vec<DynWidgetPart>,
+}
+impl DynWidgetBuilderV1 {
+    pub fn begin(child: impl UiNode) -> Self {
+        DynWidgetBuilderV1 {
+            child: child.boxed(),
+            parts: Vec::with_capacity(DynPropPriority::LEN),
+        }
+    }
+
+    pub fn begin_part() -> (AdoptiveChildNode, DynWidgetPartBuilderV1) {
+        let ad_child = AdoptiveChildNode::nil();
+        let child = ad_child.child.clone();
+
+        (ad_child, DynWidgetPartBuilderV1 { child, properties: vec![] })
+    }
+
+    pub fn finish_part(&mut self, part: DynWidgetPartBuilderV1, intrinsic_node: impl UiNode) {
+        let node = AdoptiveNode {
+            child: part.child,
+            node: intrinsic_node.boxed(),
+            is_inited: false,
+        };
+
+        self.parts.push(DynWidgetPart {
+            properties: part.properties,
+            intrinsic: node,
+        })
+    }
+
+    pub fn finish(self) -> DynWidget {
+        debug_assert_eq!(self.parts.len(), DynPropPriority::LEN);
+        DynWidget {
+            child: self.child,
+            parts: self.parts.try_into().unwrap(),
+            whens: vec![],
+        }
+    }
+}
+#[doc(hidden)]
+pub struct DynWidgetPartBuilderV1 {
+    child: Rc<RefCell<BoxedUiNode>>,
+    properties: Vec<DynProperty>,
+}
+impl DynWidgetPartBuilderV1 {
+    pub fn begin_property(&self) -> (AdoptiveChildNode, DynPropertyBuilderV1) {
+        let ad_child = AdoptiveChildNode::nil();
+        let child = ad_child.child.clone();
+        (ad_child, DynPropertyBuilderV1 { child })
+    }
+
+    pub fn finish_property(
+        &mut self,
+        property: DynPropertyBuilderV1,
+        property_node: impl UiNode,
+        name: &'static str,
+        user_assigned: bool,
+        priority_index: i16,
+        is_when_condition: bool,
+    ) {
+        let node = AdoptiveNode {
+            child: property.child,
+            node: property_node.boxed(),
+            is_inited: false,
+        };
+
+        self.properties.push(DynProperty {
+            node,
+            name,
+            when_info: DynPropWhenInfo::NotAllowedInWhen,
+            priority_index,
+            importance: if user_assigned {
+                DynPropImportance::INSTANCE
+            } else {
+                DynPropImportance::WIDGET
+            },
+        });
+    }
+}
+
+#[doc(hidden)]
+pub struct DynPropertyBuilderV1 {
+    child: Rc<RefCell<BoxedUiNode>>,
+}
+
 macro_rules! reimplement {
     () => {
         #[derive(Clone)]
@@ -802,9 +900,9 @@ macro_rules! reimplement {
             }
         }
         #[impl_ui_node(
-                            delegate = self.node.borrow(),
-                            delegate_mut = self.node.borrow_mut(),
-                        )]
+                                                                    delegate = self.node.borrow(),
+                                                                    delegate_mut = self.node.borrow_mut(),
+                                                                )]
         impl UiNode for DynProperties {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.is_inited = true;

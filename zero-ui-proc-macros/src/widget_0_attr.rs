@@ -154,9 +154,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut new_captures_cfg = vec![]; // [TokenStream]
     let mut new_arg_ty_spans = vec![]; // [child_ty:Span, cap_ty:Span..]
     let mut captured_properties = HashMap::new();
-    let mut dynamic = false;
 
-    for &priority in FnPriority::all_no_dyn() {
+    for &priority in FnPriority::all_not_dyn() {
         if let Some(fn_) = constructors
             .iter()
             .find(|f| f.priority == priority || (f.priority == FnPriority::NewDyn && priority == FnPriority::New))
@@ -199,7 +198,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     // `widget/ctor_mismatched_capture_type1.rs`
     let mut new_declarations = vec![]; // [FnPriority:TokenStream]
 
-    for (i, &priority) in FnPriority::all_no_dyn().iter().enumerate() {
+    for (i, &priority) in FnPriority::all_not_dyn().iter().enumerate() {
         if let Some(fn_) = constructors
             .iter()
             .find(|f| f.priority == priority || (f.priority == FnPriority::NewDyn && priority == FnPriority::New))
@@ -1056,7 +1055,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     let constructors = constructors.iter().map(|n| &n.item);
 
-    let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
+    let new_idents: Vec<_> = FnPriority::all_not_dyn().iter().map(|p| ident!("{p}")).collect();
 
     let new_captures_has_cfg = new_captures_cfg.iter().map(|ts| ts.is_empty());
 
@@ -1091,7 +1090,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             pub mod __core {
                 pub use #crate_core::{
                     UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector,
-                    core_cfg_ok, DynWidgetPart
+                    core_cfg_ok, DynWidgetBuilderV1
                 };
 
                 #crate_core::core_cfg_inspector! {
@@ -1304,7 +1303,7 @@ impl FnPriority {
         }
     }
 
-    pub fn all_no_dyn() -> &'static [FnPriority] {
+    pub fn all_not_dyn() -> &'static [FnPriority] {
         &[
             Self::NewChild,
             Self::NewChildLayout,

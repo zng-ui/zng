@@ -65,6 +65,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let module = widget_data.module;
+    let dynamic = widget_data.dynamic;
 
     let mut errors = user_input.errors;
 
@@ -694,7 +695,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // node__ @ call_site
     let node__ = ident!("node__");
-    let dyn_node__ = ident!("dyn_node__");
     let caps: Vec<Vec<_>> = widget_data
         .new_captures
         .iter()
@@ -785,19 +785,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
+    let dyn_wgt__ = ident!("dyn_wgt__");
+    let dyn_wgt_child__ = ident!("dyn_wgt_child_part__");
     let dyn_wgt_part__ = ident!("dyn_wgt_part__");
+
+    if dynamic {
+        property_set_calls.extend(quote! {
+            #[allow(unreachable_code)]
+            #[allow(unused_mut)]
+            let mut #dyn_wgt__ = #module::__core::DynWidgetBuilderV1::begin(#node__);
+        });
+    }    
 
     let settable_priorities = crate::property::Priority::all_settable();
     for (i, priority) in settable_priorities.iter().enumerate() {
         let caps_i = i + 1;
         let caps = &caps[caps_i];
-        let dynamic = widget_data.new_dynamic[caps_i];
 
         if dynamic {
             property_set_calls.extend(quote! {
                 #[allow(unreachable_code)]
                 #[allow(unused_mut)]
-                let mut #dyn_wgt_part__ = #module::__core::DynWidgetPart::new_v1();
+                let (#dyn_wgt_child__, mut #dyn_wgt_part__) = #dyn_wgt__.begin_part();
             });
         }
 
@@ -817,8 +826,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         {
             // __set @ value span
 
-            let child = if dynamic { &dyn_node__ } else { &node__ };
-
             let is_when_condition = dynamic && used_in_when_expr.contains(&ident!("{}", p_name.split(':').last().unwrap()));
 
             let set = ident_spanned!(*val_span=> "__set");
@@ -826,7 +833,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set_dyn #priority, #child, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
+                        set_dyn #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
                         #dyn_wgt_part__, #is_when_condition
                     }
                 }
@@ -834,7 +841,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set #priority, #child, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
+                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
                     }
                 }
             };
@@ -852,26 +859,31 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let cap_idents: Vec<_> = caps.iter().map(make_cap_idents).collect();
         let cap_user_set: Vec<_> = caps.iter().map(make_cap_user_set).collect();
+        
+        let inspect_ctor_ident = ident!("__new_{}_inspect", priority);
+        let ctor_ident = ident!("__new_{}", priority);
 
-        let (dyn_suffix, dyn_props__) = if dynamic {
-            ("_dyn", quote! { #dyn_wgt_part__, })
+        if dynamic {
+            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
+                #[allow(unreachable_code)]
+                let #node__ = #module::#inspect_ctor_ident(#dyn_wgt_child__, #(#cap_idents,)* #(#cap_user_set),*);
+            }});
+    
+            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
+                #[allow(unreachable_code)]
+                let #node__ = #module::#ctor_ident(#dyn_wgt_child__, #(#cap_idents),*);
+            }});
         } else {
-            ("", TokenStream::new())
-        };
-
-        let ctor_ident = ident!("__new_{}_inspect{}", priority, dyn_suffix);
-        let cap_idents2 = cap_idents.iter();
-
-        property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
-            #[allow(unreachable_code)]
-            let #node__ = #module::#ctor_ident(#node__, #dyn_props__ #(#cap_idents2,)* #(#cap_user_set),*);
-        }});
-
-        let ctor_ident = ident!("__new_{}{}", priority, dyn_suffix);
-        property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
-            #[allow(unreachable_code)]
-            let #node__ = #module::#ctor_ident(#node__, #dyn_props__ #(#cap_idents),*);
-        }});
+            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
+                #[allow(unreachable_code)]
+                let #node__ = #module::#inspect_ctor_ident(#node__, #(#cap_idents,)* #(#cap_user_set),*);
+            }});
+    
+            property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
+                #[allow(unreachable_code)]
+                let #node__ = #module::#ctor_ident(#node__, #(#cap_idents),*);
+            }});
+        }        
     }
     let property_set_calls = property_set_calls;
 
@@ -1036,7 +1048,7 @@ struct WidgetData {
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
     new_captures: Vec<Vec<PropertyCapture>>,
-    new_dynamic: Vec<bool>,
+    dynamic: bool,
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -1047,21 +1059,15 @@ impl Parse for WidgetData {
             whens: parse_all(&non_user_braced!(&input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
             new_captures: {
                 let input = non_user_braced!(&input, "new_captures");
-                FnPriority::all()
+                FnPriority::all_not_dyn()
                     .iter()
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
                     .collect()
             },
-            new_dynamic: {
-                let input = non_user_braced!(&input, "new_dynamic");
-                FnPriority::all()
-                    .iter()
-                    .map(|p| {
-                        let f: LitBool = non_user_braced!(&input, p.to_string()).parse().unwrap();
-                        f.value
-                    })
-                    .collect()
-            },
+           dynamic: non_user_braced!(&input, "dynamic")
+           .parse::<LitBool>()
+           .unwrap_or_else(|e| non_user_error!(e))
+           .value,
         });
 
         r

@@ -42,6 +42,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         whens,
         mut new_declarations,
         mut new_captures,
+        mut dynamic,
     } = widget;
 
     // same as args in widget_0_attr
@@ -126,12 +127,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .find(|i| !i.mixin)
             .unwrap_or_else(|| non_user_error!("expected a parent widget"));
 
-        for (i, &priority) in FnPriority::all().iter().enumerate() {
-            let new = priority == FnPriority::New;
-
+        for (i, &priority) in FnPriority::all_not_dyn().iter().enumerate() {
             if new_declarations[i].is_empty() {
                 let source_mod = &parent.module;
-                let dyn_suffix = if new && parent.dynamic { "_dyn" } else { "" };
+                let new_dyn = priority == FnPriority::New && parent.dynamic;
+                let dyn_suffix = if new_dyn { "_dyn" } else { "" };
                 let new_ident = ident!("__{priority}{dyn_suffix}");
                 new_reexports.extend(quote! {
                     #[doc(hidden)]
@@ -145,17 +145,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }});
                 }
                 new_captures[i] = parent.new_captures[i].clone();
-                new_dynamic[i] = parent.new_dynamic[i];
+                dynamic = new_dyn;
                 for cap in &new_captures[i] {
-                    inherited_caps.insert(cap.ident.clone(), *priority);
+                    inherited_caps.insert(cap.ident.clone(), priority);
                 }
                 inherited_new_sources.push(Some(parent));
             } else {
                 inherited_new_sources.push(None);
-            }
-
-            if new {
-                break;
             }
         }
 
@@ -175,6 +171,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
     let new_captures = new_captures;
+    let dynamic = dynamic;
 
     // collect inherited properties. Late inherits of the same ident override early inherits.
     // [property_ident => inherit]
@@ -200,7 +197,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                                 "inherited property `{prop}` is captured in inherited fn `{fn_}` from `{fn_source}`, but the property is then overwritten in `{p_source}`\n\
                                 a new `{fn_}` must be declared to resolve this conflict.",
                                 prop = property.ident,
-                                fn_ = FnPriority::all()[i],
+                                fn_ = FnPriority::all_not_dyn()[i],
                                 fn_source = util::display_path(&new_source.inherit_use),
                                 p_source = util::display_path(&p.inherit_use)
                             ),
@@ -230,10 +227,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 .enumerate()
                 .find_map(|(i, caps)| if caps.iter().any(|i| &i.ident == ident) { Some(i) } else { None })
                 .map(|i| {
+                    let mut priority = FnPriority::all_not_dyn()[i];
+                    if priority == FnPriority::New && dynamic {
+                        priority = FnPriority::NewDyn;
+                    }
                     format!(
                         "captured in {}fn `{}`",
                         if inherited_new_sources[i].is_some() { "inherited " } else { "" },
-                        FnPriority::all()[i]
+                        priority
                     )
                 })
         };
@@ -960,7 +961,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }});
     }
 
-    let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
+    let new_idents: Vec<_> = FnPriority::all_not_dyn().iter().map(|p| ident!("{p}")).collect();
 
     let new_captures_idents = new_captures.iter().map(|c| c.iter().map(|c| &c.ident).collect::<Vec<_>>());
     let new_captures_cfg = new_captures.iter().map(|c| c.iter().map(|c| &c.cfg).collect::<Vec<_>>());
@@ -984,12 +985,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             )*
         }
-        new_dynamic {
-            #(
-                #new_idents {
-                    #new_dynamic
-                }
-            )*
+        dynamic {
+            #dynamic
         }
     };
 
@@ -1284,7 +1281,7 @@ impl Parse for InheritedItem {
             whens: parse_all(&non_user_braced!(input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
             new_captures: {
                 let input = non_user_braced!(input, "new_captures");
-                FnPriority::all()
+                FnPriority::all_not_dyn()
                     .iter()
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
                     .collect()
@@ -1344,14 +1341,14 @@ impl Parse for WidgetItem {
 
             new_declarations: {
                 let input = named_braces!("new_declarations");
-                FnPriority::all()
+                FnPriority::all_not_dyn()
                     .iter()
                     .map(|p| non_user_braced!(&input, p.to_string()).parse().unwrap())
                     .collect()
             },
             new_captures: {
                 let input = named_braces!("new_captures");
-                FnPriority::all()
+                FnPriority::all_not_dyn()
                     .iter()
                     .map(|p| parse_all(&non_user_braced!(&input, p.to_string())).unwrap_or_else(|e| non_user_error!(e)))
                     .collect()
