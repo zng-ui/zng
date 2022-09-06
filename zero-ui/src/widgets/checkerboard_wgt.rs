@@ -13,7 +13,10 @@ pub mod checkerboard {
         /// The two checkerboard colors.
         ///
         /// Default is black and white.
-        properties::checkerboard_colors as colors;
+        properties::checkerboard_colors as colors = WINDOW_THEME_VAR.map(|t| match t {
+            WindowTheme::Dark => (rgb(20, 20, 20), rgb(40, 40, 40)),
+            WindowTheme::Light => (rgb(202, 202, 204), rgb(253, 253, 253)),
+        });
 
         /// The size of one color rectangle.
         ///
@@ -38,23 +41,18 @@ pub mod properties {
     use crate::prelude::new_property::*;
 
     context_var! {
-        /// The first checkerboard color.
+        /// The checkerboard colors.
         ///
-        /// Default is [`BLACK`].
+        /// Default is ([`BLACK`], [`WHITE`]).
         ///
         /// [`BLACK`]: colors::BLACK
-        pub static CHECKERBOARD_COLOR0_VAR: Rgba = colors::BLACK;
-        /// The second checkerboard color.
-        ///
-        /// Default is [`WHITE`].
-        ///
         /// [`WHITE`]: colors::WHITE
-        pub static CHECKERBOARD_COLOR1_VAR: Rgba = colors::WHITE;
+        pub static CHECKERBOARD_COLORS_VAR: (Rgba, Rgba) = (colors::BLACK, colors::WHITE);
 
         /// The size of one color rectangle in the checkerboard.
         ///
-        /// Default is `(20, 20)`.
-        pub static CHECKERBOARD_SIZE_VAR: Size = (20, 20).into();
+        /// Default is `(16, 16)`.
+        pub static CHECKERBOARD_SIZE_VAR: Size = (16, 16).into();
 
         /// Offset applied to the checkerboard pattern.
         ///
@@ -64,14 +62,13 @@ pub mod properties {
 
     /// Set both checkerboard colors.
     ///
-    /// This property sets [`CHECKERBOARD_COLOR0_VAR`] and [`CHECKERBORD_COLOR1_VAR`] for all inner checkerboard
+    /// This property sets [`CHECKERBOARD_COLORS_VAR`] for all inner checkerboard
     /// widgets. In a checkerboard widget it is called [`colors`].
     ///
     /// [`colors`]: mod@crate::widgets::checkerboard#wp-colors
-    #[property(context, default(colors::BLACK, colors::WHITE))]
-    pub fn checkerboard_colors(child: impl UiNode, color0: impl IntoVar<Rgba>, color1: impl IntoVar<Rgba>) -> impl UiNode {
-        let node = with_context_var(child, CHECKERBOARD_COLOR0_VAR, color0);
-        with_context_var(node, CHECKERBOARD_COLOR1_VAR, color1)
+    #[property(context, default(CHECKERBOARD_COLORS_VAR))]
+    pub fn checkerboard_colors(child: impl UiNode, colors: impl IntoVar<(Rgba, Rgba)>) -> impl UiNode {
+        with_context_var(child, CHECKERBOARD_COLORS_VAR, colors)
     }
 
     /// Set the size of a checkerboard color rectangle.
@@ -80,7 +77,7 @@ pub mod properties {
     /// it is called [`cb_size`].
     ///
     /// [`cb_size`]: mod@crate::widgets::checkerboard#wp-cb_size
-    #[property(context, default((20, 20)))]
+    #[property(context, default(CHECKERBOARD_SIZE_VAR))]
     pub fn checkerboard_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         with_context_var(child, CHECKERBOARD_SIZE_VAR, size)
     }
@@ -91,7 +88,7 @@ pub mod properties {
     /// it is called [`cb_offset`].
     ///
     /// [`cb_offset`]: mod@crate::widgets::checkerboard#wp-cb_offset
-    #[property(context, default(Vector::zero()))]
+    #[property(context, default(CHECKERBOARD_OFFSET_VAR))]
     pub fn checkerboard_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
         with_context_var(child, CHECKERBOARD_OFFSET_VAR, offset)
     }
@@ -114,26 +111,19 @@ pub fn node() -> impl UiNode {
     impl UiNode for CheckerboardNode {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.vars(ctx)
-                .var(&CHECKERBOARD_COLOR0_VAR)
-                .var(&CHECKERBOARD_COLOR1_VAR)
+                .var(&CHECKERBOARD_COLORS_VAR)
                 .var(&CHECKERBOARD_SIZE_VAR)
                 .var(&CHECKERBOARD_OFFSET_VAR);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.colors = [
-                (CHECKERBOARD_COLOR0_VAR.copy(ctx)).into(),
-                (CHECKERBOARD_COLOR1_VAR.copy(ctx)).into(),
-            ];
+            let (c0, c1) = CHECKERBOARD_COLORS_VAR.copy(ctx);
+            self.colors = [c0.into(), c1.into()];
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(c0) = CHECKERBOARD_COLOR0_VAR.copy_new(ctx) {
-                self.colors[0] = c0.into();
-                ctx.updates.render();
-            }
-            if let Some(c1) = CHECKERBOARD_COLOR1_VAR.copy_new(ctx) {
-                self.colors[1] = c1.into();
+            if let Some((c0, c1)) = CHECKERBOARD_COLORS_VAR.copy_new(ctx) {
+                self.colors = [c0.into(), c1.into()];
                 ctx.updates.render();
             }
             if CHECKERBOARD_SIZE_VAR.is_new(ctx) || CHECKERBOARD_OFFSET_VAR.is_new(ctx) {

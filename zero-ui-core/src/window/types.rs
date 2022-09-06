@@ -25,6 +25,15 @@ pub use crate::app::view_process::{CursorIcon, EventCause, FocusIndicator, Video
 
 use super::HeadlessMonitor;
 
+impl IntoVar<Option<WindowTheme>> for WindowTheme {
+    type Var = LocalVar<Option<WindowTheme>>;
+
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self))
+    }
+}
+impl IntoValue<Option<WindowTheme>> for WindowTheme {}
+
 unique_id_32! {
     /// Unique identifier of an open window.
     ///

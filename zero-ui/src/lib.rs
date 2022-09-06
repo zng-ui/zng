@@ -1113,7 +1113,9 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
                 WidgetLayout, WidgetSubscriptions,
             },
-            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget, WidgetId,
+            widget_mixin, widget_vec, widgets,
+            window::WindowTheme,
+            BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
@@ -1142,7 +1144,9 @@ pub mod prelude {
             layouts::{stack_nodes, stack_nodes_layout_by},
             themable, theme,
             theme::ThemeGenerator,
-            view_generator, DataUpdate, ViewGenerator,
+            view_generator,
+            window::nodes::WINDOW_THEME_VAR,
+            DataUpdate, ViewGenerator,
         };
     }
 }

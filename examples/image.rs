@@ -337,10 +337,9 @@ pub mod img_window {
         state = WindowState::Maximized;
         size = (1140, 770);// restore size
 
-        background = checkerboard! {
-            colors = rgb(20, 20, 20), rgb(40, 40, 40);
-            cb_size = (16, 16);
-        };
+        background = checkerboard!();
+
+        theme = WindowTheme::Dark;
 
         // content shown by all images when loading.
         image_loading_view = view_generator!(|ctx, _| {
