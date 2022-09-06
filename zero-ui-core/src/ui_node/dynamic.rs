@@ -119,6 +119,19 @@ impl DynPropPriority {
             n => Err(n),
         }
     }
+
+    fn intrinsic_name(self) -> &'static str {
+        match self {
+            DynPropPriority::ChildLayout => "<new_child_layout>",
+            DynPropPriority::ChildContext => "<new_child_context>",
+            DynPropPriority::Fill => "<new_fill>",
+            DynPropPriority::Border => "<new_border>",
+            DynPropPriority::Size => "<new_size>",
+            DynPropPriority::Layout => "<new_layout>",
+            DynPropPriority::Event => "<new_event>",
+            DynPropPriority::Context => "<new_context>",
+        }
+    }
 }
 
 /// Error in call to [`DynPropertyFn`].
@@ -150,14 +163,6 @@ impl fmt::Debug for DynPropertyInput {
 
 /// Represents a property constructor function activated with dynamically defined input variables.
 pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyInput) -> Result<BoxedUiNode, DynPropError>;
-
-/// Represents the dynamic constructor and default input of a property that can update due to when condition.
-pub struct DynPropertyWhenInfo {
-    /// Dynamic constructor.
-    pub new_fn: DynPropertyFn,
-    /// Default input.
-    pub input: DynPropertyInput,
-}
 
 /// Information about how a dynamic property can be configured to update by `when` conditions.
 pub enum DynPropWhenInfo {
@@ -298,8 +303,10 @@ impl fmt::Debug for DynWidget {
 }
 impl DynWidget {
     /// Convert the widget to an editable [`UiNode`].
-    pub fn into_node(self) -> DynWidgetNode {
-        DynWidgetNode::new(self)
+    ///
+    /// If `include_intrinsic` is `true` the widget constructor nodes are also include, otherwise only the property nodes are included.
+    pub fn into_node(self, include_intrinsic: bool) -> DynWidgetNode {
+        DynWidgetNode::new(self, include_intrinsic)
     }
 
     #[doc(hidden)]
@@ -469,7 +476,7 @@ pub struct DynWidgetNode {
     child: Rc<RefCell<BoxedUiNode>>,
 
     // properties from innermost to outermost.
-    properties: Vec<PropertyItem>,
+    properties: Vec<DynWidgetItem>,
     // exclusive end of each priority range in `properties`
     priority_ranges: [usize; DynPropPriority::LEN],
 
@@ -506,11 +513,19 @@ impl fmt::Debug for DynWidgetNode {
     }
 }
 impl DynWidgetNode {
-    fn new(wgt: DynWidget) -> Self {
+    fn new(wgt: DynWidget, include_intrinsic: bool) -> Self {
         let mut priority_ranges = [0; DynPropPriority::LEN];
         let mut properties = vec![];
         for (i, part) in wgt.parts.into_iter().enumerate() {
-            properties.extend(part.properties.into_iter().map(PropertyItem::new));
+            properties.extend(part.properties.into_iter().map(DynWidgetItem::new));
+
+            if include_intrinsic {
+                properties.push(DynWidgetItem::new_instrinsic(
+                    DynPropPriority::from_index(i).unwrap(),
+                    part.intrinsic,
+                ));
+            }
+
             priority_ranges[i] = properties.len();
         }
 
@@ -532,7 +547,7 @@ impl DynWidgetNode {
         self.is_inited
     }
 
-    /// Returns `true` if this node contains no properties, note that it can still contain a child node.
+    /// Returns `true` if this node contains no property and intrinsic nodes, note that it can still contain a child node.
     pub fn is_empty(&self) -> bool {
         self.properties.is_empty()
     }
@@ -565,7 +580,7 @@ impl DynWidgetNode {
             self.unbind_all();
         }
 
-        self.insert_impl(priority as usize, properties.len(), properties.into_iter().map(PropertyItem::new));
+        self.insert_impl(priority as usize, properties.len(), properties.into_iter().map(DynWidgetItem::new));
     }
 
     /// Insert `other` in the properties chain, overrides properties with the same name, priority and with less or equal importance.
@@ -615,7 +630,7 @@ impl DynWidgetNode {
 
         DynWidgetSnapshot {
             id: self.id,
-            properties: self.properties.iter().map(PropertyItem::snapshot).collect(),
+            properties: self.properties.iter().map(DynWidgetItem::snapshot).collect(),
             priority_ranges: self.priority_ranges,
         }
     }
@@ -632,7 +647,7 @@ impl DynWidgetNode {
             }
 
             self.properties.clear();
-            self.properties.extend(snapshot.properties.into_iter().map(PropertyItem::restore));
+            self.properties.extend(snapshot.properties.into_iter().map(DynWidgetItem::restore));
             self.priority_ranges = snapshot.priority_ranges;
 
             Ok(())
@@ -694,7 +709,7 @@ impl DynWidgetNode {
         self.is_bound = false;
     }
 
-    fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = PropertyItem>) {
+    fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = DynWidgetItem>) {
         let priority_range = self.priority_range(priority);
 
         if priority_range.is_empty() {
@@ -823,35 +838,54 @@ impl fmt::Debug for DynWidgetSnapshot {
     }
 }
 
-struct PropertyItem {
-    // property child, the `Rc` does not change, only the interior.
+/// Widget property or intrinsic node.
+struct DynWidgetItem {
+    // item child, the `Rc` does not change, only the interior.
     child: Rc<RefCell<BoxedUiNode>>,
-    // property node, the `Rc` changes, but it always points to the same node.
+    // item node, the `Rc` changes, but it always points to the same node.
     node: Rc<RefCell<BoxedUiNode>>,
     // original `node`, preserved when parent is set, reused when unset.
     snapshot_node: Option<Rc<RefCell<BoxedUiNode>>>,
 
+    // property name or "<new_*>" intrinsic.
     name: &'static str,
-    priority_index: i16,
+    // property index cast to `i32` or `i32::MIN+1` for intrinsic.
+    priority_index: i32,
+    // property importance, or `WIDGET` for intrinsic.
     importance: DynPropImportance,
 }
-impl PropertyItem {
+impl DynWidgetItem {
     fn new(property: DynProperty) -> Self {
         assert!(!property.node.is_inited());
 
         let (child, node) = property.node.into_parts();
-        PropertyItem {
+        DynWidgetItem {
             child,
             node: Rc::new(RefCell::new(node)),
             snapshot_node: None,
             name: property.name,
-            priority_index: property.priority_index,
+            priority_index: property.priority_index as i32,
             importance: property.importance,
         }
     }
 
+    fn new_instrinsic(priority: DynPropPriority, node: AdoptiveNode<BoxedUiNode>) -> Self {
+        assert!(!node.is_inited());
+
+        let (child, node) = node.into_parts();
+
+        DynWidgetItem {
+            child,
+            node: Rc::new(RefCell::new(node)),
+            snapshot_node: None,
+            name: priority.intrinsic_name(),
+            priority_index: i32::MIN + 1,
+            importance: DynPropImportance::WIDGET,
+        }
+    }
+
     /// Set `self` as the child of `other`.
-    fn set_parent(&mut self, other: &PropertyItem) {
+    fn set_parent(&mut self, other: &DynWidgetItem) {
         debug_assert_eq!(
             other.child.borrow().actual_type_id(),
             std::any::TypeId::of::<NilUiNode>(),
@@ -865,7 +899,7 @@ impl PropertyItem {
     }
 
     /// Unset `self` as the child of `other`.
-    fn unset_parent(&mut self, other: &PropertyItem) {
+    fn unset_parent(&mut self, other: &DynWidgetItem) {
         debug_assert!(
             Rc::ptr_eq(&self.node, &other.child),
             "`{}` is not the parent of `{}`",
@@ -877,7 +911,7 @@ impl PropertyItem {
         mem::swap(&mut *other.child.borrow_mut(), &mut *self.node.borrow_mut());
     }
 }
-impl fmt::Debug for PropertyItem {
+impl fmt::Debug for DynWidgetItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyItem")
             .field("name", &self.name)
@@ -900,7 +934,7 @@ struct PropertyItemSnapshot {
     child: Rc<RefCell<BoxedUiNode>>,
     node: Rc<RefCell<BoxedUiNode>>,
     name: &'static str,
-    priority_index: i16,
+    priority_index: i32,
     importance: DynPropImportance,
 }
 impl fmt::Debug for PropertyItemSnapshot {
@@ -913,24 +947,24 @@ impl fmt::Debug for PropertyItemSnapshot {
     }
 }
 
-impl PropertyItem {
+impl DynWidgetItem {
     fn snapshot(&self) -> PropertyItemSnapshot {
         PropertyItemSnapshot {
             child: self.child.clone(),
             node: self.node.clone(),
             name: self.name,
-            priority_index: self.priority_index,
+            priority_index: self.priority_index as i32,
             importance: self.importance,
         }
     }
 
     fn restore(snapshot: PropertyItemSnapshot) -> Self {
-        PropertyItem {
+        DynWidgetItem {
             child: snapshot.child,
             node: snapshot.node,
             snapshot_node: None,
             name: snapshot.name,
-            priority_index: snapshot.priority_index,
+            priority_index: snapshot.priority_index as i32,
             importance: snapshot.importance,
         }
     }

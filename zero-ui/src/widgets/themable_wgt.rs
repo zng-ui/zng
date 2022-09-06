@@ -74,7 +74,7 @@ pub mod theme {
 
     /// Theme constructor.
     pub fn new_dyn(widget: DynWidget) -> Theme {
-        Theme::from_node(widget.into_node())
+        Theme::from_node(widget.into_node(false))
     }
 
     /// Declare a dark and light theme that is selected depending on the window theme.
@@ -136,10 +136,10 @@ pub mod themable {
             }
 
             fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.child.deinit(ctx);
                 if let Some(snap) = self.snapshot.take() {
                     self.child.restore(snap).unwrap();
                 }
-                self.child.deinit(ctx);
             }
 
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
@@ -151,13 +151,14 @@ pub mod themable {
                 if self.theme.is_new(ctx.vars) {
                     self.deinit(ctx);
                     self.init(ctx);
+                    ctx.updates.info_layout_and_render();
                 } else {
                     self.child.update(ctx);
                 }
             }
         }
         let child = ThemableNode {
-            child: widget.into_node(),
+            child: widget.into_node(true),
             snapshot: None,
             theme: theme.into_var(),
         };

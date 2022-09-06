@@ -37,7 +37,7 @@ error[E0277]: the trait bound `[bool; _]: UiNode` is not satisfied
              AdoptiveNode<U>
              Box<(dyn UiNodeBoxed + 'static)>
              Box<(dyn WidgetBoxed + 'static)>
-             DynProperties
+             DynWidgetNode
              FillUiNode
              NilUiNode
              Option<U>

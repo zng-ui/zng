@@ -24,7 +24,7 @@ error[E0277]: the trait bound `impl Future<Output = NilUiNode>: UiNode` is not s
              AdoptiveNode<U>
              Box<(dyn UiNodeBoxed + 'static)>
              Box<(dyn WidgetBoxed + 'static)>
-             DynProperties
+             DynWidgetNode
              FillUiNode
              NilUiNode
              Option<U>
@@ -47,7 +47,7 @@ error[E0277]: the trait bound `impl Future<Output = impl UiNode>: UiNode` is not
             AdoptiveNode<U>
             Box<(dyn UiNodeBoxed + 'static)>
             Box<(dyn WidgetBoxed + 'static)>
-            DynProperties
+            DynWidgetNode
             FillUiNode
             NilUiNode
             Option<U>

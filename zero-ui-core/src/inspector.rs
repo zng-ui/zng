@@ -836,7 +836,7 @@ context_var! {
 
 /// Remove the constructor function info node from the `child`.
 ///
-/// Widgets using dynamic constructors may try to cast the child parameter to the type returned by the
+/// Widgets constructors may try to cast the child parameter to the type returned by the
 /// inner constructor, but if the widget is instantiating with inspector that node was wrapped with the
 /// an inspector node, this function removes this inspector node.
 ///
@@ -851,16 +851,13 @@ context_var! {
 /// # fn main() { }
 /// # use zero_ui_core::*;
 /// #
-/// #[derive(Default)]
-/// struct FooNode {
-///     properties: DynProperties,
-/// }
-/// #[impl_ui_node(
-///     delegate = &self.properties,
-///     delegate_mut = &mut self.properties,
-/// )]
-/// impl UiNode for FooNode { }
-///
+/// # #[derive(Default)]
+/// # struct FooNode {
+/// #     bar: bool,
+/// # }
+/// # #[impl_ui_node(none)]
+/// # impl UiNode for FooNode { }
+/// #
 /// #[widget($crate::foo)]
 /// pub mod foo {
 ///     use super::*;
@@ -869,15 +866,18 @@ context_var! {
 ///         FooNode::default()
 ///     }
 ///     
-///     fn new_child_layout_dyn(child: impl UiNode, part: DynWidgetPart) -> impl UiNode {
+///     fn new_child_layout(child: impl UiNode) -> impl UiNode {
 ///         let child = child.boxed();
 ///         #[cfg(feature = "inspector")]
 ///         let child = zero_ui_core::inspector::unwrap_constructor(child);
 ///
-///         let mut foo = child.downcast_unbox::<FooNode>().unwrap_or_else(|_| panic!("expected foo"));
-///
-///         foo.properties.insert(DynPropPriority::ChildLayout, part.properties);
-///         foo
+///         match child.downcast_unbox::<FooNode>() {
+///             Ok(mut foo) => {
+///                 foo.bar = true;
+///                 foo.boxed()
+///             },
+///             Err(n) => n
+///         }
 ///     }
 ///
 ///     // .. other constructors

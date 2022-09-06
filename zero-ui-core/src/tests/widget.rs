@@ -1107,7 +1107,7 @@ pub mod property_priority_sorting_defaults_dyn_wgt {
     inherit!(super::property_priority_sorting_defaults_wgt);
 
     fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>) -> impl Widget {
-        implicit_base::new(widget.into_node(), id)
+        implicit_base::new(widget.into_node(true), id)
     }
 }
 
@@ -1645,7 +1645,7 @@ pub mod priority_index_dyn_wgt {
     inherit!(super::priority_index_wgt);
 
     fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>) -> impl Widget {
-        implicit_base::new(widget.into_node(), id)
+        implicit_base::new(widget.into_node(true), id)
     }
 }
 

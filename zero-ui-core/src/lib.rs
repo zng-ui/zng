@@ -1101,14 +1101,14 @@ pub use zero_ui_proc_macros::property;
 /// to generate the widget.
 ///
 /// The [default new function] captures the [`id`] property and returns a [`Widget`] node that establishes a widget context.
-/// 
+///
 /// ## Ctor `new_dyn`
-/// 
+///
 /// A variant of the `new` constructor, if present all widget properties, when blocks and other constructor nodes are collected
 /// in a [`DynWidget`] that is passed as the first argument of the `new_dyn` constructor, this allows a widget to be dynamically
 /// altered during runtime, such as the application of a * theme*. The `new_dyn` constructor may capture other properties and can
 /// return any type, just like the `new` constructor
-/// 
+///
 /// Only one of the `new` and `new_dyn` must be present in a widget.
 ///
 /// # `inherit!`

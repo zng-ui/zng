@@ -12,7 +12,7 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
                AdoptiveNode<U>
                Box<(dyn UiNodeBoxed + 'static)>
                Box<(dyn WidgetBoxed + 'static)>
-               DynProperties
+               DynWidgetNode
                FillUiNode
                MyNode
                NilUiNode
@@ -37,7 +37,7 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
                AdoptiveNode<U>
                Box<(dyn UiNodeBoxed + 'static)>
                Box<(dyn WidgetBoxed + 'static)>
-               DynProperties
+               DynWidgetNode
                FillUiNode
                MyNode
                NilUiNode
