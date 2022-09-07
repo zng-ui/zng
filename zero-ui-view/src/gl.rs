@@ -1,179 +1,390 @@
-use std::{
-    cell::Cell,
-    fmt::{self, Write},
-    mem,
-    rc::Rc,
-};
+use std::{cell::Cell, error::Error, ffi::CString, fmt, mem, num::NonZeroU32, rc::Rc};
 
-use crate::util::{self, panic_msg, PxToWinit};
-use gleam::gl::{self, Gl};
+use gleam::gl;
+use glutin::{
+    config::{Api, ConfigSurfaceTypes, ConfigTemplateBuilder},
+    context::{ContextApi, ContextAttributesBuilder, PossiblyCurrentContext},
+    display::{Display, DisplayApiPreference},
+    prelude::*,
+    surface::{Surface, SurfaceAttributesBuilder, WindowSurface},
+};
 use linear_map::set::LinearSet;
-use winit::{event_loop::EventLoopWindowTarget, window::WindowBuilder};
-use zero_ui_view_api::{
-    units::{Px, PxSize},
-    RenderMode, WindowId,
-};
+use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
+use zero_ui_view_api::{RenderMode, WindowId};
 
-pub(crate) struct GlContext {
-    id: WindowId,
-    current_id: CurrentId,
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+))]
+use winit::platform::unix;
 
-    mode: RenderMode,
-    inner: GlContextInner,
-    gl: Rc<dyn Gl>,
+use raw_window_handle::*;
+
+use crate::{util, AppEvent};
+
+/// Create and track the current OpenGL context.
+pub(crate) struct GlContextManager {
+    current: Rc<Cell<Option<WindowId>>>,
+    unsupported_headed: LinearSet<TryConfig>,
+    unsupported_headless: LinearSet<TryConfig>,
 }
 
-#[allow(clippy::large_enum_variant)]
-enum GlContextInner {
-    Headed(glutin::ContextWrapper<PossiblyCurrent, ()>),
-    Headless(HeadlessData),
-    #[cfg(software)]
-    Software(swgl::Context, Option<blit::Impl>),
-
-    // glutin context takes ownership to make current..
-    MakingCurrent,
-
-    Dropped,
-}
-
-struct HeadlessData {
-    ctx: winit::Context<PossiblyCurrent>,
-    gl: Rc<dyn Gl>,
-
-    // webrender requirements
-    rbos: [u32; 2],
-    fbo: u32,
-}
-impl HeadlessData {
-    fn new(ctx: winit::Context<PossiblyCurrent>, gl: Rc<dyn Gl>) -> Self {
-        // manually create a surface for Webrender:
-
-        let rbos = gl.gen_renderbuffers(2);
-
-        let rbos = [rbos[0], rbos[1]];
-        let fbo = gl.gen_framebuffers(1)[0];
-
-        gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[0]);
-        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, 1, 1);
-
-        gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[1]);
-        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, 1, 1);
-
-        gl.viewport(0, 0, 1, 1);
-
-        gl.bind_framebuffer(gl::FRAMEBUFFER, fbo);
-        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rbos[0]);
-        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rbos[1]);
-
-        HeadlessData { ctx, gl, rbos, fbo }
+impl Default for GlContextManager {
+    fn default() -> Self {
+        Self {
+            current: Rc::new(Cell::new(None)),
+            unsupported_headed: LinearSet::new(),
+            unsupported_headless: LinearSet::new(),
+        }
     }
+}
 
-    fn resize(&self, width: i32, height: i32) {
-        self.gl.bind_renderbuffer(gl::RENDERBUFFER, self.rbos[0]);
-        self.gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, width, height);
+impl GlContextManager {
+    /// New window context.
+    pub(crate) fn create_headed(
+        &mut self,
+        id: WindowId,
+        window: &winit::window::Window,
+        window_target: &EventLoopWindowTarget<AppEvent>,
+        render_mode: RenderMode,
+    ) -> GlContext {
+        let mut errors = vec![];
 
-        self.gl.bind_renderbuffer(gl::RENDERBUFFER, self.rbos[1]);
-        self.gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width, height);
+        for config in TryConfig::iter(render_mode) {
+            if self.unsupported_headed.contains(&config) {
+                errors.push((config, "previous attempt failed, not supported".into()));
+                continue;
+            }
 
-        self.gl.viewport(0, 0, width, height);
-    }
+            let r = util::catch_supress(std::panic::AssertUnwindSafe(|| match config.mode {
+                RenderMode::Dedicated => self.create_headed_glutin(id, window, window_target, config.hardware_acceleration),
+                RenderMode::Integrated => self.create_headed_glutin(id, window, window_target, Some(false)),
+                RenderMode::Software => self.create_headed_swgl(id, window),
+            }));
 
-    fn destroy(mut self, is_current: bool) {
-        if !is_current {
-            self.ctx = unsafe { self.ctx.treat_as_not_current().make_current().unwrap() };
+            let error = match r {
+                Ok(Ok(ctx)) => return ctx,
+                Ok(Err(e)) => e,
+                Err(panic) => util::panic_msg(&*panic).to_owned().into(),
+            };
+
+            tracing::error!("[{}] {}", config.name(), error);
+            errors.push((config, error));
+
+            self.unsupported_headed.insert(config);
         }
 
-        self.gl.delete_framebuffers(&[self.fbo]);
-        self.gl.delete_renderbuffers(&self.rbos);
+        let mut msg = "failed to create headed open-gl context:\n".to_owned();
+        for (config, error) in errors {
+            use std::fmt::Write;
+            writeln!(&mut msg, "  {:?}: {}", config.name(), error).unwrap();
+        }
 
-        let _ = unsafe { self.ctx.make_not_current() };
+        panic!("{msg}")
+    }
+
+    /// New headless context.
+    pub(crate) fn create_headless(
+        &mut self,
+        id: WindowId,
+        window_target: &EventLoopWindowTarget<AppEvent>,
+        render_mode: RenderMode,
+    ) -> GlContext {
+        let mut errors = vec![];
+
+        for config in TryConfig::iter(render_mode) {
+            if self.unsupported_headed.contains(&config) {
+                errors.push((config, "previous attempt failed, not supported".into()));
+                continue;
+            }
+
+            let r = util::catch_supress(std::panic::AssertUnwindSafe(|| match config.mode {
+                RenderMode::Dedicated => self.create_headless_glutin(id, window_target, config.hardware_acceleration),
+                RenderMode::Integrated => self.create_headless_glutin(id, window_target, Some(false)),
+                RenderMode::Software => self.create_headless_swgl(id),
+            }));
+
+            let error = match r {
+                Ok(Ok(ctx)) => return ctx,
+                Ok(Err(e)) => e,
+                Err(panic) => util::panic_msg(&*panic).to_owned().into(),
+            };
+
+            tracing::error!("[{}] {}", config.name(), error);
+            errors.push((config, error));
+
+            self.unsupported_headless.insert(config);
+        }
+
+        let mut msg = "failed to create headless open-gl context:\n".to_owned();
+        for (config, error) in errors {
+            use std::fmt::Write;
+            writeln!(&mut msg, "  {:?}: {}", config.name(), error).unwrap();
+        }
+
+        panic!("{msg}")
+    }
+
+    fn create_headed_glutin(
+        &mut self,
+        id: WindowId,
+        window: &winit::window::Window,
+        window_target: &EventLoopWindowTarget<AppEvent>,
+        hardware: Option<bool>,
+    ) -> Result<GlContext, Box<dyn Error>> {
+        let display_handle = window_target.raw_display_handle();
+        let window_handle = window.raw_window_handle();
+
+        #[cfg(windows)]
+        let display_pref = DisplayApiPreference::WglThenEgl(Some(window_handle));
+
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "netbsd"
+        ))]
+        let display_pref = DisplayApiPreference::DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
+
+        // SAFETY: we are trusting the `raw_display_handle` from winit here.
+        let display = unsafe { Display::from_raw(display_handle, display_pref) }?;
+
+        let template = ConfigTemplateBuilder::new()
+            .compatible_with_native_window(window_handle)
+            .with_alpha_size(8)
+            .with_transparency(true)
+            .with_surface_type(ConfigSurfaceTypes::WINDOW)
+            .prefer_hardware_accelerated(hardware)
+            .build();
+
+        // SAFETY: we are holding the `window` reference.
+        let config = unsafe { display.find_configs(template)?.next().ok_or("no display config") }?;
+
+        let size = window.inner_size();
+        let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+            window_handle,
+            NonZeroU32::new(size.width).unwrap(),
+            NonZeroU32::new(size.height).unwrap(),
+        );
+
+        // SAFETY: the window handle is valid.
+        let surface = unsafe { display.create_window_surface(&config, &attrs)? };
+
+        let context_attributes = ContextAttributesBuilder::new()
+            .with_context_api(ContextApi::OpenGl(Some(glutin::context::Version::new(3, 2))))
+            .build(Some(window_handle));
+        // SAFETY: the window handle is valid.
+        let context = unsafe { display.create_context(&config, &context_attributes)? };
+
+        self.current.set(Some(id));
+        let context = context.make_current(&surface)?;
+
+        let gl_api = config.api();
+        let gl = if gl_api.contains(Api::OPENGL) {
+            // SAFETY: function pointers are directly from safe glutin here.
+            unsafe {
+                gl::GlFns::load_with(|symbol| {
+                    let symbol = CString::new(symbol).unwrap();
+                    context.get_proc_address(symbol.as_c_str())
+                })
+            }
+        } else if gl_api.contains(Api::GLES3) {
+            // SAFETY: function pointers are directly from safe glutin here.
+            unsafe {
+                gl::GlesFns::load_with(|symbol| {
+                    let symbol = CString::new(symbol).unwrap();
+                    context.get_proc_address(symbol.as_c_str())
+                })
+            }
+        } else {
+            return Err("no OpenGL or GLES3 available".into());
+        };
+
+        #[cfg(debug_assertions)]
+        let gl = gl::ErrorCheckingGl::wrap(gl.clone());
+
+        check_wr_gl_version(&*gl)?;
+
+        let mut context = GlContext {
+            id,
+            current: self.current.clone(),
+            data: GlContextData::Gl { context, surface },
+            gl,
+
+            render_mode: if hardware == Some(false) {
+                RenderMode::Integrated
+            } else {
+                RenderMode::Dedicated
+            },
+        };
+
+        context.resize(size);
+
+        Ok(context)
+    }
+
+    #[allow(unreachable_code)]
+    fn create_headed_swgl(&mut self, id: WindowId, window: &winit::window::Window) -> Result<GlContext, Box<dyn Error>> {
+        #[cfg(not(software))]
+        {
+            return Err("zero-ui-view not build with \"software\" backend".into());
+        }
+
+        #[cfg(software)]
+        {
+            if !blit::Impl::supported() {
+                return Err("zero-ui-view does not fully implement headed \"software\" backend on target OS (missing blit)".into());
+            }
+
+            let blit = blit::Impl::new(window);
+            let context = swgl::Context::create();
+            let gl = Rc::new(context);
+
+            // create_headed_glutin returns as current.
+            self.current.set(Some(id));
+            context.make_current();
+
+            Ok(GlContext {
+                id,
+                current: self.current.clone(),
+                data: GlContextData::Software { context, blit: Some(blit) },
+                gl,
+                render_mode: RenderMode::Software,
+            })
+        }
+    }
+
+    fn create_headless_glutin(
+        &mut self,
+        id: WindowId,
+        window_target: &EventLoopWindowTarget<AppEvent>,
+        hardware: Option<bool>,
+    ) -> Result<GlContext, Box<dyn Error>> {
+        let _ = (id, window_target, hardware);
+
+        Err("headless glutin backend not implemented".into())
+    }
+
+    #[allow(unreachable_code)]
+    fn create_headless_swgl(&mut self, id: WindowId) -> Result<GlContext, Box<dyn Error>> {
+        #[cfg(not(software))]
+        {
+            return Err("zero-ui-view not build with \"software\" backend".into());
+        }
+
+        #[cfg(software)]
+        {
+            let context = swgl::Context::create();
+            let gl = Rc::new(context);
+
+            // create_headless_glutin returns as current.
+            self.current.set(Some(id));
+            context.make_current();
+
+            Ok(GlContext {
+                id,
+                current: self.current.clone(),
+                data: GlContextData::Software { context, blit: None },
+                gl,
+                render_mode: RenderMode::Software,
+            })
+        }
     }
 }
 
-impl GlContext {
-    pub fn gl(&self) -> &Rc<dyn Gl> {
-        &self.gl
-    }
-
-    pub fn is_current(&self) -> bool {
-        Some(self.id) == self.current_id.get()
-    }
+enum GlContextData {
+    Gl {
+        context: PossiblyCurrentContext,
+        surface: Surface<WindowSurface>,
+    },
 
     #[cfg(software)]
-    pub fn is_software(&self) -> bool {
-        matches!(&self.inner, GlContextInner::Software(_, _))
-    }
+    Software { context: swgl::Context, blit: Option<blit::Impl> },
+}
 
-    #[cfg(not(software))]
-    pub fn is_software(&self) -> bool {
+/// OpenGL context managed by [`GlContextManager`].
+pub(crate) struct GlContext {
+    id: WindowId,
+    current: Rc<Cell<Option<WindowId>>>,
+
+    data: GlContextData,
+
+    gl: Rc<dyn gl::Gl>,
+    render_mode: RenderMode,
+}
+impl fmt::Debug for GlContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GlContext")
+            .field("id", &self.id)
+            .field("is_current", &self.is_current())
+            .field("render_mode", &self.render_mode)
+            .finish_non_exhaustive()
+    }
+}
+impl GlContext {
+    /// If the context is backed by SWGL.
+    #[allow(unreachable_code)]
+    pub(crate) fn is_software(&self) -> bool {
+        #[cfg(software)]
+        {
+            return matches!(&self.data, GlContextData::Software { .. });
+        }
         false
     }
 
-    pub fn render_mode(&self) -> RenderMode {
-        self.mode
+    pub fn is_current(&self) -> bool {
+        Some(self.id) == self.current.get()
     }
 
-    pub fn make_current(&mut self) {
-        if self.is_current() {
-            return;
-        }
-
-        self.current_id.set(Some(self.id));
-
-        #[cfg(software)]
-        if let GlContextInner::Software(ctx, _) = &self.inner {
-            ctx.make_current();
-            return;
-        }
-
-        // SAFETY:
-        // glutin docs says that calling `make_not_current` is not necessary and
-        // that "If you call make_current on some context, you should call treat_as_not_current as soon
-        // as possible on the previously current context."
-        //
-        // As far as the glutin code goes `treat_as_not_current` just changes the state tag, so we can call
-        // `treat_as_not_current` just to get access to the `make_current` when we know it is not current
-        // anymore, and just ignore the whole "current state tag" thing.
-        self.inner = match mem::replace(&mut self.inner, GlContextInner::MakingCurrent) {
-            GlContextInner::Headed(ctx) => {
-                let ctx = unsafe { ctx.treat_as_not_current().make_current() }.unwrap();
-                GlContextInner::Headed(ctx)
-            }
-            GlContextInner::Headless(mut ctx) => {
-                ctx.ctx = unsafe { ctx.ctx.treat_as_not_current().make_current() }.unwrap();
-                GlContextInner::Headless(ctx)
-            }
-            s => panic!("unexpected context state, {s:?}"),
-        }
+    pub(crate) fn gl(&self) -> &Rc<dyn gl::Gl> {
+        &self.gl
     }
 
-    pub fn resize(&self, width: i32, height: i32) {
+    pub(crate) fn render_mode(&self) -> RenderMode {
+        self.render_mode
+    }
+
+    pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
         assert!(self.is_current());
 
-        match &self.inner {
-            GlContextInner::Headed(ctx) => ctx.resize(winit::dpi::PhysicalSize::new(width as _, height as _)),
-            GlContextInner::Headless(ctx) => ctx.resize(width, height),
-            #[cfg(software)]
-            GlContextInner::Software(ctx, _) => {
+        match &self.data {
+            GlContextData::Gl { context, surface } => {
+                let width = NonZeroU32::new(size.width).unwrap();
+                let height = NonZeroU32::new(size.height).unwrap();
+                surface.resize(context, width, height)
+            }
+            GlContextData::Software { context, .. } => {
                 // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
-                ctx.init_default_framebuffer(0, 0, width, height, 0, std::ptr::null_mut());
+                context.init_default_framebuffer(0, 0, size.width as i32, size.height as i32, 0, std::ptr::null_mut());
             }
-            s => panic!("unexpected context state, {s:?}"),
         }
     }
 
-    /// Swap headed buffers or blit headed software.
-    pub fn swap_buffers(&mut self) {
+    pub(crate) fn make_current(&mut self) {
+        let id = Some(self.id);
+        if self.current.get() != id {
+            self.current.set(id);
+
+            match &self.data {
+                GlContextData::Gl { context, surface } => context.make_current(surface).unwrap(),
+                GlContextData::Software { context, .. } => context.make_current(),
+            }
+        }
+    }
+
+    pub(crate) fn swap_buffers(&mut self) {
         assert!(self.is_current());
 
-        match &mut self.inner {
-            GlContextInner::Headed(ctx) => ctx.swap_buffers().unwrap(),
-            GlContextInner::Headless(_) => {}
-            #[cfg(software)]
-            GlContextInner::Software(swgl, headed) => {
-                if let Some(headed) = headed {
-                    swgl.finish();
-                    let (data_ptr, w, h, stride) = swgl.get_color_buffer(0, true);
+        match &mut self.data {
+            GlContextData::Gl { context, surface } => surface.swap_buffers(context).unwrap(),
+            GlContextData::Software { context, blit } => {
+                if let Some(headed) = blit {
+                    gl::Gl::finish(context);
+                    let (data_ptr, w, h, stride) = context.get_color_buffer(0, true);
 
                     if w == 0 || h == 0 {
                         return;
@@ -186,363 +397,61 @@ impl GlContext {
                     headed.blit(w, h, frame);
                 }
             }
-            s => panic!("unexpected context state, {s:?}"),
-        }
-    }
-
-    /// Glutin requires that the context is [dropped before the window][1], calling this
-    /// function safely disposes of the context, the winit window should be dropped immediately after.
-    ///
-    /// [1]: https://docs.rs/glutin/0.27.0/glutin/type.WindowedContext.html#method.split
-    pub fn drop_before_winit(&mut self) {
-        match mem::replace(&mut self.inner, GlContextInner::Dropped) {
-            GlContextInner::Headed(ctx) => {
-                if self.is_current() {
-                    let _ = unsafe { ctx.make_not_current() };
-                } else {
-                    let _ = unsafe { ctx.treat_as_not_current() };
-                }
-            }
-            GlContextInner::Headless(ctx) => ctx.destroy(self.is_current()),
-            #[cfg(software)]
-            GlContextInner::Software(ctx, _) => ctx.destroy(),
-            GlContextInner::Dropped => {}
-            GlContextInner::MakingCurrent => {
-                tracing::error!("unexpected `MakingCurrent` on drop");
-            }
-        }
-
-        if self.is_current() {
-            self.current_id.set(None);
         }
     }
 }
-
 impl Drop for GlContext {
     fn drop(&mut self) {
-        match mem::replace(&mut self.inner, GlContextInner::Dropped) {
-            GlContextInner::Headed(_) => panic!("call `drop_before_winit` before dropping a headed context"),
-            GlContextInner::Headless(ctx) => ctx.destroy(self.is_current()),
-            #[cfg(software)]
-            GlContextInner::Software(ctx, _) => ctx.destroy(),
-            GlContextInner::Dropped => {}
-            GlContextInner::MakingCurrent => {
-                tracing::error!("unexpected `MakingCurrent` on drop");
-            }
+        if self.current.get() == Some(self.id) {
+            self.current.set(None);
         }
     }
 }
 
-type CurrentId = Rc<Cell<Option<WindowId>>>;
+/// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
+/// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
+#[cfg(windows)]
+pub(crate) fn warmup() {
+    // idea copied from here:
+    // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
 
-/// Manages the "current" `glutin` or `swgl` OpenGL context.
-///
-/// # Safety
-///
-/// If this manager is in use all OpenGL contexts created in the process must be managed by a single instance of it.
-#[derive(Default)]
-pub(crate) struct GlContextManager {
-    current_id: CurrentId,
-    unsupported: LinearSet<TryConfig>,
+    use windows::Win32::{
+        Foundation::HWND,
+        Graphics::{
+            Gdi::*,
+            OpenGL::{self, PFD_PIXEL_TYPE},
+        },
+    };
+
+    let _ = std::thread::Builder::new()
+        .name("warmup".to_owned())
+        .stack_size(3 * 64 * 1024)
+        .spawn(|| unsafe {
+            let _span = tracing::trace_span!("open-gl-init").entered();
+            let hdc = GetDC(HWND(0));
+            let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, std::ptr::null_mut());
+            ReleaseDC(HWND(0), hdc);
+        });
 }
-impl GlContextManager {
-    fn insert_unsupported(&mut self, config: TryConfig) {
-        self.unsupported.insert(config);
-    }
 
-    pub fn create_headed(
-        &mut self,
-        id: WindowId,
-        window: WindowBuilder,
-        window_target: &EventLoopWindowTarget<crate::AppEvent>,
-        mode_pref: RenderMode,
-    ) -> (GlContext, winit::window::Window) {
-        let mut error_log = String::new();
+// check if equal or newer then 3.1
+fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {
+    let version = gl.get_string(gl::VERSION);
 
-        for config in TryConfig::iter(mode_pref) {
-            if self.unsupported.contains(&config) {
-                let _ = write!(&mut error_log, "\n[{}]\nskip, previous attempt failed", config.name());
-                continue;
-            }
+    // pattern is "\d+(\.\d+)?."
+    // we take the major and optionally minor versions.
+    let ver: Vec<_> = version.split('.').take(2).filter_map(|n| n.parse::<u8>().ok()).collect();
 
-            match config.mode {
-                #[cfg(software)]
-                RenderMode::Software => {
-                    if !blit::Impl::supported() {
-                        error_log.push_str(
-                            "\n[Software]\nzero-ui-view does not fully implement headed \"software\" backend on target OS (missing blit)",
-                        );
-                        continue;
-                    }
+    let supported = if ver[0] == 3 {
+        ver.get(1).copied().unwrap_or(0) >= 1
+    } else {
+        ver[0] > 3
+    };
 
-                    let _span = tracing::trace_span!("create-software-ctx").entered();
-
-                    let window = window.build(window_target).unwrap();
-                    let headed = blit::Impl::new(&window);
-                    let ctx = self.create_software(id, Some(headed));
-
-                    return (ctx, window);
-                }
-                #[cfg(not(software))]
-                RenderMode::Software => {
-                    error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
-                }
-
-                mode => {
-                    // glutin try.
-
-                    let mut logged = false;
-                    let mut log_error = |e: &dyn fmt::Debug| {
-                        if !logged {
-                            let _ = write!(error_log, "\n[{}]", config.name());
-                            logged = true;
-                        }
-                        let _ = write!(error_log, "\n{e:?}");
-                    };
-
-                    let _span = tracing::trace_span!("create-glutin-ctx", ?config).entered();
-
-                    let panic_result = util::catch_supress(assert_unwind_safe(|| {
-                        winit::ContextBuilder::new()
-                            .with_gl(winit::GlRequest::Latest)
-                            .with_hardware_acceleration(config.hardware_acceleration)
-                            .build_windowed(window.clone(), window_target)
-                    }));
-
-                    match panic_result {
-                        Ok(Ok(c)) => {
-                            self.current_id.set(None);
-
-                            // SAFETY: we assume all glutin context are managed by us in a single thread.
-                            let ctx = match unsafe { c.make_current() } {
-                                Ok(c) => c,
-                                Err(e) => {
-                                    log_error(&e);
-                                    self.insert_unsupported(config);
-                                    continue;
-                                }
-                            };
-
-                            let gl = match ctx.get_api() {
-                                winit::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
-                                winit::Api::OpenGlEs => unsafe {
-                                    gl::GlesFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _)
-                                },
-                                winit::Api::WebGl => {
-                                    log_error(&"WebGL is not supported");
-                                    self.insert_unsupported(config);
-                                    continue;
-                                }
-                            };
-
-                            #[cfg(debug_assertions)]
-                            let gl = gl::ErrorCheckingGl::wrap(gl.clone());
-
-                            if !wr_supports_gl(&*gl) {
-                                log_error(&"Webrender requires at least OpenGL 3.1");
-                                self.insert_unsupported(config);
-                                continue;
-                            }
-
-                            self.current_id.set(Some(id));
-
-                            // SAFETY: panic if `ctx` is not dropped using `GlContext::drop_before_winit`.
-                            let (ctx, window) = unsafe { ctx.split() };
-
-                            let ctx = GlContextInner::Headed(ctx);
-
-                            let ctx = GlContext {
-                                id,
-                                current_id: self.current_id.clone(),
-                                mode,
-                                inner: ctx,
-                                gl,
-                            };
-
-                            return (ctx, window);
-                        }
-                        Ok(Err(e)) => {
-                            log_error(&e);
-                            self.insert_unsupported(config);
-                        }
-                        Err(payload) => {
-                            log_error(&panic_msg(&payload));
-                            self.insert_unsupported(config);
-                        }
-                    }
-                }
-            }
-        }
-
-        panic!("failed to created headed context:{error_log}");
-    }
-
-    pub fn create_headless(
-        &mut self,
-        id: WindowId,
-        window_target: &EventLoopWindowTarget<crate::AppEvent>,
-        mode_pref: RenderMode,
-    ) -> GlContext {
-        let mut error_log = String::new();
-
-        let size = PxSize::new(Px(2), Px(2));
-
-        for config in TryConfig::iter(mode_pref) {
-            if self.unsupported.contains(&config) {
-                let _ = write!(&mut error_log, "\n[{}]\nskip, previous attempt failed", config.name());
-                continue;
-            }
-
-            match config.mode {
-                #[cfg(software)]
-                RenderMode::Software => {
-                    return self.create_software(id, None);
-                }
-                #[cfg(not(software))]
-                RenderMode::Software => {
-                    error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
-                }
-
-                mode => {
-                    // glutin try.
-
-                    let mut logged = false;
-                    let mut log_error = |e: &dyn fmt::Debug| {
-                        if !logged {
-                            let _ = write!(error_log, "\n[{}]", config.name());
-                            logged = true;
-                        }
-                        let _ = write!(error_log, "\n{e:?}");
-                    };
-
-                    let context_builder = winit::ContextBuilder::new()
-                        .with_gl(winit::GlRequest::Latest)
-                        .with_hardware_acceleration(config.hardware_acceleration);
-
-                    // On Linux, try "surfaceless" first.
-                    #[cfg(any(
-                        target_os = "linux",
-                        target_os = "dragonfly",
-                        target_os = "freebsd",
-                        target_os = "netbsd",
-                        target_os = "openbsd",
-                    ))]
-                    let panic_result = {
-                        use winit::platform::unix::HeadlessContextExt;
-
-                        let c = context_builder.clone();
-                        let r = util::catch_supress(assert_unwind_safe(|| c.build_surfaceless(window_target)));
-
-                        let mut surfaceless_ok = false;
-                        match &r {
-                            Ok(Ok(_)) => surfaceless_ok = true,
-                            Ok(Err(e)) => {
-                                log_error(&format!("surfaceless error: {e:?}"));
-                                self.insert_unsupported(config);
-                            }
-                            Err(payload) => {
-                                log_error(&format!("surfaceless panic: {}", panic_msg(&*payload)));
-                                self.insert_unsupported(config);
-                            }
-                        }
-
-                        if surfaceless_ok {
-                            r
-                        } else {
-                            util::catch_supress(assert_unwind_safe(|| {
-                                context_builder.build_headless(window_target, size.to_winit())
-                            }))
-                        }
-                    };
-
-                    #[cfg(not(any(
-                        target_os = "linux",
-                        target_os = "dragonfly",
-                        target_os = "freebsd",
-                        target_os = "netbsd",
-                        target_os = "openbsd",
-                    )))]
-                    let panic_result = util::catch_supress(assert_unwind_safe(|| {
-                        context_builder.build_headless(window_target, size.to_winit())
-                    }));
-
-                    match panic_result {
-                        Ok(Ok(c)) => {
-                            self.current_id.set(None);
-
-                            // SAFETY: we assume all glutin context are managed by us in a single thread.
-                            let ctx = match unsafe { c.make_current() } {
-                                Ok(c) => c,
-                                Err(e) => {
-                                    log_error(&e);
-                                    self.insert_unsupported(config);
-                                    continue;
-                                }
-                            };
-
-                            let gl = match ctx.get_api() {
-                                winit::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
-                                winit::Api::OpenGlEs => unsafe {
-                                    gl::GlesFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _)
-                                },
-                                winit::Api::WebGl => {
-                                    log_error(&"WebGL is not supported");
-                                    self.insert_unsupported(config);
-                                    continue;
-                                }
-                            };
-                            #[cfg(debug_assertions)]
-                            let gl = gl::ErrorCheckingGl::wrap(gl.clone());
-
-                            if !wr_supports_gl(&*gl) {
-                                log_error(&"Webrender requires at least OpenGL 3.1");
-                                self.insert_unsupported(config);
-                                continue;
-                            }
-
-                            self.current_id.set(Some(id));
-
-                            let ctx = GlContextInner::Headless(HeadlessData::new(ctx, gl.clone()));
-
-                            return GlContext {
-                                id,
-                                current_id: self.current_id.clone(),
-                                mode,
-                                inner: ctx,
-                                gl,
-                            };
-                        }
-                        Ok(Err(e)) => {
-                            log_error(&e);
-                            self.insert_unsupported(config);
-                        }
-                        Err(payload) => {
-                            log_error(&panic_msg(&payload));
-                            self.insert_unsupported(config);
-                        }
-                    }
-                }
-            }
-        }
-
-        panic!("failed to created headeless context:{error_log}");
-    }
-
-    #[cfg(software)]
-    fn create_software(&self, id: WindowId, headed: Option<blit::Impl>) -> GlContext {
-        let ctx = swgl::Context::create();
-        let gl = Rc::new(ctx);
-        let ctx = GlContextInner::Software(ctx, headed);
-        let mut ctx = GlContext {
-            id,
-            current_id: self.current_id.clone(),
-            mode: RenderMode::Software,
-            inner: ctx,
-            gl,
-        };
-        ctx.make_current();
-
-        ctx
+    if supported {
+        Ok(())
+    } else {
+        Err(format!("webrender requires OpenGL 3.1 or newer, found {version}"))
     }
 }
 
@@ -597,34 +506,6 @@ impl TryConfig {
                 RenderMode::Dedicated => unreachable!(),
             },
             None => "Dedicated (generic)",
-        }
-    }
-}
-
-// check if equal or newer then 3.1
-fn wr_supports_gl(gl: &dyn Gl) -> bool {
-    let version = gl.get_string(gl::VERSION);
-
-    // pattern is "\d+(\.\d+)?."
-    // we take the major and optionally minor versions.
-    let ver: Vec<_> = version.split('.').take(2).filter_map(|n| n.parse::<u8>().ok()).collect();
-
-    if ver[0] == 3 {
-        ver.get(1).copied().unwrap_or(0) >= 1
-    } else {
-        ver[0] > 3
-    }
-}
-
-impl fmt::Debug for GlContextInner {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Headed(_) => write!(f, "Headed"),
-            Self::Headless(_) => write!(f, "Headless"),
-            #[cfg(software)]
-            Self::Software(_, _) => write!(f, "Software"),
-            Self::MakingCurrent => write!(f, "MakingCurrent"),
-            Self::Dropped => write!(f, "Dropped"),
         }
     }
 }
@@ -844,40 +725,3 @@ mod blit {
         }
     }
 }
-
-/// Assert that a glutin `&EventLoopWindowTarget` can still be used after a panic during build.
-///
-/// We expect panics to happen before the event loop is modified, they have some `unimplemented!` panics,
-/// at worst we will leak a bit but still fallback to software context, better then becoming unusable?
-fn assert_unwind_safe<T>(glutin_build: T) -> std::panic::AssertUnwindSafe<T> {
-    std::panic::AssertUnwindSafe(glutin_build)
-}
-
-/// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
-/// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
-#[cfg(windows)]
-pub(crate) fn warmup() {
-    // idea copied from here:
-    // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
-
-    use windows::Win32::{
-        Foundation::HWND,
-        Graphics::{
-            Gdi::*,
-            OpenGL::{self, PFD_PIXEL_TYPE},
-        },
-    };
-
-    let _ = std::thread::Builder::new()
-        .name("warmup".to_owned())
-        .stack_size(3 * 64 * 1024)
-        .spawn(|| unsafe {
-            let _span = tracing::trace_span!("open-gl-init").entered();
-            let hdc = GetDC(HWND(0));
-            let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, std::ptr::null_mut());
-            ReleaseDC(HWND(0), hdc);
-        });
-}
-
-#[cfg(not(windows))]
-pub(crate) fn warmup() {}

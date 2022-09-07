@@ -40,8 +40,8 @@ pub(crate) struct Window {
     display_list_cache: DisplayListCache,
     clear_color: Option<ColorF>,
 
+    context: GlContext, // context must be dropped before window.
     window: GWindow,
-    context: GlContext,
     renderer: Option<Renderer>,
     capture_mode: bool,
 
@@ -163,7 +163,8 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
-        let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, render_mode);
+        let winit_window = winit.build(window_target).unwrap();
+        let context = gl_manager.create_headed(id, &winit_window, window_target, render_mode);
         render_mode = context.render_mode();
 
         // * Extend the winit Windows window to not block the Alt+F4 key press.
@@ -1098,7 +1099,7 @@ impl Window {
             self.waiting_first_frame = false;
             let s = self.window.inner_size();
             self.context.make_current();
-            self.context.resize(s.width as i32, s.height as i32);
+            self.context.resize(s);
             self.redraw();
             if self.kiosk {
                 self.window.request_redraw();
@@ -1162,7 +1163,7 @@ impl Window {
 
             self.context.make_current();
             let size = self.window.inner_size();
-            self.context.resize(size.width as i32, size.height as i32);
+            self.context.resize(size);
 
             let size = self.window.inner_size();
             txn.set_document_view(PxRect::from_size(size.to_px()).to_wr_device());
@@ -1226,11 +1227,6 @@ impl Drop for Window {
         // webrender deinit panics if the context is not current.
         self.context.make_current();
         self.renderer.take().unwrap().deinit();
-
-        // context must be dropped before the winit window (glutin requirement).
-        self.context.drop_before_winit();
-
-        // the winit window will be dropped normally after this.
     }
 }
 

@@ -18,6 +18,7 @@ use zero_ui_view_api::{
 use crate::{
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
+    util::PxToWinit,
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
@@ -61,9 +62,10 @@ impl Surface {
     ) -> Self {
         let id = cfg.id;
 
-        let context = gl_manager.create_headless(id, window_target, cfg.render_mode);
+        let mut context = gl_manager.create_headless(id, window_target, cfg.render_mode);
         let size = cfg.size.to_px(cfg.scale_factor);
-        context.resize(size.width.0, size.height.0);
+        context.resize(size.to_winit());
+        let context = context;
 
         let opts = RendererOptions {
             // text-aa config from Firefox.
@@ -148,7 +150,7 @@ impl Surface {
                 self.scale_factor = scale_factor;
                 self.context.make_current();
                 let px_size = size.to_px(self.scale_factor);
-                self.context.resize(px_size.width.0, px_size.height.0);
+                self.context.resize(px_size.to_winit());
                 self.resized = true;
             } else {
                 todo!()

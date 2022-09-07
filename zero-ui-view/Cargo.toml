@@ -39,6 +39,7 @@ tracing = "0.1"
 gleam = "0.13.1" # matches webrender
 winit = { version =  "0.27", default-features = false, features = ["x11", "wayland", "wayland-dlopen"] }
 glutin = { git = "https://github.com/rust-windowing/glutin", version = "0.30.0-beta.2" }
+raw-window-handle = "0.5"
 flume = "0.10"
 is_main_thread = "0.1"
 image = "0.24"
