@@ -19,7 +19,3 @@
              - font size widget background is not themed
 
 - transform  - red
-
-# Other
-
-* Reimplement headless GPU in new glutin.

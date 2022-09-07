@@ -212,7 +212,11 @@ impl GlContextManager {
         let mut context = GlContext {
             id,
             current: self.current.clone(),
-            data: GlContextData::Gl { context, surface },
+            backend: GlBackend::Glutin {
+                context,
+                surface,
+                headless: None,
+            },
             gl,
 
             render_mode: if hardware == Some(false) {
@@ -251,7 +255,7 @@ impl GlContextManager {
             Ok(GlContext {
                 id,
                 current: self.current.clone(),
-                data: GlContextData::Software { context, blit: Some(blit) },
+                backend: GlBackend::Swgl { context, blit: Some(blit) },
                 gl,
                 render_mode: RenderMode::Software,
             })
@@ -264,9 +268,105 @@ impl GlContextManager {
         window_target: &EventLoopWindowTarget<AppEvent>,
         hardware: Option<bool>,
     ) -> Result<GlContext, Box<dyn Error>> {
-        let _ = (id, window_target, hardware);
+        let hidden_window = winit::window::WindowBuilder::new()
+            .with_transparent(true)
+            .with_inner_size(PhysicalSize::new(1u32, 1u32))
+            .with_visible(false)
+            .with_decorations(false)
+            .build(window_target)?;
 
-        Err("headless glutin backend not implemented".into())
+        let display_handle = window_target.raw_display_handle();
+        let window_handle = hidden_window.raw_window_handle();
+
+        #[cfg(windows)]
+        let display_pref = DisplayApiPreference::WglThenEgl(Some(window_handle));
+
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "netbsd"
+        ))]
+        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
+
+        // SAFETY: we are trusting the `raw_display_handle` from winit here.
+        let display = unsafe { Display::from_raw(display_handle, display_pref) }?;
+
+        let template = ConfigTemplateBuilder::new()
+            .with_alpha_size(8)
+            .with_transparency(true)
+            .compatible_with_native_window(window_handle)
+            .with_surface_type(ConfigSurfaceTypes::WINDOW)
+            .prefer_hardware_accelerated(hardware)
+            .build();
+
+        // SAFETY: we are holding the `window` reference.
+        let config = unsafe { display.find_configs(template)?.next().ok_or("no display config") }?;
+
+        let size = hidden_window.inner_size();
+        let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+            window_handle,
+            NonZeroU32::new(size.width).unwrap(),
+            NonZeroU32::new(size.height).unwrap(),
+        );
+
+        // SAFETY: the window handle is valid.
+        let surface = unsafe { display.create_window_surface(&config, &attrs)? };
+
+        let context_attributes = ContextAttributesBuilder::new().build(Some(window_handle));
+        // SAFETY: the window handle is valid.
+        let context = unsafe { display.create_context(&config, &context_attributes)? };
+
+        self.current.set(Some(id));
+        let context = context.make_current(&surface)?;
+
+        let gl_api = config.api();
+        let gl = if gl_api.contains(Api::OPENGL) {
+            // SAFETY: function pointers are directly from safe glutin here.
+            unsafe {
+                gl::GlFns::load_with(|symbol| {
+                    let symbol = CString::new(symbol).unwrap();
+                    context.get_proc_address(symbol.as_c_str())
+                })
+            }
+        } else if gl_api.contains(Api::GLES3) {
+            // SAFETY: function pointers are directly from safe glutin here.
+            unsafe {
+                gl::GlesFns::load_with(|symbol| {
+                    let symbol = CString::new(symbol).unwrap();
+                    context.get_proc_address(symbol.as_c_str())
+                })
+            }
+        } else {
+            return Err("no OpenGL or GLES3 available".into());
+        };
+
+        #[cfg(debug_assertions)]
+        let gl = gl::ErrorCheckingGl::wrap(gl.clone());
+
+        check_wr_gl_version(&*gl)?;
+
+        let mut context = GlContext {
+            id,
+            current: self.current.clone(),
+            backend: GlBackend::Glutin {
+                context,
+                surface,
+                headless: Some(GlutinHeadless::new(&gl, hidden_window)),
+            },
+            gl,
+
+            render_mode: if hardware == Some(false) {
+                RenderMode::Integrated
+            } else {
+                RenderMode::Dedicated
+            },
+        };
+
+        context.resize(size);
+
+        Ok(context)
     }
 
     #[allow(unreachable_code)]
@@ -288,7 +388,7 @@ impl GlContextManager {
             Ok(GlContext {
                 id,
                 current: self.current.clone(),
-                data: GlContextData::Software { context, blit: None },
+                backend: GlBackend::Swgl { context, blit: None },
                 gl,
                 render_mode: RenderMode::Software,
             })
@@ -296,14 +396,21 @@ impl GlContextManager {
     }
 }
 
-enum GlContextData {
-    Gl {
+enum GlBackend {
+    Glutin {
+        headless: Option<GlutinHeadless>,
         context: PossiblyCurrentContext,
         surface: Surface<WindowSurface>,
     },
 
     #[cfg(software)]
-    Software { context: swgl::Context, blit: Option<blit::Impl> },
+    Swgl {
+        context: swgl::Context,
+        // is None for headless.
+        blit: Option<blit::Impl>,
+    },
+
+    Dropped,
 }
 
 /// OpenGL context managed by [`GlContextManager`].
@@ -311,7 +418,7 @@ pub(crate) struct GlContext {
     id: WindowId,
     current: Rc<Cell<Option<WindowId>>>,
 
-    data: GlContextData,
+    backend: GlBackend,
 
     gl: Rc<dyn gl::Gl>,
     render_mode: RenderMode,
@@ -331,7 +438,7 @@ impl GlContext {
     pub(crate) fn is_software(&self) -> bool {
         #[cfg(software)]
         {
-            return matches!(&self.data, GlContextData::Software { .. });
+            return matches!(&self.backend, GlBackend::Swgl { .. });
         }
         false
     }
@@ -351,16 +458,25 @@ impl GlContext {
     pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
         assert!(self.is_current());
 
-        match &self.data {
-            GlContextData::Gl { context, surface } => {
-                let width = NonZeroU32::new(size.width).unwrap();
-                let height = NonZeroU32::new(size.height).unwrap();
-                surface.resize(context, width, height)
+        match &self.backend {
+            GlBackend::Glutin {
+                context,
+                surface,
+                headless,
+            } => {
+                if let Some(h) = headless {
+                    h.resize(&self.gl, size.width as _, size.height as _);
+                } else {
+                    let width = NonZeroU32::new(size.width).unwrap();
+                    let height = NonZeroU32::new(size.height).unwrap();
+                    surface.resize(context, width, height);
+                }
             }
-            GlContextData::Software { context, .. } => {
+            GlBackend::Swgl { context, .. } => {
                 // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
                 context.init_default_framebuffer(0, 0, size.width as i32, size.height as i32, 0, std::ptr::null_mut());
             }
+            GlBackend::Dropped => unreachable!(),
         }
     }
 
@@ -369,9 +485,10 @@ impl GlContext {
         if self.current.get() != id {
             self.current.set(id);
 
-            match &self.data {
-                GlContextData::Gl { context, surface } => context.make_current(surface).unwrap(),
-                GlContextData::Software { context, .. } => context.make_current(),
+            match &self.backend {
+                GlBackend::Glutin { context, surface, .. } => context.make_current(surface).unwrap(),
+                GlBackend::Swgl { context, .. } => context.make_current(),
+                GlBackend::Dropped => unreachable!(),
             }
         }
     }
@@ -379,9 +496,17 @@ impl GlContext {
     pub(crate) fn swap_buffers(&mut self) {
         assert!(self.is_current());
 
-        match &mut self.data {
-            GlContextData::Gl { context, surface } => surface.swap_buffers(context).unwrap(),
-            GlContextData::Software { context, blit } => {
+        match &mut self.backend {
+            GlBackend::Glutin {
+                context,
+                surface,
+                headless,
+            } => {
+                if headless.is_none() {
+                    surface.swap_buffers(context).unwrap()
+                }
+            }
+            GlBackend::Swgl { context, blit } => {
                 if let Some(headed) = blit {
                     gl::Gl::finish(context);
                     let (data_ptr, w, h, stride) = context.get_color_buffer(0, true);
@@ -397,13 +522,25 @@ impl GlContext {
                     headed.blit(w, h, frame);
                 }
             }
+            GlBackend::Dropped => unreachable!(),
         }
     }
 }
 impl Drop for GlContext {
     fn drop(&mut self) {
-        if self.current.get() == Some(self.id) {
-            self.current.set(None);
+        self.make_current();
+
+        match mem::replace(&mut self.backend, GlBackend::Dropped) {
+            GlBackend::Glutin { headless, .. } => {
+                if let Some(h) = headless {
+                    #[cfg(windows)]
+                    let _ = h.hidden_window;
+
+                    h.destroy(&self.gl);
+                }
+            }
+            GlBackend::Swgl { context, .. } => context.destroy(),
+            GlBackend::Dropped => unreachable!(),
         }
     }
 }
@@ -726,5 +863,52 @@ mod blit {
                 todo!("wayland blit not implemented")
             }
         }
+    }
+}
+
+struct GlutinHeadless {
+    hidden_window: winit::window::Window,
+
+    // actual surface.
+    rbos: [u32; 2],
+    fbo: u32,
+}
+impl GlutinHeadless {
+    fn new(gl: &Rc<dyn gl::Gl>, hidden_window: winit::window::Window) -> Self {
+        // create a surface for Webrender:
+
+        let rbos = gl.gen_renderbuffers(2);
+
+        let rbos = [rbos[0], rbos[1]];
+        let fbo = gl.gen_framebuffers(1)[0];
+
+        gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[0]);
+        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, 1, 1);
+
+        gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[1]);
+        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, 1, 1);
+
+        gl.viewport(0, 0, 1, 1);
+
+        gl.bind_framebuffer(gl::FRAMEBUFFER, fbo);
+        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rbos[0]);
+        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rbos[1]);
+
+        GlutinHeadless { hidden_window, rbos, fbo }
+    }
+
+    fn resize(&self, gl: &Rc<dyn gl::Gl>, width: i32, height: i32) {
+        gl.bind_renderbuffer(gl::RENDERBUFFER, self.rbos[0]);
+        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, width, height);
+
+        gl.bind_renderbuffer(gl::RENDERBUFFER, self.rbos[1]);
+        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width, height);
+
+        gl.viewport(0, 0, width, height);
+    }
+
+    fn destroy(self, gl: &Rc<dyn gl::Gl>) {
+        gl.delete_framebuffers(&[self.fbo]);
+        gl.delete_renderbuffers(&self.rbos);
     }
 }
