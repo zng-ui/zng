@@ -148,7 +148,7 @@ impl GlContextManager {
             target_os = "openbsd",
             target_os = "netbsd"
         ))]
-        let display_pref = DisplayApiPreference::DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
+        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
         let display = unsafe { Display::from_raw(display_handle, display_pref) }?;
@@ -433,6 +433,9 @@ pub(crate) fn warmup() {
             ReleaseDC(HWND(0), hdc);
         });
 }
+
+#[cfg(not(windows))]
+pub(crate) fn warmup() {}
 
 // check if equal or newer then 3.1
 fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {
