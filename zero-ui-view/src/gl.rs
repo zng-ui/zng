@@ -3,7 +3,7 @@ use std::{cell::Cell, error::Error, ffi::CString, fmt, mem, num::NonZeroU32, rc:
 use gleam::gl;
 use glutin::{
     config::{Api, ConfigSurfaceTypes, ConfigTemplateBuilder},
-    context::{ContextApi, ContextAttributesBuilder, PossiblyCurrentContext},
+    context::{ContextAttributesBuilder, PossiblyCurrentContext},
     display::{Display, DisplayApiPreference},
     prelude::*,
     surface::{Surface, SurfaceAttributesBuilder, WindowSurface},
@@ -47,10 +47,10 @@ impl GlContextManager {
     pub(crate) fn create_headed(
         &mut self,
         id: WindowId,
-        window: &winit::window::Window,
+        window: winit::window::WindowBuilder,
         window_target: &EventLoopWindowTarget<AppEvent>,
         render_mode: RenderMode,
-    ) -> GlContext {
+    ) -> (winit::window::Window, GlContext) {
         let mut errors = vec![];
 
         for config in TryConfig::iter(render_mode) {
@@ -59,14 +59,16 @@ impl GlContextManager {
                 continue;
             }
 
+            let window = window.clone().build(window_target).unwrap();
+
             let r = util::catch_supress(std::panic::AssertUnwindSafe(|| match config.mode {
-                RenderMode::Dedicated => self.create_headed_glutin(id, window, window_target, config.hardware_acceleration),
-                RenderMode::Integrated => self.create_headed_glutin(id, window, window_target, Some(false)),
-                RenderMode::Software => self.create_headed_swgl(id, window),
+                RenderMode::Dedicated => self.create_headed_glutin(id, &window, window_target, config.hardware_acceleration),
+                RenderMode::Integrated => self.create_headed_glutin(id, &window, window_target, Some(false)),
+                RenderMode::Software => self.create_headed_swgl(id, &window),
             }));
 
             let error = match r {
-                Ok(Ok(ctx)) => return ctx,
+                Ok(Ok(ctx)) => return (window, ctx),
                 Ok(Err(e)) => e,
                 Err(panic) => util::panic_msg(&*panic).to_owned().into(),
             };
@@ -154,9 +156,9 @@ impl GlContextManager {
         let display = unsafe { Display::from_raw(display_handle, display_pref) }?;
 
         let template = ConfigTemplateBuilder::new()
-            .compatible_with_native_window(window_handle)
             .with_alpha_size(8)
             .with_transparency(true)
+            .compatible_with_native_window(window_handle)
             .with_surface_type(ConfigSurfaceTypes::WINDOW)
             .prefer_hardware_accelerated(hardware)
             .build();
@@ -174,9 +176,7 @@ impl GlContextManager {
         // SAFETY: the window handle is valid.
         let surface = unsafe { display.create_window_surface(&config, &attrs)? };
 
-        let context_attributes = ContextAttributesBuilder::new()
-            .with_context_api(ContextApi::OpenGl(Some(glutin::context::Version::new(3, 2))))
-            .build(Some(window_handle));
+        let context_attributes = ContextAttributesBuilder::new().build(Some(window_handle));
         // SAFETY: the window handle is valid.
         let context = unsafe { display.create_context(&config, &context_attributes)? };
 

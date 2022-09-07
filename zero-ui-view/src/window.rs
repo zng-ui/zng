@@ -163,8 +163,7 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
-        let winit_window = winit.build(window_target).unwrap();
-        let context = gl_manager.create_headed(id, &winit_window, window_target, render_mode);
+        let (winit_window, context) = gl_manager.create_headed(id, winit, window_target, render_mode);
         render_mode = context.render_mode();
 
         // * Extend the winit Windows window to not block the Alt+F4 key press.
