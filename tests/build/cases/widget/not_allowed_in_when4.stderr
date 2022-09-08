@@ -1,0 +1,5 @@
+error: property `foo` is not allowed in when
+  --> cases/widget/not_allowed_in_when4.rs:24:19
+   |
+24 |         when self.foo.is() { }
+   |                   ^^^

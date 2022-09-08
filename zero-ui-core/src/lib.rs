@@ -389,7 +389,8 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// properties that don't have the `on_` prefix are allowed. This can be overridden by setting `allowed_in_when = <bool>`.
 ///
 /// If a property is `allowed_in_when` all arguments must be [`impl IntoVar<T>`]. This is validated during compile time, if you see
-/// `allowed_in_when_property_requires_IntoVar_members` in a error message you need to change the type or disable `allowed_in_when`.
+/// `allowed_in_when_property_requires_IntoVar_members` in a error message you need to change the type or disable `allowed_in_when`,
+/// named type params are also not allowed, only `impl Trait` generics.
 ///
 /// ## State Probing
 ///
@@ -679,7 +680,7 @@ pub use zero_ui_proc_macros::property;
 /// # use zero_ui_core::{*, var::*};
 /// # #[derive(Clone, Debug)] pub struct ValueConfig;
 /// # context_var! { static VALUE_CONFIG_VAR: ValueConfig = ValueConfig; }
-/// #[property(context)]
+/// #[property(context, allowed_in_when = false)]
 /// pub fn value<T: VarValue>(child: impl UiNode, m: impl IntoVar<T>) -> impl UiNode {
 ///     // ..
 /// #    child
@@ -792,7 +793,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{widget, property, UiNode, var::{IntoVar, VarValue}};
-/// #[property(context)]
+/// #[property(context, allowed_in_when = false)]
 /// pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
 ///     // ..
 /// # child

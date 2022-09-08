@@ -1,0 +1,5 @@
+error: property `foo` is not allowed in when
+  --> cases/widget/not_allowed_in_when6.rs:22:13
+   |
+22 |             foo<bool> = true;
+   |             ^^^

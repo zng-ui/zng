@@ -823,7 +823,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     .unwrap_or_else(|e| non_user_error!(e));
                 let lints = attrs.lints;
 
-                when_defaults.extend(quote! {
+                let mut when_default = TokenStream::default();
+
+                when_default.extend(quote! {
                     #cfg
                     #(#when_lints)*
                     #(#lints)*
@@ -839,7 +841,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
                     let cfg_ident = ident!("__cfg_{fn_ident}");
 
-                    when_defaults.extend(quote! {
+                    when_default.extend(quote! {
                         #cfg
                         #[doc(hidden)]
                         pub use #crate_core::core_cfg_ok as #cfg_ident;
@@ -848,6 +850,17 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         pub use #crate_core::core_cfg_ignore as #cfg_ident;
                     })
                 }
+
+                let not_allowed_error = format!("property `{}` is not allowed in when", property);
+                when_defaults.extend(quote_spanned!(property.span()=>
+                    #prop_ident::code_gen!{ if !allowed_in_when=> std::compile_error!{ #not_allowed_error } }
+                ));
+
+                when_defaults.extend(quote! {
+                    #prop_ident::code_gen!{ if allowed_in_when=>
+                        #when_default
+                    }
+                })
             } else {
                 // assign.path.get_ident() == None
                 let suggestion = &assign.path.segments.last().unwrap().ident;
@@ -887,7 +900,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             TokenStream::new()
         };
 
-        when_conditions.extend(quote! {
+        let mut when_condition_fn = TokenStream::default();
+        when_condition_fn.extend(quote! {
             #cfg
             #(#when_lints)*
             #ra_lints
@@ -908,7 +922,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
         });
 
-        when_conditions.extend(quote! { #crate_core::core_cfg_inspector! {
+        when_condition_fn.extend(quote! { #crate_core::core_cfg_inspector! {
             #cfg
             #[doc(hidden)]
             pub fn #dbg_ident(
@@ -933,7 +947,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             let not_cfg = util::cfg_attr_not(Some(cfg.clone()));
             let cfg_ident = ident!("__cfg_{ident}");
 
-            when_conditions.extend(quote! {
+            when_condition_fn.extend(quote! {
                 #cfg
                 #[doc(hidden)]
                 pub use #crate_core::core_cfg_ok as #cfg_ident;
@@ -942,6 +956,18 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 pub use #crate_core::core_cfg_ignore as #cfg_ident;
             })
         }
+
+        for (input, prop) in inputs.iter().zip(&prop_idents) {
+            let not_allowed_error = format!("property `{}` is not allowed in when", input);
+            when_conditions.extend(quote_spanned!(input.span()=>
+                #prop::code_gen!{ if !allowed_in_when=> std::compile_error!{ #not_allowed_error } }
+            ));
+
+            when_condition_fn = quote! {
+                #prop::code_gen!{if allowed_in_when=> #when_condition_fn}
+            };
+        }
+        when_conditions.extend(when_condition_fn);
 
         let cfg = cfg.is_some();
 
