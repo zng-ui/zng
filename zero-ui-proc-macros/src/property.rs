@@ -278,6 +278,14 @@ mod analysis {
         let prefix = Prefix::new(&fn_.sig.ident);
         let attrs = Attributes::new(attrs);
 
+        let allowed_in_when = match args.allowed_in_when {
+            Some(b) => b.3.value,
+            None => match prefix {
+                Prefix::State | Prefix::None => true,
+                Prefix::Event => false,
+            },
+        };
+
         // validate prefix
         let args_len = fn_.sig.inputs.len();
         let args_span = fn_.sig.paren_token.span;
@@ -402,6 +410,15 @@ mod analysis {
         for gen in fn_.sig.generics.type_params() {
             generic_types.push(gen.clone());
         }
+        if allowed_in_when {
+            for e in &generic_types {
+                errors.push(
+                    "`allowed_in_when = true` cannot have named type params, only `impl Trait`",
+                    e.span(),
+                );
+            }
+        }
+
         // move where clauses to normal generics.
         if let Some(where_) = &fn_.sig.generics.where_clause {
             for pre in where_.predicates.iter() {
@@ -638,14 +655,6 @@ mod analysis {
             // allow unused property fields.
             fn_.attrs.push(parse_quote! { #[allow(unused_variables)] });
         }
-
-        let allowed_in_when = match args.allowed_in_when {
-            Some(b) => b.3.value,
-            None => match prefix {
-                Prefix::State | Prefix::None => true,
-                Prefix::Event => false,
-            },
-        };
 
         let default_value = if let Some((_, _, paren, default_)) = args.default_ {
             let mut property_name = fn_.sig.ident.clone();

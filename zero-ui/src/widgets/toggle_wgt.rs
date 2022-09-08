@@ -292,7 +292,7 @@ pub mod properties {
     ///
     /// This property interacts with the contextual [`selection`], when the widget is clicked or the `value` variable changes
     /// the contextual [`Selector`] is used to implement the behavior.
-    #[property(context)]
+    #[property(context, allowed_in_when = false)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
         struct ValueNode<C, T, V> {
             child: C,

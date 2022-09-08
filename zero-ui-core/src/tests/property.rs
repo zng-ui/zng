@@ -189,7 +189,7 @@ fn attr_args() {
 mod generic_name_collision {
     use crate::{property, var::IntoVar, UiNode};
 
-    #[property(context)]
+    #[property(context, allowed_in_when = false)]
     pub fn test<TC: UiNode>(child: TC, c: impl IntoVar<char>) -> TC {
         let _ = c;
         child
@@ -229,7 +229,7 @@ mod generics {
         child
     }
 
-    #[property(context)]
+    #[property(context, allowed_in_when = false)]
     pub fn where_bounds<A, C, B>(child: C, a: impl IntoVar<A>, b: B) -> C
     where
         C: UiNode,
@@ -301,7 +301,7 @@ mod phantom_type {
         B,
     }
 
-    #[property(context)]
+    #[property(context, allowed_in_when = false)]
     pub fn phantom_generated<A: VarValue>(child: impl UiNode, a: impl IntoVar<A>, b: impl IntoVar<A>) -> impl UiNode {
         let _args = phantom_generated::ArgsImpl {
             a,

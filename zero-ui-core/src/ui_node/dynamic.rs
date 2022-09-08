@@ -151,17 +151,17 @@ impl fmt::Display for DynPropError {
     }
 }
 
-/// Represents a dynamic input to a property set by `when` condition.
+/// Represents a dynamic arguments to a property set by `when` condition.
 #[derive(Default)]
-pub struct DynPropertyInput {
+pub struct DynPropertyArgs {
     args: Vec<Box<dyn crate::var::AnyVar>>,
 }
-impl fmt::Debug for DynPropertyInput {
+impl fmt::Debug for DynPropertyArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DynPropertyInput {{ args: <{}> }}", self.args.len())
+        write!(f, "DynPropertyArgs {{ args: <{}> }}", self.args.len())
     }
 }
-impl DynPropertyInput {
+impl DynPropertyArgs {
     /// New default empty.
     pub fn new() -> Self {
         Self::default()
@@ -185,7 +185,7 @@ impl DynPropertyInput {
 /// Represents a property constructor function activated with dynamically defined input variables.
 ///
 /// You can use the [`dyn_property_fn!`] macro to get the constructor for a property.
-pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyInput) -> Result<BoxedUiNode, DynPropError>;
+pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyArgs) -> Result<BoxedUiNode, DynPropError>;
 
 ///<span data-del-macro-root></span> Gets the [`DynPropertyFn`] of a property.
 ///
@@ -210,7 +210,7 @@ pub enum DynPropWhenInfo {
         /// Dynamic constructor, can generate another property instance with newly configured when conditions.
         new_fn: DynPropertyFn,
         /// Default input, can be used in when conditions.
-        defaults: DynPropertyInput,
+        defaults: DynPropertyArgs,
     },
 
     /// Property is read in a `when` expression.
@@ -281,7 +281,7 @@ pub struct DynWhenCondition {
     /// The condition result.
     pub condition: BoxedVar<bool>,
     /// Inputs assigned for each property if when the condition is `true`.
-    pub assigns: Vec<(&'static str, DynPropertyInput)>,
+    pub assigns: Vec<(&'static str, DynPropertyArgs)>,
 }
 impl fmt::Debug for DynWhenCondition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
