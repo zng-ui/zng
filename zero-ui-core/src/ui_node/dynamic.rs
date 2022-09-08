@@ -1,7 +1,7 @@
 use std::fmt;
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::var::BoxedVar;
+use crate::var::*;
 use crate::NilUiNode;
 use crate::{context::WidgetContext, impl_ui_node, BoxedUiNode, UiNode};
 
@@ -152,6 +152,7 @@ impl fmt::Display for DynPropError {
 }
 
 /// Represents a dynamic input to a property set by `when` condition.
+#[derive(Default)]
 pub struct DynPropertyInput {
     args: Vec<Box<dyn crate::var::AnyVar>>,
 }
@@ -160,9 +161,44 @@ impl fmt::Debug for DynPropertyInput {
         write!(f, "DynPropertyInput {{ args: <{}> }}", self.args.len())
     }
 }
+impl DynPropertyInput {
+    /// New default empty.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Push a property argument.
+    pub fn push<T: VarValue>(&mut self, input: impl IntoVar<T>) {
+        let input = input.into_var().boxed().into_any();
+        self.args.push(input);
+    }
+
+    /// Get a clone of the property argument.
+    pub fn get<T: VarValue>(&self, i: usize) -> Result<impl IntoVar<T>, DynPropError> {
+        match self.args.get(i).and_then(|a| a.as_any().downcast_ref::<BoxedVar<T>>()) {
+            Some(v) => Ok(v.clone()),
+            None => Err(DynPropError::ArgsMismatch),
+        }
+    }
+}
 
 /// Represents a property constructor function activated with dynamically defined input variables.
+///
+/// You can use the [`dyn_property_fn!`] macro to get the constructor for a property.
 pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyInput) -> Result<BoxedUiNode, DynPropError>;
+
+///<span data-del-macro-root></span> Gets the [`DynPropertyFn`] of a property.
+///
+/// If the property is not `allowed_in_when` returns a constructor that always returns [`DynPropError::NotAllowedInWhen`].
+#[macro_export]
+macro_rules! dyn_property_fn {
+    ($property:path) => {{
+        use $property::dyn_ctor as __dyn_ctor;
+        __dyn_ctor
+    }};
+}
+#[doc(inline)]
+pub use crate::dyn_property_fn;
 
 /// Information about how a dynamic property can be configured to update by `when` conditions.
 pub enum DynPropWhenInfo {

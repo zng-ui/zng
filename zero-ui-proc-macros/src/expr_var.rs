@@ -2,9 +2,9 @@ use proc_macro2::{Group, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input,
+    parse2, parse_macro_input,
     spanned::Spanned,
-    token, Ident, Path, Token,
+    token, Expr, Ident, Path, Token,
 };
 
 use crate::util::{token_stream_eq, tokens_to_ident_str};
@@ -14,8 +14,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let r = if vars.is_empty() {
         // no interpolation, just eval to var.
-        quote_spanned! {expr.span()=>
-            #mod_::IntoVar::<bool>::into_var({ #expr })
+
+        if parse2::<Expr>(expr.clone()).is_ok() {
+            quote_spanned! {expr.span()=>
+                #mod_::IntoVar::<bool>::into_var(#expr)
+            }
+        } else {
+            // support statement blocks using the macro braces, if we just add the braces for
+            // all input it can cause the `unused_braces` lint, and we need the entire expression to have
+            // the span so that type mismatch gets highlighted correctly, so we *try* parse as expr and only
+            // add the braces if not.
+            quote_spanned! {expr.span()=>
+                #mod_::IntoVar::<bool>::into_var({#expr})
+            }
         }
     } else if vars.len() == 1 {
         let (ident, eval) = &vars[0];

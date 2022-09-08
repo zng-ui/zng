@@ -343,7 +343,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let condition_call = quote! {
             {
                 #module::__core::core_cfg_inspector! {
-                    #module::#dbg_ident(#(&#inputs),* , &mut when_infos__)
+                    #module::#dbg_ident(#(&#inputs,)* &mut when_infos__)
                 }
                 #module::__core::core_cfg_inspector! {@NOT
                     #module::#ident(#(&#inputs),*)
