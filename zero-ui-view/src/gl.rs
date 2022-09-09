@@ -189,7 +189,7 @@ impl GlContextManager {
             unsafe {
                 gl::GlFns::load_with(|symbol| {
                     let symbol = CString::new(symbol).unwrap();
-                    context.get_proc_address(symbol.as_c_str())
+                    display.get_proc_address(symbol.as_c_str())
                 })
             }
         } else if gl_api.contains(Api::GLES3) {
@@ -197,7 +197,7 @@ impl GlContextManager {
             unsafe {
                 gl::GlesFns::load_with(|symbol| {
                     let symbol = CString::new(symbol).unwrap();
-                    context.get_proc_address(symbol.as_c_str())
+                    display.get_proc_address(symbol.as_c_str())
                 })
             }
         } else {
@@ -327,7 +327,7 @@ impl GlContextManager {
             unsafe {
                 gl::GlFns::load_with(|symbol| {
                     let symbol = CString::new(symbol).unwrap();
-                    context.get_proc_address(symbol.as_c_str())
+                    display.get_proc_address(symbol.as_c_str())
                 })
             }
         } else if gl_api.contains(Api::GLES3) {
@@ -335,7 +335,7 @@ impl GlContextManager {
             unsafe {
                 gl::GlesFns::load_with(|symbol| {
                     let symbol = CString::new(symbol).unwrap();
-                    context.get_proc_address(symbol.as_c_str())
+                    display.get_proc_address(symbol.as_c_str())
                 })
             }
         } else {
