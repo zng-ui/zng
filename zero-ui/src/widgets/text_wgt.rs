@@ -290,6 +290,9 @@ pub mod text_input_vis {
 
             /// Text cursor.
             cursor = CursorIcon::Text;
+
+            /// Caret color.
+            properties::caret_color;
         }
     }
 

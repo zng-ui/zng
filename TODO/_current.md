@@ -3,8 +3,6 @@
 * Review light theme in all examples.
 
 - example    - description
-- calculator - display number color is not themed
-- config     - text input and update status are not themed
 - countdown  - text color
 - cursor     - theme not implemented in cursor areas
 - focus      - command status, focus target and overlay scope are not themed

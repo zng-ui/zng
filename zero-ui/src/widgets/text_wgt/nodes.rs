@@ -21,6 +21,8 @@ pub struct ResolvedText {
     pub strikethrough_color: Rgba,
     /// Final underline color.
     pub underline_color: Rgba,
+    /// Caret color.
+    pub caret_color: Rgba,
 
     /// If the `text` or `faces` has updated, this value is `true` in the update the value changed and stays `true`
     /// until after layout.
@@ -135,6 +137,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 overline_color: OVERLINE_COLOR_VAR.copy(ctx).unwrap_or(text_color),
                 strikethrough_color: STRIKETHROUGH_COLOR_VAR.copy(ctx).unwrap_or(text_color),
                 underline_color: UNDERLINE_COLOR_VAR.copy(ctx).unwrap_or(text_color),
+                caret_color: CARET_COLOR_VAR.copy(ctx).unwrap_or(text_color),
                 reshape: false,
                 baseline: Cell::new(Px(0)),
             });
@@ -271,6 +274,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     r.underline_color = c;
                     ctx.updates.render();
                 }
+                let c = CARET_COLOR_VAR.copy(ctx).unwrap_or(c);
+                if c != r.caret_color {
+                    r.caret_color = c;
+                    ctx.updates.render();
+                }
             }
             if let Some(c) = OVERLINE_COLOR_VAR.copy_new(ctx) {
                 let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
@@ -290,6 +298,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
                 if c != r.underline_color {
                     r.underline_color = c;
+                    ctx.updates.render();
+                }
+            }
+            if let Some(c) = CARET_COLOR_VAR.get_new(ctx) {
+                let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
+                if c != r.caret_color {
+                    r.caret_color = c;
                     ctx.updates.render();
                 }
             }
@@ -825,8 +840,9 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 clip_rect.origin.x += padding.left;
                 clip_rect.origin.y += padding.top;
 
-                //frame.push_line(clip_rect, LineOrientation::Vertical, colors::WHITE.into(), LineStyle::Solid);
-                frame.push_color(clip_rect, self.color_key.bind(colors::WHITE.into(), true));
+                let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_underlines`");
+                let color = r.underline_color.into();
+                frame.push_color(clip_rect, self.color_key.bind(color, true));
             }
         }
 
@@ -834,7 +850,9 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render_update(ctx, update);
 
             if TEXT_EDITABLE_VAR.copy(ctx) {
-                update.update_color(self.color_key.update(colors::WHITE.into(), true))
+                let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_underlines`");
+                let color = r.underline_color.into();
+                update.update_color(self.color_key.update(color, true))
             }
         }
     }

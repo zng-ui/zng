@@ -95,6 +95,9 @@ context_var! {
     /// Strikethrough color.
     pub static STRIKETHROUGH_COLOR_VAR: TextLineColor = TextLineColor::Text;
 
+    /// Caret color.
+    pub static CARET_COLOR_VAR: TextLineColor = TextLineColor::Text;
+
     /// Text is editable.
     pub static TEXT_EDITABLE_VAR: bool = false;
 
@@ -476,6 +479,12 @@ pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<TextLineColor
     with_context_var(child, STRIKETHROUGH_COLOR_VAR, color)
 }
 
+/// Sets the [`CARET_COLOR_VAR`].
+#[property(context, default(CARET_COLOR_VAR))]
+pub fn caret_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+    with_context_var(child, CARET_COLOR_VAR, color)
+}
+
 /// Sets the [`TEXT_EDITABLE_VAR`].
 #[property(context, default(TEXT_EDITABLE_VAR))]
 pub fn text_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
@@ -567,6 +576,9 @@ pub struct TextContext<'a> {
     pub underline_skip: UnderlineSkip,
     /// The [`underline_position`](fn@underline_position) value.
     pub underline_position: UnderlinePosition,
+
+    /// The [`caret_color`](fn@caret_color) value.
+    pub caret_color: TextLineColor,
 }
 impl<'a> TextContext<'a> {
     /// Register all text context variables in the widget.
@@ -603,7 +615,8 @@ impl<'a> TextContext<'a> {
             .var(&UNDERLINE_THICKNESS_VAR)
             .var(&UNDERLINE_COLOR_VAR)
             .var(&UNDERLINE_SKIP_VAR)
-            .var(&UNDERLINE_POSITION_VAR);
+            .var(&UNDERLINE_POSITION_VAR)
+            .var(&CARET_COLOR_VAR);
     }
 
     /// Borrow or copy all the text contextual values.
@@ -649,6 +662,8 @@ impl<'a> TextContext<'a> {
             underline_color: UNDERLINE_COLOR_VAR.copy(vars),
             underline_skip: UNDERLINE_SKIP_VAR.copy(vars),
             underline_position: UNDERLINE_POSITION_VAR.copy(vars),
+
+            caret_color: CARET_COLOR_VAR.copy(vars),
         }
     }
 
@@ -828,6 +843,7 @@ impl<'a> Clone for TextContext<'a> {
             underline_color: self.underline_color,
             underline_skip: self.underline_skip,
             underline_position: self.underline_position,
+            caret_color: self.caret_color,
         }
     }
 }

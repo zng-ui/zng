@@ -39,8 +39,11 @@ fn app_main() {
                 font_family = "monospace";
                 align = Align::TOP_LEFT;
 
-                color = status.map(|s| if s.has_errors() { colors::PINK } else { colors::WHITE });
                 font_weight = FontWeight::BOLD;
+
+                when *#{status.map(|s| s.has_errors())} {
+                    color = colors::RED;
+                }
             };
             content = v_stack! {
                 align = Align::CENTER;

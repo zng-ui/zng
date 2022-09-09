@@ -35,7 +35,10 @@ fn app_main() {
                         text = calc.map_ref(|c| c.text());
                         align = Align::RIGHT;
                         font_size = 32.pt();
-                        color = calc.map_ref(|c| c.color());
+
+                        when *#{calc.map(|c| c.error())} {
+                            color = colors::RED;
+                        }
                     },
                     controls(calc)
                 ];
@@ -133,12 +136,8 @@ impl Calculator {
         }
     }
 
-    pub fn color(&self) -> &Rgba {
-        if self.error {
-            &colors::RED
-        } else {
-            &colors::WHITE
-        }
+    pub fn error(&self) -> bool {
+        self.error
     }
 
     fn char_is_valid(c: char) -> bool {
