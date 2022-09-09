@@ -35,7 +35,7 @@ context_var! {
     pub static LINE_HEIGHT_VAR: LineHeight = LineHeight::Default;
 
     /// Extra spacing in between lines of [`text`](crate::widgets::text) spans.
-    pub static LINE_SPACING_VAR: Length = Length::Px(Px(0));
+    pub static LINE_SPACING_VAR: Length = Px(0);
 
     /// Extra letter spacing of [`text`](crate::widgets::text) spans.
     pub static LETTER_SPACING_VAR: LetterSpacing = LetterSpacing::Default;
@@ -56,7 +56,7 @@ context_var! {
     pub static TEXT_ALIGN_VAR: TextAlign = TextAlign::START;
 
     /// Length of the `TAB` space.
-    pub static TAB_LENGTH_VAR: TabLength = 400.pct().into();
+    pub static TAB_LENGTH_VAR: TabLength = 400.pct();
 
     /// Text white space transform of [`text`](crate::widgets::text) spans.
     pub static WHITE_SPACE_VAR: WhiteSpace = WhiteSpace::Preserve;
@@ -71,7 +71,7 @@ context_var! {
     pub static LANG_VAR: Lang = Lang::default();
 
     /// Underline thickness.
-    pub static UNDERLINE_THICKNESS_VAR: UnderlineThickness = 0.into();
+    pub static UNDERLINE_THICKNESS_VAR: UnderlineThickness = 0;
     /// Underline style.
     pub static UNDERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Underline color.
@@ -82,14 +82,14 @@ context_var! {
     pub static UNDERLINE_POSITION_VAR: UnderlinePosition = UnderlinePosition::Font;
 
     /// Overline thickness.
-    pub static OVERLINE_THICKNESS_VAR: TextLineThickness = 0.into();
+    pub static OVERLINE_THICKNESS_VAR: TextLineThickness = 0;
     /// Overline style.
     pub static OVERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Overline color.
     pub static OVERLINE_COLOR_VAR: TextLineColor = TextLineColor::Text;
 
     /// Strikethrough thickness.
-    pub static STRIKETHROUGH_THICKNESS_VAR: TextLineThickness = 0.into();
+    pub static STRIKETHROUGH_THICKNESS_VAR: TextLineThickness = 0;
     /// Strikethrough style.
     pub static  STRIKETHROUGH_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Strikethrough color.
@@ -102,7 +102,7 @@ context_var! {
     pub static TEXT_EDITABLE_VAR: bool = false;
 
     /// Text padding.
-    pub static TEXT_PADDING_VAR: SideOffsets = 0.into();
+    pub static TEXT_PADDING_VAR: SideOffsets = 0;
 }
 
 /// Sets the [`FONT_FAMILY_VAR`] context var.

@@ -45,9 +45,9 @@ pub mod vis {
 
     context_var! {
         /// Padding offsets of the `focus_highlight` when the widget is focused.
-        pub static FOCUS_HIGHLIGHT_OFFSETS_VAR: SideOffsets = SideOffsets::new_all(1);
+        pub static FOCUS_HIGHLIGHT_OFFSETS_VAR: SideOffsets = 1;
         /// Border widths of the `focus_highlight` when the widget is focused.
-        pub static FOCUS_HIGHLIGHT_WIDTHS_VAR: SideOffsets = SideOffsets::new_all(0.5);
+        pub static FOCUS_HIGHLIGHT_WIDTHS_VAR: SideOffsets = 0.5;
         /// Border sides of the `focus_highlight` when the widget is focused.
         pub static FOCUS_HIGHLIGHT_SIDES_VAR: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
     }

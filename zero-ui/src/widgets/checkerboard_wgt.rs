@@ -52,7 +52,7 @@ pub mod properties {
         /// The size of one color rectangle in the checkerboard.
         ///
         /// Default is `(16, 16)`.
-        pub static CHECKERBOARD_SIZE_VAR: Size = (16, 16).into();
+        pub static CHECKERBOARD_SIZE_VAR: Size = (16, 16);
 
         /// Offset applied to the checkerboard pattern.
         ///

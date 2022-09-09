@@ -152,7 +152,7 @@ pub mod hr {
 
         context_var! {
             /// Line color, default is the [`TEXT_COLOR_VAR`] default.
-            pub static COLOR_VAR: Rgba = TEXT_COLOR_VAR.default_value();
+            pub static COLOR_VAR: Rgba = TEXT_COLOR_VAR.default_value(); // TODO !!: derive
 
             /// Line stroke thickness, default is `1.dip()`
             pub static STROKE_THICKNESS_VAR: Length = 1.dip();

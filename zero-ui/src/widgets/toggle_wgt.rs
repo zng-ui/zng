@@ -166,7 +166,7 @@ pub mod properties {
 
     context_var! {
         /// The toggle button checked state.
-        pub static IS_CHECKED_VAR: Option<bool> = Some(false);
+        pub static IS_CHECKED_VAR: Option<bool> = false;
 
         /// If toggle button cycles between `None`, `Some(false)` and `Some(true)` on click.
         pub static IS_TRISTATE_VAR: bool = false;

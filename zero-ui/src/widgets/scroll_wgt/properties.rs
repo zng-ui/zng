@@ -40,7 +40,7 @@ context_var! {
     ///
     /// [`ScrollDownCommand`]: crate::widgets::scroll::commands::ScrollDownCommand
     /// [`ScrollUpCommand`]: crate::widgets::scroll::commands::ScrollUpCommand
-    pub static VERTICAL_PAGE_UNIT_VAR: Length = 100.pct().into();
+    pub static VERTICAL_PAGE_UNIT_VAR: Length = 100.pct();
 
     /// Horizontal offset added when the [`PageRightCommand`] runs and removed when the [`PageLeftCommand`] runs.
     ///
@@ -48,7 +48,7 @@ context_var! {
     ///
     /// [`PageLeftCommand`]: crate::widgets::scroll::commands::PageLeftCommand
     /// [`PageRightCommand`]: crate::widgets::scroll::commands::PageRightCommand
-    pub static HORIZONTAL_PAGE_UNIT_VAR: Length = 100.pct().into();
+    pub static HORIZONTAL_PAGE_UNIT_VAR: Length = 100.pct();
 
     /// Scroll unit multiplier used when alternate scrolling.
     pub static ALT_FACTOR_VAR: Factor = 3.fct();

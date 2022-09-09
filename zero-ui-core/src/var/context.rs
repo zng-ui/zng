@@ -207,7 +207,8 @@ impl<T: VarValue> ContextVarValue<T> {
 ///
 /// The default value is instantiated once per app thread and is the value of the variable when it is not set in the context.
 /// Other instances of the default value can be created by calls to [`ContextVar::default_value`], so the code after the `=` should
-/// always generate a value equal to the first value generated.
+/// always generate a value equal to the first value generated, the value is automatically converted `Into<T>` the variable `T`, so
+/// you can use the same conversions available when initializing properties to define the default.
 ///
 /// # Naming Convention
 ///
@@ -225,7 +226,7 @@ macro_rules! context_var {
             }
 
             fn [<$NAME:lower _default>]() -> $Type {
-                $default
+                std::convert::Into::into($default)
             }
         }
 
@@ -707,7 +708,7 @@ mod tests {
     use crate::{app::*, context::*, text::*, var::*, *};
 
     context_var! {
-        static TEST_VAR: Text = "".into();
+        static TEST_VAR: Text = "";
     }
 
     static PROBE_ID: StaticStateId<Text> = StaticStateId::new_unique();

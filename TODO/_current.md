@@ -21,11 +21,6 @@
 
 # ContextVar
 
-* Use `From` in default value, this makes the same property values work for it:
-```rust
-static FOO_VAR: Size = (3, 3);
-```
-
 * Derived context vars, when it is not set directly the *parent* var is used:
 ```rust
 static UNDERLINE_COLOR_VAR => TEXT_COLOR_VAR;
