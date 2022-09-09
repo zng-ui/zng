@@ -5,6 +5,7 @@
 - example    - description
 - countdown  - text color
 - cursor     - theme not implemented in cursor areas
+             - add cursor icons from https://developer.mozilla.org/pt-BR/docs/Web/CSS/cursor
 - focus      - command status, focus target and overlay scope are not themed
  - - nested  - theme also needs tweaking
 - icon       - icons and icon cards are not themed
@@ -22,7 +23,7 @@
 
 * Use `From` in default value, this makes the same property values work for it:
 ```rust
-static FOO_VAR: Size = (3, );
+static FOO_VAR: Size = (3, 3);
 ```
 
 * Derived context vars, when it is not set directly the *parent* var is used:

@@ -278,7 +278,7 @@ mod analysis {
         let prefix = Prefix::new(&fn_.sig.ident);
         let attrs = Attributes::new(attrs);
 
-        let allowed_in_when = match args.allowed_in_when {
+        let mut allowed_in_when = match args.allowed_in_when {
             Some(b) => b.3.value,
             None => match prefix {
                 Prefix::State | Prefix::None => true,
@@ -416,6 +416,7 @@ mod analysis {
                     "`allowed_in_when = true` cannot have named type params, only `impl Trait`",
                     e.span(),
                 );
+                allowed_in_when = false;
             }
         }
 
@@ -1311,7 +1312,7 @@ mod output {
                 TokenStream::new()
             };
 
-            let dyn_ctor = if self.allowed_in_when && !matches!(self.priority, Priority::CaptureOnly(_)) {
+            let dyn_ctor = if self.allowed_in_when && self.args_are_valid && !matches!(self.priority, Priority::CaptureOnly(_)) {
                 let arg_n = 0..arg_idents.len();
                 let ident_dyn_ctor = ident!("__{ident}_dyn_ctor");
 

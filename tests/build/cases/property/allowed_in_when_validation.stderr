@@ -32,6 +32,27 @@ help: consider specifying the generic argument
 5 | pub fn invalid1(child: impl UiNode, value: bool::<T>) -> impl UiNode {
   |                                                +++++
 
+error[E0308]: mismatched types
+   --> cases/property/allowed_in_when_validation.rs:5:44
+    |
+5   | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
+    |        --------                            ^^^^ expected `bool`, found opaque type
+    |        |
+    |        arguments to this function are incorrect
+    |
+   ::: $WORKSPACE/zero-ui-core/src/ui_node/dynamic.rs
+    |
+    |     pub fn get<T: VarValue>(&self, i: usize) -> Result<impl IntoVar<T>, DynPropError> {
+    |                                                        --------------- the found opaque type
+    |
+    = note:     expected type `bool`
+            found opaque type `impl IntoVar<_>`
+note: function defined here
+   --> cases/property/allowed_in_when_validation.rs:5:8
+    |
+5   | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
+    |        ^^^^^^^^---------------------
+
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
    --> cases/property/allowed_in_when_validation.rs:12:44
     |
@@ -108,3 +129,25 @@ note: required by a bound in `LocalVar`
    | pub struct LocalVar<T: VarValue>(pub T);
    |                        ^^^^^^^^ required by this bound in `LocalVar`
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `impl IntoVar<_>: UiNode` is not satisfied
+  --> cases/property/allowed_in_when_validation.rs:12:8
+   |
+12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+   |        ^^^^^^^^ the trait `UiNode` is not implemented for `impl IntoVar<_>`
+   |
+   = help: the following other types implement trait `UiNode`:
+             AdoptiveChildNode
+             AdoptiveNode<U>
+             Box<(dyn UiNodeBoxed + 'static)>
+             Box<(dyn WidgetBoxed + 'static)>
+             DynWidgetNode
+             FillUiNode
+             NilUiNode
+             Option<U>
+           and 132 others
+note: required by a bound in `invalid2`
+  --> cases/property/allowed_in_when_validation.rs:12:49
+   |
+12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+   |                                                 ^^^^^^ required by this bound in `invalid2`
