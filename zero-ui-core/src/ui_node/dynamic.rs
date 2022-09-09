@@ -150,6 +150,7 @@ impl fmt::Display for DynPropError {
         }
     }
 }
+impl std::error::Error for DynPropError {}
 
 /// Represents a dynamic arguments to a property set by `when` condition.
 #[derive(Default)]
@@ -167,6 +168,13 @@ impl DynPropertyArgs {
         Self::default()
     }
 
+    /// New args for a state property.
+    pub fn new_state(state: StateVar) -> Self {
+        Self {
+            args: vec![state.boxed().into_any()],
+        }
+    }
+
     /// Push a property argument.
     pub fn push<T: VarValue>(&mut self, input: impl IntoVar<T>) {
         let input = input.into_var().boxed().into_any();
@@ -180,12 +188,27 @@ impl DynPropertyArgs {
             None => Err(DynPropError::ArgsMismatch),
         }
     }
+
+    /// Gets a clone of the single state property input.
+    pub fn get_state(&self) -> Result<StateVar, DynPropError> {
+        if self.args.len() == 1 {
+            if let Some(v) = self.args[0].as_any().downcast_ref::<StateVar>() {
+                return Ok(v.clone());
+            }
+        }
+        Err(DynPropError::ArgsMismatch)
+    }
 }
 
 /// Represents a property constructor function activated with dynamically defined input variables.
 ///
 /// You can use the [`dyn_property_fn!`] macro to get the constructor for a property.
-pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyArgs) -> Result<BoxedUiNode, DynPropError>;
+pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyArgs) -> Result<BoxedUiNode, (BoxedUiNode, DynPropError)>;
+
+#[doc(hidden)]
+pub fn not_allowed_in_when_dyn_ctor(child: BoxedUiNode, _: &DynPropertyArgs) -> Result<BoxedUiNode, (BoxedUiNode, DynPropError)> {
+    Err((child, DynPropError::NotAllowedInWhen))
+}
 
 ///<span data-del-macro-root></span> Gets the [`DynPropertyFn`] of a property.
 ///
@@ -193,8 +216,14 @@ pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyArgs) -> Result<BoxedUiNode
 #[macro_export]
 macro_rules! dyn_property_fn {
     ($property:path) => {{
-        use $property::dyn_ctor as __dyn_ctor;
-        __dyn_ctor
+        use $property as __property;
+
+        __property::code_gen! {if allowed_in_when=>
+            __property::dyn_ctor
+        }
+        __property::code_gen! {if !allowed_in_when=>
+            $crate::not_allowed_in_when_dyn_ctor
+        }
     }};
 }
 #[doc(inline)]

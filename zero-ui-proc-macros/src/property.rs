@@ -769,6 +769,7 @@ mod analysis {
                 ident: fn_.sig.ident.clone(),
                 generics: generic_types,
                 allowed_in_when,
+                is_state: matches!(prefix, Prefix::State),
                 args_are_valid,
                 phantom_idents,
                 arg_idents: arg_idents.clone(),
@@ -1012,6 +1013,7 @@ mod output {
 
         pub priority: Priority,
         pub allowed_in_when: bool,
+        pub is_state: bool,
 
         pub generics: Vec<TypeParam>,
         pub phantom_idents: Vec<Ident>,
@@ -1306,7 +1308,61 @@ mod output {
                     }
                 }
             } else {
-                TokenStream::default()
+                TokenStream::new()
+            };
+
+            let dyn_ctor = if self.allowed_in_when && !matches!(self.priority, Priority::CaptureOnly(_)) {
+                let arg_n = 0..arg_idents.len();
+                let ident_dyn_ctor = ident!("__{ident}_dyn_ctor");
+
+                let var_idents: Vec<_> = named_arg_mtds
+                    .iter()
+                    .zip(arg_types.iter())
+                    .map(|(a, t)| {
+                        let mut a = a.clone();
+                        a.set_span(t.span());
+                        a
+                    })
+                    .collect();
+
+                if self.is_state {
+                    let var_ident = &var_idents[0];
+                    quote! {
+                        #[doc(hidden)]
+                        pub fn #ident_dyn_ctor(child__: #crate_core::BoxedUiNode, args__: &#crate_core::DynPropertyArgs)
+                        -> std::result::Result<#crate_core::BoxedUiNode, (#crate_core::BoxedUiNode, #crate_core::DynPropError)>
+                        {
+                            let #var_ident = match args__.get_state() {
+                                Ok(r) => r,
+                                Err(e) => return Err((child__, e))
+                            };
+                            let r__ = #ident(child__, #var_ident);
+                            Ok(#crate_core::UiNode::boxed(r__))
+                        }
+                    }
+                } else {
+                    quote! {
+                        #[doc(hidden)]
+                        pub fn #ident_dyn_ctor(child__: #crate_core::BoxedUiNode, args__: &#crate_core::DynPropertyArgs)
+                        -> std::result::Result<#crate_core::BoxedUiNode, (#crate_core::BoxedUiNode, #crate_core::DynPropError)>
+                        {
+                            #(
+                                let #var_idents = match args__.get(#arg_n) {
+                                    Ok(r) => r,
+                                    Err(e) => return Err((child__, e))
+                                };
+                            )*
+                            let r__ = #ident(child__, #(#var_idents),*);
+                            Ok(#crate_core::UiNode::boxed(r__))
+                        }
+                    }
+                }
+            } else {
+                let ident_dyn_ctor = ident!("__{ident}_dyn_ctor");
+                quote! {
+                    #[doc(hidden)]
+                    pub use #crate_core::not_allowed_in_when_dyn_ctor as #ident_dyn_ctor;
+                }
             };
 
             tokens.extend(quote! {
@@ -1384,6 +1440,7 @@ mod output {
 
                 #child_assert
                 #allowed_in_when_assert
+                #dyn_ctor
                 #set
                 #cap_debug
             })
@@ -1727,6 +1784,8 @@ mod output {
                 #cap_ident as captured_inspect,
             };
 
+            let dyn_ctor_ident = ident!("__{ident}_dyn_ctor");
+
             tokens.extend(quote! {
                 #wgt_capture_only_reexport
 
@@ -1740,6 +1799,7 @@ mod output {
                     pub use super::{
                         #args_impl_ident as ArgsImpl,
                         #args_ident as Args,
+                        #dyn_ctor_ident as dyn_ctor,
                         #default_export
                         #set_export
                     };

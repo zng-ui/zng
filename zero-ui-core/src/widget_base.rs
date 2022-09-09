@@ -745,6 +745,7 @@ fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> 
         Some(is_enabled == expected)
     })
 }
+
 /// If the widget is enabled for interaction.
 ///
 /// This property is used only for probing the state. You can set the state using

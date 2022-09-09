@@ -267,7 +267,7 @@ fn generics() {
 mod not_into_var_inputs {
     use crate::{property, var::Var, UiNode};
 
-    #[property(context)]
+    #[property(context, allowed_in_when = false)]
     pub fn not_into_var_input(child: impl UiNode, input: impl Var<&'static str>) -> impl UiNode {
         let _ = input;
         child
