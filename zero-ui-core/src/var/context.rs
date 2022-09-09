@@ -1,3 +1,4 @@
+use crate::var::types;
 use std::thread::LocalKey;
 
 use super::*;
@@ -129,6 +130,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
 
     pub(crate) fn into_raw(self) -> ContextVarDataRaw<T> {
         ContextVarDataRaw {
+            parent: None,
             value: self.value,
             is_new: self.is_new,
             is_read_only: self.is_read_only,
@@ -141,6 +143,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
 }
 
 pub(crate) struct ContextVarDataRaw<T: VarValue> {
+    parent: Option<&'static LocalKey<ContextVarValue<T>>>,
     value: *const T,
     is_new: bool,
     version: VarVersion,
@@ -153,7 +156,10 @@ pub(crate) struct ContextVarDataRaw<T: VarValue> {
 /// See `ContextVar::thread_local_value`.
 #[doc(hidden)]
 pub struct ContextVarValue<T: VarValue> {
+    parent: Cell<Option<&'static LocalKey<Self>>>,
+
     _default_value: Box<T>,
+    default_value_fn: fn() -> T,
     value: Cell<*const T>,
     is_new: Cell<bool>,
     version: Cell<VarVersion>,
@@ -167,11 +173,14 @@ type DynActualVarFn<T> = dyn Fn(&Vars) -> BoxedVar<T>;
 
 #[allow(missing_docs)]
 impl<T: VarValue> ContextVarValue<T> {
-    pub fn init(default_value: T) -> Self {
-        let default_value = Box::new(default_value);
+    pub fn init(default_value_fn: fn() -> T) -> Self {
+        let default_value = Box::new(default_value_fn());
         ContextVarValue {
+            parent: Cell::new(None),
+
             value: Cell::new(default_value.as_ref()),
             _default_value: default_value,
+            default_value_fn,
 
             is_new: Cell::new(false),
             version: Cell::new(VarVersion::normal(0)),
@@ -179,6 +188,72 @@ impl<T: VarValue> ContextVarValue<T> {
             is_animating: Cell::new(false),
             update_mask: Cell::new(UpdateMask::none()),
             actual_var: Cell::new(None),
+        }
+    }
+
+    pub fn derive(parent: &'static LocalKey<Self>) -> Self {
+        let r = Self::init(parent.with(|l| l.default_value_fn));
+        r.parent.set(Some(parent));
+        r
+    }
+
+    fn default_value(&self) -> T {
+        (self.default_value_fn)()
+    }
+
+    fn current_value_ptr(&self) -> *const T {
+        if let Some(parent) = self.parent.get() {
+            parent.with(Self::current_value_ptr)
+        } else {
+            self.value.get()
+        }
+    }
+
+    fn current_is_new(&self) -> bool {
+        if let Some(parent) = self.parent.get() {
+            parent.with(Self::current_is_new)
+        } else {
+            self.is_new.get()
+        }
+    }
+
+    fn current_is_animating(&self) -> bool {
+        if let Some(parent) = self.parent.get() {
+            parent.with(Self::current_is_animating)
+        } else {
+            self.is_animating.get()
+        }
+    }
+
+    fn current_is_read_only(&self) -> bool {
+        if let Some(parent) = self.parent.get() {
+            parent.with(Self::current_is_read_only)
+        } else {
+            self.is_read_only.get()
+        }
+    }
+
+    fn current_version(&self) -> VarVersion {
+        if let Some(parent) = self.parent.get() {
+            parent.with(Self::current_version)
+        } else {
+            self.version.get()
+        }
+    }
+
+    fn current_actual_var_fn(&self) -> Option<*mut DynActualVarFn<T>> {
+        if let Some(parent) = self.parent.get() {
+            parent.with(Self::current_actual_var_fn)
+        } else {
+            self.actual_var.get()
+        }
+    }
+
+    fn current_update_mask(&self) -> UpdateMask {
+        if let Some(parent) = self.parent.get() {
+            parent.with(Self::current_update_mask)
+        } else {
+            self.update_mask.get()
         }
     }
 }
@@ -198,6 +273,9 @@ impl<T: VarValue> ContextVarValue<T> {
 ///
 ///     // A private context var.
 ///     static BAR_VAR: NotConst = init_val();
+///
+///     // A var that inherits from another.
+///     pub static DERIVED_VAR: u8 => FOO_VAR;
 /// }
 /// ```
 ///
@@ -210,6 +288,11 @@ impl<T: VarValue> ContextVarValue<T> {
 /// always generate a value equal to the first value generated, the value is automatically converted `Into<T>` the variable `T`, so
 /// you can use the same conversions available when initializing properties to define the default.
 ///
+/// # Inherit
+///
+/// Instead of setting a default value you can *inherit* from another context var of the same type using the syntax `=> OTHER;`, the
+/// generated context var will represent the `OTHER` context var in contexts it is not set directly.
+///
 /// # Naming Convention
 ///
 /// It is recommended that the type name ends with the `_VAR` suffix.
@@ -217,12 +300,42 @@ impl<T: VarValue> ContextVarValue<T> {
 macro_rules! context_var {
     ($(
         $(#[$attr:meta])*
-        $vis:vis static $NAME:ident : $Type:ty = $default:expr;
+        $vis:vis static $NAME:ident: $Type:ty $(=> $PARENT:path)? $(= $default:expr)?;
     )+) => {$(
+        $crate::__context_var! {
+            $(#[$attr])*
+            $vis static $NAME: $Type $(=> $PARENT)? $(= $default)?;
+        }
+    )+}
+}
+#[doc(inline)]
+pub use crate::context_var;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __context_var {
+    (
+        $(#[$attr:meta])*
+        $vis:vis static $NAME:ident : $Type:ty => $PARENT:path;
+    ) => {
         paste::paste! {
             std::thread_local! {
                 #[doc(hidden)]
-                static [<$NAME _LOCAL>]: $crate::var::ContextVarValue<$Type> = $crate::var::ContextVarValue::init([<$NAME:lower _default>]());
+                static [<$NAME _LOCAL>]: $crate::var::ContextVarValue<$Type> = $PARENT.derive_local();
+            }
+        }
+
+        $(#[$attr])*
+        $vis static $NAME: $crate::var::ContextVar<$Type> = paste::paste! { $crate::var::ContextVar::new(&[<$NAME _LOCAL>]) };
+    };
+    (
+        $(#[$attr:meta])*
+        $vis:vis static $NAME:ident : $Type:ty = $default:expr;
+    ) => {
+        paste::paste! {
+            std::thread_local! {
+                #[doc(hidden)]
+                static [<$NAME _LOCAL>]: $crate::var::ContextVarValue<$Type> = $crate::var::ContextVarValue::init([<$NAME:lower _default>]);
             }
 
             fn [<$NAME:lower _default>]() -> $Type {
@@ -231,12 +344,9 @@ macro_rules! context_var {
         }
 
         $(#[$attr])*
-        $vis static $NAME: $crate::var::ContextVar<$Type> = paste::paste! { $crate::var::ContextVar::new(&[<$NAME _LOCAL>], [<$NAME:lower _default>]) };
-    )+}
+        $vis static $NAME: $crate::var::ContextVar<$Type> = paste::paste! { $crate::var::ContextVar::new(&[<$NAME _LOCAL>]) };
+    };
 }
-#[doc(inline)]
-pub use crate::context_var;
-use crate::var::types;
 
 /// The [`ContextVar<T>`] into read-only var type.
 ///
@@ -254,58 +364,36 @@ pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
 /// Use [`context_var!`] do declare.
 pub struct ContextVar<T: VarValue> {
     local: &'static LocalKey<ContextVarValue<T>>,
-    default_value: fn() -> T,
 }
 impl<T: VarValue> Clone for ContextVar<T> {
     fn clone(&self) -> Self {
-        Self {
-            local: self.local,
-            default_value: self.default_value,
-        }
+        Self { local: self.local }
     }
 }
 impl<T: VarValue> Copy for ContextVar<T> {}
 impl<T: VarValue> ContextVar<T> {
     #[doc(hidden)]
-    pub const fn new(local: &'static LocalKey<ContextVarValue<T>>, default_value: fn() -> T) -> Self {
-        Self { local, default_value }
+    pub const fn new(local: &'static LocalKey<ContextVarValue<T>>) -> Self {
+        Self { local }
+    }
+
+    #[doc(hidden)]
+    pub fn derive_local(&self) -> ContextVarValue<T> {
+        ContextVarValue::derive(self.local)
     }
 
     /// New default value.
     pub fn default_value(&self) -> T {
-        (self.default_value)()
-    }
-
-    fn current_value_ptr(&self) -> *const T {
-        self.local.with(|l| l.value.get())
-    }
-
-    fn current_is_new(&self) -> bool {
-        self.local.with(|l| l.is_new.get())
-    }
-
-    fn current_is_animating(&self) -> bool {
-        self.local.with(|l| l.is_animating.get())
-    }
-
-    fn current_is_read_only(&self) -> bool {
-        self.local.with(|l| l.is_read_only.get())
+        self.local.with(ContextVarValue::default_value)
     }
 
     pub(super) fn current_version(&self) -> VarVersion {
-        self.local.with(|l| l.version.get())
-    }
-
-    fn current_actual_var_fn(&self) -> Option<*mut DynActualVarFn<T>> {
-        self.local.with(|l| l.actual_var.get())
-    }
-
-    fn current_update_mask(&self) -> UpdateMask {
-        self.local.with(|l| l.update_mask.get())
+        self.local.with(ContextVarValue::current_version)
     }
 
     pub(super) fn enter_context(&self, new: ContextVarDataRaw<T>) -> ContextVarDataRaw<T> {
         self.local.with(|l| ContextVarDataRaw {
+            parent: l.parent.take(),
             value: l.value.replace(new.value),
             is_new: l.is_new.replace(new.is_new),
             is_read_only: l.is_read_only.replace(new.is_read_only),
@@ -318,6 +406,7 @@ impl<T: VarValue> ContextVar<T> {
 
     pub(super) fn exit_context(&self, prev: ContextVarDataRaw<T>) {
         self.local.with(|l| {
+            l.parent.set(prev.parent);
             l.value.set(prev.value);
             l.is_new.set(prev.is_new);
             l.version.set(prev.version);
@@ -341,7 +430,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         let _vars = vars.as_ref();
-        let ptr = self.current_value_ptr();
+        let ptr = self.local.with(ContextVarValue::current_value_ptr);
         // SAFETY: this is safe because the pointer is either 'static or a reference held by
         // Vars::with_context_var.
         unsafe { &*ptr }
@@ -349,7 +438,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         let vars = vars.as_ref();
-        if self.current_is_new() {
+        if self.is_new(vars) {
             Some(self.get(vars))
         } else {
             None
@@ -357,15 +446,15 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|_vars| self.current_is_new())
+        vars.with_vars(|_vars| self.local.with(ContextVarValue::current_is_new))
     }
 
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|_vars| self.current_version())
+        vars.with_vars_read(|_vars| self.local.with(ContextVarValue::current_version))
     }
 
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|_vars| self.current_is_read_only())
+        vars.with_vars(|_vars| self.local.with(ContextVarValue::current_is_read_only))
     }
 
     fn always_read_only(&self) -> bool {
@@ -378,7 +467,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
         vars.with_vars(|vars| {
-            if let Some(actual) = self.current_actual_var_fn() {
+            if let Some(actual) = self.local.with(ContextVarValue::current_actual_var_fn) {
                 // SAFETY, we hold a ref to this closure box in the context.
                 let actual = unsafe { &*actual };
                 actual(vars)
@@ -398,7 +487,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|_vars| self.current_is_animating())
+        vars.with_vars_read(|_vars| self.local.with(ContextVarValue::current_is_animating))
     }
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
@@ -427,7 +516,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
         M: FnOnce(VarModify<T>) + 'static,
     {
         vars.with_vars(|vars| {
-            if let Some(actual) = self.current_actual_var_fn() {
+            if let Some(actual) = self.local.with(ContextVarValue::current_actual_var_fn) {
                 // SAFETY, we hold a ref to this closure box in the context.
                 let actual = unsafe { &*actual };
                 actual(vars).modify(vars, modify)
@@ -442,7 +531,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|_vars| self.current_update_mask())
+        vars.with_vars_read(|_vars| self.local.with(ContextVarValue::current_update_mask))
     }
 }
 impl<T: VarValue> IntoVar<T> for ContextVar<T> {
@@ -472,7 +561,7 @@ mod properties {
     /// # fn main() -> () { }
     /// # use zero_ui_core::{*, var::*};
     /// context_var! {
-    ///     pub static FOO_VAR: u32 = 0;
+    ///     pub static FOO_VAR: u32 = 0u32;
     /// }
     ///
     /// /// Sets the [`FooVar`] in the widgets and its content.

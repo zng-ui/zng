@@ -74,8 +74,8 @@ context_var! {
     pub static UNDERLINE_THICKNESS_VAR: UnderlineThickness = 0;
     /// Underline style.
     pub static UNDERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
-    /// Underline color.
-    pub static UNDERLINE_COLOR_VAR: TextLineColor = TextLineColor::Text;
+    /// Underline color, inherits from [`TEXT_COLOR_VAR`].
+    pub static UNDERLINE_COLOR_VAR: Rgba => TEXT_COLOR_VAR;
     /// Parts of text skipped by underline.
     pub static UNDERLINE_SKIP_VAR: UnderlineSkip = UnderlineSkip::DEFAULT;
     /// Position of the underline.
@@ -85,18 +85,18 @@ context_var! {
     pub static OVERLINE_THICKNESS_VAR: TextLineThickness = 0;
     /// Overline style.
     pub static OVERLINE_STYLE_VAR: LineStyle = LineStyle::Hidden;
-    /// Overline color.
-    pub static OVERLINE_COLOR_VAR: TextLineColor = TextLineColor::Text;
+    /// Overline color, inherits from [`TEXT_COLOR_VAR`].
+    pub static OVERLINE_COLOR_VAR: Rgba => TEXT_COLOR_VAR;
 
     /// Strikethrough thickness.
     pub static STRIKETHROUGH_THICKNESS_VAR: TextLineThickness = 0;
     /// Strikethrough style.
     pub static  STRIKETHROUGH_STYLE_VAR: LineStyle = LineStyle::Hidden;
-    /// Strikethrough color.
-    pub static STRIKETHROUGH_COLOR_VAR: TextLineColor = TextLineColor::Text;
+    /// Strikethrough color, inherits from [`TEXT_COLOR_VAR`].
+    pub static STRIKETHROUGH_COLOR_VAR: Rgba => TEXT_COLOR_VAR;
 
-    /// Caret color.
-    pub static CARET_COLOR_VAR: TextLineColor = TextLineColor::Text;
+    /// Caret color, inherits from [`TEXT_COLOR_VAR`].
+    pub static CARET_COLOR_VAR: Rgba => TEXT_COLOR_VAR;
 
     /// Text is editable.
     pub static TEXT_EDITABLE_VAR: bool = false;
@@ -441,7 +441,7 @@ pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>
 }
 /// Sets the [`UNDERLINE_COLOR_VAR`].
 #[property(context, default(UNDERLINE_COLOR_VAR))]
-pub fn underline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+pub fn underline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, UNDERLINE_COLOR_VAR, color)
 }
 /// Sets the [`UNDERLINE_SKIP_VAR`].
@@ -463,7 +463,7 @@ pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, 
 }
 /// Sets the [`OVERLINE_COLOR_VAR`].
 #[property(context, default(OVERLINE_COLOR_VAR))]
-pub fn overline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+pub fn overline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, OVERLINE_COLOR_VAR, color)
 }
 
@@ -475,13 +475,13 @@ pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickne
 }
 /// Sets the [`STRIKETHROUGH_COLOR_VAR`].
 #[property(context, default(STRIKETHROUGH_COLOR_VAR))]
-pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, STRIKETHROUGH_COLOR_VAR, color)
 }
 
 /// Sets the [`CARET_COLOR_VAR`].
 #[property(context, default(CARET_COLOR_VAR))]
-pub fn caret_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, CARET_COLOR_VAR, color)
 }
 
@@ -561,24 +561,24 @@ pub struct TextContext<'a> {
     /// The [`overline`](fn@overline) values.
     pub overline: (&'a Length, LineStyle),
     /// The [`overline_color`](fn@overline_color) value.
-    pub overline_color: TextLineColor,
+    pub overline_color: Rgba,
 
     /// The [`strikethrough`](fn@strikethrough) values.
     pub strikethrough: (&'a Length, LineStyle),
     /// The [`strikethrough_color`](fn@strikethrough_color) value.
-    pub strikethrough_color: TextLineColor,
+    pub strikethrough_color: Rgba,
 
     /// The [`underline`](fn@underline) values.
     pub underline: (&'a Length, LineStyle),
     /// The [`underline_color`](fn@underline_color) value.
-    pub underline_color: TextLineColor,
+    pub underline_color: Rgba,
     /// The [`underline_skip`](fn@underline_skip) value.
     pub underline_skip: UnderlineSkip,
     /// The [`underline_position`](fn@underline_position) value.
     pub underline_position: UnderlinePosition,
 
     /// The [`caret_color`](fn@caret_color) value.
-    pub caret_color: TextLineColor,
+    pub caret_color: Rgba,
 }
 impl<'a> TextContext<'a> {
     /// Register all text context variables in the widget.

@@ -15,14 +15,6 @@ pub struct ResolvedText {
     pub faces: FontFaceList,
     /// Font synthesis allowed by the text context and required to render the best font match.
     pub synthesis: FontSynthesis,
-    /// Final overline color.
-    pub overline_color: Rgba,
-    /// Final strikethrough color.
-    pub strikethrough_color: Rgba,
-    /// Final underline color.
-    pub underline_color: Rgba,
-    /// Caret color.
-    pub caret_color: Rgba,
 
     /// If the `text` or `faces` has updated, this value is `true` in the update the value changed and stays `true`
     /// until after layout.
@@ -128,16 +120,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let text = TEXT_TRANSFORM_VAR.get(ctx).transform(text);
             let text = WHITE_SPACE_VAR.get(ctx).transform(text);
 
-            let text_color = TEXT_COLOR_VAR.copy(ctx);
-
             self.resolved = Some(ResolvedText {
                 synthesis: FONT_SYNTHESIS_VAR.copy(ctx) & faces.best().synthesis_for(style, weight),
                 faces,
                 text: SegmentedText::new(text),
-                overline_color: OVERLINE_COLOR_VAR.copy(ctx).unwrap_or(text_color),
-                strikethrough_color: STRIKETHROUGH_COLOR_VAR.copy(ctx).unwrap_or(text_color),
-                underline_color: UNDERLINE_COLOR_VAR.copy(ctx).unwrap_or(text_color),
-                caret_color: CARET_COLOR_VAR.copy(ctx).unwrap_or(text_color),
                 reshape: false,
                 baseline: Cell::new(Px(0)),
             });
@@ -253,58 +239,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let synthesis = synthesis_allowed & r.faces.best().synthesis_for(style, weight);
                 if r.synthesis != synthesis {
                     r.synthesis = synthesis;
-                    ctx.updates.render();
-                }
-            }
-
-            // update decoration line colors, affects render
-            if let Some(c) = TEXT_COLOR_VAR.copy_new(ctx) {
-                let c = OVERLINE_COLOR_VAR.copy(ctx).unwrap_or(c);
-                if c != r.overline_color {
-                    r.overline_color = c;
-                    ctx.updates.render();
-                }
-                let c = STRIKETHROUGH_COLOR_VAR.copy(ctx).unwrap_or(c);
-                if c != r.strikethrough_color {
-                    r.strikethrough_color = c;
-                    ctx.updates.render();
-                }
-                let c = UNDERLINE_COLOR_VAR.copy(ctx).unwrap_or(c);
-                if c != r.underline_color {
-                    r.underline_color = c;
-                    ctx.updates.render();
-                }
-                let c = CARET_COLOR_VAR.copy(ctx).unwrap_or(c);
-                if c != r.caret_color {
-                    r.caret_color = c;
-                    ctx.updates.render();
-                }
-            }
-            if let Some(c) = OVERLINE_COLOR_VAR.copy_new(ctx) {
-                let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
-                if c != r.overline_color {
-                    r.overline_color = c;
-                    ctx.updates.render();
-                }
-            }
-            if let Some(c) = STRIKETHROUGH_COLOR_VAR.copy_new(ctx) {
-                let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
-                if c != r.strikethrough_color {
-                    r.strikethrough_color = c;
-                    ctx.updates.render();
-                }
-            }
-            if let Some(c) = UNDERLINE_COLOR_VAR.get_new(ctx) {
-                let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
-                if c != r.underline_color {
-                    r.underline_color = c;
-                    ctx.updates.render();
-                }
-            }
-            if let Some(c) = CARET_COLOR_VAR.get_new(ctx) {
-                let c = c.unwrap_or(TEXT_COLOR_VAR.copy(ctx));
-                if c != r.caret_color {
-                    r.caret_color = c;
                     ctx.updates.render();
                 }
             }
@@ -684,7 +618,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
     impl<C: UiNode> UiNode for RenderUnderlineNode<C> {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if UNDERLINE_STYLE_VAR.is_new(ctx) {
+            if UNDERLINE_STYLE_VAR.is_new(ctx) || UNDERLINE_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
@@ -694,11 +628,9 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_underlines`");
             if !t.underlines.is_empty() {
-                let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_underlines`");
-
                 let style = UNDERLINE_STYLE_VAR.copy(ctx);
                 if style != LineStyle::Hidden {
-                    let color = r.underline_color.into();
+                    let color = UNDERLINE_COLOR_VAR.copy(ctx).into();
                     for &(origin, width) in &t.underlines {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
@@ -729,7 +661,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     impl<C: UiNode> UiNode for RenderStrikethroughsNode<C> {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if STRIKETHROUGH_STYLE_VAR.is_new(ctx) {
+            if STRIKETHROUGH_STYLE_VAR.is_new(ctx) || STRIKETHROUGH_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
@@ -739,11 +671,9 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_strikethroughs`");
             if !t.strikethroughs.is_empty() {
-                let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_strikethroughs`");
-
                 let style = STRIKETHROUGH_STYLE_VAR.copy(ctx);
                 if style != LineStyle::Hidden {
-                    let color = r.strikethrough_color.into();
+                    let color = STRIKETHROUGH_COLOR_VAR.copy(ctx).into();
                     for &(origin, width) in &t.strikethroughs {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.strikethrough_thickness)),
@@ -774,7 +704,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     impl<C: UiNode> UiNode for RenderOverlineNode<C> {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if OVERLINE_STYLE_VAR.is_new(ctx) {
+            if OVERLINE_STYLE_VAR.is_new(ctx) || OVERLINE_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
@@ -784,11 +714,9 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_overlines`");
             if !t.overlines.is_empty() {
-                let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_overlines`");
-
                 let style = OVERLINE_STYLE_VAR.copy(ctx);
                 if style != LineStyle::Hidden {
-                    let color = r.overline_color.into();
+                    let color = OVERLINE_COLOR_VAR.copy(ctx).into();
                     for &(origin, width) in &t.overlines {
                         frame.push_line(
                             PxRect::new(origin, PxSize::new(width, t.overline_thickness)),
@@ -820,7 +748,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
     impl<C: UiNode> UiNode for RenderCaretNode<C> {
         // subscriptions are handled by the `editable` property node.
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if TEXT_EDITABLE_VAR.is_new(ctx) {
+            if TEXT_EDITABLE_VAR.is_new(ctx) || CARET_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
@@ -840,8 +768,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 clip_rect.origin.x += padding.left;
                 clip_rect.origin.y += padding.top;
 
-                let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_underlines`");
-                let color = r.underline_color.into();
+                let color = CARET_COLOR_VAR.copy(ctx).into();
                 frame.push_color(clip_rect, self.color_key.bind(color, true));
             }
         }
@@ -850,8 +777,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render_update(ctx, update);
 
             if TEXT_EDITABLE_VAR.copy(ctx) {
-                let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_underlines`");
-                let color = r.underline_color.into();
+                let color = CARET_COLOR_VAR.copy(ctx).into();
                 update.update_color(self.color_key.update(color, true))
             }
         }

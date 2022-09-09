@@ -18,11 +18,3 @@
              - font size widget background is not themed
 
 - transform  - red
-
-# ContextVar
-
-* Derived context vars, when it is not set directly the *parent* var is used:
-```rust
-static UNDERLINE_COLOR_VAR => TEXT_COLOR_VAR;
-```
-- Use the same type `ContextVar<TEXT_COLOR_VAR::T>`?

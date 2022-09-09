@@ -151,8 +151,8 @@ pub mod hr {
         use crate::widgets::text::properties::TEXT_COLOR_VAR;
 
         context_var! {
-            /// Line color, default is the [`TEXT_COLOR_VAR`] default.
-            pub static COLOR_VAR: Rgba = TEXT_COLOR_VAR.default_value(); // TODO !!: derive
+            /// Line color, inherits from [`TEXT_COLOR_VAR`].
+            pub static COLOR_VAR: Rgba => TEXT_COLOR_VAR;
 
             /// Line stroke thickness, default is `1.dip()`
             pub static STROKE_THICKNESS_VAR: Length = 1.dip();
