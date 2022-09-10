@@ -790,6 +790,7 @@ mod analysis {
                 macro_ident: macro_ident.clone(),
                 args_ident: ident!("{}_Args", fn_.sig.ident),
                 args_impl_ident: ident!("{}_ArgsImpl", fn_.sig.ident),
+                property_type_ident: ident!("{}_PropertyType", fn_.sig.ident),
                 has_default_value,
                 wgt_capture_only_reexport,
                 wgt_capture_only_reexport_use,
@@ -1366,6 +1367,8 @@ mod output {
                 }
             };
 
+            let property_type_ident = ident!("{ident}_PropertyType");
+
             tokens.extend(quote! {
                 #cfg
                 #[doc(hidden)]
@@ -1374,6 +1377,10 @@ mod output {
                     #phantom_decl
                     #(pub #arg_idents: #arg_types,)*
                 }
+
+                #cfg
+                #[doc(hidden)]
+                pub enum #property_type_ident { }
 
                 #cfg
                 #[doc(hidden)]
@@ -1530,7 +1537,11 @@ mod output {
                                     $__set($args, $node)
                                 }
                             };
-                            $dyn_wgt_part.finish_property(dyn_prop__, $node, $property_name, $user_assigned, $priority_index, $is_when_condition);
+                            let property_type_id__ = {
+                                use $property_path::{PropertyType as __PropertyType};
+                                std::any::TypeId::of::<__PropertyType>()
+                            };
+                            $dyn_wgt_part.finish_property(dyn_prop__, $node, $property_name, property_type_id__, $user_assigned, $priority_index, $is_when_condition);
                     };
                     (set_dyn $other:ident, $($ignore:tt)+) => { };
                 }
@@ -1736,6 +1747,7 @@ mod output {
         pub macro_ident: Ident,
         pub args_ident: Ident,
         pub args_impl_ident: Ident,
+        pub property_type_ident: Ident,
         pub wgt_capture_only_reexport: TokenStream,
         pub wgt_capture_only_reexport_use: TokenStream,
     }
@@ -1748,6 +1760,7 @@ mod output {
                 macro_ident,
                 args_ident,
                 args_impl_ident,
+                property_type_ident,
                 wgt_capture_only_reexport,
                 wgt_capture_only_reexport_use,
                 ..
@@ -1799,6 +1812,7 @@ mod output {
                     #wgt_capture_only_reexport_use
                     pub use super::{
                         #args_impl_ident as ArgsImpl,
+                        #property_type_ident as PropertyType,
                         #args_ident as Args,
                         #dyn_ctor_ident as dyn_ctor,
                         #default_export

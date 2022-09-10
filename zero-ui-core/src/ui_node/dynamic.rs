@@ -209,7 +209,7 @@ impl fmt::Debug for DynPropertyArgs {
 
 /// Represents a property constructor function activated with dynamically defined input variables.
 ///
-/// You can use the [`dyn_property_fn!`] macro to get the constructor for a property.
+/// You can use the [`property_dyn_fn!`] macro to get the constructor for a property.
 pub type DynPropertyFn = fn(BoxedUiNode, &DynPropertyArgs) -> Result<BoxedUiNode, (BoxedUiNode, DynPropError)>;
 
 #[doc(hidden)]
@@ -221,7 +221,7 @@ pub fn not_allowed_in_when_dyn_ctor(child: BoxedUiNode, _: &DynPropertyArgs) -> 
 ///
 /// If the property is not `allowed_in_when` returns a constructor that always returns [`DynPropError::NotAllowedInWhen`].
 #[macro_export]
-macro_rules! dyn_property_fn {
+macro_rules! property_dyn_fn {
     ($property:path) => {{
         use $property as __property;
 
@@ -234,7 +234,18 @@ macro_rules! dyn_property_fn {
     }};
 }
 #[doc(inline)]
-pub use crate::dyn_property_fn;
+pub use crate::property_dyn_fn;
+
+///<span data-del-macro-root></span> Gets a [`TypeId`] that uniquely identifies a property function.
+#[macro_export]
+macro_rules! property_type_id {
+    ($property_path:path) => {{
+        use $property_path::PropertyType as __Type;
+        std::any::TypeId::of::<__Type>()
+    }};
+}
+#[doc(inline)]
+pub use crate::property_type_id;
 
 /// Information about how a dynamic property can be configured to update by `when` conditions.
 pub enum DynPropWhenInfo {
@@ -289,6 +300,11 @@ pub struct DynProperty {
     /// ```
     pub name: &'static str,
 
+    /// Type ID that uniquely identify the property.
+    ///
+    /// The [`property_type_id!`] macro can be used to extract the ID of a property function.
+    pub id: TypeId,
+
     /// The *importance* of the property, that is, if it is set in the widget default or the widget instance.
     ///
     /// Defines what instance of the same property replaces the other.
@@ -305,6 +321,7 @@ impl fmt::Debug for DynProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynProperty")
             .field("name", &self.name)
+            .field("id", &self.id)
             .field("when_info", &self.when_info)
             .field("importance", &self.importance)
             .field("priority_index", &self.priority_index)
@@ -317,7 +334,7 @@ pub struct DynWhenCondition {
     /// The condition result.
     pub condition: BoxedVar<bool>,
     /// Inputs assigned for each property if when the condition is `true`.
-    pub assigns: Vec<(&'static str, DynPropertyArgs)>,
+    pub assigns: Vec<DynWhenAssign>,
 }
 impl fmt::Debug for DynWhenCondition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -325,6 +342,17 @@ impl fmt::Debug for DynWhenCondition {
             .field("assigns", &self.assigns)
             .finish_non_exhaustive()
     }
+}
+
+/// Represents a property assign in a dynamic when block.
+#[derive(Debug)]
+pub struct DynWhenAssign {
+    /// Name of the property in the widget that was assigned.
+    pub property_name: &'static str,
+    /// Unique ID of the property.
+    pub property_id: TypeId,
+    /// Arguments that where assigned.
+    pub args: DynPropertyArgs,
 }
 
 /// Represents the properties and intrinsic node of a priority in a [`DynWidget`].
@@ -501,11 +529,13 @@ impl DynWidgetPartBuilderV1 {
         (ad_child, DynPropertyBuilderV1 { child })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn finish_property(
         &mut self,
         property: DynPropertyBuilderV1,
         property_node: impl UiNode,
         name: &'static str,
+        id: TypeId,
         user_assigned: bool,
         priority_index: i16,
         _is_when_condition: bool,
@@ -519,6 +549,7 @@ impl DynWidgetPartBuilderV1 {
         self.properties.push(DynProperty {
             node,
             name,
+            id,
             when_info: DynPropWhenInfo::NotAllowedInWhen,
             priority_index,
             importance: if user_assigned {
