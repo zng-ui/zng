@@ -1,7 +1,9 @@
+use std::any::TypeId;
 use std::fmt;
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::var::*;
+use crate::var::types::AnyWhenVarBuilder;
+use crate::var::{AnyVar, *};
 use crate::NilUiNode;
 use crate::{context::WidgetContext, impl_ui_node, BoxedUiNode, UiNode};
 
@@ -153,50 +155,55 @@ impl fmt::Display for DynPropError {
 impl std::error::Error for DynPropError {}
 
 /// Represents a dynamic arguments to a property set by `when` condition.
-#[derive(Default)]
-pub struct DynPropertyArgs {
-    args: Vec<Box<dyn crate::var::AnyVar>>,
+pub enum DynPropertyArgs {
+    /// Arguments for a property with `impl IntoVar<T>` args, must match a [`BoxedVar<T>`] for each [`IntoVar<T>`] exactly.
+    Args(Vec<Box<dyn AnyVar>>),
+    /// Argument for a state (`is_`) property.
+    State(StateVar),
+    /// Arguments for a property with `impl IntoVar<T>` args,
+    When(Vec<AnyWhenVarBuilder>),
+}
+impl DynPropertyArgs {
+    /// Get a clone of the property argument, builds if it is when.
+    pub fn get<T: VarValue>(&self, i: usize) -> Result<impl IntoVar<T>, DynPropError> {
+        match self {
+            Self::Args(a) => match a.get(i).and_then(|a| a.as_any().downcast_ref::<BoxedVar<T>>()) {
+                Some(v) => Ok(v.clone()),
+                None => Err(DynPropError::ArgsMismatch),
+            },
+            Self::State(s) => {
+                if i == 0 && TypeId::of::<T>() == TypeId::of::<bool>() {
+                    let cast = s.clone().boxed().into_any().as_box_any().downcast::<BoxedVar<T>>().unwrap();
+                    Ok(cast)
+                } else {
+                    Err(DynPropError::ArgsMismatch)
+                }
+            }
+            Self::When(w) => {
+                if let Some(w) = w.get(i).and_then(|w| w.build()) {
+                    Ok(w.boxed())
+                } else {
+                    Err(DynPropError::ArgsMismatch)
+                }
+            }
+        }
+    }
+
+    /// Get a clone of the single argument for state properties.
+    pub fn get_state(&self) -> Result<StateVar, DynPropError> {
+        match self {
+            Self::State(s) => Ok(s.clone()),
+            _ => Err(DynPropError::ArgsMismatch),
+        }
+    }
 }
 impl fmt::Debug for DynPropertyArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DynPropertyArgs {{ args: <{}> }}", self.args.len())
-    }
-}
-impl DynPropertyArgs {
-    /// New default empty.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// New args for a state property.
-    pub fn new_state(state: StateVar) -> Self {
-        Self {
-            args: vec![state.boxed().into_any()],
+        match self {
+            Self::Args(_) => write!(f, "Args(_)"),
+            Self::State(_) => write!(f, "State(_)"),
+            Self::When(_) => write!(f, "When(_)"),
         }
-    }
-
-    /// Push a property argument.
-    pub fn push<T: VarValue>(&mut self, input: impl IntoVar<T>) {
-        let input = input.into_var().boxed().into_any();
-        self.args.push(input);
-    }
-
-    /// Get a clone of the property argument.
-    pub fn get<T: VarValue>(&self, i: usize) -> Result<impl IntoVar<T>, DynPropError> {
-        match self.args.get(i).and_then(|a| a.as_any().downcast_ref::<BoxedVar<T>>()) {
-            Some(v) => Ok(v.clone()),
-            None => Err(DynPropError::ArgsMismatch),
-        }
-    }
-
-    /// Gets a clone of the single state property input.
-    pub fn get_state(&self) -> Result<StateVar, DynPropError> {
-        if self.args.len() == 1 {
-            if let Some(v) = self.args[0].as_any().downcast_ref::<StateVar>() {
-                return Ok(v.clone());
-            }
-        }
-        Err(DynPropError::ArgsMismatch)
     }
 }
 
@@ -239,21 +246,21 @@ pub enum DynPropWhenInfo {
         /// Dynamic constructor, can generate another property instance with newly configured when conditions.
         new_fn: DynPropertyFn,
         /// Default input, can be used in when conditions.
-        defaults: DynPropertyArgs,
+        defaults: Vec<Box<dyn AnyVar>>,
     },
 
-    /// Property is read in a `when` expression.
+    /// Property is read in one or more `when` expressions.
     Condition {
-        /// Index of the condition in the [`DynWidget`].
-        index: usize,
+        /// Index of each `when` expression in the owning [`DynWidget`] that reference this property.
+        indexes: Vec<usize>,
     },
 }
 impl fmt::Debug for DynPropWhenInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotAllowedInWhen => write!(f, "NotAllowedInWhen"),
-            Self::Assignable { defaults, .. } => f.debug_struct("Assignable").field("defaults", defaults).finish_non_exhaustive(),
-            Self::Condition { index } => f.debug_struct("Condition").field("index", index).finish(),
+            Self::Assignable { .. } => f.debug_struct("Assignable").finish_non_exhaustive(),
+            Self::Condition { indexes } => f.debug_struct("Condition").field("indexes", indexes).finish(),
         }
     }
 }

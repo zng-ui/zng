@@ -56,18 +56,38 @@ use std::marker::PhantomData;
 ///
 /// In the example above only one of the conditions will be compiled, the generated variable is the same
 /// type as if you had written a single condition.
+///
+/// # Return Type
+///
+/// The return type is an opaque `impl Var<T>` that can one of two implementations depending on the compilation profile, you
+/// can use the [`rc_when_var!`] macro to ensure that a [`RcWhenVar<T>`] is created.
 #[macro_export]
 macro_rules! when_var {
     ($($tt:tt)*) => {
         $crate::var::types::__when_var! {
             $crate::var
+            false
+            $($tt)*
+        }.as_impl_var()
+    }
+}
+
+///<span data-del-macro-root></span> Initializes a new conditional var.
+///
+/// This macro uses the same syntax as [`when_var!`], but returns an [`RcWhenVar<T>`] instead of an opaque `impl Var<T>`.
+#[macro_export]
+macro_rules! rc_when_var {
+    ($($tt:tt)*) => {
+        $crate::var::types::__when_var! {
+            $crate::var
+            true
             $($tt)*
         }
     }
 }
 
 #[doc(inline)]
-pub use crate::when_var;
+pub use crate::{rc_when_var, when_var};
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::when_var as __when_var;
@@ -519,6 +539,11 @@ impl<O: VarValue> RcWhenVar<O> {
             self.0.default_.get_new(vars)
         }
     }
+
+    #[doc(hidden)]
+    pub fn as_impl_var(self) -> impl Var<O> {
+        self
+    }
 }
 
 impl<O: VarValue> crate::private::Sealed for RcWhenVar<O> {}
@@ -944,4 +969,61 @@ pub struct WhenVarBuilder9<O, D, C0, C1, C2, C3, C4, C5, C6, C7, C8, V0, V1, V2,
     default_value: D,
     condition: (C0, C1, C2, C3, C4, C5, C6, C7, C8),
     value: (V0, V1, V2, V3, V4, V5, V6, V7, V8),
+}
+
+/// Type erased [`when_var!`] builder.
+///
+/// All value variables must be of type [`BoxedVar<T>`] of the same `T`, each instance of this type represents
+/// a single argument for the property and most match the `T` of the `impl IntoVar<T>` signature of the property.
+///
+/// This type is primarily used by the dynamic widget macros in [`DynWidget`], you probably can use the [`when_var!`] macro
+/// directly, or if you need a builder to instantiate a dynamic property you can create one from [`rc_when_var!`].
+///
+/// [`DynWidget`]: crate::DynWidget
+pub struct AnyWhenVarBuilder {
+    default: Box<dyn AnyVar>,
+    whens: Vec<(BoxedVar<bool>, Box<dyn AnyVar>)>,
+}
+impl AnyWhenVarBuilder {
+    /// Start building with only the default value.
+    pub fn new<O: VarValue>(default_: impl IntoVar<O>) -> Self {
+        Self {
+            default: default_.into_var().boxed().into_any(),
+            whens: vec![],
+        }
+    }
+
+    /// Create a builder from the parts of a formed [`rc_when_var!`].
+    pub fn from_var<O: VarValue>(var: &RcWhenVar<O>) -> Self {
+        Self {
+            default: var.0.default_.clone().into_any(),
+            whens: var
+                .0
+                .whens
+                .iter()
+                .map(|w| (w.condition.clone(), w.value.clone().into_any()))
+                .collect(),
+        }
+    }
+
+    /// Push a when condition.
+    pub fn push<C: Var<bool>, O: VarValue, V: IntoVar<O>>(mut self, condition: C, value: V) -> Self {
+        self.whens.push((condition.boxed(), value.into_var().boxed().into_any()));
+        self
+    }
+
+    /// Build the when var if all value variables are of type [`BoxedVar<T>`].
+    pub fn build<T: VarValue>(&self) -> Option<RcWhenVar<T>> {
+        let default = self.default.as_any().downcast_ref::<BoxedVar<T>>()?;
+
+        let mut when = WhenVarBuilderDyn::new(default.clone());
+
+        for (c, v) in &self.whens {
+            let value = v.as_any().downcast_ref::<BoxedVar<T>>()?;
+
+            when = when.push(c.clone(), value.clone());
+        }
+
+        Some(when.build())
+    }
 }

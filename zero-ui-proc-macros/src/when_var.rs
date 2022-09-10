@@ -3,12 +3,13 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
-    Attribute, Expr, Path, Token,
+    Attribute, Expr, LitBool, Path, Token,
 };
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input {
         vars_mod,
+        is_rc,
         conditions,
         default:
             DefaultArm {
@@ -21,7 +22,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     } = parse_macro_input!(input as Input);
 
     // start builder
-    let mut out = if conditions.len() >= 8 {
+    let mut out = if is_rc || conditions.len() >= 8 {
         quote! {
             #(#default_attrs)*
             let __b = #vars_mod::types::WhenVarBuilderDyn::new(#default_value);
@@ -81,6 +82,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 struct Input {
     vars_mod: Path,
+    is_rc: bool,
     conditions: Punctuated<ConditionArm, Token![,]>,
     default: DefaultArm,
     _trailing_comma: Option<Token![,]>,
@@ -88,6 +90,7 @@ struct Input {
 impl Parse for Input {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let vars_mod = input.parse()?;
+        let is_rc = input.parse::<LitBool>()?.value;
         let mut conditions = Punctuated::new();
         while !input.peek(Token![_]) {
             conditions.push(input.parse()?);
@@ -95,6 +98,7 @@ impl Parse for Input {
         }
         Ok(Input {
             vars_mod,
+            is_rc,
             conditions,
             default: input.parse()?,
             _trailing_comma: input.parse()?,

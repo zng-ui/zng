@@ -20,6 +20,9 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Returns a value that can be down-casted to `BoxedVar<T>` if the value type is known.
     fn boxed_any(self: Box<Self>) -> Box<dyn AnyVar>;
 
+    /// Type erased clone.
+    fn clone_any(&self) -> Box<dyn AnyVar>;
+
     /// Type erased [`Var::is_new`].
     fn is_new_any(&self, vars: &Vars) -> bool;
     /// Type erased [`Var::version`].
@@ -68,6 +71,9 @@ pub trait AnyWeakVar: Any + crate::private::Sealed {
     /// Returns a value that can be down-casted to `BoxedWeakVar<T>` if the value type is known.
     fn boxed_any(self: Box<Self>) -> Box<dyn AnyWeakVar>;
 
+    /// Type erased clone.
+    fn clone_any(&self) -> Box<dyn AnyWeakVar>;
+
     /// Type erased [`WeakVar::as_ptr`].
     fn as_ptr_any(&self) -> *const ();
 
@@ -97,6 +103,10 @@ macro_rules! any_var_impls {
 
         fn boxed_any(self: Box<Self>) -> Box<dyn any::AnyVar> {
             self.boxed().into_any()
+        }
+
+        fn clone_any(&self) -> Box<dyn any::AnyVar> {
+            self.clone().into_any()
         }
 
         fn is_new_any(&self, vars: &Vars) -> bool {
@@ -169,6 +179,10 @@ macro_rules! any_var_impls {
 
         fn boxed_any(self: Box<Self>) -> Box<dyn any::AnyWeakVar> {
             self.boxed().into_any()
+        }
+
+        fn clone_any(&self) -> Box<dyn any::AnyWeakVar> {
+            self.clone().into_any()
         }
 
         fn as_ptr_any(&self) -> *const () {
