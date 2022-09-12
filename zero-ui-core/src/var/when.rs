@@ -981,14 +981,27 @@ pub struct WhenVarBuilder9<O, D, C0, C1, C2, C3, C4, C5, C6, C7, C8, V0, V1, V2,
 ///
 /// [`DynWidget`]: crate::DynWidget
 pub struct AnyWhenVarBuilder {
-    default: Box<dyn AnyVar>,
+    default: Option<Box<dyn AnyVar>>,
     whens: Vec<(BoxedVar<bool>, Box<dyn AnyVar>)>,
 }
 impl AnyWhenVarBuilder {
     /// Start building with only the default value.
-    pub fn new<O: VarValue>(default_: impl IntoVar<O>) -> Self {
+    pub fn new<O: VarValue>(default: impl IntoVar<O>) -> Self {
+        Self::new_any(default.into_var().boxed().into_any())
+    }
+
+    /// Start building with an already type erased default var.
+    pub fn new_any(default: Box<dyn AnyVar>) -> Self {
         Self {
-            default: default_.into_var().boxed().into_any(),
+            default: Some(default),
+            whens: vec![],
+        }
+    }
+
+    /// Start building without a default value, note that a when var can only build if a default value is set.
+    pub fn new_no_default() -> Self {
+        Self {
+            default: None,
             whens: vec![],
         }
     }
@@ -996,7 +1009,7 @@ impl AnyWhenVarBuilder {
     /// Create a builder from the parts of a formed [`rc_when_var!`].
     pub fn from_var<O: VarValue>(var: &RcWhenVar<O>) -> Self {
         Self {
-            default: var.0.default_.clone().into_any(),
+            default: Some(var.0.default_.clone().into_any()),
             whens: var
                 .0
                 .whens
@@ -1006,15 +1019,55 @@ impl AnyWhenVarBuilder {
         }
     }
 
+    /// Returns `true` if a default value is set.
+    pub fn has_default(&self) -> bool {
+        self.default.is_some()
+    }
+
+    /// Returns the number of conditions set.
+    pub fn condition_count(&self) -> usize {
+        self.whens.len()
+    }
+
+    /// Set/replace the default value.
+    pub fn set_default<O: VarValue>(&mut self, default: impl IntoVar<O>) {
+        self.set_default_any(default.into_var().boxed().into_any());
+    }
+
+    /// Set/replace the default value with an already typed erased var.
+    pub fn set_default_any(&mut self, default: Box<dyn AnyVar>) {
+        self.default = Some(default);
+    }
+
     /// Push a when condition.
-    pub fn push<C: Var<bool>, O: VarValue, V: IntoVar<O>>(mut self, condition: C, value: V) -> Self {
-        self.whens.push((condition.boxed(), value.into_var().boxed().into_any()));
+    pub fn push<C: Var<bool>, O: VarValue, V: IntoVar<O>>(self, condition: C, value: V) -> Self {
+        self.push_any(condition.boxed(), value.into_var().boxed().into_any())
+    }
+
+    /// Push a when condition already boxed and type erased.
+    pub fn push_any(mut self, condition: BoxedVar<bool>, value: Box<dyn AnyVar>) -> Self {
+        self.whens.push((condition, value));
         self
     }
 
-    /// Build the when var if all value variables are of type [`BoxedVar<T>`].
+    /// Replace the default value if `other` has default and extend the conditions with clones of `other`.
+    pub fn replace_extend(&mut self, other: &Self) {
+        if let Some(default) = &other.default {
+            self.default = Some(default.clone_any());
+        }
+        self.extend(other);
+    }
+
+    /// Extend the conditions with clones of `other`.
+    pub fn extend(&mut self, other: &Self) {
+        for (c, v) in other.whens.iter() {
+            self.whens.push((c.clone(), v.clone_any()));
+        }
+    }
+
+    /// Build the when var if all value variables are of type [`BoxedVar<T>`] and a default value is set.
     pub fn build<T: VarValue>(&self) -> Option<RcWhenVar<T>> {
-        let default = self.default.as_any().downcast_ref::<BoxedVar<T>>()?;
+        let default = self.default.as_ref()?.as_any().downcast_ref::<BoxedVar<T>>()?;
 
         let mut when = WhenVarBuilderDyn::new(default.clone());
 
@@ -1025,5 +1078,21 @@ impl AnyWhenVarBuilder {
         }
 
         Some(when.build())
+    }
+}
+impl fmt::Debug for AnyWhenVarBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AnyWhenVarBuilder")
+            .field("has_default", &self.has_default())
+            .field("condition_count", &self.condition_count())
+            .finish_non_exhaustive()
+    }
+}
+impl Clone for AnyWhenVarBuilder {
+    fn clone(&self) -> Self {
+        Self {
+            default: self.default.as_ref().map(|d| d.clone_any()),
+            whens: self.whens.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
+        }
     }
 }

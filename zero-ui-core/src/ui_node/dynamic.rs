@@ -28,6 +28,18 @@ impl<U: UiNode> AdoptiveNode<U> {
         }
     }
 
+    /// Create the adoptive node with a constructor that can fail.
+    pub fn try_new<E>(create: impl FnOnce(AdoptiveChildNode) -> Result<U, E>) -> Result<Self, E> {
+        let ad_child = AdoptiveChildNode::nil();
+        let child = ad_child.child.clone();
+        let node = create(ad_child)?;
+        Ok(Self {
+            child,
+            node,
+            is_inited: false,
+        })
+    }
+
     /// Replaces the child node, panics if the node is inited.
     ///
     /// Returns the previous child, the initial child is a [`NilUiNode`].
@@ -134,6 +146,43 @@ impl DynPropPriority {
             DynPropPriority::Context => "<new_context>",
         }
     }
+
+    fn intrinsic_id(self) -> TypeId {
+        match self {
+            DynPropPriority::ChildLayout => {
+                enum ChildLayoutType {}
+                TypeId::of::<ChildLayoutType>()
+            }
+            DynPropPriority::ChildContext => {
+                enum ChildContextType {}
+                TypeId::of::<ChildContextType>()
+            }
+            DynPropPriority::Fill => {
+                enum FillType {}
+                TypeId::of::<FillType>()
+            }
+            DynPropPriority::Border => {
+                enum BorderType {}
+                TypeId::of::<BorderType>()
+            }
+            DynPropPriority::Size => {
+                enum SizeType {}
+                TypeId::of::<SizeType>()
+            }
+            DynPropPriority::Layout => {
+                enum LayoutType {}
+                TypeId::of::<LayoutType>()
+            }
+            DynPropPriority::Event => {
+                enum EventType {}
+                TypeId::of::<EventType>()
+            }
+            DynPropPriority::Context => {
+                enum ContextType {}
+                TypeId::of::<ContextType>()
+            }
+        }
+    }
 }
 
 /// Error in call to [`DynPropertyFn`].
@@ -160,8 +209,13 @@ pub enum DynPropertyArgs {
     Args(Vec<Box<dyn AnyVar>>),
     /// Argument for a state (`is_`) property.
     State(StateVar),
-    /// Arguments for a property with `impl IntoVar<T>` args,
+    /// Arguments for a property with `impl IntoVar<T>` args that setups when conditions with the default value,
+    /// must match a [`BoxedVar<T>`] for each [`IntoVar<T>`] exactly.
     When(Vec<AnyWhenVarBuilder>),
+    /// Similar to `When`, but the user did not explicitly set a default value, only when condition values, a default
+    /// value may be available anyway if the property has a default, if no default is available the property node is a
+    /// no-op passthrough.
+    WhenNoDefault(Vec<AnyWhenVarBuilder>),
 }
 impl DynPropertyArgs {
     /// Get a clone of the property argument, builds if it is when.
@@ -186,6 +240,13 @@ impl DynPropertyArgs {
                     Err(DynPropError::ArgsMismatch)
                 }
             }
+            Self::WhenNoDefault(w) => {
+                if let Some(w) = w.get(i).and_then(|w| w.build()) {
+                    Ok(w.boxed())
+                } else {
+                    Err(DynPropError::ArgsMismatch)
+                }
+            }
         }
     }
 
@@ -203,6 +264,17 @@ impl fmt::Debug for DynPropertyArgs {
             Self::Args(_) => write!(f, "Args(_)"),
             Self::State(_) => write!(f, "State(_)"),
             Self::When(_) => write!(f, "When(_)"),
+            Self::WhenNoDefault(_) => write!(f, "WhenNoDefault(_)"),
+        }
+    }
+}
+impl Clone for DynPropertyArgs {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Args(a) => Self::Args(a.iter().map(|a| a.clone_any()).collect()),
+            Self::State(a) => Self::State(a.clone()),
+            Self::When(a) => Self::When(a.clone()),
+            Self::WhenNoDefault(a) => Self::WhenNoDefault(a.clone()),
         }
     }
 }
@@ -248,30 +320,24 @@ macro_rules! property_type_id {
 pub use crate::property_type_id;
 
 /// Information about how a dynamic property can be configured to update by `when` conditions.
+#[derive(Clone)]
 pub enum DynPropWhenInfo {
     /// Property is `allowed_in_when = false`.
-    NotAllowedInWhen,
+    NotAllowed,
 
     /// Property is `allowed_in_when = true`.
-    Assignable {
+    Allowed {
         /// Dynamic constructor, can generate another property instance with newly configured when conditions.
         new_fn: DynPropertyFn,
-        /// Default input, can be used in when conditions.
-        defaults: Vec<Box<dyn AnyVar>>,
-    },
-
-    /// Property is read in one or more `when` expressions.
-    Condition {
-        /// Index of each `when` expression in the owning [`DynWidget`] that reference this property.
-        indexes: Vec<usize>,
+        /// Clone of the args used to instantiate the property.
+        args: DynPropertyArgs,
     },
 }
 impl fmt::Debug for DynPropWhenInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotAllowedInWhen => write!(f, "NotAllowedInWhen"),
-            Self::Assignable { .. } => f.debug_struct("Assignable").finish_non_exhaustive(),
-            Self::Condition { indexes } => f.debug_struct("Condition").field("indexes", indexes).finish(),
+            Self::NotAllowed => write!(f, "NotAllowed"),
+            Self::Allowed { args, .. } => f.debug_struct("Allowed").field("args", args).finish_non_exhaustive(),
         }
     }
 }
@@ -281,10 +347,10 @@ impl fmt::Debug for DynPropWhenInfo {
 /// See [`DynWidgetPart`] for details.
 pub struct DynProperty {
     /// The property node, setup as an adoptive node that allows swapping the child node, the input variables
-    /// is not setup for `when` condition, it is only the default value directly.
+    /// and whens are already setup, a clone of then is available in `when_info`.
     pub node: AdoptiveNode<BoxedUiNode>,
 
-    /// The property constructor function and default input vars, if it is `allowed_in_when = true`.
+    /// The property constructor function and initial args, if it is `allowed_in_when = true`.
     pub when_info: DynPropWhenInfo,
 
     /// Name of the property as it was set in the widget.
@@ -328,31 +394,45 @@ impl fmt::Debug for DynProperty {
             .finish_non_exhaustive()
     }
 }
-
-/// Represents an widget `when` condition in dynamic initialization.
-pub struct DynWhenCondition {
-    /// The condition result.
-    pub condition: BoxedVar<bool>,
-    /// Inputs assigned for each property if when the condition is `true`.
-    pub assigns: Vec<DynWhenAssign>,
-}
-impl fmt::Debug for DynWhenCondition {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DynWhenCondition")
-            .field("assigns", &self.assigns)
-            .finish_non_exhaustive()
+impl DynProperty {
+    /// Merge or replace `self` by `other`, returns the replacement property, or `(self, other)` in case the
+    /// properties are not compatible.
+    ///
+    /// What property *replaces* the other depends on the [`importance`] of both, if the importance is the same the
+    /// `other` property *replaces* `self`. The replacement can be a input property or it can be a new instance that
+    /// merges the when conditions of both input properties.
+    ///
+    /// [`importance`]: DynProperty.importance
+    pub fn merge_replace(self, other: DynProperty) -> Result<DynProperty, (DynProperty, DynProperty)> {
+        if self.name == other.name {
+            Ok(MergeReplaceSolver::merge_replace(self, other))
+        } else {
+            Err((self, other))
+        }
     }
 }
+impl MergeReplaceSolver for DynProperty {
+    fn name(&self) -> &'static str {
+        self.name
+    }
 
-/// Represents a property assign in a dynamic when block.
-#[derive(Debug)]
-pub struct DynWhenAssign {
-    /// Name of the property in the widget that was assigned.
-    pub property_name: &'static str,
-    /// Unique ID of the property.
-    pub property_id: TypeId,
-    /// Arguments that where assigned.
-    pub args: DynPropertyArgs,
+    fn id(&self) -> TypeId {
+        self.id
+    }
+
+    fn importance(&self) -> DynPropImportance {
+        self.importance
+    }
+
+    fn when_info(&self) -> &DynPropWhenInfo {
+        &self.when_info
+    }
+
+    fn replace_node(mut self, node: AdoptiveNode<BoxedUiNode>, when_info: DynPropWhenInfo) -> Self {
+        self.node = node;
+        self.when_info = when_info;
+        self
+    }
 }
 
 /// Represents the properties and intrinsic node of a priority in a [`DynWidget`].
@@ -360,7 +440,7 @@ pub struct DynWidgetPart {
     /// Properties set for the priority.
     pub properties: Vec<DynProperty>,
 
-    /// Intrinsic node constructed for the priority.
+    /// Return node of the constructor for the priority.
     pub intrinsic: AdoptiveNode<BoxedUiNode>,
 }
 impl DynWidgetPart {
@@ -384,21 +464,15 @@ impl fmt::Debug for DynWidgetPart {
 
 /// Represents a dynamic widget final part, available in `new_dyn`.
 pub struct DynWidget {
-    /// Innermost node, returned by `new_child`.
+    /// Innermost node, returned by the `new_child` constructor function.
     pub child: BoxedUiNode,
 
     /// Parts for each priority, from `child_layout` to `context`.
     pub parts: [DynWidgetPart; DynPropPriority::LEN],
-
-    /// When conditions set in the widget.
-    pub whens: Vec<DynWhenCondition>,
 }
 impl fmt::Debug for DynWidget {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DynWidget")
-            .field("parts", &self.parts)
-            .field("whens", &self.whens)
-            .finish_non_exhaustive()
+        f.debug_struct("DynWidget").field("parts", &self.parts).finish_non_exhaustive()
     }
 }
 impl DynWidget {
@@ -513,7 +587,6 @@ impl DynWidgetBuilderV1 {
         DynWidget {
             child: self.child,
             parts: self.parts.try_into().unwrap(),
-            whens: vec![],
         }
     }
 }
@@ -550,7 +623,7 @@ impl DynWidgetPartBuilderV1 {
             node,
             name,
             id,
-            when_info: DynPropWhenInfo::NotAllowedInWhen,
+            when_info: DynPropWhenInfo::NotAllowed,
             priority_index,
             importance: if user_assigned {
                 DynPropImportance::INSTANCE
@@ -558,6 +631,144 @@ impl DynWidgetPartBuilderV1 {
                 DynPropImportance::WIDGET
             },
         });
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn finish_property_state(
+        &mut self,
+        property: DynPropertyBuilderV1,
+        property_node: impl UiNode,
+        name: &'static str,
+        id: TypeId,
+        user_assigned: bool,
+        priority_index: i16,
+
+        new_fn: DynPropertyFn,
+        state: StateVar,
+    ) {
+        self.finish(
+            property,
+            property_node,
+            name,
+            id,
+            user_assigned,
+            priority_index,
+            DynPropWhenInfo::Allowed {
+                new_fn,
+                args: DynPropertyArgs::State(state),
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn finish_property_allowed_in_when(
+        &mut self,
+        property: DynPropertyBuilderV1,
+        property_node: impl UiNode,
+        name: &'static str,
+        id: TypeId,
+        user_assigned: bool,
+        priority_index: i16,
+
+        new_fn: DynPropertyFn,
+        args: Vec<Box<dyn AnyVar>>,
+    ) {
+        self.finish(
+            property,
+            property_node,
+            name,
+            id,
+            user_assigned,
+            priority_index,
+            DynPropWhenInfo::Allowed {
+                new_fn,
+                args: DynPropertyArgs::Args(args),
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn finish_property_allowed_in_when_with_when(
+        &mut self,
+        property: DynPropertyBuilderV1,
+        property_node: impl UiNode,
+        name: &'static str,
+        id: TypeId,
+        user_assigned: bool,
+        priority_index: i16,
+
+        new_fn: DynPropertyFn,
+        args: Vec<AnyWhenVarBuilder>,
+        default_set: bool,
+    ) {
+        self.finish(
+            property,
+            property_node,
+            name,
+            id,
+            user_assigned,
+            priority_index,
+            DynPropWhenInfo::Allowed {
+                new_fn,
+                args: if default_set {
+                    DynPropertyArgs::When(args)
+                } else {
+                    DynPropertyArgs::WhenNoDefault(args)
+                },
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn finish_property_not_allowed_in_when(
+        &mut self,
+        property: DynPropertyBuilderV1,
+        property_node: impl UiNode,
+        name: &'static str,
+        id: TypeId,
+        user_assigned: bool,
+        priority_index: i16,
+    ) {
+        self.finish(
+            property,
+            property_node,
+            name,
+            id,
+            user_assigned,
+            priority_index,
+            DynPropWhenInfo::NotAllowed,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn finish(
+        &mut self,
+        property: DynPropertyBuilderV1,
+        property_node: impl UiNode,
+        name: &'static str,
+        id: TypeId,
+        user_assigned: bool,
+        priority_index: i16,
+        when_info: DynPropWhenInfo,
+    ) {
+        let node = AdoptiveNode {
+            child: property.child,
+            node: property_node.boxed(),
+            is_inited: false,
+        };
+
+        self.properties.push(DynProperty {
+            node,
+            when_info,
+            name,
+            id,
+            importance: if user_assigned {
+                DynPropImportance::INSTANCE
+            } else {
+                DynPropImportance::WIDGET
+            },
+            priority_index,
+        })
     }
 }
 
@@ -578,8 +789,8 @@ pub struct DynWidgetNode {
     // the interior only changes when `replace_child` is used.
     child: Rc<RefCell<BoxedUiNode>>,
 
-    // properties from innermost to outermost.
-    properties: Vec<DynWidgetItem>,
+    // property and intrinsic nodes from innermost to outermost.
+    items: Vec<DynWidgetItem>,
     // exclusive end of each priority range in `properties`
     priority_ranges: [usize; DynPropPriority::LEN],
 
@@ -597,7 +808,7 @@ impl Default for DynWidgetNode {
         Self {
             id: DynWidgetNodeId::new_unique(),
             child: nil.clone(),
-            properties: vec![],
+            items: vec![],
             priority_ranges: [0; DynPropPriority::LEN],
             node: nil,
             is_inited: false,
@@ -609,7 +820,7 @@ impl fmt::Debug for DynWidgetNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynWidgetNode")
             .field("id", &self.id)
-            .field("properties", &self.properties)
+            .field("items", &self.items)
             .field("is_inited", &self.is_inited)
             .field("is_bound", &self.is_bound)
             .finish_non_exhaustive()
@@ -618,18 +829,18 @@ impl fmt::Debug for DynWidgetNode {
 impl DynWidgetNode {
     fn new(wgt: DynWidget, include_intrinsic: bool) -> Self {
         let mut priority_ranges = [0; DynPropPriority::LEN];
-        let mut properties = vec![];
+        let mut items = vec![];
         for (i, part) in wgt.parts.into_iter().enumerate() {
-            properties.extend(part.properties.into_iter().map(DynWidgetItem::new));
+            items.extend(part.properties.into_iter().map(DynWidgetItem::new));
 
             if include_intrinsic {
-                properties.push(DynWidgetItem::new_instrinsic(
+                items.push(DynWidgetItem::new_instrinsic(
                     DynPropPriority::from_index(i).unwrap(),
                     part.intrinsic,
                 ));
             }
 
-            priority_ranges[i] = properties.len();
+            priority_ranges[i] = items.len();
         }
 
         let node = Rc::new(RefCell::new(wgt.child));
@@ -638,7 +849,7 @@ impl DynWidgetNode {
             id: DynWidgetNodeId::new_unique(),
             child: node.clone(),
             node,
-            properties,
+            items,
             priority_ranges,
             is_inited: false,
             is_bound: false,
@@ -652,7 +863,7 @@ impl DynWidgetNode {
 
     /// Returns `true` if this node contains no property and intrinsic nodes, note that it can still contain a child node.
     pub fn is_empty(&self) -> bool {
-        self.properties.is_empty()
+        self.items.is_empty()
     }
 
     /// Replaces the inner child node, panics if the node is inited.
@@ -683,7 +894,10 @@ impl DynWidgetNode {
             self.unbind_all();
         }
 
-        self.insert_impl(priority as usize, properties.len(), properties.into_iter().map(DynWidgetItem::new));
+        let priority = priority as usize;
+        for p in properties {
+            self.insert_merge_replace(priority, DynWidgetItem::new(p));
+        }
     }
 
     /// Insert `other` in the properties chain, overrides properties with the same name, priority and with less or equal importance.
@@ -704,16 +918,12 @@ impl DynWidgetNode {
         }
 
         let mut s = 0;
-        let mut properties = other.properties.into_iter();
-        for p in 0..DynPropPriority::LEN {
-            let e = other.priority_ranges[p];
-
-            let n = e - s;
-            if n > 0 {
-                self.insert_impl(p, n, properties.by_ref().take(n));
+        let mut items = other.items.into_iter();
+        for (p, e) in other.priority_ranges.into_iter().enumerate() {
+            while s < e {
+                self.insert_merge_replace(p, items.next().unwrap());
+                s += 1;
             }
-
-            s = e;
         }
     }
 
@@ -733,7 +943,7 @@ impl DynWidgetNode {
 
         DynWidgetSnapshot {
             id: self.id,
-            properties: self.properties.iter().map(DynWidgetItem::snapshot).collect(),
+            items: self.items.iter().map(DynWidgetItem::snapshot).collect(),
             priority_ranges: self.priority_ranges,
         }
     }
@@ -749,8 +959,8 @@ impl DynWidgetNode {
                 self.unbind_all();
             }
 
-            self.properties.clear();
-            self.properties.extend(snapshot.properties.into_iter().map(DynWidgetItem::restore));
+            self.items.clear();
+            self.items.extend(snapshot.items.into_iter().map(DynWidgetItem::restore));
             self.priority_ranges = snapshot.priority_ranges;
 
             Ok(())
@@ -762,30 +972,30 @@ impl DynWidgetNode {
     fn bind_all(&mut self) {
         debug_assert!(!self.is_bound);
 
-        if !self.properties.is_empty() {
+        if !self.items.is_empty() {
             // move the child to the innermost property child.
 
             debug_assert_eq!(
-                self.properties[0].child.borrow().actual_type_id(),
+                self.items[0].child.borrow().actual_type_id(),
                 std::any::TypeId::of::<NilUiNode>(),
                 "`{}` already has a child",
-                self.properties[0].name
+                self.items[0].name
             );
-            mem::swap(&mut *self.child.borrow_mut(), &mut *self.properties[0].child.borrow_mut());
+            mem::swap(&mut *self.child.borrow_mut(), &mut *self.items[0].child.borrow_mut());
             // save the new child address.
-            self.child = self.properties[0].child.clone();
+            self.child = self.items[0].child.clone();
 
             // chain properties.
 
-            for i in 0..self.properties.len() {
-                let (a, b) = self.properties.split_at_mut(i + 1);
+            for i in 0..self.items.len() {
+                let (a, b) = self.items.split_at_mut(i + 1);
                 if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
                     inner.set_parent(outer);
                 }
             }
 
             // save the new outermost node address.
-            self.node = self.properties[self.properties.len() - 1].node.clone();
+            self.node = self.items[self.items.len() - 1].node.clone();
         }
 
         self.is_bound = true;
@@ -794,13 +1004,13 @@ impl DynWidgetNode {
     fn unbind_all(&mut self) {
         debug_assert!(self.is_bound);
 
-        if !self.properties.is_empty() {
+        if !self.items.is_empty() {
             let child = mem::replace(&mut *self.child.borrow_mut(), NilUiNode.boxed());
 
             self.child = Rc::new(RefCell::new(child));
 
-            for i in 0..self.properties.len() {
-                let (a, b) = self.properties.split_at_mut(i + 1);
+            for i in 0..self.items.len() {
+                let (a, b) = self.items.split_at_mut(i + 1);
                 if let (Some(inner), Some(outer)) = (a.last_mut(), b.first()) {
                     inner.unset_parent(outer);
                 }
@@ -812,90 +1022,33 @@ impl DynWidgetNode {
         self.is_bound = false;
     }
 
-    fn insert_impl(&mut self, priority: usize, properties_len: usize, properties: impl Iterator<Item = DynWidgetItem>) {
-        let priority_range = self.priority_range(priority);
+    fn insert_merge_replace(&mut self, priority: usize, item: DynWidgetItem) {
+        let item = if let Some(i) = self.items.iter().position(|b| b.name == item.name) {
+            // merge or replace
 
-        if priority_range.is_empty() {
-            // no properties of the priority, can just append or override.
-
-            let properties: Vec<_> = properties.collect();
-
-            if priority_range.start == self.properties.len() {
-                // append
-                self.properties.extend(properties);
-
-                // update ranges.
-                for p in &mut self.priority_ranges[priority..] {
-                    *p = self.properties.len();
-                }
-            } else {
-                // insert
-
-                let insert_len = properties_len;
-
-                let _rmv = self.properties.splice(priority_range, properties).next();
-                debug_assert!(_rmv.is_none());
-
-                // update ranges.
-                for p in &mut self.priority_ranges[priority..] {
-                    *p += insert_len;
-                }
+            let base_item = self.items.remove(i);
+            for p in &mut self.priority_ranges[priority..] {
+                *p -= 1;
             }
+
+            base_item.merge_replace(item)
         } else {
-            // already has properties of the priority, compute overrides and resort.
+            item
+        };
 
-            let mut new_properties: Vec<_> = properties.collect();
-
-            // collect overrides
-            let mut rmv_existing = vec![];
-            let mut rmv_new = vec![];
-
-            for (i, existing) in self.properties[priority_range.clone()].iter().enumerate() {
-                if let Some(new_i) = new_properties.iter().position(|n| n.name == existing.name) {
-                    let new = &new_properties[new_i];
-
-                    if new.importance >= existing.importance {
-                        rmv_existing.push(priority_range.start + i);
-                    } else {
-                        rmv_new.push(new_i);
-                    }
-                }
+        // insert
+        let range = self.priority_range(priority);
+        let mut insert = range.end;
+        for i in range {
+            if self.items[i].priority_index <= item.priority_index {
+                insert = i; // insert *inside* other items with the same priority or less.
+                break;
             }
-            // remove overridden
-            let remove_len = rmv_existing.len();
-            for i in rmv_existing.into_iter().rev() {
-                self.properties.remove(i);
-            }
-            for p in &mut self.priority_ranges[priority..] {
-                *p -= remove_len;
-            }
-            let priority_range = self.priority_range(priority);
+        }
+        self.items.insert(insert, item);
 
-            // remove override attempts of less importance
-            if !rmv_new.is_empty() {
-                rmv_new.sort_unstable();
-
-                for i in rmv_new.into_iter().rev() {
-                    new_properties.remove(i);
-                }
-
-                if new_properties.is_empty() {
-                    return;
-                }
-            }
-
-            // insert new
-            let insert_len = new_properties.len();
-            let insert_i = priority_range.start;
-            let _rmv = self.properties.splice(insert_i..insert_i, new_properties).next();
-            debug_assert!(_rmv.is_none());
-            for p in &mut self.priority_ranges[priority..] {
-                *p += insert_len;
-            }
-
-            // resort priority.
-            let priority_range = self.priority_range(priority);
-            self.properties[priority_range].sort_by_key(|p| -p.priority_index);
+        for p in &mut self.priority_ranges[priority..] {
+            *p += 1;
         }
     }
 
@@ -929,14 +1082,14 @@ impl UiNode for DynWidgetNode {
 /// [`restore`]: DynWidgetNode::restore
 pub struct DynWidgetSnapshot {
     id: DynWidgetNodeId,
-    properties: Vec<PropertyItemSnapshot>,
+    items: Vec<PropertyItemSnapshot>,
     priority_ranges: [usize; DynPropPriority::LEN],
 }
 impl fmt::Debug for DynWidgetSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynWidgetSnapshot")
             .field("id", &self.id)
-            .field("properties", &self.properties)
+            .field("items", &self.items)
             .finish_non_exhaustive()
     }
 }
@@ -952,10 +1105,14 @@ struct DynWidgetItem {
 
     // property name or "<new_*>" intrinsic.
     name: &'static str,
+    // property id or "intrinsic_id"
+    id: TypeId,
     // property index cast to `i32` or `i32::MIN+1` for intrinsic.
     priority_index: i32,
     // property importance, or `WIDGET` for intrinsic.
     importance: DynPropImportance,
+    // initialization mode, constructor and args.
+    when_info: DynPropWhenInfo,
 }
 impl DynWidgetItem {
     fn new(property: DynProperty) -> Self {
@@ -967,8 +1124,10 @@ impl DynWidgetItem {
             node: Rc::new(RefCell::new(node)),
             snapshot_node: None,
             name: property.name,
+            id: property.id,
             priority_index: property.priority_index as i32,
             importance: property.importance,
+            when_info: property.when_info,
         }
     }
 
@@ -982,8 +1141,10 @@ impl DynWidgetItem {
             node: Rc::new(RefCell::new(node)),
             snapshot_node: None,
             name: priority.intrinsic_name(),
+            id: priority.intrinsic_id(),
             priority_index: i32::MIN + 1,
             importance: DynPropImportance::WIDGET,
+            when_info: DynPropWhenInfo::NotAllowed,
         }
     }
 
@@ -1018,9 +1179,36 @@ impl fmt::Debug for DynWidgetItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyItem")
             .field("name", &self.name)
+            .field("id", &self.id)
             .field("priority_index", &self.priority_index)
             .field("importance", &self.importance)
+            .field("when_info", &self.when_info)
             .finish_non_exhaustive()
+    }
+}
+impl MergeReplaceSolver for DynWidgetItem {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+
+    fn id(&self) -> TypeId {
+        self.id
+    }
+
+    fn importance(&self) -> DynPropImportance {
+        self.importance
+    }
+
+    fn when_info(&self) -> &DynPropWhenInfo {
+        &self.when_info
+    }
+
+    fn replace_node(mut self, node: AdoptiveNode<BoxedUiNode>, when_info: DynPropWhenInfo) -> Self {
+        let (child, node) = node.into_parts();
+        self.child = child;
+        self.node = Rc::new(RefCell::new(node));
+        self.when_info = when_info;
+        self
     }
 }
 
@@ -1037,15 +1225,19 @@ struct PropertyItemSnapshot {
     child: Rc<RefCell<BoxedUiNode>>,
     node: Rc<RefCell<BoxedUiNode>>,
     name: &'static str,
+    id: TypeId,
     priority_index: i32,
     importance: DynPropImportance,
+    when_info: DynPropWhenInfo,
 }
 impl fmt::Debug for PropertyItemSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyItemSnapshot")
             .field("name", &self.name)
+            .field("id", &self.name)
             .field("priority_index", &self.priority_index)
             .field("importance", &self.importance)
+            .field("when_info", &self.when_info)
             .finish_non_exhaustive()
     }
 }
@@ -1056,8 +1248,10 @@ impl DynWidgetItem {
             child: self.child.clone(),
             node: self.node.clone(),
             name: self.name,
+            id: self.id,
             priority_index: self.priority_index as i32,
             importance: self.importance,
+            when_info: self.when_info.clone(),
         }
     }
 
@@ -1067,8 +1261,91 @@ impl DynWidgetItem {
             node: snapshot.node,
             snapshot_node: None,
             name: snapshot.name,
+            id: snapshot.id,
             priority_index: snapshot.priority_index as i32,
             importance: snapshot.importance,
+            when_info: snapshot.when_info,
+        }
+    }
+}
+
+trait MergeReplaceSolver {
+    fn name(&self) -> &'static str;
+    fn id(&self) -> TypeId;
+    fn importance(&self) -> DynPropImportance;
+    fn when_info(&self) -> &DynPropWhenInfo;
+
+    fn replace_node(self, node: AdoptiveNode<BoxedUiNode>, when_info: DynPropWhenInfo) -> Self;
+
+    fn merge_replace(self, other: Self) -> Self
+    where
+        Self: Sized,
+    {
+        let (base, over) = if self.importance() <= other.importance() {
+            (self, other)
+        } else {
+            (other, self)
+        };
+        if base.id() == over.id() {
+            match (&base.when_info(), &over.when_info()) {
+                (DynPropWhenInfo::NotAllowed, _) | (_, DynPropWhenInfo::NotAllowed) => over,
+                (DynPropWhenInfo::Allowed { args: base_args, .. }, DynPropWhenInfo::Allowed { new_fn, args }) => {
+                    use DynPropertyArgs::*;
+                    match (base_args, args) {
+                        // can't merge state reads.
+                        (State(_), _) | (_, State(_)) => over,
+                        // base has no when parts, over has a complete "default".
+                        (Args(_), Args(_) | When(_)) => over,
+                        // merge in the default.
+                        (Args(default), WhenNoDefault(when)) | (WhenNoDefault(when), Args(default)) | (When(when), Args(default)) => {
+                            let mut when = when.clone();
+
+                            for (w, d) in when.iter_mut().zip(default) {
+                                w.set_default_any(d.clone_any());
+                            }
+
+                            let new_fn = *new_fn;
+                            over.merge_replace_finish_merge(new_fn, When(when))
+                        }
+                        // merge, keep base default.
+                        (When(base_when), WhenNoDefault(when)) => {
+                            let mut new_when = base_when.clone();
+
+                            for (w, c) in new_when.iter_mut().zip(when) {
+                                w.extend(c);
+                            }
+
+                            let new_fn = *new_fn;
+                            over.merge_replace_finish_merge(new_fn, When(new_when))
+                        }
+                        // merge, replace default.
+                        (When(base_when) | WhenNoDefault(base_when), When(when) | WhenNoDefault(when)) => {
+                            let mut new_when = base_when.clone();
+
+                            for (w, c) in new_when.iter_mut().zip(when) {
+                                w.replace_extend(c);
+                            }
+
+                            let new_fn = *new_fn;
+                            over.merge_replace_finish_merge(new_fn, When(new_when))
+                        }
+                    }
+                }
+            }
+        } else {
+            over
+        }
+    }
+    fn merge_replace_finish_merge(self, new_fn: DynPropertyFn, args: DynPropertyArgs) -> Self
+    where
+        Self: Sized,
+    {
+        match AdoptiveNode::try_new(|child| new_fn(child.boxed(), &args)) {
+            Ok(node) => self.replace_node(node, DynPropWhenInfo::Allowed { new_fn, args }),
+            Err((_, e)) => {
+                tracing::error!("failed `{:?}` when merge, will fully replace, {}", (self.name(), self.id()), e);
+                self
+            }
         }
     }
 }
