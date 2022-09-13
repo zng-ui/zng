@@ -789,6 +789,9 @@ mod analysis {
                 vis: fn_.vis.clone(),
                 ident: fn_.sig.ident.clone(),
                 is_capture_only: args.priority.is_capture_only(),
+                allowed_in_when,
+                is_state,
+                args_are_valid,
                 macro_ident: macro_ident.clone(),
                 args_ident: ident!("{}_Args", fn_.sig.ident),
                 args_impl_ident: ident!("{}_ArgsImpl", fn_.sig.ident),
@@ -1346,6 +1349,34 @@ mod output {
                         }
                     }
                 } else {
+                    let dyn_args = ident!("__{ident}_dyn_args");
+                    let dyn_when_args = ident!("__{ident}_dyn_when_args");
+
+                    let dyn_args_decl = arg_locals.iter().zip(arg_types.iter()).map(|(arg_local, arg_ty)| {
+                        let span = arg_ty.span();
+                        let mut r = quote_spanned! {span=>
+                            #crate_core::var::AnyVar::into_any(
+                                #crate_core::var::Var::boxed(
+                                    #crate_core::var::IntoVar::allowed_in_when_property_requires_IntoVar_members(
+                                        #arg_local
+                                    )
+                                )
+                            ),
+                        };
+                        crate::util::set_span(&mut r, span);
+                        r
+                    });
+
+                    let dyn_when_args_t: Vec<_> = arg_idents.iter().map(|i| ident!("T_{i}")).collect();
+                    let dyn_when_args_tuple_ty = dyn_when_args_t.iter().zip(arg_types.iter()).map(|(arg_t, arg_ty)| {
+                        let span = arg_ty.span();
+                        let mut r = quote_spanned! {span=>
+                            &#crate_core::var::types::RcWhenVar<#arg_t>
+                        };
+                        crate::util::set_span(&mut r, span);
+                        r
+                    });
+
                     quote! {
                         #[doc(hidden)]
                         pub fn #ident_dyn_ctor(child__: #crate_core::BoxedUiNode, args__: &#crate_core::DynPropertyArgs)
@@ -1359,6 +1390,22 @@ mod output {
                             )*
                             let r__ = #ident(child__, #(#var_idents),*);
                             Ok(#crate_core::UiNode::boxed(r__))
+                        }
+
+                        #[doc(hidden)]
+                        pub fn #dyn_args(args__: &impl #args_ident) -> std::vec::Vec<std::boxed::Box<dyn #crate_core::var::AnyVar>> {
+                            let ( #(#arg_locals),* ) = args__.unwrap_ref();
+                            std::vec![#(#dyn_args_decl)*]
+                        }
+
+                        #[doc(hidden)]
+                        pub fn #dyn_when_args<#(#dyn_when_args_t: #crate_core::var::VarValue),*>(args__: (#(#dyn_when_args_tuple_ty),*)) -> std::vec::Vec<#crate_core::var::types::AnyWhenVarBuilder> {
+                            let ( #(#arg_locals),* ) = args__;
+                            std::vec![
+                                #(
+                                    #crate_core::var::types::AnyWhenVarBuilder::from_var(#arg_locals),
+                                )*
+                            ]
                         }
                     }
                 }
@@ -1535,16 +1582,108 @@ mod output {
                 let mut r = TokenStream::new();
 
                 if self.allowed_in_when {
-                    let finish_ident = if self.is_state {
-                        ident!("finish_property_state")
-                    } else {
-                        ident!("finish_property_allowed_in_when")
-                    };
+                    if self.is_state {
+                        r.extend(quote! {
+                            (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
+                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                                $dyn_wgt_part:ident) => {
+                                    let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
+                                    let dyn_state__ = {
+                                        use $property_path::{Args as __Args};
+                                        std::clone::Clone::clone(__Args::__0(&$args))
+                                    };
+                                    let $node = {
+                                        use $property_path::{core_cfg_inspector as __core_cfg_inspector};
+                                        __core_cfg_inspector! {
+                                            use $property_path::{set_inspect as $__set};
+                                            $__set($args, $node, $property_name, $source_location, $user_assigned)
+                                        }
+                                        __core_cfg_inspector! {@NOT
+                                            use $property_path::{set as $__set};
+                                            $__set($args, $node)
+                                        }
+                                    };
+                                    let (property_type_id__, dyn_ctor__) = {
+                                        use $property_path::{PropertyType as __PropertyType, dyn_ctor as __dyn_ctor};
 
+                                        (std::any::TypeId::of::<__PropertyType>(), __dyn_ctor)
+                                    };
+                                    $dyn_wgt_part.finish_property_state(
+                                        dyn_prop__, $node, $property_name, property_type_id__,
+                                        $user_assigned, $priority_index, dyn_ctor__, dyn_state__
+                                    );
+                            };
+                        });
+                    } else {
+                        // extract args variables.
+                        r.extend(quote! {
+                            (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
+                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                                $dyn_wgt_part:ident) => {
+                                    let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
+                                    let dyn_args__ = {
+                                        use $property_path::{dyn_args as __dyn_args};
+                                        __dyn_args(&$args)
+                                    };
+                                    let $node = {
+                                        use $property_path::{core_cfg_inspector as __core_cfg_inspector};
+                                        __core_cfg_inspector! {
+                                            use $property_path::{set_inspect as $__set};
+                                            $__set($args, $node, $property_name, $source_location, $user_assigned)
+                                        }
+                                        __core_cfg_inspector! {@NOT
+                                            use $property_path::{set as $__set};
+                                            $__set($args, $node)
+                                        }
+                                    };
+                                    let (property_type_id__, dyn_ctor__) = {
+                                        use $property_path::{PropertyType as __PropertyType, dyn_ctor as __dyn_ctor};
+                                        (std::any::TypeId::of::<__PropertyType>(), __dyn_ctor)
+                                    };
+                                    $dyn_wgt_part.finish_property_allowed_in_when(
+                                        dyn_prop__, $node, $property_name, property_type_id__,
+                                        $user_assigned, $priority_index, dyn_ctor__, dyn_args__
+                                    );
+                            };
+                        });
+                        // when mode, extract when variables, convert into "any" builders.
+                        r.extend(quote! {
+                            (set_dyn #priority when, $node:ident, $property_path:path, $args:ident,
+                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                                $dyn_wgt_part:ident, $default_set:expr) => {
+                                    let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
+                                    let dyn_args__ = {
+                                        use $property_path::{dyn_when_args as __dyn_args, Args as __Args};
+                                        __dyn_args(__Args::unwrap_ref(&$args))
+                                    };
+                                    let $node = {
+                                        use $property_path::{core_cfg_inspector as __core_cfg_inspector};
+                                        __core_cfg_inspector! {
+                                            use $property_path::{set_inspect as $__set};
+                                            $__set($args, $node, $property_name, $source_location, $user_assigned)
+                                        }
+                                        __core_cfg_inspector! {@NOT
+                                            use $property_path::{set as $__set};
+                                            $__set($args, $node)
+                                        }
+                                    };
+                                    let property_type_id__, dyn_ctor__ = {
+                                        use $property_path::{PropertyType as __PropertyType, dyn_ctor as __dyn_ctor};
+                                        (std::any::TypeId::of::<__PropertyType>(), __dyn_ctor)
+                                    };
+                                    $dyn_wgt_part.finish_property_with_when(
+                                        dyn_prop__, $node, $property_name, property_type_id__,
+                                        $user_assigned, $priority_index, dyn_ctor__, dyn_args__, $default_set
+                                    );
+                            };
+                        });
+                    }
+                } else {
+                    // not allowed in when.
                     r.extend(quote! {
                         (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
                             $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
-                            $dyn_wgt_part:ident, $new_fn:expr, $dyn_args:expr) => {
+                            $dyn_wgt_part:ident) => {
                                 let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                                 let $node = {
                                     use $property_path::{core_cfg_inspector as __core_cfg_inspector};
@@ -1561,46 +1700,15 @@ mod output {
                                     use $property_path::{PropertyType as __PropertyType};
                                     std::any::TypeId::of::<__PropertyType>()
                                 };
-                                $dyn_wgt_part.#finish_ident(
+                                $dyn_wgt_part.finish_property_not_allowed_in_when(
                                     dyn_prop__, $node, $property_name, property_type_id__,
-                                    $user_assigned, $priority_index, $new_fn, $dyn_args
+                                    $user_assigned, $priority_index
                                 );
                         };
-                    })
+                    });
                 }
 
-                // TODO, implement args in widget_new!
-                // actually, can we use a trait to separate when args from normal args in property code it self,
-                // we already will not need the `$new_fn`, also `#[allowed_in_when]` is not allowed in existing properties.
-                // if !self.is_state {
-                r.extend(quote! {
-                    (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
-                        $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
-                        $dyn_wgt_part:ident) => {
-                            let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
-                            let $node = {
-                                use $property_path::{core_cfg_inspector as __core_cfg_inspector};
-                                __core_cfg_inspector! {
-                                    use $property_path::{set_inspect as $__set};
-                                    $__set($args, $node, $property_name, $source_location, $user_assigned)
-                                }
-                                __core_cfg_inspector! {@NOT
-                                    use $property_path::{set as $__set};
-                                    $__set($args, $node)
-                                }
-                            };
-                            let property_type_id__ = {
-                                use $property_path::{PropertyType as __PropertyType};
-                                std::any::TypeId::of::<__PropertyType>()
-                            };
-                            $dyn_wgt_part.finish_property_not_allowed_in_when(
-                                dyn_prop__, $node, $property_name, property_type_id__,
-                                $user_assigned, $priority_index
-                            );
-                    };
-                });
-                // }
-
+                // ignore other priorities or when configured in not_allowed_in_when.
                 r.extend(quote! {
                     (set_dyn $other:ident, $($ignore:tt)+) => { };
                 });
@@ -1804,6 +1912,9 @@ mod output {
         pub cfg: Option<Attribute>,
         pub vis: Visibility,
         pub is_capture_only: bool,
+        pub allowed_in_when: bool,
+        pub is_state: bool,
+        pub args_are_valid: bool,
         pub has_default_value: bool,
         pub ident: Ident,
         pub macro_ident: Ident,
@@ -1862,6 +1973,18 @@ mod output {
 
             let dyn_ctor_ident = ident!("__{ident}_dyn_ctor");
 
+            let dyn_args_export = if self.allowed_in_when && !self.is_state && !self.is_capture_only && self.args_are_valid {
+                let dyn_args_ident = ident!("__{ident}_dyn_args");
+                let dyn_when_args_ident = ident!("__{ident}_dyn_when_args");
+
+                quote! {
+                    #dyn_args_ident as dyn_args,
+                    #dyn_when_args_ident as dyn_when_args,
+                }
+            } else {
+                TokenStream::new()
+            };
+
             tokens.extend(quote! {
                 #wgt_capture_only_reexport
 
@@ -1877,6 +2000,7 @@ mod output {
                         #property_type_ident as PropertyType,
                         #args_ident as Args,
                         #dyn_ctor_ident as dyn_ctor,
+                        #dyn_args_export
                         #default_export
                         #set_export
                     };

@@ -53,6 +53,23 @@ note: function defined here
 5   | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
     |        ^^^^^^^^---------------------
 
+error[E0283]: type annotations needed
+   --> cases/property/allowed_in_when_validation.rs:5:44
+    |
+5   | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
+    |                                            ^^^^ cannot infer type of the type parameter `Self` declared on the trait `Var`
+    |
+    = note: cannot satisfy `_: VarValue`
+note: required by a bound in `zero_ui::prelude::Var::boxed`
+   --> $WORKSPACE/zero-ui-core/src/var.rs
+    |
+    | pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::Sealed + 'static {
+    |                  ^^^^^^^^ required by this bound in `zero_ui::prelude::Var::boxed`
+help: consider specifying the generic argument
+    |
+5   | pub fn invalid1(child: impl UiNode, value: bool::<T>) -> impl UiNode {
+    |                                                +++++
+
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
    --> cases/property/allowed_in_when_validation.rs:12:44
     |
@@ -151,3 +168,15 @@ note: required by a bound in `invalid2`
    |
 12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
    |                                                 ^^^^^^ required by this bound in `invalid2`
+
+error[E0277]: the trait bound `LocalVar<<impl invalid2_Args as invalid2_Args>::T_value>: IntoVar<<impl invalid2_Args as invalid2_Args>::T_value>` is not satisfied
+   --> cases/property/allowed_in_when_validation.rs:12:44
+    |
+12  | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+    |                                            ^^^^ the trait `IntoVar<<impl invalid2_Args as invalid2_Args>::T_value>` is not implemented for `LocalVar<<impl invalid2_Args as invalid2_Args>::T_value>`
+    |
+note: required by a bound in `zero_ui::prelude::Var::boxed`
+   --> $WORKSPACE/zero-ui-core/src/var.rs
+    |
+    | pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::Sealed + 'static {
+    |                                     ^^^^^^^^^^ required by this bound in `zero_ui::prelude::Var::boxed`
