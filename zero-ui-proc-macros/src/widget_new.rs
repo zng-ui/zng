@@ -818,15 +818,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         {
             // __set @ value span
 
-            let is_when_condition = dynamic && used_in_when_expr.contains(&ident!("{}", p_name.split(':').last().unwrap()));
-
             let set = ident_spanned!(*val_span=> "__set");
             let set_call = if dynamic {
                 quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
                         set_dyn #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
-                        #dyn_wgt_part__, #is_when_condition
+                        #dyn_wgt_part__
                     }
                 }
             } else {

@@ -603,37 +603,6 @@ impl DynWidgetPartBuilderV1 {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn finish_property(
-        &mut self,
-        property: DynPropertyBuilderV1,
-        property_node: impl UiNode,
-        name: &'static str,
-        id: TypeId,
-        user_assigned: bool,
-        priority_index: i16,
-        _is_when_condition: bool,
-    ) {
-        let node = AdoptiveNode {
-            child: property.child,
-            node: property_node.boxed(),
-            is_inited: false,
-        };
-
-        self.properties.push(DynProperty {
-            node,
-            name,
-            id,
-            when_info: DynPropWhenInfo::NotAllowed,
-            priority_index,
-            importance: if user_assigned {
-                DynPropImportance::INSTANCE
-            } else {
-                DynPropImportance::WIDGET
-            },
-        });
-    }
-
-    #[allow(clippy::too_many_arguments)]
     pub fn finish_property_state(
         &mut self,
         property: DynPropertyBuilderV1,
@@ -688,7 +657,7 @@ impl DynWidgetPartBuilderV1 {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn finish_property_allowed_in_when_with_when(
+    pub fn finish_property_with_when(
         &mut self,
         property: DynPropertyBuilderV1,
         property_node: impl UiNode,

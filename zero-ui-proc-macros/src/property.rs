@@ -1524,7 +1524,7 @@ mod output {
 
                     (set_dyn #priority, $node:ident, $property_path: path, $args:ident,
                         $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
-                        $dyn_wgt_part:ident, $is_when_condition:tt) => {
+                        $dyn_wgt_part:ident) => {
                             let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                             let $node = {
                                 use $property_path::{core_cfg_inspector as __core_cfg_inspector};
@@ -1541,7 +1541,10 @@ mod output {
                                 use $property_path::{PropertyType as __PropertyType};
                                 std::any::TypeId::of::<__PropertyType>()
                             };
-                            $dyn_wgt_part.finish_property(dyn_prop__, $node, $property_name, property_type_id__, $user_assigned, $priority_index, $is_when_condition);
+                            $dyn_wgt_part.finish_property_not_allowed_in_when(
+                                dyn_prop__, $node, $property_name, property_type_id__,
+                                $user_assigned, $priority_index
+                            );
                     };
                     (set_dyn $other:ident, $($ignore:tt)+) => { };
                 }
