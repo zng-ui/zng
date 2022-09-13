@@ -761,6 +761,8 @@ mod analysis {
             }
         }
 
+        let is_state = matches!(prefix, Prefix::State);
+
         output::Output {
             errors,
             fn_and_errors_only,
@@ -770,7 +772,7 @@ mod analysis {
                 ident: fn_.sig.ident.clone(),
                 generics: generic_types,
                 allowed_in_when,
-                is_state: matches!(prefix, Prefix::State),
+                is_state,
                 args_are_valid,
                 phantom_idents,
                 arg_idents: arg_idents.clone(),
@@ -801,6 +803,7 @@ mod analysis {
                 export,
                 priority: args.priority,
                 allowed_in_when,
+                is_state,
                 arg_idents,
                 has_default_value,
                 anon_generics_len,
@@ -1479,6 +1482,7 @@ mod output {
         pub priority: Priority,
 
         pub allowed_in_when: bool,
+        pub is_state: bool,
 
         pub arg_idents: Vec<Ident>,
 
@@ -1499,14 +1503,13 @@ mod output {
             let set = if priority.is_capture_only() {
                 quote! {
                     (set $($tt:tt)*) => {};
-                    (set_dyn $($tt:tt)*) => {};
                 }
             } else {
                 // we need $__set as input because some errors of type mismatch
                 // on assign also highlight the __set function, so we take it as
                 // input and in widget_new! we set the ident span to be value span.
                 quote! {
-                    (set #priority, $node:ident, $property_path: path, $args:ident,
+                    (set #priority, $node:ident, $property_path:path, $args:ident,
                         $property_name:expr, $source_location:expr, $user_assigned:tt, $__set:ident) => {
                             let $node = {
                                 use $property_path::{core_cfg_inspector as __core_cfg_inspector};
@@ -1521,8 +1524,55 @@ mod output {
                             };
                     };
                     (set $other:ident, $($ignore:tt)+) => { };
+                }
+            };
 
-                    (set_dyn #priority, $node:ident, $property_path: path, $args:ident,
+            let set_dyn = if priority.is_capture_only() {
+                quote! {
+                    (set_dyn $($tt:tt)*) => {};
+                }
+            } else {
+                let mut r = TokenStream::new();
+
+                if self.allowed_in_when {
+                    let finish_ident = if self.is_state {
+                        ident!("finish_property_state")
+                    } else {
+                        ident!("finish_property_allowed_in_when")
+                    };
+
+                    r.extend(quote! {
+                        (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
+                            $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                            $dyn_wgt_part:ident, $new_fn:expr, $dyn_args:expr) => {
+                                let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
+                                let $node = {
+                                    use $property_path::{core_cfg_inspector as __core_cfg_inspector};
+                                    __core_cfg_inspector! {
+                                        use $property_path::{set_inspect as $__set};
+                                        $__set($args, $node, $property_name, $source_location, $user_assigned)
+                                    }
+                                    __core_cfg_inspector! {@NOT
+                                        use $property_path::{set as $__set};
+                                        $__set($args, $node)
+                                    }
+                                };
+                                let property_type_id__ = {
+                                    use $property_path::{PropertyType as __PropertyType};
+                                    std::any::TypeId::of::<__PropertyType>()
+                                };
+                                $dyn_wgt_part.#finish_ident(
+                                    dyn_prop__, $node, $property_name, property_type_id__,
+                                    $user_assigned, $priority_index, $new_fn, $dyn_args
+                                );
+                        };
+                    })
+                }
+
+                // TODO, implement args in widget_new!
+                // if !self.is_state {
+                r.extend(quote! {
+                    (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
                         $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
                         $dyn_wgt_part:ident) => {
                             let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
@@ -1546,8 +1596,14 @@ mod output {
                                 $user_assigned, $priority_index
                             );
                     };
+                });
+                // }
+
+                r.extend(quote! {
                     (set_dyn $other:ident, $($ignore:tt)+) => { };
-                }
+                });
+
+                r
             };
 
             let allowed_in_when = if self.allowed_in_when {
@@ -1703,6 +1759,7 @@ mod output {
                     };
 
                     #set
+                    #set_dyn
 
                     #allowed_in_when
 

@@ -629,6 +629,7 @@ impl DynWidgetPartBuilderV1 {
         )
     }
 
+    // TODO make args a generic Vec|Builder and remove finish_property_with_when?
     #[allow(clippy::too_many_arguments)]
     pub fn finish_property_allowed_in_when(
         &mut self,
