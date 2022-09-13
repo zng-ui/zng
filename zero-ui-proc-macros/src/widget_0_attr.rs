@@ -497,26 +497,29 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
         // #[allowed_in_when = <bool>]
         // applies for when a capture_only property is being declared.
-        let allowed_in_when = {
+        let (allowed_in_when, allowed_in_when_span) = {
             if let Some(i) = attrs
                 .others
                 .iter()
                 .position(|a| a.path.get_ident().map(|id| id == "allowed_in_when").unwrap_or_default())
             {
                 let attr = attrs.others.remove(i);
-                match syn::parse2::<AllowedInWhenInput>(attr.tokens) {
-                    Ok(args) => args.flag.value,
-                    Err(mut e) => {
-                        if util::span_is_call_site(e.span()) {
-                            e = syn::Error::new(attr.path.span(), e);
-                        }
-                        errors.push_syn(e);
+                (
+                    match syn::parse2::<AllowedInWhenInput>(attr.tokens) {
+                        Ok(args) => args.flag.value,
+                        Err(mut e) => {
+                            if util::span_is_call_site(e.span()) {
+                                e = syn::Error::new(attr.path.span(), e);
+                            }
+                            errors.push_syn(e);
 
-                        false
-                    }
-                }
+                            false
+                        }
+                    },
+                    Some(attr.path.span()),
+                )
             } else {
-                true
+                (true, None)
             }
         };
         let required = {
@@ -612,6 +615,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             // so "widget_2_declare.rs" skips reexporting this one.
             p_ident.to_tokens(&mut property_declared_idents);
+        } else if let Some(invalid) = allowed_in_when_span {
+            errors.push(
+                "cannot change `allowed_in_when` of existing properties, only new capture-only",
+                invalid,
+            );
         }
 
         let mut default = false;

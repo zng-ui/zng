@@ -1570,6 +1570,8 @@ mod output {
                 }
 
                 // TODO, implement args in widget_new!
+                // actually, can we use a trait to separate when args from normal args in property code it self,
+                // we already will not need the `$new_fn`, also `#[allowed_in_when]` is not allowed in existing properties.
                 // if !self.is_state {
                 r.extend(quote! {
                     (set_dyn #priority, $node:ident, $property_path:path, $args:ident,

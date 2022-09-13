@@ -3,7 +3,7 @@ use zero_ui::core::widget;
 #[widget($crate::test_widget)]
 pub mod test_widget {
     use zero_ui::core::NilUiNode;
-    use zero_ui::properties::margin;
+    use zero_ui::properties::{background_color, margin};
 
     properties! {
         #[allowed_in_when]
@@ -22,6 +22,9 @@ pub mod test_widget {
         quux(bool);
 
         margin;
+
+        #[allowed_in_when = false]
+        background_color;// expect error
     }
 
     fn new_child(foo: bool, bar: bool, baz: bool, qux: bool, quux: bool) -> NilUiNode {

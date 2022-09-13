@@ -27,3 +27,9 @@ error: expected boolean literal
    |
 21 |         #[allowed_in_when = 0]
    |                             ^
+
+error: cannot change `allowed_in_when` of existing properties, only new capture-only
+  --> cases/widget/attr_allowed_in_when.rs:26:11
+   |
+26 |         #[allowed_in_when = false]
+   |           ^^^^^^^^^^^^^^^
