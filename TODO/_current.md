@@ -4,8 +4,6 @@
 
 - example    - description
 - countdown  - text color
-- cursor     - theme not implemented in cursor areas
-             - add cursor icons from https://developer.mozilla.org/pt-BR/docs/Web/CSS/cursor
 - focus      - command status, focus target and overlay scope are not themed
  - - nested  - theme also needs tweaking
 - icon       - icons and icon cards are not themed
