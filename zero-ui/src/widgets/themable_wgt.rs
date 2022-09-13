@@ -77,11 +77,11 @@ pub mod theme {
         Theme::from_dyn_widget(widget)
     }
 
-    /// Declare a dark and light theme that is selected depending on the window theme.
+    /// Declare a dark and light value that is selected depending on the window theme.
     ///
-    /// This is a [`merge_var!`] that matches the [`WINDOW_THEME_VAR`] to select the theme.
-    pub fn pair(dark_theme: impl IntoVar<ThemeGenerator>, light_theme: impl IntoVar<ThemeGenerator>) -> impl Var<ThemeGenerator> {
-        merge_var!(WINDOW_THEME_VAR, dark_theme.into_var(), light_theme.into_var(), |w, d, l| {
+    /// This is a [`merge_var!`] that matches the [`WINDOW_THEME_VAR`] to select the value.
+    pub fn pair<T: VarValue>(dark: impl IntoVar<T>, light: impl IntoVar<T>) -> impl Var<T> {
+        merge_var!(WINDOW_THEME_VAR, dark.into_var(), light.into_var(), |w, d, l| {
             match w {
                 WindowTheme::Dark => d.clone(),
                 WindowTheme::Light => l.clone(),
