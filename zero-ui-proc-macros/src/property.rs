@@ -1371,7 +1371,7 @@ mod output {
                     let dyn_when_args_tuple_ty = dyn_when_args_t.iter().zip(arg_types.iter()).map(|(arg_t, arg_ty)| {
                         let span = arg_ty.span();
                         let mut r = quote_spanned! {span=>
-                            &#crate_core::var::types::RcWhenVar<#arg_t>
+                            #crate_core::var::types::RcWhenVar<#arg_t>
                         };
                         crate::util::set_span(&mut r, span);
                         r
@@ -1403,7 +1403,7 @@ mod output {
                             let ( #(#arg_locals),* ) = args__;
                             std::vec![
                                 #(
-                                    #crate_core::var::types::AnyWhenVarBuilder::from_var(#arg_locals),
+                                    #crate_core::var::types::AnyWhenVarBuilder::from_var(&#arg_locals),
                                 )*
                             ]
                         }
@@ -1653,21 +1653,21 @@ mod output {
                                 $dyn_wgt_part:ident, $default_set:expr) => {
                                     let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                                     let dyn_args__ = {
-                                        use $property_path::{dyn_when_args as __dyn_args, Args as __Args};
-                                        __dyn_args(__Args::unwrap_ref(&$args))
+                                        use $property_path::{dyn_when_args as __dyn_when_args};
+                                        __dyn_when_args($args.0)
                                     };
                                     let $node = {
                                         use $property_path::{core_cfg_inspector as __core_cfg_inspector};
                                         __core_cfg_inspector! {
                                             use $property_path::{set_inspect as $__set};
-                                            $__set($args, $node, $property_name, $source_location, $user_assigned)
+                                            $__set($args.1, $node, $property_name, $source_location, $user_assigned)
                                         }
                                         __core_cfg_inspector! {@NOT
                                             use $property_path::{set as $__set};
-                                            $__set($args, $node)
+                                            $__set($args.1, $node)
                                         }
                                     };
-                                    let property_type_id__, dyn_ctor__ = {
+                                    let (property_type_id__, dyn_ctor__) = {
                                         use $property_path::{PropertyType as __PropertyType, dyn_ctor as __dyn_ctor};
                                         (std::any::TypeId::of::<__PropertyType>(), __dyn_ctor)
                                     };
@@ -1710,7 +1710,7 @@ mod output {
 
                 // ignore other priorities or when configured in not_allowed_in_when.
                 r.extend(quote! {
-                    (set_dyn $other:ident, $($ignore:tt)+) => { };
+                    (set_dyn $other:ident $($ignore:tt)+) => { };
                 });
 
                 r
@@ -1903,6 +1903,29 @@ mod output {
                             __ArgsImpl::new(#(#arg_locals),*)
                         }
                     };
+                    (when_dyn $property_path:path {
+                        $(
+                            $(#[$meta:meta])*
+                            use($cfg_macro:path) $condition:ident => $args:ident,
+                        )+
+                        _ => $default_args:ident,
+                    }) => {
+                        {
+                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, rc_when_var as __when_var};
+                            $(
+                                $cfg_macro! {
+                                    $(#[$meta])*
+                                    let $args = __Args::unwrap($args);
+                                }
+                            )+
+                            let $default_args = __Args::unwrap($default_args);
+                            #whens
+                            (
+                                (#(std::clone::Clone::clone(&#arg_locals)),*),
+                                __ArgsImpl::new(#(#arg_locals),*)
+                            )
+                        }
+                    };
                 }
             })
         }
@@ -2013,7 +2036,7 @@ mod output {
                     }
 
                     pub use #macro_ident as code_gen;
-                    pub use #crate_core::var::{when_var, switch_var};
+                    pub use #crate_core::var::{when_var, types::rc_when_var, switch_var};
                     #[doc(hidden)]
                     pub use #crate_core::{property_new as __property_new, core_cfg_inspector};
                 }

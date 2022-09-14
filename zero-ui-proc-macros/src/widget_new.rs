@@ -157,6 +157,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         user_assigned: bool,
         p_span: Span,
         val_span: Span,
+        p_ident: Ident,
     }
     let mut prop_set_calls = vec![];
 
@@ -198,6 +199,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         prop_set_calls.push(PropertySet {
             priority_index: ip.priority_index,
 
+            p_ident: ident.clone(),
             p_mod: quote! { #module::#p_mod_ident },
             p_var_ident,
             p_name: ip.ident.to_string(),
@@ -261,10 +263,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
         }
+
+        let p_ident = up.path.segments.last().unwrap().ident.clone();
+
         // register data for the set call generation.
         prop_set_calls.push(PropertySet {
             priority_index,
 
+            p_ident,
             p_mod: p_mod.to_token_stream(),
             p_var_ident,
             p_name,
@@ -299,6 +305,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // properties in when condition expressions.
     let mut used_in_when_expr = HashSet::new();
+    // properties set in when blocks.
+    let mut assigned_in_when = HashSet::new();
 
     // map of { property => [(p_cfg, user_cfg, condition_var, when_value_ident, when_value_for_prop)] }
     #[allow(clippy::type_complexity)]
@@ -320,6 +328,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let cfg = if iw.cfg { Some(ident!("__cfg_{ident}")) } else { None };
 
         used_in_when_expr.extend(iw.inputs.iter().cloned());
+        assigned_in_when.extend(assigns.iter().map(|a| a.property.clone()));
 
         // arg variables for each input, they should all have a default value or be required (already deactivated if any unset).
         let len = iw.inputs.len();
@@ -415,6 +424,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .map(|(p, _)| (p, &[][..]))
             .chain(w.assigns.iter().map(|a| (&a.path, &a.attrs[..])))
         {
+            let p_ident = property.segments.last().unwrap().ident.clone();
+            assigned_in_when.insert(p_ident);
+
             // if property not set in the widget.
             if !wgt_properties.contains_key(property) {
                 match property.get_ident() {
@@ -668,9 +680,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
         let p_span = property_path.span();
 
+        let p_ident = property_path.segments.last().unwrap().ident.clone();
+        assigned_in_when.insert(p_ident.clone());
+
         // register data for the set call generation.
         prop_set_calls.push(PropertySet {
             priority_index,
+            p_ident,
 
             p_mod: property_path.to_token_stream(),
             p_var_ident: args_ident.clone(),
@@ -813,6 +829,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             p_span,
             val_span,
             priority_index,
+            p_ident,
             ..
         } in prop_set_calls.iter().rev()
         {
@@ -820,11 +837,23 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             let set = ident_spanned!(*val_span=> "__set");
             let set_call = if dynamic {
-                quote_spanned! {*p_span=>
-                    #cfg
-                    #p_mod::code_gen! {
-                        set_dyn #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
-                        #dyn_wgt_part__
+                if assigned_in_when.contains(p_ident) {
+                    let when_default_set = true;
+
+                    quote_spanned! {*p_span=>
+                        #cfg
+                        #p_mod::code_gen! {
+                            set_dyn #priority when, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
+                            #dyn_wgt_part__, #when_default_set
+                        }
+                    }
+                } else {
+                    quote_spanned! {*p_span=>
+                        #cfg
+                        #p_mod::code_gen! {
+                            set_dyn #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
+                            #dyn_wgt_part__
+                        }
                     }
                 }
             } else {
@@ -941,6 +970,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .get(&property)
             .unwrap_or_else(|| non_user_error!("property `{}` (introduced in when?) not found", quote!(#property)));
 
+        let when_mode = if dynamic { quote!(when_dyn) } else { quote!(when) };
         let when_init = quote! {
             #property_path::code_gen! { if allowed_in_when=>
                 #cfg
@@ -948,7 +978,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let #default = {
                     #init_members
                     #property_path::code_gen! {
-                        when #property_path {
+                        #when_mode #property_path {
                             #(#conditions)*
                             _ => #default,
                         }

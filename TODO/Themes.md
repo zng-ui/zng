@@ -1,6 +1,5 @@
 # Themes TODO
 
-* Change widget macros to use the build options with when info in `DynWidgetPartBuilderV1`.
 * Change widget macros to allow when property without default value in dynamic widgets.
     - This is required specifically for the `theme!` widget, maybe it can be an opt-in flag the the `#[widget]` attribute?
 
