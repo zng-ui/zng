@@ -79,7 +79,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl Widget {
     }
 }
 
-pub const CURSORS: &'static [(CursorIcon, &'static [u8])] = &[
+pub const CURSORS: &[(CursorIcon, &[u8])] = &[
     (CursorIcon::Default, include_bytes!("res/cursor/default.png")),
     (CursorIcon::Crosshair, include_bytes!("res/cursor/crosshair.png")),
     (CursorIcon::Hand, include_bytes!("res/cursor/pointer.png")),
