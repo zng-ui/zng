@@ -1,5 +1,6 @@
 # Themes TODO
 
+* Mark properties used in when conditions.
 * Change widget macros to allow when property without default value in dynamic widgets.
     - This is required specifically for the `theme!` widget, maybe it can be an opt-in flag the the `#[widget]` attribute?
 
