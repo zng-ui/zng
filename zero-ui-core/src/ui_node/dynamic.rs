@@ -211,6 +211,12 @@ pub enum DynPropertyArgs {
     State(StateVar),
     /// Arguments for a property with `impl IntoVar<T>` args that setups when conditions with the default value,
     /// must match a [`BoxedVar<T>`] for each [`IntoVar<T>`] exactly.
+    ///
+    /// Note that widget `when` conditions are evaluated in *reverse*, the last `true` condition *overrides* the
+    /// previous ones, the [`rc_when_var!`] on the other hand evaluates to the first `true` condition, to implement this,
+    /// the widget macro builds the variable in reverse, the last `when` is the first in this builder.
+    ///
+    /// [`rc_when_var!`]: crate::var::types::rc_when_var
     When(Vec<AnyWhenVarBuilder>),
     /// Similar to `When`, but the user did not explicitly set a default value, only when condition values, a default
     /// value may be available anyway if the property has a default, if no default is available the property node is a
@@ -1257,7 +1263,7 @@ trait MergeReplaceSolver {
             (other, self)
         };
         if base.id() == over.id() {
-            match (&base.when_info(), &over.when_info()) {
+            match (base.when_info(), over.when_info()) {
                 (DynPropWhenInfo::NotAllowed, _) | (_, DynPropWhenInfo::NotAllowed) => over,
                 (DynPropWhenInfo::Allowed { args: base_args, .. }, DynPropWhenInfo::Allowed { new_fn, args }) => {
                     use DynPropertyArgs::*;
@@ -1279,10 +1285,12 @@ trait MergeReplaceSolver {
                         }
                         // merge, keep base default.
                         (When(base_when), WhenNoDefault(when)) => {
-                            let mut new_when = base_when.clone();
+                            // widget when blocks are in reverse (last condition active applies), the *over* conditions
+                            // are after the *base* so they must come first in the WhenVar.
+                            let mut new_when = when.clone();
 
-                            for (w, c) in new_when.iter_mut().zip(when) {
-                                w.extend(c);
+                            for (w, c) in new_when.iter_mut().zip(base_when) {
+                                w.replace_extend(c);
                             }
 
                             let new_fn = *new_fn;
@@ -1290,10 +1298,10 @@ trait MergeReplaceSolver {
                         }
                         // merge, replace default.
                         (When(base_when) | WhenNoDefault(base_when), When(when) | WhenNoDefault(when)) => {
-                            let mut new_when = base_when.clone();
+                            let mut new_when = when.clone();
 
-                            for (w, c) in new_when.iter_mut().zip(when) {
-                                w.replace_extend(c);
+                            for (w, c) in new_when.iter_mut().zip(base_when) {
+                                w.extend(c);
                             }
 
                             let new_fn = *new_fn;
