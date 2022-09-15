@@ -1,8 +1,42 @@
 # Themes TODO
 
 * Mark properties used in when conditions.
-* Change widget macros to allow when property without default value in dynamic widgets.
-    - This is required specifically for the `theme!` widget, maybe it can be an opt-in flag the the `#[widget]` attribute?
+    - Right now if we set a when condition with the same property in two themes one of the property instances is dropped
+        because is is *overridden*.
+    - Users can have a can manually setup a property that reads a var for another too, maybe we can have a general
+        `#[allow_dyn_override = false]`, this pseudo attribute is applied automatically for when condition properties, but
+        users can set it too, it causes the property instance never be dropped even if a second instance is added.
+
+* Allow marking a required *default* assign for theme whens:
+```rust
+// the property `background_color` has a default value, so the dynamic when builder will have a default
+// but it will not override the a default value set explicitly in a previous theme.
+theme! {
+    when self.is_focused {
+        background_color = colors::RED;
+    }
+}
+
+// some properties may not have a default value, but theme authors may want to support the same behavior of just
+// adding a `when` to a existing property, but not ensures that there is a default elsewhere so:
+theme! {
+    #[dyn_fallback = true]
+    foo = Foo::FOO;
+    when self.is_focused {
+        foo = Foo::BAR;
+    }
+}
+// in this case the `FOO` value is only used if no default is defined anywhere.
+```
+    - Need to remove docs suggesting that its possible to declare a property without default.
+    - Need to change the builder to not allow this.
+    - Could be a generalized as `#[importance = {u16}]`?
+        - Implies the importance of the when conditions?
+        - Need to set the importance of when conditions?
+        - Need this attribute anyway, to allow implementing CSS `!important`.
+* Dynamic `unset!`?
+    - Records unsets in the `DynWidget`, remove unsets from the `DynWidgetNode`.
+    - Affected by importance?
 
 * After dynamic when, refactor theme selection to allow multiple themes.
     - Button has a `base_theme::padding` inherited by `dark_theme` and `ligh_theme`, but if we want to change the button padding for
