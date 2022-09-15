@@ -581,9 +581,26 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 false
             }
         };
+
+        let dyn_when_default = {
+            if let Some(i) = attrs
+                .others
+                .iter()
+                .position(|a| a.path.get_ident().map(|id| id == "dyn_when_default").unwrap_or_default())
+            {
+                let attr = attrs.others.remove(i);
+                if !attr.tokens.is_empty() {
+                    errors.push("unexpected token", attr.tokens.span());
+                }
+                true
+            } else {
+                false
+            }
+        };
+
         for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
             errors.push(
-                "only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required`, `dyn_retained` and lint attributes are allowed in properties",
+                "only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required`, `dyn_retained`, `dyn_when_default` and lint attributes are allowed in properties",
                 util::path_span(&invalid_attr.path),
             );
         }
@@ -725,6 +742,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 declared { #declared }
                 priority_index { #priority_index }
                 dyn_retained { #dyn_retained }
+                dyn_when_default { #dyn_when_default }
             }
         });
     }
@@ -1841,8 +1859,8 @@ mod keyword {
 }
 
 /// Parse `= true`
-struct EqBoolInput {
-    flag: syn::LitBool,
+pub(crate) struct EqBoolInput {
+    pub flag: syn::LitBool,
 }
 impl Parse for EqBoolInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {

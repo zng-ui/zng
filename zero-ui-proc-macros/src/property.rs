@@ -1650,7 +1650,7 @@ mod output {
                         r.extend(quote! {
                             (set_dyn #priority when, $node:ident, $property_path:path, $args:ident,
                                 $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $dyn_retained:expr, $__set:ident,
-                                $dyn_wgt_part:ident, $default_set:expr) => {
+                                $dyn_wgt_part:ident, $when_default:expr) => {
                                     let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                                     let dyn_args__ = {
                                         use $property_path::{dyn_when_args as __dyn_when_args};
@@ -1673,7 +1673,7 @@ mod output {
                                     };
                                     $dyn_wgt_part.finish_property_with_when(
                                         dyn_prop__, $node, $property_name, property_type_id__,
-                                        $user_assigned, $priority_index, $dyn_retained, dyn_ctor__, dyn_args__, $default_set
+                                        $user_assigned, $priority_index, $dyn_retained, dyn_ctor__, dyn_args__, $when_default
                                     );
                             };
                         });

@@ -1110,43 +1110,80 @@ pub use zero_ui_proc_macros::property;
 /// return any type, just like the `new` constructor
 ///
 /// Only one of the `new` and `new_dyn` must be present in a widget.
-/// 
+///
 /// ### Dynamic When
-/// 
+///
 /// If the widget is constructed using the `new_dyn` constructor the `when` assigns for each property argument can also be
-/// dynamically extended, see [`DynPropertyArgs`] for more details. 
-/// 
-/// Note that the *when conditions* cannot be dynamically modified, this causes a situation where a property instance used to read state 
-/// in a *condition expression* must still exist even if it is read again in another *condition expression* that is only added to the widget 
-/// during runtime. To resolve this, properties that are read in when expressions are marked as [`DynProperty::retained`], this can cause more 
+/// dynamically extended, see [`DynPropertyArgs`] for more details.
+///
+/// Note that the *when conditions* cannot be dynamically modified, this causes a situation where a property instance used to read state
+/// in a *condition expression* must still exist even if it is read again in another *condition expression* that is only added to the widget
+/// during runtime. To resolve this, properties that are read in when expressions are marked as [`DynProperty::retained`], this can cause more
 /// than one instance of a property per widget.
-/// 
+///
 /// ```
 /// # macro_rules! fake { () => {
 /// #[widget($crate::foo)]
 /// pub mod foo {
 ///     use super::*;
-/// 
+///
 ///     properties! {
 ///         when self.is_hovered { }
 ///     }
 /// }
-/// 
+///
 /// foo! {
 ///     when self.is_hovered { }
-/// 
+///
 ///     theme = theme! {
 ///         when self.is_hovered { }
 ///     }
 /// }
 /// # }}
 /// ```
-/// 
-/// In the example above the widget ends-up with **two** instances of `is_hovered`, one instance is shared by the expressions in `properties!` 
-/// and `foo!`, the other instance is from the `theme!` because it is only known during runtime that it will apply to the widget. You can enable 
-/// this effect in any dynamic widget by setting the `#[dyn_retained = true]` pseudo-attribute in property assigns outside of `when` blocks, the 
-/// *retained* properties will be *overridden* into a single instance by the widget inheritance and instantiation rules, but runtime overrides 
+///
+/// In the example above the widget ends-up with **two** instances of `is_hovered`, one instance is shared by the expressions in `properties!`
+/// and `foo!`, the other instance is from the `theme!` because it is only known during runtime that it will apply to the widget. You can enable
+/// this effect in any dynamic widget by setting the `#[dyn_retained = true]` pseudo-attribute in property assigns outside of `when` blocks, the
+/// *retained* properties will be *overridden* into a single instance by the widget inheritance and instantiation rules, but runtime overrides
 /// will retain both instances.
+///
+/// ### Dynamic When Default
+///
+/// Dynamic widgets give the lowest *importance* for default values of variables only set inside `when` blocks, during runtime composition
+/// the when conditions will merge according with the property *importance*, but if any instance of lower importance sets the default that
+/// value will still be used in the final when variable.
+///
+/// ```
+/// # macro_rules! fake { () => {
+/// theme! {
+///     when self.is_pressed {
+///         background_color = colors::GREEN;
+///     }
+/// }
+/// # }}
+/// ```
+///
+/// In the example above a theme sets the `background_color` only in a `when` block, if the theme is set on a widget that sets the
+/// background color that value will be used when the widget is not pressed, if no background is set anywhere else in the widget the
+/// property default value is used, you can set this *default* value by setting the property normally and annotating this assign with
+/// the `#[dyn_when_default]` pseudo attribute.
+///
+/// ```
+/// # macro_rules! fake { () => {
+/// theme! {
+///     #[dyn_when_default]
+///     background_color = colors::RED;
+///     when self.is_pressed {
+///         background_color = colors::GREEN;
+///     }
+/// }
+/// # }}
+/// ```
+///
+/// In the example above the `colors::RED` replaces the `background_color` default value, but it is only used if the widget does
+/// not set the background color elsewhere. If multiple `dyn_when_default` values are set they are resolved using the same *importance*
+/// rules of a normal assign.
 ///
 /// # `inherit!`
 ///

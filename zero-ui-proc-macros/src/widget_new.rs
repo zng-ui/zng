@@ -19,7 +19,7 @@ use crate::{
     util::{
         self, parse_all, parse_outer_attrs, parse_punct_terminated2, peek_any3, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors,
     },
-    widget_0_attr::FnPriority,
+    widget_0_attr::{EqBoolInput, FnPriority},
 };
 
 #[allow(unused_macros)]
@@ -158,7 +158,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         p_span: Span,
         val_span: Span,
         p_ident: Ident,
-        when_default_set: bool,
+        dyn_when_default: bool,
         dyn_retained: bool,
     }
     let mut prop_set_calls = vec![];
@@ -215,7 +215,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             user_assigned: false,
             p_span: call_site,
             val_span: call_site,
-            when_default_set: true,
+            dyn_when_default: ip.dyn_when_default,
         });
     }
 
@@ -235,9 +235,48 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             _ => (up.path.to_token_stream(), None, 0),
         };
         let p_var_ident = ident!("__u{}_{}", i, p_name.replace("::", "_"));
-        let attrs = Attributes::new(up.attrs.clone());
+        let mut attrs = Attributes::new(up.attrs.clone());
         let cfg = attrs.cfg;
         let lints = attrs.lints;
+
+        let dyn_retained = {
+            if let Some(i) = attrs
+                .others
+                .iter()
+                .position(|a| a.path.get_ident().map(|id| id == "dyn_retained").unwrap_or_default())
+            {
+                let attr = attrs.others.remove(i);
+
+                match syn::parse2::<EqBoolInput>(attr.tokens) {
+                    Ok(args) => args.flag.value,
+                    Err(mut e) => {
+                        if util::span_is_call_site(e.span()) {
+                            e = syn::Error::new(attr.path.span(), e);
+                        }
+                        errors.push_syn(e);
+                        false
+                    }
+                }
+            } else {
+                // we are already replacing the instance so the inherited flag is not valid
+                false
+            }
+        };
+        let dyn_when_default = {
+            if let Some(i) = attrs
+                .others
+                .iter()
+                .position(|a| a.path.get_ident().map(|id| id == "dyn_when_default").unwrap_or_default())
+            {
+                let attr = attrs.others.remove(i);
+                if !attr.tokens.is_empty() {
+                    errors.push("unexpected token", attr.tokens.span());
+                }
+                true
+            } else {
+                false
+            }
+        };
 
         wgt_properties.insert(up.path.clone(), (Some(p_var_ident.clone()), p_cfg.clone(), cfg.to_token_stream()));
 
@@ -273,7 +312,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // register data for the set call generation.
         prop_set_calls.push(PropertySet {
             priority_index,
-            dyn_retained: false,
+            dyn_retained,
+            dyn_when_default,
 
             p_ident,
             p_mod: p_mod.to_token_stream(),
@@ -287,7 +327,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             user_assigned: true,
             p_span: up.path.span(),
             val_span: up.value_span,
-            when_default_set: true,
         });
     }
 
@@ -705,8 +744,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             user_assigned: true,
             p_span,
             val_span: call_site,
-            when_default_set: false,
             dyn_retained: false,
+            dyn_when_default: true,
         });
 
         wgt_properties.insert(property, (Some(args_ident), None, cfg.unwrap_or_default()));
@@ -837,7 +876,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             priority_index,
             dyn_retained,
             p_ident,
-            when_default_set,
+            dyn_when_default,
             ..
         } in prop_set_calls.iter().rev()
         {
@@ -851,7 +890,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         #cfg
                         #p_mod::code_gen! {
                             set_dyn #priority when, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index,
-                            #dyn_retained, #set, #dyn_wgt_part__, #when_default_set
+                            #dyn_retained, #set, #dyn_wgt_part__, #dyn_when_default
                         }
                     }
                 } else {
@@ -1149,6 +1188,7 @@ pub struct BuiltProperty {
     pub required: bool,
     pub priority_index: i16,
     pub dyn_retained: bool,
+    pub dyn_when_default: bool,
 }
 impl Parse for BuiltProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -1176,6 +1216,10 @@ impl Parse for BuiltProperty {
                 .base10_parse()
                 .unwrap_or_else(|e| non_user_error!(e)),
             dyn_retained: non_user_braced!(&input, "dyn_retained")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+            dyn_when_default: non_user_braced!(&input, "dyn_when_default")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,

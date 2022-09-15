@@ -218,10 +218,9 @@ pub enum DynPropertyArgs {
     ///
     /// [`rc_when_var!`]: crate::var::types::rc_when_var
     When(Vec<AnyWhenVarBuilder>),
-    /// Similar to `When`, but the user did not explicitly set a default value, only when condition values, a default
-    /// value may be available anyway if the property has a default, if no default is available the property node is a
-    /// no-op passthrough.
-    WhenNoDefault(Vec<AnyWhenVarBuilder>),
+    /// Similar to `When`, but the user did not explicitly set a default value or marked it with `#[dyn_when_default]`, the default
+    /// value is only used when merging over other `WhenDefault` otherwise it is replaced independent of the importance.
+    WhenDefault(Vec<AnyWhenVarBuilder>),
 }
 impl DynPropertyArgs {
     /// Get a clone of the property argument, builds if it is when.
@@ -246,7 +245,7 @@ impl DynPropertyArgs {
                     Err(DynPropError::ArgsMismatch)
                 }
             }
-            Self::WhenNoDefault(w) => {
+            Self::WhenDefault(w) => {
                 if let Some(w) = w.get(i).and_then(|w| w.build()) {
                     Ok(w.boxed())
                 } else {
@@ -270,7 +269,7 @@ impl fmt::Debug for DynPropertyArgs {
             Self::Args(_) => write!(f, "Args(_)"),
             Self::State(_) => write!(f, "State(_)"),
             Self::When(_) => write!(f, "When(_)"),
-            Self::WhenNoDefault(_) => write!(f, "WhenNoDefault(_)"),
+            Self::WhenDefault(_) => write!(f, "WhenDefault(_)"),
         }
     }
 }
@@ -280,7 +279,7 @@ impl Clone for DynPropertyArgs {
             Self::Args(a) => Self::Args(a.iter().map(|a| a.clone_any()).collect()),
             Self::State(a) => Self::State(a.clone()),
             Self::When(a) => Self::When(a.clone()),
-            Self::WhenNoDefault(a) => Self::WhenNoDefault(a.clone()),
+            Self::WhenDefault(a) => Self::WhenDefault(a.clone()),
         }
     }
 }
@@ -702,7 +701,7 @@ impl DynWidgetPartBuilderV1 {
 
         new_fn: DynPropertyFn,
         args: Vec<AnyWhenVarBuilder>,
-        default_set: bool,
+        when_default: bool,
     ) {
         self.finish(
             property,
@@ -714,10 +713,10 @@ impl DynWidgetPartBuilderV1 {
             retained,
             DynPropWhenInfo::Allowed {
                 new_fn,
-                args: if default_set {
-                    DynPropertyArgs::When(args)
+                args: if when_default {
+                    DynPropertyArgs::WhenDefault(args)
                 } else {
-                    DynPropertyArgs::WhenNoDefault(args)
+                    DynPropertyArgs::When(args)
                 },
             },
         )
@@ -1328,7 +1327,7 @@ trait MergeReplaceSolver {
                         // base has no when parts, over has a complete "default".
                         (Args(_), Args(_) | When(_)) => over.maybe_retain(base),
                         // merge in the default.
-                        (Args(default), WhenNoDefault(when)) | (WhenNoDefault(when), Args(default)) | (When(when), Args(default)) => {
+                        (Args(default), WhenDefault(when)) | (WhenDefault(when), Args(default)) | (When(when), Args(default)) => {
                             let mut when = when.clone();
 
                             for (w, d) in when.iter_mut().zip(default) {
@@ -1339,7 +1338,7 @@ trait MergeReplaceSolver {
                             over.merge_replace_finish_merge(new_fn, When(when)).maybe_retain(base)
                         }
                         // merge, keep base default.
-                        (When(base_when), WhenNoDefault(when)) => {
+                        (When(base_when), WhenDefault(when)) => {
                             // widget when blocks are in reverse (last condition active applies), the *over* conditions
                             // are after the *base* so they must come first in the WhenVar.
                             let mut new_when = when.clone();
@@ -1352,7 +1351,7 @@ trait MergeReplaceSolver {
                             over.merge_replace_finish_merge(new_fn, When(new_when)).maybe_retain(base)
                         }
                         // merge, replace default.
-                        (When(base_when) | WhenNoDefault(base_when), When(when) | WhenNoDefault(when)) => {
+                        (When(base_when) | WhenDefault(base_when), When(when) | WhenDefault(when)) => {
                             let mut new_when = when.clone();
 
                             for (w, c) in new_when.iter_mut().zip(base_when) {

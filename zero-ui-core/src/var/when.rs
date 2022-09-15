@@ -981,7 +981,7 @@ pub struct WhenVarBuilder9<O, D, C0, C1, C2, C3, C4, C5, C6, C7, C8, V0, V1, V2,
 ///
 /// [`DynWidget`]: crate::DynWidget
 pub struct AnyWhenVarBuilder {
-    default: Option<Box<dyn AnyVar>>,
+    default: Box<dyn AnyVar>,
     whens: Vec<(BoxedVar<bool>, Box<dyn AnyVar>)>,
 }
 impl AnyWhenVarBuilder {
@@ -992,24 +992,13 @@ impl AnyWhenVarBuilder {
 
     /// Start building with an already type erased default var.
     pub fn new_any(default: Box<dyn AnyVar>) -> Self {
-        Self {
-            default: Some(default),
-            whens: vec![],
-        }
-    }
-
-    /// Start building without a default value, note that a when var can only build if a default value is set.
-    pub fn new_no_default() -> Self {
-        Self {
-            default: None,
-            whens: vec![],
-        }
+        Self { default, whens: vec![] }
     }
 
     /// Create a builder from the parts of a formed [`rc_when_var!`].
     pub fn from_var<O: VarValue>(var: &RcWhenVar<O>) -> Self {
         Self {
-            default: Some(var.0.default_.clone().into_any()),
+            default: var.0.default_.clone().into_any(),
             whens: var
                 .0
                 .whens
@@ -1017,11 +1006,6 @@ impl AnyWhenVarBuilder {
                 .map(|w| (w.condition.clone(), w.value.clone().into_any()))
                 .collect(),
         }
-    }
-
-    /// Returns `true` if a default value is set.
-    pub fn has_default(&self) -> bool {
-        self.default.is_some()
     }
 
     /// Returns the number of conditions set.
@@ -1036,7 +1020,7 @@ impl AnyWhenVarBuilder {
 
     /// Set/replace the default value with an already typed erased var.
     pub fn set_default_any(&mut self, default: Box<dyn AnyVar>) {
-        self.default = Some(default);
+        self.default = default;
     }
 
     /// Push a when condition.
@@ -1052,9 +1036,7 @@ impl AnyWhenVarBuilder {
 
     /// Replace the default value if `other` has default and extend the conditions with clones of `other`.
     pub fn replace_extend(&mut self, other: &Self) {
-        if let Some(default) = &other.default {
-            self.default = Some(default.clone_any());
-        }
+        self.default = other.default.clone_any();
         self.extend(other);
     }
 
@@ -1065,9 +1047,9 @@ impl AnyWhenVarBuilder {
         }
     }
 
-    /// Build the when var if all value variables are of type [`BoxedVar<T>`] and a default value is set.
+    /// Build the when var if all value variables are of type [`BoxedVar<T>`].
     pub fn build<T: VarValue>(&self) -> Option<RcWhenVar<T>> {
-        let default = self.default.as_ref()?.as_any().downcast_ref::<BoxedVar<T>>()?;
+        let default = self.default.as_any().downcast_ref::<BoxedVar<T>>()?;
 
         let mut when = WhenVarBuilderDyn::new(default.clone());
 
@@ -1083,7 +1065,6 @@ impl AnyWhenVarBuilder {
 impl fmt::Debug for AnyWhenVarBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("AnyWhenVarBuilder")
-            .field("has_default", &self.has_default())
             .field("condition_count", &self.condition_count())
             .finish_non_exhaustive()
     }
@@ -1091,7 +1072,7 @@ impl fmt::Debug for AnyWhenVarBuilder {
 impl Clone for AnyWhenVarBuilder {
     fn clone(&self) -> Self {
         Self {
-            default: self.default.as_ref().map(|d| d.clone_any()),
+            default: self.default.clone_any(),
             whens: self.whens.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
         }
     }

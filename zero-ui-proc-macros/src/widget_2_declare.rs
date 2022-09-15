@@ -389,6 +389,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             mut required,
             priority_index,
             dyn_retained,
+            dyn_when_default,
         } = ip;
 
         required |= inherited_required.contains(ident);
@@ -432,6 +433,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 required { #required }
                 priority_index { #priority_index }
                 dyn_retained { #dyn_retained }
+                dyn_when_default { #dyn_when_default }
             }
         });
 
@@ -498,6 +500,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             declared,
             priority_index,
             dyn_retained,
+            dyn_when_default,
             ..
         } = p;
 
@@ -548,6 +551,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 required { #required }
                 priority_index { #priority_index }
                 dyn_retained { #dyn_retained }
+                dyn_when_default { #dyn_when_default }
             }
         });
 
@@ -902,6 +906,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 required { false }
                 priority_index { 0 }
                 dyn_retained { false }
+                dyn_when_default { true }
             }
         });
 
@@ -1377,6 +1382,7 @@ struct PropertyItem {
     declared: bool,
     priority_index: i16,
     dyn_retained: bool,
+    dyn_when_default: bool,
 }
 impl Parse for PropertyItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1410,6 +1416,10 @@ impl Parse for PropertyItem {
                 .base10_parse()
                 .unwrap_or_else(|e| non_user_error!(e)),
             dyn_retained: named_braces!("dyn_retained")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+            dyn_when_default: named_braces!("dyn_when_default")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
