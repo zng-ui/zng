@@ -1,12 +1,5 @@
 # Themes TODO
 
-* Mark properties used in when conditions.
-    - Right now if we set a when condition with the same property in two themes one of the property instances is dropped
-        because is is *overridden*.
-    - Users can have a can manually setup a property that reads a var for another too, maybe we can have a general
-        `#[allow_dyn_override = false]`, this pseudo attribute is applied automatically for when condition properties, but
-        users can set it too, it causes the property instance never be dropped even if a second instance is added.
-
 * Allow marking a required *default* assign for theme whens:
 ```rust
 // the property `background_color` has a default value, so the dynamic when builder will have a default

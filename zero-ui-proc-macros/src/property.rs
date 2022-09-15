@@ -1585,7 +1585,7 @@ mod output {
                     if self.is_state {
                         r.extend(quote! {
                             (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
-                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $dyn_retained:expr, $__set:ident,
                                 $dyn_wgt_part:ident) => {
                                     let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                                     let dyn_state__ = {
@@ -1610,7 +1610,7 @@ mod output {
                                     };
                                     $dyn_wgt_part.finish_property_state(
                                         dyn_prop__, $node, $property_name, property_type_id__,
-                                        $user_assigned, $priority_index, dyn_ctor__, dyn_state__
+                                        $user_assigned, $priority_index, $dyn_retained, dyn_ctor__, dyn_state__
                                     );
                             };
                         });
@@ -1618,7 +1618,7 @@ mod output {
                         // extract args variables.
                         r.extend(quote! {
                             (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
-                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $dyn_retained:expr, $__set:ident,
                                 $dyn_wgt_part:ident) => {
                                     let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                                     let dyn_args__ = {
@@ -1642,14 +1642,14 @@ mod output {
                                     };
                                     $dyn_wgt_part.finish_property_allowed_in_when(
                                         dyn_prop__, $node, $property_name, property_type_id__,
-                                        $user_assigned, $priority_index, dyn_ctor__, dyn_args__
+                                        $user_assigned, $priority_index, $dyn_retained, dyn_ctor__, dyn_args__
                                     );
                             };
                         });
                         // when mode, extract when variables, convert into "any" builders.
                         r.extend(quote! {
                             (set_dyn #priority when, $node:ident, $property_path:path, $args:ident,
-                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                                $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $dyn_retained:expr, $__set:ident,
                                 $dyn_wgt_part:ident, $default_set:expr) => {
                                     let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                                     let dyn_args__ = {
@@ -1673,7 +1673,7 @@ mod output {
                                     };
                                     $dyn_wgt_part.finish_property_with_when(
                                         dyn_prop__, $node, $property_name, property_type_id__,
-                                        $user_assigned, $priority_index, dyn_ctor__, dyn_args__, $default_set
+                                        $user_assigned, $priority_index, $dyn_retained, dyn_ctor__, dyn_args__, $default_set
                                     );
                             };
                         });
@@ -1682,7 +1682,7 @@ mod output {
                     // not allowed in when.
                     r.extend(quote! {
                         (set_dyn #priority, $node:ident, $property_path:path, $args:ident,
-                            $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $__set:ident,
+                            $property_name:expr, $source_location:expr, $user_assigned:tt, $priority_index:expr, $dyn_retained:expr, $__set:ident,
                             $dyn_wgt_part:ident) => {
                                 let ($node, dyn_prop__) = $dyn_wgt_part.begin_property();
                                 let $node = {
@@ -1702,7 +1702,7 @@ mod output {
                                 };
                                 $dyn_wgt_part.finish_property_not_allowed_in_when(
                                     dyn_prop__, $node, $property_name, property_type_id__,
-                                    $user_assigned, $priority_index
+                                    $user_assigned, $priority_index, $dyn_retained
                                 );
                         };
                     });

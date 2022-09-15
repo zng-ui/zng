@@ -388,6 +388,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             mut default,
             mut required,
             priority_index,
+            dyn_retained,
         } = ip;
 
         required |= inherited_required.contains(ident);
@@ -430,6 +431,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 default { #default }
                 required { #required }
                 priority_index { #priority_index }
+                dyn_retained { #dyn_retained }
             }
         });
 
@@ -495,6 +497,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             required,
             declared,
             priority_index,
+            dyn_retained,
             ..
         } = p;
 
@@ -544,6 +547,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 default { #default }
                 required { #required }
                 priority_index { #priority_index }
+                dyn_retained { #dyn_retained }
             }
         });
 
@@ -897,6 +901,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 default { true }
                 required { false }
                 priority_index { 0 }
+                dyn_retained { false }
             }
         });
 
@@ -1371,6 +1376,7 @@ struct PropertyItem {
     required: bool,
     declared: bool,
     priority_index: i16,
+    dyn_retained: bool,
 }
 impl Parse for PropertyItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1403,6 +1409,10 @@ impl Parse for PropertyItem {
                 .unwrap_or_else(|e| non_user_error!(e))
                 .base10_parse()
                 .unwrap_or_else(|e| non_user_error!(e)),
+            dyn_retained: named_braces!("dyn_retained")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
         };
 
         Ok(property_item)

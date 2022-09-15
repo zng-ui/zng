@@ -773,8 +773,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// A property declared like this must be captured by the widget that is declaring it, a compile error is generated if it isn't.
 ///
-/// You can set the property [`allowed_in_when`] value using the pseudo-attribute
-/// `#[allowed_in_when = <bool>]`.
+/// You can set the property [`allowed_in_when`] value using the pseudo-attribute `#[allowed_in_when = <bool>]`.
 ///
 /// ### Captures Are Required
 ///
@@ -1111,6 +1110,43 @@ pub use zero_ui_proc_macros::property;
 /// return any type, just like the `new` constructor
 ///
 /// Only one of the `new` and `new_dyn` must be present in a widget.
+/// 
+/// ### Dynamic When
+/// 
+/// If the widget is constructed using the `new_dyn` constructor the `when` assigns for each property argument can also be
+/// dynamically extended, see [`DynPropertyArgs`] for more details. 
+/// 
+/// Note that the *when conditions* cannot be dynamically modified, this causes a situation where a property instance used to read state 
+/// in a *condition expression* must still exist even if it is read again in another *condition expression* that is only added to the widget 
+/// during runtime. To resolve this, properties that are read in when expressions are marked as [`DynProperty::retained`], this can cause more 
+/// than one instance of a property per widget.
+/// 
+/// ```
+/// # macro_rules! fake { () => {
+/// #[widget($crate::foo)]
+/// pub mod foo {
+///     use super::*;
+/// 
+///     properties! {
+///         when self.is_hovered { }
+///     }
+/// }
+/// 
+/// foo! {
+///     when self.is_hovered { }
+/// 
+///     theme = theme! {
+///         when self.is_hovered { }
+///     }
+/// }
+/// # }}
+/// ```
+/// 
+/// In the example above the widget ends-up with **two** instances of `is_hovered`, one instance is shared by the expressions in `properties!` 
+/// and `foo!`, the other instance is from the `theme!` because it is only known during runtime that it will apply to the widget. You can enable 
+/// this effect in any dynamic widget by setting the `#[dyn_retained = true]` pseudo-attribute in property assigns outside of `when` blocks, the 
+/// *retained* properties will be *overridden* into a single instance by the widget inheritance and instantiation rules, but runtime overrides 
+/// will retain both instances.
 ///
 /// # `inherit!`
 ///

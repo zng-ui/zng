@@ -388,6 +388,13 @@ pub struct DynProperty {
     /// Note that the property priority it self is recorded, but it is the same priority of the widget constructor function
     /// that received this property instance.
     pub priority_index: i16,
+
+    /// Defines if this property instance is retained when it should be replaced by override, if `false` the
+    /// instance is dropped and the new one inserted, if `true` both instances are inserted.
+    ///
+    /// This is `true` by default for properties read in `when` condition expressions and properties assigned with the
+    /// `#[dyn_retained = true]` pseudo-attribute. For all other properties this is `false` by default.
+    pub retained: bool,
 }
 impl fmt::Debug for DynProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -397,6 +404,7 @@ impl fmt::Debug for DynProperty {
             .field("when_info", &self.when_info)
             .field("importance", &self.importance)
             .field("priority_index", &self.priority_index)
+            .field("retained", &self.retained)
             .finish_non_exhaustive()
     }
 }
@@ -408,7 +416,10 @@ impl DynProperty {
     /// `other` property *replaces* `self`. The replacement can be a input property or it can be a new instance that
     /// merges the when conditions of both input properties.
     ///
+    /// If `self` is replaced and is [`retained`] the node instance is used as a part of the new node.
+    ///
     /// [`importance`]: DynProperty.importance
+    /// [`retained`]: DynProperty.retained
     pub fn merge_replace(self, other: DynProperty) -> Result<DynProperty, (DynProperty, DynProperty)> {
         if self.name == other.name {
             Ok(MergeReplaceSolver::merge_replace(self, other))
@@ -434,9 +445,20 @@ impl MergeReplaceSolver for DynProperty {
         &self.when_info
     }
 
+    fn retained(&self) -> bool {
+        self.retained
+    }
+
     fn replace_node(mut self, node: AdoptiveNode<BoxedUiNode>, when_info: DynPropWhenInfo) -> Self {
         self.node = node;
         self.when_info = when_info;
+        self
+    }
+
+    fn retain_node(mut self, base: Self) -> Self {
+        self.retained = true;
+        self.node.replace_child(base.node.node);
+        self.node.child = base.node.child;
         self
     }
 }
@@ -617,6 +639,7 @@ impl DynWidgetPartBuilderV1 {
         id: TypeId,
         user_assigned: bool,
         priority_index: i16,
+        retained: bool,
 
         new_fn: DynPropertyFn,
         state: StateVar,
@@ -628,6 +651,7 @@ impl DynWidgetPartBuilderV1 {
             id,
             user_assigned,
             priority_index,
+            retained,
             DynPropWhenInfo::Allowed {
                 new_fn,
                 args: DynPropertyArgs::State(state),
@@ -645,6 +669,7 @@ impl DynWidgetPartBuilderV1 {
         id: TypeId,
         user_assigned: bool,
         priority_index: i16,
+        retained: bool,
 
         new_fn: DynPropertyFn,
         args: Vec<Box<dyn AnyVar>>,
@@ -656,6 +681,7 @@ impl DynWidgetPartBuilderV1 {
             id,
             user_assigned,
             priority_index,
+            retained,
             DynPropWhenInfo::Allowed {
                 new_fn,
                 args: DynPropertyArgs::Args(args),
@@ -672,6 +698,7 @@ impl DynWidgetPartBuilderV1 {
         id: TypeId,
         user_assigned: bool,
         priority_index: i16,
+        retained: bool,
 
         new_fn: DynPropertyFn,
         args: Vec<AnyWhenVarBuilder>,
@@ -684,6 +711,7 @@ impl DynWidgetPartBuilderV1 {
             id,
             user_assigned,
             priority_index,
+            retained,
             DynPropWhenInfo::Allowed {
                 new_fn,
                 args: if default_set {
@@ -704,6 +732,7 @@ impl DynWidgetPartBuilderV1 {
         id: TypeId,
         user_assigned: bool,
         priority_index: i16,
+        retained: bool,
     ) {
         self.finish(
             property,
@@ -712,6 +741,7 @@ impl DynWidgetPartBuilderV1 {
             id,
             user_assigned,
             priority_index,
+            retained,
             DynPropWhenInfo::NotAllowed,
         )
     }
@@ -725,6 +755,7 @@ impl DynWidgetPartBuilderV1 {
         id: TypeId,
         user_assigned: bool,
         priority_index: i16,
+        retained: bool,
         when_info: DynPropWhenInfo,
     ) {
         let node = AdoptiveNode {
@@ -744,6 +775,7 @@ impl DynWidgetPartBuilderV1 {
                 DynPropImportance::WIDGET
             },
             priority_index,
+            retained,
         })
     }
 }
@@ -1089,6 +1121,8 @@ struct DynWidgetItem {
     importance: DynPropImportance,
     // initialization mode, constructor and args.
     when_info: DynPropWhenInfo,
+    // instance is retained after override.
+    retained: bool,
 }
 impl DynWidgetItem {
     fn new(property: DynProperty) -> Self {
@@ -1104,6 +1138,7 @@ impl DynWidgetItem {
             priority_index: property.priority_index as i32,
             importance: property.importance,
             when_info: property.when_info,
+            retained: property.retained,
         }
     }
 
@@ -1121,6 +1156,7 @@ impl DynWidgetItem {
             priority_index: i32::MIN + 1,
             importance: DynPropImportance::WIDGET,
             when_info: DynPropWhenInfo::NotAllowed,
+            retained: false,
         }
     }
 
@@ -1159,6 +1195,7 @@ impl fmt::Debug for DynWidgetItem {
             .field("priority_index", &self.priority_index)
             .field("importance", &self.importance)
             .field("when_info", &self.when_info)
+            .field("retained", &self.retained)
             .finish_non_exhaustive()
     }
 }
@@ -1179,11 +1216,23 @@ impl MergeReplaceSolver for DynWidgetItem {
         &self.when_info
     }
 
+    fn retained(&self) -> bool {
+        self.retained
+    }
+
     fn replace_node(mut self, node: AdoptiveNode<BoxedUiNode>, when_info: DynPropWhenInfo) -> Self {
         let (child, node) = node.into_parts();
         self.child = child;
         self.node = Rc::new(RefCell::new(node));
         self.when_info = when_info;
+        self
+    }
+
+    fn retain_node(mut self, base: Self) -> Self {
+        debug_assert!(self.snapshot_node.is_none());
+        self.retained = true;
+        mem::swap(&mut *self.child.borrow_mut(), &mut *base.node.borrow_mut()); // set base as child
+        self.child = base.child; // making the base's child pointer our child pointer.
         self
     }
 }
@@ -1205,6 +1254,7 @@ struct PropertyItemSnapshot {
     priority_index: i32,
     importance: DynPropImportance,
     when_info: DynPropWhenInfo,
+    retained: bool,
 }
 impl fmt::Debug for PropertyItemSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1214,6 +1264,7 @@ impl fmt::Debug for PropertyItemSnapshot {
             .field("priority_index", &self.priority_index)
             .field("importance", &self.importance)
             .field("when_info", &self.when_info)
+            .field("retained", &self.retained)
             .finish_non_exhaustive()
     }
 }
@@ -1228,6 +1279,7 @@ impl DynWidgetItem {
             priority_index: self.priority_index as i32,
             importance: self.importance,
             when_info: self.when_info.clone(),
+            retained: self.retained,
         }
     }
 
@@ -1241,6 +1293,7 @@ impl DynWidgetItem {
             priority_index: snapshot.priority_index as i32,
             importance: snapshot.importance,
             when_info: snapshot.when_info,
+            retained: snapshot.retained,
         }
     }
 }
@@ -1250,8 +1303,10 @@ trait MergeReplaceSolver {
     fn id(&self) -> TypeId;
     fn importance(&self) -> DynPropImportance;
     fn when_info(&self) -> &DynPropWhenInfo;
+    fn retained(&self) -> bool;
 
     fn replace_node(self, node: AdoptiveNode<BoxedUiNode>, when_info: DynPropWhenInfo) -> Self;
+    fn retain_node(self, base: Self) -> Self;
 
     fn merge_replace(self, other: Self) -> Self
     where
@@ -1264,14 +1319,14 @@ trait MergeReplaceSolver {
         };
         if base.id() == over.id() {
             match (base.when_info(), over.when_info()) {
-                (DynPropWhenInfo::NotAllowed, _) | (_, DynPropWhenInfo::NotAllowed) => over,
+                (DynPropWhenInfo::NotAllowed, _) | (_, DynPropWhenInfo::NotAllowed) => over.maybe_retain(base),
                 (DynPropWhenInfo::Allowed { args: base_args, .. }, DynPropWhenInfo::Allowed { new_fn, args }) => {
                     use DynPropertyArgs::*;
                     match (base_args, args) {
                         // can't merge state reads.
-                        (State(_), _) | (_, State(_)) => over,
+                        (State(_), _) | (_, State(_)) => over.maybe_retain(base),
                         // base has no when parts, over has a complete "default".
-                        (Args(_), Args(_) | When(_)) => over,
+                        (Args(_), Args(_) | When(_)) => over.maybe_retain(base),
                         // merge in the default.
                         (Args(default), WhenNoDefault(when)) | (WhenNoDefault(when), Args(default)) | (When(when), Args(default)) => {
                             let mut when = when.clone();
@@ -1281,7 +1336,7 @@ trait MergeReplaceSolver {
                             }
 
                             let new_fn = *new_fn;
-                            over.merge_replace_finish_merge(new_fn, When(when))
+                            over.merge_replace_finish_merge(new_fn, When(when)).maybe_retain(base)
                         }
                         // merge, keep base default.
                         (When(base_when), WhenNoDefault(when)) => {
@@ -1294,7 +1349,7 @@ trait MergeReplaceSolver {
                             }
 
                             let new_fn = *new_fn;
-                            over.merge_replace_finish_merge(new_fn, When(new_when))
+                            over.merge_replace_finish_merge(new_fn, When(new_when)).maybe_retain(base)
                         }
                         // merge, replace default.
                         (When(base_when) | WhenNoDefault(base_when), When(when) | WhenNoDefault(when)) => {
@@ -1305,15 +1360,16 @@ trait MergeReplaceSolver {
                             }
 
                             let new_fn = *new_fn;
-                            over.merge_replace_finish_merge(new_fn, When(new_when))
+                            over.merge_replace_finish_merge(new_fn, When(new_when)).maybe_retain(base)
                         }
                     }
                 }
             }
         } else {
-            over
+            over.maybe_retain(base)
         }
     }
+
     fn merge_replace_finish_merge(self, new_fn: DynPropertyFn, args: DynPropertyArgs) -> Self
     where
         Self: Sized,
@@ -1324,6 +1380,17 @@ trait MergeReplaceSolver {
                 tracing::error!("failed `{:?}` when merge, will fully replace, {}", (self.name(), self.id()), e);
                 self
             }
+        }
+    }
+
+    fn maybe_retain(self, base: Self) -> Self
+    where
+        Self: Sized,
+    {
+        if base.retained() {
+            self.retain_node(base)
+        } else {
+            self
         }
     }
 }

@@ -159,6 +159,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         val_span: Span,
         p_ident: Ident,
         when_default_set: bool,
+        dyn_retained: bool,
     }
     let mut prop_set_calls = vec![];
 
@@ -199,6 +200,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // register data for the set call generation.
         prop_set_calls.push(PropertySet {
             priority_index: ip.priority_index,
+            dyn_retained: ip.dyn_retained,
 
             p_ident: ident.clone(),
             p_mod: quote! { #module::#p_mod_ident },
@@ -271,6 +273,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // register data for the set call generation.
         prop_set_calls.push(PropertySet {
             priority_index,
+            dyn_retained: false,
 
             p_ident,
             p_mod: p_mod.to_token_stream(),
@@ -703,6 +706,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             p_span,
             val_span: call_site,
             when_default_set: false,
+            dyn_retained: false,
         });
 
         wgt_properties.insert(property, (Some(args_ident), None, cfg.unwrap_or_default()));
@@ -831,6 +835,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             p_span,
             val_span,
             priority_index,
+            dyn_retained,
             p_ident,
             when_default_set,
             ..
@@ -840,20 +845,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             let set = ident_spanned!(*val_span=> "__set");
             let set_call = if dynamic {
+                let dyn_retained = *dyn_retained || used_in_when_expr.contains(p_ident);
                 if assigned_in_when.contains(p_ident) {
                     quote_spanned! {*p_span=>
                         #cfg
                         #p_mod::code_gen! {
-                            set_dyn #priority when, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
-                            #dyn_wgt_part__, #when_default_set
+                            set_dyn #priority when, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index,
+                            #dyn_retained, #set, #dyn_wgt_part__, #when_default_set
                         }
                     }
                 } else {
                     quote_spanned! {*p_span=>
                         #cfg
                         #p_mod::code_gen! {
-                            set_dyn #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index, #set,
-                            #dyn_wgt_part__
+                            set_dyn #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #priority_index,
+                            #dyn_retained, #set, #dyn_wgt_part__
                         }
                     }
                 }
@@ -1142,6 +1148,7 @@ pub struct BuiltProperty {
     pub default: bool,
     pub required: bool,
     pub priority_index: i16,
+    pub dyn_retained: bool,
 }
 impl Parse for BuiltProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -1168,6 +1175,10 @@ impl Parse for BuiltProperty {
                 .unwrap_or_else(|e| non_user_error!(e))
                 .base10_parse()
                 .unwrap_or_else(|e| non_user_error!(e)),
+            dyn_retained: non_user_braced!(&input, "dyn_retained")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
         };
         Ok(r)
     }

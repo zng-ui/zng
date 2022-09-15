@@ -505,7 +505,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             {
                 let attr = attrs.others.remove(i);
                 (
-                    match syn::parse2::<AllowedInWhenInput>(attr.tokens) {
+                    match syn::parse2::<EqBoolInput>(attr.tokens) {
                         Ok(args) => args.flag.value,
                         Err(mut e) => {
                             if util::span_is_call_site(e.span()) {
@@ -544,7 +544,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 .position(|a| a.path.get_ident().map(|id| id == "priority_index").unwrap_or_default())
             {
                 let attr = attrs.others.remove(i);
-                match syn::parse2::<PriorityIndexInput>(attr.tokens) {
+                match syn::parse2::<EqI16Input>(attr.tokens) {
                     Ok(t) => t.0,
                     Err(mut e) => {
                         if util::span_is_call_site(e.span()) {
@@ -559,9 +559,31 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 0
             }
         };
+        let dyn_retained = {
+            if let Some(i) = attrs
+                .others
+                .iter()
+                .position(|a| a.path.get_ident().map(|id| id == "dyn_retained").unwrap_or_default())
+            {
+                let attr = attrs.others.remove(i);
+
+                match syn::parse2::<EqBoolInput>(attr.tokens) {
+                    Ok(args) => args.flag.value,
+                    Err(mut e) => {
+                        if util::span_is_call_site(e.span()) {
+                            e = syn::Error::new(attr.path.span(), e);
+                        }
+                        errors.push_syn(e);
+                        false
+                    }
+                }
+            } else {
+                false
+            }
+        };
         for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
             errors.push(
-                "only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required` and lint attributes are allowed in properties",
+                "only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required`, `dyn_retained` and lint attributes are allowed in properties",
                 util::path_span(&invalid_attr.path),
             );
         }
@@ -702,6 +724,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 required { #required }
                 declared { #declared }
                 priority_index { #priority_index }
+                dyn_retained { #dyn_retained }
             }
         });
     }
@@ -1817,13 +1840,14 @@ mod keyword {
     syn::custom_keyword!(remove);
 }
 
-struct AllowedInWhenInput {
+/// Parse `= true`
+struct EqBoolInput {
     flag: syn::LitBool,
 }
-impl Parse for AllowedInWhenInput {
+impl Parse for EqBoolInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let eq: Token![=] = input.parse()?;
-        Ok(AllowedInWhenInput {
+        Ok(EqBoolInput {
             flag: input.parse().map_err(|e| {
                 if util::span_is_call_site(e.span()) {
                     syn::Error::new(eq.span(), e)
@@ -1835,8 +1859,9 @@ impl Parse for AllowedInWhenInput {
     }
 }
 
-struct PriorityIndexInput(pub i16);
-impl Parse for PriorityIndexInput {
+/// Parse `= 32`
+struct EqI16Input(pub i16);
+impl Parse for EqI16Input {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let eq: Token![=] = input.parse()?;
         let i = input.parse::<syn::LitInt>().map_err(|e| {
@@ -1846,6 +1871,6 @@ impl Parse for PriorityIndexInput {
                 e
             }
         })?;
-        Ok(PriorityIndexInput(i.base10_parse()?))
+        Ok(EqI16Input(i.base10_parse()?))
     }
 }
