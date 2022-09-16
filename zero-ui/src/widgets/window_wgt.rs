@@ -1,7 +1,7 @@
 use crate::core::focus::*;
 use crate::core::{
     render::RenderMode,
-    window::{HeadlessMonitor, StartPosition, Window, WindowTheme},
+    window::{HeadlessMonitor, StartPosition, Window},
 };
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
@@ -184,16 +184,10 @@ pub mod window {
         properties::parent;
 
         /// Window background color.
-        background_color = nodes::WINDOW_THEME_VAR.map(|t| match t {
-            WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
-            WindowTheme::Light => rgb(0.9, 0.9, 0.9),
-        });
+        background_color = theme::pair(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Window text color.
-        text_color = nodes::WINDOW_THEME_VAR.map(|t| match t {
-            WindowTheme::Dark => colors::WHITE,
-            WindowTheme::Light => colors::BLACK,
-        });
+        text_color = theme::pair(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
 
         /// Window clear color.
         ///
@@ -201,10 +195,7 @@ pub mod window {
         /// It is visible if window content does not completely fill the content area, this
         /// can happen if you do not set a background or the background is semi-transparent, also
         /// can happen during very fast resizes.
-        properties::clear_color = nodes::WINDOW_THEME_VAR.map(|t| match t {
-            WindowTheme::Dark => rgb(0.1, 0.1, 0.1),
-            WindowTheme::Light => rgb(0.9, 0.9, 0.9),
-        });
+        properties::clear_color = theme::pair(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Unique identifier of the window root widget.
         #[allowed_in_when = false]

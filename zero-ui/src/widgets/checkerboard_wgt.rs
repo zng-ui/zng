@@ -13,10 +13,10 @@ pub mod checkerboard {
         /// The two checkerboard colors.
         ///
         /// Default is black and white.
-        properties::checkerboard_colors as colors = WINDOW_THEME_VAR.map(|t| match t {
-            WindowTheme::Dark => (rgb(20, 20, 20), rgb(40, 40, 40)),
-            WindowTheme::Light => (rgb(202, 202, 204), rgb(253, 253, 253)),
-        });
+        properties::checkerboard_colors as colors = theme::pair(
+            (rgb(20, 20, 20), rgb(40, 40, 40)),
+            (rgb(202, 202, 204), rgb(253, 253, 253))
+        );
 
         /// The size of one color rectangle.
         ///
