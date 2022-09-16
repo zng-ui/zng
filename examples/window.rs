@@ -491,14 +491,8 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 4;
 
-            button::vis::dark = theme_generator!(|_, _| {
-                button::vis::dark_theme! {
-                    padding = 4;
-                    corner_radius = unset!;
-                }
-            });
-            button::vis::light = theme_generator!(|_, _| {
-                button::vis::light_theme! {
+            button::vis::replace_theme = theme_generator!(|_, _| {
+                button::vis::default_theme! {
                     padding = 4;
                     corner_radius = unset!;
                 }

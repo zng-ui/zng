@@ -1143,7 +1143,7 @@ pub mod prelude {
             container, element,
             layouts::{stack_nodes, stack_nodes_layout_by},
             themable, theme,
-            theme::ThemeGenerator,
+            theme::{theme_generator, ThemeGenerator},
             view_generator,
             window::nodes::WINDOW_THEME_VAR,
             DataUpdate, ViewGenerator,

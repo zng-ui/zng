@@ -1430,6 +1430,7 @@ mod output {
 
                 #cfg
                 #[doc(hidden)]
+                #[allow(non_camel_case_types)]
                 pub enum #property_type_ident { }
 
                 #cfg

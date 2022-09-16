@@ -910,7 +910,7 @@ impl DynWidgetNode {
     /// Insert `other` in the properties chain, overrides properties with the same name, priority and with less or equal importance.
     ///
     /// Panics if `self` or `other` are inited, ignores the `other` child.
-    pub fn insert_all(&mut self, other: DynWidgetNode) {
+    pub fn extend(&mut self, other: DynWidgetNode) {
         let mut other = other;
 
         assert!(!self.is_inited);

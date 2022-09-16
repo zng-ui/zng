@@ -88,15 +88,99 @@ pub mod theme {
             }
         })
     }
+
+    /// Represents a dark and light *color*.
+    #[derive(Debug, Clone, Copy, PartialEq, Hash)]
+    pub struct ColorPair {
+        /// Color used when [`WindowTheme::Dark`].
+        pub dark: Rgba,
+        /// Color used when [`WindowTheme::Light`].
+        pub light: Rgba,
+    }
+    impl_from_and_into_var! {
+        /// From `(dark, light)` tuple.
+        fn from<D: Into<Rgba> + Clone, L: Into<Rgba> + Clone>((dark, light): (D, L)) -> ColorPair {
+            ColorPair {
+                dark: dark.into(),
+                light: light.into(),
+            }
+        }
+    }
+    impl ColorPair {
+        /// Overlay white with `highlight` amount as alpha over the [`dark`] color.
+        ///
+        /// [`dark`]: ColorPair::dark
+        pub fn highlight_dark(self, hightlight: impl Into<Factor>) -> Rgba {
+            colors::WHITE.with_alpha(hightlight.into()).mix_normal(self.dark)
+        }
+
+        /// Overlay black with `highlight` amount as alpha over the [`light`] color.
+        ///
+        /// [`light`]: ColorPair::light
+        pub fn highlight_light(self, hightlight: impl Into<Factor>) -> Rgba {
+            colors::BLACK.with_alpha(hightlight.into()).mix_normal(self.light)
+        }
+    }
+
+    /// Declare a variable that selects the color from a [`ColorPair`] depending on the current [`WINDOW_THEME_VAR`].
+    pub fn color(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
+        merge_var!(WINDOW_THEME_VAR, pair.into_var(), |&theme, &pair| {
+            match theme {
+                WindowTheme::Dark => pair.dark,
+                WindowTheme::Light => pair.light,
+            }
+        })
+    }
+
+    /// Declare a variable that selects the color from a [`ColorPair`] depending on the current [`WINDOW_THEME_VAR`]
+    /// mixin a `highlight`.
+    ///
+    /// See [`ColorPair::highlight_dark`] and [`ColorPair::highlight_light`] for more details.
+    pub fn color_highlight(color_pair: impl IntoVar<ColorPair>, hightlight: impl IntoVar<Factor>) -> impl Var<Rgba> {
+        merge_var!(
+            WINDOW_THEME_VAR,
+            color_pair.into_var(),
+            hightlight.into_var(),
+            |&theme, &pair, &hightlight| {
+                match theme {
+                    WindowTheme::Dark => pair.highlight_dark(hightlight),
+                    WindowTheme::Light => pair.highlight_light(hightlight),
+                }
+            }
+        )
+    }
+
+    /// Declare a dark and light *color* modified to highlight *hover*.
+    pub fn color_hovered(color_pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
+        color_highlight(color_pair, 0.08)
+    }
+
+    /// Declare a dark and light *color* modified to highlight *pressed*.
+    pub fn color_pressed(color_pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
+        color_highlight(color_pair, 0.16)
+    }
+
+    /// Declare a dark and light *color* modified to indicate *disabled*.
+    ///
+    /// The color is selected by [`WINDOW_THEME_VAR`] and fully desaturated.
+    pub fn color_disabled(color_pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
+        merge_var!(WINDOW_THEME_VAR, color_pair.into_var(), |&theme, &pair| {
+            match theme {
+                WindowTheme::Dark => pair.dark.desaturate(1.fct()),
+                WindowTheme::Light => pair.light.desaturate(1.fct()),
+            }
+        })
+    }
 }
 
 /// Themable widget base.
 ///
 /// Widgets that inherit from this one have a `theme` property that can be set to a [`ThemeGenerator`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
+/// You can also use the [`theme::pair`] to set `theme` to set properties that toggle depending on the [`WindowTheme`].
 ///
-/// You can also use the [`theme::pair`] to set `theme` to two themes, dark and light, that is selected according
-/// to the system or window preference.
+/// Themable widgets usually have a more elaborate theme setup that supports mixing multiple contextual themes, see [`themable::with_theme_extension`]
+/// for a full themable widget example.
 ///
 /// # Derived Widgets
 ///
@@ -130,7 +214,7 @@ pub mod themable {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 if let Some(theme) = self.theme.get(ctx.vars).generate(ctx, &ThemeArgs {}) {
                     self.snapshot = Some(self.child.snapshot());
-                    self.child.insert_all(theme.into_node());
+                    self.child.extend(theme.into_node());
                 }
                 self.child.init(ctx);
             }
@@ -163,6 +247,81 @@ pub mod themable {
             theme: theme.into_var(),
         };
         implicit_base::new(child, id)
+    }
+
+    /// Helper for declaring properties that [extend] a theme set from a context var.
+    ///
+    /// [extend]: ThemeGenerator::with_extend
+    ///
+    /// # Examples
+    ///
+    /// Example themable widget defining a `foo::vis::extend_theme` property that extends the contextual theme.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// use zero_ui::prelude::new_widget::*;
+    ///
+    /// #[widget($crate::foo)]
+    /// pub mod foo {
+    ///     use super::*;
+    ///
+    ///     inherit!(themable);
+    ///
+    ///     properties! {
+    ///         /// Foo theme.
+    ///         ///
+    ///         /// The theme is set to [`vis::THEME_VAR`], settings this directly replaces the theme.
+    ///         /// You can use [`vis::replace_theme`] and [`vis::extend_theme`] to set or modify the
+    ///         /// theme for all `foo` in a context.
+    ///         theme = vis::THEME_VAR;
+    ///     }
+    ///
+    ///     /// Foo theme and visual properties.
+    ///     pub mod vis {
+    ///         use super::*;
+    ///
+    ///         context_var! {
+    ///             /// Foo theme.
+    ///             pub static THEME_VAR: ThemeGenerator = theme_generator!(|ctx, _args| {
+    ///                 theme! {
+    ///                     background_color = theme::pair(colors::BLACK, colors::WHITE);
+    ///                     cursor = CursorIcon::Crosshair;
+    ///                 }
+    ///             });
+    ///         }
+    ///
+    ///         /// Replace the contextual [`THEME_VAR`] with the `theme`.
+    ///         #[property(context, default(THEME_VAR))]
+    ///         pub fn replace_theme(
+    ///             child: impl UiNode,
+    ///             theme: impl IntoVar<ThemeGenerator>
+    ///         ) -> impl UiNode {
+    ///             with_context_var(child, THEME_VAR, theme)
+    ///         }
+    ///
+    ///         /// Extends the contextual [`THEME_VAR`] with the `theme` override.
+    ///         #[property(context, default(ThemeGenerator::nil()))]
+    ///         pub fn extend_theme(
+    ///             child: impl UiNode,
+    ///             theme: impl IntoVar<ThemeGenerator>
+    ///         ) -> impl UiNode {
+    ///             themable::with_theme_extension(child, THEME_VAR, theme)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn with_theme_extension(
+        child: impl UiNode,
+        theme_context: ContextVar<ThemeGenerator>,
+        extension: impl IntoVar<ThemeGenerator>,
+    ) -> impl UiNode {
+        with_context_var(
+            child,
+            theme_context,
+            merge_var!(theme_context, extension.into_var(), |base, over| {
+                base.clone().with_extend(over.clone())
+            }),
+        )
     }
 }
 
@@ -235,8 +394,8 @@ impl Theme {
     }
 
     /// Overrides `self` with `other`.
-    pub fn insert_all(&mut self, other: Theme) {
-        self.node.insert_all(other.node);
+    pub fn extend(&mut self, other: Theme) {
+        self.node.extend(other.node);
     }
 }
 #[impl_ui_node(
@@ -301,8 +460,10 @@ impl ThemeGenerator {
         self.0.as_ref().map(|g| g(ctx, args))
     }
 
-    /// New theme generator that generates `self` overridden with `other`.
-    pub fn with_override(self, other: ThemeGenerator) -> ThemeGenerator {
+    /// New theme generator that generates `self` and `other` and then [`extend`] `self` with `other`.
+    ///
+    /// [`extend`]: Theme::extend
+    pub fn with_extend(self, other: ThemeGenerator) -> ThemeGenerator {
         if self.is_nil() {
             other
         } else if other.is_nil() {
@@ -310,7 +471,7 @@ impl ThemeGenerator {
         } else {
             ThemeGenerator::new(move |ctx, args| {
                 let mut r = self.generate(ctx, args).unwrap();
-                r.insert_all(other.generate(ctx, args).unwrap());
+                r.extend(other.generate(ctx, args).unwrap());
                 r
             })
         }

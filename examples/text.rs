@@ -72,15 +72,8 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         });
     }
     h_stack! {
-        button::vis::dark = theme_generator!(|_, _| {
-            button::vis::dark_theme! {
-                padding = (0, 5);
-            }
-        });
-        button::vis::light = theme_generator!(|_, _| {
-            button::vis::light_theme! {
-                padding = (0, 5);
-            }
+        button::vis::extend_theme = theme_generator!(|_, _| theme! {
+            padding = (0, 5);
         });
         spacing = 5;
         corner_radius = 4;

@@ -12,8 +12,6 @@ use crate::prelude::new_widget::*;
 /// [`selection`]: toggle::selection
 #[widget($crate::widgets::toggle)]
 pub mod toggle {
-    use super::*;
-
     #[doc(inline)]
     pub use super::properties::{self, selection, SingleOptSel, SingleSel, IS_CHECKED_VAR};
     #[doc(inline)]
@@ -153,8 +151,8 @@ pub mod toggle {
 
         /// Toggle dark and light themes.
         ///
-        /// Set to [`theme::pair`] of [`vis::DARK_THEME_VAR`], [`vis::LIGHT_THEME_VAR`] by default.
-        theme = theme::pair(vis::DARK_THEME_VAR, vis::LIGHT_THEME_VAR);
+        /// Set to [`vis::THEME_VAR`] by default.
+        theme = vis::THEME_VAR;
     }
 }
 
@@ -796,74 +794,52 @@ pub mod vis {
 
     use crate::widgets::button::vis as btn_vis;
 
-    /// Default toggle dark theme.
-    #[widget($crate::widgets::toggle::vis::dark_theme)]
-    pub mod dark_theme {
-        use super::*;
-
-        inherit!(btn_vis::dark_theme);
-
-        properties! {
-            properties::is_checked;
-
-            /// When the toggle is checked.
-            when self.is_checked  {
-                background_color = btn_vis::dark_color_pressed();
-                border = {
-                    widths: 1,
-                    sides: btn_vis::dark_color_pressed().map_into(),
-                };
-            }
-        }
-    }
-
-    /// Default toggle light theme.
-    #[widget($crate::widgets::toggle::vis::light_theme)]
-    pub mod light_theme {
-        use super::*;
-
-        inherit!(btn_vis::light_theme);
-
-        properties! {
-            properties::is_checked;
-
-            /// When the toggle is checked.
-            when self.is_checked  {
-                background_color = btn_vis::light_color_pressed();
-                border = {
-                    widths: 1,
-                    sides: btn_vis::light_color_pressed().map_into(),
-                };
-            }
-        }
-    }
-
     context_var! {
-        /// Toggle dark theme.
+        /// Toggle theme in a context.
         ///
-        /// Use the [`toggle::vis::dark`] property to set.
+        /// Is the [`default_theme!`] by default.
         ///
-        /// [`toggle::vis::dark`]: fn@dark
-        pub static DARK_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| dark_theme!());
-
-        /// Toggle light theme.
-        ///
-        /// Use the [`toggle::vis::light`] property to set.
-        ///
-        /// [`toggle::vis::light`]: fn@light
-        pub static LIGHT_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| light_theme!());
+        /// [`default_theme!`]: mod@default_theme
+        pub static THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| default_theme!());
     }
 
-    /// Sets the [`DARK_THEME_VAR`] that affects all toggle buttons inside the widget.
-    #[property(context, default(DARK_THEME_VAR))]
-    pub fn dark(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, DARK_THEME_VAR, theme)
+    /// Sets the toggle theme in a context, the parent theme is fully replaced.
+    #[property(context, default(THEME_VAR))]
+    pub fn replace_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, THEME_VAR, theme)
     }
 
-    /// Sets the [`LIGHT_THEME_VAR`] that affects all toggle buttons inside the widget.
-    #[property(context, default(LIGHT_THEME_VAR))]
-    pub fn light(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, LIGHT_THEME_VAR, theme)
+    /// Extends the toggle theme in a context, the parent theme is used, properties of the same name set in
+    /// `theme` override the parent theme.
+    #[property(context, default(ThemeGenerator::nil()))]
+    pub fn extend_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        themable::with_theme_extension(child, THEME_VAR, theme)
+    }
+
+    /// Default toggle theme.
+    ///
+    /// Extends the [`button::vis::default_theme`] to have the *pressed* look when [`is_checked`].
+    ///
+    /// [`button::vis::default_theme`]: mod@crate::widgets::button::vis::default_theme
+    /// [`is_checked`]: fn@toggle::is_checked
+    #[widget($crate::widgets::toggle::vis::default_theme)]
+    pub mod default_theme {
+        use super::*;
+
+        inherit!(btn_vis::default_theme);
+
+        properties! {
+            properties::is_checked;
+
+            /// When the toggle is checked.
+            when self.is_checked  {
+                background_color = theme::color_pressed(btn_vis::BASE_COLORS_VAR);
+                border = {
+                    widths: 1,
+                    sides:theme::color_pressed(btn_vis::BASE_COLORS_VAR).map_into(),
+                };
+            }
+        }
     }
 }
 

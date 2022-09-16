@@ -1,12 +1,13 @@
 # Themes TODO
 
-* Implement `themable::extend` to support theme chains now that we have full dynamic when support.
-    - Refactor widget themes to only have one context_var and two properties `foo::theme::replace` and `foo::theme::extend`.
-    - Use `theme::pair` to implement light/dark changes instead of using two themes.
-
+* Implement `child_effect` property to apply an effect on the descendants.
+    - Use it to implement disabled as desaturation+opacity of content.
+* Implement `theme::inherit` property to *inherit* from a theme generator by creating an extension of it.
 * Review all widget and mixin themes, most should be `theme!` based.
+* Review text color, should not be full black & white by default.
 * Make more widgets themable.
     - Checkbox is already in example, needs a theme.
+* Add some color to the default theme.
 
 * Create a `ColorVars` in `window!` and derive all widget colors from it.
 

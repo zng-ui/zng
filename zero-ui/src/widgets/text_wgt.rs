@@ -257,8 +257,9 @@ pub mod text_input {
 
         /// Theme generator used for the widget.
         ///
-        /// Set to [`theme::pair`] of [`vis::DARK_THEME_VAR`], [`vis::LIGHT_THEME_VAR`] by default.
-        theme(impl IntoVar<ThemeGenerator>) = theme::pair(vis::DARK_THEME_VAR, vis::LIGHT_THEME_VAR);
+        /// Set to [`vis::THEME_VAR`] by default, setting this property directly completely replaces the text input theme,
+        /// see [`vis::replace_theme`] and [`vis::extend_theme`] for other ways of modifying the theme.
+        theme(impl IntoVar<ThemeGenerator>) = vis::THEME_VAR;
     }
 
     /// Themable `new`, captures the `id` and `theme` properties.
@@ -269,15 +270,67 @@ pub mod text_input {
     #[doc(inline)]
     pub use super::text_input_vis as vis;
 }
-/// Text input themes.
+
+/// Text input theme, visual properties and context vars.
 pub mod text_input_vis {
     use super::*;
 
     use crate::widgets::text::properties::TEXT_COLOR_VAR;
 
-    /// Text input base theme.
-    #[widget($crate::widgets::text_input::vis::base_theme)]
-    pub mod base_theme {
+    context_var! {
+        /// Text input theme in a context.
+        ///
+        /// Is the [`default_theme!`] by default.
+        ///
+        /// [`default_theme!`]: mod@default_theme
+        pub static THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| default_theme!());
+
+        /// Idle background dark and light color.
+        pub static BASE_COLORS_VAR: theme::ColorPair = (rgb(0.12, 0.12, 0.12), rgb(0.88, 0.88, 0.88));
+    }
+
+    /// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the text input theme.
+    #[property(context, default(BASE_COLORS_VAR))]
+    pub fn base_colors(child: impl UiNode, color: impl IntoVar<theme::ColorPair>) -> impl UiNode {
+        with_context_var(child, BASE_COLORS_VAR, color)
+    }
+
+    /// Sets the text input theme in a context, the parent theme is fully replaced.
+    #[property(context, default(THEME_VAR))]
+    pub fn replace_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        with_context_var(child, THEME_VAR, theme)
+    }
+
+    /// Extends the text input theme in a context, the parent theme is used, properties of the same name set in
+    /// `theme` override the parent theme.
+    #[property(context, default(ThemeGenerator::nil()))]
+    pub fn extend_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
+        themable::with_theme_extension(child, THEME_VAR, theme)
+    }
+
+    /// Default border color.
+    pub fn border_color() -> impl Var<Rgba> {
+        theme::color_highlight(BASE_COLORS_VAR, 0.20)
+    }
+
+    /// Border color hovered.
+    pub fn border_color_hovered() -> impl Var<Rgba> {
+        theme::color_highlight(BASE_COLORS_VAR, 0.30)
+    }
+
+     /// Border color focused.
+     pub fn border_color_focused() -> impl Var<Rgba> {
+        theme::color_highlight(BASE_COLORS_VAR, 0.40)
+    }
+
+    /// Default border color.
+    pub fn border_color_disabled() -> impl Var<Rgba> {
+        border_color().map(|&c| c.desaturate(100.pct()))
+    }
+
+    /// Text input default theme.
+    #[widget($crate::widgets::text_input::vis::default_theme)]
+    pub mod default_theme {
         use super::*;
 
         inherit!(theme);
@@ -293,192 +346,47 @@ pub mod text_input_vis {
 
             /// Caret color.
             properties::caret_color;
-        }
-    }
 
-    /// Default text input dark theme.
-    #[widget($crate::widgets::text_input::vis::dark_theme)]
-    pub mod dark_theme {
-        use super::*;
-
-        inherit!(base_theme);
-
-        properties! {
-            /// Text input base color, all background and border colors are derived from this color.
-            dark_color as base_color;
+            /// Text input theme base dark and light colors.
+            ///
+            /// All other text input theme colors are derived from this pair.
+            base_colors;
 
             /// Text input background color.
-            ///
-            /// Is the base color by default.
-            background_color = rgb(0.12, 0.12, 0.12);
+            background_color = theme::color(BASE_COLORS_VAR);
 
-            /// Button border.
-            ///
-            /// Is widths `1` and sides the base color lighten by 30%.
+            /// Text input border.
             border = {
                 widths: 1,
-                sides: DARK_COLOR_VAR.map_into(),
+                sides: border_color().map_into(),
             };
 
-            /// When the pointer device is over this button.
+            /// When the pointer device is over this text input or it is the return focus.
             when self.is_cap_hovered || self.is_return_focus {
                 border = {
                     widths: 1,
-                    sides: dark_color_hovered().map_into(),
+                    sides: border_color_hovered().map_into(),
                 };
             }
 
-            /// When the button is pressed in a way that press release will cause a button click.
+            /// When the text input has keyboard focus.
             when self.is_focused {
                 border = {
                     widths: 1,
-                    sides: dark_color_focused().map_into(),
+                    sides: border_color_focused().map_into(),
                 };
             }
 
-            /// When the button is disabled.
+            /// When the text input is disabled.
             when self.is_disabled {
-                background_color = dark_color_disabled();
+                background_color = theme::color_disabled(BASE_COLORS_VAR);
                 border = {
                     widths: 1,
-                    sides: dark_color_hovered().map_into(),
+                    sides: border_color_disabled().map_into(),
                 };
                 text_color = TEXT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.5).mix_normal(c));
                 cursor = CursorIcon::NotAllowed;
             }
         }
-    }
-
-    /// Default text input light theme.
-    #[widget($crate::widgets::text_input::vis::light_theme)]
-    pub mod light_theme {
-        use super::*;
-
-        inherit!(base_theme);
-
-        properties! {
-            /// Text input base color, all background and border colors are derived from this color.
-            light_color as base_color;
-
-            /// Text input background color.
-            ///
-            /// Is the base color by default.
-            background_color = rgb(0.88, 0.88, 0.88);
-
-            /// Button border.
-            ///
-            /// Is widths `1` and sides the base color lighten by 30%.
-            border = {
-                widths: 1,
-                sides: LIGHT_COLOR_VAR.map_into(),
-            };
-
-            /// When the pointer device is over this button or it is the return focus of a scope.
-            when self.is_cap_hovered || self.is_return_focus {
-                border = {
-                    widths: 1,
-                    sides: light_color_hovered().map_into(),
-                };
-            }
-
-            /// When the button is pressed in a way that press release will cause a button click.
-            when self.is_focused {
-                border = {
-                    widths: 1,
-                    sides: light_color_focused().map_into(),
-                };
-            }
-
-            /// When the button is disabled.
-            when self.is_disabled {
-                background_color = light_color_disabled();
-                border = {
-                    widths: 1,
-                    sides: light_color_hovered().map_into(),
-                };
-                text_color = TEXT_COLOR_VAR.map(|&c| colors::WHITE.with_alpha(0.5).mix_normal(c));
-                cursor = CursorIcon::NotAllowed;
-            }
-        }
-    }
-
-    context_var! {
-        /// Text input dark theme.
-        ///
-        /// Use the [`text_input::vis::dark`] property to set.
-        ///
-        /// [`text_input::vis::dark`]: fn@dark
-        pub static DARK_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| dark_theme!());
-
-        /// Text input light theme.
-        ///
-        /// Use the [`text_input::vis::light`] property to set.
-        ///
-        /// [`text_input::vis::light`]: fn@light
-        pub static LIGHT_THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| light_theme!());
-
-        /// Idle border color in the dark theme.
-        ///
-        /// All other border states are derived by adjusting the brightness of this color.
-        pub static DARK_COLOR_VAR: Rgba = rgb(0.3, 0.3, 0.3);
-
-        /// Idle border color in the light theme.
-        ///
-        /// All other border states are derived by adjusting the brightness of this color.
-        pub static LIGHT_COLOR_VAR: Rgba = rgb(0.7, 0.7, 0.7);
-    }
-
-    /// Sets the [`DARK_THEME_VAR`] that affects all text inputs inside the widget.
-    #[property(context, default(DARK_THEME_VAR))]
-    pub fn dark(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, DARK_THEME_VAR, theme)
-    }
-
-    /// Sets the [`LIGHT_THEME_VAR`] that affects all text inputs inside the widget.
-    #[property(context, default(LIGHT_THEME_VAR))]
-    pub fn light(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, LIGHT_THEME_VAR, theme)
-    }
-
-    /// Sets the [`DARK_COLOR_VAR`] that is used to compute all background and border colors in the text input's dark theme.
-    #[property(context, default(DARK_COLOR_VAR))]
-    pub fn dark_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-        with_context_var(child, DARK_COLOR_VAR, color)
-    }
-
-    /// Sets the [`LIGH_COLOR_VAR`] that is used to compute all background and border colors in the text input's light theme.
-    #[property(context, default(LIGHT_COLOR_VAR))]
-    pub fn light_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-        with_context_var(child, LIGHT_COLOR_VAR, color)
-    }
-
-    /// Dark border hovered.
-    pub fn dark_color_hovered() -> impl Var<Rgba> {
-        DARK_COLOR_VAR.map(|&c| colors::WHITE.with_alpha(0.2).mix_normal(c))
-    }
-
-    /// Dark border focused.
-    pub fn dark_color_focused() -> impl Var<Rgba> {
-        DARK_COLOR_VAR.map(|&c| colors::WHITE.with_alpha(0.35).mix_normal(c))
-    }
-
-    /// Dark background disabled.
-    pub fn dark_color_disabled() -> impl Var<Rgba> {
-        DARK_COLOR_VAR.map(|&c| c.desaturate(100.pct()))
-    }
-
-    /// Dark background hovered.
-    pub fn light_color_hovered() -> impl Var<Rgba> {
-        LIGHT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.2).mix_normal(c))
-    }
-
-    /// Dark border focused.
-    pub fn light_color_focused() -> impl Var<Rgba> {
-        LIGHT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.35).mix_normal(c))
-    }
-
-    /// Dark background disabled.
-    pub fn light_color_disabled() -> impl Var<Rgba> {
-        LIGHT_COLOR_VAR.map(|&c| c.desaturate(100.pct()))
     }
 }
