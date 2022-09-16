@@ -607,8 +607,8 @@ impl Images {
                         return r;
                     }
 
-                    let mut data = vec![0; len]; // TODO can we trust the metadata length?
-                    r.r = match file.read_exact(&mut data).await {
+                    let mut data = Vec::with_capacity(len);
+                    r.r = match file.read_to_end(&mut data).await {
                         Ok(_) => Ok(IpcBytes::from_vec(data)),
                         Err(e) => Err(e.to_string()),
                     };

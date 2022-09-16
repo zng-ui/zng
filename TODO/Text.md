@@ -24,6 +24,10 @@
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
 * Emoticon rendering, multi-colored fonts.
 
+* Hyphenation, use https://sourceforge.net/projects/hunspell/files/Hyphen/2.8/?
+
+* RTL per line.
+
 # Underline Skip Glyphs
 
 * Underline padding does not look right for some curved glyphs (parenthesis shows this), consider improving the `h_line_hits`.
@@ -43,3 +47,10 @@
 
 * Refactor fonts to be like the images service, async loading.
 * Support web fonts.
+
+# Font Features
+
+* Finish implementing font features
+ - main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
+ - 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
+ - review - https://harfbuzz.github.io/shaping-opentype-features.html

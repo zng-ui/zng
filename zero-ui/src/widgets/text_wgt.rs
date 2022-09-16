@@ -179,8 +179,7 @@ pub mod text {
 /// [`font_size`]: fn@crate::widgets::text::properties::font_size
 /// [`text_color`]: fn@crate::widgets::text::properties::text_color
 /// [`text!`]: mod@text
-pub fn text(text: impl IntoVar<Text> + 'static) -> impl Widget {
-    // TODO remove 'static when rust issue #42940 is fixed.
+pub fn text(text: impl IntoVar<Text>) -> impl Widget {
     text! { text; }
 }
 

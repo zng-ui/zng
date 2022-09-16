@@ -83,3 +83,7 @@ A way to coordinate multiple animations together. Starting animations inside oth
 * Variable futures don't use the waker context and don't provide any `subscriptions`, review this.
 * Animation future does not wake once done and variables don't update also, causing it to hang until some other
       app update.
+
+# GAT
+
+* Implement specialized map var types when GATs are released.

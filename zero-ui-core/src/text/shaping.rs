@@ -418,8 +418,6 @@ impl ShapedText {
     ///
     /// Glyphs are moved, including the `align_box.origin`, the [`size`] only changes for rewrap.
     ///
-    /// Re-wrap is not implemented TODO.
-    ///
     /// [`size`]: Self::size
     /// [`box_size`]: Self::box_size
     pub fn reshape(
@@ -492,7 +490,7 @@ impl ShapedText {
 
             let mut line_start = 0;
             for line in &mut self.lines.0 {
-                let x_align = align.x(false); // TODO RTL per line.
+                let x_align = align.x(false);
                 let x_offset = global_offset.x + (max_line_w - line.width) * x_align + empty_x * x_align;
 
                 let x_transform = x_offset - line.x_offset;

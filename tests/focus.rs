@@ -402,8 +402,6 @@ pub fn two_continue_scopes_with_mixed_indexes() {
     // scope or other widgets with weird tab indexes in the root scope,
     // because the navigation goes back to the root momentarily, it can
     // jump back to a higher priority index without visiting all indexes.
-    //
-    // TODO review if this is a problem to be solved, or we mixing indexes is a user error?
 
     let buttons_a = widgets![
         button! { content = text("Button 0"); tab_index = 0; },

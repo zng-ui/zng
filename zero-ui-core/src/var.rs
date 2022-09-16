@@ -404,10 +404,6 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// The type of an weak reference to the variable, if it is a shared reference.
     type Weak: WeakVar<T>;
 
-    // TODO when GATs are stable:
-    // type Map<B: VarValue, M: FnMut(&T) -> B> : Var<B>;
-    // type MapBidi<B: VarValue, M: FnMut(&T) -> B, N: FnMut(&B) -> T> : Var<B>;
-
     /// References the value.
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T;
 
@@ -700,9 +696,10 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// Returns an opaque pointer to the variable inner data.
     ///
     /// This is only useful for identifying the variable, the only guarantee is that the inner data is not dynamic. Variables
-    /// that are not [`is_rc`] always return `null`.
+    /// that are not [`is_rc`] or [`is_contextual`] always return `null`.
     ///
     /// [`is_rc`]: Self::is_rc
+    /// [`is_contextual`]: Self::is_contextual
     fn as_ptr(&self) -> *const ();
 
     /// Returns `true` if both `self` and `other` point to the same address of if both pointers are null.
@@ -710,11 +707,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         self.as_ptr() == other.as_ptr()
     }
 
-    /// Returns `true` if both `self` and `other` point to the same variable if both are [rc].
+    /// Returns `true` if both `self` and `other` point to the same variable.
     ///
     /// Returns `false` if either pointer is null.
-    ///
-    /// [rc]: Self::is_rc
     fn partial_ptr_eq<V: Var<T>>(&self, other: &V) -> bool {
         let a = self.as_ptr();
         let b = other.as_ptr();

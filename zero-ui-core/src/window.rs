@@ -102,7 +102,7 @@ pub trait AppRunWindowExt {
     /// ```no_run
     /// # use zero_ui_core::app::App;
     /// # use zero_ui_core::window::AppRunWindowExt;
-    /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
+    /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
     /// App::default().run_window(|ctx| {
     ///     println!("starting app with window {:?}", ctx.window_id);
     ///     window! {
@@ -116,7 +116,7 @@ pub trait AppRunWindowExt {
     /// ```no_run
     /// # use zero_ui_core::app::App;
     /// # use zero_ui_core::window::Windows;
-    /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
+    /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
     /// App::default().run(|ctx| {
     ///     Windows::req(ctx.services).open(|ctx| {
     ///         println!("starting app with window {:?}", ctx.window_id);

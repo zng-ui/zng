@@ -106,8 +106,6 @@ impl<R> UiTask<R> {
             future, event_loop_waker, ..
         } = &mut self.0
         {
-            // TODO this is polling futures that don't notify wake, change
-            // Waker to have a local threshold signal?
             if let Poll::Ready(r) = future.as_mut().poll(&mut std::task::Context::from_waker(event_loop_waker)) {
                 self.0 = UiTaskState::Ready(r);
             }

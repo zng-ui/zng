@@ -1219,7 +1219,7 @@ impl FrameBuilder {
                 webrender_api::RadialGradient {
                     center: center.to_wr(),
                     radius: radius.to_wr(),
-                    start_offset: 0.0, // TODO expose this?
+                    start_offset: 0.0,
                     end_offset: 1.0,
                     extend_mode,
                 },
@@ -1267,7 +1267,7 @@ impl FrameBuilder {
                 webrender_api::ConicGradient {
                     center: center.to_wr(),
                     angle: angle.0,
-                    start_offset: 0.0, // TODO expose this?
+                    start_offset: 0.0,
                     end_offset: 1.0,
                     extend_mode,
                 },

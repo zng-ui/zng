@@ -55,7 +55,7 @@ pub type RenderExtendMode = crate::render::webrender_api::ExtendMode;
 /// # use zero_ui_core::units::*;
 /// # use zero_ui_core::color::colors;
 /// # use zero_ui_core::gradient::*;
-/// # fn linear_gradient(axis: impl Into<LinearGradientAxis>, stops: impl Into<GradientStops>) { /* TODO move gradient nodes to core? */ }
+/// # fn linear_gradient(axis: impl Into<LinearGradientAxis>, stops: impl Into<GradientStops>) { }
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```

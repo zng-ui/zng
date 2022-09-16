@@ -4,6 +4,9 @@
   - Maybe we need a better distribution or a linear search after the flag matches?
   - Can we have delivery lists for vars?
 * Move update skipping optimization to context, right now the `Widget` implementer handles some parts of it.
+* `WidgetContextMut::update` causes a general update, change to only update the parent task?
+  - Task future is pooled every update, independent of if it requested wake or not, need a local flag to ignore updates or change
+    update signal to have not false positives.
 
 # Startup
 

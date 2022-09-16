@@ -17,7 +17,7 @@ use crate::{
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
 use linear_map::LinearMap;
-pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase};
+pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase};
 
 event_args! {
     /// [`MouseMoveEvent`] event args.
@@ -1329,7 +1329,7 @@ impl Mouse {
     ///
     /// # Value Source
     ///
-    /// The value comes from the operating system settings (TODO, only implemented in Windows), the variable
+    /// The value comes from the operating system settings, the variable
     /// updates with a new value if the system setting is changed.
     ///
     /// In headless apps the default is [`MultiClickConfig::default`] and does not change.

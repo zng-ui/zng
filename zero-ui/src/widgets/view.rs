@@ -224,7 +224,7 @@ impl<D> ViewGenerator<D> {
     /// }
     /// ```
     pub fn nil() -> Self {
-        // TODO make this const when rust#57563 is resolved.
+        // TODO make this const when rust#100136 is resolved.
         ViewGenerator(None)
     }
 

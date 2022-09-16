@@ -2,6 +2,7 @@
 
 * Restore to Maximized from Fullscreen.
 * Finish window vars.
+    - Implement read-only properties?
 * Drag regions.
 * Custom resize borders.
 * Parent/child.

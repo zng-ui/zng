@@ -754,19 +754,32 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
             ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.content.layout(ctx, wl));
 
+            wl.try_with_outer(&mut self.content, true, |t, _| {
+                t.translate(self.offset);
+            });
+
             fill_bounds
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            // TODO avoid this if content is a widget.
-            frame.push_reference_frame(self.offset_id, FrameValue::Value(self.offset.into()), true, false, |frame| {
+            let mut render_clipped = |frame: &mut FrameBuilder| {
                 let bounds = PxRect::from_size(self.clip_bounds);
                 if self.clip_corners != PxCornerRadius::zero() {
                     frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.content.render(ctx, f))
                 } else {
                     frame.push_clip_rect(bounds, false, false, |f| self.content.render(ctx, f))
                 }
-            });
+            };
+
+            if self.content.try_id().is_some() {
+                // content is a full widget, offset already applied to outer transform.
+                render_clipped(frame);
+            } else {
+                // content is a node, need to transform it.
+                frame.push_reference_frame(self.offset_id, FrameValue::Value(self.offset.into()), true, false, |frame| {
+                    render_clipped(frame);
+                });
+            }
         }
     }
 

@@ -280,8 +280,6 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     rc.inited.set(true);
 
                     self.state = SlotNodeState::Active(Rc::clone(rc));
-                } else {
-                    // TODO check signal?
                 }
             }
             SlotNodeState::Activating(_) => {

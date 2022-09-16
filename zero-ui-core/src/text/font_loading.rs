@@ -1405,8 +1405,7 @@ impl GenericFonts {
         } else if cfg!(target_os = "linux") {
             "Standard Symbols PS"
         } else {
-            // if cfg!(target_os = "mac") {
-            "sans-serif" // TODO
+            "sans-serif"
         };
 
         GenericFonts {

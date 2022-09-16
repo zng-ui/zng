@@ -6,11 +6,6 @@ use crate::{
 };
 use std::{fmt, marker::PhantomData, mem, num::NonZeroU32};
 
-// TODO
-// main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
-// 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
-// review - https://harfbuzz.github.io/shaping-opentype-features.html
-
 /// Name of a font feature.
 ///
 /// # Examples

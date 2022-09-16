@@ -350,12 +350,7 @@ mod analysis {
             let mut fix = false;
             match &fn_.sig.output {
                 syn::ReturnType::Default => {
-                    errors.push(
-                        "capture_only properties must have return type `-> !`",
-                        // TODO change this to span of the last parenthesis when
-                        // [proc_macro_span](https://github.com/rust-lang/rust/issues/54725) is stable.
-                        args.priority.span(),
-                    );
+                    errors.push("capture_only properties must have return type `-> !`", args.priority.span());
                     fix = true;
                 }
                 syn::ReturnType::Type(_, t) => {

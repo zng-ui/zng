@@ -67,7 +67,7 @@ pub(crate) struct Window {
 
     taskbar_visible: bool,
 
-    movable: bool, // TODO
+    movable: bool,
 
     cursor_pos: DipPoint,
     cursor_device: DeviceId,
@@ -195,7 +195,7 @@ impl Window {
                 {
                     // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
 
-                    let device = 0; // TODO recover actual ID
+                    let device = 0; // same as winit
 
                     let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
                         window: id,
@@ -828,8 +828,9 @@ impl Window {
     }
 
     #[cfg(not(windows))]
-    /// Returns the system theme for the window. TODO
+    /// Returns the system theme for the window.
     pub fn theme(&self) -> WindowTheme {
+        tracing::error!("`theme` not implemented for this OS");
         WindowTheme::Dark
     }
 
@@ -1182,7 +1183,6 @@ impl Window {
     }
 
     pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect) -> ImageId {
-        // TODO check any frame rendered
         let scale_factor = self.scale_factor();
         let rect = PxRect::from_size(self.window.inner_size().to_px())
             .intersection(&rect)

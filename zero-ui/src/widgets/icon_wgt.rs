@@ -31,12 +31,6 @@ pub mod icon {
         ///
         /// Set to `0` by default.
         text::properties::text_padding as padding = 0;
-
-        // TODO, this panics in the `#[widget]`
-        // /// Disabled color.
-        // when self.is_disabled {
-        //     color = theme::disabled::IconColorVar;
-        // }
     }
 
     fn new_child() -> impl UiNode {
@@ -127,6 +121,8 @@ pub mod icon {
 pub mod vis {
     use super::*;
 
+    use crate::widgets::text::properties::TEXT_COLOR_VAR;
+
     context_var! {
         /// Defines the size of an icon.
         ///
@@ -135,8 +131,8 @@ pub mod vis {
 
         /// Defines the color of an icon.
         ///
-        /// Default `colors::WHITE`.
-        pub static ICON_COLOR_VAR: Rgba = colors::WHITE;
+        /// Inherits from [`TEXT_COLOR_VAR`].
+        pub static ICON_COLOR_VAR: Rgba => TEXT_COLOR_VAR;
     }
 
     /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
@@ -149,24 +145,6 @@ pub mod vis {
     #[property(context, default(ICON_COLOR_VAR))]
     pub fn icon_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
         with_context_var(child, ICON_COLOR_VAR, color)
-    }
-
-    /// Icon disabled values.
-    pub mod disabled {
-        use super::*;
-
-        context_var! {
-            /// Defines the color of a disabled icon.
-            ///
-            /// Default `colors::WHITE.darken(40.pct()`.
-            pub static ICON_COLOR_VAR: Rgba = colors::WHITE.darken(40.pct());
-        }
-
-        /// Sets the [`ICON_COLOR_VAR`] that affects all disabled icons inside the widget.
-        #[property(context, default(ICON_COLOR_VAR))]
-        pub fn icon_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-            with_context_var(child, ICON_COLOR_VAR, color)
-        }
     }
 }
 

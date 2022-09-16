@@ -117,8 +117,7 @@ impl PropertyValue {
         } else if self.type_name.contains("::Box<dyn zero_ui_core::ui_node::WidgetBoxed>") {
             Text::from_static("BoxedWidget")
         } else {
-            // TODO short self.type_name
-            formatx!("<{}>", self.type_name)
+            formatx!("<{}>", pretty_type_name::pretty_type_name_str(self.type_name))
         }
     }
 
@@ -139,7 +138,7 @@ impl fmt::Debug for PropertyValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.fmt {
             Some(fmt) => fmt(&*self.value, f),
-            None => write!(f, "<{}>", self.type_name_display()),
+            None => write!(f, "{}", self.type_name_display()),
         }
     }
 }

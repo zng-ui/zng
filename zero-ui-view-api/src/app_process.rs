@@ -113,7 +113,7 @@ impl Controller {
         };
 
         if let Err(ViewProcessOffline) = c.try_init() {
-            panic!("respawn on init"); // TODO recover from this
+            panic!("respawn on init");
         }
 
         c

@@ -18,8 +18,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
             return r;
         }
     };
-    // TODO in case of error and input is not an `impl UiNode for`
-    // remove #[UiNode] methods and custom lints attributes.
     let args = parse_macro_input!(args as Args);
 
     let crate_ = util::crate_core();
@@ -163,7 +161,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     }
 
-    // if we are not in a `UiNode` impl and no method was tagged `#[UiNode]`. TODO remove this?
+    // if we are not in a `UiNode` impl and no method was tagged `#[UiNode]`.
     if ui_node_path.is_none() && node_items.is_empty() && !other_items.is_empty() {
         abort_call_site!("no `UiNode` method found, missing `UiNode for` in impl or `#[UiNode]` in methods")
     }

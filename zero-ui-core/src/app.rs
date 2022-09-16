@@ -1043,9 +1043,7 @@ impl<E: AppExtension> RunningApp<E> {
                 pressure,
                 stage,
             } => {
-                // TODO
-                let _ = (pressure, stage);
-                let args = RawTouchpadPressureArgs::now(window_id(w_id), self.device_id(d_id));
+                let args = RawTouchpadPressureArgs::now(window_id(w_id), self.device_id(d_id), pressure, stage);
                 self.notify_event(RawTouchpadPressureEvent, args, observer);
             }
             Event::AxisMotion(w_id, d_id, axis, value) => {
@@ -1053,9 +1051,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawAxisMotionEvent, args, observer);
             }
             Event::Touch(w_id, d_id, phase, pos, force, finger_id) => {
-                // TODO
-                let _ = (phase, pos, force, finger_id);
-                let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id));
+                let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id), phase, pos, force, finger_id);
                 self.notify_event(RawTouchEvent, args, observer);
             }
             Event::ScaleFactorChanged {

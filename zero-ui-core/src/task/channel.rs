@@ -137,8 +137,6 @@ impl<T> Sender<T> {
                 Err(e) => Err(SendTimeoutError::Disconnected(e.0)),
             },
             Err(_t) => {
-                // TODO: wait for https://github.com/zesterer/flume/pull/84
-                //
                 todo!("wait for send_timeout_async impl")
             }
         }

@@ -168,8 +168,6 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     }
 }
 
-// TODO read-only properties, see `window_theme`.
-
 /// Window persistence config.
 ///
 /// See the [`save_state`] property for more details.

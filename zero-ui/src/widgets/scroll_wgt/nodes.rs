@@ -788,7 +788,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             );
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
-                            let scroll_point = scroll_point + viewport_bounds.origin.to_vector(); // TODO origin non-zero?
+                            let scroll_point = scroll_point + viewport_bounds.origin.to_vector();
 
                             let diff = widget_point - scroll_point;
 

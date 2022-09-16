@@ -562,8 +562,6 @@ fn transform_sidebars(docs_root: &Path) {
         let edit = js.contains("`widget` ");
 
         if edit {
-            // TODO
-
             fs::write(file, js.as_bytes()).unwrap();
         }
     });

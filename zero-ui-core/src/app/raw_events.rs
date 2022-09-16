@@ -27,7 +27,7 @@ use super::{
 use crate::{
     event::*,
     keyboard::{Key, KeyState, ScanCode},
-    mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase},
+    mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase},
     render::FrameId,
     text::FontAntiAliasing,
     units::{DipPoint, DipSize, Factor, PxRect},
@@ -376,7 +376,11 @@ event_args! {
         /// Device that generated this event.
         pub device_id: DeviceId,
 
-        // TODO
+        /// Pressure level between 0 and 1.
+        pub pressue: Factor,
+
+        /// Click level.
+        pub stage: i64,
 
         ..
 
@@ -416,7 +420,17 @@ event_args! {
         /// Device that generated this event.
         pub device_id: DeviceId,
 
-        // TODO
+        /// Touch phase.
+        pub phase: TouchPhase,
+
+        /// Touch center point.
+        pub position: DipPoint,
+
+        /// Touch force.
+        pub force: Option<TouchForce>,
+
+        /// Raw finger ID.
+        pub finger_id: u64,
 
         ..
 

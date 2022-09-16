@@ -395,8 +395,6 @@ pub struct TestWidgetContext {
     pub events: Events,
 
     /// Event loop bases timers.
-    ///
-    /// TODO testable timers.
     pub timers: Timers,
 
     pub(crate) root_translation_key: crate::render::FrameValueKey<PxTransform>,

@@ -271,7 +271,6 @@ pub enum Hyphens {
     /// * `U+00AD` - The invisible hyphen character, is made visible in a word break.
     Manual,
     /// Hyphens are inserted like `Manual` and also using language specific hyphenation rules.
-    // TODO https://sourceforge.net/projects/hunspell/files/Hyphen/2.8/
     Auto,
 }
 impl Default for Hyphens {
@@ -902,7 +901,20 @@ impl FontName {
     pub const fn from_static(name: &'static str) -> Self {
         FontName {
             text: Text::from_static(name),
-            is_ascii: false, // TODO, need const is_ascii
+            is_ascii: {
+                // str::is_ascii is not const
+                let name_bytes = name.as_bytes();
+                let mut i = name_bytes.len();
+                let mut is_ascii = true;
+                while i > 0 {
+                    i -= 1;
+                    if !name_bytes[i].is_ascii() {
+                        is_ascii = false;
+                        break;
+                    }
+                }
+                is_ascii
+            },
         }
     }
 

@@ -829,7 +829,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     skip = true;
                 }
                 // validate value is not one of the special commands.
-                // TODO: change the error message, or revise this after `Special` becomes `Unset`.
                 if let PropertyValue::Special(sp, _) = &assign.value {
                     // unknown special.
                     errors.push(format_args!("unexpected `{sp}!` in property value"), sp.span());

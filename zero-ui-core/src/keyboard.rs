@@ -395,8 +395,6 @@ impl Keyboard {
     }
 }
 
-// TODO refactor this.
-
 /// Extension trait that adds keyboard simulation methods to [`HeadlessApp`].
 pub trait HeadlessAppKeyboardExt {
     /// Notifies keyboard input event.

@@ -824,7 +824,6 @@ impl Event for AnyCommand {
         });
     }
     fn update<U: crate::event::EventUpdateArgs>(self, _: &U) -> Option<&crate::event::EventUpdate<Self>> {
-        // TODO use a closure in the value and then transmute to Self?
         panic!("`AnyCommand` does not support `Event::update`");
     }
 

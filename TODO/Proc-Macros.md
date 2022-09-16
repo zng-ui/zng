@@ -19,6 +19,8 @@ Proc-macros are mostly implemented, there are some improvements we can make:
 * False positive, `deny_(zero_ui::missing_delegate)` fails for delegate inside macro, test `cfg!(self.child.layout())`.
 * Allow trailing semicolon in widget_new (those are only warnings in Rust, not errors)
 
+* Review all error span hacks when this issue https://github.com/rust-lang/rust/issues/54725 is stable.
+
 ## Widget Bind-Self
 
 ```rust

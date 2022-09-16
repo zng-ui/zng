@@ -2,7 +2,8 @@ use std::cell::Cell;
 
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
-    units::*, ButtonState, CursorIcon, Force, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase, VideoMode, WindowTheme,
+    units::*, ButtonState, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce, TouchPhase, VideoMode,
+    WindowTheme,
 };
 
 /// Sets a window subclass that calls a raw event handler.
@@ -317,18 +318,18 @@ pub(crate) fn winit_touch_phase_to_zui(w: winit::event::TouchPhase) -> TouchPhas
     }
 }
 
-pub(crate) fn winit_force_to_zui(f: winit::event::Force) -> Force {
+pub(crate) fn winit_force_to_zui(f: winit::event::Force) -> TouchForce {
     match f {
         winit::event::Force::Calibrated {
             force,
             max_possible_force,
             altitude_angle,
-        } => Force::Calibrated {
+        } => TouchForce::Calibrated {
             force,
             max_possible_force,
             altitude_angle,
         },
-        winit::event::Force::Normalized(f) => Force::Normalized(f),
+        winit::event::Force::Normalized(f) => TouchForce::Normalized(f),
     }
 }
 

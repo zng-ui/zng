@@ -507,7 +507,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 
     fn as_ptr(&self) -> *const () {
-        std::ptr::null() // TODO review this, can return the static pointer?
+        self.local as *const _ as _
     }
 
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>

@@ -210,7 +210,6 @@ impl WidgetContextMut {
     /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
     /// to awake.
     pub async fn update(&self) {
-        // TODO handler update mask?
         self.with(|c| c.updates.update(UpdateMask::all()));
         self.yield_one().await
     }

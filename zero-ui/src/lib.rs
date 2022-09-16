@@ -431,7 +431,7 @@
 //!
 //! async fn heavy_lifting(status: VarSender<Status>) {
 //!     status.send(Status::Info("Working..".to_text())).ok();
-//!     todo!()
+//!     // ..
 //! }
 //! ```
 //!
@@ -875,7 +875,7 @@ pub mod widgets;
 /// use zero_ui::prelude::*;
 ///
 /// App::default().run_window(|_| {
-///     todo!()
+///     // ..
 /// })
 /// ```
 ///
@@ -1002,7 +1002,7 @@ pub mod prelude {
     ///     fn update(&mut self, ctx: &mut WidgetContext) {
     ///         self.child.update(ctx);
     ///         if let Some(new_value) = self.value.get_new(ctx) {
-    ///             todo!()
+    ///             // ..
     ///         }
     ///     }
     /// }

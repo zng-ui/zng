@@ -1503,7 +1503,7 @@ impl Parse for PropertyAssign {
 /// Value [assigned](PropertyAssign) to a property.
 #[derive(Debug)]
 pub enum PropertyValue {
-    /// `unset!`. // TODO: rename Special to Unset.
+    /// `unset!`.
     Special(Ident, Token![!]),
     /// `arg0, arg1,`
     Unnamed(Punctuated<Expr, Token![,]>),
@@ -1857,8 +1857,6 @@ impl Parse for WhenExprToVar {
 
         // assert expression type.
         *expr = quote_spanned! {expr.span()=>
-            // TODO figure out a way to have this validation without causing
-            // simple direct references to a boolean state generate a .map(..) var.
             let __result__: bool = { #expr };
             __result__
         };

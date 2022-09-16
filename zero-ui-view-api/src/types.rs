@@ -847,7 +847,7 @@ pub enum Event {
     /// Motion on some analog axis. May report data redundant to other, more specific events.
     AxisMotion(WindowId, DeviceId, AxisId, f64),
     /// Touch event has been received.
-    Touch(WindowId, DeviceId, TouchPhase, DipPoint, Option<Force>, u64),
+    Touch(WindowId, DeviceId, TouchPhase, DipPoint, Option<TouchForce>, u64),
     /// The monitor’s scale factor has changed.
     ScaleFactorChanged {
         /// Monitor that has changed.
@@ -1182,9 +1182,9 @@ pub enum EventCause {
     App,
 }
 
-/// Describes the force of a touch event
+/// Describes the force of a touch event.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum Force {
+pub enum TouchForce {
     /// On iOS, the force is calibrated so that the same number corresponds to
     /// roughly the same amount of pressure on the screen regardless of the
     /// device.
