@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 trybuild = "1"
+glob = "0.3"
 zero-ui = { path = "../../zero-ui" }
 
 [lib]

@@ -20,15 +20,7 @@ error[E0277]: the trait bound `impl Future<Output = NilUiNode>: UiNode` is not s
    |                             ^^^^^^^^^ the trait `UiNode` is not implemented for `impl Future<Output = NilUiNode>`
    |
    = help: the following other types implement trait `UiNode`:
-             AdoptiveChildNode
-             AdoptiveNode<U>
-             Box<(dyn UiNodeBoxed + 'static)>
-             Box<(dyn WidgetBoxed + 'static)>
-             DynWidgetNode
-             FillUiNode
-             NilUiNode
-             Option<U>
-           and 132 others
+            <implementers-list>
 note: required by a bound in `test_widget::__new_child::box_fix`
   --> cases/widget/new_fns_cannot_be_async.rs:3:1
    |
@@ -43,12 +35,4 @@ error[E0277]: the trait bound `impl Future<Output = impl UiNode>: UiNode` is not
   |                                                                       ^^^^^^^^^^^ the trait `UiNode` is not implemented for `impl Future<Output = impl UiNode>`
   |
   = help: the following other types implement trait `UiNode`:
-            AdoptiveChildNode
-            AdoptiveNode<U>
-            Box<(dyn UiNodeBoxed + 'static)>
-            Box<(dyn WidgetBoxed + 'static)>
-            DynWidgetNode
-            FillUiNode
-            NilUiNode
-            Option<U>
-          and 132 others
+            <implementers-list>

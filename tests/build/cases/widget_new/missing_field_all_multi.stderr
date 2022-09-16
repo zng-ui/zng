@@ -14,15 +14,7 @@ error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
     |                               required by a bound introduced by this call
     |
     = help: the following other types implement trait `IntoVar<T>`:
-              <(&'static [u8; N], F) as IntoVar<ImageSource>>
-              <(&'static [u8; N], F) as IntoVar<WindowIcon>>
-              <(&'static [u8], F) as IntoVar<ImageSource>>
-              <(&'static [u8], F) as IntoVar<WindowIcon>>
-              <(Arc<Vec<u8>>, F) as IntoVar<ImageSource>>
-              <(Arc<Vec<u8>>, F) as IntoVar<WindowIcon>>
-              <(C, O) as IntoVar<ColorStop>>
-              <(C, O) as IntoVar<zero_ui::prelude::GradientStop>>
-            and 29 others
+            <implementers-list>
 note: required by a bound in `background_gradient_ArgsImpl::<T_axis, T_stops>::new`
    --> $WORKSPACE/zero-ui/src/properties/visual.rs
     |

@@ -161,7 +161,7 @@ fn doc(mut args: Vec<&str>) {
 
 // do test, t [-u, --unit <function-path>]
 //            [-t, --test <integration-test-name>]
-//            [-b, --build <file-path-pattern> [--OVERWRITE]]
+//            [-b, --build <file-path-pattern>]
 //            <cargo-test-args>
 //
 //    Run all tests in root workspace and build tests.
@@ -231,8 +231,6 @@ fn test(mut args: Vec<&str>) {
     } else if take_flag(&mut args, &["-b", "--build"]) {
         // build tests:
 
-        let overwrite = if take_flag(&mut args, &["--OVERWRITE"]) { "overwrite" } else { "" };
-
         if args.len() != 1 {
             error("expected pattern, use do test -b * to run all build tests");
         } else {
@@ -240,7 +238,7 @@ fn test(mut args: Vec<&str>) {
                 "cargo",
                 &["run", "--package", "build-tests"],
                 &[],
-                &[("TRYBUILD", overwrite), ("DO_TASKS_TEST_BUILD", args[0])],
+                &[("DO_TASKS_TEST_BUILD", args[0])],
             );
         }
     } else if take_flag(&mut args, &["--examples"]) {

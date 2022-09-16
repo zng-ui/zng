@@ -68,15 +68,7 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
    |                            required by a bound introduced by this call
    |
    = help: the following other types implement trait `IntoVar<T>`:
-             <f32 as IntoVar<CornerRadius>>
-             <f32 as IntoVar<Factor>>
-             <f32 as IntoVar<GridSpacing>>
-             <f32 as IntoVar<SideOffsets>>
-             <f32 as IntoVar<Vector>>
-             <f32 as IntoVar<zero_ui::prelude::GradientStop>>
-             <f32 as IntoVar<zero_ui::prelude::Length>>
-             <f32 as IntoVar<zero_ui::prelude::Size>>
-           and 15 others
+            <implementers-list>
 note: required by a bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:40:67
    |
@@ -95,15 +87,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
    |                            required by a bound introduced by this call
    |
    = help: the following other types implement trait `IntoVar<T>`:
-             <bool as IntoVar<AutoSize>>
-             <bool as IntoVar<BlockWindowLoad>>
-             <bool as IntoVar<CaptureMode>>
-             <bool as IntoVar<Factor>>
-             <bool as IntoVar<FontFeatureState>>
-             <bool as IntoVar<FontSynthesis>>
-             <bool as IntoVar<HitTestMode>>
-             <bool as IntoVar<Interactivity>>
-           and 7 others
+            <implementers-list>
 note: required by a bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:40:90
    |
@@ -122,15 +106,7 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
    |                            required by a bound introduced by this call
    |
    = help: the following other types implement trait `IntoVar<T>`:
-             <f32 as IntoVar<CornerRadius>>
-             <f32 as IntoVar<Factor>>
-             <f32 as IntoVar<GridSpacing>>
-             <f32 as IntoVar<SideOffsets>>
-             <f32 as IntoVar<Vector>>
-             <f32 as IntoVar<zero_ui::prelude::GradientStop>>
-             <f32 as IntoVar<zero_ui::prelude::Length>>
-             <f32 as IntoVar<zero_ui::prelude::Size>>
-           and 15 others
+            <implementers-list>
 note: required by a bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:46:67
    |
@@ -149,15 +125,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
    |                            required by a bound introduced by this call
    |
    = help: the following other types implement trait `IntoVar<T>`:
-             <bool as IntoVar<AutoSize>>
-             <bool as IntoVar<BlockWindowLoad>>
-             <bool as IntoVar<CaptureMode>>
-             <bool as IntoVar<Factor>>
-             <bool as IntoVar<FontFeatureState>>
-             <bool as IntoVar<FontSynthesis>>
-             <bool as IntoVar<HitTestMode>>
-             <bool as IntoVar<Interactivity>>
-           and 7 others
+            <implementers-list>
 note: required by a bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:46:90
    |
