@@ -71,6 +71,71 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     }
 }
 
+/// Color filter, or combination of filters targeting the widget's descendants and not the widget itself.
+///
+/// This property allows setting multiple filters at once, there is also a property for every
+/// filter for easier value updating.
+///
+/// # Performance
+///
+/// The performance for setting specific filter properties versus this one is the same, except for [`child_opacity`]
+/// which can be animated using only frame updates instead of generating a new frame every change.
+///
+/// [`child_opacity`]: fn@child_opacity
+#[property(child_context, default(Filter::default()))]
+pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
+    struct ChildFilterNode<C, F> {
+        child: C,
+        filter: F,
+        render_filter: Option<RenderFilter>,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, F: Var<Filter>> UiNode for ChildFilterNode<C, F> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.render_filter = self.filter.get(ctx).try_render();
+            self.child.init(ctx);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.filter);
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if let Some(f) = self.filter.get_new(ctx.vars) {
+                if let Some(f) = f.try_render() {
+                    self.render_filter = Some(f);
+                    ctx.updates.render();
+                } else {
+                    self.render_filter = None;
+                    ctx.updates.layout();
+                }
+            }
+            self.child.update(ctx)
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx)
+        }
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            if self.render_filter.is_none() {
+                self.render_filter = Some(self.filter.get(ctx.vars).layout(ctx.metrics));
+                ctx.updates.render();
+            }
+            self.child.layout(ctx, wl)
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_filter(MixBlendMode::Normal.into(), self.render_filter.as_ref().unwrap(), |frame| self.child.render(ctx, frame));
+        }
+    }
+    ChildFilterNode {
+        child,
+        filter: filter.into_var(),
+        render_filter: None,
+    }
+}
+
 /// Inverts the colors of the widget.
 ///
 /// Zero does not invert, one fully inverts.
@@ -228,6 +293,52 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 
     let alpha = alpha.into_var();
     OpacityNode {
+        child,
+        frame_key: FrameVarKey::new_unique(&alpha),
+        alpha,
+    }
+}
+
+/// Opacity/transparency of the widget's child.
+///
+/// This property provides the same visual result as setting [`child_filter`] to [`color::filter::opacity(opacity)`](color::filter::opacity),
+/// **but** updating the opacity is faster in this property.
+///
+/// [`child_filter`]: fn@child_filter
+#[property(child_context, default(1.0))]
+pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
+    struct ChildOpacityNode<C, A> {
+        child: C,
+        alpha: A,
+        frame_key: FrameVarKey<f32>,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, A: Var<Factor>> UiNode for ChildOpacityNode<C, A> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.alpha);
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.alpha.is_new(ctx) {
+                ctx.updates.render_update();
+            }
+            self.child.update(ctx);
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let opacity = self.frame_key.bind(ctx, &self.alpha, |f| f.0);
+            frame.push_opacity(opacity, |frame| self.child.render(ctx, frame));
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            update.update_f32_opt(self.frame_key.update(ctx, &self.alpha, |f| f.0));
+            self.child.render_update(ctx, update);
+        }
+    }
+
+    let alpha = alpha.into_var();
+    ChildOpacityNode {
         child,
         frame_key: FrameVarKey::new_unique(&alpha),
         alpha,

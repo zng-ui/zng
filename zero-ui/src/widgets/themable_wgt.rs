@@ -159,18 +159,6 @@ pub mod theme {
     pub fn color_pressed(color_pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
         color_highlight(color_pair, 0.16)
     }
-
-    /// Declare a dark and light *color* modified to indicate *disabled*.
-    ///
-    /// The color is selected by [`WINDOW_THEME_VAR`] and fully desaturated.
-    pub fn color_disabled(color_pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
-        merge_var!(WINDOW_THEME_VAR, color_pair.into_var(), |&theme, &pair| {
-            match theme {
-                WindowTheme::Dark => pair.dark.desaturate(1.fct()),
-                WindowTheme::Light => pair.light.desaturate(1.fct()),
-            }
-        })
-    }
 }
 
 /// Themable widget base.

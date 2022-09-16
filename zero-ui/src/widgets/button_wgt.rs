@@ -48,8 +48,6 @@ pub mod button {
 pub mod vis {
     use super::*;
 
-    use crate::widgets::text::properties::TEXT_COLOR_VAR;
-
     context_var! {
         /// Button theme in a context.
         ///
@@ -134,12 +132,8 @@ pub mod vis {
 
             /// When the button is disabled.
             when self.is_disabled {
-                background_color = theme::color_disabled(BASE_COLORS_VAR);
-                border = {
-                    widths: 1,
-                    sides: theme::color_disabled(BASE_COLORS_VAR).map_into(),
-                };
-                text_color = TEXT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.5).mix_normal(c));
+                saturate = false;
+                child_opacity = 50.pct();
                 cursor = CursorIcon::NotAllowed;
             }
         }

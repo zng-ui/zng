@@ -275,8 +275,6 @@ pub mod text_input {
 pub mod text_input_vis {
     use super::*;
 
-    use crate::widgets::text::properties::TEXT_COLOR_VAR;
-
     context_var! {
         /// Text input theme in a context.
         ///
@@ -321,11 +319,6 @@ pub mod text_input_vis {
      /// Border color focused.
      pub fn border_color_focused() -> impl Var<Rgba> {
         theme::color_highlight(BASE_COLORS_VAR, 0.40)
-    }
-
-    /// Default border color.
-    pub fn border_color_disabled() -> impl Var<Rgba> {
-        border_color().map(|&c| c.desaturate(100.pct()))
     }
 
     /// Text input default theme.
@@ -379,12 +372,8 @@ pub mod text_input_vis {
 
             /// When the text input is disabled.
             when self.is_disabled {
-                background_color = theme::color_disabled(BASE_COLORS_VAR);
-                border = {
-                    widths: 1,
-                    sides: border_color_disabled().map_into(),
-                };
-                text_color = TEXT_COLOR_VAR.map(|&c| colors::BLACK.with_alpha(0.5).mix_normal(c));
+                saturate = false;
+                child_opacity = 50.pct();
                 cursor = CursorIcon::NotAllowed;
             }
         }

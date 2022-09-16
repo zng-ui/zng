@@ -1,7 +1,5 @@
 # Themes TODO
 
-* Implement `child_effect` property to apply an effect on the descendants.
-    - Use it to implement disabled as desaturation+opacity of content.
 * Implement `theme::inherit` property to *inherit* from a theme generator by creating an extension of it.
 * Review all widget and mixin themes, most should be `theme!` based.
 * Review text color, should not be full black & white by default.

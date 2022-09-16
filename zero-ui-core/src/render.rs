@@ -1032,6 +1032,21 @@ impl FrameBuilder {
         }
     }
 
+    /// Calls `render` with added opacity stacking context.
+    pub fn push_opacity(&mut self, bind: FrameValue<f32>, render: impl FnOnce(&mut Self)) {
+        expect_inner!(self.push_opacity);
+
+        if self.visible {
+            self.display_list.push_stacking_context(MixBlendMode::Normal, &[FilterOp::Opacity(bind)], &[], &[]);
+
+            render(self);
+
+            self.display_list.pop_stacking_context();
+        } else {
+            render(self);
+        }
+    }
+
     /// Push a border.
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         expect_inner!(self.push_border);
