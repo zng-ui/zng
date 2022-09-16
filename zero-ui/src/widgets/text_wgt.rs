@@ -316,8 +316,8 @@ pub mod text_input_vis {
         theme::color_highlight(BASE_COLORS_VAR, 0.30)
     }
 
-     /// Border color focused.
-     pub fn border_color_focused() -> impl Var<Rgba> {
+    /// Border color focused.
+    pub fn border_color_focused() -> impl Var<Rgba> {
         theme::color_highlight(BASE_COLORS_VAR, 0.40)
     }
 

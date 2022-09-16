@@ -126,7 +126,9 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_filter(MixBlendMode::Normal.into(), self.render_filter.as_ref().unwrap(), |frame| self.child.render(ctx, frame));
+            frame.push_filter(MixBlendMode::Normal.into(), self.render_filter.as_ref().unwrap(), |frame| {
+                self.child.render(ctx, frame)
+            });
         }
     }
     ChildFilterNode {

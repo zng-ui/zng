@@ -1037,7 +1037,8 @@ impl FrameBuilder {
         expect_inner!(self.push_opacity);
 
         if self.visible {
-            self.display_list.push_stacking_context(MixBlendMode::Normal, &[FilterOp::Opacity(bind)], &[], &[]);
+            self.display_list
+                .push_stacking_context(MixBlendMode::Normal, &[FilterOp::Opacity(bind)], &[], &[]);
 
             render(self);
 
