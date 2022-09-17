@@ -12,9 +12,7 @@
 * Review light theme in all examples.
 
 - example    - description
-- countdown  - text color
-- focus      - command status, focus target and overlay scope are not themed
- - - nested  - theme also needs tweaking
+- *all*      - focus highlight is not themed (the border is the same color as the button in light theme).
 - icon       - icons and icon cards are not themed
 - layer      - Anchored and Layer (7,8,9) button overlays are not themed, the TOP_MOST overlay is not themed either
 - respawn    - status background is not themed

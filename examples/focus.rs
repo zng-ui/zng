@@ -164,7 +164,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            background_color = rgb(0.05, 0.05, 0.05);
+            background_color = theme::pair(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
             content = v_stack! {
@@ -231,12 +231,12 @@ fn delayed_focus() -> impl Widget {
                 text = "delayed target";
                 font_style = FontStyle::Italic;
                 text_align = TextAlign::CENTER_MIDDLE;
-                background_color = rgb(30, 30, 30);
+                background_color = theme::pair(rgb(30, 30, 30), rgb(225, 225, 225));
 
                 focusable = true;
                 when self.is_focused {
                     text = "focused";
-                    background_color = colors::DARK_GREEN;
+                    background_color = theme::pair(colors::DARK_GREEN, colors::LIGHT_GREEN);
                 }
             },
         ]
@@ -305,7 +305,7 @@ fn commands() -> impl Widget {
                 text = cmd.name_with_shortcut();
 
                 when *#{cmd.enabled()} {
-                    color = colors::WHITE;
+                    color = theme::pair(colors::WHITE, colors::BLACK);
                 }
             }.boxed_wgt()
         }).collect::<WidgetVec>();
@@ -344,6 +344,10 @@ fn nested_focusables() -> impl Widget {
             Windows::req(ctx.services).focus_or_open("nested-focusables", |_| {
                 window! {
                     title = "Focus Example - Nested Focusables";
+
+                    theme = WindowTheme::Dark;
+                    background_color = colors::DIM_GRAY;
+
                     // zero_ui::properties::inspector::show_center_points = true;
                     content_align = Align::CENTER;
                     content = v_stack! {
