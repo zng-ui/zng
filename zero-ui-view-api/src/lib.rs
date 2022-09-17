@@ -51,7 +51,7 @@ pub use app_process::*;
 mod view_process;
 pub use view_process::*;
 
-use webrender_api::{DocumentId, FontInstanceKey, FontKey, ImageKey};
+use webrender_api::{FontInstanceKey, FontKey, ImageKey};
 
 /// Packaged API request.
 #[derive(Debug)]
@@ -307,7 +307,7 @@ declare_api! {
     pub fn set_state(&mut self, id: WindowId, state: WindowStateAll);
 
     /// Set the headless surface or document area size (viewport size).
-    pub fn set_headless_size(&mut self, id: WindowId, document_id: DocumentId, size: DipSize, scale_factor: f32);
+    pub fn set_headless_size(&mut self, id: WindowId, size: DipSize, scale_factor: f32);
 
     /// Set the window icon.
     pub fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>);

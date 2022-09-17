@@ -134,19 +134,12 @@ impl Surface {
         self.pipeline_id
     }
 
-    /// Root document ID.
-    pub fn document_id(&self) -> DocumentId {
-        self.document_id
-    }
-
     pub fn frame_id(&self) -> FrameId {
         self.rendered_frame_id
     }
 
-    pub fn set_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {
+    pub fn set_size(&mut self, size: DipSize, scale_factor: f32) {
         if self.size != size || (self.scale_factor - scale_factor).abs() > 0.001 {
-            debug_assert_eq!(self.document_id, document_id);
-
             self.size = size;
             self.scale_factor = scale_factor;
             self.context.make_current();
@@ -157,29 +150,29 @@ impl Surface {
     }
 
     pub fn use_image(&mut self, image: &Image) -> ImageKey {
-        self.image_use.new_use(image, self.document_id(), &mut self.api)
+        self.image_use.new_use(image, self.document_id, &mut self.api)
     }
 
     pub fn update_image(&mut self, key: ImageKey, image: &Image) {
-        self.image_use.update_use(key, image, self.document_id(), &mut self.api);
+        self.image_use.update_use(key, image, self.document_id, &mut self.api);
     }
 
     pub fn delete_image(&mut self, key: ImageKey) {
-        self.image_use.delete(key, self.document_id(), &mut self.api);
+        self.image_use.delete(key, self.document_id, &mut self.api);
     }
 
     pub fn add_font(&mut self, font: Vec<u8>, index: u32) -> FontKey {
         let key = self.api.generate_font_key();
         let mut txn = webrender::Transaction::new();
         txn.add_raw_font(key, font, index);
-        self.api.send_transaction(self.document_id(), txn);
+        self.api.send_transaction(self.document_id, txn);
         key
     }
 
     pub fn delete_font(&mut self, key: FontKey) {
         let mut txn = webrender::Transaction::new();
         txn.delete_font(key);
-        self.api.send_transaction(self.document_id(), txn);
+        self.api.send_transaction(self.document_id, txn);
     }
 
     pub fn add_font_instance(
@@ -193,14 +186,14 @@ impl Surface {
         let key = self.api.generate_font_instance_key();
         let mut txn = webrender::Transaction::new();
         txn.add_font_instance(key, font_key, glyph_size.to_wr().get(), options, plataform_options, variations);
-        self.api.send_transaction(self.document_id(), txn);
+        self.api.send_transaction(self.document_id, txn);
         key
     }
 
     pub fn delete_font_instance(&mut self, instance_key: FontInstanceKey) {
         let mut txn = webrender::Transaction::new();
         txn.delete_font_instance(instance_key);
-        self.api.send_transaction(self.document_id(), txn);
+        self.api.send_transaction(self.document_id, txn);
     }
 
     fn push_resize(&mut self, txn: &mut Transaction) {
@@ -249,7 +242,7 @@ impl Surface {
                 .entered();
         self.pending_frames.push_back((frame.id, frame.capture_image, Some(frame_scope)));
 
-        self.api.send_transaction(self.document_id(), txn);
+        self.api.send_transaction(self.document_id, txn);
     }
 
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
@@ -304,12 +297,10 @@ impl Surface {
         self.pending_frames
             .push_back((frame.id, frame.capture_image, Some(frame_scope.entered())));
 
-        self.api.send_transaction(self.document_id(), txn);
+        self.api.send_transaction(self.document_id, txn);
     }
 
     pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageLoadedData>) {
-        debug_assert_eq!(self.document_id, msg.document_id);
-
         let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
         self.rendered_frame_id = frame_id;
 

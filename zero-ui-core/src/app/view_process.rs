@@ -19,8 +19,7 @@ use crate::units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize};
 use crate::window::{MonitorId, WindowId};
 use crate::{event, event_args};
 use zero_ui_view_api::webrender_api::{
-    DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey,
-    PipelineId,
+    FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
 };
 pub use zero_ui_view_api::{
     bytes_channel, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
@@ -132,7 +131,6 @@ impl ViewProcess {
             app: self.0.clone(),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
-            document_id: data.document_id,
             generation: app.data_generation,
         }));
         drop(app);
@@ -160,17 +158,13 @@ impl ViewProcess {
         let mut app = self.0.borrow_mut();
         let _ = app.check_generation();
 
-        let surf = ViewHeadless(
-            Rc::new(WindowConnection {
-                id: id.get(),
-                app: self.0.clone(),
-                id_namespace: data.id_namespace,
-                pipeline_id: data.pipeline_id,
-                document_id: data.document_id,
-                generation: app.data_generation,
-            }),
-            data.document_id,
-        );
+        let surf = ViewHeadless(Rc::new(WindowConnection {
+            id: id.get(),
+            app: self.0.clone(),
+            id_namespace: data.id_namespace,
+            pipeline_id: data.pipeline_id,
+            generation: app.data_generation,
+        }));
 
         (surf, data)
     }
@@ -713,7 +707,6 @@ struct WindowConnection {
     id: ApiWindowId,
     id_namespace: IdNamespace,
     pipeline_id: PipelineId,
-    document_id: DocumentId,
     generation: ViewProcessGen,
     app: Rc<RefCell<ViewApp>>,
 }
@@ -868,7 +861,7 @@ impl ViewWindow {
 ///
 /// This is a strong reference to the window connection. The view is disposed when every reference drops.
 #[derive(Clone, Debug)]
-pub struct ViewHeadless(Rc<WindowConnection>, DocumentId);
+pub struct ViewHeadless(Rc<WindowConnection>);
 impl PartialEq for ViewHeadless {
     fn eq(&self, other: &Self) -> bool {
         self.0.id == other.0.id && self.0.generation == other.0.generation
@@ -878,8 +871,7 @@ impl Eq for ViewHeadless {}
 impl ViewHeadless {
     /// Resize the headless surface.
     pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
-        let doc_id = self.1;
-        self.0.call(|id, p| p.set_headless_size(id, doc_id, size, scale_factor.0))
+        self.0.call(|id, p| p.set_headless_size(id, size, scale_factor.0))
     }
 
     /// Reference the window renderer.
@@ -943,18 +935,6 @@ impl ViewRenderer {
         if let Some(c) = self.0.upgrade() {
             if c.online() {
                 return Ok(c.id_namespace);
-            }
-        }
-        Err(ViewProcessOffline)
-    }
-
-    /// Document ID.
-    ///
-    /// This value is cached locally (not an IPC call).
-    pub fn document_id(&self) -> Result<DocumentId> {
-        if let Some(c) = self.0.upgrade() {
-            if c.online() {
-                return Ok(c.document_id);
             }
         }
         Err(ViewProcessOffline)

@@ -333,11 +333,6 @@ impl Window {
         self.pipeline_id
     }
 
-    /// Root document ID.
-    pub fn document_id(&self) -> DocumentId {
-        self.document_id
-    }
-
     /// Latest rendered frame.
     pub fn frame_id(&self) -> FrameId {
         self.rendered_frame_id
@@ -1085,8 +1080,6 @@ impl Window {
     /// Returns info for `FrameRendered` and if this is the first frame.
     #[must_use = "events must be generated from the result"]
     pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> FrameReadyResult {
-        debug_assert_eq!(self.document_id, msg.document_id);
-
         let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
         self.rendered_frame_id = frame_id;
 

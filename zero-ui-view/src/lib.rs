@@ -1278,7 +1278,6 @@ impl App {
         );
         let id_namespace = surf.id_namespace();
         let pipeline_id = surf.pipeline_id();
-        let document_id = surf.document_id();
         let render_mode = surf.render_mode();
 
         self.surfaces.push(surf);
@@ -1286,7 +1285,6 @@ impl App {
         HeadlessOpenData {
             id_namespace,
             pipeline_id,
-            document_id,
             render_mode,
         }
     }
@@ -1344,7 +1342,6 @@ impl Api for App {
             let msg = WindowOpenData {
                 id_namespace: data.id_namespace,
                 pipeline_id: data.pipeline_id,
-                document_id: data.document_id,
                 render_mode: data.render_mode,
                 monitor: None,
                 position: DipPoint::zero(),
@@ -1379,7 +1376,6 @@ impl Api for App {
             let msg = WindowOpenData {
                 id_namespace: win.id_namespace(),
                 pipeline_id: win.pipeline_id(),
-                document_id: win.document_id(),
                 monitor: win.monitor().map(|h| self.monitor_id(&h)),
                 position: win.inner_position(),
                 size: win.size(),
@@ -1463,10 +1459,10 @@ impl Api for App {
         }
     }
 
-    fn set_headless_size(&mut self, renderer: WindowId, document_id: DocumentId, size: DipSize, scale_factor: f32) {
+    fn set_headless_size(&mut self, renderer: WindowId, size: DipSize, scale_factor: f32) {
         self.assert_started();
         if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == renderer) {
-            surf.set_size(document_id, size, scale_factor)
+            surf.set_size(size, scale_factor)
         }
     }
 
@@ -1636,9 +1632,7 @@ enum RequestEvent {
 
 #[derive(Debug)]
 pub(crate) struct FrameReadyMsg {
-    pub document_id: DocumentId,
     pub composite_needed: bool,
-    // pub scrolled: bool,
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.
@@ -1695,12 +1689,8 @@ impl RenderNotifier for WrNotifier {
 
     fn wake_up(&self, _: bool) {}
 
-    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool) {
-        let msg = FrameReadyMsg {
-            document_id,
-            composite_needed,
-            // scrolled,
-        };
+    fn new_frame_ready(&self, _document_id: DocumentId, _scrolled: bool, composite_needed: bool) {
+        let msg = FrameReadyMsg { composite_needed };
         let _ = self.sender.frame_ready(self.id, msg);
     }
 }

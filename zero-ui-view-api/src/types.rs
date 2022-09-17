@@ -1275,8 +1275,6 @@ pub struct FrameRequest {
     pub id: FrameId,
     /// Pipeline Tag.
     pub pipeline_id: PipelineId,
-    /// What virtual render surface to render.
-    pub document_id: webrender_api::DocumentId,
 
     /// Frame clear color.
     pub clear_color: ColorF,
@@ -1811,8 +1809,6 @@ pub struct WindowOpenData {
     pub id_namespace: webrender_api::IdNamespace,
     /// Window renderer pipeline.
     pub pipeline_id: webrender_api::PipelineId,
-    /// Root document ID, usually `1`.
-    pub document_id: webrender_api::DocumentId,
 
     /// Window complete state.
     pub state: WindowStateAll,
@@ -1844,11 +1840,6 @@ pub struct HeadlessOpenData {
     pub id_namespace: webrender_api::IdNamespace,
     /// Window renderer pipeline.
     pub pipeline_id: webrender_api::PipelineId,
-    /// Document ID, usually `1`, can be other values if
-    /// a renderer window or surface is shared by using `open_document`.
-    ///
-    /// [`open_document`]: crate::Api::open_document
-    pub document_id: webrender_api::DocumentId,
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
@@ -1859,7 +1850,6 @@ impl HeadlessOpenData {
         HeadlessOpenData {
             id_namespace: webrender_api::IdNamespace(0),
             pipeline_id: webrender_api::PipelineId::dummy(),
-            document_id: webrender_api::DocumentId::INVALID,
             render_mode: RenderMode::Software,
         }
     }
@@ -1867,7 +1857,7 @@ impl HeadlessOpenData {
     /// If any of the data is invalid.
     pub fn is_invalid(&self) -> bool {
         let invalid = Self::invalid();
-        self.document_id == invalid.document_id || self.pipeline_id == invalid.pipeline_id || self.id_namespace == invalid.id_namespace
+        self.pipeline_id == invalid.pipeline_id || self.id_namespace == invalid.id_namespace
     }
 }
 
