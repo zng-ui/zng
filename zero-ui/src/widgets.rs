@@ -15,9 +15,9 @@ mod container_wgt;
 #[doc(inline)]
 pub use container_wgt::{container, element};
 
-mod fill_color;
+mod flood;
 #[doc(inline)]
-pub use fill_color::fill_color;
+pub use flood::flood;
 
 mod gradient;
 #[doc(inline)]

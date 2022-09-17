@@ -4,7 +4,7 @@
 //!
 //! [`scroll!`]: mod@crate::widgets::scroll
 
-use crate::widgets::fill_color;
+use crate::widgets::flood;
 
 use super::{commands::ScrollToMode, parts::*, types::*, *};
 
@@ -16,7 +16,7 @@ context_var! {
     pub static HORIZONTAL_SCROLLBAR_VIEW_VAR: ViewGenerator<ScrollBarArgs> = default_scrollbar();
 
     /// View generator for the little square that joins the two scrollbars when both are visible.
-    pub static SCROLLBAR_JOINER_VIEW_VAR: ViewGenerator<()> = view_generator!(|_, _| fill_color(scrollbar::vis::BACKGROUND_VAR));
+    pub static SCROLLBAR_JOINER_VIEW_VAR: ViewGenerator<()> = view_generator!(|_, _| flood(scrollbar::vis::BACKGROUND_VAR));
 
     /// Vertical offset added when the [`ScrollDownCommand`] runs and removed when the [`ScrollUpCommand`] runs.
     ///

@@ -108,7 +108,7 @@ fn stack_linear() -> impl Widget {
         sample(
             "over color",
             stack_nodes(nodes![
-                fill_color(colors::WHITE),
+                flood(colors::WHITE),
                 linear_gradient(0.deg(), stops![colors::RED, (colors::RED.transparent(), 50.pct())]),
                 linear_gradient(120.deg(), stops![colors::GREEN, (colors::GREEN.transparent(), 50.pct())]),
                 linear_gradient(240.deg(), stops![colors::BLUE, (colors::BLUE.transparent(), 50.pct())]),
@@ -147,7 +147,7 @@ fn stack_linear() -> impl Widget {
                 }
 
                 nodes![
-                    fill_color(colors::WHITE),
+                    flood(colors::WHITE),
                     gradient(0, colors::RED),
                     gradient(20, colors::RED),
                     gradient(40, colors::RED),

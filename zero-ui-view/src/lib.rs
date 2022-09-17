@@ -22,7 +22,7 @@
 //! # pub mod zero_ui { pub mod prelude {
 //! # pub struct App { }
 //! # impl App {
-//! # pub fn default() -> Self { todo!() }
+//! # pub fn default() -> Self { unimplemented!() }
 //! # pub fn run_window(self, f: impl FnOnce(bool)) { }
 //! # } } }
 //! use zero_ui::prelude::*;
@@ -31,7 +31,7 @@
 //!     zero_ui_view::init();
 //!
 //!     App::default().run_window(|ctx| {
-//!         todo!()
+//!         unimplemented!()
 //!     })
 //! }
 //! ```
@@ -144,7 +144,7 @@ use zero_ui_view_api::{units::*, *};
 /// # pub mod zero_ui { pub mod prelude {
 /// # pub struct App { }
 /// # impl App {
-/// # pub fn default() -> Self { todo!() }
+/// # pub fn default() -> Self { unimplemented!() }
 /// # pub fn run_window(self, f: impl FnOnce(bool)) { }
 /// # } } }
 /// use zero_ui::prelude::*;
@@ -153,7 +153,7 @@ use zero_ui_view_api::{units::*, *};
 ///     zero_ui_view::init();
 ///
 ///     App::default().run_window(|ctx| {
-///         todo!()
+///         unimplemented!()
 ///     })
 /// }
 /// ```
@@ -218,7 +218,7 @@ pub extern "C" fn extern_init() {
 /// # pub mod zero_ui { pub mod prelude {
 /// # pub struct App { }
 /// # impl App {
-/// # pub fn default() -> Self { todo!() }
+/// # pub fn default() -> Self { unimplemented!() }
 /// # pub fn run_window(self, f: impl FnOnce(bool)) { }
 /// # } } }
 /// use zero_ui::prelude::*;
@@ -234,7 +234,7 @@ pub extern "C" fn extern_init() {
 ///
 /// fn app_main() {
 ///     App::default().run_window(|ctx| {
-///         todo!()
+///         unimplemented!()
 ///     })
 /// }
 /// ```

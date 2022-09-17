@@ -129,16 +129,14 @@ impl<T> Sender<T> {
     ///
     /// Waits until there is space in the channel buffer or the `deadline` is reached.
     ///
-    /// Returns an error if all receivers have been dropped or the `deadline` is reached.
-    pub async fn send_deadline(&self, msg: T, deadline: impl Into<Deadline>) -> Result<(), SendTimeoutError<T>> {
+    /// Returns an error if all receivers have been dropped or the `deadline` is reached. The `msg` is lost in case of timeout.
+    pub async fn send_deadline(&self, msg: T, deadline: impl Into<Deadline>) -> Result<(), SendTimeoutError<Option<T>>> {
         match super::with_deadline(self.send(msg), deadline).await {
             Ok(r) => match r {
                 Ok(_) => Ok(()),
-                Err(e) => Err(SendTimeoutError::Disconnected(e.0)),
+                Err(e) => Err(SendTimeoutError::Disconnected(Some(e.0))),
             },
-            Err(_t) => {
-                todo!("wait for send_timeout_async impl")
-            }
+            Err(_) => Err(SendTimeoutError::Timeout(None)),
         }
     }
 

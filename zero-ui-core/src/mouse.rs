@@ -1282,16 +1282,6 @@ enum ClickState {
 ///
 /// Windows capture the mouse by default, this cannot be disabled. For other widgets this is optional.
 ///
-/// # Cursor Lock
-///
-/// The cursor is **locked** when it cannot be moved outside of an area. The user can still move the cursor inside
-/// the area but it visually stops at the area boundaries.
-///
-/// You can request lock by calling [`lock_cursor_pt`](Mouse::lock_cursor_pt), [`lock_cursor_widget`](Mouse::lock_cursor_widget),
-/// or one of the other `lock_cursor*` methods.
-///
-/// The cursor will stay locked for as long the target is visible and the window is focused.
-///
 /// # Provider
 ///
 /// This service is provided by the [`MouseManager`] extension.
@@ -1371,71 +1361,6 @@ impl Mouse {
     pub fn release_capture(&mut self) {
         self.release_requested = true;
         let _ = self.update_sender.send_ext_update();
-    }
-
-    /// The current cursor lock active.
-    pub fn current_lock(&self) {
-        todo!()
-    }
-
-    /// Locks the cursor in an `area` of the window if the it is focused.
-    ///
-    /// The pointer is moved inside the area to start, the user can only move the cursor inside the area.
-    /// Mouse move events are generated only by move inside the area, you can use the mouse device events
-    /// to monitor attempts to move outside the area.
-    ///
-    /// The area is relative to the window, if the window moves the cursor gets pushed by the sides of the area.
-    ///
-    /// **NOT IMPLEMENTED**
-    pub fn lock_cursor(&mut self, window_id: WindowId, area: DipRect) {
-        // https://docs.rs/winit/0.24.0/winit/window/struct.Window.html#method.set_cursor_grab
-        // https://github.com/rust-windowing/winit/issues/1677
-        todo!("impl lockcursor({window_id:?}, {area:?})")
-    }
-
-    /// Locks the cursor to a `point` of the window if it is focused.
-    ///
-    /// The pointer is moved to the point to start, the user cannot move the cursor. No mouse move events are
-    /// generated, you can use the mouse device events to monitor attempts to move the mouse.
-    ///
-    /// The point is relative to the window, if the window moves the cursor moves to match the point.
-    ///
-    /// **NOT IMPLEMENTED**
-    pub fn lock_cursor_pt(&mut self, window_id: WindowId, point: DipPoint) {
-        self.lock_cursor(window_id, DipRect::new(point, DipSize::zero()))
-    }
-
-    /// Locks the cursor to the `area` of a widget in a window that is focused.
-    ///
-    /// The pointer is moved to the point to start, the user can only move the cursor inside the widget area.
-    /// Mouse move events are generated only for the widget, you can use the mouse device events to monitor attempts to move
-    /// outside the area.
-    ///
-    /// If the widget moves the cursor gets pushed by the sides of the area.
-    ///
-    /// **NOT IMPLEMENTED**
-    pub fn lock_cursor_widget(&mut self, window_id: WindowId, area: WidgetId) {
-        todo!("impl lock_cursor_wgt({window_id:?}, {area:?})")
-    }
-
-    /// Locks the cursor to the content area of the window if the window is focused.
-    ///
-    /// The pointer is moved inside the window to start, the user can only move the cursor inside the window area.
-    ///
-    /// If the window moves or is resized the cursor gets pushed by the sides of the window area.
-    ///
-    /// **NOT IMPLEMENTED**
-    pub fn lock_cursor_window(&mut self, window_id: WindowId) {
-        todo!("impl lock_cursor_window({window_id:?}")
-    }
-
-    /// Release the cursor lock.
-    ///
-    /// **Note:** the cursor lock is released automatically when the window loses focus.
-    ///
-    /// **NOT IMPLEMENTED**
-    pub fn release_lock(&mut self) {
-        todo!()
     }
 
     /// Call when the mouse starts pressing on the window.

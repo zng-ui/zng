@@ -379,7 +379,7 @@ impl ImageCache {
                     })
                     .collect(),
             ),
-            _ => todo!(),
+            _ => unreachable!(),
         };
 
         (

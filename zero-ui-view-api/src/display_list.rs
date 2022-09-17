@@ -730,14 +730,6 @@ pub enum FilterOp {
     ///
     /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
     ColorMatrix([f32; 20]),
-    /// sRGB to linear RGB, as defined by SVG.
-    SrgbToLinear,
-    /// Linear RGB to sRGB, as defined by SVG.
-    LinearToSrgb,
-
-    /// SVG component transfer, the functions are defined in the stacking context `filter_data` parameter.
-    ComponentTransfer,
-
     /// Fill with color.
     Flood(wr::ColorF),
 }
@@ -755,10 +747,10 @@ impl FilterOp {
             FilterOp::Saturate(s) => wr::FilterOp::Saturate(s),
             FilterOp::Sepia(s) => wr::FilterOp::Sepia(s),
             FilterOp::DropShadow(d) => wr::FilterOp::DropShadow(d),
-            FilterOp::ColorMatrix(m) => wr::FilterOp::ColorMatrix(m),
-            FilterOp::SrgbToLinear => wr::FilterOp::SrgbToLinear,
-            FilterOp::LinearToSrgb => wr::FilterOp::LinearToSrgb,
-            FilterOp::ComponentTransfer => wr::FilterOp::ComponentTransfer,
+            FilterOp::ColorMatrix(m) => wr::FilterOp::ColorMatrix([
+                m[0], m[5], m[10], m[15], m[1], m[6], m[11], m[16], m[2], m[7], m[12], m[17], m[3], m[8], m[13], m[18], m[4], m[9], m[14],
+                m[19],
+            ]),
             FilterOp::Flood(c) => wr::FilterOp::Flood(c),
         }
     }

@@ -255,6 +255,14 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
     filter(child, angle.into_var().map(|&a| cf::hue_rotate(a)))
 }
 
+/// Custom color filter.
+///
+/// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
+#[property(context, default(cf::ColorMatrix::identity()))]
+pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -> impl UiNode {
+    filter(child, matrix.into_var().map(|&m| cf::color_matrix(m)))
+}
+
 /// Opacity/transparency of the widget.
 ///
 /// This property provides the same visual result as setting [`filter`] to [`color::filter::opacity(opacity)`](color::filter::opacity),

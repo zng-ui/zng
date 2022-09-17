@@ -1,14 +1,14 @@
 use crate::prelude::new_widget::*;
 
 /// Node that fills the widget area with a color.
-pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
-    struct FillColorNode<C> {
+pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
+    struct FloodNode<C> {
         color: C,
         frame_key: FrameVarKey<RenderColor>,
         final_size: PxSize,
     }
     #[impl_ui_node(none)]
-    impl<C: Var<Rgba>> UiNode for FillColorNode<C> {
+    impl<C: Var<Rgba>> UiNode for FloodNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.color);
         }
@@ -43,7 +43,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     }
 
     let color = color.into_var();
-    FillColorNode {
+    FloodNode {
         frame_key: FrameVarKey::new_unique(&color),
         color,
         final_size: PxSize::zero(),

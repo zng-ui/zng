@@ -66,7 +66,7 @@ fn image() -> impl Widget {
             }
 
             nodes![
-                fill_color(colors::WHITE),
+                flood(colors::WHITE),
                 gradient(0, colors::RED),
                 gradient(20, colors::RED),
                 gradient(40, colors::RED),

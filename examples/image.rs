@@ -105,6 +105,12 @@ fn app_main() {
                             img_filter(filters::opacity(50.pct())),
                             img_filter(filters::invert(true)),
                             img_filter(filters::hue_rotate(-(90.deg()))),
+                            img_filter(filters::color_matrix([
+                                2.0,  1.0,  1.0,  1.0,  0.0,
+                                0.0,  1.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  1.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  1.0,  0.0,
+                            ])),
                         ]
                     ),
 
@@ -168,7 +174,14 @@ fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl Widget {
         spacing = 2;
 
         items = widgets![
-            sub_title(filter.map_debug()),
+            sub_title(filter.map(|f| {
+                let s = format!("{f:?}");
+                if s.starts_with("color_matrix") {
+                    Text::from_static("color_matrix([...])")
+                } else {
+                    Text::from(s)
+                }
+            })),
             image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                 size = (200, 100);

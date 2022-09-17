@@ -2,7 +2,7 @@
 
 use crate::core::gradient::{GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
-use crate::widgets::{fill_color, linear_gradient};
+use crate::widgets::{flood, linear_gradient};
 
 use super::hit_test_mode;
 
@@ -94,7 +94,7 @@ pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 /// [`background`]: fn@background
 #[property(fill, default(colors::BLACK.transparent()))]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    background(child, fill_color(color))
+    background(child, flood(color))
 }
 
 /// Linear gradient background property.
@@ -309,7 +309,7 @@ pub fn foreground_highlight(
 /// [`foreground`]: fn@foreground
 #[property(fill, default(colors::BLACK.transparent()))]
 pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    foreground(child, fill_color(color))
+    foreground(child, flood(color))
 }
 
 /// Linear gradient overlay property.

@@ -145,16 +145,14 @@ impl Surface {
 
     pub fn set_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {
         if self.size != size || (self.scale_factor - scale_factor).abs() > 0.001 {
-            if self.document_id == document_id {
-                self.size = size;
-                self.scale_factor = scale_factor;
-                self.context.make_current();
-                let px_size = size.to_px(self.scale_factor);
-                self.context.resize(px_size.to_winit());
-                self.resized = true;
-            } else {
-                todo!()
-            }
+            debug_assert_eq!(self.document_id, document_id);
+
+            self.size = size;
+            self.scale_factor = scale_factor;
+            self.context.make_current();
+            let px_size = size.to_px(self.scale_factor);
+            self.context.resize(px_size.to_winit());
+            self.resized = true;
         }
     }
 
@@ -311,10 +309,6 @@ impl Surface {
 
     pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageLoadedData>) {
         debug_assert_eq!(self.document_id, msg.document_id);
-
-        if self.document_id != msg.document_id {
-            todo!("document rendering is not implemented in WR");
-        }
 
         let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
         self.rendered_frame_id = frame_id;

@@ -5,6 +5,7 @@ use std::fmt;
 use crate::{
     color::{RenderColor, Rgba},
     context::LayoutMetrics,
+    impl_from_and_into_var,
     render::{webrender_api as wr, FilterOp, FrameValue},
     units::*,
 };
@@ -151,6 +152,18 @@ impl Filter {
     pub fn hue_rotate<A: Into<AngleDegree>>(self, angle: A) -> Self {
         self.op(FilterOp::HueRotate(angle.into().0))
     }
+
+    /// Add a filter that fills the pixel space with `color`.
+    pub fn flood<C: Into<Rgba>>(self, color: C) -> Self {
+        self.op(FilterOp::Flood(color.into().into()))
+    }
+
+    /// Custom filter.
+    ///
+    /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
+    pub fn color_matrix<M: Into<ColorMatrix>>(self, matrix: M) -> Self {
+        self.op(FilterOp::ColorMatrix(matrix.into().0))
+    }
 }
 impl fmt::Debug for Filter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -224,11 +237,8 @@ impl fmt::Debug for FilterData {
                         s.blur_radius,
                         Rgba::from(s.color)
                     ),
-                    FilterOp::ColorMatrix(_) => todo!(),
-                    FilterOp::SrgbToLinear => todo!(),
-                    FilterOp::LinearToSrgb => todo!(),
-                    FilterOp::ComponentTransfer => todo!(),
-                    FilterOp::Flood(_) => todo!(),
+                    FilterOp::ColorMatrix(m) => write!(f, "color_matrix({:?})", ColorMatrix(*m)),
+                    FilterOp::Flood(c) => write!(f, "flood({})", Rgba::from(*c)),
                 },
                 FilterData::Blur(l) => write!(f, "blur({l:?})"),
                 FilterData::DropShadow {
@@ -282,4 +292,84 @@ pub fn saturate<A: Into<Factor>>(amount: A) -> Filter {
 /// New [`Filter::hue_rotate`].
 pub fn hue_rotate<A: Into<AngleDegree>>(angle: A) -> Filter {
     Filter::default().hue_rotate(angle)
+}
+/// New [`Filter::flood`].
+pub fn flood<C: Into<Rgba>>(color: C) -> Filter {
+    Filter::default().flood(color)
+}
+/// New [`Filter::color_matrix`].
+pub fn color_matrix<M: Into<ColorMatrix>>(matrix: M) -> Filter {
+    Filter::default().color_matrix(matrix)
+}
+
+/// Represents a custom color filter.
+///
+/// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
+#[derive(Clone, Copy)]
+pub struct ColorMatrix(pub [f32; 20]);
+impl ColorMatrix {
+    /// Matrix that does not alter any color.
+    #[rustfmt::skip]
+    pub const fn identity() -> Self {
+        ColorMatrix([
+            1.0,  0.0,  0.0,  0.0,  0.0,
+            0.0,  1.0,  0.0,  0.0,  0.0,
+            0.0,  0.0,  1.0,  0.0,  0.0,
+            0.0,  0.0,  0.0,  1.0,  0.0,
+        ])
+    }
+}
+impl fmt::Debug for ColorMatrix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self == &ColorMatrix::identity() {
+            if f.alternate() {
+                write!(f, "ColorMatrix::")?;
+            }
+            return write!(f, "identity()");
+        }
+
+        if f.alternate() {
+            write!(f, "ColorMatrix(")?;
+        }
+        writeln!(f, "[")?;
+        for row in 0..4 {
+            write!(f, "    ")?;
+            for column in 0..5 {
+                let v = self.0[row * column];
+                if v < 0.0 {
+                    write!(f, "{:.3}, ", v)?;
+                } else {
+                    write!(f, " {:.3}, ", v)?;
+                }
+            }
+            writeln!(f)?;
+        }
+        write!(f, "]")?;
+        if f.alternate() {
+            write!(f, ")")?;
+        }
+        Ok(())
+    }
+}
+impl_from_and_into_var! {
+    fn from(matrix: [f32; 20]) -> ColorMatrix {
+        ColorMatrix(matrix)
+    }
+}
+impl Default for ColorMatrix {
+    fn default() -> Self {
+        Self::identity()
+    }
+}
+impl PartialEq for ColorMatrix {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.iter().zip(&other.0).all(|(&a, &b)| about_eq(a, b, 0.00001))
+    }
+}
+impl std::hash::Hash for ColorMatrix {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for f in self.0 {
+            about_eq_hash(f, 0.00001, state);
+        }
+    }
 }

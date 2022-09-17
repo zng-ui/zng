@@ -876,6 +876,7 @@ pub mod widgets;
 ///
 /// App::default().run_window(|_| {
 ///     // ..
+/// # unimplemented!()
 /// })
 /// ```
 ///
