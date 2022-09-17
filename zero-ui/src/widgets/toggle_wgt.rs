@@ -373,7 +373,7 @@ pub mod properties {
 
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 SELECTOR_VAR.get(ctx.vars).instance.borrow().subscribe(ctx, subs);
-                subs.vars(ctx).var(&self.value).var(&SELECTOR_VAR).var(&DESELECT_ON_DEINIT_VAR);
+                subs.vars(ctx).var(&self.value).var(&SELECTOR_VAR).var(&DESELECT_ON_NEW_VAR);
                 subs.event(ClickEvent);
                 self.child.subscriptions(ctx, subs);
             }
@@ -402,7 +402,7 @@ pub mod properties {
             fn update(&mut self, ctx: &mut WidgetContext) {
                 let selected = if let Some(new) = self.value.get_new(ctx.vars) {
                     // auto select new.
-                    let selected = if SELECT_ON_NEW_VAR.copy(ctx.vars) {
+                    let selected = if self.checked.copy(ctx) == Some(true) && SELECT_ON_NEW_VAR.copy(ctx.vars) {
                         Self::select(ctx, new)
                     } else {
                         Self::is_selected(ctx, new)
@@ -424,7 +424,8 @@ pub mod properties {
                 };
                 self.checked.set_ne(ctx.vars, selected);
 
-                if SELECT_ON_NEW_VAR.copy(ctx) {
+                if DESELECT_ON_NEW_VAR.copy(ctx) && selected {
+                    // save a clone of the value to reference it on deselection triggered by variable value changing.
                     if self.prev_value.is_none() {
                         let value = self.value.get_clone(ctx);
                         self.prev_value = Some(value);
@@ -476,7 +477,7 @@ pub mod properties {
         with_context_var(child, DESELECT_ON_DEINIT_VAR, enabled)
     }
 
-    /// If [`value`] selects the new value when the value variable changes and the previous value was selected.
+    /// If [`value`] selects the new value when the variable changes and the previous value was selected.
     ///
     /// [`value`]: fn@value
     #[property(context, default(SELECT_ON_NEW_VAR))]
@@ -484,7 +485,7 @@ pub mod properties {
         with_context_var(child, SELECT_ON_NEW_VAR, enabled)
     }
 
-    /// If [`value`] deselects the previously selected value when the value variable changes.
+    /// If [`value`] deselects the previously selected value when the variable changes.
     ///
     /// [`value`]: fn@value
     #[property(context, default(DESELECT_ON_NEW_VAR))]
@@ -511,7 +512,7 @@ pub mod properties {
         /// [`deselect_on_deinit`]: fn@deselect_on_deinit
         pub static DESELECT_ON_DEINIT_VAR: bool = false;
 
-        /// If [`value`] selects the new value when the value variable changes and the previous value was selected.
+        /// If [`value`] selects the new value when the variable changes and the previous value was selected.
         ///
         /// Use the [`select_on_new`] property to set. By default is `true`.
         ///
@@ -519,7 +520,7 @@ pub mod properties {
         /// [`select_on_new`]: fn@select_on_new
         pub static SELECT_ON_NEW_VAR: bool = true;
 
-        /// If [`value`] deselects the previously selected value when the value variable changes.
+        /// If [`value`] deselects the previously selected value when the variable changes.
         ///
         /// Use the [`deselect_on_new`] property to set. By default is `false`.
         ///

@@ -103,7 +103,7 @@ fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widg
     }
     fn primary_color(c: Rgba) -> impl Widget {
         let c = c.desaturate(50.pct());
-        let c = theme::pair(rgba(255, 255, 255, 20.pct()).mix_normal(c), rgba(0, 0, 0, 20.pct()).mix_normal(c));
+        let c = theme::pair(rgba(0, 0, 0, 20.pct()).mix_normal(c), rgba(255, 255, 255, 20.pct()).mix_normal(c));
         color_btn(c, false)
     }
 
@@ -472,10 +472,10 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
     container! {
         id = "close-dialog";
         modal = true;
-        background_color = colors::WHITE.with_alpha(10.pct());
+        background_color = theme::pair(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         content_align = Align::CENTER;
         content = container! {
-            background_color = theme::pair(colors::WHITE.with_alpha(90.pct()), colors::BLACK.with_alpha(90.pct()));
+            background_color = theme::pair(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
