@@ -467,14 +467,14 @@ impl GlContext {
                 if let Some(h) = headless {
                     h.resize(&self.gl, size.width as _, size.height as _);
                 } else {
-                    let width = NonZeroU32::new(size.width).unwrap();
-                    let height = NonZeroU32::new(size.height).unwrap();
+                    let width = NonZeroU32::new(size.width.max(1)).unwrap();
+                    let height = NonZeroU32::new(size.height.max(1)).unwrap();
                     surface.resize(context, width, height);
                 }
             }
             GlBackend::Swgl { context, .. } => {
                 // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
-                context.init_default_framebuffer(0, 0, size.width as i32, size.height as i32, 0, std::ptr::null_mut());
+                context.init_default_framebuffer(0, 0, size.width.max(1) as i32, size.height.max(1) as i32, 0, std::ptr::null_mut());
             }
             GlBackend::Dropped => unreachable!(),
         }

@@ -2,8 +2,8 @@
     - The world "theme" implies a more encompassing thing.
     - Right now we can have multiple `theme!` instances per widget, the name `style!` is better.
     - Rename `themable!` to `stylable!`.
-    - Rename `WindowTheme` to `Theme`.
-    - Implement `theme` context property to change the `Theme` of parts of the screen.
+    - Rename `WindowTheme` to `ColorScheme`.
+    - Implement `color_scheme` context property to change the `ColorScheme` of parts of the screen.
 
 * Implement all `todo!` code.
 
