@@ -149,10 +149,10 @@ pub mod toggle {
         /// [`value`]: #wp-value
         properties::is_checked;
 
-        /// Toggle dark and light themes.
+        /// Toggle style.
         ///
-        /// Set to [`vis::THEME_VAR`] by default.
-        theme = vis::THEME_VAR;
+        /// Set to [`vis::STYLE_VAR`] by default.
+        style = vis::STYLE_VAR;
     }
 }
 
@@ -789,55 +789,55 @@ pub mod properties {
     }
 }
 
-/// Toggle themes, visual properties and context vars.
+/// Toggle style, visual properties and context vars.
 pub mod vis {
     use super::*;
 
     use crate::widgets::button::vis as btn_vis;
 
     context_var! {
-        /// Toggle theme in a context.
+        /// Toggle style in a context.
         ///
-        /// Is the [`default_theme!`] by default.
+        /// Is the [`default_style!`] by default.
         ///
-        /// [`default_theme!`]: mod@default_theme
-        pub static THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| default_theme!());
+        /// [`default_style!`]: mod@default_style
+        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_, _| default_style!());
     }
 
-    /// Sets the toggle theme in a context, the parent theme is fully replaced.
-    #[property(context, default(THEME_VAR))]
-    pub fn replace_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, THEME_VAR, theme)
+    /// Sets the toggle style in a context, the parent style is fully replaced.
+    #[property(context, default(STYLE_VAR))]
+    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+        with_context_var(child, STYLE_VAR, style)
     }
 
-    /// Extends the toggle theme in a context, the parent theme is used, properties of the same name set in
-    /// `theme` override the parent theme.
-    #[property(context, default(ThemeGenerator::nil()))]
-    pub fn extend_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        themable::with_theme_extension(child, THEME_VAR, theme)
+    /// Extends the toggle style in a context, the parent style is used, properties of the same name set in
+    /// `style` override the parent style.
+    #[property(context, default(StyleGenerator::nil()))]
+    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+        styleable::with_style_extension(child, STYLE_VAR, style)
     }
 
-    /// Default toggle theme.
+    /// Default toggle style.
     ///
-    /// Extends the [`button::vis::default_theme`] to have the *pressed* look when [`is_checked`].
+    /// Extends the [`button::vis::default_style`] to have the *pressed* look when [`is_checked`].
     ///
-    /// [`button::vis::default_theme`]: mod@crate::widgets::button::vis::default_theme
+    /// [`button::vis::default_style`]: mod@crate::widgets::button::vis::default_style
     /// [`is_checked`]: fn@toggle::is_checked
-    #[widget($crate::widgets::toggle::vis::default_theme)]
-    pub mod default_theme {
+    #[widget($crate::widgets::toggle::vis::default_style)]
+    pub mod default_style {
         use super::*;
 
-        inherit!(btn_vis::default_theme);
+        inherit!(btn_vis::default_style);
 
         properties! {
             properties::is_checked;
 
             /// When the toggle is checked.
             when self.is_checked  {
-                background_color = theme::color_pressed(btn_vis::BASE_COLORS_VAR);
+                background_color = crate::widgets::button::vis::color_scheme_pressed(btn_vis::BASE_COLORS_VAR);
                 border = {
                     widths: 1,
-                    sides:theme::color_pressed(btn_vis::BASE_COLORS_VAR).map_into(),
+                    sides: crate::widgets::button::vis::color_scheme_pressed(btn_vis::BASE_COLORS_VAR).map_into(),
                 };
             }
         }

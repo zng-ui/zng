@@ -6,11 +6,12 @@
 use std::marker::PhantomData;
 use std::time::Duration;
 
+use crate::core::color::ColorScheme;
 use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
     AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowLoadEvent,
-    WindowLoadingHandle, WindowState, WindowTheme, WindowVars, Windows,
+    WindowLoadingHandle, WindowState, WindowVars, Windows,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -104,7 +105,7 @@ set_properties! {
     parent: Option<WindowId>,
     modal: bool,
 
-    theme: Option<WindowTheme>,
+    color_scheme: Option<ColorScheme>,
 
     frame_capture_mode: FrameCaptureMode,
 }

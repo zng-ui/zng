@@ -41,7 +41,7 @@ fn app_main() {
             start_position = StartPosition::CenterMonitor;
             resizable = false;
 
-            theme = WindowTheme::Dark;
+            color_scheme = ColorScheme::Dark;
 
             icon = WindowIcon::render(clone_move!(background_color, |_| container! {
                 size = (36, 36);

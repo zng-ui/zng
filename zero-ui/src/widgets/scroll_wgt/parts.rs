@@ -43,7 +43,7 @@ pub mod scrollbar {
         )
     }
 
-    /// Theme variables and properties.
+    /// Style variables and properties.
     pub mod vis {
         use crate::prelude::new_property::*;
 
@@ -86,7 +86,7 @@ pub mod thumb {
         /// Width if orientation is vertical, otherwise height if orientation is horizontal.
         cross_length(impl IntoVar<Length>) = 16;
 
-        /// Fills the thumb with [`theme::BACKGROUND_VAR`].
+        /// Fills the thumb with [`vis::BACKGROUND_VAR`].
         background_color = vis::BACKGROUND_VAR;
 
         /// Enabled by default.
@@ -248,7 +248,7 @@ pub mod thumb {
         static THUMB_OFFSET_VAR: Factor = 0.fct();
     }
 
-    /// Theme variables.
+    /// Style variables.
     pub mod vis {
         use crate::prelude::new_property::*;
 

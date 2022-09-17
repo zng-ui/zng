@@ -69,9 +69,7 @@ Widgets that stay at the root of the Window and define type of app interaction t
 
 ## Themes
 
-Figure out a pattern for supporting editing the visual appearance of widgets.
-
-* Dark/Light default.
+* Is a style collection.
 * High contrast.
 * OS imitation?
 
@@ -82,8 +80,8 @@ Figure out a pattern for supporting editing the visual appearance of widgets.
 
 ## Dialogs
 
-* Message dialogs (themeable?).
-* File dialogs (not themeable?).
+* Message dialogs (styleable?).
+* File dialogs (not styleable?).
 
 ## Inspector
 

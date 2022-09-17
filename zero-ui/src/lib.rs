@@ -901,7 +901,7 @@ pub mod prelude {
         async_clone_move,
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
-        color::{self, colors, filters, hex, hsl, hsla, rgb, rgba, Rgba},
+        color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
         command::{Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope},
         context::{AppContext, WidgetContext, WindowContext},
         event::Events,
@@ -940,7 +940,7 @@ pub mod prelude {
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition,
             WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
-            WindowOpenArgs, WindowState, WindowTheme, WindowVars, Windows,
+            WindowOpenArgs, WindowState, WindowVars, Windows,
         },
         FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
     };
@@ -977,9 +977,9 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::scroll::ScrollMode;
     #[doc(no_inline)]
-    pub use crate::widgets::theme::theme_generator;
+    pub use crate::widgets::style::style_generator;
     #[doc(no_inline)]
-    pub use crate::widgets::window::{nodes::WINDOW_THEME_VAR, AnchorMode, LayerIndex, WindowLayers};
+    pub use crate::widgets::window::{AnchorMode, LayerIndex, WindowLayers};
 
     /// All the types you need to declare a new property.
     ///
@@ -1114,9 +1114,7 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
                 WidgetLayout, WidgetSubscriptions,
             },
-            widget_mixin, widget_vec, widgets,
-            window::WindowTheme,
-            BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget, WidgetId,
+            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
@@ -1143,11 +1141,9 @@ pub mod prelude {
         pub use crate::widgets::{
             container, element,
             layouts::{stack_nodes, stack_nodes_layout_by},
-            themable, theme,
-            theme::{theme_generator, ThemeGenerator},
-            view_generator,
-            window::nodes::WINDOW_THEME_VAR,
-            DataUpdate, ViewGenerator,
+            style,
+            style::{style_generator, StyleGenerator},
+            styleable, view_generator, DataUpdate, ViewGenerator,
         };
     }
 }

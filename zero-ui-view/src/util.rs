@@ -2,8 +2,8 @@ use std::cell::Cell;
 
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
-    units::*, ButtonState, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce, TouchPhase, VideoMode,
-    WindowTheme,
+    units::*, ButtonState, ColorScheme, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce, TouchPhase,
+    VideoMode,
 };
 
 /// Sets a window subclass that calls a raw event handler.
@@ -342,10 +342,10 @@ pub(crate) fn winit_mouse_button_to_zui(b: winit::event::MouseButton) -> MouseBu
     }
 }
 
-pub(crate) fn winit_theme_to_zui(t: winit::window::Theme) -> WindowTheme {
+pub(crate) fn winit_theme_to_zui(t: winit::window::Theme) -> ColorScheme {
     match t {
-        winit::window::Theme::Light => WindowTheme::Light,
-        winit::window::Theme::Dark => WindowTheme::Dark,
+        winit::window::Theme::Light => ColorScheme::Light,
+        winit::window::Theme::Dark => ColorScheme::Dark,
     }
 }
 

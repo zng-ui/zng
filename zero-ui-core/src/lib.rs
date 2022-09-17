@@ -1106,7 +1106,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// A variant of the `new` constructor, if present all widget properties, when blocks and other constructor nodes are collected
 /// in a [`DynWidget`] that is passed as the first argument of the `new_dyn` constructor, this allows a widget to be dynamically
-/// altered during runtime, such as the application of a * theme*. The `new_dyn` constructor may capture other properties and can
+/// altered during runtime, such as the application of a *style*. The `new_dyn` constructor may capture other properties and can
 /// return any type, just like the `new` constructor
 ///
 /// Only one of the `new` and `new_dyn` must be present in a widget.
@@ -1135,7 +1135,7 @@ pub use zero_ui_proc_macros::property;
 /// foo! {
 ///     when self.is_hovered { }
 ///
-///     theme = theme! {
+///     style = style! {
 ///         when self.is_hovered { }
 ///     }
 /// }
@@ -1143,7 +1143,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// In the example above the widget ends-up with **two** instances of `is_hovered`, one instance is shared by the expressions in `properties!`
-/// and `foo!`, the other instance is from the `theme!` because it is only known during runtime that it will apply to the widget. You can enable
+/// and `foo!`, the other instance is from the `style!` because it is only known during runtime that it will apply to the widget. You can enable
 /// this effect in any dynamic widget by setting the `#[dyn_retained = true]` pseudo-attribute in property assigns outside of `when` blocks, the
 /// *retained* properties will be *overridden* into a single instance by the widget inheritance and instantiation rules, but runtime overrides
 /// will retain both instances.
@@ -1156,7 +1156,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # macro_rules! fake { () => {
-/// theme! {
+/// style! {
 ///     when self.is_pressed {
 ///         background_color = colors::GREEN;
 ///     }
@@ -1164,14 +1164,14 @@ pub use zero_ui_proc_macros::property;
 /// # }}
 /// ```
 ///
-/// In the example above a theme sets the `background_color` only in a `when` block, if the theme is set on a widget that sets the
+/// In the example above a style sets the `background_color` only in a `when` block, if the style is set on a widget that sets the
 /// background color that value will be used when the widget is not pressed, if no background is set anywhere else in the widget the
 /// property default value is used, you can set this *default* value by setting the property normally and annotating this assign with
 /// the `#[dyn_when_default]` pseudo attribute.
 ///
 /// ```
 /// # macro_rules! fake { () => {
-/// theme! {
+/// style! {
 ///     #[dyn_when_default]
 ///     background_color = colors::RED;
 ///     when self.is_pressed {

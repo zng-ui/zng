@@ -34,7 +34,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         move |p: &DipPoint, s: &DipSize| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}") }
     );
 
-    let default_background = theme::pair(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+    let default_background = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
     let background = var(colors::BLACK).easing(150.ms(), easing::linear);
 
     window! {
@@ -103,7 +103,7 @@ fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widg
     }
     fn primary_color(c: Rgba) -> impl Widget {
         let c = c.desaturate(50.pct());
-        let c = theme::pair(rgba(0, 0, 0, 20.pct()).mix_normal(c), rgba(255, 255, 255, 20.pct()).mix_normal(c));
+        let c = color_scheme_map(rgba(0, 0, 0, 20.pct()).mix_normal(c), rgba(255, 255, 255, 20.pct()).mix_normal(c));
         color_btn(c, false)
     }
 
@@ -472,18 +472,18 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
     container! {
         id = "close-dialog";
         modal = true;
-        background_color = theme::pair(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
+        background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         content_align = Align::CENTER;
         content = container! {
-            background_color = theme::pair(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
+            background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 4;
 
-            button::vis::replace_theme = theme_generator!(|_, _| {
-                button::vis::default_theme! {
+            button::vis::replace_style = style_generator!(|_, _| {
+                button::vis::default_style! {
                     padding = 4;
                     corner_radius = unset!;
                 }

@@ -954,7 +954,7 @@ impl App {
                     });
                 }
             }
-            WindowEvent::ThemeChanged(t) => self.notify(Event::WindowThemeChanged(id, util::winit_theme_to_zui(t))),
+            WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zui(t))),
             WindowEvent::Ime(_) => {}
             WindowEvent::Occluded(_) => {}
         }
@@ -1347,7 +1347,7 @@ impl Api for App {
                 position: DipPoint::zero(),
                 size: config.state.restore_rect.size,
                 scale_factor: 1.0,
-                theme: WindowTheme::Dark,
+                color_scheme: ColorScheme::Light,
                 state: WindowStateAll {
                     state: WindowState::Fullscreen,
                     restore_rect: DipRect::from_size(config.state.restore_rect.size),
@@ -1382,7 +1382,7 @@ impl Api for App {
                 scale_factor: win.scale_factor(),
                 render_mode: win.render_mode(),
                 state: win.state(),
-                theme: win.theme(),
+                color_scheme: win.color_scheme(),
             };
 
             self.windows.push(win);

@@ -53,7 +53,7 @@ fn app_main() {
 fn alt_scope() -> impl Widget {
     h_stack! {
         alt_focus_scope = true;
-        button::vis::replace_theme = theme_generator!(|_, _| button::vis::default_theme! {
+        button::vis::replace_style = style_generator!(|_, _| button::vis::default_style! {
             border = unset!;
             corner_radius = unset!;
         });
@@ -164,7 +164,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            background_color = theme::pair(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
+            background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
             content = v_stack! {
@@ -231,12 +231,12 @@ fn delayed_focus() -> impl Widget {
                 text = "delayed target";
                 font_style = FontStyle::Italic;
                 text_align = TextAlign::CENTER_MIDDLE;
-                background_color = theme::pair(rgb(30, 30, 30), rgb(225, 225, 225));
+                background_color = color_scheme_map(rgb(30, 30, 30), rgb(225, 225, 225));
 
                 focusable = true;
                 when self.is_focused {
                     text = "focused";
-                    background_color = theme::pair(colors::DARK_GREEN, colors::LIGHT_GREEN);
+                    background_color = color_scheme_map(colors::DARK_GREEN, colors::LIGHT_GREEN);
                 }
             },
         ]
@@ -305,7 +305,7 @@ fn commands() -> impl Widget {
                 text = cmd.name_with_shortcut();
 
                 when *#{cmd.enabled()} {
-                    color = theme::pair(colors::WHITE, colors::BLACK);
+                    color = color_scheme_map(colors::WHITE, colors::BLACK);
                 }
             }.boxed_wgt()
         }).collect::<WidgetVec>();
@@ -345,7 +345,7 @@ fn nested_focusables() -> impl Widget {
                 window! {
                     title = "Focus Example - Nested Focusables";
 
-                    theme = WindowTheme::Dark;
+                    color_scheme = ColorScheme::Dark;
                     background_color = colors::DIM_GRAY;
 
                     // zero_ui::properties::inspector::show_center_points = true;

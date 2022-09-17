@@ -14,8 +14,8 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData,
-    RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll, WindowTheme,
+    units::*, ColorScheme, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId,
+    ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -812,21 +812,21 @@ impl Window {
     }
 
     #[cfg(windows)]
-    /// Returns the system theme for the window.
-    pub fn theme(&self) -> WindowTheme {
+    /// Returns the preferred color scheme for the window.
+    pub fn color_scheme(&self) -> ColorScheme {
         use winit::platform::windows::WindowExtWindows;
 
         match self.window.theme() {
-            winit::window::Theme::Light => WindowTheme::Light,
-            winit::window::Theme::Dark => WindowTheme::Dark,
+            winit::window::Theme::Light => ColorScheme::Light,
+            winit::window::Theme::Dark => ColorScheme::Dark,
         }
     }
 
     #[cfg(not(windows))]
-    /// Returns the system theme for the window.
-    pub fn theme(&self) -> WindowTheme {
-        tracing::error!("`theme` not implemented for this OS");
-        WindowTheme::Dark
+    /// Returns the preferred color scheme for the window.
+    pub fn color_scheme(&self) -> ColorScheme {
+        tracing::error!("`color_scheme` not implemented for this OS");
+        ColorScheme::default()
     }
 
     fn set_inner_position(&self, pos: DipPoint) {

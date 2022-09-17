@@ -25,13 +25,14 @@ use super::{
     DeviceId,
 };
 use crate::{
+    color::ColorScheme,
     event::*,
     keyboard::{Key, KeyState, ScanCode},
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase},
     render::FrameId,
     text::FontAntiAliasing,
     units::{DipPoint, DipSize, Factor, PxRect},
-    window::{EventCause, MonitorId, WindowId, WindowTheme},
+    window::{EventCause, MonitorId, WindowId},
 };
 
 event_args! {
@@ -476,13 +477,13 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowThemeChangedEvent`].
-    pub struct RawWindowThemeChangedArgs {
-        /// Window for which the theme was changed.
+    /// Arguments for the [`RawColorSchemeChangedEvent`].
+    pub struct RawColorSchemeChangedArgs {
+        /// Window for which the preference was changed.
         pub window_id: WindowId,
 
-        /// New theme.
-        pub theme: WindowTheme,
+        /// New preference.
+        pub color_scheme: ColorScheme,
 
         ..
 
@@ -684,8 +685,8 @@ event! {
     /// Monitors added or removed.
     pub RawMonitorsChangedEvent: RawMonitorsChangedArgs;
 
-    /// System theme changed for a window.
-    pub RawWindowThemeChangedEvent: RawWindowThemeChangedArgs;
+    /// Color scheme preference changed for a window.
+    pub RawColorSchemeChangedEvent: RawColorSchemeChangedArgs;
 
     /// Change in system font anti-aliasing config.
     pub RawFontAaChangedEvent: RawFontAaChangedArgs;

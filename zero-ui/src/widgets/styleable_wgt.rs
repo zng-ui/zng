@@ -1,0 +1,388 @@
+//! Style building blocks.
+
+use std::{fmt, rc::Rc};
+
+use crate::{
+    core::{DynPropImportance, DynWidget, DynWidgetNode, DynWidgetSnapshot, NilUiNode},
+    prelude::new_widget::*,
+};
+
+/// Represents a set of properties that can be applied to any styleable widget.
+///
+/// This *widget* can be instantiated using the same syntax as any widget, but it produces a [`Style`]
+/// instance instead of an widget. Widgets that inherit from [`styleable`] can be modified using properties
+/// defined in a style, the properties are dynamically spliced into each widget instance.
+///
+/// Styles must only visually affect the styled widget, this is a semantic distinction only, any property can be set
+/// in a style, so feel free to setup event handlers in styles, but only if they are used to affect the widget visually.
+///
+/// # Derived Styles
+///
+/// Note that you can declare a custom style *widget* using the same inheritance mechanism of normal widgets, all widget
+/// constructors are no-op and can be ignored, except the [`new_dyn`].
+///
+/// [`styleable`]: mod@styleable
+#[widget($crate::widgets::style)]
+pub mod style {
+    use super::*;
+
+    #[doc(inline)]
+    pub use super::{style_generator, Style, StyleGenerator};
+
+    properties! {
+        remove { id; visibility; enabled }
+    }
+
+    fn new_child() -> NilUiNode {
+        NilUiNode
+    }
+
+    fn new_child_layout(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    fn new_child_context(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    fn new_fill(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    fn new_border(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    fn new_size(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    fn new_layout(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    fn new_event(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    fn new_context(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    /// style constructor.
+    pub fn new_dyn(widget: DynWidget) -> Style {
+        Style::from_dyn_widget(widget)
+    }
+}
+
+/// Styleable widget base.
+///
+/// Widgets that inherit from this one have a `style` property that can be set to a [`StyleGenerator`]
+/// that generates properties that are dynamically injected into the widget to alter its appearance.
+///
+/// Styleable widgets usually have a more elaborate style setup that supports mixing multiple contextual styles, see [`styleable::with_style_extension`]
+/// for a full styleable widget example.
+///
+/// # Derived Widgets
+///
+/// Widgets that inherit from this one must delegate to [`styleable::new_dyn`], this happens automatically unless you need to override
+/// the *new* constructor.
+#[widget($crate::widgets::styleable)]
+pub mod styleable {
+    use super::*;
+
+    properties! {
+        /// Style generator used for the widget.
+        ///
+        /// Properties and `when` conditions in the generated style are applied to the widget as
+        /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
+        /// prefer property binding and `when` conditions to cause visual changes that happen often.
+        ///
+        /// Is `nil` by default.
+        style(impl IntoVar<StyleGenerator>) = StyleGenerator::nil();
+    }
+
+    /// Styleable `new`, captures the `id` and `style` properties.
+    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl Widget {
+        struct StyleableNode<T> {
+            child: DynWidgetNode,
+            snapshot: Option<DynWidgetSnapshot>,
+            style: T,
+        }
+        #[impl_ui_node(child)]
+        impl<T: Var<StyleGenerator>> UiNode for StyleableNode<T> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                if let Some(style) = self.style.get(ctx.vars).generate(ctx, &StyleArgs {}) {
+                    self.snapshot = Some(self.child.snapshot());
+                    self.child.extend(style.into_node());
+                }
+                self.child.init(ctx);
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.child.deinit(ctx);
+                if let Some(snap) = self.snapshot.take() {
+                    self.child.restore(snap).unwrap();
+                }
+            }
+
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                subs.var(ctx, &self.style);
+                self.child.subscriptions(ctx, subs);
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                if self.style.is_new(ctx.vars) {
+                    self.deinit(ctx);
+                    self.init(ctx);
+                    ctx.updates.info_layout_and_render();
+                } else {
+                    self.child.update(ctx);
+                }
+            }
+        }
+        let child = StyleableNode {
+            child: widget.into_node(true),
+            snapshot: None,
+            style: style.into_var(),
+        };
+        implicit_base::new(child, id)
+    }
+
+    /// Helper for declaring properties that [extend] a style set from a context var.
+    ///
+    /// [extend]: StyleGenerator::with_extend
+    ///
+    /// # Examples
+    ///
+    /// Example styleable widget defining a `foo::vis::extend_style` property that extends the contextual style.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// use zero_ui::prelude::new_widget::*;
+    ///
+    /// #[widget($crate::foo)]
+    /// pub mod foo {
+    ///     use super::*;
+    ///
+    ///     inherit!(styleable);
+    ///
+    ///     properties! {
+    ///         /// Foo style.
+    ///         ///
+    ///         /// The style is set to [`vis::STYLE_VAR`], settings this directly replaces the style.
+    ///         /// You can use [`vis::replace_style`] and [`vis::extend_style`] to set or modify the
+    ///         /// style for all `foo` in a context.
+    ///         style = vis::STYLE_VAR;
+    ///     }
+    ///
+    ///     /// Foo style and visual properties.
+    ///     pub mod vis {
+    ///         use super::*;
+    ///
+    ///         context_var! {
+    ///             /// Foo style.
+    ///             pub static STYLE_VAR: StyleGenerator = style_generator!(|ctx, _args| {
+    ///                 style! {
+    ///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
+    ///                     cursor = CursorIcon::Crosshair;
+    ///                 }
+    ///             });
+    ///         }
+    ///
+    ///         /// Replace the contextual [`STYLE_VAR`] with `style`.
+    ///         #[property(context, default(STYLE_VAR))]
+    ///         pub fn replace_style(
+    ///             child: impl UiNode,
+    ///             style: impl IntoVar<StyleGenerator>
+    ///         ) -> impl UiNode {
+    ///             with_context_var(child, STYLE_VAR, style)
+    ///         }
+    ///
+    ///         /// Extends the contextual [`STYLE_VAR`] with the `style` override.
+    ///         #[property(context, default(StyleGenerator::nil()))]
+    ///         pub fn extend_style(
+    ///             child: impl UiNode,
+    ///             style: impl IntoVar<StyleGenerator>
+    ///         ) -> impl UiNode {
+    ///             styleable::with_style_extension(child, STYLE_VAR, style)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn with_style_extension(
+        child: impl UiNode,
+        style_context: ContextVar<StyleGenerator>,
+        extension: impl IntoVar<StyleGenerator>,
+    ) -> impl UiNode {
+        with_context_var(
+            child,
+            style_context,
+            merge_var!(style_context, extension.into_var(), |base, over| {
+                base.clone().with_extend(over.clone())
+            }),
+        )
+    }
+}
+
+/// Represents a style instance.
+///
+/// Use the [`style!`] *widget* to instantiate.
+///
+/// [`style!`]: mod@style
+#[derive(Default, Debug)]
+pub struct Style {
+    node: DynWidgetNode,
+}
+impl Style {
+    /// Importance of style properties set by default in style widgets.
+    ///
+    /// Is `DynPropImportance::WIDGET - 10`.
+    pub const WIDGET_IMPORTANCE: DynPropImportance = DynPropImportance(DynPropImportance::WIDGET.0 - 10);
+
+    /// Importance of style properties set in style instances.
+    ///
+    /// Is `DynPropImportance::INSTANCE - 10`.
+    pub const INSTANCE_IMPORTANCE: DynPropImportance = DynPropImportance(DynPropImportance::INSTANCE.0 - 10);
+
+    /// Properties and when blocks of this style.
+    pub fn node(&self) -> &DynWidgetNode {
+        &self.node
+    }
+
+    /// Mutable reference to the properties and when blocks of this style.
+    pub fn node_mut(&mut self) -> &mut DynWidgetNode {
+        &mut self.node
+    }
+
+    /// Unwrap the style dynamic widget.
+    pub fn into_node(self) -> DynWidgetNode {
+        self.node
+    }
+
+    /// New style from dynamic widget input.
+    ///
+    /// The importance index of properties is adjusted, the intrinsic constructor and child nodes are discarded.
+    pub fn from_dyn_widget(mut wgt: DynWidget) -> Style {
+        for part in &mut wgt.parts {
+            for p in &mut part.properties {
+                p.importance = match p.importance {
+                    DynPropImportance::WIDGET => Style::WIDGET_IMPORTANCE,
+                    DynPropImportance::INSTANCE => Style::INSTANCE_IMPORTANCE,
+                    custom => custom,
+                };
+            }
+        }
+        wgt.into_node(false).into()
+    }
+
+    /// New style from built dynamic widget.
+    pub fn from_node(node: DynWidgetNode) -> Style {
+        Self { node }
+    }
+
+    /// Overrides `self` with `other`.
+    pub fn extend(&mut self, other: Style) {
+        self.node.extend(other.node);
+    }
+}
+#[impl_ui_node(
+    delegate = &self.node,
+    delegate_mut = &mut self.node,
+)]
+impl UiNode for Style {}
+impl From<Style> for DynWidgetNode {
+    fn from(t: Style) -> Self {
+        t.into_node()
+    }
+}
+impl From<DynWidgetNode> for Style {
+    fn from(p: DynWidgetNode) -> Self {
+        Style::from_node(p)
+    }
+}
+impl From<DynWidget> for Style {
+    fn from(p: DynWidget) -> Self {
+        Style::from_dyn_widget(p)
+    }
+}
+
+/// Arguments for [`StyleGenerator`] closure.
+///
+/// Currently no arguments.
+#[derive(Debug)]
+pub struct StyleArgs {}
+
+/// Boxed shared closure that generates a style instance for a given widget context.
+///
+/// You can also use the [`style_generator!`] macro, it has the advantage of being clone move.
+#[derive(Clone)]
+pub struct StyleGenerator(Option<Rc<dyn Fn(&mut WidgetContext, &StyleArgs) -> Style>>);
+impl Default for StyleGenerator {
+    fn default() -> Self {
+        Self::nil()
+    }
+}
+impl StyleGenerator {
+    /// Default generator, produces an empty style.
+    pub fn nil() -> Self {
+        Self(None)
+    }
+
+    /// If this generator represents no style.
+    pub fn is_nil(&self) -> bool {
+        self.0.is_none()
+    }
+
+    /// New style generator, the `generate` closure is called for each styleable widget, before the widget is inited.
+    pub fn new(generate: impl Fn(&mut WidgetContext, &StyleArgs) -> Style + 'static) -> Self {
+        Self(Some(Rc::new(generate)))
+    }
+
+    /// Generate a style for the styleable widget in the context.
+    ///
+    /// Returns `None` if [`is_nil`], otherwise returns the style.
+    ///
+    /// [`is_nil`]: Self::is_nil
+    pub fn generate(&self, ctx: &mut WidgetContext, args: &StyleArgs) -> Option<Style> {
+        self.0.as_ref().map(|g| g(ctx, args))
+    }
+
+    /// New style generator that generates `self` and `other` and then [`extend`] `self` with `other`.
+    ///
+    /// [`extend`]: Style::extend
+    pub fn with_extend(self, other: StyleGenerator) -> StyleGenerator {
+        if self.is_nil() {
+            other
+        } else if other.is_nil() {
+            self
+        } else {
+            StyleGenerator::new(move |ctx, args| {
+                let mut r = self.generate(ctx, args).unwrap();
+                r.extend(other.generate(ctx, args).unwrap());
+                r
+            })
+        }
+    }
+}
+impl fmt::Debug for StyleGenerator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "StyleGenerator(_)")
+    }
+}
+
+/// <span data-del-macro-root></span> Declares a style generator closure.
+///
+/// The output type is a [`StyleGenerator`], the closure is [`clone_move!`].
+///
+/// [`clone_move!`]: crate::core::clone_move
+#[macro_export]
+macro_rules! style_generator {
+    ($($tt:tt)+) => {
+        $crate::widgets::style::StyleGenerator::new($crate::core::clone_move! {
+            $($tt)+
+        })
+    }
+}
+#[doc(inline)]
+pub use crate::style_generator;

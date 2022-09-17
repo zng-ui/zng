@@ -13,7 +13,7 @@ pub mod checkerboard {
         /// The two checkerboard colors.
         ///
         /// Default is black and white.
-        properties::checkerboard_colors as colors = theme::pair(
+        properties::checkerboard_colors as colors = color_scheme_map(
             (rgb(20, 20, 20), rgb(40, 40, 40)),
             (rgb(202, 202, 204), rgb(253, 253, 253))
         );

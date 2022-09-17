@@ -5,12 +5,12 @@ use std::mem;
 use crate::{
     app::{
         raw_events::{
-            RawFrameRenderedEvent, RawHeadlessOpenEvent, RawWindowChangedEvent, RawWindowFocusArgs, RawWindowFocusEvent,
-            RawWindowOpenEvent, RawWindowOrHeadlessOpenErrorEvent, RawWindowThemeChangedEvent,
+            RawColorSchemeChangedEvent, RawFrameRenderedEvent, RawHeadlessOpenEvent, RawWindowChangedEvent, RawWindowFocusArgs,
+            RawWindowFocusEvent, RawWindowOpenEvent, RawWindowOrHeadlessOpenErrorEvent,
         },
         view_process::*,
     },
-    color::RenderColor,
+    color::{ColorScheme, RenderColor},
     context::{state_map, LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::EventUpdateArgs,
     image::{Image, ImageVar, Images},
@@ -57,8 +57,8 @@ struct HeadedCtrl {
     icon_binding: Option<VarBindingHandle>,
     icon_deadline: Deadline,
     actual_state: Option<WindowState>, // for WindowChangedEvent
-    system_theme: Option<WindowTheme>,
-    parent_theme: Option<ReadOnlyRcVar<WindowTheme>>,
+    system_color_scheme: Option<ColorScheme>,
+    parent_color_scheme: Option<ReadOnlyRcVar<ColorScheme>>,
     actual_parent: Option<WindowId>,
 }
 impl HeadedCtrl {
@@ -85,8 +85,8 @@ impl HeadedCtrl {
             icon: None,
             icon_binding: None,
             icon_deadline: Deadline::timeout(1.secs()),
-            system_theme: None,
-            parent_theme: None,
+            system_color_scheme: None,
+            parent_color_scheme: None,
             actual_parent: None,
             actual_state: None,
         }
@@ -364,24 +364,27 @@ impl HeadedCtrl {
                 // else indicator is send with init.
             }
 
-            let mut update_theme = false;
+            let mut update_color_scheme = false;
 
             if update_parent(ctx, &mut self.actual_parent, &self.vars) {
-                self.parent_theme = self
+                self.parent_color_scheme = self
                     .actual_parent
-                    .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_theme()));
-                update_theme = true;
+                    .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_color_scheme()));
+                update_color_scheme = true;
             }
 
-            if update_theme || self.vars.theme().is_new(ctx) || self.parent_theme.as_ref().map(|t| t.is_new(ctx)).unwrap_or(false) {
-                let theme = self
+            if update_color_scheme
+                || self.vars.color_scheme().is_new(ctx)
+                || self.parent_color_scheme.as_ref().map(|t| t.is_new(ctx)).unwrap_or(false)
+            {
+                let scheme = self
                     .vars
-                    .theme()
+                    .color_scheme()
                     .copy(ctx)
-                    .or_else(|| self.parent_theme.as_ref().map(|t| t.copy(ctx)))
-                    .or(self.system_theme)
-                    .unwrap_or(WindowTheme::Dark);
-                self.vars.0.actual_theme.set_ne(ctx, theme);
+                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.copy(ctx)))
+                    .or(self.system_color_scheme)
+                    .unwrap_or_default();
+                self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
             }
         }
 
@@ -513,16 +516,16 @@ impl HeadedCtrl {
                 self.vars.0.scale_factor.set_ne(ctx, args.data.scale_factor);
 
                 self.state = Some(args.data.state.clone());
-                self.system_theme = Some(args.data.theme);
+                self.system_color_scheme = Some(args.data.color_scheme);
 
-                let theme = self
+                let scheme = self
                     .vars
-                    .theme()
+                    .color_scheme()
                     .copy(ctx)
-                    .or_else(|| self.parent_theme.as_ref().map(|t| t.copy(ctx)))
-                    .or(self.system_theme)
-                    .unwrap_or(WindowTheme::Dark);
-                self.vars.0.actual_theme.set_ne(ctx, theme);
+                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.copy(ctx)))
+                    .or(self.system_color_scheme)
+                    .unwrap_or_default();
+                self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
 
                 ctx.updates.layout_and_render();
 
@@ -530,18 +533,18 @@ impl HeadedCtrl {
                     update(&args.window);
                 }
             }
-        } else if let Some(args) = RawWindowThemeChangedEvent.update(args) {
+        } else if let Some(args) = RawColorSchemeChangedEvent.update(args) {
             if args.window_id == self.window_id {
-                self.system_theme = Some(args.theme);
+                self.system_color_scheme = Some(args.color_scheme);
 
-                let theme = self
+                let scheme = self
                     .vars
-                    .theme()
+                    .color_scheme()
                     .copy(ctx)
-                    .or_else(|| self.parent_theme.as_ref().map(|t| t.copy(ctx)))
-                    .or(self.system_theme)
-                    .unwrap_or(WindowTheme::Dark);
-                self.vars.0.actual_theme.set_ne(ctx, theme);
+                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.copy(ctx)))
+                    .or(self.system_color_scheme)
+                    .unwrap_or_default();
+                self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
             }
         } else if let Some(args) = RawWindowOrHeadlessOpenErrorEvent.update(args) {
             if args.window_id == self.window_id && self.window.is_none() && self.waiting_view {
@@ -961,7 +964,7 @@ struct HeadlessWithRendererCtrl {
     size: DipSize,
 
     actual_parent: Option<WindowId>,
-    /// actual_theme and scale_factor binding.
+    /// actual_color_scheme and scale_factor binding.
     var_bindings: Option<VarBindingHandle>,
 }
 impl HeadlessWithRendererCtrl {
@@ -1148,27 +1151,27 @@ impl HeadlessWithRendererCtrl {
 
 fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarBindingHandle {
     let mut parent_scale_factor = None;
-    let mut parent_theme = None;
+    let mut parent_color_scheme = None;
     if let Some(parent_vars) = hvars.parent().copy(vars).and_then(|id| windows.vars(id).ok()) {
         if mfactor.is_none() {
             parent_scale_factor = Some(parent_vars.scale_factor());
         }
-        parent_theme = Some(parent_vars.actual_theme());
+        parent_color_scheme = Some(parent_vars.actual_color_scheme());
     }
 
-    let theme = hvars.theme().clone();
-    let actual_theme = hvars.0.actual_theme.clone();
+    let color_scheme = hvars.color_scheme().clone();
+    let actual_color_scheme = hvars.0.actual_color_scheme.clone();
     let scale_factor = hvars.0.scale_factor.clone();
 
     let update = move |vars: &Vars| {
-        let theme = match theme.copy(vars) {
+        let color_scheme = match color_scheme.copy(vars) {
             Some(t) => t,
-            None => match &parent_theme {
+            None => match &parent_color_scheme {
                 Some(pt) => pt.copy(vars),
-                None => WindowTheme::Dark,
+                None => ColorScheme::default(),
             },
         };
-        actual_theme.set_ne(vars, theme);
+        actual_color_scheme.set_ne(vars, color_scheme);
 
         if let Some(psf) = &parent_scale_factor {
             let factor = psf.copy(vars);
@@ -1193,7 +1196,7 @@ struct HeadlessCtrl {
     headless_simulator: HeadlessSimulator,
 
     actual_parent: Option<WindowId>,
-    /// actual_theme and scale_factor binding.
+    /// actual_color_scheme and scale_factor binding.
     var_bindings: Option<VarBindingHandle>,
 }
 impl HeadlessCtrl {

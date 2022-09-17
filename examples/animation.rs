@@ -89,7 +89,7 @@ fn example(vars: &Vars) -> impl Widget {
                 id = "easing-menu";
                 spacing = 2;
                 columns = 7;
-                button::vis::extend_theme = theme_generator!(|_, _| theme! {
+                button::vis::extend_style = style_generator!(|_, _| style! {
                     padding = 3;
                 });
                 items = widgets![
@@ -191,9 +191,9 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 })
             }
 
-            let meta_color = WindowVars::req(&ctx.window_state).actual_theme().map(|t| match t {
-                WindowTheme::Light => rgba(0, 0, 0, 0.4),
-                WindowTheme::Dark => rgba(255, 255, 255, 0.4),
+            let meta_color = WindowVars::req(&ctx.window_state).actual_color_scheme().map(|t| match t {
+                ColorScheme::Light => rgba(0, 0, 0, 0.4),
+                ColorScheme::Dark => rgba(255, 255, 255, 0.4),
             });
 
             #[allow(clippy::precedence)]

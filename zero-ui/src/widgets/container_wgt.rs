@@ -34,17 +34,17 @@ pub mod container {
     }
 }
 
-/// Base themable single element content container.
+/// Base stylable single element content container.
 ///
-/// This base widget has the same function as [`container`], but is also [`themable`].
+/// This base widget has the same function as [`container`], but is also [`stylable`].
 ///
 /// [`container`]: mod@container
-/// [`themable`]: mod@themable
+/// [`stylable`]: mod@stylable
 #[widget($crate::widgets::element)]
 pub mod element {
     use super::*;
 
-    inherit!(themable);
+    inherit!(styleable);
 
     properties! {
         /// Content UI.

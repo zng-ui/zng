@@ -24,7 +24,7 @@ fn app_main() {
 
             background_color = colors::BLUE.darken(70.pct());
 
-            theme = WindowTheme::Dark;
+            color_scheme = ColorScheme::Dark;
 
             content = v_stack! {
                 align = Align::CENTER;

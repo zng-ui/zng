@@ -1071,9 +1071,9 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawMonitorsChangedArgs::now(monitors);
                 self.notify_event(RawMonitorsChangedEvent, args, observer);
             }
-            Event::WindowThemeChanged(w_id, theme) => {
-                let args = RawWindowThemeChangedArgs::now(window_id(w_id), theme);
-                self.notify_event(RawWindowThemeChangedEvent, args, observer);
+            Event::ColorSchemeChanged(w_id, scheme) => {
+                let args = RawColorSchemeChangedArgs::now(window_id(w_id), scheme);
+                self.notify_event(RawColorSchemeChangedEvent, args, observer);
             }
             Event::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(window_id(w_id));

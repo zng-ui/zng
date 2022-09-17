@@ -173,21 +173,21 @@ pub mod window {
         /// * This window is always on-top of the parent window.
         /// * If the parent window is closed, this window is also closed.
         /// * If [`modal`] is set, the parent window cannot be focused while this window is open.
-        /// * If a [`theme`] is not set, the [`actual_theme`] fallback it the parent's actual theme.
+        /// * If a [`color_scheme`] is not set, the [`actual_color_scheme`] fallback is the parent's actual color scheme.
         /// * the window is headless it takes on the [`scale_factor`] of the parent.
         ///
         /// The default value is `None`.
         ///
         /// [`modal`]: Self::modal
-        /// [`theme`]: Self::actual_theme
+        /// [`color_scheme`]: Self::color_scheme
         /// [`scale_factor`]: WindowVars::scale_factor
         properties::parent;
 
         /// Window background color.
-        background_color = theme::pair(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+        background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Window text color.
-        text_color = theme::pair(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
+        text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
 
         /// Window clear color.
         ///
@@ -195,7 +195,7 @@ pub mod window {
         /// It is visible if window content does not completely fill the content area, this
         /// can happen if you do not set a background or the background is semi-transparent, also
         /// can happen during very fast resizes.
-        properties::clear_color = theme::pair(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+        properties::clear_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Unique identifier of the window root widget.
         #[allowed_in_when = false]
@@ -331,8 +331,8 @@ pub mod window {
         #[allowed_in_when = false]
         render_mode(impl IntoValue<Option<RenderMode>>) = None;
 
-        /// Override the system theme selected for this window.
-        properties::theme;
+        /// Override the preferred color scheme for this window.
+        properties::color_scheme;
 
         /// Save and restore the window state.
         properties::save_state = properties::SaveState::enabled();
@@ -495,7 +495,7 @@ pub mod window {
         headless_monitor: impl IntoValue<HeadlessMonitor>,
         start_focused: bool,
     ) -> Window {
-        let child = nodes::window_theme(child);
+        let child = nodes::color_scheme(child);
 
         Window::new_root(
             root_id,

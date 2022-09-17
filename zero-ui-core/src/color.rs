@@ -1,7 +1,9 @@
 //! Color types, functions and macros, [`Rgba`], [`filters`], [`hex!`](crate::color::hex) and more.
 
-use crate::{units::*, var::impl_from_and_into_var};
+use crate::{units::*, var::*};
 use std::{fmt, ops};
+
+pub use crate::app::view_process::ColorScheme;
 
 pub mod colors;
 pub mod filters;
@@ -1137,6 +1139,98 @@ pub fn lerp_render_color(a: RenderColor, b: RenderColor, amount: f32) -> RenderC
         g: lerp(a.g, b.g, amount),
         b: lerp(a.b, b.b, amount),
         a: lerp(a.a, b.a, amount),
+    }
+}
+
+impl IntoVar<Option<ColorScheme>> for ColorScheme {
+    type Var = LocalVar<Option<ColorScheme>>;
+
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self))
+    }
+}
+impl IntoValue<Option<ColorScheme>> for ColorScheme {}
+
+context_var! {
+    /// Defines the preferred color scheme in a context.
+    ///
+    /// Can be set using the [`color_scheme`] property.
+    ///
+    /// [`color_scheme`]: fn@color_scheme
+    pub static COLOR_SCHEME_VAR: ColorScheme = ColorScheme::default();
+}
+
+/// Defines the preferred color scheme in the widget and descendants.
+#[crate::property(context, default(COLOR_SCHEME_VAR))]
+pub fn color_scheme(child: impl crate::UiNode, pref: impl IntoVar<ColorScheme>) -> impl crate::UiNode {
+    with_context_var(child, COLOR_SCHEME_VAR, pref)
+}
+
+/// Create a variable that maps to `dark` or `light` depending on the contextual [`COLOR_SCHEME_VAR`].
+pub fn color_scheme_map<T: VarValue>(dark: impl IntoVar<T>, light: impl IntoVar<T>) -> impl Var<T> {
+    merge_var!(COLOR_SCHEME_VAR, dark.into_var(), light.into_var(), |&scheme, dark, light| {
+        match scheme {
+            ColorScheme::Dark => dark.clone(),
+            ColorScheme::Light => light.clone(),
+        }
+    })
+}
+
+/// Create a variable that selects the [`ColorPair`] depending on the contextual [`COLOR_SCHEME_VAR`].
+pub fn color_scheme_pair(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
+    merge_var!(COLOR_SCHEME_VAR, pair.into_var(), |&scheme, &pair| {
+        match scheme {
+            ColorScheme::Dark => pair.dark,
+            ColorScheme::Light => pair.light,
+        }
+    })
+}
+
+/// Create a variable that selects the [`ColorPair`] highlight depending on the contextual [`COLOR_SCHEME_VAR`].
+pub fn color_scheme_highlight(pair: impl IntoVar<ColorPair>, highlight: impl IntoVar<Factor>) -> impl Var<Rgba> {
+    merge_var!(
+        COLOR_SCHEME_VAR,
+        pair.into_var(),
+        highlight.into_var(),
+        |&scheme, &pair, &highlight| {
+            match scheme {
+                ColorScheme::Dark => pair.highlight_dark(highlight),
+                ColorScheme::Light => pair.highlight_light(highlight),
+            }
+        }
+    )
+}
+
+/// Represents a dark and light *color*.
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+pub struct ColorPair {
+    /// Color used when [`ColorScheme::Dark`].
+    pub dark: Rgba,
+    /// Color used when [`ColorScheme::Light`].
+    pub light: Rgba,
+}
+impl_from_and_into_var! {
+    /// From `(dark, light)` tuple.
+    fn from<D: Into<Rgba> + Clone, L: Into<Rgba> + Clone>((dark, light): (D, L)) -> ColorPair {
+        ColorPair {
+            dark: dark.into(),
+            light: light.into(),
+        }
+    }
+}
+impl ColorPair {
+    /// Overlay white with `highlight` amount as alpha over the [`dark`] color.
+    ///
+    /// [`dark`]: ColorPair::dark
+    pub fn highlight_dark(self, hightlight: impl Into<Factor>) -> Rgba {
+        colors::WHITE.with_alpha(hightlight.into()).mix_normal(self.dark)
+    }
+
+    /// Overlay black with `highlight` amount as alpha over the [`light`] color.
+    ///
+    /// [`light`]: ColorPair::light
+    pub fn highlight_light(self, hightlight: impl Into<Factor>) -> Rgba {
+        colors::BLACK.with_alpha(hightlight.into()).mix_normal(self.light)
     }
 }
 

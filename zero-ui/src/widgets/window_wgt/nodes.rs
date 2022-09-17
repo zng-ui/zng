@@ -6,8 +6,6 @@ use crate::prelude::new_property::*;
 
 use std::{cell::Cell, time::Duration};
 
-use crate::core::window::WindowTheme;
-
 use crate::crate_util::RunOnDrop;
 
 /// Windows layers.
@@ -841,14 +839,9 @@ impl_from_and_into_var! {
     }
 }
 
-context_var! {
-    /// Reads the [`WindowVars::actual_theme`].
-    pub static WINDOW_THEME_VAR: WindowTheme = WindowTheme::Dark;
-}
-
-/// Node that binds the [`WINDOW_THEME_VAR`] to the [`WindowVars::actual_theme`].
-pub fn window_theme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, WINDOW_THEME_VAR, |ctx| WindowVars::req(ctx).actual_theme())
+/// Node that binds the [`COLOR_SCHEME_VAR`] to the [`WindowVars::actual_color_scheme`].
+pub fn color_scheme(child: impl UiNode) -> impl UiNode {
+    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req(ctx).actual_color_scheme())
 }
 
 #[cfg(test)]

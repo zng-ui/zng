@@ -36,55 +36,65 @@ pub mod button {
         /// Enabled by default.
         capture_mouse = true;
 
-        /// Button theme.
+        /// Button style.
         ///
-        /// Set to [`vis::THEME_VAR`] by default, setting this property directly completely replaces the button theme,
-        /// see [`vis::replace_theme`] and [`vis::extend_theme`] for other ways of modifying the button theme.
-        theme = vis::THEME_VAR;
+        /// Set to [`vis::STYLE_VAR`] by default, setting this property directly completely replaces the button style,
+        /// see [`vis::replace_style`] and [`vis::extend_style`] for other ways of modifying the button style.
+        style = vis::STYLE_VAR;
     }
 }
 
-/// Button theme, visual properties and context vars.
+/// Button style, visual properties and context vars.
 pub mod vis {
     use super::*;
 
     context_var! {
-        /// Button theme in a context.
+        /// Button style in a context.
         ///
-        /// Is the [`default_theme!`] by default.
+        /// Is the [`default_style!`] by default.
         ///
-        /// [`default_theme!`]: mod@default_theme
-        pub static THEME_VAR: ThemeGenerator = ThemeGenerator::new(|_, _| default_theme!());
+        /// [`default_style!`]: mod@default_style
+        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_, _| default_style!());
 
         /// Idle background dark and light color.
-        pub static BASE_COLORS_VAR: theme::ColorPair = (rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+        pub static BASE_COLORS_VAR: ColorPair = (rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
     }
 
-    /// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the button theme.
+    /// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the button style.
     #[property(context, default(BASE_COLORS_VAR))]
-    pub fn base_colors(child: impl UiNode, color: impl IntoVar<theme::ColorPair>) -> impl UiNode {
+    pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
         with_context_var(child, BASE_COLORS_VAR, color)
     }
 
-    /// Sets the button theme in a context, the parent theme is fully replaced.
-    #[property(context, default(THEME_VAR))]
-    pub fn replace_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        with_context_var(child, THEME_VAR, theme)
+    /// Sets the button style in a context, the parent style is fully replaced.
+    #[property(context, default(STYLE_VAR))]
+    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+        with_context_var(child, STYLE_VAR, style)
     }
 
-    /// Extends the button theme in a context, the parent theme is used, properties of the same name set in
-    /// `theme` override the parent theme.
-    #[property(context, default(ThemeGenerator::nil()))]
-    pub fn extend_theme(child: impl UiNode, theme: impl IntoVar<ThemeGenerator>) -> impl UiNode {
-        themable::with_theme_extension(child, THEME_VAR, theme)
+    /// Extends the button style in a context, the parent style is used, properties of the same name set in
+    /// `style` override the parent style.
+    #[property(context, default(StyleGenerator::nil()))]
+    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+        styleable::with_style_extension(child, STYLE_VAR, style)
     }
 
-    /// Button default theme.
-    #[widget($crate::widgets::button::vis::default_theme)]
-    pub mod default_theme {
+    /// Create a [`color_scheme_highlight`] of `0.08`.
+    pub fn color_scheme_hovered(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
+        color_scheme_highlight(pair, 0.08)
+    }
+
+    /// Create a [`color_scheme_highlight`] of `0.16`.
+    pub fn color_scheme_pressed(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
+        color_scheme_highlight(pair, 0.16)
+    }
+
+    /// Button default style.
+    #[widget($crate::widgets::button::vis::default_style)]
+    pub mod default_style {
         use super::*;
 
-        inherit!(theme);
+        inherit!(style);
 
         properties! {
             /// Button padding.
@@ -100,34 +110,34 @@ pub mod vis {
             /// Button content align.
             child_align as content_align = Align::CENTER;
 
-            /// Button theme base dark and light colors.
+            /// Button base dark and light colors.
             ///
-            /// All other button theme colors are derived from this pair.
+            /// All other button style colors are derived from this pair.
             base_colors;
 
             /// Button background.
-            background_color = theme::color(BASE_COLORS_VAR);
+            background_color = color_scheme_pair(BASE_COLORS_VAR);
 
             /// Button border.
             ///
             /// Is widths `1`.
             border = {
                 widths: 1,
-                sides: theme::color(BASE_COLORS_VAR).map_into()
+                sides: color_scheme_pair(BASE_COLORS_VAR).map_into()
             };
 
             /// When the pointer device is over this button.
             when self.is_cap_hovered {
-                background_color = theme::color_hovered(BASE_COLORS_VAR);
+                background_color = color_scheme_hovered(BASE_COLORS_VAR);
                 border = {
                     widths: 1,
-                    sides: theme::color_pressed(BASE_COLORS_VAR).map_into(),
+                    sides: color_scheme_pressed(BASE_COLORS_VAR).map_into(),
                 };
             }
 
             /// When the button is pressed in a way that press release will cause a button click.
             when self.is_pressed  {
-                background_color = theme::color_pressed(BASE_COLORS_VAR);
+                background_color = color_scheme_pressed(BASE_COLORS_VAR);
             }
 
             /// When the button is disabled.

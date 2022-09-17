@@ -352,7 +352,7 @@ pub mod img_window {
 
         background = checkerboard!();
 
-        theme = WindowTheme::Dark;
+        color_scheme = ColorScheme::Dark;
 
         // content shown by all images when loading.
         image_loading_view = view_generator!(|ctx, _| {

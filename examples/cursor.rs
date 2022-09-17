@@ -42,20 +42,20 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl Widget {
         size = (150, 80);
 
         margin = 1;
-        background_color = theme::pair(colors::BLACK, colors::WHITE);
+        background_color = color_scheme_map(colors::BLACK, colors::WHITE);
         background = match icon {
             Some((_, img)) => image!{
                 source = img;
                 fit = ImageFit::None;
-                invert_color = theme::pair(true, false);
+                invert_color = color_scheme_map(true, false);
             }.boxed(),
             None => NilUiNode.boxed(),
         };
 
-        text_color = theme::pair(rgb(140, 140, 140), rgb(115, 115, 115));
+        text_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
 
         when self.is_hovered {
-            text_color = theme::pair(colors::WHITE, colors::BLACK);
+            text_color = color_scheme_map(colors::WHITE, colors::BLACK);
         }
 
         content_align = Align::TOP_LEFT;

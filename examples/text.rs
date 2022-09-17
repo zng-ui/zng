@@ -72,7 +72,7 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         });
     }
     h_stack! {
-        button::vis::extend_theme = theme_generator!(|_, _| theme! {
+        button::vis::extend_style = style_generator!(|_, _| style! {
             padding = (0, 5);
         });
         spacing = 5;

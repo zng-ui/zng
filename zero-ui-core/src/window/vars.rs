@@ -4,6 +4,7 @@ use linear_map::set::LinearSet;
 
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
+    color::ColorScheme,
     context::{state_map, BorrowStateMap, StaticStateId},
     image::Image,
     render::RenderMode,
@@ -53,8 +54,8 @@ pub(super) struct WindowVarsData {
     modal: RcVar<bool>,
     pub(super) children: RcVar<LinearSet<WindowId>>,
 
-    theme: RcVar<Option<WindowTheme>>,
-    pub(super) actual_theme: RcVar<WindowTheme>,
+    color_scheme: RcVar<Option<ColorScheme>>,
+    pub(super) actual_color_scheme: RcVar<ColorScheme>,
 
     pub(super) is_open: RcVar<bool>,
     pub(super) is_loaded: RcVar<bool>,
@@ -123,8 +124,8 @@ impl WindowVars {
             modal: var(false),
             children: var(LinearSet::new()),
 
-            theme: var(None),
-            actual_theme: var(WindowTheme::Dark),
+            color_scheme: var(None),
+            actual_color_scheme: var(ColorScheme::default()),
 
             is_open: var(true),
             is_loaded: var(false),
@@ -470,7 +471,7 @@ impl WindowVars {
     /// * This window is always on-top of the parent window.
     /// * If the parent window is closed, this window is also closed.
     /// * If [`modal`] is set, the parent window cannot be focused while this window is open.
-    /// * If a [`theme`] is not set, the [`actual_theme`] fallback it the parent's actual theme.
+    /// * If a [`color_scheme`] is not set, the [`color_scheme`] fallback it the parent's actual scheme.
     ///
     /// The default value is `None`.
     ///
@@ -480,8 +481,8 @@ impl WindowVars {
     /// If these condition are not met an error is logged and the parent is set to `None`.
     ///
     /// [`modal`]: Self::modal
-    /// [`theme`]: Self::theme
-    /// [`actual_theme`]: Self::actual_theme
+    /// [`color_scheme`]: Self::color_scheme
+    /// [`actual_color_scheme`]: Self::color_scheme
     pub fn parent(&self) -> &RcVar<Option<WindowId>> {
         &self.0.parent
     }
@@ -504,22 +505,22 @@ impl WindowVars {
         self.0.children.clone().into_read_only()
     }
 
-    /// Override the system theme.
+    /// Override the preferred color scheme.
     ///
-    /// If set to `None` the system preference is used, see [`actual_theme`].
+    /// If set to `None` the system preference is used, see [`actual_color_scheme`].
     ///
-    /// [`actual_theme`]: Self::actual_theme
-    pub fn theme(&self) -> &RcVar<Option<WindowTheme>> {
-        &self.0.theme
+    /// [`actual_color_scheme`]: Self::actual_color_scheme
+    pub fn color_scheme(&self) -> &RcVar<Option<ColorScheme>> {
+        &self.0.color_scheme
     }
 
-    /// Actual window theme.
+    /// Actual color scheme to use.
     ///
-    /// This is the system preference, or [`theme`] if it is set to a theme.
+    /// This is the system preference, or [`color_scheme`] if it is set.
     ///
-    /// [`theme`]: Self::theme
-    pub fn actual_theme(&self) -> ReadOnlyRcVar<WindowTheme> {
-        self.0.actual_theme.clone().into_read_only()
+    /// [`color_scheme`]: Self::color_scheme
+    pub fn actual_color_scheme(&self) -> ReadOnlyRcVar<ColorScheme> {
+        self.0.actual_color_scheme.clone().into_read_only()
     }
 
     /// If the window is open.

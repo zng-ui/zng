@@ -864,8 +864,8 @@ pub enum Event {
     /// The available monitors have changed.
     MonitorsChanged(Vec<(MonitorId, MonitorInfo)>),
 
-    /// The system window theme has changed.
-    WindowThemeChanged(WindowId, WindowTheme),
+    /// The preferred color scheme for a window has changed.
+    ColorSchemeChanged(WindowId, ColorScheme),
     /// The window has been requested to close.
     WindowCloseRequested(WindowId),
     /// The window has closed.
@@ -1215,15 +1215,22 @@ pub enum TouchForce {
     Normalized(f64),
 }
 
-/// OS theme.
+/// Color scheme preference.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WindowTheme {
-    /// Dark text on light background.
+pub enum ColorScheme {
+    /// Dark foreground, light background.
     Light,
 
-    /// Light text on dark background.
+    /// Light foreground, dark background.
     Dark,
 }
+impl Default for ColorScheme {
+    /// Light.
+    fn default() -> Self {
+        ColorScheme::Light
+    }
+}
+
 /// Text anti-aliasing.
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FontAntiAliasing {
@@ -1829,8 +1836,8 @@ pub struct WindowOpenData {
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
 
-    /// System theme.
-    pub theme: WindowTheme,
+    /// Preferred color scheme.
+    pub color_scheme: ColorScheme,
 }
 
 /// Information about a successfully opened headless surface.
