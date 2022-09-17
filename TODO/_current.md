@@ -1,4 +1,11 @@
-* Review all `todo!` panics.
+* Rename "theme" to "style", avoid confusion with `WindowTheme`.
+    - The world "theme" implies a more encompassing thing.
+    - Right now we can have multiple `theme!` instances per widget, the name `style!` is better.
+    - Rename `themable!` to `stylable!`.
+    - Rename `WindowTheme` to `Theme`.
+    - Implement `theme` context property to change the `Theme` of parts of the screen.
+
+* Implement all `todo!` code.
 
 # Light Theme
 

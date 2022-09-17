@@ -159,6 +159,11 @@ macro_rules! impl_rc_when_var {
                     })
                 )
             }
+
+            #[doc(hidden)]
+            pub fn as_impl_var(self) -> impl Var<O> {
+                self
+            }
         }
 
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> crate::private::Sealed for $RcWhenVar<O, D, $($C),+ , $($V),+> {}
