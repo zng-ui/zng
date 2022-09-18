@@ -2,7 +2,7 @@
 
 use crate::{
     context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
@@ -72,7 +72,7 @@ pub trait UiNodeList: 'static {
     fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O);
 
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate);
 
     /// Calls [`UiNode::measure`] in all widgets in the list, sequentially.
     ///

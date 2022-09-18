@@ -241,7 +241,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
-        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) { }]
+        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &#crate_::event::EventUpdate) { }]
 
         [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
             ctx.metrics.constrains().fill_size()
@@ -293,9 +293,9 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::UiNode::update(#deref_mut, ctx);
         }]
 
-        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
+        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &#crate_::event::EventUpdate) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::event::<__EU>(#deref_mut, ctx, args);
+            #crate_::UiNode::event(#deref_mut, ctx, update);
         }]
 
         [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
@@ -359,9 +359,9 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             }
         }]
 
-        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
+        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &#crate_::event::EventUpdate) {
             let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::event_all::<__EU>(#deref_mut, ctx, args);
+            #crate_::UiNodeList::event_all(#deref_mut, ctx, update);
         }]
 
         [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
@@ -431,9 +431,9 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterMutImpl::update_all(#children_mut, ctx);
         }]
 
-        [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
+        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &EventUpdate) {
             let #children_mut = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::event_all::<__EU>(#children_mut, ctx, args);
+            #crate_::impl_ui_node_util::IterMutImpl::event_all(#children_mut, ctx, update);
         }]
 
         [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {

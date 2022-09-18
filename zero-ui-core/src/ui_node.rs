@@ -8,14 +8,12 @@ use parking_lot::Mutex;
 
 use crate::{
     context::*,
-    event::AnyEventUpdate,
     var::impl_from_and_into_var,
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    IdNameError,
+    IdNameError, event::EventUpdate,
 };
 use crate::{crate_util::NameIdMap, units::*};
 use crate::{
-    event::EventUpdateArgs,
     impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     text::Text,
@@ -244,7 +242,7 @@ pub trait UiNode: Any {
     /// [`on_pre_event`]: crate::event::on_pre_event
     /// [`Event::update`]: crate::event::Event::update
     /// [`delivery_list`]: crate::event::EventArgs::delivery_list
-    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
+    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate);
 
     /// Called every time an update is requested.
     ///
@@ -439,7 +437,7 @@ pub trait UiNodeBoxed: 'static {
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
     fn update_boxed(&mut self, ctx: &mut WidgetContext);
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate);
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &EventUpdate);
     fn measure_boxed(&self, ctx: &mut MeasureContext) -> PxSize;
     fn layout_boxed(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
@@ -478,7 +476,7 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.update(ctx);
     }
 
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &AnyEventUpdate) {
+    fn event_boxed(&mut self, ctx: &mut WidgetContext, args: &EventUpdate) {
         self.event(ctx, args);
     }
 
@@ -559,12 +557,8 @@ impl UiNode for BoxedUiNode {
         self.as_mut().update_boxed(ctx);
     }
 
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
-    where
-        Self: Sized,
-    {
-        let args = args.as_any();
-        self.as_mut().event_boxed(ctx, &args);
+    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        self.as_mut().event_boxed(ctx, &update);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -651,9 +645,9 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
         if let Some(node) = self {
-            node.event(ctx, args);
+            node.event(ctx, update);
         }
     }
 
@@ -1053,7 +1047,7 @@ impl UiNode for FillUiNode {}
 pub mod impl_ui_node_util {
     use crate::{
         context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
-        event::EventUpdateArgs,
+        event::EventUpdate,
         render::{FrameBuilder, FrameUpdate},
         units::PxSize,
         widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
@@ -1072,7 +1066,7 @@ pub mod impl_ui_node_util {
         fn init_all(self, ctx: &mut WidgetContext);
         fn deinit_all(self, ctx: &mut WidgetContext);
         fn update_all(self, ctx: &mut WidgetContext);
-        fn event_all<EU: EventUpdateArgs>(self, ctx: &mut WidgetContext, args: &EU);
+        fn event_all(self, ctx: &mut WidgetContext, update: &EventUpdate);
         fn layout_all(self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
     }
     pub trait IterImpl {
@@ -1102,9 +1096,9 @@ pub mod impl_ui_node_util {
             }
         }
 
-        fn event_all<EU: EventUpdateArgs>(self, ctx: &mut WidgetContext, args: &EU) {
+        fn event_all(self, ctx: &mut WidgetContext, update: &EventUpdate) {
             for child in self {
-                child.event(ctx, args);
+                child.event(ctx, update);
             }
         }
 

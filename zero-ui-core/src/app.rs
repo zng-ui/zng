@@ -10,7 +10,7 @@ pub use intrinsic::*;
 use crate::config::ConfigManager;
 use crate::context::*;
 use crate::crate_util::{PanicPayload, ReceiverExt};
-use crate::event::{event, event_args, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
+use crate::event::{event, event_args, EventUpdate, Events};
 use crate::image::ImageManager;
 use crate::service::Services;
 use crate::timer::Timers;
@@ -2192,7 +2192,7 @@ pub(crate) enum AppEvent {
     /// Event from the View Process.
     ViewEvent(zero_ui_view_api::Event),
     /// Notify [`Events`](crate::var::Events).
-    Event(crate::event::BoxedSendEventUpdate),
+    Event(crate::event::EventUpdateMsg),
     /// Notify [`Vars`](crate::var::Vars).
     Var,
     /// Do an update cycle.
@@ -2248,8 +2248,8 @@ impl AppEventSender {
     /// [`EventSender`](crate::event::EventSender) util.
     pub(crate) fn send_event(
         &self,
-        event: crate::event::BoxedSendEventUpdate,
-    ) -> Result<(), AppDisconnected<crate::event::BoxedSendEventUpdate>> {
+        event: crate::event::EventUpdateMsg,
+    ) -> Result<(), AppDisconnected<crate::event::EventUpdateMsg>> {
         self.send_app_event(AppEvent::Event(event)).map_err(|e| match e.0 {
             AppEvent::Event(ev) => AppDisconnected(ev),
             _ => unreachable!(),

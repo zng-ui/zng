@@ -8,7 +8,7 @@ use std::{
 use parking_lot::Mutex;
 use tracing::span;
 
-use crate::{app::AppExtension, event::Event, var::VarValue, window::WindowId, TraceNode, UiNode, WidgetId};
+use crate::{app::AppExtension, event::{Event, EventArgs}, var::VarValue, window::WindowId, TraceNode, UiNode, WidgetId};
 
 use super::InfoContext;
 
@@ -292,11 +292,11 @@ impl UpdatesTrace {
     }
 
     /// Log an event update request.
-    pub fn log_event<E: Event>() {
+    pub fn log_event<A: EventArgs>(event: Event<A>) {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
             tracing::Level::TRACE,
-            { kind = "notify event", type_name = type_name::<E>() }
+            { kind = "notify event", type_name = event.name() }
         );
     }
 
