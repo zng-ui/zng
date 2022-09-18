@@ -1,3 +1,6 @@
+* Review event/commands, can it be a static instance like context_var?
+    - Specially for command this reduces the number of types by a lot, because it is all the same args type.
+* Review `unsafe`, only use when there is no alternative.
 * Implement all `todo!` code.
 
 # Light Color Scheme

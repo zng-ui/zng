@@ -153,7 +153,7 @@ pub(crate) struct ContextVarDataRaw<T: VarValue> {
     actual_var: Option<*mut DynActualVarFn<T>>,
 }
 
-/// See `ContextVar::thread_local_value`.
+/// See `ContextVar`.
 #[doc(hidden)]
 pub struct ContextVarValue<T: VarValue> {
     parent: Cell<Option<&'static LocalKey<Self>>>,
