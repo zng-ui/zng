@@ -6,7 +6,7 @@ use std::{
 use crate::{
     app::AppEventSender,
     crate_util::{Handle, HandleOwner, WeakHandle},
-    event::BoxedEventUpdate,
+    event::EventUpdate,
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
     widget_info::UpdateMask,
 };
@@ -482,7 +482,7 @@ pub struct ContextUpdates {
     /// Events to notify.
     ///
     /// When this is not empty [`update`](Self::update) is `true`.
-    pub events: Vec<BoxedEventUpdate>,
+    pub events: Vec<EventUpdate>,
 
     /// Update requested.
     pub update: bool,

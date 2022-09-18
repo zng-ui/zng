@@ -1110,7 +1110,7 @@ event_args! {
 
 event! {
     /// View Process finished initializing and is now online.
-    pub ViewProcessInitedEvent: ViewProcessInitedArgs;
+    pub static VIEW_PROCESS_INITED_EVENT: ViewProcessInitedArgs;
 }
 
 /// Information about a successfully opened window.

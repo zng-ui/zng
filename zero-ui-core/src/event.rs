@@ -55,26 +55,26 @@ pub use properties::*;
 ///
 /// It is recommended that the type name ends with the `_VAR` suffix.
 #[macro_export]
-macro_rules! event {
+macro_rules! event_macro {
     ($(
         $(#[$attr:meta])*
         $vis:vis static $EVENT:ident: $Args:path;
     )+) => {
         $(
             paste::paste! {
-                #[doc(hidden)]
                 std::thread_local! {
-                    static [<$EVENT _LOCAL>] = $crate::event::EventData::new(std::stringifly!($EVENT));
+                    #[doc(hidden)]
+                    static [<$EVENT _LOCAL>]: $crate::event::EventData  = $crate::event::EventData::new(std::stringify!($EVENT));
                 }
 
                 $(#[$attr])*
-                $vis static $EVENT: $crate::event::Event<$Args> = $crate::event::Event::new([<$EVENT _LOCAL>]);
+                $vis static $EVENT: $crate::event::Event<$Args> = $crate::event::Event::new(&[<$EVENT _LOCAL>]);
             }
         )+
     }
 }
 #[doc(inline)]
-pub use crate::event::event;
+pub use crate::event_macro as event;
 
 #[doc(hidden)]
 pub struct EventData {

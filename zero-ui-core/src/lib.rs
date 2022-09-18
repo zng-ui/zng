@@ -34,7 +34,6 @@ pub use paste::paste;
 pub mod app;
 pub mod border;
 pub mod color;
-pub mod command;
 pub mod context;
 pub mod event;
 pub mod inspector;

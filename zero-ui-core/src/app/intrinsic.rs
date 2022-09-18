@@ -1,8 +1,7 @@
 use std::fmt;
 
 use crate::app::*;
-use crate::command::*;
-use crate::event::EventPropagationHandle;
+use crate::event::{EventPropagationHandle, CommandHandle, command};
 use crate::service::*;
 use crate::var::*;
 
@@ -43,7 +42,7 @@ impl AppIntrinsic {
         }
 
         AppIntrinsic {
-            exit_handle: ExitCommand.new_handle(ctx, true),
+            exit_handle: EXIT_CMD.new_handle(ctx, true),
             pending_exit: None,
         }
     }
@@ -62,8 +61,8 @@ impl AppIntrinsic {
     }
 }
 impl AppExtension for AppIntrinsic {
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = ExitCommand.update(args) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
                 AppProcess::req(ctx.services).exit();
             });
@@ -77,7 +76,7 @@ impl AppExtension for AppIntrinsic {
                 handle: args.propagation().clone(),
                 response,
             });
-            ExitRequestedEvent.notify(ctx, args);
+            EXIT_REQUESTED_EVENT.notify(ctx, args);
         }
     }
 }
@@ -137,7 +136,7 @@ command! {
     /// [`exit`]: AppProcess::exit
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
-    pub ExitCommand
+    pub static EXIT_CMD
         .init_name("Exit")
         .init_info("Close all windows and exit.");
 }

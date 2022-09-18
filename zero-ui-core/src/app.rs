@@ -27,7 +27,7 @@ use crate::{
     window::{WindowId, WindowManager},
 };
 
-use self::view_process::{ViewProcess, ViewProcessInitedArgs, ViewProcessInitedEvent};
+use self::view_process::{ViewProcess, ViewProcessInitedArgs, VIEW_PROCESS_INITED_EVENT};
 use once_cell::sync::Lazy;
 use std::future::Future;
 use std::marker::PhantomData;
@@ -226,23 +226,23 @@ pub trait AppExtension: 'static {
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `on_event_ui`.
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _ = (ctx, args);
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        let _ = (ctx, update);
     }
 
     /// Called just before [`event`](Self::event).
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::event`](super::UiNode::event)
     /// method is called here.
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _ = (ctx, args);
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        let _ = (ctx, update);
     }
 
     /// Called after every [`event_ui`](Self::event_ui).
     ///
     /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _ = (ctx, args);
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        let _ = (ctx, update);
     }
 
     /// Called just before [`update_ui`](Self::update_ui).

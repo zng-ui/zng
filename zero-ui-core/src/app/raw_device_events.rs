@@ -141,29 +141,29 @@ event_args! {
 
 event! {
     /// A device event source was added/installed.
-    pub DeviceAddedEvent: DeviceArgs;
+    pub static DEVICE_ADDED_EVENT: DeviceArgs;
 
     /// A device event source was removed/un-installed.
-    pub DeviceRemovedEvent: DeviceArgs;
+    pub static DEVICE_REMOVED_EVENT: DeviceArgs;
 
     /// Mouse device unfiltered move delta.
-    pub MouseMotionEvent: MouseMotionArgs;
+    pub static MOUSE_MOTION_EVENT: MouseMotionArgs;
 
     /// Mouse device unfiltered wheel motion delta.
-    pub MouseWheelEvent: MouseWheelArgs;
+    pub static MOUSE_WHEEL_EVENT: MouseWheelArgs;
 
     /// Motion on some analog axis.
     ///
     /// This event will be reported for all arbitrary input devices that `winit` supports on this platform,
-    /// including mouse devices. If the device is a mouse device then this will be reported alongside the [`MouseMotionEvent`].
-    pub MotionEvent: MotionArgs;
+    /// including mouse devices. If the device is a mouse device then this will be reported alongside the [`MOUSE_MOTION_EVENT`].
+    pub static MOTION_EVENT: MotionArgs;
 
     /// Button press/release from a device, probably a mouse.
-    pub ButtonEvent: ButtonArgs;
+    pub static BUTTON_EVENT: ButtonArgs;
 
     /// Keyboard device key press.
-    pub KeyEvent: KeyArgs;
+    pub static KEY_EVENT: KeyArgs;
 
     /// Raw text input.
-    pub TextEvent: TextArgs;
+    pub static TEXT_EVENT: TextArgs;
 }
