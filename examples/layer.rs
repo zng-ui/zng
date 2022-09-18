@@ -79,7 +79,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             background_color = colors::GREEN.darken(80.pct());
-            button::vis::replace_style = style_generator!(|_, _| button::vis::default_style! {
+            button::vis::extend_style = style_generator!(|_, _| style! {
                 corner_radius = unset!;
             });
             padding = 2;

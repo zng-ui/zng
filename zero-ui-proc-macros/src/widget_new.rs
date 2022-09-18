@@ -86,6 +86,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut unset_properties = HashSet::new();
 
     let mut user_properties = HashSet::new();
+
+    // dynamic unset property pushes.
+    let mut dyn_unset = TokenStream::new();
+
     // user assigns with valid values.
     let user_properties: Vec<_> = user_input
         .properties
@@ -100,18 +104,23 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             if let PropertyValue::Special(sp, _) = &up.value {
                 if sp == "unset" {
+                    let mut register_dynamic = dynamic;
                     if let Some(maybe_inherited) = up.path.get_ident() {
                         if required_properties.contains(maybe_inherited) || captured_properties.contains(maybe_inherited) {
                             errors.push(format_args!("cannot unset required property `{maybe_inherited}`"), sp.span());
+                            register_dynamic = false;
                         } else if !default_properties.contains(maybe_inherited) {
-                            errors.push(
-                                format_args!("cannot unset `{maybe_inherited}` because it is not set by the widget"),
-                                sp.span(),
-                            );
+                            if !dynamic {
+                                errors.push(
+                                    format_args!("cannot unset `{maybe_inherited}` because it is not set by the widget"),
+                                    sp.span(),
+                                );
+                            }
+                            
                         } else {
                             unset_properties.insert(maybe_inherited);
                         }
-                    } else {
+                    } else if !dynamic {
                         errors.push(
                             format_args!(
                                 "cannot unset `{}` because it is not set by the widget",
@@ -119,6 +128,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             ),
                             sp.span(),
                         );
+                    }
+
+                    if register_dynamic {
+                        let ident = &up.path.segments.last().unwrap().ident;
+                        let name = ident.to_string();
+                        let path = &up.path;
+                        let path_type = quote_spanned! {ident.span()=>
+                            std::any::TypeId::of::<#path::PropertyType>()
+                        };
+                        dyn_unset.extend(quote! {
+                            dyn_wgt__.push_unset(#name, #path_type);
+                        });
                     }
                 } else {
                     errors.push(format_args!("unknown value `{sp}!`"), sp.span());
@@ -1055,6 +1076,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #[allow(unreachable_code)]
                 #[allow(unused_mut)]
                 let mut #dyn_wgt__ = #module::__core::DynWidgetBuilderV1::begin(#node__);
+                #dyn_unset
             }
         } else {
             TokenStream::new()

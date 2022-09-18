@@ -53,7 +53,7 @@ fn app_main() {
 fn alt_scope() -> impl Widget {
     h_stack! {
         alt_focus_scope = true;
-        button::vis::replace_style = style_generator!(|_, _| button::vis::default_style! {
+        button::vis::extend_style = style_generator!(|_, _| style! {
             border = unset!;
             corner_radius = unset!;
         });

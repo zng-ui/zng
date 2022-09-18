@@ -1,5 +1,6 @@
 use std::any::TypeId;
 use std::fmt;
+
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::var::types::AnyWhenVarBuilder;
@@ -462,6 +463,24 @@ impl MergeReplaceSolver for DynProperty {
     }
 }
 
+/// Represents an widget property assigned `unset!` use in dynamic initialization.
+///
+/// See [`DynWidget::unset`] for details.
+#[derive(Debug, Clone)]
+pub struct DynPropertyUnset {
+    /// Name of the property as it was unset in the widget.
+    pub name: &'static str,
+
+    /// Type ID that uniquely identify the property.
+    ///
+    /// The [`property_type_id!`] macro can be used to extract the ID of a property function.
+    pub id: TypeId,
+
+    /// The *importance* of the property, this is only `INSTANCE` by default because you cannot
+    /// `unset!` in widget declarations, but can be changed.
+    pub importance: DynPropImportance,
+}
+
 /// Represents the properties and intrinsic node of a priority in a [`DynWidget`].
 pub struct DynWidgetPart {
     /// Properties set for the priority.
@@ -496,10 +515,16 @@ pub struct DynWidget {
 
     /// Parts for each priority, from `child_layout` to `context`.
     pub parts: [DynWidgetPart; DynPropPriority::LEN],
+
+    /// Properties assigned `unset!`.
+    pub unset: Vec<DynPropertyUnset>,
 }
 impl fmt::Debug for DynWidget {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DynWidget").field("parts", &self.parts).finish_non_exhaustive()
+        f.debug_struct("DynWidget")
+            .field("parts", &self.parts)
+            .field("unset", &self.unset)
+            .finish_non_exhaustive()
     }
 }
 impl DynWidget {
@@ -580,12 +605,14 @@ impl fmt::Debug for DynPropImportance {
 pub struct DynWidgetBuilderV1 {
     child: BoxedUiNode,
     parts: Vec<DynWidgetPart>,
+    unset: Vec<DynPropertyUnset>,
 }
 impl DynWidgetBuilderV1 {
     pub fn begin(child: impl UiNode) -> Self {
         DynWidgetBuilderV1 {
             child: child.boxed(),
             parts: Vec::with_capacity(DynPropPriority::LEN),
+            unset: vec![],
         }
     }
 
@@ -609,11 +636,20 @@ impl DynWidgetBuilderV1 {
         })
     }
 
+    pub fn push_unset(&mut self, name: &'static str, id: TypeId) {
+        self.unset.push(DynPropertyUnset {
+            name,
+            id,
+            importance: DynPropImportance::INSTANCE,
+        });
+    }
+
     pub fn finish(self) -> DynWidget {
         debug_assert_eq!(self.parts.len(), DynPropPriority::LEN);
         DynWidget {
             child: self.child,
             parts: self.parts.try_into().unwrap(),
+            unset: self.unset,
         }
     }
 }
@@ -807,6 +843,9 @@ pub struct DynWidgetNode {
 
     is_inited: bool,
     is_bound: bool,
+
+    // unset requests, already applied.
+    unset: Vec<DynPropertyUnset>,
 }
 impl Default for DynWidgetNode {
     fn default() -> Self {
@@ -819,6 +858,7 @@ impl Default for DynWidgetNode {
             node: nil,
             is_inited: false,
             is_bound: true,
+            unset: vec![],
         }
     }
 }
@@ -829,16 +869,39 @@ impl fmt::Debug for DynWidgetNode {
             .field("items", &self.items)
             .field("is_inited", &self.is_inited)
             .field("is_bound", &self.is_bound)
+            .field("unset", &self.unset)
             .finish_non_exhaustive()
     }
 }
 impl DynWidgetNode {
     fn new(wgt: DynWidget, include_intrinsic: bool) -> Self {
+        // ensure unset is unique and most important
+        let mut unset: Vec<DynPropertyUnset> = Vec::with_capacity(wgt.unset.len());
+        for u in wgt.unset {
+            if let Some(i) = unset.iter().position(|v| v.id == u.id && v.name == u.name) {
+                if unset[i].importance < u.importance {
+                    unset[i] = u;
+                }
+            } else {
+                unset.push(u);
+            }
+        }
+
+        // instantiate items
         let mut priority_ranges = [0; DynPropPriority::LEN];
         let mut items = vec![];
         for (i, part) in wgt.parts.into_iter().enumerate() {
-            items.extend(part.properties.into_iter().map(DynWidgetItem::new));
-
+            // properties, filtered by unset
+            items.reserve(part.properties.len());
+            for p in part.properties {
+                if let Some(u) = unset.iter().find(|u| u.id == p.id && u.name == p.name) {
+                    if u.importance >= p.importance {
+                        continue;
+                    }
+                }
+                items.push(DynWidgetItem::new(p));
+            }
+            // constructor function nodes
             if include_intrinsic {
                 items.push(DynWidgetItem::new_instrinsic(
                     DynPropPriority::from_index(i).unwrap(),
@@ -859,6 +922,7 @@ impl DynWidgetNode {
             priority_ranges,
             is_inited: false,
             is_bound: false,
+            unset,
         }
     }
 
@@ -886,23 +950,73 @@ impl DynWidgetNode {
     /// sorted by priority index and reversed, innermost first.
     ///
     /// Panics if `self` or any of the `properties` are inited.
-    pub fn insert(&mut self, priority: DynPropPriority, properties: Vec<DynProperty>) {
+    pub fn insert(&mut self, priority: DynPropPriority, properties: impl IntoIterator<Item = DynProperty>) {
         assert!(!self.is_inited);
 
-        if properties.is_empty() {
-            return;
-        }
-
-        assert!(!properties[0].node.is_inited());
-
-        if self.is_bound {
-            // will rebind next init.
-            self.unbind_all();
-        }
-
         let priority = priority as usize;
-        for p in properties {
-            self.insert_merge_replace(priority, DynWidgetItem::new(p));
+
+        let mut properties = properties.into_iter();
+
+        if let Some(property) = properties.next() {
+            if self.is_bound {
+                // will rebind next init.
+                self.unbind_all();
+            }
+
+            assert!(!property.node.is_inited());
+            self.insert_merge_replace(priority, DynWidgetItem::new(property));
+        }
+
+        for property in properties {
+            assert!(!property.node.is_inited());
+            self.insert_merge_replace(priority, DynWidgetItem::new(property));
+        }
+    }
+
+    /// Register the `unset` requests and apply it to the current properties.
+    ///
+    /// Panics if `self` is inited.
+    pub fn insert_unset(&mut self, unset: impl IntoIterator<Item = DynPropertyUnset>) {
+        assert!(!self.is_inited);
+
+        let mut unset = unset.into_iter();
+        if let Some(first) = unset.next() {
+            if self.is_bound {
+                self.unbind_all();
+            }
+            self.insert_apply_unset(first);
+        }
+
+        for unset in unset {
+            self.insert_apply_unset(unset);
+        }
+    }
+    fn insert_apply_unset(&mut self, unset: DynPropertyUnset) {
+        let i = if let Some(i) = self.unset.iter().position(|u| u.id == unset.id && u.name == unset.name) {
+            if self.unset[i].importance >= unset.importance {
+                // already applied
+                return;
+            }
+            self.unset[i] = unset;
+            i
+        } else {
+            let i = self.unset.len();
+            self.unset.push(unset);
+            i
+        };
+
+        // apply new unset
+        let unset = &self.unset[i];
+        for i in (0..self.items.len()).rev() {
+            let item = &self.items[i];
+            if item.id == unset.id && item.importance > unset.importance && item.name == unset.name {
+                self.items.remove(i);
+                for e in &mut self.priority_ranges {
+                    if *e >= i {
+                        *e -= 1;
+                    }
+                }
+            }
         }
     }
 
@@ -921,6 +1035,10 @@ impl DynWidgetNode {
         }
         if other.is_bound {
             other.unbind_all();
+        }
+
+        for unset in other.unset {
+            self.insert_apply_unset(unset);
         }
 
         let mut s = 0;
@@ -951,6 +1069,7 @@ impl DynWidgetNode {
             id: self.id,
             items: self.items.iter().map(DynWidgetItem::snapshot).collect(),
             priority_ranges: self.priority_ranges,
+            unset: self.unset.clone(),
         }
     }
 
@@ -968,6 +1087,7 @@ impl DynWidgetNode {
             self.items.clear();
             self.items.extend(snapshot.items.into_iter().map(DynWidgetItem::restore));
             self.priority_ranges = snapshot.priority_ranges;
+            self.unset = snapshot.unset;
 
             Ok(())
         } else {
@@ -1029,6 +1149,12 @@ impl DynWidgetNode {
     }
 
     fn insert_merge_replace(&mut self, priority: usize, item: DynWidgetItem) {
+        for unset in &self.unset {
+            if unset.id == item.id && unset.name == item.name && unset.importance >= item.importance {
+                return; // blocked by unset.
+            }
+        }
+
         let item = if let Some(i) = self.items.iter().position(|b| b.name == item.name) {
             // merge or replace
 
@@ -1090,12 +1216,14 @@ pub struct DynWidgetSnapshot {
     id: DynWidgetNodeId,
     items: Vec<PropertyItemSnapshot>,
     priority_ranges: [usize; DynPropPriority::LEN],
+    unset: Vec<DynPropertyUnset>,
 }
 impl fmt::Debug for DynWidgetSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DynWidgetSnapshot")
             .field("id", &self.id)
             .field("items", &self.items)
+            .field("unset", &self.items)
             .finish_non_exhaustive()
     }
 }

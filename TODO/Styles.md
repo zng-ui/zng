@@ -1,9 +1,5 @@
 # Styles TODO
 
-* Dynamic `unset!`?
-    - Records unsets in the `DynWidget`, remove unsets from the `DynWidgetNode`.
-    - Affected by importance.
-
 * Configurable *importance*:
 ```rust
 style! {
