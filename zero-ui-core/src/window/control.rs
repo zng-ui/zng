@@ -5,14 +5,14 @@ use std::mem;
 use crate::{
     app::{
         raw_events::{
-            RawColorSchemeChangedEvent, RawFrameRenderedEvent, RawHeadlessOpenEvent, RawWindowChangedEvent, RawWindowFocusArgs,
-            RawWindowFocusEvent, RawWindowOpenEvent, RawWindowOrHeadlessOpenErrorEvent,
+            RawWindowFocusArgs, RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT,
+            RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,
         },
         view_process::*,
     },
     color::{ColorScheme, RenderColor},
     context::{state_map, LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::Fonts,
@@ -26,9 +26,9 @@ use crate::{
 };
 
 use super::{
-    commands::{MinimizeCommand, RestoreCommand, WindowCommands},
-    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, Monitors, MonitorsChangedEvent,
-    StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows,
+    commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
+    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, Monitors, StartPosition, Window, WindowChangedArgs, WindowChrome,
+    WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -395,8 +395,8 @@ impl HeadedCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if let Some(args) = RawWindowChangedEvent.update(args) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        if let Some(args) = RAW_WINDOW_CHANGED_EVENT.on(update) {
             if args.window_id == *ctx.window_id {
                 let mut state_change = None;
                 let mut pos_change = None;
@@ -425,13 +425,13 @@ impl HeadedCtrl {
                             (_, WindowState::Minimized) => {
                                 // minimized, minimize children.
                                 for &c in self.vars.0.children.get(ctx.vars) {
-                                    MinimizeCommand.scoped(c).notify(ctx.events, None);
+                                    MINIMIZE_CMD.scoped(c).notify(ctx.events);
                                 }
                             }
                             (WindowState::Minimized, _) => {
                                 // restored, restore children.
                                 for &c in self.vars.0.children.get(ctx.vars) {
-                                    RestoreCommand.scoped(c).notify(ctx.events, None);
+                                    RESTORE_CMD.scoped(c).notify(ctx.events);
                                 }
 
                                 // we skip layout & render when minimized.
@@ -487,10 +487,10 @@ impl HeadedCtrl {
                         size_change,
                         args.cause,
                     );
-                    WindowChangedEvent.notify(ctx.events, args);
+                    WINDOW_CHANGED_EVENT.notify(ctx.events, args);
                 }
             }
-        } else if let Some(args) = MonitorsChangedEvent.update(args) {
+        } else if let Some(args) = MONITORS_CHANGED_EVENT.on(update) {
             if let Some(m) = &self.monitor {
                 if args.removed.contains(&m.id()) {
                     self.monitor = None;
@@ -498,7 +498,7 @@ impl HeadedCtrl {
                 }
             }
             self.vars.monitor().touch(ctx);
-        } else if let Some(args) = RawWindowOpenEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
             if args.window_id == self.window_id {
                 self.waiting_view = false;
 
@@ -533,7 +533,7 @@ impl HeadedCtrl {
                     update(&args.window);
                 }
             }
-        } else if let Some(args) = RawColorSchemeChangedEvent.update(args) {
+        } else if let Some(args) = RAW_COLOR_SCHEME_CHANGED_EVENT.on(update) {
             if args.window_id == self.window_id {
                 self.system_color_scheme = Some(args.color_scheme);
 
@@ -546,7 +546,7 @@ impl HeadedCtrl {
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
             }
-        } else if let Some(args) = RawWindowOrHeadlessOpenErrorEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
             if args.window_id == self.window_id && self.window.is_none() && self.waiting_view {
                 tracing::error!("view-process failed to open a window, {}", args.error);
 
@@ -562,7 +562,7 @@ impl HeadedCtrl {
 
                 ctx.updates.layout_and_render();
             }
-        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
                 if view.renderer().generation() != Ok(args.generation) {
                     debug_assert!(args.is_respawn);
@@ -581,11 +581,11 @@ impl HeadedCtrl {
             }
         }
 
-        self.content.pre_event(ctx, args);
+        self.content.pre_event(ctx, update);
     }
 
-    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        self.content.ui_event(ctx, args);
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        self.content.ui_event(ctx, update);
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
@@ -1015,8 +1015,8 @@ impl HeadlessWithRendererCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if let Some(args) = RawHeadlessOpenEvent.update(args) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        if let Some(args) = RAW_HEADLESS_OPEN_EVENT.on(update) {
             if args.window_id == *ctx.window_id {
                 self.waiting_view = false;
 
@@ -1031,7 +1031,7 @@ impl HeadlessWithRendererCtrl {
                     update(&args.surface);
                 }
             }
-        } else if let Some(args) = RawWindowOrHeadlessOpenErrorEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
             if args.window_id == self.window_id && self.surface.is_none() && self.waiting_view {
                 tracing::error!("view-process failed to open a headless surface, {}", args.error);
 
@@ -1045,7 +1045,7 @@ impl HeadlessWithRendererCtrl {
 
                 ctx.updates.layout_and_render();
             }
-        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.surface {
                 if view.renderer().generation() != Ok(args.generation) {
                     debug_assert!(args.is_respawn);
@@ -1061,13 +1061,13 @@ impl HeadlessWithRendererCtrl {
             }
         }
 
-        self.content.pre_event(ctx, args);
+        self.content.pre_event(ctx, update);
 
-        self.headless_simulator.pre_event(ctx, args);
+        self.headless_simulator.pre_event(ctx, update);
     }
 
-    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        self.content.ui_event(ctx, args);
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        self.content.ui_event(ctx, update);
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
@@ -1241,13 +1241,13 @@ impl HeadlessCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        self.content.pre_event(ctx, args);
-        self.headless_simulator.pre_event(ctx, args);
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        self.content.pre_event(ctx, update);
+        self.headless_simulator.pre_event(ctx, update);
     }
 
-    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        self.content.ui_event(ctx, args);
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        self.content.ui_event(ctx, update);
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
@@ -1318,8 +1318,8 @@ impl HeadlessSimulator {
             .get_or_insert_with(|| crate::app::App::window_mode(ctx.services).is_headless())
     }
 
-    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if self.enabled(ctx) && self.is_open && ViewProcessInitedEvent.update(args).map(|a| a.is_respawn).unwrap_or(false) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        if self.enabled(ctx) && self.is_open && VIEW_PROCESS_INITED_EVENT.on(update).map(|a| a.is_respawn).unwrap_or(false) {
             self.is_open = false;
         }
     }
@@ -1337,7 +1337,7 @@ impl HeadlessSimulator {
             prev = Some(id);
         }
         let args = RawWindowFocusArgs::now(prev, Some(*ctx.window_id));
-        RawWindowFocusEvent.notify(ctx.events, args);
+        RAW_WINDOW_FOCUS_EVENT.notify(ctx.events, args);
     }
 }
 
@@ -1453,8 +1453,8 @@ impl ContentCtrl {
         }
     }
 
-    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if let Some(args) = RawFrameRenderedEvent.update(args) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if args.window_id == *ctx.window_id {
                 self.is_rendering = false;
                 match self.pending_render.take() {
@@ -1472,21 +1472,21 @@ impl ContentCtrl {
                 let image = args.frame_image.as_ref().cloned().map(Image::new);
 
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
-                FrameImageReadyEvent.notify(ctx.events, args);
+                FRAME_IMAGE_READY_EVENT.notify(ctx.events, args);
             }
         } else {
-            self.commands.event(ctx, &self.vars, args);
+            self.commands.event(ctx, &self.vars, update);
         }
     }
 
-    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
         debug_assert!(self.inited);
 
-        if self.subs.event_contains(args) {
-            args.with_window(ctx, |ctx| {
+        if self.subs.event_contains(update) {
+            update.with_window(ctx, |ctx| {
                 ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                    args.with_widget(ctx, |ctx| {
-                        self.root.event(ctx, args);
+                    update.with_widget(ctx, |ctx| {
+                        self.root.event(ctx, update);
                     });
                 });
             });
@@ -1749,19 +1749,19 @@ impl WindowCtrl {
         }
     }
 
-    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.pre_event(ctx, args),
-            WindowCtrlMode::Headless(c) => c.pre_event(ctx, args),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.pre_event(ctx, args),
+            WindowCtrlMode::Headed(c) => c.pre_event(ctx, update),
+            WindowCtrlMode::Headless(c) => c.pre_event(ctx, update),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.pre_event(ctx, update),
         }
     }
 
-    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.ui_event(ctx, args),
-            WindowCtrlMode::Headless(c) => c.ui_event(ctx, args),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.ui_event(ctx, args),
+            WindowCtrlMode::Headed(c) => c.ui_event(ctx, update),
+            WindowCtrlMode::Headless(c) => c.ui_event(ctx, update),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.ui_event(ctx, update),
         }
     }
 

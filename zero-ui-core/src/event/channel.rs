@@ -1,7 +1,7 @@
-use std::{rc::Rc, cell::RefCell, collections::VecDeque, time::Duration};
+use std::{cell::RefCell, collections::VecDeque, rc::Rc, time::Duration};
 
 use crate::{
-    app::{AppDisconnected, AppEventSender, TimeoutOrAppDisconnected, RecvFut},
+    app::{AppDisconnected, AppEventSender, RecvFut, TimeoutOrAppDisconnected},
     context::UpdatesTrace,
 };
 
@@ -160,7 +160,7 @@ where
 }
 impl<A> From<EventReceiver<A>> for flume::Receiver<A>
 where
-    A: EventArgs + Send
+    A: EventArgs + Send,
 {
     fn from(e: EventReceiver<A>) -> Self {
         e.receiver
@@ -168,7 +168,7 @@ where
 }
 impl<'a, A> IntoIterator for &'a EventReceiver<A>
 where
-    A: EventArgs + Send
+    A: EventArgs + Send,
 {
     type Item = A;
 
@@ -180,9 +180,9 @@ where
 }
 impl<A> IntoIterator for EventReceiver<A>
 where
-    A: EventArgs + Send
+    A: EventArgs + Send,
 {
-    type Item = A::Args;
+    type Item = A;
 
     type IntoIter = flume::IntoIter<A>;
 
@@ -227,7 +227,10 @@ impl<A: EventArgs> EventBuffer<A> {
 
     /// Create an empty buffer that will always stay empty.
     pub fn never(event: Event<A>) -> Self {
-        EventBuffer { event, queue: Default::default() }
+        EventBuffer {
+            event,
+            queue: Default::default(),
+        }
     }
 
     /// Event that is buffered.

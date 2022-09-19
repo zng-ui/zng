@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WithUpdates},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTranslation, WidgetList},
     units::PxSize,
@@ -329,9 +329,9 @@ impl UiNodeList for WidgetVec {
         }
     }
 
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
         for widget in &mut self.vec {
-            widget.event(ctx, args);
+            widget.event(ctx, update);
         }
     }
 
@@ -853,9 +853,9 @@ impl UiNodeList for UiNodeVec {
             node.update(ctx);
         }
     }
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
         for node in self.iter_mut() {
-            node.event(ctx, args);
+            node.event(ctx, update);
         }
     }
 

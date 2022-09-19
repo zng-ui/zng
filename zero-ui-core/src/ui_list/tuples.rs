@@ -1,6 +1,6 @@
 use crate::{
     context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
@@ -225,8 +225,8 @@ macro_rules! impl_tuples {
                 $(self.items.$n.update(ctx);)+
             }
 
-            fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                $(self.items.$n.event(ctx, args);)+
+            fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                $(self.items.$n.event(ctx, update);)+
             }
 
             $($layout_all)+
@@ -453,7 +453,7 @@ macro_rules! empty_node_list {
 
             fn update_all<O: UiListObserver>(&mut self, _: &mut WidgetContext, _: &mut O) {}
 
-            fn event_all<EU: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &EU) {}
+            fn event_all(&mut self, _: &mut WidgetContext, _: &EventUpdate) {}
 
             fn measure_all<C, D>(&self, _: &mut MeasureContext, _: C, _: D)
             where

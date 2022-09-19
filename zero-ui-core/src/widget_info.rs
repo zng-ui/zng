@@ -14,7 +14,7 @@ use crate::{
     border::ContextBorders,
     context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMapRef, Updates},
     crate_util::IdMap,
-    event::EventUpdateArgs,
+    event::{Event, EventArgs, EventUpdate},
     handler::WidgetHandler,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
@@ -1913,7 +1913,7 @@ impl WidgetSubscriptions {
     /// Register an [`Event`] or command subscription.
     ///
     /// [`Event`]: crate::event::Event
-    pub fn event(&mut self, event: impl crate::event::Event) -> &mut Self {
+    pub fn event<A: EventArgs>(&mut self, event: &Event<A>) -> &mut Self {
         self.event.insert(event.slot());
         self
     }
@@ -1969,7 +1969,7 @@ impl WidgetSubscriptions {
     }
 
     /// Returns `true` if the widget subscribes to events in the slot.
-    pub fn event_contains(&self, event: &impl EventUpdateArgs) -> bool {
+    pub fn event_contains(&self, event: &EventUpdate) -> bool {
         self.event.contains(event.slot())
     }
 

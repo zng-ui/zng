@@ -139,8 +139,8 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         }
     }
 
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        self.list.event_all(ctx, args)
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        self.list.event_all(ctx, update)
     }
 
     fn measure_all<C, D>(&self, ctx: &mut MeasureContext, pre_measure: C, pos_measure: D)

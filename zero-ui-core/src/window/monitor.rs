@@ -5,11 +5,11 @@ use linear_map::LinearMap;
 use super::VideoMode;
 use crate::{
     app::{
-        raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent, RawScaleFactorChangedEvent},
-        view_process::ViewProcessInitedEvent,
+        raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT},
+        view_process::VIEW_PROCESS_INITED_EVENT,
     },
     context::AppContext,
-    event::{event, EventUpdateArgs, Events},
+    event::{event, EventUpdate, Events},
     event_args,
     service::Service,
     text::*,
@@ -146,18 +146,18 @@ impl Monitors {
 
         if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
             let args = MonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), removed, added, changed);
-            MonitorsChangedEvent.notify(events, args);
+            MONITORS_CHANGED_EVENT.notify(events, args);
         }
     }
 
-    pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = RawScaleFactorChangedEvent.update(args) {
+    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = Monitors::req(ctx.services).monitor(args.monitor_id) {
                 m.scale_factor.set_ne(ctx.vars, args.scale_factor);
             }
-        } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
+        } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
             Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, args);
-        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
             Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, &args);
         }
@@ -424,7 +424,7 @@ impl fmt::Debug for MonitorQuery {
 }
 
 event_args! {
-    /// [`MonitorsChangedEvent`] args.
+    /// [`MONITORS_CHANGED_EVENT`] args.
     pub struct MonitorsChangedArgs {
         /// Removed monitors.
         pub removed: Vec<MonitorId>,
@@ -450,5 +450,5 @@ event_args! {
 
 event! {
     /// Monitors added or removed event.
-    pub MonitorsChangedEvent: MonitorsChangedArgs;
+    pub static MONITORS_CHANGED_EVENT: MonitorsChangedArgs;
 }

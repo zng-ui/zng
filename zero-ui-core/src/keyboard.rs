@@ -6,7 +6,7 @@
 
 use std::time::{Duration, Instant};
 
-use crate::app::view_process::ViewProcessInitedEvent;
+use crate::app::view_process::VIEW_PROCESS_INITED_EVENT;
 use crate::app::{raw_events::*, *};
 use crate::event::*;
 use crate::focus::Focus;
@@ -21,7 +21,7 @@ use linear_map::set::LinearSet;
 pub use zero_ui_view_api::{Key, KeyState, ScanCode};
 
 event_args! {
-    /// Arguments for [`KeyInputEvent`].
+    /// Arguments for [`KEY_INPUT_EVENT`].
     pub struct KeyInputArgs {
         /// Window that received the event.
         pub window_id: WindowId,
@@ -55,7 +55,7 @@ event_args! {
         }
     }
 
-    /// Arguments for [`CharInputEvent`].
+    /// Arguments for [`CHAR_INPUT_EVENT`].
     pub struct CharInputArgs {
         /// Window that received the event.
         pub window_id: WindowId,
@@ -74,7 +74,7 @@ event_args! {
         }
     }
 
-    /// Arguments for [`ModifiersChangedEvent`].
+    /// Arguments for [`MODIFIERS_CHANGED_EVENT`].
     pub struct ModifiersChangedArgs {
         /// Previous modifiers state.
         pub prev_modifiers: ModifiersState,
@@ -132,21 +132,21 @@ event! {
     /// # Provider
     ///
     /// This event is provided by the [`KeyboardManager`] extension.
-    pub KeyInputEvent: KeyInputArgs;
+    pub static KEY_INPUT_EVENT: KeyInputArgs;
 
     /// Modifiers key state changed event.
     ///
     /// # Provider
     ///
     /// This event is provided by the [`KeyboardManager`] extension.
-    pub ModifiersChangedEvent: ModifiersChangedArgs;
+    pub static MODIFIERS_CHANGED_EVENT: ModifiersChangedArgs;
 
     /// Character received event.
     ///
     /// # Provider
     ///
     /// This event is provided by the [`KeyboardManager`] extension.
-    pub CharInputEvent: CharInputArgs;
+    pub static CHAR_INPUT_EVENT: CharInputArgs;
 }
 
 /// Application extension that provides keyboard events targeting the focused widget.
@@ -189,23 +189,23 @@ impl AppExtension for KeyboardManager {
         r.services.register(kb);
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = RawKeyInputEvent.update(args) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = Focus::req(ctx.services).focused().get_clone(ctx);
             let keyboard = Keyboard::req(ctx.services);
             keyboard.key_input(ctx.events, ctx.vars, args, focused);
-        } else if let Some(args) = RawCharInputEvent.update(args) {
+        } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
             let focused = Focus::req(ctx.services).focused().get_clone(ctx);
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
-                    CharInputEvent.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
+                    CHAR_INPUT_EVENT.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
                 }
             }
-        } else if let Some(args) = RawKeyRepeatDelayChangedEvent.update(args) {
+        } else if let Some(args) = RAW_KEY_REPEAT_DELAY_CHANGED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
             kb.repeat_delay.set_ne(ctx.vars, args.delay);
             kb.last_key_down = None;
-        } else if let Some(args) = RawWindowFocusEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
                 let kb = Keyboard::req(ctx.services);
 
@@ -216,7 +216,7 @@ impl AppExtension for KeyboardManager {
 
                 kb.last_key_down = None;
             }
-        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
             kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay);
 
@@ -339,7 +339,7 @@ impl Keyboard {
                     repeat,
                     target,
                 );
-                KeyInputEvent.notify(events, args);
+                KEY_INPUT_EVENT.notify(events, args);
             }
         }
     }
@@ -356,7 +356,7 @@ impl Keyboard {
 
         if prev_modifiers != new_modifiers {
             self.modifiers.set(vars, new_modifiers);
-            ModifiersChangedEvent.notify(events, ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
+            MODIFIERS_CHANGED_EVENT.notify(events, ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
         }
     }
 
@@ -413,7 +413,7 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
         use crate::app::raw_events::*;
 
         let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), key as u32, state, Some(key));
-        RawKeyInputEvent.notify(self.ctx().events, args);
+        RAW_KEY_INPUT_EVENT.notify(self.ctx().events, args);
     }
 
     fn press_key(&mut self, window_id: WindowId, key: Key) {

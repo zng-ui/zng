@@ -6,13 +6,13 @@ use zero_ui_view_api::IpcBytes;
 
 use crate::{
     app::{
-        raw_events::{RawImageLoadErrorEvent, RawImageLoadedEvent, RawImageMetadataLoadedEvent},
-        view_process::{ViewImage, ViewProcess, ViewProcessInitedEvent, ViewProcessOffline},
+        raw_events::{RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
+        view_process::{ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS_INITED_EVENT},
         AppEventSender, AppExtension,
     },
     context::AppContext,
     crate_util::IdMap,
-    event::EventUpdateArgs,
+    event::EventUpdate,
     service::Service,
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
@@ -47,8 +47,8 @@ impl AppExtension for ImageManager {
         ctx.services.register(images);
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = RawImageMetadataLoadedEvent.update(args) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
             let images = Images::req(ctx.services);
             let vars = ctx.vars;
             if let Some(var) = images
@@ -59,7 +59,7 @@ impl AppExtension for ImageManager {
             {
                 var.touch(ctx.vars);
             }
-        } else if let Some(args) = RawImageLoadedEvent.update(args) {
+        } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update) {
             let image = &args.image;
 
             // image finished decoding, remove from `decoding`
@@ -77,7 +77,7 @@ impl AppExtension for ImageManager {
                 let img = var.get(ctx.vars);
                 img.done_signal.set();
             }
-        } else if let Some(args) = RawImageLoadErrorEvent.update(args) {
+        } else if let Some(args) = RAW_IMAGE_LOAD_ERROR_EVENT.on(update) {
             let image = &args.image;
 
             // image failed to decode, remove from `decoding`
@@ -102,7 +102,7 @@ impl AppExtension for ImageManager {
 
                 tracing::error!("decode error: {:?}", img.error().unwrap());
             }
-        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if !args.is_respawn {
                 return;
             }
@@ -161,7 +161,7 @@ impl AppExtension for ImageManager {
                 } // else { *is loading, will continue normally in self.update_preview()* }
             }
         } else {
-            self.event_preview_render(ctx, args);
+            self.event_preview_render(ctx, update);
         }
     }
 

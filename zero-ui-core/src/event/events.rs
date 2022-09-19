@@ -1,6 +1,18 @@
+use std::{mem, rc::Rc};
+
+use crate::{
+    app::AppEventSender,
+    context::AppContext,
+    crate_util::{Handle, HandleOwner, WeakHandle},
+    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
+    var::Vars,
+};
+
+use super::*;
+
 struct OnEventHandler {
     handle: HandleOwner<()>,
-    handler: Box<dyn FnMut(&mut AppContext, &BoxedEventUpdate, &dyn AppWeakHandle)>,
+    handler: Box<dyn FnMut(&mut AppContext, &EventUpdate, &dyn AppWeakHandle)>,
 }
 
 /// Represents an app context event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
@@ -73,7 +85,7 @@ impl WeakOnEventHandle {
 
 thread_singleton!(SingletonEvents);
 
-type BufferEntry = Box<dyn Fn(&BoxedEventUpdate) -> Retain>;
+type BufferEntry = Box<dyn Fn(&EventUpdate) -> Retain>;
 
 /// Access to application events.
 ///
@@ -81,14 +93,14 @@ type BufferEntry = Box<dyn Fn(&BoxedEventUpdate) -> Retain>;
 pub struct Events {
     app_event_sender: AppEventSender,
 
-    updates: Vec<BoxedEventUpdate>,
+    updates: Vec<EventUpdate>,
 
     pre_buffers: Vec<BufferEntry>,
     buffers: Vec<BufferEntry>,
     pre_handlers: Vec<OnEventHandler>,
     pos_handlers: Vec<OnEventHandler>,
 
-    commands: Vec<AnyCommand>,
+    commands: Vec<Command>,
 
     _singleton: SingletonEvents,
 }
@@ -114,23 +126,13 @@ impl Events {
         }
     }
 
-    /// Called by [`Event::notify`] to schedule a notification.
-    pub fn notify<E: Event>(&mut self, event: E, args: E::Args) {
-        UpdatesTrace::log_event::<E>();
-        let update = EventUpdate::<E>::new(event, args);
-        self.updates.push(update.boxed());
+    /// Schedules the raw event update.
+    pub fn notify(&mut self, update: EventUpdate) {
+        self.updates.push(update);
     }
 
-    pub(crate) fn notify_app_event(&mut self, update: BoxedSendEventUpdate) {
-        self.updates.push(update.forget_send());
-    }
-
-    pub(crate) fn register_command(&mut self, command: AnyCommand) {
-        if self
-            .commands
-            .iter()
-            .any(|c| c.command_type_id() == command.command_type_id() && c.scope() == command.scope())
-        {
+    pub(crate) fn register_command(&mut self, command: Command) {
+        if self.commands.iter().any(|c| c == command) {
             panic!("command `{command:?}` is already registered")
         }
         self.commands.push(command);
@@ -140,25 +142,25 @@ impl Events {
     /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the buffer to stop listening.
-    pub fn pre_buffer<E: Event>(&mut self, event: E) -> EventBuffer<E> {
-        Self::push_buffer::<E>(&mut self.pre_buffers, event)
+    pub fn pre_buffer<A: EventArgs>(&mut self, event: Event<A>) -> EventBuffer<A> {
+        Self::push_buffer(&mut self.pre_buffers, event)
     }
 
     /// Creates an event buffer that listens to `E`. The event updates are pushed only after
     /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the buffer to stop listening.
-    pub fn buffer<E: Event>(&mut self, event: E) -> EventBuffer<E> {
-        Self::push_buffer::<E>(&mut self.buffers, event)
+    pub fn buffer<A: EventArgs>(&mut self, event: Event<A>) -> EventBuffer<A> {
+        Self::push_buffer(&mut self.buffers, event)
     }
 
-    fn push_buffer<E: Event>(buffers: &mut Vec<BufferEntry>, event: E) -> EventBuffer<E> {
-        let buf = EventBuffer::never();
+    fn push_buffer<A: EventArgs>(buffers: &mut Vec<BufferEntry>, event: Event<A>) -> EventBuffer<A> {
+        let buf = EventBuffer::never(event);
         let weak = Rc::downgrade(&buf.queue);
-        buffers.push(Box::new(move |args| {
+        buffers.push(Box::new(move |update| {
             let mut retain = false;
             if let Some(rc) = weak.upgrade() {
-                if let Some(args) = event.update(args) {
+                if let Some(args) = event.on(update) {
                     rc.borrow_mut().push_back(args.clone());
                 }
                 retain = true;
@@ -169,15 +171,13 @@ impl Events {
     }
 
     /// Creates a sender that can raise an event from other threads and without access to [`Events`].
-    pub fn sender<E>(&mut self, event: E) -> EventSender<E>
+    pub fn sender<A>(&mut self, event: Event<A>) -> EventSender<A>
     where
-        E: Event,
-        E::Args: Send,
+        A: EventArgs + Send,
     {
         EventSender {
             sender: self.app_event_sender.clone(),
-            slot: event.slot(),
-            _event: PhantomData,
+            event,
         }
     }
 
@@ -185,42 +185,39 @@ impl Events {
     /// the UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the receiver to stop listening.
-    pub fn pre_receiver<E>(&mut self, event: E) -> EventReceiver<E>
+    pub fn pre_receiver<A>(&mut self, event: Event<A>) -> EventReceiver<A>
     where
-        E: Event,
-        E::Args: Send,
+        A: EventArgs + Send,
     {
-        Self::push_receiver::<E>(&mut self.pre_buffers, event)
+        Self::push_receiver(&mut self.pre_buffers, event)
     }
 
     /// Creates a channel that can listen to event from another thread. The event updates are sent only after the
     /// UI and [`on_event`](Self::on_event) are notified.
     ///
     /// Drop the receiver to stop listening.
-    pub fn receiver<E>(&mut self, event: E) -> EventReceiver<E>
+    pub fn receiver<A>(&mut self, event: Event<A>) -> EventReceiver<A>
     where
-        E: Event,
-        E::Args: Send,
+        A: EventArgs + Send,
     {
-        Self::push_receiver::<E>(&mut self.buffers, event)
+        Self::push_receiver(&mut self.buffers, event)
     }
 
-    fn push_receiver<E>(buffers: &mut Vec<BufferEntry>, event: E) -> EventReceiver<E>
+    fn push_receiver<A>(buffers: &mut Vec<BufferEntry>, event: Event<A>) -> EventReceiver<A>
     where
-        E: Event,
-        E::Args: Send,
+        A: EventArgs + Send,
     {
         let (sender, receiver) = flume::unbounded();
 
-        buffers.push(Box::new(move |e| {
+        buffers.push(Box::new(move |update| {
             let mut retain = true;
-            if let Some(args) = event.update(e) {
+            if let Some(args) = event.on(update) {
                 retain = sender.send(args.clone()).is_ok();
             }
             retain
         }));
 
-        EventReceiver { receiver }
+        EventReceiver { receiver, event }
     }
 
     /// Creates a preview event handler.
@@ -237,14 +234,14 @@ impl Events {
     /// ```
     /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::handler::app_hn;
-    /// # use zero_ui_core::focus::{FocusChangedEvent, FocusChangedArgs};
+    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_pre_event(FocusChangedEvent, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
+    /// let handle = ctx.events.on_pre_event(FOCUS_CHANGED_EVENT, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
     /// # }
     /// ```
-    /// The example listens to all `FocusChangedEvent` events, independent of widget context and before all UI handlers.
+    /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context and before all UI handlers.
     ///
     /// # Handlers
     ///
@@ -262,10 +259,10 @@ impl Events {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_pre_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
+    pub fn on_pre_event<A, H>(&mut self, event: Event<A>, handler: H) -> OnEventHandle
     where
-        E: Event,
-        H: AppHandler<E::Args>,
+        A: EventArgs,
+        H: AppHandler<A>,
     {
         Self::push_event_handler(&mut self.pre_handlers, event, true, handler)
     }
@@ -284,14 +281,14 @@ impl Events {
     /// ```
     /// # use zero_ui_core::event::*;
     /// # use zero_ui_core::handler::app_hn;
-    /// # use zero_ui_core::focus::{FocusChangedEvent, FocusChangedArgs};
+    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
     /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_event(FocusChangedEvent, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
+    /// let handle = ctx.events.on_event(FOCUS_CHANGED_EVENT, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
     /// # }
     /// ```
-    /// The example listens to all `FocusChangedEvent` events, independent of widget context, after the UI was notified.
+    /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context, after the UI was notified.
     ///
     /// # Handlers
     ///
@@ -309,22 +306,22 @@ impl Events {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
+    pub fn on_event<A, H>(&mut self, event: Event<A>, handler: H) -> OnEventHandle
     where
-        E: Event,
-        H: AppHandler<E::Args>,
+        A: EventArgs,
+        H: AppHandler<A>,
     {
         Self::push_event_handler(&mut self.pos_handlers, event, false, handler)
     }
 
-    fn push_event_handler<E, H>(handlers: &mut Vec<OnEventHandler>, event: E, is_preview: bool, mut handler: H) -> OnEventHandle
+    fn push_event_handler<A, H>(handlers: &mut Vec<OnEventHandler>, event: A, is_preview: bool, mut handler: H) -> OnEventHandle
     where
-        E: Event,
-        H: AppHandler<E::Args>,
+        A: EventArgs,
+        H: AppHandler<A>,
     {
         let (handle_owner, handle) = OnEventHandle::new();
-        let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate, handle: &dyn AppWeakHandle| {
-            if let Some(args) = event.update(args) {
+        let handler = move |ctx: &mut AppContext, update: &EventUpdate, handle: &dyn AppWeakHandle| {
+            if let Some(args) = event.on(update) {
                 if !args.propagation().is_stopped() {
                     handler.event(ctx, args, &AppHandlerArgs { handle, is_preview });
                 }
@@ -342,35 +339,35 @@ impl Events {
     }
 
     #[must_use]
-    pub(super) fn apply_updates(&mut self, vars: &Vars) -> Vec<BoxedEventUpdate> {
+    pub(super) fn apply_updates(&mut self, vars: &Vars) -> Vec<EventUpdate> {
         for command in &self.commands {
             command.update_state(vars);
         }
         self.updates.drain(..).collect()
     }
 
-    pub(super) fn on_pre_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
-        ctx.events.pre_buffers.retain(|buf| buf(args));
+    pub(super) fn on_pre_events(ctx: &mut AppContext, update: &EventUpdate) {
+        ctx.events.pre_buffers.retain(|buf| buf(update));
 
         let mut handlers = mem::take(&mut ctx.events.pre_handlers);
-        Self::notify_retain(&mut handlers, ctx, args);
+        Self::notify_retain(&mut handlers, ctx, update);
         handlers.extend(mem::take(&mut ctx.events.pre_handlers));
         ctx.events.pre_handlers = handlers;
     }
 
-    pub(super) fn on_events(ctx: &mut AppContext, args: &BoxedEventUpdate) {
+    pub(super) fn on_events(ctx: &mut AppContext, update: &EventUpdate) {
         let mut handlers = mem::take(&mut ctx.events.pos_handlers);
-        Self::notify_retain(&mut handlers, ctx, args);
+        Self::notify_retain(&mut handlers, ctx, update);
         handlers.extend(mem::take(&mut ctx.events.pos_handlers));
         ctx.events.pos_handlers = handlers;
 
-        ctx.events.buffers.retain(|buf| buf(args));
+        ctx.events.buffers.retain(|buf| buf(update));
     }
 
-    fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, args: &BoxedEventUpdate) {
+    fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, update: &EventUpdate) {
         handlers.retain_mut(|e| {
             !e.handle.is_dropped() && {
-                (e.handler)(ctx, args, &e.handle.weak_handle());
+                (e.handler)(ctx, update, &e.handle.weak_handle());
                 !e.handle.is_dropped()
             }
         });
@@ -381,7 +378,7 @@ impl Events {
     /// When [`Command::new_handle`] is called for the first time in an app, the command gets registered here.
     ///
     /// [`Command::new_handle`]: crate::command::Command::new_handle
-    pub fn commands(&self) -> impl Iterator<Item = AnyCommand> + '_ {
+    pub fn commands(&self) -> impl Iterator<Item = Command> + '_ {
         self.commands.iter().copied()
     }
 }

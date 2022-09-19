@@ -19,6 +19,7 @@ use std::fmt;
 use std::{any::Any, rc::Rc};
 
 use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, UpdatesTrace};
+use crate::event::EventUpdate;
 use crate::render::FrameUpdate;
 use crate::text::Text;
 use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions};
@@ -641,9 +642,9 @@ impl UiNode for InspectPropertyNode {
         self.child.subscriptions(ctx, subs);
     }
 
-    fn event<A: event::EventUpdateArgs>(&mut self, ctx: &mut context::WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut context::WidgetContext, update: &EventUpdate) {
         let _span = UpdatesTrace::property_span(self.meta.property_name, "event");
-        self.child.event(ctx, args);
+        self.child.event(ctx, update);
     }
 
     fn update(&mut self, ctx: &mut context::WidgetContext) {
@@ -718,9 +719,9 @@ impl UiNode for InspectWidgetNode {
         self.child.subscriptions(ctx, subs);
     }
 
-    fn event<A: event::EventUpdateArgs>(&mut self, ctx: &mut context::WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut context::WidgetContext, update: &EventUpdate) {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "event");
-        self.child.event(ctx, args);
+        self.child.event(ctx, update);
     }
 
     fn update(&mut self, ctx: &mut context::WidgetContext) {
@@ -798,9 +799,9 @@ impl UiNode for InspectConstructorNode {
         self.child.subscriptions(ctx, subs);
     }
 
-    fn event<A: event::EventUpdateArgs>(&mut self, ctx: &mut context::WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut context::WidgetContext, update: &EventUpdate) {
         let _span = UpdatesTrace::constructor_span(self.fn_name, "event");
-        self.child.event(ctx, args);
+        self.child.event(ctx, update);
     }
 
     fn update(&mut self, ctx: &mut context::WidgetContext) {

@@ -7,7 +7,7 @@ use crate::{
         state_map, InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMapMut, StateMapRef, WidgetContext,
         WidgetUpdates,
     },
-    event::EventUpdateArgs,
+    event::EventUpdate,
     impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
@@ -16,7 +16,7 @@ use crate::{
         Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
         WidgetLayout, WidgetSubscriptions,
     },
-    window::WidgetInfoChangedEvent,
+    window::WIDGET_INFO_CHANGED_EVENT,
     FillUiNode, UiNode, Widget, WidgetId,
 };
 
@@ -379,16 +379,16 @@ pub mod implicit_base {
                     }
                 }
 
-                fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+                fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", std::any::type_name::<EU>(), self.id);
+                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.name(), self.id);
                     }
 
-                    if self.subscriptions.borrow().event_contains(args) {
+                    if self.subscriptions.borrow().event_contains(update) {
                         let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
-                            args.with_widget(ctx, |ctx| {
-                                self.child.event(ctx, args);
+                            update.with_widget(ctx, |ctx| {
+                                self.child.event(ctx, update);
                             });
                         });
                         *self.pending_updates.get_mut() |= updates;
@@ -734,7 +734,7 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
 }
 
 fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> impl UiNode {
-    event_state(child, state, true, WidgetInfoChangedEvent, move |ctx, _| {
+    event_state(child, state, true, WIDGET_INFO_CHANGED_EVENT, move |ctx, _| {
         let is_enabled = ctx
             .info_tree
             .get(ctx.path.widget_id())
@@ -868,7 +868,7 @@ fn visibility_eq_state(child: impl UiNode, state: StateVar, expected: Visibility
         child,
         state,
         expected == Visibility::Visible,
-        crate::window::FrameImageReadyEvent,
+        crate::window::FRAME_IMAGE_READY_EVENT,
         move |ctx, _| {
             let vis = ctx
                 .info_tree

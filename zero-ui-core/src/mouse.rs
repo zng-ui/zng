@@ -3,10 +3,10 @@
 //! The app extension [`MouseManager`] provides the events and service. It is included in the default application.
 
 use crate::{
-    app::{raw_events::*, view_process::ViewProcessInitedEvent, *},
+    app::{raw_events::*, view_process::VIEW_PROCESS_INITED_EVENT, *},
     context::*,
     event::*,
-    keyboard::{ModifiersChangedEvent, ModifiersState},
+    keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
     service::*,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
@@ -650,22 +650,22 @@ impl MouseWheelArgs {
 
 event! {
     /// Mouse move event.
-    pub MouseMoveEvent: MouseMoveArgs;
+    pub static MOUSE_MOVE_EVENT: MouseMoveArgs;
 
     /// Mouse down or up event.
-    pub MouseInputEvent: MouseInputArgs;
+    pub static MOUSE_INPUT_EVENT: MouseInputArgs;
 
     /// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
-    pub MouseClickEvent: MouseClickArgs;
+    pub static MOUSE_CLICK_EVENT: MouseClickArgs;
 
     /// The top-most hovered widget changed or mouse capture changed.
-    pub MouseHoveredEvent: MouseHoverArgs;
+    pub static MOUSE_HOVERED_EVENT: MouseHoverArgs;
 
     /// Mouse capture changed event.
-    pub MouseCaptureEvent: MouseCaptureArgs;
+    pub static MOUSE_CAPTURE_EVENT: MouseCaptureArgs;
 
     /// Mouse wheel scroll event.
-    pub MouseWheelEvent: MouseWheelArgs;
+    pub static MOUSE_WHEEL_EVENT: MouseWheelArgs;
 }
 
 /// Application extension that provides mouse events and service.
@@ -674,11 +674,11 @@ event! {
 ///
 /// Events this extension provides.
 ///
-/// * [MouseMoveEvent]
-/// * [MouseInputEvent]
-/// * [MouseClickEvent]
-/// * [MouseHoveredEvent]
-/// * [MouseCaptureEvent]
+/// * [`MOUSE_MOVE_EVENT`]
+/// * [`MOUSE_INPUT_EVENT`]
+/// * [`MOUSE_CLICK_EVENT`]
+/// * [`MOUSE_HOVERED_EVENT`]
+/// * [`MOUSE_CAPTURE_EVENT`]
 ///
 /// # Services
 ///
@@ -804,7 +804,7 @@ impl MouseManager {
         );
 
         // on_mouse_input
-        MouseInputEvent.notify(ctx.events, args);
+        MOUSE_INPUT_EVENT.notify(ctx.events, args);
 
         match state {
             ButtonState::Pressed => {
@@ -860,7 +860,7 @@ impl MouseManager {
                                 hits,
                                 target,
                             );
-                            MouseClickEvent.notify(ctx.events, args);
+                            MOUSE_CLICK_EVENT.notify(ctx.events, args);
                         } else {
                             // start again.
                             self.click_state = ClickState::Pressed {
@@ -902,7 +902,7 @@ impl MouseManager {
                                     hits,
                                     target.clone(),
                                 );
-                                MouseClickEvent.notify(ctx.events, args);
+                                MOUSE_CLICK_EVENT.notify(ctx.events, args);
 
                                 self.click_state = ClickState::Clicked {
                                     start_time: now,
@@ -974,7 +974,7 @@ impl MouseManager {
                             capture.clone(),
                             capture,
                         );
-                        MouseHoveredEvent.notify(ctx, args);
+                        MOUSE_HOVERED_EVENT.notify(ctx, args);
                     }
                     return;
                 }
@@ -1025,11 +1025,11 @@ impl MouseManager {
                     target,
                     capture,
                 );
-                MouseMoveEvent.notify(ctx.events, args);
+                MOUSE_MOVE_EVENT.notify(ctx.events, args);
             }
 
             if let Some(args) = hovered_args {
-                MouseHoveredEvent.notify(ctx, args);
+                MOUSE_HOVERED_EVENT.notify(ctx, args);
             }
         } else if coalesced_pos.is_empty() {
             tracing::warn!("RawCursorMoved did not actually move")
@@ -1056,7 +1056,7 @@ impl MouseManager {
 
         if let Some(target) = target.unblocked() {
             let args = MouseWheelArgs::now(window_id, device_id, position, self.modifiers, delta, phase, hits, target);
-            MouseWheelEvent.notify(ctx.events, args);
+            MOUSE_WHEEL_EVENT.notify(ctx.events, args);
         }
     }
 
@@ -1088,7 +1088,7 @@ impl MouseManager {
                     capture.clone(),
                     capture,
                 );
-                MouseHoveredEvent.notify(ctx.events, args);
+                MOUSE_HOVERED_EVENT.notify(ctx.events, args);
             }
         }
     }
@@ -1117,8 +1117,8 @@ impl AppExtension for MouseManager {
             .register(Mouse::new(ctx.updates.sender(), self.multi_click_config.clone()));
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = RawFrameRenderedEvent.update(args) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
                 let (windows, mouse) = <(Windows, Mouse)>::req(ctx.services);
@@ -1134,7 +1134,7 @@ impl AppExtension for MouseManager {
                     let capture = self.capture_info(mouse);
                     let prev = mem::replace(&mut self.hovered, target.clone());
                     let args = MouseHoverArgs::now(args.window_id, None, self.pos, pos_hits, prev, target, capture.clone(), capture);
-                    MouseHoveredEvent.notify(ctx.events, args);
+                    MOUSE_HOVERED_EVENT.notify(ctx.events, args);
                 }
             }
             // update capture
@@ -1144,26 +1144,26 @@ impl AppExtension for MouseManager {
                     mouse.continue_capture(frame, ctx.events);
                 }
             }
-        } else if let Some(args) = RawCursorMovedEvent.update(args) {
+        } else if let Some(args) = RAW_CURSOR_MOVED_EVENT.on(update) {
             self.on_cursor_moved(args.window_id, args.device_id, args.coalesced_pos.clone(), args.position, ctx);
-        } else if let Some(args) = RawMouseWheelEvent.update(args) {
+        } else if let Some(args) = RAW_MOUSE_WHEEL_EVENT.on(update) {
             self.on_scroll(args.window_id, args.device_id, args.delta, args.phase, ctx);
-        } else if let Some(args) = RawMouseInputEvent.update(args) {
+        } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
-        } else if let Some(args) = ModifiersChangedEvent.update(args) {
+        } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
             self.modifiers = args.modifiers;
-        } else if let Some(args) = RawCursorLeftEvent.update(args) {
+        } else if let Some(args) = RAW_CURSOR_LEFT_EVENT.on(update) {
             self.on_cursor_left_window(args.window_id, args.device_id, ctx);
-        } else if let Some(args) = RawWindowFocusEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if let Some(window_id) = args.prev_focus {
                 self.on_window_blur(window_id, ctx);
             }
-        } else if let Some(args) = RawWindowCloseEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.on_window_closed(args.window_id, ctx);
-        } else if let Some(args) = RawMultiClickConfigChangedEvent.update(args) {
+        } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
             self.multi_click_config.set_ne(ctx.vars, args.config);
             self.click_state = ClickState::None;
-        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             self.multi_click_config.set_ne(ctx.vars, args.multi_click_config);
 
             if args.is_respawn {
@@ -1185,7 +1185,7 @@ impl AppExtension for MouseManager {
                                     None,
                                     None,
                                 );
-                                MouseInputEvent.notify(ctx.events, args);
+                                MOUSE_INPUT_EVENT.notify(ctx.events, args);
                             }
                         }
                         let args = MouseHoverArgs::now(
@@ -1198,12 +1198,12 @@ impl AppExtension for MouseManager {
                             None,
                             None,
                         );
-                        MouseHoveredEvent.notify(ctx.events, args);
+                        MOUSE_HOVERED_EVENT.notify(ctx.events, args);
                     }
                 }
                 if let Some(cap) = mouse.current_capture.take() {
                     let args = MouseCaptureArgs::now(Some(cap), None);
-                    MouseCaptureEvent.notify(ctx.events, args);
+                    MOUSE_CAPTURE_EVENT.notify(ctx.events, args);
                 }
                 mouse.capture_request = None;
                 mouse.release_requested = false;
@@ -1217,8 +1217,8 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = MouseCaptureEvent.update(args) {
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = MOUSE_CAPTURE_EVENT.on(update) {
             if let Some(path) = &self.hovered {
                 if let Some(window_id) = self.pos_window {
                     let hover_args = MouseHoverArgs::now(
@@ -1237,7 +1237,7 @@ impl AppExtension for MouseManager {
                             mode: *mode,
                         }),
                     );
-                    MouseHoveredEvent.notify(ctx.events, hover_args);
+                    MOUSE_HOVERED_EVENT.notify(ctx.events, hover_args);
                 }
             }
         }
@@ -1433,14 +1433,14 @@ impl Mouse {
         if new != self.current_capture {
             let prev = self.current_capture.take();
             self.current_capture = new.clone();
-            MouseCaptureEvent.notify(events, MouseCaptureArgs::now(prev, new));
+            MOUSE_CAPTURE_EVENT.notify(events, MouseCaptureArgs::now(prev, new));
         }
     }
 
     fn unset_capture(&mut self, events: &mut Events) {
         if self.current_capture.is_some() {
             let prev = self.current_capture.take();
-            MouseCaptureEvent.notify(events, MouseCaptureArgs::now(prev, None));
+            MOUSE_CAPTURE_EVENT.notify(events, MouseCaptureArgs::now(prev, None));
         }
     }
 }

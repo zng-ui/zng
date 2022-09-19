@@ -1,26 +1,26 @@
 use crate::{context::*, event::*, var::*, widget_info::*, *};
 
 /// Helper for declaring state properties that depend on a single event.
-pub fn event_state<E: Event>(
+pub fn event_state<A: EventArgs>(
     child: impl UiNode,
     state: StateVar,
     default: bool,
-    event: E,
-    on_event: impl FnMut(&mut WidgetContext, &E::Args) -> Option<bool> + 'static,
+    event: Event<A>,
+    on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    struct EventStateNode<C, E, S> {
+    struct EventStateNode<C, A: EventArgs, S> {
         child: C,
-        event: E,
+        event: Event<A>,
         default: bool,
         state: StateVar,
         on_event: S,
     }
     #[impl_ui_node(child)]
-    impl<C, E, S> UiNode for EventStateNode<C, E, S>
+    impl<C, A, S> UiNode for EventStateNode<C, A, S>
     where
         C: UiNode,
-        E: Event,
-        S: FnMut(&mut WidgetContext, &E::Args) -> Option<bool> + 'static,
+        A: EventArgs,
+        S: FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
@@ -34,15 +34,13 @@ pub fn event_state<E: Event>(
             subs.event(self.event);
             self.child.subscriptions(ctx, subs);
         }
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = self.event.update(args) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            if let Some(args) = self.event.on(update) {
                 if let Some(state) = (self.on_event)(ctx, args) {
                     self.state.set_ne(ctx, state);
                 }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
         }
     }
     EventStateNode {
@@ -57,21 +55,21 @@ pub fn event_state<E: Event>(
 
 /// Helper for declaring state properties that depend on two other event states.
 #[allow(clippy::too_many_arguments)]
-pub fn event_state2<E0: Event, E1: Event>(
+pub fn event_state2<A0: EventArgs, A1: EventArgs>(
     child: impl UiNode,
     state: StateVar,
     default: bool,
-    event0: E0,
+    event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&mut WidgetContext, &E0::Args) -> Option<bool> + 'static,
-    event1: E1,
+    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+    event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&mut WidgetContext, &E1::Args) -> Option<bool> + 'static,
+    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    struct EventState2Node<C, E0, E1, S0, S1, M> {
+    struct EventState2Node<C, A0: EventArgs, A1: EventArgs, S0, S1, M> {
         child: C,
-        events: (E0, E1),
+        events: (Event<A0>, Event<A1>),
         default: bool,
         state: StateVar,
         on_events: (S0, S1),
@@ -80,13 +78,13 @@ pub fn event_state2<E0: Event, E1: Event>(
         merge: M,
     }
     #[impl_ui_node(child)]
-    impl<C, E0, E1, S0, S1, M> UiNode for EventState2Node<C, E0, E1, S0, S1, M>
+    impl<C, A0, A1, S0, S1, M> UiNode for EventState2Node<C, A0, A1, S0, S1, M>
     where
         C: UiNode,
-        E0: Event,
-        E1: Event,
-        S0: FnMut(&mut WidgetContext, &E0::Args) -> Option<bool> + 'static,
-        S1: FnMut(&mut WidgetContext, &E1::Args) -> Option<bool> + 'static,
+        A0: EventArgs,
+        A1: EventArgs,
+        S0: FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+        S1: FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
         M: FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -102,27 +100,25 @@ pub fn event_state2<E0: Event, E1: Event>(
             subs.event(self.events.0).event(self.events.1);
             self.child.subscriptions(ctx, subs);
         }
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
             let mut update = false;
-            if let Some(args) = self.events.0.update(args) {
+            if let Some(args) = self.events.0.on(update) {
                 if let Some(state) = (self.on_events.0)(ctx, args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
                         update = true;
                     }
                 }
-                self.child.event(ctx, args);
-            } else if let Some(args) = self.events.1.update(args) {
+            } else if let Some(args) = self.events.1.on(update) {
                 if let Some(state) = (self.on_events.1)(ctx, args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
                         update = true;
                     }
                 }
-                self.child.event(ctx, args);
             } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
 
             if update {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1) {
@@ -146,24 +142,24 @@ pub fn event_state2<E0: Event, E1: Event>(
 
 /// Helper for declaring state properties that depend on tree other event states.
 #[allow(clippy::too_many_arguments)]
-pub fn event_state3<E0: Event, E1: Event, E2: Event>(
+pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     child: impl UiNode,
     state: StateVar,
     default: bool,
-    event0: E0,
+    event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&mut WidgetContext, &E0::Args) -> Option<bool> + 'static,
-    event1: E1,
+    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+    event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&mut WidgetContext, &E1::Args) -> Option<bool> + 'static,
-    event2: E2,
+    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
+    event2: Event<A2>,
     default2: bool,
-    on_event2: impl FnMut(&mut WidgetContext, &E2::Args) -> Option<bool> + 'static,
+    on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    struct EventState3Node<C, E0, E1, E2, S0, S1, S2, M> {
+    struct EventState3Node<C, A0: EventArgs, A1: EventArgs, A2: EventArgs, S0, S1, S2, M> {
         child: C,
-        events: (E0, E1, E2),
+        events: (Event<A0>, Event<A1>, Event<A2>),
         default: bool,
         state: StateVar,
         on_events: (S0, S1, S2),
@@ -172,15 +168,15 @@ pub fn event_state3<E0: Event, E1: Event, E2: Event>(
         merge: M,
     }
     #[impl_ui_node(child)]
-    impl<C, E0, E1, E2, S0, S1, S2, M> UiNode for EventState3Node<C, E0, E1, E2, S0, S1, S2, M>
+    impl<C, A0, A1, A2, S0, S1, S2, M> UiNode for EventState3Node<C, A0, A1, A2, S0, S1, S2, M>
     where
         C: UiNode,
-        E0: Event,
-        E1: Event,
-        E2: Event,
-        S0: FnMut(&mut WidgetContext, &E0::Args) -> Option<bool> + 'static,
-        S1: FnMut(&mut WidgetContext, &E1::Args) -> Option<bool> + 'static,
-        S2: FnMut(&mut WidgetContext, &E2::Args) -> Option<bool> + 'static,
+        A0: EventArgs,
+        A1: EventArgs,
+        A2: EventArgs,
+        S0: FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+        S1: FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
+        S2: FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
         M: FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -196,35 +192,31 @@ pub fn event_state3<E0: Event, E1: Event, E2: Event>(
             subs.event(self.events.0).event(self.events.1).event(self.events.2);
             self.child.subscriptions(ctx, subs);
         }
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
             let mut update = false;
-            if let Some(args) = self.events.0.update(args) {
+            if let Some(args) = self.events.0.on(update) {
                 if let Some(state) = (self.on_events.0)(ctx, args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
                         update = true;
                     }
                 }
-                self.child.event(ctx, args);
-            } else if let Some(args) = self.events.1.update(args) {
+            } else if let Some(args) = self.events.1.on(update) {
                 if let Some(state) = (self.on_events.1)(ctx, args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
                         update = true;
                     }
                 }
-                self.child.event(ctx, args);
-            } else if let Some(args) = self.events.2.update(args) {
+            } else if let Some(args) = self.events.2.on(update) {
                 if let Some(state) = (self.on_events.2)(ctx, args) {
                     if self.partial.2 != state {
                         self.partial.2 = state;
                         update = true;
                     }
                 }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
 
             if update {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1, self.partial.2) {

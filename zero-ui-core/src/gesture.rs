@@ -4,10 +4,10 @@ use linear_map::{set::LinearSet, LinearMap};
 
 use crate::{
     app::*,
-    command::{AnyCommand, Command, CommandMetaVar, CommandScope, StaticCommandMetaVarId},
     context::*,
     crate_util::{Handle, HandleOwner, WeakHandle},
     event::*,
+    event::{Command, CommandMetaVar, CommandScope, StaticCommandMetaVarId},
     focus::{Focus, FocusRequest, FocusTarget},
     keyboard::*,
     mouse::*,
@@ -66,7 +66,7 @@ pub enum ShortcutClick {
 }
 
 event_args! {
-    /// [`ClickEvent`] arguments.
+    /// [`CLICK_EVENT`] arguments.
     pub struct ClickArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -100,7 +100,7 @@ event_args! {
         }
     }
 
-    /// [`ShortcutEvent`] arguments.
+    /// [`SHORTCUT_EVENT`] arguments.
     pub struct ShortcutArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -730,14 +730,14 @@ event! {
     /// Aggregate click event.
     ///
     /// Can be a mouse click, a shortcut press or a touch tap.
-    pub ClickEvent: ClickArgs;
+    pub static CLICK_EVENT: ClickArgs;
 
     /// Shortcut input event.
     ///
     /// Event happens every time a full [`Shortcut`] is completed by key press.
     ///
     /// This event is not send to any widget, use the [`Gestures`] service to setup widget targets for shortcuts.
-    pub ShortcutEvent: ShortcutArgs;
+    pub static SHORTCUT_EVENT: ShortcutArgs;
 }
 
 /// Application extension that provides aggregate events.
@@ -757,17 +757,17 @@ impl AppExtension for GestureManager {
         r.services.register(Gestures::new());
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = MouseClickEvent.update(args) {
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = MOUSE_CLICK_EVENT.on(update) {
             // Generate click events from mouse clicks.
             if !args.propagation().is_stopped() {
-                ClickEvent.notify(ctx.events, args.clone().into());
+                CLICK_EVENT.notify(ctx.events, args.clone().into());
             }
-        } else if let Some(args) = KeyInputEvent.update(args) {
+        } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
             let (gestures, windows, focus) = <(Gestures, Windows, Focus)>::req(ctx.services);
             gestures.on_key_input(ctx.vars, ctx.events, focus, windows, args);
-        } else if let Some(args) = ShortcutEvent.update(args) {
+        } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
             let (gestures, focus) = <(Gestures, Focus)>::req(ctx.services);
             gestures.on_shortcut(ctx.events, focus, args);
@@ -1036,7 +1036,7 @@ impl Gestures {
 
         let actions = ShortcutActions::new(vars, events, self, focus, windows, shortcut);
 
-        ShortcutEvent.notify(
+        SHORTCUT_EVENT.notify(
             events,
             ShortcutArgs::new(
                 key_args.timestamp,
@@ -1077,7 +1077,7 @@ pub struct ShortcutActions {
 
     focus: Option<WidgetId>,
     click: Option<(InteractionPath, ShortcutClick)>,
-    commands: Vec<AnyCommand>,
+    commands: Vec<Command>,
 }
 impl ShortcutActions {
     fn new(
@@ -1319,7 +1319,7 @@ impl ShortcutActions {
     /// Commands.
     ///
     /// Only the first command may be scoped in a widget, others are scoped on the focused window or app.
-    pub fn commands(&self) -> &[AnyCommand] {
+    pub fn commands(&self) -> &[Command] {
         &self.commands
     }
 
@@ -1357,7 +1357,7 @@ impl ShortcutActions {
                 self.shortcut.modifiers_state(),
                 target.clone(),
             );
-            ClickEvent.notify(events, args);
+            CLICK_EVENT.notify(events, args);
         }
         for command in &self.commands {
             command.notify_linked(events, None, propagation);
@@ -1767,7 +1767,7 @@ pub trait CommandShortcutExt {
     /// [`Custom`]: crate::command::CommandScope::Custom
     fn shortcut_matches<Vr: WithVarsRead>(self, vars: &Vr, shortcut: Shortcut) -> bool;
 }
-impl<C: Command> CommandShortcutExt for C {
+impl CommandShortcutExt for Command {
     fn shortcut(self) -> CommandMetaVar<Shortcuts> {
         self.with_meta(|m| m.get_var_or_default(&COMMAND_SHORTCUT_ID))
     }

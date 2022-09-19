@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
-    event::{Event, EventUpdateArgs},
+    event::{Event, EventArgs, EventUpdate},
     render::{FrameBuilder, FrameUpdate},
     units::PxSize,
     widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
@@ -105,8 +105,8 @@ pub trait RcNodeTakeSignal: 'static {
     }
 
     /// Returns `true` when the slot must take the node as its child.
-    fn event_take<E: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &E) -> bool {
-        let _ = (ctx, args);
+    fn event_take(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) -> bool {
+        let _ = (ctx, update);
         false
     }
 
@@ -130,19 +130,19 @@ where
     }
 }
 /// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates and passes the filter.
-pub fn take_on<E, F>(event: E, filter: F) -> impl RcNodeTakeSignal
+pub fn take_on<A, F>(event: Event<A>, filter: F) -> impl RcNodeTakeSignal
 where
-    E: Event,
-    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    A: EventArgs,
+    F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
 {
-    struct TakeOn<E, F>(E, F);
-    impl<E, F> RcNodeTakeSignal for TakeOn<E, F>
+    struct TakeOn<A: EventArgs, F>(Event<A>, F);
+    impl<A, F> RcNodeTakeSignal for TakeOn<A, F>
     where
-        E: Event,
-        F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+        A: EventArgs,
+        F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
     {
-        fn event_take<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) -> bool {
-            self.0.update(args).map(|a| (self.1)(ctx, a)).unwrap_or_default()
+        fn event_take(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) -> bool {
+            self.0.on(update).map(|a| (self.1)(ctx, a)).unwrap_or_default()
         }
     }
     TakeOn(event, filter)
@@ -303,16 +303,16 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
+    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate)
     where
         Self: Sized,
     {
         if let SlotNodeState::Active(rc) = &self.state {
             // propagate event to active node.
-            rc.node.borrow_mut().event(ctx, args);
+            rc.node.borrow_mut().event(ctx, update);
         } else if let SlotNodeState::Inactive(_) = &self.state {
             // check event take_signal.
-            if self.take_signal.event_take(ctx, args) {
+            if self.take_signal.event_take(ctx, update) {
                 self.event_signal = true;
                 ctx.updates.update(self.update_slot.mask());
             }

@@ -1,6 +1,6 @@
 use crate::{
     context::{AppContext, WindowContext},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     render::RenderMode,
     service::ServiceTuple,
     units::*,
@@ -131,8 +131,8 @@ impl ImageManager {
     }
 
     /// AppExtension::event_preview
-    pub(super) fn event_preview_render<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = FrameImageReadyEvent.update(args) {
+    pub(super) fn event_preview_render(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
             if let Some(img) = &args.frame_image {
                 let imgs = Images::req(ctx.services);
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {

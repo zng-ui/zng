@@ -20,11 +20,11 @@ pub mod commands;
 use crate::{
     app::{
         self,
-        raw_events::{RawWindowFocusArgs, RawWindowFocusEvent},
+        raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
     context::{AppContext, WindowContext},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     image::ImageVar,
     var::WithVars,
 };
@@ -35,20 +35,20 @@ use crate::{
 ///
 /// Events this extension provides:
 ///
-/// * [WindowOpenEvent]
-/// * [WindowChangedEvent]
-/// * [WindowFocusChangedEvent]
-/// * [WindowCloseRequestedEvent]
-/// * [WindowCloseEvent]
-/// * [MonitorsChangedEvent]
-/// * [WidgetInfoChangedEvent]
+/// * [`WINDOW_OPEN_EVENT`]
+/// * [`WINDOW_CHANGED_EVENT`]
+/// * [`WINDOW_FOCUS_CHANGED_EVENT`]
+/// * [`WINDOW_CLOSE_REQUESTED_EVENT`]
+/// * [`WINDOW_CLOSE_EVENT`]
+/// * [`MONITORS_CHANGED_EVENT`]
+/// * [`WIDGET_INFO_CHANGED_EVENT`]
 ///
 /// # Services
 ///
 /// Services this extension provides:
 ///
-/// * [Windows]
-/// * [Monitors]
+/// * [`Windows`]
+/// * [`Monitors`]
 #[derive(Default)]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
@@ -57,17 +57,17 @@ impl AppExtension for WindowManager {
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        Monitors::on_pre_event(ctx, args);
-        Windows::on_pre_event(ctx, args);
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        Monitors::on_pre_event(ctx, update);
+        Windows::on_pre_event(ctx, update);
     }
 
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        Windows::on_ui_event(ctx, args);
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        Windows::on_ui_event(ctx, update);
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        Windows::on_event(ctx, args);
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        Windows::on_event(ctx, update);
     }
 
     fn update_ui(&mut self, ctx: &mut AppContext) {
@@ -177,13 +177,13 @@ impl HeadlessAppWindowExt for HeadlessApp {
 
     fn focus_window(&mut self, window_id: WindowId) {
         let args = RawWindowFocusArgs::now(None, Some(window_id));
-        RawWindowFocusEvent.notify(self, args);
+        RAW_WINDOW_FOCUS_EVENT.notify(self, args);
         let _ = self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
         let args = RawWindowFocusArgs::now(Some(window_id), None);
-        RawWindowFocusEvent.notify(self, args);
+        RAW_WINDOW_FOCUS_EVENT.notify(self, args);
         let _ = self.update(false);
     }
 
@@ -195,16 +195,16 @@ impl HeadlessAppWindowExt for HeadlessApp {
         use app::raw_events::*;
 
         let args = RawWindowCloseRequestedArgs::now(window_id);
-        RawWindowCloseRequestedEvent.notify(self, args);
+        RAW_WINDOW_CLOSE_REQUESTED_EVENT.notify(self, args);
 
         let mut requested = false;
         let mut closed = false;
 
         let _ = self.update_observe_event(
-            |_, args| {
-                if let Some(args) = WindowCloseRequestedEvent.update(args) {
+            |_, update| {
+                if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.update(update) {
                     requested |= args.windows.contains(&window_id);
-                } else if let Some(args) = WindowCloseEvent.update(args) {
+                } else if let Some(args) = WINDOW_CLOSE_EVENT.update(update) {
                     closed |= args.windows.contains(&window_id);
                 }
             },

@@ -2,7 +2,7 @@ use std::{cell::RefCell, cmp, mem, ops::Deref, rc::Rc};
 
 use crate::{
     context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WithUpdates},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
     units::PxSize,
@@ -313,9 +313,9 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
         for widget in &mut self.vec {
-            widget.event(ctx, args);
+            widget.event(ctx, update);
         }
     }
 

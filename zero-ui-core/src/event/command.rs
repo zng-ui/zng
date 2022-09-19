@@ -1,13 +1,14 @@
 use std::{
     any::TypeId,
     cell::{Cell, RefCell},
+    mem,
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use crate::{
     context::*,
-    crate_util::{Handle, HandleOwner},
+    crate_util::{FxHashMap, Handle, HandleOwner},
     handler::WidgetHandler,
     impl_ui_node,
     text::Text,
@@ -110,22 +111,6 @@ macro_rules! command {
 #[doc(inline)]
 pub use command;
 
-#[doc(hidden)]
-pub struct CommandData {
-    meta_init: Box<dyn Fn(Command)>,
-    meta_inited: Cell<bool>,
-    meta: RefCell<OwnedStateMap<CommandMetaState>>,
-}
-impl CommandData {
-    pub fn new(meta_init: Box<dyn Fn(Command)>) -> Self {
-        CommandData {
-            meta_init,
-            meta_inited: Cell::new(false),
-            meta: RefCell::default(),
-        }
-    }
-}
-
 /// Identifies a command event.
 ///
 /// Use the [`command!`] to declare commands, it declares command keys with optional
@@ -133,13 +118,14 @@ impl CommandData {
 ///
 /// ```
 /// # use zero_ui_core::command::*;
-/// # pub trait CommandFooBarExt: Sized { fn with_foo(self, foo: bool) -> Self { self } fn with_bar(self, bar: bool) -> Self { self } }
+/// # pub trait CommandFooBarExt: Sized { fn init_foo(self, foo: bool) -> Self { self } fn init_bar(self, bar: bool) -> Self { self } }
 /// # impl<C: Command> CommandFooBarExt for C { }
 /// command! {
 ///     /// Foo-bar command.
-///     pub FOO_BAR_CMD
-///         .with_foo(false)
-///         .with_bar(true);
+///     pub FOO_BAR_CMD = {
+///         foo: true,
+///         bar: false,
+///     };
 /// }
 /// ```
 ///
@@ -207,8 +193,8 @@ impl Command {
     ///
     /// A handle indicates that there is an active *handler* for the event, the handle can also
     /// be used to set the [`is_enabled`](Self::is_enabled) state.
-    fn new_handle<Evs: WithEvents>(self, events: &mut Evs, enabled: bool) -> CommandHandle {
-        todo!()
+    fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
+        events.with_events(|events| self.local.with(|l| l.new_handle(events, *self, enabled)))
     }
 
     /// Raw command event.
@@ -229,7 +215,40 @@ impl Command {
 
     /// Visit the command custom metadata of the current scope.
     pub fn with_meta<R>(&self, visit: impl FnOnce(&mut CommandMeta) -> R) -> R {
-        todo!()
+        enum Meta<R> {
+            Result(R),
+            Init(Box<dyn Fn(Command)>),
+        }
+        let r = self.local.with(|l| {
+            if l.meta_inited.replace(true) {
+                let r = match self.scope {
+                    CommandScope::App => visit(&mut CommandMeta {
+                        meta: l.meta_init.borrow_mut().borrow_mut(),
+                        scope: None,
+                    }),
+                    scope => {
+                        let mut scopes = l.scopes.borrow_mut();
+                        let scope = scopes.entry(scope).or_default();
+                        visit(&mut CommandMeta {
+                            meta: l.meta_init.borrow_mut().borrow_mut(),
+                            scope: Some(scope.meta.borrow_mut()),
+                        })
+                    }
+                };
+                Meta::Result(r)
+            } else {
+                Meta::Init(l.meta_init.borrow_mut().take().unwrap())
+            }
+        });
+
+        match r {
+            Meta::Result(r) => r,
+            Meta::Init(init) => {
+                init(*self);
+                self.local.with(|l| *l.meta_init.borrow_mut() = Some(init));
+                self.with_meta(visit)
+            }
+        }
     }
 
     /// Returns `true` if the update is for this command and scope.
@@ -260,16 +279,30 @@ impl Command {
 
     /// Gets a variable that tracks if this command has any live handlers.
     pub fn has_handlers(&self) -> ReadOnlyRcVar<bool> {
-        todo!()
+        self.local.with(|l| match self.scope {
+            CommandScope::App => l.has_handlers.clone().into_read_only(),
+            scope => l.scopes.borrow().entry(scope).or_default().has_handlers.clone().into_read_only(),
+        })
     }
 
     /// Gets a variable that tracks if this command has any enabled live handlers.
     pub fn is_enabled(&self) -> ReadOnlyRcVar<bool> {
-        todo!()
+        self.local.with(|l| match self.scope {
+            CommandScope::App => l.is_enabled.clone().into_read_only(),
+            scope => l.scopes.borrow().entry(scope).or_default().is_enabled.clone().into_read_only(),
+        })
     }
 
     fn is_enabled_value(&self) -> bool {
-        todo!()
+        self.local.with(|l| match self.scope {
+            CommandScope::App => !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0,
+            scope => l
+                .scopes
+                .borrow()
+                .get(&scope)
+                .map(|l| !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
+                .unwrap_or(false),
+        })
     }
 
     /// Schedule a command update without param.
@@ -562,11 +595,14 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 /// Access to metadata of a command.
 ///
 /// The metadata storage can be accessed using the [`Command::with_meta`]
-/// method, you should declare and extension trait that adds methods that return [`CommandMetaVar`] or
+/// method, implementers must declare and extension trait that adds methods that return [`CommandMetaVar`] or
 /// [`ReadOnlyCommandMetaVar`] that are stored in the [`CommandMeta`]. An initialization builder method for
 /// each value also must be provided to integrate with the [`command!`] macro.
 ///
 /// # Examples
+///
+/// /// The [`command!`] initialization transforms `foo: true,` to `command.init_foo(true);`, to support that, the command extension trait
+/// must has `foo` and `init_foo` methods.
 ///
 /// ```
 /// use zero_ui_core::{command::*, var::*};
@@ -834,9 +870,74 @@ impl CommandInfoExt for Command {
 
 enum CommandMetaState {}
 
+#[doc(hidden)]
+pub struct CommandData {
+    meta_init: RefCell<Option<Box<dyn Fn(Command)>>>,
+    meta_inited: Cell<bool>,
+    meta: RefCell<OwnedStateMap<CommandMetaState>>,
+
+    handle: HandleOwner<CommandHandleData>,
+    registered: Cell<bool>,
+
+    has_handlers: RcVar<bool>,
+    is_enabled: RcVar<bool>,
+
+    scopes: RefCell<FxHashMap<CommandScope, ScopedValue>>,
+}
+impl CommandData {
+    pub fn new(meta_init: Box<dyn Fn(Command)>) -> Self {
+        CommandData {
+            meta_init: RefCell::new(Some(meta_init)),
+            meta_inited: Cell::new(false),
+            meta: RefCell::default(),
+
+            handle: HandleOwner::dropped(CommandHandleData::default()),
+            registered: Cell::new(false),
+
+            has_handlers: var(false),
+            is_enabled: var(false),
+
+            scopes: RefCell::default(),
+        }
+    }
+
+    fn new_handle(&self, events: &mut Events, command: Command, enabled: bool) -> CommandHandle {
+        let handle = match command.scope {
+            CommandScope::App => {
+                if !self.registered.replace(true) {
+                    events.register_command(command);
+                }
+
+                self.handle.reanimate()
+            }
+            scope => {
+                let mut scopes = self.scopes.borrow_mut();
+                let scope = scopes.entry(scope).or_default();
+
+                if !mem::replace(&mut scope.registered, true) {
+                    events.register_command(command);
+                }
+
+                scope.handle.reanimate()
+            }
+        };
+
+        let handle = CommandHandle {
+            handle,
+            local_enabled: Cell::new(false),
+        };
+
+        if enabled {
+            handle.set_enabled(true);
+        }
+
+        handle
+    }
+}
+
 struct ScopedValue {
     handle: HandleOwner<CommandHandleData>,
-    enabled: RcVar<bool>,
+    is_enabled: RcVar<bool>,
     has_handlers: RcVar<bool>,
     meta: OwnedStateMap<CommandMetaState>,
     registered: bool,
@@ -844,7 +945,7 @@ struct ScopedValue {
 impl Default for ScopedValue {
     fn default() -> Self {
         ScopedValue {
-            enabled: var(false),
+            is_enabled: var(false),
             has_handlers: var(false),
             handle: HandleOwner::dropped(CommandHandleData::default()),
             meta: OwnedStateMap::default(),
@@ -862,7 +963,7 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnCommandNode<U, C, CB, E, EB, H> {
+    struct OnCommandNode<U, CB, E, EB, H> {
         child: U,
         command: Option<Command>,
         command_builder: CB,

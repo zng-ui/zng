@@ -116,7 +116,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                                     sp.span(),
                                 );
                             }
-                            
                         } else {
                             unset_properties.insert(maybe_inherited);
                         }

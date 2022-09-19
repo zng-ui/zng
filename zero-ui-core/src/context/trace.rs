@@ -8,7 +8,13 @@ use std::{
 use parking_lot::Mutex;
 use tracing::span;
 
-use crate::{app::AppExtension, event::{Event, EventArgs}, var::VarValue, window::WindowId, TraceNode, UiNode, WidgetId};
+use crate::{
+    app::AppExtension,
+    event::{Event, EventArgs},
+    var::VarValue,
+    window::WindowId,
+    TraceNode, UiNode, WidgetId,
+};
 
 use super::InfoContext;
 

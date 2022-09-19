@@ -308,9 +308,9 @@ pub trait AppExtensionBoxed: 'static {
     fn update_preview_boxed(&mut self, ctx: &mut AppContext);
     fn update_ui_boxed(&mut self, ctx: &mut AppContext);
     fn update_boxed(&mut self, ctx: &mut AppContext);
-    fn event_preview_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
-    fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
-    fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn event_preview_boxed(&mut self, ctx: &mut AppContext, args: &EventUpdate);
+    fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &EventUpdate);
+    fn event_boxed(&mut self, ctx: &mut AppContext, args: &EventUpdate);
     fn layout_boxed(&mut self, ctx: &mut AppContext);
     fn render_boxed(&mut self, ctx: &mut AppContext);
     fn deinit_boxed(&mut self, ctx: &mut AppContext);
@@ -344,16 +344,16 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update(ctx);
     }
 
-    fn event_preview_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.event_preview(ctx, args);
+    fn event_preview_boxed(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.event_preview(ctx, update);
     }
 
-    fn event_ui_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.event_ui(ctx, args);
+    fn event_ui_boxed(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.event_ui(ctx, update);
     }
 
-    fn event_boxed(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.event(ctx, args);
+    fn event_boxed(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.event(ctx, update);
     }
 
     fn layout_boxed(&mut self, ctx: &mut AppContext) {
@@ -397,19 +397,16 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().update_boxed(ctx);
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let args = args.as_any();
-        self.as_mut().event_preview_boxed(ctx, &args);
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.as_mut().event_preview_boxed(ctx, update);
     }
 
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let args = args.as_any();
-        self.as_mut().event_ui_boxed(ctx, &args);
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.as_mut().event_ui_boxed(ctx, update);
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let args = args.as_any();
-        self.as_mut().event_boxed(ctx, &args);
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.as_mut().event_boxed(ctx, update);
     }
 
     fn layout(&mut self, ctx: &mut AppContext) {
@@ -451,19 +448,19 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.enable_device_events()
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
         let _span = UpdatesTrace::extension_span::<E>("event_preview");
-        self.0.event_preview(ctx, args);
+        self.0.event_preview(ctx, update);
     }
 
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
         let _span = UpdatesTrace::extension_span::<E>("event_ui");
-        self.0.event_ui(ctx, args);
+        self.0.event_ui(ctx, update);
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
         let _span = UpdatesTrace::extension_span::<E>("event");
-        self.0.event(ctx, args);
+        self.0.event(ctx, update);
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
@@ -522,14 +519,14 @@ event_args! {
 event! {
     /// Cancellable event raised when app process exit is requested.
     ///
-    /// App exit can be requested using the [`AppProcess`] service or the [`ExitCommand`], some extensions
+    /// App exit can be requested using the [`AppProcess`] service or the [`EXIT_CMD`], some extensions
     /// also request exit if some conditions are met, [`WindowManager`] requests it after the last window
     /// is closed for example.
     ///
     /// Requesting [`propagation().stop()`] on this event cancels the exit.
     ///
     /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
-    pub ExitRequestedEvent: ExitRequestedArgs;
+    pub static EXIT_REQUESTED_EVENT: ExitRequestedArgs;
 }
 
 /// Defines and runs an application.
@@ -794,7 +791,7 @@ struct RunningApp<E: AppExtension> {
 
     pending_view_events: Vec<zero_ui_view_api::Event>,
     pending_view_frame_events: Vec<zero_ui_view_api::EventFrameRendered>,
-    pending_app_events: Vec<BoxedEventUpdate>,
+    pending_app_events: Vec<EventUpdate>,
     pending_layout: bool,
     pending_render: bool,
 }
@@ -862,76 +859,24 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// Notify an event directly to the app extensions.
-    pub fn notify_event<Ev: crate::event::Event, O: AppEventObserver>(&mut self, event: Ev, args: Ev::Args, observer: &mut O) {
-        Self::notify_event_(&mut self.owned_ctx.borrow(), &mut self.extensions, event, args, observer);
-    }
+    pub fn notify_event<O: AppEventObserver>(&mut self, update: EventUpdate, observer: &mut O) {
+        let _scope = tracing::trace_span!("notify_event", event = update.event_name()).entered();
 
-    #[cfg(dyn_app_extension)]
-    fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
-        ctx: &mut AppContext,
-        extensions: &mut (AppIntrinsic, E),
-        event: Ev,
-        args: Ev::Args,
-        observer: &mut O,
-    ) {
-        Self::notify_event_impl(
-            ctx,
-            extensions,
-            type_name::<Ev>(),
-            EventUpdate::new(event, args).boxed(),
-            &mut observer.as_dyn(),
-        );
-    }
-    #[cfg(dyn_app_extension)]
-    fn notify_event_impl(
-        ctx: &mut AppContext,
-        extensions: &mut (AppIntrinsic, E),
-        name: &'static str,
-        update: BoxedEventUpdate,
-        observer: &mut impl AppEventObserver,
-    ) {
-        let _scope = tracing::trace_span!("notify_event", event = name).entered();
+        let ctx = &mut self.owned_ctx.borrow();
 
-        extensions.event_preview(ctx, &update);
+        self.extensions.event_preview(ctx, &update);
         Vars::event_preview(ctx, &update);
         observer.event_preview(ctx, &update);
 
         Events::on_pre_events(ctx, &update);
 
-        extensions.event_ui(ctx, &update);
+        self.extensions.event_ui(ctx, &update);
         observer.event_ui(ctx, &update);
 
-        extensions.event(ctx, &update);
+        self.extensions.event(ctx, &update);
         observer.event(ctx, &update);
 
         Events::on_events(ctx, &update);
-    }
-
-    #[cfg(not(dyn_app_extension))]
-    fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
-        ctx: &mut AppContext,
-        extensions: &mut (AppIntrinsic, E),
-        event: Ev,
-        args: Ev::Args,
-        observer: &mut O,
-    ) {
-        let _scope = tracing::trace_span!("notify_event", event = type_name::<Ev>()).entered();
-
-        let update = EventUpdate::new(event, args);
-
-        extensions.event_preview(ctx, &update);
-        Vars::event_preview(ctx, &update);
-        observer.event_preview(ctx, &update);
-        let update = update.boxed();
-        Events::on_pre_events(ctx, &update);
-        let update = update.unbox_for::<Ev>().unwrap();
-
-        extensions.event_ui(ctx, &update);
-        observer.event_ui(ctx, &update);
-
-        extensions.event(ctx, &update);
-        observer.event(ctx, &update);
-        Events::on_events(ctx, &update.boxed());
     }
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
@@ -956,21 +901,21 @@ impl<E: AppExtension> RunningApp<E> {
                 position,
             } => {
                 let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position);
-                self.notify_event(RawCursorMovedEvent, args, observer);
+                self.notify_event(RAW_CURSOR_MOVED_EVENT.new_update(args), observer);
             }
             Event::CursorEntered {
                 window: w_id,
                 device: d_id,
             } => {
                 let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
-                self.notify_event(RawCursorEnteredEvent, args, observer);
+                self.notify_event(RAW_CURSOR_ENTERED_EVENT.new_update(args), observer);
             }
             Event::CursorLeft {
                 window: w_id,
                 device: d_id,
             } => {
                 let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
-                self.notify_event(RawCursorLeftEvent, args, observer);
+                self.notify_event(RAW_CURSOR_LEFT_EVENT.new_update(args), observer);
             }
             Event::WindowChanged(c) => {
                 let monitor_id = c.monitor.map(|(id, f)| {
@@ -986,27 +931,27 @@ impl<E: AppExtension> RunningApp<E> {
                     c.cause,
                     c.frame_wait_id,
                 );
-                self.notify_event(RawWindowChangedEvent, args, observer);
+                self.notify_event(RAW_WINDOW_CHANGED_EVENT.new_update(args), observer);
             }
             Event::DroppedFile { window: w_id, file } => {
                 let args = RawDroppedFileArgs::now(window_id(w_id), file);
-                self.notify_event(RawDroppedFileEvent, args, observer);
+                self.notify_event(RAW_DROPPED_FILE_EVENT.new_update(args), observer);
             }
             Event::HoveredFile { window: w_id, file } => {
                 let args = RawHoveredFileArgs::now(window_id(w_id), file);
-                self.notify_event(RawHoveredFileEvent, args, observer);
+                self.notify_event(RAW_HOVERED_FILE_EVENT.new_update(args), observer);
             }
             Event::HoveredFileCancelled(w_id) => {
                 let args = RawHoveredFileCancelledArgs::now(window_id(w_id));
-                self.notify_event(RawHoveredFileCancelledEvent, args, observer);
+                self.notify_event(RAW_HOVERED_FILE_CANCELLED_EVENT.new_update(args), observer);
             }
             Event::ReceivedCharacter(w_id, c) => {
                 let args = RawCharInputArgs::now(window_id(w_id), c);
-                self.notify_event(RawCharInputEvent, args, observer);
+                self.notify_event(RAW_CHAR_INPUT_EVENT.new_update(args), observer);
             }
             Event::FocusChanged { prev, new } => {
                 let args = RawWindowFocusArgs::now(prev.map(window_id), new.map(window_id));
-                self.notify_event(RawWindowFocusEvent, args, observer);
+                self.notify_event(RAW_WINDOW_FOCUS_EVENT.new_update(args), observer);
             }
             Event::KeyboardInput {
                 window: w_id,
@@ -1016,7 +961,7 @@ impl<E: AppExtension> RunningApp<E> {
                 key,
             } => {
                 let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), scan_code, state, key);
-                self.notify_event(RawKeyInputEvent, args, observer);
+                self.notify_event(RAW_KEY_INPUT_EVENT.new_update(args), observer);
             }
 
             Event::MouseWheel {
@@ -1026,7 +971,7 @@ impl<E: AppExtension> RunningApp<E> {
                 phase,
             } => {
                 let args = RawMouseWheelArgs::now(window_id(w_id), self.device_id(d_id), delta, phase);
-                self.notify_event(RawMouseWheelEvent, args, observer);
+                self.notify_event(RAW_MOUSE_WHEEL_EVENT.new_update(args), observer);
             }
             Event::MouseInput {
                 window: w_id,
@@ -1035,7 +980,7 @@ impl<E: AppExtension> RunningApp<E> {
                 button,
             } => {
                 let args = RawMouseInputArgs::now(window_id(w_id), self.device_id(d_id), state, button);
-                self.notify_event(RawMouseInputEvent, args, observer);
+                self.notify_event(RAW_MOUSE_INPUT_EVENT.new_update(args), observer);
             }
             Event::TouchpadPressure {
                 window: w_id,
@@ -1044,15 +989,15 @@ impl<E: AppExtension> RunningApp<E> {
                 stage,
             } => {
                 let args = RawTouchpadPressureArgs::now(window_id(w_id), self.device_id(d_id), pressure, stage);
-                self.notify_event(RawTouchpadPressureEvent, args, observer);
+                self.notify_event(RAW_TOUCHPAD_PRESSURE_EVENT.new_update(args), observer);
             }
             Event::AxisMotion(w_id, d_id, axis, value) => {
                 let args = RawAxisMotionArgs::now(window_id(w_id), self.device_id(d_id), axis, value);
-                self.notify_event(RawAxisMotionEvent, args, observer);
+                self.notify_event(RAW_AXIS_MOTION_EVENT.new_update(args), observer);
             }
             Event::Touch(w_id, d_id, phase, pos, force, finger_id) => {
                 let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id), phase, pos, force, finger_id);
-                self.notify_event(RawTouchEvent, args, observer);
+                self.notify_event(RAW_TOUCH_EVENT.new_update(args), observer);
             }
             Event::ScaleFactorChanged {
                 monitor: id,
@@ -1063,48 +1008,48 @@ impl<E: AppExtension> RunningApp<E> {
                 let monitor_id = view.monitor_id(id);
                 let windows: Vec<_> = windows.into_iter().map(window_id).collect();
                 let args = RawScaleFactorChangedArgs::now(monitor_id, windows, scale_factor);
-                self.notify_event(RawScaleFactorChangedEvent, args, observer);
+                self.notify_event(RAW_SCALE_FACTOR_CHANGED_EVENT.new_update(args), observer);
             }
             Event::MonitorsChanged(monitors) => {
                 let view = ViewProcess::req(self.ctx().services);
                 let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
                 let args = RawMonitorsChangedArgs::now(monitors);
-                self.notify_event(RawMonitorsChangedEvent, args, observer);
+                self.notify_event(RAW_MONITORS_CHANGED_EVENT.new_update(args), observer);
             }
             Event::ColorSchemeChanged(w_id, scheme) => {
                 let args = RawColorSchemeChangedArgs::now(window_id(w_id), scheme);
-                self.notify_event(RawColorSchemeChangedEvent, args, observer);
+                self.notify_event(RAW_COLOR_SCHEME_CHANGED_EVENT.new_update(args), observer);
             }
             Event::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(window_id(w_id));
-                self.notify_event(RawWindowCloseRequestedEvent, args, observer);
+                self.notify_event(RAW_WINDOW_CLOSE_REQUESTED_EVENT.new_update(args), observer);
             }
             Event::WindowOpened(w_id, data) => {
                 let w_id = window_id(w_id);
                 let (window, data) = ViewProcess::req(self.ctx().services).on_window_opened(w_id, data);
                 let args = RawWindowOpenArgs::now(w_id, window, data);
-                self.notify_event(RawWindowOpenEvent, args, observer);
+                self.notify_event(RAW_WINDOW_OPEN_EVENT.new_update(args), observer);
             }
             Event::HeadlessOpened(w_id, data) => {
                 let w_id = window_id(w_id);
                 let (surface, data) = ViewProcess::req(self.ctx().services).on_headless_opened(w_id, data);
                 let args = RawHeadlessOpenArgs::now(w_id, surface, data);
-                self.notify_event(RawHeadlessOpenEvent, args, observer);
+                self.notify_event(RAW_HEADLESS_OPEN_EVENT.new_update(args), observer);
             }
             Event::WindowOrHeadlessOpenError { id: w_id, error } => {
                 let w_id = window_id(w_id);
                 let args = RawWindowOrHeadlessOpenErrorArgs::now(w_id, error);
-                self.notify_event(RawWindowOrHeadlessOpenErrorEvent, args, observer);
+                self.notify_event(RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.new_update(args), observer);
             }
             Event::WindowClosed(w_id) => {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
-                self.notify_event(RawWindowCloseEvent, args, observer);
+                self.notify_event(RAW_WINDOW_CLOSE_EVENT.new_update(args), observer);
             }
             Event::ImageMetadataLoaded { image: id, size, ppi } => {
                 let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_metadata_loaded(id, size, ppi) {
                     let args = RawImageArgs::now(img);
-                    self.notify_event(RawImageMetadataLoadedEvent, args, observer);
+                    self.notify_event(RAW_IMAGE_METADATA_LOADED_EVENT.new_update(args), observer);
                 }
             }
             Event::ImagePartiallyLoaded {
@@ -1117,21 +1062,21 @@ impl<E: AppExtension> RunningApp<E> {
                 let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_partially_loaded(id, partial_size, ppi, opaque, partial_bgra8) {
                     let args = RawImageArgs::now(img);
-                    self.notify_event(RawImagePartiallyLoadedEvent, args, observer);
+                    self.notify_event(RAW_IMAGE_PARTIALLY_LOADED_EVENT.new_update(args), observer);
                 }
             }
             Event::ImageLoaded(image) => {
                 let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_loaded(image) {
                     let args = RawImageArgs::now(img);
-                    self.notify_event(RawImageLoadedEvent, args, observer);
+                    self.notify_event(RAW_IMAGE_LOADED_EVENT.new_update(args), observer);
                 }
             }
             Event::ImageLoadError { image: id, error } => {
                 let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_error(id, error) {
                     let args = RawImageArgs::now(img);
-                    self.notify_event(RawImageLoadErrorEvent, args, observer);
+                    self.notify_event(RAW_IMAGE_LOAD_ERROR_EVENT.new_update(args), observer);
                 }
             }
             Event::ImageEncoded { image: id, format, data } => {
@@ -1151,52 +1096,52 @@ impl<E: AppExtension> RunningApp<E> {
                 let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_frame_image_ready(image_id) {
                     let args = RawFrameImageReadyArgs::now(img, window_id(w_id), frame_id, selection);
-                    self.notify_event(RawFrameImageReadyEvent, args, observer);
+                    self.notify_event(RAW_FRAME_IMAGE_READY_EVENT.new_update(args), observer);
                 }
             }
 
             // config events
             Event::FontsChanged => {
                 let args = RawFontChangedArgs::now();
-                self.notify_event(RawFontChangedEvent, args, observer);
+                self.notify_event(RAW_FONT_CHANGED_EVENT.new_update(args), observer);
             }
             Event::FontAaChanged(aa) => {
                 let args = RawFontAaChangedArgs::now(aa);
-                self.notify_event(RawFontAaChangedEvent, args, observer);
+                self.notify_event(RAW_FONT_AA_CHANGED_EVENT.new_update(args), observer);
             }
             Event::MultiClickConfigChanged(cfg) => {
                 let args = RawMultiClickConfigChangedArgs::now(cfg);
-                self.notify_event(RawMultiClickConfigChangedEvent, args, observer);
+                self.notify_event(RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
             Event::AnimationsEnabledChanged(enabled) => {
                 let args = RawAnimationsEnabledChangedArgs::now(enabled);
-                self.notify_event(RawAnimationsEnabledChangedEvent, args, observer);
+                self.notify_event(RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.new_update(args), observer);
             }
             Event::KeyRepeatDelayChanged(delay) => {
                 let args = RawKeyRepeatDelayChangedArgs::now(delay);
-                self.notify_event(RawKeyRepeatDelayChangedEvent, args, observer);
+                self.notify_event(RAW_KEY_REPEAT_DELAY_CHANGED_EVENT.new_update(args), observer);
             }
 
             // `device_events`
             Event::DeviceAdded(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
-                self.notify_event(DeviceAddedEvent, args, observer);
+                self.notify_event(DEVICE_ADDED_EVENT.new_update(args), observer);
             }
             Event::DeviceRemoved(d_id) => {
                 let args = DeviceArgs::now(self.device_id(d_id));
-                self.notify_event(DeviceRemovedEvent, args, observer);
+                self.notify_event(DEVICE_REMOVED_EVENT.new_update(args), observer);
             }
             Event::DeviceMouseMotion { device: d_id, delta } => {
                 let args = MouseMotionArgs::now(self.device_id(d_id), delta);
-                self.notify_event(MouseMotionEvent, args, observer);
+                self.notify_event(MOUSE_MOTION_EVENT.new_update(args), observer);
             }
             Event::DeviceMouseWheel { device: d_id, delta } => {
                 let args = MouseWheelArgs::now(self.device_id(d_id), delta);
-                self.notify_event(MouseWheelEvent, args, observer);
+                self.notify_event(MOUSE_WHEEL_EVENT.new_update(args), observer);
             }
             Event::DeviceMotion { device: d_id, axis, value } => {
                 let args = MotionArgs::now(self.device_id(d_id), axis, value);
-                self.notify_event(MotionEvent, args, observer);
+                self.notify_event(MOTION_EVENT.new_update(args), observer);
             }
             Event::DeviceButton {
                 device: d_id,
@@ -1204,7 +1149,7 @@ impl<E: AppExtension> RunningApp<E> {
                 state,
             } => {
                 let args = ButtonArgs::now(self.device_id(d_id), button, state);
-                self.notify_event(ButtonEvent, args, observer);
+                self.notify_event(BUTTON_EVENT.new_update(args), observer);
             }
             Event::DeviceKey {
                 device: d_id,
@@ -1213,11 +1158,11 @@ impl<E: AppExtension> RunningApp<E> {
                 key,
             } => {
                 let args = KeyArgs::now(self.device_id(d_id), scan_code, state, key);
-                self.notify_event(KeyEvent, args, observer);
+                self.notify_event(KEY_EVENT.new_update(args), observer);
             }
             Event::DeviceText(d_id, c) => {
                 let args = TextArgs::now(self.device_id(d_id), c);
-                self.notify_event(TextEvent, args, observer);
+                self.notify_event(TEXT_EVENT.new_update(args), observer);
             }
 
             // Others
@@ -1234,7 +1179,7 @@ impl<E: AppExtension> RunningApp<E> {
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| view.on_frame_image(img));
         let args = raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image);
-        self.notify_event(raw_events::RawFrameRenderedEvent, args, observer);
+        self.notify_event(raw_events::RAW_FRAME_RENDERED_EVENT.new_update(args), observer);
     }
 
     fn run_headed(mut self) {
@@ -1307,7 +1252,7 @@ impl<E: AppExtension> RunningApp<E> {
                         font_aa,
                         animations_enabled,
                     );
-                    self.notify_event(ViewProcessInitedEvent, args, observer);
+                    self.notify_event(VIEW_PROCESS_INITED_EVENT.update(args), observer);
                 }
                 zero_ui_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.
@@ -1324,7 +1269,7 @@ impl<E: AppExtension> RunningApp<E> {
                     }
                 }
             },
-            AppEvent::Event(ev) => self.ctx().events.notify_app_event(ev),
+            AppEvent::Event(ev) => self.ctx().events.notify(ev),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
             AppEvent::Update(mask) => self.ctx().updates.update_internal(mask),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
@@ -1810,12 +1755,11 @@ impl HeadlessApp {
     ///
     /// [`event`]: AppEventObserver::event
     /// [`update_observed`]: HeadlessApp::update
-    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &AnyEventUpdate), wait_app_event: bool) -> ControlFlow {
+    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &EventUpdate), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext, &AnyEventUpdate)> AppEventObserver for Observer<F> {
-            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
-                let args = args.as_any();
-                (self.0)(ctx, &args);
+        impl<F: FnMut(&mut AppContext, &EventUpdate)> AppEventObserver for Observer<F> {
+            fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+                (self.0)(ctx, update);
             }
         }
         let mut observer = Observer(on_event);
@@ -1900,18 +1844,18 @@ pub trait AppEventObserver {
     }
 
     /// Called just after [`AppExtension::event_preview`].
-    fn event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
-        let _ = (ctx, args);
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        let _ = (ctx, update);
     }
 
     /// Called just after [`AppExtension::event_ui`].
-    fn event_ui<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
-        let _ = (ctx, args);
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        let _ = (ctx, update);
     }
 
     /// Called just after [`AppExtension::event`].
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
-        let _ = (ctx, args);
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        let _ = (ctx, update);
     }
 
     /// Called just after [`AppExtension::update_preview`].
@@ -1957,9 +1901,9 @@ pub struct DynAppEventObserver<'a>(&'a mut dyn AppEventObserverDyn);
 
 trait AppEventObserverDyn {
     fn raw_event_dyn(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event);
-    fn event_preview_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
-    fn event_ui_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
-    fn event_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn event_preview_dyn(&mut self, ctx: &mut AppContext, args: &EventUpdate);
+    fn event_ui_dyn(&mut self, ctx: &mut AppContext, args: &EventUpdate);
+    fn event_dyn(&mut self, ctx: &mut AppContext, args: &EventUpdate);
     fn update_preview_dyn(&mut self, ctx: &mut AppContext);
     fn update_ui_dyn(&mut self, ctx: &mut AppContext);
     fn update_dyn(&mut self, ctx: &mut AppContext);
@@ -1971,16 +1915,16 @@ impl<O: AppEventObserver> AppEventObserverDyn for O {
         self.raw_event(ctx, ev)
     }
 
-    fn event_preview_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.event_preview(ctx, args)
+    fn event_preview_dyn(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.event_preview(ctx, update)
     }
 
-    fn event_ui_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.event_ui(ctx, args)
+    fn event_ui_dyn(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.event_ui(ctx, update)
     }
 
-    fn event_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
-        self.event(ctx, args)
+    fn event_dyn(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.event(ctx, update)
     }
 
     fn update_preview_dyn(&mut self, ctx: &mut AppContext) {
@@ -2008,16 +1952,16 @@ impl<'a> AppEventObserver for DynAppEventObserver<'a> {
         self.0.raw_event_dyn(ctx, ev)
     }
 
-    fn event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
-        self.0.event_preview_dyn(ctx, &args.as_any())
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.0.event_preview_dyn(ctx, update)
     }
 
-    fn event_ui<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
-        self.0.event_ui_dyn(ctx, &args.as_any())
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.0.event_ui_dyn(ctx, update)
     }
 
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
-        self.0.event_dyn(ctx, &args.as_any())
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.0.event_dyn(ctx, update)
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
@@ -2089,19 +2033,19 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.render(ctx);
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.0.event_preview(ctx, args);
-        self.1.event_preview(ctx, args);
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.0.event_preview(ctx, update);
+        self.1.event_preview(ctx, update);
     }
 
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.0.event_ui(ctx, args);
-        self.1.event_ui(ctx, args);
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.0.event_ui(ctx, update);
+        self.1.event_ui(ctx, update);
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.0.event(ctx, args);
-        self.1.event(ctx, args);
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.0.event(ctx, update);
+        self.1.event(ctx, update);
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
@@ -2149,21 +2093,21 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
         for ext in self {
-            ext.event_preview(ctx, args);
+            ext.event_preview(ctx, update);
         }
     }
 
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
         for ext in self {
-            ext.event_ui(ctx, args);
+            ext.event_ui(ctx, update);
         }
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
         for ext in self {
-            ext.event(ctx, args);
+            ext.event(ctx, update);
         }
     }
 
@@ -2246,10 +2190,7 @@ impl AppEventSender {
     }
 
     /// [`EventSender`](crate::event::EventSender) util.
-    pub(crate) fn send_event(
-        &self,
-        event: crate::event::EventUpdateMsg,
-    ) -> Result<(), AppDisconnected<crate::event::EventUpdateMsg>> {
+    pub(crate) fn send_event(&self, event: crate::event::EventUpdateMsg) -> Result<(), AppDisconnected<crate::event::EventUpdateMsg>> {
         self.send_app_event(AppEvent::Event(event)).map_err(|e| match e.0 {
             AppEvent::Event(ev) => AppDisconnected(ev),
             _ => unreachable!(),

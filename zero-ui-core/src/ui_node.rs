@@ -8,9 +8,10 @@ use parking_lot::Mutex;
 
 use crate::{
     context::*,
+    event::EventUpdate,
     var::impl_from_and_into_var,
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    IdNameError, event::EventUpdate,
+    IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
 use crate::{
@@ -874,8 +875,8 @@ pub trait Widget: UiNode {
     /// Run [`UiNode::event`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_event<A: EventUpdateArgs>(&mut self, ctx: &mut TestWidgetContext, args: &A) {
-        ctx.widget_context(|ctx| self.event(ctx, args))
+    fn test_event(&mut self, ctx: &mut TestWidgetContext, update: &EventUpdate) {
+        ctx.widget_context(|ctx| self.event(ctx, update))
     }
 }
 
@@ -933,12 +934,8 @@ impl UiNode for BoxedWidget {
         self.as_mut().update_boxed(ctx);
     }
 
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
-    where
-        Self: Sized,
-    {
-        let args = args.as_any();
-        self.as_mut().event_boxed(ctx, &args);
+    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        self.as_mut().event_boxed(ctx, update);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

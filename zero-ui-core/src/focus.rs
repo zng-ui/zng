@@ -91,13 +91,13 @@ use crate::{
     context::*,
     crate_util::IdMap,
     event::*,
-    mouse::MouseInputEvent,
+    mouse::MOUSE_INPUT_EVENT,
     render::FrameId,
     service::{Service, ServiceTuple},
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
-    window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
+    window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOW_FOCUS_CHANGED_EVENT},
     WidgetId,
 };
 
@@ -108,7 +108,7 @@ use std::{
 };
 
 event_args! {
-    /// [`FocusChangedEvent`] arguments.
+    /// [`FOCUS_CHANGED_EVENT`] arguments.
     pub struct FocusChangedArgs {
         /// Previously focused widget.
         pub prev_focus: Option<InteractionPath>,
@@ -306,7 +306,7 @@ impl ReturnFocusChangedArgs {
     }
 }
 
-/// The cause of a [`FocusChangedEvent`].
+/// The cause of a [`FOCUS_CHANGED_EVENT`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusChangedCause {
     /// The focus changed trying to fulfill the request.
@@ -336,14 +336,14 @@ event! {
     /// # Provider
     ///
     /// This event is provided by the [`FocusManager`] extension.
-    pub FocusChangedEvent: FocusChangedArgs;
+    pub static FOCUS_CHANGED_EVENT: FocusChangedArgs;
 
     /// Scope return focus widget changed event.
     ///
     /// # Provider
     ///
     /// This event is provided by the [`FocusManager`] extension.
-    pub ReturnFocusChangedEvent: ReturnFocusChangedArgs;
+    pub static RETURN_FOCUS_CHANGED_EVENT: ReturnFocusChangedArgs;
 }
 
 /// Application extension that manages keyboard focus.
@@ -400,8 +400,8 @@ impl AppExtension for FocusManager {
         self.commands = Some(FocusCommands::new(ctx.events));
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = WidgetInfoChangedEvent.update(args) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
             if Focus::req(ctx)
                 .focused
                 .as_ref()
@@ -420,7 +420,7 @@ impl AppExtension for FocusManager {
             }
             focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree);
         } else {
-            self.commands.as_mut().unwrap().event_preview(ctx, args);
+            self.commands.as_mut().unwrap().event_preview(ctx, update);
         }
     }
 
@@ -447,15 +447,15 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
         let mut request = None;
 
-        if let Some(args) = MouseInputEvent.update(args) {
+        if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
             if args.is_mouse_down() {
                 // click
                 request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
             }
-        } else if let Some(args) = WindowFocusChangedEvent.update(args) {
+        } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
             if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
@@ -468,10 +468,10 @@ impl AppExtension for FocusManager {
 
             if let Some(window_id) = args.closed() {
                 for args in focus.cleanup_returns_win_closed(ctx.vars, window_id) {
-                    ReturnFocusChangedEvent.notify(ctx.events, args);
+                    RETURN_FOCUS_CHANGED_EVENT.notify(ctx.events, args);
                 }
             }
-        } else if let Some(args) = crate::app::raw_events::RawKeyInputEvent.update(args) {
+        } else if let Some(args) = crate::app::raw_events::RAW_KEY_INPUT_EVENT.on(update) {
             self.last_keyboard_event = args.timestamp;
         }
 
@@ -509,7 +509,7 @@ impl FocusManager {
             ctx.vars,
             FocusInfoTree::new(tree, focus.focus_disabled_widgets, focus.focus_hidden_widgets),
         ) {
-            ReturnFocusChangedEvent.notify(ctx.events, args);
+            RETURN_FOCUS_CHANGED_EVENT.notify(ctx.events, args);
         }
     }
 
@@ -527,15 +527,15 @@ impl FocusManager {
 
             let reverse = args.cause.is_prev_request();
             let prev_focus = args.prev_focus.clone();
-            FocusChangedEvent.notify(events, args);
+            FOCUS_CHANGED_EVENT.notify(events, args);
 
             // may have focused scope.
             while let Some(after_args) = focus.move_after_focus(vars, windows, reverse) {
-                FocusChangedEvent.notify(events, after_args);
+                FOCUS_CHANGED_EVENT.notify(events, after_args);
             }
 
             for return_args in focus.update_returns(vars, prev_focus, windows) {
-                ReturnFocusChangedEvent.notify(events, return_args);
+                RETURN_FOCUS_CHANGED_EVENT.notify(events, return_args);
             }
         }
 

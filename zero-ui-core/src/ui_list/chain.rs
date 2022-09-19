@@ -1,6 +1,6 @@
 use crate::{
     context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
         OffsetUiListObserver, PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
@@ -49,9 +49,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        self.0.event_all(ctx, args);
-        self.1.event_all(ctx, args);
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        self.0.event_all(ctx, update);
+        self.1.event_all(ctx, update);
     }
 
     fn measure_all<C, D>(&self, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
@@ -402,9 +402,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
-    fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-        self.0.event_all(ctx, args);
-        self.1.event_all(ctx, args);
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        self.0.event_all(ctx, update);
+        self.1.event_all(ctx, update);
     }
 
     fn measure_all<C, D>(&self, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)

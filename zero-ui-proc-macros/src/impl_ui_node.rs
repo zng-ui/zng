@@ -431,7 +431,7 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterMutImpl::update_all(#children_mut, ctx);
         }]
 
-        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &EventUpdate) {
+        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &#crate_::event::EventUpdate) {
             let #children_mut = {#iter_mut};
             #crate_::impl_ui_node_util::IterMutImpl::event_all(#children_mut, ctx, update);
         }]

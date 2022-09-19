@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use crate::{
     context::WindowContext,
     crate_util::NameIdMap,
-    event, event_args,
+    event::{event, event_args},
     image::{Image, ImageDataFormat, ImageSource, ImageVar},
     render::{FrameId, RenderMode},
     text::Text,
@@ -598,7 +598,7 @@ impl Default for FrameCaptureMode {
 }
 
 event_args! {
-    /// [`WindowOpenEvent`] args.
+    /// [`WINDOW_OPEN_EVENT`] args.
     pub struct WindowOpenArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
@@ -611,7 +611,7 @@ event_args! {
         }
     }
 
-    /// [`WindowCloseEvent`] args.
+    /// [`WINDOW_CLOSE_EVENT`] args.
     pub struct WindowCloseArgs {
         /// Id of windows that were closed.
         ///
@@ -630,7 +630,7 @@ event_args! {
         }
     }
 
-    /// [`WindowChangedEvent`] args.
+    /// [`WINDOW_CHANGED_EVENT`] args.
     pub struct WindowChangedArgs {
         /// Window that was moved, resized or has a state change.
         pub window_id: WindowId,
@@ -655,7 +655,7 @@ event_args! {
         }
     }
 
-    /// [`WindowFocusChangedEvent`] args.
+    /// [`WINDOW_FOCUS_CHANGED_EVENT`] args.
     pub struct WindowFocusChangedArgs {
         /// Previously focused window.
         pub prev_focus: Option<WindowId>,
@@ -674,7 +674,7 @@ event_args! {
         }
     }
 
-    /// [`WidgetInfoChangedEvent`] args.
+    /// [`WIDGET_INFO_CHANGED_EVENT`] args.
     pub struct WidgetInfoChangedArgs {
         /// Window ID.
         pub window_id: WindowId,
@@ -853,36 +853,36 @@ impl WindowFocusChangedArgs {
 event! {
     /// Window moved, resized or has a state change.
     ///
-    /// This event coalesces events usually named `WindowMoved`, `WindowResized` and `WindowStateChanged` into a
+    /// This event coalesces events usually named `WINDOW_MOVED`, `WINDOW_RESIZED` and `WINDOW_STATE_CHANGED` into a
     /// single event to simplify tracking composite changes, for example, the window changes size and position
     /// when maximized, this can be trivially observed with this event.
-    pub WindowChangedEvent: WindowChangedArgs;
+    pub static WINDOW_CHANGED_EVENT: WindowChangedArgs;
 
     /// New window event.
-    pub WindowOpenEvent: WindowOpenArgs;
+    pub static WINDOW_OPEN_EVENT: WindowOpenArgs;
 
     /// Window finished loading and has opened in the view-process.
-    pub WindowLoadEvent: WindowOpenArgs;
+    pub static WINDOW_LOAD_EVENT: WindowOpenArgs;
 
     /// Window focus/blur event.
-    pub WindowFocusChangedEvent: WindowFocusChangedArgs;
+    pub static WINDOW_FOCUS_CHANGED_EVENT: WindowFocusChangedArgs;
 
     /// Closing window event.
     ///
     /// Requesting [`propagation().stop()`] on this event cancels the window close.
     ///
     /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
-    pub WindowCloseRequestedEvent: WindowCloseRequestedArgs;
+    pub static WINDOW_CLOSE_REQUESTED_EVENT: WindowCloseRequestedArgs;
 
     /// Close window event.
-    pub WindowCloseEvent: WindowCloseArgs;
+    pub static WINDOW_CLOSE_EVENT: WindowCloseArgs;
 
     /// A window widget tree was rebuild.
     ///
     /// You can request the widget info tree using [`Windows::widget_tree`].
     ///
     /// [`Windows::widget_tree`]: crate::window::Windows::widget_tree
-    pub WidgetInfoChangedEvent: WidgetInfoChangedArgs;
+    pub static WIDGET_INFO_CHANGED_EVENT: WidgetInfoChangedArgs;
 
     /// A window frame has finished rendering.
     ///
@@ -890,7 +890,7 @@ event! {
     ///
     /// [`Windows::frame_image`]: crate::window::Windows::frame_image
     /// [`WindowVars::frame_capture_mode`]: crate::window::WindowVars::frame_capture_mode
-    pub FrameImageReadyEvent: FrameImageReadyArgs;
+    pub static FRAME_IMAGE_READY_EVENT: FrameImageReadyArgs;
 }
 
 /// Response message of [`close`] and [`close_together`].

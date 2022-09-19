@@ -6,10 +6,10 @@ use linear_map::LinearMap;
 
 use super::commands::WindowCommands;
 use super::*;
-use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent};
-use crate::app::{AppProcess, ExitRequestedEvent};
+use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
+use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap};
-use crate::event::EventUpdateArgs;
+use crate::event::EventUpdate;
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
 use crate::service::Service;
@@ -18,7 +18,7 @@ use crate::var::*;
 use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};
 use crate::{
     app::{
-        raw_events::{RawWindowCloseEvent, RawWindowCloseRequestedEvent},
+        raw_events::{RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT},
         view_process::{self, ViewRenderer},
         AppEventSender,
     },
@@ -455,7 +455,7 @@ impl Windows {
             info.widget_tree = info_tree.clone();
 
             let args = WidgetInfoChangedArgs::now(info_tree.window_id(), prev_tree, info_tree, pending_layout, pending_render);
-            WidgetInfoChangedEvent.notify(events, args);
+            WIDGET_INFO_CHANGED_EVENT.notify(events, args);
         }
     }
 
@@ -474,7 +474,7 @@ impl Windows {
             info.is_loaded = info.loading_handle.try_load(timers);
 
             if info.is_loaded && info.vars.0.is_loaded.set_ne(vars, true) {
-                WindowLoadEvent.notify(events, WindowOpenArgs::now(info.id));
+                WINDOW_LOAD_EVENT.notify(events, WindowOpenArgs::now(info.id));
             }
 
             info.is_loaded
@@ -483,8 +483,8 @@ impl Windows {
         }
     }
 
-    pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = RawWindowFocusEvent.update(args) {
+    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             let wns = Windows::req(ctx.services);
 
             let mut prev = None;
@@ -519,45 +519,45 @@ impl Windows {
 
             if prev.is_some() || new.is_some() {
                 let args = WindowFocusChangedArgs::new(args.timestamp, args.propagation().clone(), prev, new, false);
-                WindowFocusChangedEvent.notify(ctx.events, args);
+                WINDOW_FOCUS_CHANGED_EVENT.notify(ctx.events, args);
             }
-        } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
             let _ = Windows::req(ctx.services).close(args.window_id);
-        } else if let Some(args) = RawWindowCloseEvent.update(args) {
+        } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             if Windows::req(ctx.services).windows.contains_key(&args.window_id) {
                 tracing::error!("view-process closed window without request");
                 let mut windows = LinearSet::with_capacity(1);
                 windows.insert(args.window_id);
                 let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), windows);
-                WindowCloseEvent.notify(ctx, args);
+                WINDOW_CLOSE_EVENT.notify(ctx, args);
             }
-        } else if ViewProcessInitedEvent.update(args).is_some() {
+        } else if VIEW_PROCESS_INITED_EVENT.on(update).is_some() {
             // we skipped request fulfillment until this event.
             ctx.updates.update_ext();
         }
 
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
-                window.pre_event(ctx, args);
+                window.pre_event(ctx, update);
             }
         })
     }
 
-    pub(super) fn on_ui_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
+    pub(super) fn on_ui_event(ctx: &mut AppContext, update: &EventUpdate) {
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
-                window.ui_event(ctx, args);
+                window.ui_event(ctx, update);
             }
         });
     }
 
-    pub(super) fn on_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = WindowCloseRequestedEvent.update(args) {
+    pub(super) fn on_event(ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
             let key = args.windows.iter().next().unwrap();
             if let Some(rsp) = Windows::req(ctx.services).close_responders.remove(key) {
                 if !args.propagation().is_stopped() {
                     // close requested by us and not canceled.
-                    WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(args.windows.clone()));
+                    WINDOW_CLOSE_EVENT.notify(ctx.events, WindowCloseArgs::now(args.windows.clone()));
                     for r in rsp {
                         r.respond(ctx, CloseWindowResult::Closed);
                     }
@@ -567,7 +567,7 @@ impl Windows {
                     }
                 }
             }
-        } else if let Some(args) = WindowCloseEvent.update(args) {
+        } else if let Some(args) = WINDOW_CLOSE_EVENT.on(update) {
             // finish close, this notifies  `UiNode::deinit` and drops the window
             // causing the ViewWindow to drop and close.
 
@@ -583,7 +583,7 @@ impl Windows {
 
                     if info.is_focused {
                         let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
-                        WindowFocusChangedEvent.notify(ctx.events, args)
+                        WINDOW_FOCUS_CHANGED_EVENT.notify(ctx.events, args)
                     }
                 }
             }
@@ -604,7 +604,7 @@ impl Windows {
                 // fulfill `exit_on_last_close`
                 AppProcess::req(ctx.services).exit();
             }
-        } else if let Some(args) = ExitRequestedEvent.update(args) {
+        } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
             if !args.propagation().is_stopped() {
                 let windows = Windows::req(ctx.services);
                 if windows.windows_info.values().any(|w| w.mode == WindowMode::Headed) {
@@ -668,7 +668,7 @@ impl Windows {
             }
 
             r.responder.respond(ctx, args.clone());
-            WindowOpenEvent.notify(ctx, args);
+            WINDOW_OPEN_EVENT.notify(ctx, args);
         }
 
         let wns = Windows::req(ctx.services);
@@ -700,7 +700,7 @@ impl Windows {
         }
         if !close_wns.is_empty() {
             let args = WindowCloseRequestedArgs::now(close_wns);
-            WindowCloseRequestedEvent.notify(ctx.events, args);
+            WINDOW_CLOSE_REQUESTED_EVENT.notify(ctx.events, args);
         }
 
         // fulfill focus request
@@ -837,12 +837,12 @@ impl AppWindow {
         }
     }
 
-    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.pre_event(ctx, args))
+    pub fn pre_event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.pre_event(ctx, update))
     }
 
-    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.ui_event(ctx, args))
+    pub fn ui_event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.ui_event(ctx, update))
     }
 
     pub fn update(&mut self, ctx: &mut AppContext) {

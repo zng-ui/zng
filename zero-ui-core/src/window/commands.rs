@@ -1,141 +1,65 @@
 //! Commands that control the scoped window.
 
-use crate::{
-    command::*,
-    context::WindowContext,
-    event::{EventUpdateArgs, Events},
-    gesture::*,
-    var::*,
-};
+use crate::{context::WindowContext, event::*, gesture::*, var::*};
 
 use super::{WindowId, WindowState, WindowVars, Windows};
 
 command! {
     /// Represents the window **close** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Close Window"                                        |
-    /// | [`info`]     | "Close the current window."                           |
-    /// | [`shortcut`] | `ALT+F4`, `CTRL+W`                                    |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub CloseCommand
-        .init_name("Close")
-        .init_info("Close the current window.")
-        .init_shortcut([shortcut!(ALT+F4), shortcut!(CTRL+W)]);
+    pub static CLOSE_CMD = {
+        name: "Close",
+        info: "Close the current window.",
+        shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+W)],
+    };
 
     /// Represents the window **minimize** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Minimize Window"                                     |
-    /// | [`info`]     | "Minimize the current window."                        |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    pub MinimizeCommand
-        .init_name("Minimize")
-        .init_info("Minimize the current window.");
+    pub static MINIMIZE_CMD = {
+        name: "Minimize",
+        info: "Minimize the current window.",
+    };
 
     /// Represents the window **maximize** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Maximize Window"                                     |
-    /// | [`info`]     | "Maximize the current window."                        |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    pub MaximizeCommand
-        .init_name("Maximize")
-        .init_info("Maximize the current window.");
+    pub static MAXIMIZE_CMD = {
+        name: "Maximize",
+        info: "Maximize the current window.",
+    };
 
     /// Represents the window **toggle fullscreen** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Full-Screen"                                         |
-    /// | [`info`]     | "Toggle full-screen mode on the current window."      |
-    /// | [`shortcut`] | `CMD|SHIFT+F` on MacOS, `F11` on other systems.       |
     ///
     /// # Behavior
     ///
     /// This command is about the *windowed* fullscreen state ([`WindowState::Fullscreen`]),
     /// use the [`ExclusiveFullscreenCommand`] to toggle *exclusive* video mode fullscreen.
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub FullscreenCommand
-        .init_name("Full-Screen")
-        .init_info("Toggle full-screen mode on the current window.")
-        .init_shortcut({
+    pub static FULLSCREEN_CMD = {
+        name: "Full-Screen",
+        info: "Toggle full-screen mode on the current window.",
+        shortcut: {
             if cfg!(target_os = "macos") {
                 shortcut!(CTRL|SHIFT+F)
             } else {
                 shortcut!(F11)
             }
-        });
+        }
+    };
 
     /// Represents the window **toggle fullscreen** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Minimize Window"                                     |
-    /// | [`info`]     | "Minimize the current window."                        |
     ///
     /// # Behavior
     ///
     /// This command is about the *exclusive* fullscreen state ([`WindowState::Exclusive`]),
     /// use the [`FullscreenCommand`] to toggle *windowed* fullscreen.
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    pub ExclusiveFullscreenCommand
-        .init_name("Exclusive Full-Screen")
-        .init_info("Toggle exclusive full-screen mode on the current window.");
+    pub static EXCLUSIVE_FULLSCREEN_CMD = {
+        name: "Exclusive Full-Screen",
+        info: "Toggle exclusive full-screen mode on the current window.",
+    };
 
     /// Represents the window **restore** action.
     ///
     /// Restores the window to its previous not-minimized state or normal state.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                                      |
-    /// |--------------|----------------------------------------------------------------------------|
-    /// | [`name`]     | "Restore Window"                                                           |
-    /// | [`info`]     | "Restores the window to its previous not-minimized state or normal state." |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    pub RestoreCommand
-        .init_name("Restore")
-        .init_info("Restores the window to its previous not-minimized state or normal state.");
+    pub static RESTORE_CMD = {
+        name: "Restore",
+        info: "Restores the window to its previous not-minimized state or normal state.",
+    };
 }
 
 pub(super) struct WindowCommands {
@@ -151,35 +75,35 @@ pub(super) struct WindowCommands {
 impl WindowCommands {
     pub fn new(window_id: WindowId, events: &mut Events) -> Self {
         WindowCommands {
-            maximize_handle: MaximizeCommand.scoped(window_id).new_handle(events, false),
-            minimize_handle: MinimizeCommand.scoped(window_id).new_handle(events, false),
-            restore_handle: RestoreCommand.scoped(window_id).new_handle(events, false),
-            fullscreen_handle: FullscreenCommand.scoped(window_id).new_handle(events, true),
-            exclusive_handle: ExclusiveFullscreenCommand.scoped(window_id).new_handle(events, true),
+            maximize_handle: MAXIMIZE_CMD.scoped(window_id).new_handle(events, false),
+            minimize_handle: MINIMIZE_CMD.scoped(window_id).new_handle(events, false),
+            restore_handle: RESTORE_CMD.scoped(window_id).new_handle(events, false),
+            fullscreen_handle: FULLSCREEN_CMD.scoped(window_id).new_handle(events, true),
+            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id).new_handle(events, true),
 
-            close_handle: CloseCommand.scoped(window_id).new_handle(events, true),
+            close_handle: CLOSE_CMD.scoped(window_id).new_handle(events, true),
         }
     }
 
-    pub fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, window_vars: &WindowVars, args: &A) {
+    pub fn event(&mut self, ctx: &mut WindowContext, window_vars: &WindowVars, update: &EventUpdate) {
         let scope = *ctx.window_id;
-        if let Some(args) = MaximizeCommand.scoped(scope).update(args) {
+        if let Some(args) = MAXIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.maximize_handle, |_| {
                 window_vars.state().set_ne(ctx, WindowState::Maximized);
             });
-        } else if let Some(args) = MinimizeCommand.scoped(scope).update(args) {
+        } else if let Some(args) = MINIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.minimize_handle, |_| {
                 window_vars.state().set_ne(ctx, WindowState::Minimized);
             });
-        } else if let Some(args) = RestoreCommand.scoped(scope).update(args) {
+        } else if let Some(args) = RESTORE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.restore_handle, |_| {
                 window_vars.state().set_ne(ctx.vars, window_vars.restore_state().copy(ctx.vars));
             });
-        } else if let Some(args) = CloseCommand.scoped(scope).update(args) {
+        } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.close_handle, |_| {
                 let _ = Windows::req(ctx.services).close(scope);
             });
-        } else if let Some(args) = FullscreenCommand.scoped(scope).update(args) {
+        } else if let Some(args) = FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.fullscreen_handle, |_| {
                 if let WindowState::Fullscreen = window_vars.state().copy(ctx) {
                     window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));
@@ -187,7 +111,7 @@ impl WindowCommands {
                     window_vars.state().set(ctx.vars, WindowState::Fullscreen);
                 }
             });
-        } else if let Some(args) = ExclusiveFullscreenCommand.scoped(scope).update(args) {
+        } else if let Some(args) = EXCLUSIVE_FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.exclusive_handle, |_| {
                 if let WindowState::Exclusive = window_vars.state().copy(ctx) {
                     window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));

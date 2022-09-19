@@ -16,13 +16,13 @@ use super::{
 };
 use crate::{
     app::{
-        raw_events::{RawFontAaChangedEvent, RawFontChangedEvent},
-        view_process::{ViewProcessInitedEvent, ViewProcessOffline, ViewRenderer},
+        raw_events::{RAW_FONT_AA_CHANGED_EVENT, RAW_FONT_CHANGED_EVENT},
+        view_process::{ViewProcessOffline, ViewRenderer, VIEW_PROCESS_INITED_EVENT},
         AppEventSender, AppExtension,
     },
     context::AppContext,
     crate_util::FxHashMap,
-    event::{event, event_args, EventUpdateArgs},
+    event::{event, event_args, EventUpdate},
     service::Service,
     units::*,
     var::{var, RcVar, Var},
@@ -39,13 +39,13 @@ event! {
     ///
     /// Fonts only unload when all references to then are dropped, so you can still continue using
     /// old references if you don't want to monitor this event.
-    pub FontChangedEvent: FontChangedArgs;
+    pub static FONT_CHANGED_EVENT: FontChangedArgs;
 }
 
 pub use zero_ui_view_api::FontAntiAliasing;
 
 event_args! {
-    /// [`FontChangedEvent`] arguments.
+    /// [`FONT_CHANGED_EVENT`] arguments.
     pub struct FontChangedArgs {
         /// The change that happened.
         pub change: FontChange,
@@ -99,14 +99,14 @@ impl AppExtension for FontManager {
         ctx.services.register(Fonts::new(ctx.updates.sender()));
     }
 
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if RawFontChangedEvent.update(args).is_some() {
-            FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
-        } else if let Some(args) = RawFontAaChangedEvent.update(args) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+        if RAW_FONT_CHANGED_EVENT.has(update) {
+            FONT_CHANGED_EVENT.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+        } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
             Fonts::req(ctx.services).font_aa.set_ne(ctx.vars, args.aa);
-        } else if FontChangedEvent.update(args).is_some() {
+        } else if FONT_CHANGED_EVENT.has(update) {
             Fonts::req(ctx.services).on_fonts_changed();
-        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let fonts = Fonts::req(ctx.services);
             fonts.font_aa.set_ne(ctx.vars, args.font_aa);
             if args.is_respawn {
@@ -119,7 +119,7 @@ impl AppExtension for FontManager {
         let fonts = Fonts::req(ctx.services);
 
         for args in fonts.take_updates() {
-            FontChangedEvent.notify(ctx.events, args);
+            FONT_CHANGED_EVENT.notify(ctx.events, args);
         }
 
         if fonts.prune_requested {

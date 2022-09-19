@@ -669,8 +669,8 @@ mod properties {
                 self.with_mut(ctx.vars, |c| c.update(ctx));
             }
 
-            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                self.with_mut(ctx.vars, |c| c.event(ctx, args));
+            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                self.with_mut(ctx.vars, |c| c.event(ctx, update));
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -760,8 +760,8 @@ mod properties {
                 self.with_mut(ctx.vars, |c| c.update(ctx));
             }
 
-            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                self.with_mut(ctx.vars, |c| c.event(ctx, args));
+            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                self.with_mut(ctx.vars, |c| c.event(ctx, update));
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

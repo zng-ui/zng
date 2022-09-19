@@ -1,6 +1,9 @@
 * Finish event rewrite.
     - UiNodeBoxed not needed anymore?
-    - EventSender don't need send messages anymore?
+        - And AppExtensionBoxed?
+        - AppEventObserverDyn?
+    - Stop propagation when this is requested.
+    - Stop propagation when all items in delivery list visited.
 
 * Review `unsafe`, only use when there is no alternative.
 * Implement all `todo!` code.

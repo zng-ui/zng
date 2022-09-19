@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::app::*;
-use crate::event::{EventPropagationHandle, CommandHandle, command};
+use crate::event::{command, CommandHandle, EventPropagationHandle};
 use crate::service::*;
 use crate::var::*;
 
@@ -123,22 +123,10 @@ impl AppProcess {
 
 command! {
     /// Represents the app process [`exit`] request.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Exit"                                                |
-    /// | [`info`]     | "Close all windows and exit."                         |
-    ///
-    /// [`exit`]: AppProcess::exit
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    pub static EXIT_CMD
-        .init_name("Exit")
-        .init_info("Close all windows and exit.");
+    pub static EXIT_CMD = {
+        name: "Exit",
+        info: "Close all windows and exit."
+    };
 }
 
 /// Cancellation message of an [exit request].

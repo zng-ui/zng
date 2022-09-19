@@ -1,5 +1,6 @@
 use crate::{
     context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
+    event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::*,
     widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
@@ -55,9 +56,9 @@ where
         self.node.deinit(ctx);
     }
 
-    fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
         let _span = (self.enter_mtd)(&mut ctx.as_info(), "event");
-        self.node.event(ctx, args);
+        self.node.event(ctx, update);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {

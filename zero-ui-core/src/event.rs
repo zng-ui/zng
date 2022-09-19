@@ -1,15 +1,12 @@
 //! App event and commands API.
 
-use std::{
-    any::Any,
-    fmt,
-    marker::PhantomData,
-    ops::Deref,
-    thread::LocalKey,
-    time::Instant,
-};
+use std::{any::Any, fmt, marker::PhantomData, ops::Deref, thread::LocalKey, time::Instant};
 
-use crate::{widget_info::EventSlot, crate_util::RunOnDrop, context::{WidgetContext, WindowContext}};
+use crate::{
+    context::{WidgetContext, WindowContext},
+    crate_util::RunOnDrop,
+    widget_info::EventSlot,
+};
 
 mod args;
 pub use args::*;
@@ -27,12 +24,12 @@ mod properties;
 pub use properties::*;
 
 ///<span data-del-macro-root></span> Declares new [`Event<A>`] keys.
-/// 
+///
 /// Event keys usually represent external events or [`AppExtension`] events, you can also use [`command!`]
 /// to declare events specialized for commanding widgets and services.
-/// 
+///
 /// # Examples
-/// 
+///
 /// The example defines two events with the same arguments type.
 ///
 /// ```
@@ -46,11 +43,11 @@ pub use properties::*;
 ///     pub static DOUBLE_CLICK_EVENT: ClickArgs;
 /// }
 /// ```
-/// 
+///
 /// # Properties
-/// 
+///
 /// If the event targets widgets you can use [`event_property!`] to declare properties that setup event handlers for the event.
-/// 
+///
 /// # Naming Convention
 ///
 /// It is recommended that the type name ends with the `_VAR` suffix.
@@ -138,7 +135,7 @@ impl<E: EventArgs> Event<E> {
         self.local.with(EventData::slot)
     }
 
-    /// Display name.
+    /// Event name.
     pub fn name(&self) -> &'static str {
         self.local.with(EventData::name)
     }
@@ -176,6 +173,7 @@ impl<E: EventArgs> Event<E> {
         EventUpdate {
             event_id: self.id(),
             event_slot: self.slot(),
+            event_name: self.name(),
             delivery_list: args.delivery_list(),
             timestamp: args.timestamp(),
             propagation: args.propagation().clone(),
@@ -185,7 +183,10 @@ impl<E: EventArgs> Event<E> {
     }
 
     /// Schedule an event update.
-    pub fn notify<Ev>(&self, events: &mut Ev, args: E) where Ev: WithEvents {
+    pub fn notify<Ev>(&self, events: &mut Ev, args: E)
+    where
+        Ev: WithEvents,
+    {
         let update = self.new_update(args);
         events.with_events(|ev| {
             // ev.notify(event, args)
@@ -260,6 +261,7 @@ impl<E: EventArgs> PartialEq<Event<E>> for AnyEvent {
 pub struct EventUpdate {
     event_id: EventId,
     event_slot: EventSlot,
+    event_name: &'static str,
     delivery_list: EventDeliveryList,
     timestamp: Instant,
     propagation: EventPropagationHandle,
@@ -274,6 +276,11 @@ impl EventUpdate {
     /// Event slot.
     pub fn event_slot(&self) -> EventSlot {
         self.event_slot
+    }
+
+    /// Event name.
+    pub fn event_name(&self) -> &'static str {
+        self.event_name
     }
 
     /// Event delivery list.

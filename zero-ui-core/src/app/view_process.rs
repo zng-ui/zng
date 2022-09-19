@@ -11,13 +11,13 @@ use linear_map::LinearMap;
 use once_cell::unsync::OnceCell;
 
 use super::DeviceId;
+use crate::event::{event, event_args};
 use crate::mouse::MultiClickConfig;
 use crate::service::Service;
 use crate::task::SignalOnce;
 use crate::text::FontAntiAliasing;
 use crate::units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize};
 use crate::window::{MonitorId, WindowId};
-use crate::{event, event_args};
 use zero_ui_view_api::webrender_api::{
     FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
 };
@@ -1073,7 +1073,7 @@ impl ViewRenderer {
 }
 
 event_args! {
-    /// Arguments for the [`ViewProcessInitedEvent`].
+    /// Arguments for the [`VIEW_PROCESS_INITED_EVENT`].
     pub struct ViewProcessInitedArgs {
         /// View-process generation.
         pub generation: ViewProcessGen,

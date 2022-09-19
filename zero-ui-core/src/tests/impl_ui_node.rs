@@ -292,7 +292,7 @@ mod util {
 
     use crate::{
         context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, TestWidgetContext, WidgetContext},
-        event::{event, event_args, EventUpdate, EventUpdateArgs},
+        event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::*,
         widget_base::implicit_base,
@@ -356,7 +356,7 @@ mod util {
         }
 
         pub fn notify_render_update(wgt: &mut impl Widget, ctx: &mut TestWidgetContext) {
-            wgt.test_event(ctx, &EventUpdate::new(RenderUpdateEvent, RenderUpdateArgs::now()));
+            wgt.test_event(ctx, &EventUpdate::new(RENDER_UPDATE_EVENT, RenderUpdateArgs::now()));
         }
     }
     impl UiNode for TestTraceNode {
@@ -385,10 +385,10 @@ mod util {
             self.test_trace("update");
         }
 
-        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
             self.test_trace("event");
 
-            if RenderUpdateEvent.update(args).is_some() {
+            if RENDER_UPDATE_EVENT.has(update) {
                 ctx.updates.render_update();
             }
         }
@@ -423,7 +423,7 @@ mod util {
     }
 
     event! {
-        RenderUpdateEvent: RenderUpdateArgs;
+        static RENDER_UPDATE_EVENT: RenderUpdateArgs;
     }
 
     pub fn test_wgt(node: impl UiNode) -> impl Widget {

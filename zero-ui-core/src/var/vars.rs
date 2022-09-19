@@ -4,12 +4,12 @@ use super::{
 };
 use crate::{
     app::{
-        raw_events::RawAnimationsEnabledChangedEvent, view_process::ViewProcessInitedEvent, AppDisconnected, AppEventSender, LoopTimer,
-        RecvFut, TimeoutOrAppDisconnected,
+        raw_events::RAW_ANIMATIONS_ENABLED_CHANGED_EVENT, view_process::VIEW_PROCESS_INITED_EVENT, AppDisconnected, AppEventSender,
+        LoopTimer, RecvFut, TimeoutOrAppDisconnected,
     },
     context::{AppContext, Updates, UpdatesTrace},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop, WeakHandle},
-    event::EventUpdateArgs,
+    event::EventUpdate,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
 };
 use std::{
@@ -421,10 +421,10 @@ impl Vars {
         self.receivers.borrow_mut().retain(|f| f(self));
     }
 
-    pub(crate) fn event_preview<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = ViewProcessInitedEvent.update(args) {
+    pub(crate) fn event_preview(ctx: &mut AppContext, update: &EventUpdate) {
+        if let Some(args) = VIEW_PROCESS_INITED_EVENT.update(update) {
             ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
-        } else if let Some(args) = RawAnimationsEnabledChangedEvent.update(args) {
+        } else if let Some(args) = RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.update(update) {
             ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.enabled);
         }
     }

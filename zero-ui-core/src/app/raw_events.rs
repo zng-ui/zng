@@ -36,7 +36,7 @@ use crate::{
 };
 
 event_args! {
-    /// Arguments for the [`RawKeyInputEvent`].
+    /// Arguments for the [`RAW_KEY_INPUT_EVENT`].
     pub struct RawKeyInputArgs {
         /// Window that received the event.
         pub window_id: WindowId,
@@ -61,7 +61,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawCharInputEvent`].
+    /// Arguments for the [`RAW_CHAR_INPUT_EVENT`].
     pub struct RawCharInputArgs {
         /// Window that received the event.
         pub window_id: WindowId,
@@ -77,7 +77,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowFocusEvent`].
+    /// Arguments for the [`RAW_WINDOW_FOCUS_EVENT`].
     pub struct RawWindowFocusArgs {
         /// Window that load focus.
         pub prev_focus: Option<WindowId>,
@@ -93,7 +93,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawFrameRenderedEvent`].
+    /// Arguments for the [`RAW_FRAME_RENDERED_EVENT`].
     pub struct RawFrameRenderedArgs {
         /// Window that presents the rendered frame.
         pub window_id: WindowId,
@@ -112,7 +112,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowChangedEvent`].
+    /// Arguments for the [`RAW_WINDOW_CHANGED_EVENT`].
     pub struct RawWindowChangedArgs {
         /// Window that was moved, resized or has a state change.
         pub window_id: WindowId,
@@ -158,7 +158,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowOpenEvent`].
+    /// Arguments for the [`RAW_WINDOW_OPEN_EVENT`].
     pub struct RawWindowOpenArgs {
         /// Window that finished opening.
         pub window_id: WindowId,
@@ -177,7 +177,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawHeadlessOpenEvent`].
+    /// Arguments for the [`RAW_HEADLESS_OPEN_EVENT`].
     pub struct RawHeadlessOpenArgs {
         /// Window id that represents the headless surface that finished opening.
         pub window_id: WindowId,
@@ -196,7 +196,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowOrHeadlessOpenErrorEvent`].
+    /// Arguments for the [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`].
     pub struct RawWindowOrHeadlessOpenErrorArgs {
         /// Window id that failed to open.
         pub window_id: WindowId,
@@ -210,7 +210,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowCloseRequestedEvent`].
+    /// Arguments for the [`RAW_WINDOW_CLOSE_REQUESTED_EVENT`].
     pub struct RawWindowCloseRequestedArgs {
         /// Window that was requested to close.
         pub window_id: WindowId,
@@ -223,7 +223,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowCloseEvent`].
+    /// Arguments for the [`RAW_WINDOW_CLOSE_EVENT`].
     pub struct RawWindowCloseArgs {
         /// Window that was destroyed.
         pub window_id: WindowId,
@@ -236,7 +236,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawDroppedFileEvent`].
+    /// Arguments for the [`RAW_DROPPED_FILE_EVENT`].
     pub struct RawDroppedFileArgs {
         /// Window where it was dropped.
         pub window_id: WindowId,
@@ -252,7 +252,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawHoveredFileEvent`].
+    /// Arguments for the [`RAW_HOVERED_FILE_EVENT`].
     pub struct RawHoveredFileArgs {
         /// Window where it was dragged over.
         pub window_id: WindowId,
@@ -268,7 +268,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawHoveredFileCancelledEvent`].
+    /// Arguments for the [`RAW_HOVERED_FILE_CANCELLED_EVENT`].
     ///
     /// The file is the one that was last [hovered] into the window.
     ///
@@ -285,7 +285,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawCursorMovedEvent`].
+    /// Arguments for the [`RAW_CURSOR_MOVED_EVENT`].
     pub struct RawCursorMovedArgs {
         /// Window the cursor was moved over.
         pub window_id: WindowId,
@@ -309,7 +309,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawCursorEnteredEvent`] and [`RawCursorLeftEvent`].
+    /// Arguments for the [`RAW_CURSOR_ENTERED_EVENT`] and [`RAW_CURSOR_LEFT_EVENT`].
     pub struct RawCursorArgs {
         /// Window the cursor entered or left.
         pub window_id: WindowId,
@@ -325,7 +325,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawMouseWheelEvent`].
+    /// Arguments for the [`RAW_MOUSE_WHEEL_EVENT`].
     pub struct RawMouseWheelArgs {
         /// Window that is hovered by the cursor.
         pub window_id: WindowId,
@@ -347,7 +347,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawMouseInputEvent`].
+    /// Arguments for the [`RAW_MOUSE_INPUT_EVENT`].
     pub struct RawMouseInputArgs {
         /// Window that is hovered by the cursor.
         pub window_id: WindowId,
@@ -369,7 +369,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawTouchpadPressureEvent`].
+    /// Arguments for the [`RAW_TOUCHPAD_PRESSURE_EVENT`].
     pub struct RawTouchpadPressureArgs {
         /// Window that is touched.
         pub window_id: WindowId,
@@ -391,7 +391,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawAxisMotionEvent`].
+    /// Arguments for the [`RAW_AXIS_MOTION_EVENT`].
     pub struct RawAxisMotionArgs {
         /// Window that received the event.
         pub window_id: WindowId,
@@ -413,7 +413,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawTouchEvent`].
+    /// Arguments for the [`RAW_TOUCH_EVENT`].
     pub struct RawTouchArgs {
         /// Window that was touched.
         pub window_id: WindowId,
@@ -441,7 +441,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawScaleFactorChangedEvent`].
+    /// Arguments for the [`RAW_SCALE_FACTOR_CHANGED_EVENT`].
     pub struct RawScaleFactorChangedArgs {
         /// Monitor that has changed.
         pub monitor_id: MonitorId,
@@ -464,7 +464,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawMonitorsChangedEvent`].
+    /// Arguments for the [`RAW_MONITORS_CHANGED_EVENT`].
     pub struct RawMonitorsChangedArgs {
         /// Up-to-date monitors list.
         pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
@@ -477,7 +477,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawColorSchemeChangedEvent`].
+    /// Arguments for the [`RAW_COLOR_SCHEME_CHANGED_EVENT`].
     pub struct RawColorSchemeChangedArgs {
         /// Window for which the preference was changed.
         pub window_id: WindowId,
@@ -506,7 +506,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawFrameImageReadyEvent`].
+    /// Arguments for the [`RAW_FRAME_IMAGE_READY_EVENT`].
     pub struct RawFrameImageReadyArgs {
         /// Frame image that is ready.
         pub image: ViewImage,
@@ -528,7 +528,7 @@ event_args! {
         }
     }
 
-    /// [`RawFontChangedEvent`] arguments.
+    /// [`RAW_FONT_CHANGED_EVENT`] arguments.
     pub struct RawFontChangedArgs {
         ..
 
@@ -538,7 +538,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawFontAaChangedEvent`].
+    /// Arguments for the [`RAW_FONT_AA_CHANGED_EVENT`].
     pub struct RawFontAaChangedArgs {
         /// The new anti-aliasing config.
         pub aa: FontAntiAliasing,
@@ -551,7 +551,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawMultiClickConfigChangedEvent`].
+    /// Arguments for the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`].
     pub struct RawMultiClickConfigChangedArgs {
         /// New config.
         pub config: MultiClickConfig,
@@ -564,7 +564,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawAnimationsEnabledChangedEvent`].
+    /// Arguments for the [`RAW_ANIMATIONS_ENABLED_CHANGED_EVENT`].
     pub struct RawAnimationsEnabledChangedArgs {
         /// If animation is enabled in the operating system.
         pub enabled: bool,
@@ -577,7 +577,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawKeyRepeatDelayChangedEvent`].
+    /// Arguments for the [`RAW_KEY_REPEAT_DELAY_CHANGED_EVENT`].
     pub struct RawKeyRepeatDelayChangedArgs {
         /// New delay.
         ///
@@ -599,122 +599,122 @@ event! {
     /// A key press or release targeting a window.
     ///
     /// This event represents a key input directly from the operating system. It is processed
-    /// by [`KeyboardManager`] to generate the [`KeyInputEvent`] that actually targets the focused widget.
+    /// by [`KeyboardManager`] to generate the [`KEY_INPUT_EVENT`] that actually targets the focused widget.
     ///
     /// *See also the [module level documentation](self) for details of how you can fake this event*
     ///
     /// [`KeyboardManager`]: crate::keyboard::KeyboardManager
-    /// [`KeyInputEvent`]: crate::keyboard::KeyInputEvent
-    pub RawKeyInputEvent: RawKeyInputArgs;
+    /// [`KEY_INPUT_EVENT`]: crate::keyboard::KEY_INPUT_EVENT
+    pub static RAW_KEY_INPUT_EVENT: RawKeyInputArgs;
 
     /// A window received an Unicode character.
-    pub RawCharInputEvent: RawCharInputArgs;
+    pub static RAW_CHAR_INPUT_EVENT: RawCharInputArgs;
 
     /// A window received or lost focus.
-    pub RawWindowFocusEvent: RawWindowFocusArgs;
+    pub static RAW_WINDOW_FOCUS_EVENT: RawWindowFocusArgs;
 
     /// A window was moved, resized or has a state change.
     ///
-    /// This event coalesces events usually named `WindowMoved`, `WindowResized` and `WindowStateChanged` into a
+    /// This event coalesces events usually named `WINDOW_MOVED`, `WINDOW_RESIZED` and `WINDOW_STATE_CHANGED` into a
     /// single event to simplify tracking composite changes, for example, the window changes size and position
     /// when maximized, this can be trivially observed with this event.
-    pub RawWindowChangedEvent: RawWindowChangedArgs;
+    pub static RAW_WINDOW_CHANGED_EVENT: RawWindowChangedArgs;
 
     /// A frame finished rendering and was presented in a window.
-    pub RawFrameRenderedEvent: RawFrameRenderedArgs;
+    pub static RAW_FRAME_RENDERED_EVENT: RawFrameRenderedArgs;
 
     /// A window has finished initializing in the view-process.
-    pub RawWindowOpenEvent: RawWindowOpenArgs;
+    pub static RAW_WINDOW_OPEN_EVENT: RawWindowOpenArgs;
 
     /// A headless surface has finished initializing in the view-process.
-    pub RawHeadlessOpenEvent: RawHeadlessOpenArgs;
+    pub static RAW_HEADLESS_OPEN_EVENT: RawHeadlessOpenArgs;
 
     /// A window or headless surface initialization failed in the view-process.
-    pub RawWindowOrHeadlessOpenErrorEvent: RawWindowOrHeadlessOpenErrorArgs;
+    pub static RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT: RawWindowOrHeadlessOpenErrorArgs;
 
     /// A window was requested to close.
-    pub RawWindowCloseRequestedEvent: RawWindowCloseRequestedArgs;
+    pub static RAW_WINDOW_CLOSE_REQUESTED_EVENT: RawWindowCloseRequestedArgs;
 
     /// A window was destroyed.
-    pub RawWindowCloseEvent: RawWindowCloseArgs;
+    pub static RAW_WINDOW_CLOSE_EVENT: RawWindowCloseArgs;
 
     /// A file was drag-dropped on a window.
-    pub RawDroppedFileEvent: RawDroppedFileArgs;
+    pub static RAW_DROPPED_FILE_EVENT: RawDroppedFileArgs;
 
     /// A file was dragged over a window.
     ///
-    /// If the file is dropped [`RawDroppedFileEvent`] will raise.
-    pub RawHoveredFileEvent: RawHoveredFileArgs;
+    /// If the file is dropped [`RAW_DROPPED_FILE_EVENT`] will raise.
+    pub static RAW_HOVERED_FILE_EVENT: RawHoveredFileArgs;
 
     /// A dragging file was moved away from the window or the operation was cancelled.
     ///
-    /// The file is the last one that emitted a [`RawHoveredFileEvent`].
-    pub RawHoveredFileCancelledEvent: RawHoveredFileCancelledArgs;
+    /// The file is the last one that emitted a [`RAW_HOVERED_FILE_EVENT`].
+    pub static RAW_HOVERED_FILE_CANCELLED_EVENT: RawHoveredFileCancelledArgs;
 
     /// Cursor pointer moved over a window.
-    pub RawCursorMovedEvent: RawCursorMovedArgs;
+    pub static RAW_CURSOR_MOVED_EVENT: RawCursorMovedArgs;
 
     /// Cursor pointer started hovering a window.
-    pub RawCursorEnteredEvent: RawCursorArgs;
+    pub static RAW_CURSOR_ENTERED_EVENT: RawCursorArgs;
 
     /// Cursor pointer stopped hovering a window.
-    pub RawCursorLeftEvent: RawCursorArgs;
+    pub static RAW_CURSOR_LEFT_EVENT: RawCursorArgs;
 
     /// Mouse wheel scrolled when the cursor was over a window.
-    pub RawMouseWheelEvent: RawMouseWheelArgs;
+    pub static RAW_MOUSE_WHEEL_EVENT: RawMouseWheelArgs;
 
     /// Mouse button was pressed or released when the cursor was over a window.
-    pub RawMouseInputEvent: RawMouseInputArgs;
+    pub static RAW_MOUSE_INPUT_EVENT: RawMouseInputArgs;
 
     /// Touchpad touched when the cursor was over a window.
-    pub RawTouchpadPressureEvent: RawTouchpadPressureArgs;
+    pub static RAW_TOUCHPAD_PRESSURE_EVENT: RawTouchpadPressureArgs;
 
     /// Motion on some analog axis send to a window.
-    pub RawAxisMotionEvent: RawAxisMotionArgs;
+    pub static RAW_AXIS_MOTION_EVENT: RawAxisMotionArgs;
 
     /// A window was touched.
-    pub RawTouchEvent: RawTouchArgs;
+    pub static RAW_TOUCH_EVENT: RawTouchArgs;
 
     /// Pixel scale factor for a monitor screen and its windows has changed.
     ///
     /// This can happen if the user change the screen settings. Note that a
     /// window's scale factor can also change if it is moved to a different monitor,
-    /// this change can be monitored using [`RawWindowChangedEvent`].
-    pub RawScaleFactorChangedEvent: RawScaleFactorChangedArgs;
+    /// this change can be monitored using [`RAW_WINDOW_CHANGED_EVENT`].
+    pub static RAW_SCALE_FACTOR_CHANGED_EVENT: RawScaleFactorChangedArgs;
 
     /// Monitors added or removed.
-    pub RawMonitorsChangedEvent: RawMonitorsChangedArgs;
+    pub static RAW_MONITORS_CHANGED_EVENT: RawMonitorsChangedArgs;
 
     /// Color scheme preference changed for a window.
-    pub RawColorSchemeChangedEvent: RawColorSchemeChangedArgs;
+    pub static RAW_COLOR_SCHEME_CHANGED_EVENT: RawColorSchemeChangedArgs;
 
     /// Change in system font anti-aliasing config.
-    pub RawFontAaChangedEvent: RawFontAaChangedArgs;
+    pub static RAW_FONT_AA_CHANGED_EVENT: RawFontAaChangedArgs;
 
     /// Change in system text fonts, install or uninstall.
-    pub RawFontChangedEvent: RawFontChangedArgs;
+    pub static RAW_FONT_CHANGED_EVENT: RawFontChangedArgs;
 
     /// Change in system "double-click" config.
-    pub RawMultiClickConfigChangedEvent: RawMultiClickConfigChangedArgs;
+    pub static RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT: RawMultiClickConfigChangedArgs;
 
     /// Change in system animation enabled config.
-    pub RawAnimationsEnabledChangedEvent: RawAnimationsEnabledChangedArgs;
+    pub static RAW_ANIMATIONS_ENABLED_CHANGED_EVENT: RawAnimationsEnabledChangedArgs;
 
     /// Change in system key repeat interval config.
-    pub RawKeyRepeatDelayChangedEvent: RawKeyRepeatDelayChangedArgs;
+    pub static RAW_KEY_REPEAT_DELAY_CHANGED_EVENT: RawKeyRepeatDelayChangedArgs;
 
     /// Image metadata loaded without errors.
-    pub RawImageMetadataLoadedEvent: RawImageArgs;
+    pub static RAW_IMAGE_METADATA_LOADED_EVENT: RawImageArgs;
 
     /// Progressively decoded image has decoded more pixels.
-    pub RawImagePartiallyLoadedEvent: RawImageArgs;
+    pub static RAW_IMAGE_PARTIALLY_LOADED_EVENT: RawImageArgs;
 
     /// Image loaded without errors.
-    pub RawImageLoadedEvent: RawImageArgs;
+    pub static RAW_IMAGE_LOADED_EVENT: RawImageArgs;
 
     /// Image failed to load.
-    pub RawImageLoadErrorEvent: RawImageArgs;
+    pub static RAW_IMAGE_LOAD_ERROR_EVENT: RawImageArgs;
 
     /// Image generated from a frame is ready for reading.
-    pub RawFrameImageReadyEvent: RawFrameImageReadyArgs;
+    pub static RAW_FRAME_IMAGE_READY_EVENT: RawFrameImageReadyArgs;
 }

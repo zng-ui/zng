@@ -1,6 +1,14 @@
-use std::{fmt, time::Instant, sync::{atomic::{AtomicBool, self}, Arc}, cell::{RefCell, Cell}, mem};
+use std::{
+    cell::{Cell, RefCell},
+    fmt, mem,
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc,
+    },
+    time::Instant,
+};
 
-use crate::{WidgetId, WidgetPath, context::WindowContext, window::WindowId};
+use crate::{context::WindowContext, window::WindowId, WidgetId, WidgetPath};
 
 /// [`Event`] arguments.
 pub trait EventArgs: fmt::Debug + Clone + 'static {
