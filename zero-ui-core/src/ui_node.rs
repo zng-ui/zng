@@ -194,52 +194,10 @@ pub trait UiNode: Any {
     /// Called every time an event updates.
     ///
     /// Every call to this method is for a single update of a single event type, you can listen to events
-    /// using the [`Event::update`] method. This method is called even if [`propagation`]
-    /// was stopped, or the widget is disabled, and it must always propagate to descendent nodes.
-    ///
-    /// Event propagation can be statically or dynamically typed, the way to listen to both is the same, `A` can be an
-    /// [`AnyEventUpdate`] instance that is resolved dynamically or an [`EventUpdate`] instance
-    /// that is resolved statically in the [`Event::update`] call. If an event matches you should **use the returned args**
-    /// in the call the descendant nodes, **this upgrades from dynamic to static resolution** in descendant nodes increasing
-    /// performance.
-    ///
-    /// If the event is handled before the call in descendant nodes it is called a *preview*, this behavior matches what
-    /// happens in the [`on_pre_event`] node.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use zero_ui_core::{UiNode, impl_ui_node, context::WidgetContext, event::EventUpdateArgs, gesture::ClickEvent};
-    /// struct MyNode<C> {
-    ///     child: C,
-    ///     click_count: usize
-    /// }
-    /// #[impl_ui_node(child)]
-    /// impl<C: UiNode> UiNode for MyNode<C> {
-    ///     fn event(&mut self, ctx: &mut WidgetContext, update: &A) {
-    ///         if let Some(args) = CLICK_EVENT.on(update) {
-    ///             if !args.propagation().is_stopped() && args.is_enabled(ctx.path.widget_id()) {
-    ///                 self.click_count += 1;
-    ///                 args.propagation().stop();
-    ///                 println!("clicks blocked {}", self.click_count);
-    ///             }
-    ///         }
-    ///         self.child.event(ctx, update);
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// In the example the `ClickEvent` event is handled in *preview* style (before child), but only if
-    /// the widget was clicked and stop propagation was not requested, the event is only received if the context widget is
-    /// in the arguments [`delivery_list`]. The event is then propagated to the `child` node, `self.child.event` appears to be
-    /// duplicated, but the call inside the `if` block ensured that the descendant nodes will resolve the event statically,
-    /// which may not be the case in the `else` block call where `A` can be the dynamic resolver.
-    ///
-    /// [`propagation`]: crate::event::EventArgs::propagation
-    /// [`EventUpdate`]: crate::event::EventUpdate
-    /// [`on_pre_event`]: crate::event::on_pre_event
-    /// [`Event::update`]: crate::event::Event::update
-    /// [`delivery_list`]: crate::event::EventArgs::delivery_list
+    /// using the [`Event::on`] method or other methods of the [`Event`] type.
+    /// 
+    /// [`Event::on`]: crate::event::Event::on
+    /// [`Event`]: crate::event::Event
     fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate);
 
     /// Called every time an update is requested.

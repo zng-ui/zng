@@ -705,7 +705,7 @@ event_args! {
         }
     }
 
-    /// [`FrameImageReadyEvent`] args.
+    /// [`FRAME_IMAGE_READY_EVENT`] args.
     pub struct FrameImageReadyArgs {
         /// Window ID.
         pub window_id: WindowId,
@@ -726,7 +726,7 @@ event_args! {
         }
     }
 
-    /// [`WindowCloseRequestedEvent`] args.
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`] args.
     ///
     /// Requesting [`propagation().stop()`] on this event cancels the window close.
     ///

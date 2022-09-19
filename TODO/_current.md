@@ -7,6 +7,8 @@
     - Auto doc of command metadata needs a proc-macro.
     - Subscription to scoped commands?
 
+* Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
+    - Bug already existed in previous implementation.
 * Review `unsafe`, only use when there is no alternative.
 * Implement all `todo!` code.
 

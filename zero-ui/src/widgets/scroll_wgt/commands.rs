@@ -213,7 +213,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// Parameters for the [`ScrollToCommand`].
+/// Parameters for the [`SCROLL_TO_CMD`].
 #[derive(Debug, Clone)]
 pub struct ScrollToRequest {
     /// Widget that will be scrolled into view.
@@ -263,7 +263,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// Defines how much the [`ScrollToCommand`] will scroll to showcase the target widget.
+/// Defines how much the [`SCROLL_TO_CMD`] will scroll to showcase the target widget.
 #[derive(Debug, Clone)]
 pub enum ScrollToMode {
     /// Scroll will change only just enough so that the widget inner rect is fully visible with the optional
@@ -315,7 +315,7 @@ impl Default for ScrollToMode {
 
 /// Scroll the scroll widget so that the child widget is fully visible.
 ///
-/// This function is a helper for firing a [`ScrollToCommand`].
+/// This function is a helper for firing a [`SCROLL_TO_CMD`].
 pub fn scroll_to<Evs: WithEvents>(events: &mut Evs, scroll_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
     SCROLL_TO_CMD.scoped(scroll_id).notify_param(
         events,

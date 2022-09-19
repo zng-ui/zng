@@ -208,7 +208,7 @@ impl Windows {
     }
 
     /// Starts closing a window, the operation can be canceled by listeners of
-    /// [`WindowCloseRequestedEvent`]. If the window has children they are closed together.
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If the window has children they are closed together.
     ///
     /// Returns a response var that will update once with the result of the operation.
     ///
@@ -218,7 +218,7 @@ impl Windows {
     }
 
     /// Requests closing multiple windows together, the operation can be canceled by listeners of the
-    /// [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed. Children of each window
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed. Children of each window
     /// are added to the close together set.
     ///
     /// Returns a response var that will update once with the result of the operation. Returns
@@ -253,7 +253,7 @@ impl Windows {
     }
 
     /// Requests close of all open windows together, the operation can be canceled by listeners of
-    /// the [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed.
+    /// the [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed.
     ///
     /// Returns a response var that will update once with the result of the operation, Returns
     /// [`Cancel`] if no window is open or if close was already requested to all of the windows.

@@ -10,7 +10,9 @@ use std::{
 
 use crate::{context::WindowContext, window::WindowId, WidgetId, WidgetPath};
 
-/// [`Event`] arguments.
+/// [`Event<A>`] arguments.
+/// 
+/// [`Event<A>`]: crate::event::Event
 pub trait EventArgs: fmt::Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;

@@ -29,7 +29,7 @@ command! {
     /// # Behavior
     ///
     /// This command is about the *windowed* fullscreen state ([`WindowState::Fullscreen`]),
-    /// use the [`ExclusiveFullscreenCommand`] to toggle *exclusive* video mode fullscreen.
+    /// use the [`EXCLUSIVE_FULLSCREEN_CMD`] to toggle *exclusive* video mode fullscreen.
     pub static FULLSCREEN_CMD = {
         name: "Full-Screen",
         info: "Toggle full-screen mode on the current window.",
@@ -47,7 +47,7 @@ command! {
     /// # Behavior
     ///
     /// This command is about the *exclusive* fullscreen state ([`WindowState::Exclusive`]),
-    /// use the [`FullscreenCommand`] to toggle *windowed* fullscreen.
+    /// use the [`FULLSCREEN_CMD`] to toggle *windowed* fullscreen.
     pub static EXCLUSIVE_FULLSCREEN_CMD = {
         name: "Exclusive Full-Screen",
         info: "Toggle exclusive full-screen mode on the current window.",

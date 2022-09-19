@@ -204,10 +204,10 @@ pub fn __command_no_meta(_: Command) {}
 /// # Scopes
 ///
 /// Commands are *global* by default, meaning an enabled handle anywhere in the app enables it everywhere.
-/// You can call [`scoped`] to declare *sub-commands* that are new commands that represent a command type in a limited
-/// scope only, See [`ScopedCommand<C>`] for details.
+/// You can call [`scoped`] to declare *sub-commands* that are the same command event, but filtered to a scope, metadata
+/// of scoped commands inherit from the app scope metadata, but setting it overrides only for the scope.
 ///
-/// [`command!`]: macro@crate::command::command
+/// [`command!`]: macro@crate::event::command
 /// [`new_handle`]: Command::new_handle
 /// [set its enabled]: CommandHandle::set_enabled
 /// [`with_meta`]: Command::with_meta
@@ -571,7 +571,7 @@ pub struct CommandHandle {
 impl CommandHandle {
     /// Sets if the command event handler is active.
     ///
-    /// When at least one [`CommandHandle`] is enabled the command is [`enabled`](Command::enabled).
+    /// When at least one [`CommandHandle`] is enabled the command is [`is_enabled`](Command::is_enabled).
     pub fn set_enabled(&self, enabled: bool) {
         if self.local_enabled.get() != enabled {
             UpdatesTrace::log_var::<bool>();
@@ -757,7 +757,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 /// }
 /// ```
 ///
-/// [`command!`]: macro@crate::command::command
+/// [`command!`]: macro@crate::event::command
 pub struct CommandMeta<'a> {
     meta: StateMapMut<'a, CommandMetaState>,
     scope: Option<StateMapMut<'a, CommandMetaState>>,
@@ -873,14 +873,12 @@ impl<'a> CommandMeta<'a> {
 /// Read-write command metadata variable.
 ///
 /// If you get this variable from a not scoped command, setting it sets
-/// the value for all scopes. If you get this variable using a scoped command
-/// setting it overrides only the value for the scope, see [`ScopedCommand`] for more details.
+/// the value for all scopes. If you get this variable using a scoped command,
+/// setting it overrides only the value for the scope.
 ///
 /// The aliased type is an [`RcVar`] wrapped in a [`RcCowVar`], for not scoped commands the
 /// [`RcCowVar::pass_through`] is used so that the wrapped [`RcVar`] is set directly on assign
 /// but the variable type matches that from a scoped command.
-///
-/// [`ScopedCommand`]: ScopedCommand#metadata
 pub type CommandMetaVar<T> = RcCowVar<T, RcVar<T>>;
 
 /// Read-only command metadata variable.

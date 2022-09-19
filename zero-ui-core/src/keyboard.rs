@@ -157,9 +157,9 @@ event! {
 ///
 /// Events this extension provides.
 ///
-/// * [KeyInputEvent]
-/// * [ModifiersChangedEvent]
-/// * [CharInputEvent]
+/// * [`KEY_INPUT_EVENT`]
+/// * [`MODIFIERS_CHANGED_EVENT`]
+/// * [`CHAR_INPUT_EVENT`]
 ///
 /// # Services
 ///

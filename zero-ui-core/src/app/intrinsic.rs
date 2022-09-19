@@ -99,12 +99,12 @@ impl AppProcess {
 
     /// Register a request for process exit with code `0` in the next update.
     ///
-    /// The [`ExitRequestedEvent`] will be raised, and if not cancelled the app process will exit.
+    /// The [`EXIT_REQUESTED_EVENT`] will be raised, and if not cancelled the app process will exit.
     ///
     /// Returns a response variable that is updated once with the unit value [`ExitCancelled`]
     /// if the exit operation is cancelled.
     ///
-    /// See also the [`ExitCommand`] that also causes an exit request.
+    /// See also the [`EXIT_CMD`] that also causes an exit request.
     pub fn exit(&mut self) -> ResponseVar<ExitCancelled> {
         if let Some(r) = &self.exit_requests {
             r.response_var()
@@ -123,6 +123,8 @@ impl AppProcess {
 
 command! {
     /// Represents the app process [`exit`] request.
+    /// 
+    /// [`exit`]: AppProcess::exit
     pub static EXIT_CMD = {
         name: "Exit",
         info: "Close all windows and exit."

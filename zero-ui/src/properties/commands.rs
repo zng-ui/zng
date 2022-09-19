@@ -2,9 +2,9 @@
 //!
 //! Commands are special events that represent app actions. They do not implement the action invocation or fulfillment, but
 //! allows for *binding states* between a widget that fulfills the command and a widget that invokes the command. For
-//! example, the [`CopyCommand`] represents the action of "placing a copy of the selection in the clipboard", a widget can implement
-//! this command by handling its event, a different widget can invoke the command using [`CopyCommand::notify`] and can bind
-//! its enabled property to [`CopyCommand::enabled`]. The widgets **don't need to known each other** when the first widget can copy
+//! example, the [`COPY_CMD`] represents the action of "placing a copy of the selection in the clipboard", a widget can implement
+//! this command by handling its event, a different widget can invoke the command using [`Command::notify`] and can bind
+//! its enabled property to [`Command::is_enabled`]. The widgets **don't need to known each other** when the first widget can copy
 //! it enables the command, this in turn enables the second widget that will invoke the command on an user interaction.
 //!
 //! Commands can also have any number of metadata associated with then, this metadata is implemented using extension traits,

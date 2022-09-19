@@ -27,6 +27,8 @@ pub use properties::*;
 ///
 /// Event keys usually represent external events or [`AppExtension`] events, you can also use [`command!`]
 /// to declare events specialized for commanding widgets and services.
+/// 
+/// [`AppExtension`]: crate::app::AppExtension
 ///
 /// # Examples
 ///

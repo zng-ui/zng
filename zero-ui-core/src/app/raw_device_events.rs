@@ -17,7 +17,7 @@ use zero_ui_view_api::webrender_api::euclid;
 pub use zero_ui_view_api::{AxisId, ButtonId};
 
 event_args! {
-    /// Arguments for [`DeviceAddedEvent`] and [`DeviceRemovedEvent`].
+    /// Arguments for [`DEVICE_ADDED_EVENT`] and [`DEVICE_REMOVED_EVENT`].
     pub struct DeviceArgs {
         /// Device that was added/removed.
         pub device_id: DeviceId,
@@ -30,7 +30,7 @@ event_args! {
         }
     }
 
-    /// Arguments for [`MouseMotionEvent`].
+    /// Arguments for [`MOUSE_MOTION_EVENT`].
     pub struct MouseMotionArgs {
         /// Mouse device that generated the event.
         pub device_id: DeviceId,
@@ -46,7 +46,7 @@ event_args! {
         }
     }
 
-    /// Arguments for [`MouseWheelEvent`].
+    /// Arguments for [`MOUSE_WHEEL_EVENT`].
     pub struct MouseWheelArgs {
         /// Mouse device that generated the event.
         pub device_id: DeviceId,
@@ -62,7 +62,7 @@ event_args! {
         }
     }
 
-    /// Arguments for [`MotionEvent`].
+    /// Arguments for [`MOTION_EVENT`].
     pub struct MotionArgs {
         /// Device that generated the event.
         pub device_id: DeviceId,
@@ -81,7 +81,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`ButtonEvent`].
+    /// Arguments for the [`BUTTON_EVENT`].
     pub struct ButtonArgs {
         /// Device that generated the event.
         pub device_id: DeviceId,
@@ -100,7 +100,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`KeyEvent`].
+    /// Arguments for the [`KEY_EVENT`].
     pub struct KeyArgs {
         /// Keyboard device that generated the event.
         pub device_id: DeviceId,
@@ -122,7 +122,7 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`TextEvent`].
+    /// Arguments for the [`TEXT_EVENT`].
     pub struct TextArgs {
         /// Device that generated the event.
         pub device_id: DeviceId,

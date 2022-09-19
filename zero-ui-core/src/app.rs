@@ -157,12 +157,12 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// and send a display list or frame update.
 ///
 /// This method does not block until the frame pixels are rendered, it covers only the creation of a frame request sent to the view-process.
-/// A [`RawFrameRenderedEvent`] is send when a frame finished rendering in the view-process.
+/// A [`RAW_FRAME_RENDERED_EVENT`] is send when a frame finished rendering in the view-process.
 ///
 /// ## 6 - Deinit
 ///
 /// The [`deinit`] method is called once after an exit was requested and not cancelled. Exit is
-/// requested using the [`AppProcess`] service, it causes an [`ExitRequestedEvent`] that can be cancelled, if it
+/// requested using the [`AppProcess`] service, it causes an [`EXIT_REQUESTED_EVENT`] that can be cancelled, if it
 /// is not cancelled the extensions are deinited and then dropped.
 ///
 /// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
@@ -189,7 +189,7 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// [updates]: #3-updates
 /// [layout]: #3-layout
 /// [render]: #5-render
-/// [`RawFrameRenderedEvent`]: raw_events::RawFrameRenderedEvent
+/// [`RAW_FRAME_RENDERED_EVENT`]: raw_events::RAW_FRAME_RENDERED_EVENT
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait AppExtension: 'static {
     /// Type id of this extension.
@@ -502,7 +502,7 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
 }
 
 event_args! {
-    /// Arguments for [`ExitRequestedEvent`].
+    /// Arguments for [`EXIT_REQUESTED_EVENT`].
     ///
     /// Requesting [`propagation().stop()`] on this event cancels the exit.
     ///

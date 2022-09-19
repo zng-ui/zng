@@ -113,10 +113,10 @@ impl ViewProcess {
 
     /// Sends a request to open a window and associate it with the `window_id`.
     ///
-    /// A [`RawWindowOpenEvent`] or [`RawWindowOrHeadlessOpenErrorEvent`] will be received in response to this request.
+    /// A [`RAW_WINDOW_OPEN_EVENT`] or [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`] will be received in response to this request.
     ///
-    /// [`RawWindowOpenEvent`]: crate::app::raw_events::RawWindowOpenEvent
-    /// [`RawWindowOrHeadlessOpenErrorEvent`]: crate::app::raw_events::RawWindowOrHeadlessOpenErrorEvent
+    /// [`RAW_WINDOW_OPEN_EVENT`]: crate::app::raw_events::RAW_WINDOW_OPEN_EVENT
+    /// [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`]: crate::app::raw_events::RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT
     pub fn open_window(&self, config: WindowRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewProcess.open_window").entered();
         self.0.borrow_mut().process.open_window(config)
@@ -145,10 +145,10 @@ impl ViewProcess {
     /// Note that no actual window is created, only the renderer, the use of window-ids to identify
     /// this renderer is only for convenience.
     ///
-    /// A [`RawHeadlessOpenEvent`] or [`RawWindowOrHeadlessOpenErrorEvent`] will be received in response to this request.
+    /// A [`RAW_HEADLESS_OPEN_EVENT`] or [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`] will be received in response to this request.
     ///
-    /// [`RawHeadlessOpenEvent`]: crate::app::raw_events::RawHeadlessOpenEvent
-    /// [`RawWindowOrHeadlessOpenErrorEvent`]: crate::app::raw_events::RawWindowOrHeadlessOpenErrorEvent
+    /// [`RAW_HEADLESS_OPEN_EVENT`]: crate::app::raw_events::RAW_HEADLESS_OPEN_EVENT
+    /// [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`]: crate::app::raw_events::RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT
     pub fn open_headless(&self, config: HeadlessRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewProcess.open_headless").entered();
         self.0.borrow_mut().process.open_headless(config)
@@ -657,7 +657,7 @@ pub enum EncodeError {
     /// In a headless-app without renderer all images are dummy because there is no
     /// view-process backend running.
     Dummy,
-    /// The View-Process disconnected or has not finished initializing yet, try again after [`ViewProcessInitedEvent`].
+    /// The View-Process disconnected or has not finished initializing yet, try again after [`VIEW_PROCESS_INITED_EVENT`].
     ViewProcessOffline,
 }
 impl From<String> for EncodeError {

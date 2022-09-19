@@ -20,7 +20,7 @@ use linear_map::LinearMap;
 pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase};
 
 event_args! {
-    /// [`MouseMoveEvent`] event args.
+    /// [`MOUSE_MOVE_EVENT`] arguments.
     pub struct MouseMoveArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -60,7 +60,7 @@ event_args! {
         }
     }
 
-    /// [`MouseInputEvent`] event args.
+    /// [`MOUSE_INPUT_EVENT`] arguments.
     pub struct MouseInputArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -114,7 +114,7 @@ event_args! {
         }
     }
 
-    /// [`MouseClickEvent`] event args.
+    /// [`MOUSE_CLICK_EVENT`] arguments.
     pub struct MouseClickArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -165,7 +165,7 @@ event_args! {
         }
     }
 
-    /// [`MouseHoveredEvent`] event args.
+    /// [`MOUSE_HOVERED_EVENT`] arguments.
     pub struct MouseHoverArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -210,7 +210,7 @@ event_args! {
         }
     }
 
-    /// [`MouseCaptureEvent`] arguments.
+    /// [`MOUSE_CAPTURE_EVENT`] arguments.
     pub struct MouseCaptureArgs {
         /// Previous mouse capture target and mode.
         pub prev_capture: Option<(WidgetPath, CaptureMode)>,
@@ -235,7 +235,7 @@ event_args! {
         }
     }
 
-    /// [`MouseWheelEvent`] arguments.
+    /// [`MOUSE_WHEEL_EVENT`] arguments.
     pub struct MouseWheelArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -1324,7 +1324,7 @@ impl Mouse {
     ///
     /// In headless apps the default is [`MultiClickConfig::default`] and does not change.
     ///
-    /// Internally the [`RawMultiClickConfigChangedEvent`] is listened to update this variable, so you can notify
+    /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable, so you can notify
     /// this event to set this variable, if you really must.
     pub fn multi_click_config(&self) -> ReadOnlyRcVar<MultiClickConfig> {
         self.multi_click_config.clone().into_read_only()

@@ -91,7 +91,7 @@ pub enum FontChange {
 ///
 /// Events this extension provides:
 ///
-/// * [FontChangedEvent] - Font config or system fonts changed.
+/// * [FONT_CHANGED_EVENT] - Font config or system fonts changed.
 #[derive(Default)]
 pub struct FontManager {}
 impl AppExtension for FontManager {
@@ -160,7 +160,7 @@ impl Fonts {
         std::mem::take(&mut self.generics.updates)
     }
 
-    /// Clear cache and notify `Refresh` in [`FontChangedEvent`].
+    /// Clear cache and notify `Refresh` in [`FONT_CHANGED_EVENT`].
     ///
     /// See the event documentation for more information.
     pub fn refresh(&mut self) {
@@ -187,7 +187,7 @@ impl Fonts {
 
     /// Load and register a custom font.
     ///
-    /// If the font loads correctly a [`FontChangedEvent`] notification is scheduled.
+    /// If the font loads correctly a [`FONT_CHANGED_EVENT`] notification is scheduled.
     /// Fonts sourced from a file are not monitored for changes, you can *reload* the font
     /// by calling `register` again with the same font name.
     pub fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
@@ -593,7 +593,7 @@ impl FontFace {
     }
 
     /// If this font face is cached. All font faces are cached by default, a font face can be detached from
-    /// cache when a [`FontChangedEvent`] event happens, in this case the font can still be used normally, but
+    /// cache when a [`FONT_CHANGED_EVENT`] event happens, in this case the font can still be used normally, but
     /// a request for the same font name will return a different reference.
     pub fn is_cached(&self) -> bool {
         !self.unregistered.get()

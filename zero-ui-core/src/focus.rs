@@ -10,7 +10,7 @@
 //! This is an extension of the windows manager own focus management that controls which window is *focused*, receiving
 //! keyboard input.
 //!
-//! You can track the focused widget by listening to the [`FocusChangedEvent`] event or by calling [`focused`](Focus::focused)
+//! You can track the focused widget by listening to the [`FOCUS_CHANGED_EVENT`] event or by calling [`focused`](Focus::focused)
 //! in the [`Focus`] service.
 //!
 //! # Navigation
@@ -57,7 +57,7 @@
 //! this widget when the scope receives focus. Alt scopes also remember the widget from which the *alt* focus happened
 //! and can also return focus back to that widget.
 //!
-//! Widgets can keep track of this by listening to the [`ReturnFocusChangedEvent`] event or by calling
+//! Widgets can keep track of this by listening to the [`RETURN_FOCUS_CHANGED_EVENT`] event or by calling
 //! [`return_focused`](Focus::return_focused) in the [`Focus`] service. Usually the window root scope remembers
 //! return focus and some widgets, like *text inputs* visually indicate that they will be focused when the window
 //! is focused.
@@ -139,7 +139,7 @@ event_args! {
         }
     }
 
-    /// [`ReturnFocusChangedEvent`] arguments.
+    /// [`RETURN_FOCUS_CHANGED_EVENT`] arguments.
     pub struct ReturnFocusChangedArgs {
         /// The scope that returns the focus when focused directly.
         ///
@@ -352,8 +352,8 @@ event! {
 ///
 /// Events this extension provides.
 ///
-/// * [FocusChangedEvent]
-/// * [ReturnFocusChangedEvent]
+/// * [`FOCUS_CHANGED_EVENT`]
+/// * [`RETURN_FOCUS_CHANGED_EVENT`]
 ///
 /// # Services
 ///
@@ -369,7 +369,7 @@ event! {
 ///
 /// This extension requires the [`Windows`] service.
 ///
-/// This extension listens to the [`MouseInputEvent`], [`ShortcutEvent`] [`WindowFocusChangedEvent`] and [`WidgetInfoChangedEvent`].
+/// This extension listens to the [`MOUSE_INPUT_EVENT`], [`SHORTCUT_EVENT`] [`WINDOW_FOCUS_CHANGED_EVENT`] and [`WIDGET_INFO_CHANGED_EVENT`].
 ///
 /// To work properly it should be added to the app after the windows manager extension.
 ///
@@ -379,7 +379,7 @@ event! {
 /// focus concepts implemented by this app extension.
 ///
 /// [`App::default`]: crate::app::App::default
-/// [`ShortcutEvent`]: crate::gesture::ShortcutEvent
+/// [`SHORTCUT_EVENT`]: crate::gesture::SHORTCUT_EVENT
 pub struct FocusManager {
     last_keyboard_event: Instant,
     commands: Option<FocusCommands>,

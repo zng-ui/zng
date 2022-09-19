@@ -248,8 +248,8 @@ pub fn scrollbar_joiner_presenter() -> impl UiNode {
     ViewGenerator::presenter_default(SCROLLBAR_JOINER_VIEW_VAR)
 }
 
-/// Create a node that implements [`ScrollUpCommand`], [`ScrollDownCommand`],
-/// [`ScrollLeftCommand`] and [`ScrollRightCommand`] scoped on the widget.
+/// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
+/// [`SCROLL_LEFT_CMD`] and [`SCROLL_RIGHT_CMD`] scoped on the widget.
 pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
     struct ScrollCommandsNode<C> {
         child: C,
@@ -384,8 +384,8 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
     .cfg_boxed()
 }
 
-/// Create a node that implements [`PageUpCommand`], [`PageDownCommand`],
-/// [`PageLeftCommand`] and [`PageRightCommand`] scoped on the widget.
+/// Create a node that implements [`PAGE_UP_CMD`], [`PAGE_DOWN_CMD`],
+/// [`PAGE_LEFT_CMD`] and [`PAGE_RIGHT_CMD`] scoped on the widget.
 pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
     struct PageCommandsNode<C> {
         child: C,
@@ -519,8 +519,8 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
     }
 }
 
-/// Create a node that implements [`ScrollToTopCommand`], [`ScrollToBottomCommand`],
-/// [`ScrollToLeftmostCommand`] and [`ScrollToRightmostCommand`] scoped on the widget.
+/// Create a node that implements [`SCROLL_TO_TOP_CMD`], [`SCROLL_TO_BOTTOM_CMD`],
+/// [`SCROLL_TO_LEFTMOST_CMD`] and [`SCROLL_TO_RIGHTMOST_CMD`] scoped on the widget.
 pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
     struct ScrollToEdgeCommandsNode<C> {
         child: C,
@@ -614,7 +614,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
     .cfg_boxed()
 }
 
-/// Create a node that implements [`ScrollToCommand`] scoped on the widget and scroll to focused.
+/// Create a node that implements [`SCROLL_TO_CMD`] scoped on the widget and scroll to focused.
 pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     struct ScrollToCommandNode<C> {
         child: C,

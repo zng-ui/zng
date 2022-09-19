@@ -8,7 +8,7 @@
 //! to the target widget and back to the root parent. The route going to the target is called the *preview* route and the route going
 //! back to root is the main route.
 //!
-//! Most events are represented by two properties that represents these two routes, for example, the [`ClickEvent`](crate::core::gesture::ClickEvent)
+//! Most events are represented by two properties that represents these two routes, for example, the [`CLICK_EVENT`](crate::core::gesture::CLICK_EVENT)
 //! is represented by the [`on_pre_click`](fn@gesture::on_pre_click) in the preview route and by [`on_click`](fn@gesture::on_click) in
 //! the main route. Usually you handle [`on_click`](fn@gesture::on_click) in the widget that is expected to be clicked, but you can
 //! use [`on_pre_click`](fn@gesture::on_pre_click) to *preview* the event in a parent widget and potentially stop it from being raised

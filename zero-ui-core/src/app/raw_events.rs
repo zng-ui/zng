@@ -1,7 +1,7 @@
 //! Events directly from `winit` targeting the app windows.
 //!
 //! These events get processed by [app extensions] to generate the events used in widgets, for example
-//! the [`KeyboardManager`] uses the [`RawKeyInputEvent`] into focus targeted events.
+//! the [`KeyboardManager`] uses the [`RAW_KEY_INPUT_EVENT`] into focus targeted events.
 //!
 //! # Synthetic Input
 //!
@@ -11,7 +11,7 @@
 //!
 //! [app extensions]: crate::app::AppExtension
 //! [`KeyboardManager`]: crate::keyboard::KeyboardManager
-//! [`RawKeyInputEvent`]: crate::app::raw_events::RawKeyInputEvent
+//! [`RAW_KEY_INPUT_EVENT`]: crate::app::raw_events::RAW_KEY_INPUT_EVENT
 //! [`notify`]: crate::event::Event::notify
 //! [`DeviceId`]: crate::app::DeviceId
 
@@ -129,7 +129,7 @@ event_args! {
         /// client area is in the new monitor screen.
         ///
         /// Note that the window's scale factor can also change by system settings, that change
-        /// generates an [`RawScaleFactorChangedEvent`] only.
+        /// generates an [`RAW_SCALE_FACTOR_CHANGED_EVENT`] only.
         pub monitor: Option<(MonitorId, Factor)>,
 
         /// New window size if it was resized.
@@ -272,7 +272,7 @@ event_args! {
     ///
     /// The file is the one that was last [hovered] into the window.
     ///
-    /// [hovered]: RawHoveredFileEvent
+    /// [hovered]: RAW_HOVERED_FILE_EVENT
     pub struct RawHoveredFileCancelledArgs {
         /// Window where the file was previously dragged over.
         pub window_id: WindowId,

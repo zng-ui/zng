@@ -675,10 +675,10 @@
 //! ```
 //!  
 //! The example above declares a "Copy" button, the button causes a copy operation on click, but it does not known what
-//! is copied, or how. If there is any [`CopyCommand`] handlers created the button will be visible and if any of these handlers is enabled
-//! the button will be enabled. The button content uses the default display name provided by the [`CopyCommand`].
+//! is copied, or how. If there is any [`COPY_CMD`] handlers created the button will be visible and if any of these handlers is enabled
+//! the button will be enabled. The button content uses the default display name provided by the [`COPY_CMD`].
 //!
-//! Not shown in the example is the fact that the [`CopyCommand`] has default [`shortcut`][cmd_shortcut] values too, so pressing "Ctrl+C"
+//! Not shown in the example is the fact that the [`COPY_CMD`] has default [`shortcut`][cmd_shortcut] values too, so pressing "Ctrl+C"
 //! will also notify the command, because the [`GestureManager`] implements this interaction for all enabled commands that have a shortcut.
 //!
 //! See the **[`command`]** module for more information, including how to declare new commands, modify command metadata and how to handle a command event.
@@ -839,13 +839,13 @@
 //! [`async_hn_once!`]: macro@crate::core::handler::async_hn_once
 //! [`WidgetContext`]: crate::core::context::WidgetContext
 //! [`WidgetContextMut`]: crate::core::context::WidgetContextMut
-//! [`Command`]: crate::core::command::Command
-//! [`has_handlers`]: crate::core::command::Command::has_handlers
-//! [cmd_enabled]: crate::core::command::Command::enabled
-//! [cmd_name]: crate::core::command::CommandNameExt::name
-//! [cmd_info]: crate::core::command::CommandInfoExt::info
+//! [`Command`]: crate::core::event::Command
+//! [`has_handlers`]: crate::core::event::Command::has_handlers
+//! [cmd_enabled]: crate::core::event::Command::is_enabled
+//! [cmd_name]: crate::core::event::CommandNameExt::name
+//! [cmd_info]: crate::core::event::CommandInfoExt::info
 //! [cmd_shortcut]: crate::core::gesture::CommandShortcutExt::shortcut
-//! [`CopyCommand`]: crate::properties::commands::CopyCommand
+//! [`COPY_CMD`]: crate::properties::commands::COPY_CMD
 //! [`GestureManager`]: crate::core::gesture::GestureManager
 //! [futures]: std::future::Future
 //! [`AppContext`]: crate::core::context::AppContext
