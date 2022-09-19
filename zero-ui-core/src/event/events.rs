@@ -402,18 +402,18 @@ impl Drop for Events {
 /// ```
 /// # use zero_ui_core::{var::*, event::*, context::*};
 /// # event_args! { pub struct BarArgs { pub msg: &'static str, .. fn delivery_list(&self) -> EventDeliveryList { EventDeliveryList::all() } } }
-/// # event! { pub BarEvent: BarArgs; }
+/// # event! { pub static BAR_EVENT: BarArgs; }
 /// # struct Foo { } impl Foo {
 /// fn update(&mut self, ctx: &mut WidgetContext) {
-///     BarEvent.notify(ctx, BarArgs::now("we are not borrowing `ctx` so can use it directly"));
+///     BAR_EVENT.notify(ctx, BarArgs::now("we are not borrowing `ctx` so can use it directly"));
 ///
 ///    // ..
 ///    let services = &mut ctx.services;
-///    BarEvent.notify(ctx, BarArgs::now("we are partially borrowing `ctx` but not `ctx.vars` so we use that"));
+///    BAR_EVENT.notify(ctx, BarArgs::now("we are partially borrowing `ctx` but not `ctx.vars` so we use that"));
 /// }
 ///
 /// async fn handler(&mut self, mut ctx: WidgetContextMut) {
-///     BarEvent.notify(&mut ctx, BarArgs::now("async contexts can also be used"));
+///     BAR_EVENT.notify(&mut ctx, BarArgs::now("async contexts can also be used"));
 /// }
 /// # }
 /// ```

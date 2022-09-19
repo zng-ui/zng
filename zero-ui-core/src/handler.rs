@@ -758,14 +758,14 @@ where
 ///
 /// # Examples
 ///
-/// The example declares an event handler for the `ClickEvent`.
+/// The example declares an event handler for the `CLICK_EVENT`.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickEvent;
+/// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, app_hn!(|_, _, _| {
+/// ctx.events.on_event(CLICK_EVENT, app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
 /// }));
 /// # }
@@ -778,11 +778,11 @@ where
 /// will be dropped some time before the next event update.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickEvent, ClickArgs};
+/// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, app_hn!(|ctx, args: &ClickArgs, handle| {
+/// ctx.events.on_event(CLICK_EVENT, app_hn!(|ctx, args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     let _ = ctx.services;
 ///     handle.unsubscribe();
@@ -793,7 +793,7 @@ where
 /// Internally the [`clone_move!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickEvent, ClickArgs};
+/// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
 /// # use zero_ui_core::text::{formatx, ToText};
 /// # use zero_ui_core::var::{var, Var};
 /// # use zero_ui_core::context::AppContext;
@@ -801,7 +801,7 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let foo = var("".to_text());
 ///
-/// ctx.events.on_event(ClickEvent, app_hn!(foo, |ctx, args: &ClickArgs, _| {
+/// ctx.events.on_event(CLICK_EVENT, app_hn!(foo, |ctx, args: &ClickArgs, _| {
 ///     foo.set(ctx, args.target.to_text());
 /// }));
 ///
@@ -875,13 +875,13 @@ where
 /// are ignored by the handler and it automatically requests unsubscribe.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickEvent;
+/// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::app_hn_once;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
-/// ctx.events.on_event(ClickEvent, app_hn_once!(|_, _| {
+/// ctx.events.on_event(CLICK_EVENT, app_hn_once!(|_, _| {
 ///     for i in data {
 ///         print!("{i}, ");
 ///     }
@@ -894,13 +894,13 @@ where
 /// arguments and must be annotated.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickArgs, ClickEvent};
+/// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
 /// # use zero_ui_core::handler::app_hn_once;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
-/// ctx.events.on_event(ClickEvent, app_hn_once!(data, |ctx, args: &ClickArgs| {
+/// ctx.events.on_event(CLICK_EVENT, app_hn_once!(data, |ctx, args: &ClickArgs| {
 ///     drop(data);
 /// }));
 ///
@@ -992,15 +992,15 @@ where
 ///
 /// # Examples
 ///
-/// The example declares an async event handler for the `ClickEvent`.
+/// The example declares an async event handler for the `CLICK_EVENT`.
 ///
 /// ```
-/// # use zero_ui_core::gesture::ClickEvent;
+/// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::async_app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, async_app_hn!(|_, _, _| {
+/// ctx.events.on_event(CLICK_EVENT, async_app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
 ///
 ///     task::run(async {
@@ -1020,12 +1020,12 @@ where
 /// then is by returning early inside the async blocks.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickArgs, ClickEvent};
+/// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
 /// # use zero_ui_core::handler::async_app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(ClickEvent, async_app_hn!(|ctx, args: ClickArgs, handle| {
+/// ctx.events.on_event(CLICK_EVENT, async_app_hn!(|ctx, args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     ctx.with(|c| {  });
 ///     task::run(async move {
@@ -1038,7 +1038,7 @@ where
 /// Internally the [`async_clone_move_fn!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # use zero_ui_core::gesture::{ClickArgs, ClickEvent};
+/// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
 /// # use zero_ui_core::handler::async_app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::var::{var, Var};
@@ -1047,7 +1047,7 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let status = var("pending..".to_text());
 ///
-/// ctx.events.on_event(ClickEvent, async_app_hn!(status, |ctx, args: ClickArgs, _| {
+/// ctx.events.on_event(CLICK_EVENT, async_app_hn!(status, |ctx, args: ClickArgs, _| {
 ///     status.set(&ctx, formatx!("processing {}..", args.target));
 ///
 ///     task::run(async move {
@@ -1158,7 +1158,7 @@ where
 /// # Examples
 ///
 /// The example captures `data` by move and then moves it again to another thread. This is not something you can do using [`async_app_hn!`]
-/// because that handler expects to be called many times. We want to handle `ClickEvent` once in this example, so we can don't need
+/// because that handler expects to be called many times. We want to handle `CLICK_EVENT` once in this example, so we can don't need
 /// to capture by *clone-move* just to use `data`.
 ///
 /// ```

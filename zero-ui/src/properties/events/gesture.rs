@@ -11,7 +11,7 @@ use crate::prelude::new_property::*;
 event_property! {
     /// On widget click from any source and of any click count and the widget is enabled.
     ///
-    /// This is the most general click handler, it raises for all possible sources of the [`ClickEvent`] and any number
+    /// This is the most general click handler, it raises for all possible sources of the [`CLICK_EVENT`] and any number
     /// of consecutive clicks. Use [`click`](fn@click) to handle only primary button clicks or [`on_any_single_click`](fn@on_any_single_click)
     /// to not include double/triple clicks.
     pub fn any_click {
@@ -29,7 +29,7 @@ event_property! {
 
     /// On widget click from any source but excluding double/triple clicks and the widget is enabled.
     ///
-    /// This raises for all possible sources of [`ClickEvent`], but only when the click count is one. Use
+    /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is one. Use
     /// [`on_single_click`](fn@on_single_click) to handle only primary button clicks.
     pub fn any_single_click {
         event: CLICK_EVENT,
@@ -39,7 +39,7 @@ event_property! {
 
     /// On widget click from any source but exclusive double-clicks and the widget is enabled.
     ///
-    /// This raises for all possible sources of [`ClickEvent`], but only when the click count is two. Use
+    /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is two. Use
     /// [`on_double_click`](fn@on_double_click) to handle only primary button clicks.
     pub fn any_double_click {
         event: CLICK_EVENT,
@@ -49,7 +49,7 @@ event_property! {
 
     /// On widget click from any source but exclusive triple-clicks and the widget is enabled.
     ///
-    /// This raises for all possible sources of [`ClickEvent`], but only when the click count is three. Use
+    /// This raises for all possible sources of [`CLICK_EVENT`], but only when the click count is three. Use
     /// [`on_triple_click`](fn@on_triple_click) to handle only primary button clicks.
     pub fn any_triple_click {
         event: CLICK_EVENT,

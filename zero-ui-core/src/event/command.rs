@@ -41,7 +41,7 @@ use super::*;
 /// Declare two commands:
 ///
 /// ```
-/// use zero_ui_core::command::command;
+/// use zero_ui_core::event::command;
 ///
 /// command! {
 ///     static FOO_CMD;
@@ -58,7 +58,7 @@ use super::*;
 ///
 /// command! {
 ///     /// Represents the **foo** action.
-///     pub FOO_CMD = {
+///     pub static FOO_CMD = {
 ///         name: "Foo!",
 ///         info: "Does the foo! thing.",
 ///         shortcut: shortcut![CTRL+F],
@@ -75,7 +75,7 @@ use super::*;
 ///
 /// command! {
 ///     /// Represents the **foo** action.
-///     pub FOO_CMD => |cmd| {
+///     pub static FOO_CMD => |cmd| {
 ///         cmd.init_name("Foo!");
 ///         cmd.init_info("Does the foo! thing.");
 ///         cmd.init_shortcut(shortcut![CTRL+F]);
@@ -143,9 +143,10 @@ macro_rules! __command {
                 ///
                 /// This command initializes with the following metadata:
                 ///
-                /// | metadata | value |
-                /// |----------|-------|
-                $(#[doc = "|  `" $meta_ident "`  |  `"  "`  |"])+
+                ///| metadata | value |
+                ///|----------|-------|
+                $(#[doc = "|  `" $meta_ident "`  |  TODO  |"])+
+                ///
                 $vis static $COMMAND => |cmd| {
                     $(
                         cmd.[<init_ $meta_ident>]($meta_init);
@@ -173,12 +174,12 @@ pub fn __command_no_meta(_: Command) {}
 /// [metadata](#metadata) initialization.
 ///
 /// ```
-/// # use zero_ui_core::command::*;
+/// # use zero_ui_core::event::*;
 /// # pub trait CommandFooBarExt: Sized { fn init_foo(self, foo: bool) -> Self { self } fn init_bar(self, bar: bool) -> Self { self } }
-/// # impl<C: Command> CommandFooBarExt for C { }
+/// # impl CommandFooBarExt for Command { }
 /// command! {
 ///     /// Foo-bar command.
-///     pub FOO_BAR_CMD = {
+///     pub static FOO_BAR_CMD = {
 ///         foo: true,
 ///         bar: false,
 ///     };
@@ -709,7 +710,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 /// must has `foo` and `init_foo` methods.
 ///
 /// ```
-/// use zero_ui_core::{command::*, var::*};
+/// use zero_ui_core::{event::*, var::*};
 ///
 /// static COMMAND_FOO_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
 /// static COMMAND_BAR_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();

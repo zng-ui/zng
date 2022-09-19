@@ -9,10 +9,10 @@
 //!
 //! ```
 //! # use zero_ui_core::{widget, UiNode, var::{var, IntoVar}, async_hn, event_property, property,
-//! # gesture::{ClickEvent, ClickArgs}, task::{self, rayon::prelude::*}};
+//! # gesture::{CLICK_EVENT, ClickArgs}, task::{self, rayon::prelude::*}};
 //! # #[widget($crate::button)]
 //! # pub mod button { }
-//! # event_property! { pub fn click { event: ClickEvent, args: ClickArgs, } }
+//! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
 //! # #[property(context)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 //! # fn main() {
@@ -88,7 +88,7 @@
 //! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*};
 //! # #[widget($crate::button)]
 //! # pub mod button { }
-//! # event_property! { pub fn click { event: ClickEvent, args: ClickArgs, } }
+//! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
 //! # #[property(context)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 //! # fn main() {
