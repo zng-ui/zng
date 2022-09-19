@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::app::ExitCommand;
+use zero_ui::core::app::EXIT_CMD;
 use zero_ui::core::units::{DipPoint, DipSize};
 use zero_ui::core::window::WindowVars;
 use zero_ui::prelude::*;
@@ -277,16 +277,16 @@ fn state_commands(window_id: WindowId) -> impl Widget {
     section(
         "Commands",
         widgets![
-            cmd_btn(MinimizeCommand.scoped(window_id)),
+            cmd_btn(MINIMIZE_CMD.scoped(window_id)),
             separator(),
-            cmd_btn(RestoreCommand.scoped(window_id)),
-            cmd_btn(MaximizeCommand.scoped(window_id)),
+            cmd_btn(RESTORE_CMD.scoped(window_id)),
+            cmd_btn(MAXIMIZE_CMD.scoped(window_id)),
             separator(),
-            cmd_btn(FullscreenCommand.scoped(window_id)),
-            cmd_btn(ExclusiveFullscreenCommand.scoped(window_id)),
+            cmd_btn(FULLSCREEN_CMD.scoped(window_id)),
+            cmd_btn(EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id)),
             separator(),
-            cmd_btn(CloseCommand.scoped(window_id)),
-            cmd_btn(ExitCommand),
+            cmd_btn(CLOSE_CMD.scoped(window_id)),
+            cmd_btn(EXIT_CMD),
         ],
     )
 }
@@ -395,7 +395,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
                 checked = window_vars.always_on_top().clone();
             },
             separator(),
-            cmd_btn(zero_ui::widgets::window::commands::InspectCommand.scoped(window_id)),
+            cmd_btn(zero_ui::widgets::window::commands::INSPECT_CMD.scoped(window_id)),
             separator(),
             {
                 let mut child_count = 0;
@@ -524,13 +524,13 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
     }
 }
 
-fn cmd_btn(cmd: impl Command) -> impl Widget {
+fn cmd_btn(cmd: Command) -> impl Widget {
     button! {
         content = text(cmd.name_with_shortcut());
-        enabled = cmd.enabled();
+        enabled = cmd.is_enabled();
         visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
-            cmd.notify_cmd(ctx, None);
+            cmd.notify(ctx);
         })
     }
 }

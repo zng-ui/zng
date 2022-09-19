@@ -902,9 +902,8 @@ pub mod prelude {
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
-        command::{Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope},
+        event::{Events, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope},
         context::{AppContext, WidgetContext, WindowContext},
-        event::Events,
         focus::{DirectionalNav, Focus, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
@@ -939,7 +938,7 @@ pub mod prelude {
         widget_vec, widgets,
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition,
-            WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
+            WIDGET_INFO_CHANGED_EVENT, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
             WindowOpenArgs, WindowState, WindowVars, Windows,
         },
         FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
@@ -1014,8 +1013,6 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::color::{self, *};
         #[doc(no_inline)]
-        pub use crate::core::command::*;
-        #[doc(no_inline)]
         pub use crate::core::context::*;
         #[doc(no_inline)]
         pub use crate::core::event::*;
@@ -1040,7 +1037,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::widget_base::HitTestMode;
         #[doc(no_inline)]
-        pub use crate::core::window::{WidgetInfoChangedEvent, WindowId};
+        pub use crate::core::window::{WIDGET_INFO_CHANGED_EVENT, WindowId};
         #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,
@@ -1080,8 +1077,6 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::color::*;
         #[doc(no_inline)]
-        pub use crate::core::command::*;
-        #[doc(no_inline)]
         pub use crate::core::context::*;
         #[doc(no_inline)]
         pub use crate::core::event::*;
@@ -1100,7 +1095,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::var::*;
         #[doc(no_inline)]
-        pub use crate::core::window::{CursorIcon, WidgetInfoChangedEvent, WindowId};
+        pub use crate::core::window::{CursorIcon, WIDGET_INFO_CHANGED_EVENT, WindowId};
         #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,

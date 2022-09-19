@@ -27,7 +27,7 @@ fn app_main() {
 
         ctx.events
             .on_pre_event(
-                zero_ui::core::gesture::ShortcutEvent,
+                zero_ui::core::gesture::SHORTCUT_EVENT,
                 app_hn!(
                     shortcut_text,
                     shortcut_color,
@@ -43,7 +43,7 @@ fn app_main() {
             .perm();
         ctx.events
             .on_pre_event(
-                zero_ui::core::keyboard::KeyInputEvent,
+                zero_ui::core::keyboard::KEY_INPUT_EVENT,
                 app_hn!(shortcut_text, keypress_text, shortcut_color, |ctx, args: &KeyInputArgs, _| {
                     if args.is_repeat || args.state != KeyState::Pressed {
                         return;

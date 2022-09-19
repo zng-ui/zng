@@ -216,18 +216,15 @@ pub trait UiNode: Any {
     /// }
     /// #[impl_ui_node(child)]
     /// impl<C: UiNode> UiNode for MyNode<C> {
-    ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-    ///         if let Some(args) = ClickEvent.update(args) {
+    ///     fn event(&mut self, ctx: &mut WidgetContext, update: &A) {
+    ///         if let Some(args) = CLICK_EVENT.on(update) {
     ///             if !args.propagation().is_stopped() && args.is_enabled(ctx.path.widget_id()) {
     ///                 self.click_count += 1;
     ///                 args.propagation().stop();
     ///                 println!("clicks blocked {}", self.click_count);
     ///             }
-    ///             self.child.event(ctx, args);
     ///         }
-    ///         else {
-    ///             self.child.event(ctx, args);
-    ///         }
+    ///         self.child.event(ctx, update);
     ///     }
     /// }
     /// ```

@@ -1,5 +1,5 @@
 use crate::core::{
-    mouse::MouseHoveredEvent,
+    mouse::MOUSE_HOVERED_EVENT,
     window::{CursorIcon, WindowVars},
 };
 use crate::prelude::new_property::*;
@@ -32,14 +32,13 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         C: Var<Option<CursorIcon>>,
     {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.cursor).event(MouseHoveredEvent);
+            subs.var(ctx, &self.cursor).event(&MOUSE_HOVERED_EVENT);
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = MouseHoveredEvent.update(args) {
-                self.child.event(ctx, args);
-
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            self.child.event(ctx, update);
+            if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 let state = *ctx.update_state.entry(&CURSOR_STATE_ID).or_default();
                 match state {
                     CursorState::Default => {
@@ -73,8 +72,6 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                         self.hovered_binding = None;
                     }
                 }
-            } else {
-                self.child.event(ctx, args);
             }
         }
     }

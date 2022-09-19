@@ -67,20 +67,20 @@ fn commands() -> impl Widget {
                 spacing = 3;
 
                 items = widgets![
-                    cmd_btn(ScrollUpCommand),
-                    cmd_btn(ScrollDownCommand),
-                    cmd_btn(ScrollLeftCommand),
-                    cmd_btn(ScrollRightCommand),
+                    cmd_btn(SCROLL_UP_CMD),
+                    cmd_btn(SCROLL_DOWN_CMD),
+                    cmd_btn(SCROLL_LEFT_CMD),
+                    cmd_btn(SCROLL_RIGHT_CMD),
                     separator(),
-                    cmd_btn(PageUpCommand),
-                    cmd_btn(PageDownCommand),
-                    cmd_btn(PageLeftCommand),
-                    cmd_btn(PageRightCommand),
+                    cmd_btn(PAGE_UP_CMD),
+                    cmd_btn(PAGE_DOWN_CMD),
+                    cmd_btn(PAGE_LEFT_CMD),
+                    cmd_btn(PAGE_RIGHT_CMD),
                     separator(),
-                    cmd_btn(ScrollToTopCommand),
-                    cmd_btn(ScrollToBottomCommand),
-                    cmd_btn(ScrollToLeftmostCommand),
-                    cmd_btn(ScrollToRightmostCommand),
+                    cmd_btn(SCROLL_TO_TOP_CMD),
+                    cmd_btn(SCROLL_TO_BOTTOM_CMD),
+                    cmd_btn(SCROLL_TO_LEFTMOST_CMD),
+                    cmd_btn(SCROLL_TO_RIGHTMOST_CMD),
                     separator(),
                     scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
                     scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
@@ -100,14 +100,14 @@ fn commands() -> impl Widget {
         ];
     }
 }
-fn cmd_btn(cmd: impl Command) -> impl Widget {
+fn cmd_btn(cmd: Command) -> impl Widget {
     let cmd = cmd.scoped(WidgetId::named("scroll"));
     button! {
         content = text(cmd.name_with_shortcut());
-        enabled = cmd.enabled();
+        enabled = cmd.is_enabled();
         // visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
-            cmd.notify_cmd(ctx, None);
+            cmd.notify(ctx);
         });
 
         corner_radius = 0;
@@ -118,10 +118,10 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl Widget {
     use zero_ui::widgets::scroll::commands;
 
     let scroll = WidgetId::named("scroll");
-    let cmd = commands::ScrollToCommand.scoped(scroll);
+    let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
     button! {
         content = text(formatx!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" }));
-        enabled = cmd.enabled();
+        enabled = cmd.is_enabled();
         on_click = hn!(|ctx, _| {
             commands::scroll_to(ctx, scroll, target, mode.clone());
         });

@@ -10,7 +10,7 @@ use crate::prelude::new_property::*;
 /// [`DISABLED`]: Interactivity::DISABLED
 #[property(context)]
 pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, MouseHoveredEvent, |ctx, args| {
+    event_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_disabled(ctx.path) {
             Some(true)
         } else if args.is_mouse_leave_disabled(ctx.path) {
@@ -32,7 +32,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, MouseHoveredEvent, |ctx, args| {
+    event_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_enabled(ctx.path) {
             Some(true)
         } else if args.is_mouse_leave_enabled(ctx.path) {
@@ -54,7 +54,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
         child,
         state,
         false,
-        MouseHoveredEvent,
+        MOUSE_HOVERED_EVENT,
         false,
         |ctx, hovered_args| {
             if hovered_args.is_mouse_enter_enabled(ctx.path) {
@@ -65,7 +65,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
                 None
             }
         },
-        MouseCaptureEvent,
+        MOUSE_CAPTURE_EVENT,
         false,
         |ctx, cap_args| {
             if cap_args.is_got(ctx.path.widget_id()) {
@@ -97,7 +97,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         child,
         state,
         false,
-        MouseHoveredEvent,
+        MOUSE_HOVERED_EVENT,
         false,
         |ctx, hovered_args| {
             if hovered_args.is_mouse_enter(ctx.path) {
@@ -108,7 +108,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 None
             }
         },
-        MouseInputEvent,
+        MOUSE_INPUT_EVENT,
         false,
         |ctx, input_args| {
             if input_args.is_primary() {
@@ -136,7 +136,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
         child,
         state,
         false,
-        MouseInputEvent,
+        MOUSE_INPUT_EVENT,
         false,
         |ctx, input_args| {
             if input_args.is_primary() {
@@ -151,7 +151,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
             }
             None
         },
-        MouseCaptureEvent,
+        MOUSE_CAPTURE_EVENT,
         false,
         |ctx, cap_args| {
             if cap_args.is_got(ctx.path.widget_id()) {
@@ -187,14 +187,14 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.child.deinit(ctx);
         }
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(ClickEvent);
+            subs.event(&CLICK_EVENT);
             if let Some(timer) = &self.shortcut_press {
                 subs.var(ctx, timer);
             }
             self.child.subscriptions(ctx, subs);
         }
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = ClickEvent.update(args) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            if let Some(args) = CLICK_EVENT.on(update) {
                 if args.shortcut().is_some() {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                     // unless we where already doing that, then we just stop showing pressed, this causes
@@ -211,10 +211,8 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         ctx.updates.subscriptions();
                     }
                 }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
         }
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);

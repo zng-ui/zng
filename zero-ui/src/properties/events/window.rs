@@ -16,7 +16,7 @@ event_property! {
     ///
     /// This event notifies once per window, as soon as the window is created and the content is inited.
     pub fn window_open {
-        event: WindowOpenEvent,
+        event: WINDOW_OPEN_EVENT,
         args: WindowOpenArgs,
     }
 
@@ -28,26 +28,26 @@ event_property! {
     ///
     /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
     pub fn window_load {
-        event: WindowLoadEvent,
+        event: WINDOW_LOAD_EVENT,
         args: WindowOpenArgs,
     }
 
     /// On window moved, resized or state change.
     pub fn window_changed {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
     }
 
     /// On window position changed.
     pub fn window_moved {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.is_moved(),
     }
 
     /// On window size changed.
     pub fn window_resized {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.is_resized(),
     }
@@ -57,7 +57,7 @@ event_property! {
     /// This event notifies every time the user or the app tries to close the window, you can call
     /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
     pub fn window_close_requested {
-        event: WindowCloseRequestedEvent,
+        event: WINDOW_CLOSE_REQUESTED_EVENT,
         args: WindowCloseRequestedArgs
     }
 
@@ -65,42 +65,42 @@ event_property! {
     ///
     /// This event notifies every time the user or the app changes the [`WindowState`].
     pub fn window_state_changed {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.is_state_changed(),
     }
 
     /// On window state changed to [`WindowState::Maximized`].
     pub fn window_maximized {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.entered_state(WindowState::Maximized),
     }
 
     /// On window state changed from [`WindowState::Maximized`].
     pub fn window_unmaximized {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.exited_state(WindowState::Maximized),
     }
 
     /// On window state changed to [`WindowState::Minimized`].
     pub fn window_minimized {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.entered_state(WindowState::Minimized),
     }
 
     /// On window state changed from [`WindowState::Minimized`].
     pub fn window_unminimized {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.exited_state(WindowState::Minimized),
     }
 
     /// On window state changed to [`WindowState::Normal`].
     pub fn window_restored {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.entered_state(WindowState::Normal),
     }
@@ -108,7 +108,7 @@ event_property! {
     /// On window state changed to [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a previous not
     /// fullscreen state.
     pub fn window_fullscreen {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.entered_fullscreen(),
     }
@@ -116,7 +116,7 @@ event_property! {
     /// On window state changed from [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a new not
     /// fullscreen state.
     pub fn window_exited_fullscreen {
-        event: WindowChangedEvent,
+        event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |_, args| args.exited_fullscreen(),
     }
@@ -124,7 +124,7 @@ event_property! {
     /// On window frame rendered. The window can also be configured so that the frame pixels are
     /// captured in a *screenshot* that is available in the arguments.
     pub fn frame_image_ready {
-        event: FrameImageReadyEvent,
+        event: FRAME_IMAGE_READY_EVENT,
         args: FrameImageReadyArgs,
     }
 }

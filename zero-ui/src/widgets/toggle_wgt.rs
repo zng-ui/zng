@@ -180,14 +180,13 @@ pub mod properties {
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<bool>> UiNode for CheckedNode<C, B> {
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(ClickEvent);
+                subs.event(&CLICK_EVENT);
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                if let Some(args) = ClickEvent.update(args) {
-                    self.child.event(ctx, args);
-
+            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                self.child.event(ctx, update);
+                if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
                         && !self.checked.is_read_only(ctx)
                         && !args.propagation().is_stopped()
@@ -197,8 +196,6 @@ pub mod properties {
 
                         let _ = self.checked.modify(ctx, |mut c| *c = !*c);
                     }
-                } else {
-                    self.child.event(ctx, args)
                 }
             }
         }
@@ -224,14 +221,13 @@ pub mod properties {
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<Option<bool>>> UiNode for CheckedOptNode<C, B> {
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(ClickEvent);
+                subs.event(&CLICK_EVENT);
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                if let Some(args) = ClickEvent.update(args) {
-                    self.child.event(ctx, args);
-
+            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                self.child.event(ctx, update);
+                if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
                         && !self.checked.is_read_only(ctx)
                         && !args.propagation().is_stopped()
@@ -256,8 +252,6 @@ pub mod properties {
                             });
                         }
                     }
-                } else {
-                    self.child.event(ctx, args)
                 }
             }
         }
@@ -374,14 +368,13 @@ pub mod properties {
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 SELECTOR_VAR.get(ctx.vars).instance.borrow().subscribe(ctx, subs);
                 subs.vars(ctx).var(&self.value).var(&SELECTOR_VAR).var(&DESELECT_ON_NEW_VAR);
-                subs.event(ClickEvent);
+                subs.event(&CLICK_EVENT);
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                if let Some(args) = ClickEvent.update(args) {
-                    self.child.event(ctx, args);
-
+            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                self.child.event(ctx, update);
+                if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary() && !args.propagation().is_stopped() && args.is_enabled(ctx.path.widget_id()) {
                         args.propagation().stop();
 
@@ -394,8 +387,6 @@ pub mod properties {
                         };
                         self.checked.set_ne(ctx, Some(selected));
                     }
-                } else {
-                    self.child.event(ctx, args)
                 }
             }
 

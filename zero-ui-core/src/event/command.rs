@@ -119,7 +119,7 @@ macro_rules! __command {
         $(#[$attr:meta])*
         $vis:vis static $COMMAND:ident => $meta_init:expr;
     ) => {
-        paste::paste! {
+        $crate::paste! {
             std::thread_local! {
                 #[doc(hidden)]
                 static [<$COMMAND _LOCAL>]: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($EVENT));
@@ -135,7 +135,7 @@ macro_rules! __command {
         $(#[$attr:meta])*
         $vis:vis static $COMMAND:ident = { $($meta_ident:ident : $meta_init:expr),* $(,)? };
     ) => {
-        paste::paste! {
+        $crate::paste! {
             $crate::__command! {
                 $(#[$attr])*
                 ///

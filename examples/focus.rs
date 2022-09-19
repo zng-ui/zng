@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::focus::{FocusChangedEvent, FocusRequest, FocusTarget};
+use zero_ui::core::focus::{FOCUS_CHANGED_EVENT, FocusRequest, FocusTarget};
 use zero_ui::prelude::*;
 use zero_ui::widgets::window::{LayerIndex, WindowLayers};
 
@@ -280,15 +280,15 @@ fn commands() -> impl Widget {
     use zero_ui::core::focus::commands::*;
 
     let cmds = [
-        FocusNextCommand.as_any(),
-        FocusPrevCommand.as_any(),
-        FocusUpCommand.as_any(),
-        FocusRightCommand.as_any(),
-        FocusDownCommand.as_any(),
-        FocusLeftCommand.as_any(),
-        FocusAltCommand.as_any(),
-        FocusEnterCommand.as_any(),
-        FocusExitCommand.as_any(),
+        FOCUS_NEXT_CMD,
+        FOCUS_PREV_CMD,
+        FOCUS_UP_CMD,
+        FOCUS_RIGHT_CMD,
+        FOCUS_DOWN_CMD,
+        FOCUS_LEFT_CMD,
+        FOCUS_ALT_CMD,
+        FOCUS_ENTER_CMD,
+        FOCUS_EXIT_CMD,
     ];
 
     v_stack! {
@@ -304,7 +304,7 @@ fn commands() -> impl Widget {
             text! {
                 text = cmd.name_with_shortcut();
 
-                when *#{cmd.enabled()} {
+                when *#{cmd.is_enabled()} {
                     color = color_scheme_map(colors::WHITE, colors::BLACK);
                 }
             }.boxed_wgt()
@@ -315,7 +315,7 @@ fn commands() -> impl Widget {
 fn trace_focus(events: &mut Events) {
     events
         .on_pre_event(
-            FocusChangedEvent,
+            FOCUS_CHANGED_EVENT,
             app_hn!(|ctx, args: &FocusChangedArgs, _| {
                 if args.is_hightlight_changed() {
                     println!("highlight: {}", args.highlight);

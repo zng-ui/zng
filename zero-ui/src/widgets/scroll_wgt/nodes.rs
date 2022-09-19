@@ -5,8 +5,8 @@ use std::cell::Cell;
 use crate::prelude::new_widget::*;
 
 use crate::core::{
-    focus::FocusChangedEvent,
-    mouse::{MouseScrollDelta, MouseWheelEvent},
+    focus::FOCUS_CHANGED_EVENT,
+    mouse::{MouseScrollDelta, MOUSE_WHEEL_EVENT},
 };
 
 use super::commands::*;
@@ -266,12 +266,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.up = ScrollUpCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = ScrollDownCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = ScrollLeftCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = ScrollRightCommand
-                .scoped(scope)
-                .new_handle(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = SCROLL_UP_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
+            self.down = SCROLL_DOWN_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
+            self.left = SCROLL_LEFT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
+            self.right = SCROLL_RIGHT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
 
             self.child.init(ctx);
         }
@@ -288,10 +286,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             let scope = ctx.path.widget_id();
 
-            subs.event(ScrollUpCommand.scoped(scope))
-                .event(ScrollDownCommand.scoped(scope))
-                .event(ScrollLeftCommand.scoped(scope))
-                .event(ScrollRightCommand.scoped(scope))
+            subs.event(&SCROLL_UP_CMD.scoped(scope).event())
+                .event(&SCROLL_DOWN_CMD.scoped(scope).event())
+                .event(&SCROLL_LEFT_CMD.scoped(scope).event())
+                .event(&SCROLL_RIGHT_CMD.scoped(scope).event())
                 .vars(ctx)
                 .var(&VERTICAL_LINE_UNIT_VAR)
                 .var(&HORIZONTAL_LINE_UNIT_VAR);
@@ -312,12 +310,12 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            self.child.event(ctx, update);
+
             let scope = ctx.path.widget_id();
 
-            if let Some(args) = ScrollUpCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            if let Some(args) = SCROLL_UP_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -325,9 +323,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
-            } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = SCROLL_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -335,9 +331,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
-            } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = SCROLL_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -345,9 +339,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
-            } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = SCROLL_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -355,8 +347,6 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
-            } else {
-                self.child.event(ctx, args);
             }
         }
 
@@ -412,10 +402,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.up = PageUpCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = PageDownCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = PageLeftCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = PageRightCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = PAGE_UP_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
+            self.down = PAGE_DOWN_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
+            self.left = PAGE_LEFT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
+            self.right = PAGE_RIGHT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
 
             self.child.init(ctx);
         }
@@ -432,10 +422,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             let scope = ctx.path.widget_id();
 
-            subs.event(PageUpCommand.scoped(scope))
-                .event(PageDownCommand.scoped(scope))
-                .event(PageLeftCommand.scoped(scope))
-                .event(PageRightCommand.scoped(scope))
+            subs.event(&PAGE_UP_CMD.scoped(scope).event())
+                .event(&PAGE_DOWN_CMD.scoped(scope).event())
+                .event(&PAGE_LEFT_CMD.scoped(scope).event())
+                .event(&PAGE_RIGHT_CMD.scoped(scope).event())
                 .vars(ctx)
                 .var(&VERTICAL_PAGE_UNIT_VAR)
                 .var(&HORIZONTAL_PAGE_UNIT_VAR);
@@ -456,12 +446,12 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            self.child.event(ctx, update);
+
             let scope = ctx.path.widget_id();
 
-            if let Some(args) = PageUpCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            if let Some(args) = PAGE_UP_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -469,9 +459,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
-            } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = PAGE_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -479,9 +467,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
-            } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = PAGE_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -489,9 +475,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
-            } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = PAGE_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
@@ -499,8 +483,6 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
-            } else {
-                self.child.event(ctx, args);
             }
         }
 
@@ -553,14 +535,14 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.top = ScrollToTopCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
-            self.bottom = ScrollToBottomCommand
+            self.top = SCROLL_TO_TOP_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
+            self.bottom = SCROLL_TO_BOTTOM_CMD
                 .scoped(scope)
                 .new_handle(ctx, ScrollContext::can_scroll_down(ctx));
-            self.leftmost = ScrollToLeftmostCommand
+            self.leftmost = SCROLL_TO_LEFTMOST_CMD
                 .scoped(scope)
                 .new_handle(ctx, ScrollContext::can_scroll_left(ctx));
-            self.rightmost = ScrollToRightmostCommand
+            self.rightmost = SCROLL_TO_RIGHTMOST_CMD
                 .scoped(scope)
                 .new_handle(ctx, ScrollContext::can_scroll_right(ctx));
 
@@ -579,10 +561,10 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             let scope = ctx.path.widget_id();
 
-            subs.event(ScrollToTopCommand.scoped(scope))
-                .event(ScrollToBottomCommand.scoped(scope))
-                .event(ScrollToLeftmostCommand.scoped(scope))
-                .event(ScrollToRightmostCommand.scoped(scope));
+            subs.event(&SCROLL_TO_TOP_CMD.scoped(scope).event())
+                .event(&SCROLL_TO_BOTTOM_CMD.scoped(scope).event())
+                .event(&SCROLL_TO_LEFTMOST_CMD.scoped(scope).event())
+                .event(&SCROLL_TO_RIGHTMOST_CMD.scoped(scope).event());
 
             self.child.subscriptions(ctx, subs);
         }
@@ -596,35 +578,28 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             self.rightmost.set_enabled(ScrollContext::can_scroll_right(ctx));
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            self.child.event(ctx, update);
+
             let scope = ctx.path.widget_id();
 
-            if let Some(args) = ScrollToTopCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            if let Some(args) = SCROLL_TO_TOP_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.top, |_| {
                     ScrollContext::chase_vertical(ctx, 0.fct());
                 });
-            } else if let Some(args) = ScrollToBottomCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = SCROLL_TO_BOTTOM_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.bottom, |_| {
                     ScrollContext::chase_vertical(ctx, 1.fct());
                 });
-            } else if let Some(args) = ScrollToLeftmostCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = SCROLL_TO_LEFTMOST_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.leftmost, |_| {
                     ScrollContext::chase_horizontal(ctx, 0.fct());
                 });
-            } else if let Some(args) = ScrollToRightmostCommand.scoped(scope).update(args) {
-                self.child.event(ctx, args);
-
+            } else if let Some(args) = SCROLL_TO_RIGHTMOST_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.rightmost, |_| {
                     ScrollContext::chase_horizontal(ctx, 1.fct());
                 });
             } else {
-                self.child.event(ctx, args);
             }
         }
     }
@@ -650,7 +625,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = ScrollToCommand.scoped(ctx.path.widget_id()).new_handle(ctx, true);
+            self.handle = SCROLL_TO_CMD.scoped(ctx.path.widget_id()).new_handle(ctx, true);
             self.child.init(ctx);
         }
 
@@ -660,13 +635,13 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(ScrollToCommand.scoped(ctx.path.widget_id()));
+            subs.event(&SCROLL_TO_CMD.scoped(ctx.path.widget_id()).event());
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
             let self_id = ctx.path.widget_id();
-            if let Some(args) = FocusChangedEvent.update(args) {
+            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if let Some(path) = &args.new_focus {
                     if path.contains(self_id) && path.widget_id() != self_id {
                         // probable focus move inside.
@@ -687,9 +662,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         }
                     }
                 }
-
-                self.child.event(ctx, args);
-            } else if let Some(args) = ScrollToCommand.scoped(self_id).update(args) {
+            } else if let Some(args) = SCROLL_TO_CMD.scoped(self_id).on(update) {
                 // event send to us and enabled
                 if let Some(request) = ScrollToRequest::from_args(args) {
                     // has unhandled request
@@ -712,10 +685,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         }
                     }
                 }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -821,12 +792,12 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollWheelNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(MouseWheelEvent);
+            subs.event(&MOUSE_WHEEL_EVENT);
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = MouseWheelEvent.update(args) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
                 if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.copy(ctx)) {
                     args.handle(|_| {
                         match delta {
@@ -843,10 +814,8 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                         ctx.updates.layout();
                     });
                 }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

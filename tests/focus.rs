@@ -1,11 +1,14 @@
-use zero_ui::core::app::HeadlessApp;
-use zero_ui::core::event::EventBuffer;
-use zero_ui::core::focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs};
-use zero_ui::core::focus::{FocusChangedEvent, ReturnFocusChangedEvent};
-use zero_ui::core::gesture::HeadlessAppGestureExt;
-use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
-use zero_ui::core::window::{HeadlessAppWindowExt, WindowId};
-use zero_ui::prelude::*;
+use zero_ui::{
+    core::{
+        app::HeadlessApp,
+        event::EventBuffer,
+        focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT},
+        gesture::HeadlessAppGestureExt,
+        keyboard::HeadlessAppKeyboardExt,
+        window::{HeadlessAppWindowExt, WindowId},
+    },
+    prelude::*,
+};
 
 #[test]
 pub fn first_and_last_window_events() {
@@ -1528,8 +1531,8 @@ struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
 
-    focus_changed: EventBuffer<FocusChangedEvent>,
-    return_focus_changed: EventBuffer<ReturnFocusChangedEvent>,
+    focus_changed: EventBuffer<FocusChangedArgs>,
+    return_focus_changed: EventBuffer<ReturnFocusChangedArgs>,
 }
 impl TestApp {
     pub fn new(content: impl UiNode) -> Self {
@@ -1540,8 +1543,8 @@ impl TestApp {
 
         let (focus_changed, return_focus_changed) = {
             let ctx = app.ctx();
-            let a = ctx.events.buffer(zero_ui::core::focus::FocusChangedEvent);
-            let b = ctx.events.buffer(zero_ui::core::focus::ReturnFocusChangedEvent);
+            let a = ctx.events.buffer(FOCUS_CHANGED_EVENT);
+            let b = ctx.events.buffer(RETURN_FOCUS_CHANGED_EVENT);
             (a, b)
         };
 
@@ -1595,10 +1598,10 @@ impl TestApp {
     }
 
     pub fn can_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FocusNextCommand.enabled_value().unwrap_or(true)
+        zero_ui::core::focus::commands::FOCUS_NEXT_CMD.is_enabled().copy(self.app.vars())
     }
     pub fn can_shift_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FocusPrevCommand.enabled_value().unwrap_or(true)
+        zero_ui::core::focus::commands::FOCUS_PREV_CMD.is_enabled().copy(self.app.vars())
     }
 
     pub fn press_tab(&mut self) {

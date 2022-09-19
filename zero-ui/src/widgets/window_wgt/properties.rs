@@ -10,7 +10,7 @@ use crate::core::color::ColorScheme;
 use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowCloseRequestedEvent, WindowIcon, WindowId, WindowLoadEvent,
+    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WINDOW_CLOSE_REQUESTED_EVENT, WindowIcon, WindowId, WINDOW_LOAD_EVENT,
     WindowLoadingHandle, WindowState, WindowVars, Windows,
 };
 use crate::prelude::new_property::*;
@@ -302,19 +302,16 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                 Task::None => {}
             }
             if self.enabled.is_enabled() {
-                subs.event(WindowCloseRequestedEvent).event(WindowLoadEvent);
+                subs.event(&WINDOW_CLOSE_REQUESTED_EVENT).event(&WINDOW_LOAD_EVENT);
             }
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = WindowLoadEvent.update(args) {
-                self.child.event(ctx, args);
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            self.child.event(ctx, update);
+            if WINDOW_LOAD_EVENT.has(update) {
                 self.task = Task::None;
-            }
-            if let Some(args) = WindowCloseRequestedEvent.update(args) {
-                self.child.event(ctx, args);
-
+            }else if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
                 if !args.propagation().is_stopped() {
                     if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
                         match &self.task {
@@ -334,8 +331,6 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                         }
                     }
                 }
-            } else {
-                self.child.event(ctx, args);
             }
         }
 

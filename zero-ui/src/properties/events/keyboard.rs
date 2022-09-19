@@ -28,7 +28,7 @@ event_property! {
     ///
     /// This event property uses the [`KeyInputEvent`] that is included in the default app.
     pub fn key_input {
-        event: KeyInputEvent,
+        event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
         filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
     }
@@ -53,7 +53,7 @@ event_property! {
     ///
     /// This event property uses the [`KeyInputEvent`] that is included in the default app.
     pub fn disabled_key_input {
-        event: KeyInputEvent,
+        event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
         filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
     }
@@ -78,7 +78,7 @@ event_property! {
     ///
     /// This event property uses the [`KeyInputEvent`] that is included in the default app.
     pub fn key_down {
-        event: KeyInputEvent,
+        event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
         filter: |ctx, args| args.state == KeyState::Pressed && args.is_enabled(ctx.path.widget_id()),
     }
@@ -103,7 +103,7 @@ event_property! {
     ///
     /// This event property uses the [`KeyInputEvent`] that is included in the default app.
     pub fn key_up {
-        event: KeyInputEvent,
+        event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
         filter: |ctx, args| args.state == KeyState::Released && args.is_enabled(ctx.path.widget_id()),
     }
@@ -122,7 +122,7 @@ event_property! {
     ///
     /// This event property uses the [`CharInputEvent`] that is included in the default app.
     pub fn char_input {
-        event: CharInputEvent,
+        event: CHAR_INPUT_EVENT,
         args: CharInputArgs,
         filter: |ctx, args| args.is_enabled(ctx.path.widget_id())
     }
@@ -141,7 +141,7 @@ event_property! {
     ///
     /// This event property uses the [`CharInputEvent`] that is included in the default app.
     pub fn disabled_char_input {
-        event: CharInputEvent,
+        event: CHAR_INPUT_EVENT,
         args: CharInputArgs,
         filter: |ctx, args| args.is_disabled(ctx.path.widget_id())
     }

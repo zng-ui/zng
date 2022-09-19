@@ -135,13 +135,13 @@ pub mod thumb {
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(MouseMoveEvent).event(MouseInputEvent).var(ctx, &THUMB_OFFSET_VAR);
+                subs.event(&MOUSE_MOVE_EVENT).event(&MOUSE_INPUT_EVENT).var(ctx, &THUMB_OFFSET_VAR);
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
-                    if let Some(args) = MouseMoveEvent.update(args) {
+                    if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                         let offset = match THUMB_ORIENTATION_VAR.copy(ctx) {
                             scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
                             scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
@@ -163,16 +163,12 @@ pub mod thumb {
                             .expect("ThumbOffsetVar is read-only");
 
                         ctx.updates.layout();
-                        self.child.event(ctx, args);
-                    } else if let Some(args) = MouseInputEvent.update(args) {
+                    } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                         if args.is_primary() && args.is_mouse_up() {
                             self.mouse_down = None;
                         }
-                        self.child.event(ctx, args);
-                    } else {
-                        self.child.event(ctx, args);
                     }
-                } else if let Some(args) = MouseInputEvent.update(args) {
+                } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_down() {
                         let a = match THUMB_ORIENTATION_VAR.copy(ctx) {
                             scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
@@ -180,10 +176,8 @@ pub mod thumb {
                         };
                         self.mouse_down = Some((a, THUMB_OFFSET_VAR.copy(ctx.vars)));
                     }
-                    self.child.event(ctx, args);
-                } else {
-                    self.child.event(ctx, args);
                 }
+                self.child.event(ctx, update);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {

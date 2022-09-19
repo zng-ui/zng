@@ -1,6 +1,6 @@
 use zero_ui::{
     core::{
-        app::{view_process::ViewProcessInitedEvent, HeadlessApp},
+        app::{view_process::VIEW_PROCESS_INITED_EVENT, HeadlessApp},
         image::{ImageDataFormat, Images},
     },
     prelude::*,
@@ -22,8 +22,8 @@ pub fn get_before_view_init(app: &mut HeadlessApp) {
     let mut inited = false;
     while !inited {
         app.update_observe_event(
-            |ctx, args| {
-                if ViewProcessInitedEvent.update(args).is_some() {
+            |ctx, update| {
+                if VIEW_PROCESS_INITED_EVENT.has(update) {
                     inited = true;
 
                     assert!(img.get(ctx).is_loading());

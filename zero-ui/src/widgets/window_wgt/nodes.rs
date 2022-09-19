@@ -128,7 +128,7 @@ impl WindowLayers {
             W: Widget,
         {
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(WidgetInfoChangedEvent);
+                subs.event(&WIDGET_INFO_CHANGED_EVENT);
 
                 self.widget.subscriptions(ctx, subs)
             }
@@ -172,18 +172,16 @@ impl WindowLayers {
                 self.widget.deinit(ctx);
             }
 
-            fn event<Args: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &Args) {
-                if let Some(args) = WidgetInfoChangedEvent.update(args) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == ctx.path.window_id() {
                         self.anchor_info = ctx
                             .info_tree
                             .get(self.anchor.copy(ctx.vars))
                             .map(|w| (w.bounds_info(), w.border_info()));
                     }
-                    self.widget.event(ctx, args);
-                } else {
-                    self.widget.event(ctx, args);
                 }
+                self.widget.event(ctx, update);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {

@@ -11,121 +11,63 @@ use zero_ui::core::gesture::*;
 command! {
     /// Represents the **scroll up** by one [`v_line_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                  |
-    /// |--------------|--------------------------------------------------------|
-    /// | [`name`]     | "Scroll Up"                                            |
-    /// | [`info`]     | "Scroll Up by one scroll unit."                        |
-    /// | [`shortcut`] | `Up`                                                   |
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that does the same.
     ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
     /// [`v_line_unit`]: fn@super::properties::v_line_unit
-    pub ScrollUpCommand
-        .init_name("Scroll Up")
-        .init_info("Scroll Up by one scroll unit.")
-        .init_shortcut([shortcut!(Up)]);
+    pub static SCROLL_UP_CMD = {
+        name: "Scroll Up",
+        info: "Scroll Up by one scroll unit.",
+        shortcut: shortcut!(Up),
+    };
 
     /// Represents the **scroll down** by one [`v_line_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                    |
-    /// |--------------|----------------------------------------------------------|
-    /// | [`name`]     | "Scroll Down"                                            |
-    /// | [`info`]     | "Scroll Down by one scroll unit."                        |
-    /// | [`shortcut`] | `Down`                                                   |
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that does the same.
     ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
     /// [`v_line_unit`]: fn@super::properties::v_line_unit
-    pub ScrollDownCommand
-        .init_name("Scroll Down")
-        .init_info("Scroll Down by one scroll unit.")
-        .init_shortcut([shortcut!(Down)]);
+    pub static SCROLL_DOWN_CMD = {
+        name: "Scroll Down",
+        info: "Scroll Down by one scroll unit.",
+        shortcut: shortcut!(Down),
+    };
 
     /// Represents the **scroll left** by one [`h_line_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                    |
-    /// |--------------|----------------------------------------------------------|
-    /// | [`name`]     | "Scroll Left"                                            |
-    /// | [`info`]     | "Scroll Left by one scroll unit."                        |
-    /// | [`shortcut`] | `Left`                                                   |
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that does the same.
     ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
-    pub ScrollLeftCommand
-        .init_name("Scroll Left")
-        .init_info("Scroll Left by one scroll unit.")
-        .init_shortcut([shortcut!(Left)]);
+    pub static SCROLL_LEFT_CMD = {
+        name: "Scroll Left",
+        info: "Scroll Left by one scroll unit.",
+        shortcut: shortcut!(Left),
+    };
 
     /// Represents the **scroll right** by one [`h_line_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                     |
-    /// |--------------|-----------------------------------------------------------|
-    /// | [`name`]     | "Scroll Right"                                            |
-    /// | [`info`]     | "Scroll Right by one scroll unit."                        |
-    /// | [`shortcut`] | `Down`                                                    |
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that does the same.
     ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
-    pub ScrollRightCommand
-        .init_name("Scroll Right")
-        .init_info("Scroll Right by one scroll unit.")
-        .init_shortcut([shortcut!(Right)]);
+    pub static SCROLL_RIGHT_CMD = {
+        name: "Scroll Right",
+        info: "Scroll Right by one scroll unit.",
+        shortcut: shortcut!(Right),
+    };
 
 
     /// Represents the **page up** by one [`v_page_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Page Up"                                             |
-    /// | [`info`]     | "Scroll Up by one page unit."                         |
-    /// | [`shortcut`] | `PageUp`                                              |
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
@@ -135,169 +77,81 @@ command! {
     /// [`info`]: CommandInfoExt
     /// [`shortcut`]: CommandShortcutExt
     /// [`v_page_unit`]: fn@super::properties::v_page_unit
-    pub PageUpCommand
-        .init_name("Page Up")
-        .init_info("Scroll Up by one page unit.")
-        .init_shortcut([shortcut!(PageUp)]);
+    pub static PAGE_UP_CMD = {
+        name: "Page Up",
+        info: "Scroll Up by one page unit.",
+        shortcut: shortcut!(PageUp),
+    };
 
     /// Represents the **page down** by one [`v_page_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                   |
-    /// |--------------|---------------------------------------------------------|
-    /// | [`name`]     | "Page Down"                                             |
-    /// | [`info`]     | "Scroll Down by one page unit."                         |
-    /// | [`shortcut`] | `PageDown`                                              |
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that does the same.
     ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
     /// [`v_page_unit`]: fn@super::properties::v_page_unit
-    pub PageDownCommand
-        .init_name("Page Down")
-        .init_info("Scroll down by one page unit.")
-        .init_shortcut([shortcut!(PageDown)]);
+    pub static PAGE_DOWN_CMD = {
+        name: "Page Down",
+        info: "Scroll down by one page unit.",
+        shortcut: shortcut!(PageDown),
+    };
 
     /// Represents the **page left** by one [`h_page_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                  |
-    /// |--------------|--------------------------------------------------------|
-    /// | [`name`]     | "Page Left"                                            |
-    /// | [`info`]     | "Scroll Left by one page unit."                        |
-    /// | [`shortcut`] | ``SHIFT+PageUp`                                        |
-    ///
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that does the same.
     ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
-    pub PageLeftCommand
-        .init_name("Page Left")
-        .init_info("Scroll Left by one page unit.")
-        .init_shortcut([shortcut!(SHIFT+PageUp)]);
+    pub static PAGE_LEFT_CMD = {
+        name: "Page Left",
+        info: "Scroll Left by one page unit.",
+        shortcut: shortcut!(SHIFT+PageUp),
+    };
 
     /// Represents the **page right** by one [`h_page_unit`] action.
     ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                   |
-    /// |--------------|---------------------------------------------------------|
-    /// | [`name`]     | "Page Right"                                            |
-    /// | [`info`]     | "Scroll Right by one page unit."                        |
-    /// | [`shortcut`] | `SHIFT+PageDown`                                        |
-    ///
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that does the same.
     ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
     /// [`h_page_unit`]: fn@super::properties::h_page_unit
-    pub PageRightCommand
-        .init_name("Page Right")
-        .init_info("Scroll Right by one page unit.")
-        .init_shortcut([shortcut!(SHIFT+PageDown)]);
+    pub static PAGE_RIGHT_CMD = {
+        name: "Page Right",
+        info: "Scroll Right by one page unit.",
+        shortcut: shortcut!(SHIFT+PageDown),
+    };
 
     /// Represents the **scroll to top** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                  |
-    /// |--------------|--------------------------------------------------------|
-    /// | [`name`]     | "Scroll to Top"                                        |
-    /// | [`info`]     | "Scroll up to the content top."                        |
-    /// | [`shortcut`] | `Home`, `CTRL+Home`                                    |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub ScrollToTopCommand
-        .init_name("Scroll to Top")
-        .init_info("Scroll up to the content top.")
-        .init_shortcut([shortcut!(Home), shortcut!(CTRL+Home)]);
+    pub static SCROLL_TO_TOP_CMD = {
+        name: "Scroll to Top",
+        info: "Scroll up to the content top.",
+        shortcut: [shortcut!(Home), shortcut!(CTRL+Home)],
+    };
 
     /// Represents the **scroll to bottom** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                  |
-    /// |--------------|--------------------------------------------------------|
-    /// | [`name`]     | "Scroll to Bottom"                                     |
-    /// | [`info`]     | "Scroll down to the content bottom."                   |
-    /// | [`shortcut`] | `End`, `CTRL+End`                                      |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub ScrollToBottomCommand
-        .init_name("Scroll to Bottom")
-        .init_info("Scroll down to the content bottom.")
-        .init_shortcut([shortcut!(End), shortcut!(CTRL+End)]);
+    pub static SCROLL_TO_BOTTOM_CMD = {
+        name: "Scroll to Bottom",
+        info: "Scroll down to the content bottom.",
+        shortcut: [shortcut!(End), shortcut!(CTRL+End)],
+    };
 
     /// Represents the **scroll to leftmost** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                                |
-    /// |--------------|----------------------------------------------------------------------|
-    /// | [`name`]     | "Scroll to Leftmost"                                                 |
-    /// | [`info`]     | "Scroll left to the content left edge."                              |
-    /// | [`shortcut`] | `SHIFT+Home`, <code>CTRL&#124;SHIFT+Home</code>                      |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub ScrollToLeftmostCommand
-        .init_name("Scroll to Leftmost")
-        .init_info("Scroll left to the content left edge.")
-        .init_shortcut([shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)]);
+    pub static SCROLL_TO_LEFTMOST_CMD = {
+        name: "Scroll to Leftmost",
+        info: "Scroll left to the content left edge.",
+        shortcut: [shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)],
+    };
 
     /// Represents the **scroll to rightmost** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                             |
-    /// |--------------|-------------------------------------------------------------------|
-    /// | [`name`]     | "Scroll to Rightmost"                                             |
-    /// | [`info`]     | "Scroll right to the content right edge."                         |
-    /// | [`shortcut`] | `SHIFT+End`, <code>CTRL&#124;SHIFT+End</code>                     |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub ScrollToRightmostCommand
-        .init_name("Scroll to Righmost")
-        .init_info("Scroll right to the content right edge.")
-        .init_shortcut([shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)]);
+    pub static SCROLL_TO_RIGHTMOST_CMD = {
+        name: "Scroll to Righmost",
+        info: "Scroll right to the content right edge.",
+        shortcut: [shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)],
+    };
 
     /// Represents the action of scrolling until a child widget is fully visible.
     ///
@@ -311,35 +165,7 @@ command! {
     /// a [`ScrollToRequest`] instance.
     ///
     /// You can use the [`scroll_to`] function to invoke this command.
-    pub ScrollToCommand;
-}
-
-macro_rules! impl_notify_alt {
-    ($($Cmd:ident,)+) => {$(
-        impl $Cmd {
-            /// Notify the alternate mode of the command.
-            pub fn notify_alt<Evs: WithEvents>(self, events: &mut Evs, alternate: bool) -> bool {
-                self.notify(events, if alternate {
-                    Some(ScrollRequest {
-                        alternate,
-                    }.to_param())
-                } else {
-                    None
-                })
-            }
-        }
-    )+}
-}
-impl_notify_alt! {
-    ScrollLeftCommand,
-    ScrollRightCommand,
-    ScrollUpCommand,
-    ScrollDownCommand,
-
-    PageLeftCommand,
-    PageRightCommand,
-    PageUpCommand,
-    PageDownCommand,
+    pub static SCROLL_TO_CMD;
 }
 
 /// Parameters for the scroll and page commands.
@@ -491,14 +317,11 @@ impl Default for ScrollToMode {
 ///
 /// This function is a helper for firing a [`ScrollToCommand`].
 pub fn scroll_to<Evs: WithEvents>(events: &mut Evs, scroll_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
-    ScrollToCommand.scoped(scroll_id).notify(
+    SCROLL_TO_CMD.scoped(scroll_id).notify_param(
         events,
-        Some(
-            ScrollToRequest {
-                widget_id: child_id,
-                mode: mode.into(),
-            }
-            .to_param(),
-        ),
+        ScrollToRequest {
+            widget_id: child_id,
+            mode: mode.into(),
+        },
     );
 }

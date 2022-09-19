@@ -298,34 +298,34 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 event_property! {
     /// Focus changed in the widget or its descendants.
     pub fn focus_changed {
-        event: FocusChangedEvent,
+        event: FOCUS_CHANGED_EVENT,
         args: FocusChangedArgs,
     }
 
     /// Widget got direct keyboard focus.
     pub fn focus {
-        event: FocusChangedEvent,
+        event: FOCUS_CHANGED_EVENT,
         args: FocusChangedArgs,
         filter: |ctx, args| args.is_focus(ctx.path.widget_id()),
     }
 
     /// Widget lost direct keyboard focus.
     pub fn blur {
-        event: FocusChangedEvent,
+        event: FOCUS_CHANGED_EVENT,
         args: FocusChangedArgs,
         filter: |ctx, args| args.is_blur(ctx.path.widget_id()),
     }
 
     /// Widget or one of its descendants got focus.
     pub fn focus_enter {
-        event: FocusChangedEvent,
+        event: FOCUS_CHANGED_EVENT,
         args: FocusChangedArgs,
         filter: |ctx, args| args.is_focus_enter(ctx.path.widget_id())
     }
 
     /// Widget or one of its descendants lost focus.
     pub fn focus_leave {
-        event: FocusChangedEvent,
+        event: FOCUS_CHANGED_EVENT,
         args: FocusChangedArgs,
         filter: |ctx, args| args.is_focus_leave(ctx.path.widget_id())
     }
@@ -354,7 +354,7 @@ event_property! {
 /// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
 #[property(context)]
 pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus(ctx.path.widget_id()) {
             Some(true)
         } else if args.is_blur(ctx.path.widget_id()) {
@@ -375,7 +375,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focus_within_hgl`]: fn@zero_ui::properties::focus::is_focus_within_hgl
 #[property(context)]
 pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus_enter(ctx.path.widget_id()) {
             Some(true)
         } else if args.is_focus_leave(ctx.path.widget_id()) {
@@ -400,7 +400,7 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focused`]: fn@zero_ui::properties::focus::is_focused
 #[property(context)]
 pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus(ctx.path.widget_id()) {
             Some(args.highlight)
         } else if args.is_blur(ctx.path.widget_id()) {
@@ -429,7 +429,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focus_within`]: fn@zero_ui::properties::focus::is_focus_within
 #[property(context)]
 pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+    event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus_enter(ctx.path.widget_id()) {
             Some(args.highlight)
         } else if args.is_focus_leave(ctx.path.widget_id()) {
@@ -460,7 +460,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
 #[property(context)]
 pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, ReturnFocusChangedEvent, |ctx, args| {
+    event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_return_focus(ctx.path.widget_id()) {
             Some(true)
         } else if args.was_return_focus(ctx.path.widget_id()) {
@@ -478,7 +478,7 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
 #[property(context)]
 pub fn is_return_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, ReturnFocusChangedEvent, |ctx, args| {
+    event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_return_focus_enter(ctx.path.widget_id()) {
             Some(true)
         } else if args.is_return_focus_leave(ctx.path.widget_id()) {

@@ -13,87 +13,35 @@
 //! a `shortcut` value **and** causes the [`GestureManager`](crate::core::gesture::GestureManager) to start invoking enabled
 //! commands when the shortcut is pressed.
 
-use crate::core::command::*;
+use crate::core::event::*;
 use crate::core::gesture::{shortcut, CommandShortcutExt};
 
 command! {
     /// Represents the clipboard **cut** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Cut"                                                 |
-    /// | [`info`]     | "Remove the selection and place it in the clipboard." |
-    /// | [`shortcut`] | `CTRL+X`, `SHIFT+Delete`                              |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub CutCommand
-        .init_name("Cut")
-        .init_info("Remove the selection and place it in the clipboard.")
-        .init_shortcut([shortcut!(CTRL+X), shortcut!(SHIFT+Delete)]);
+    pub static CUT_CMD = {
+        name: "Cut",
+        info: "Remove the selection and place it in the clipboard.",
+        shortcut: [shortcut!(CTRL+X), shortcut!(SHIFT+Delete)],
+    };
 
     /// Represents the clipboard **copy** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Copy"                                                |
-    /// | [`info`]     | "Place a copy of the selection in the clipboard."     |
-    /// | [`shortcut`] | `CTRL+C`, `CTRL+Insert`                               |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub CopyCommand
-        .init_name("Copy")
-        .init_info("Place a copy of the selection in the clipboard.")
-        .init_shortcut([shortcut!(CTRL+C), shortcut!(CTRL+Insert)]);
+    pub static COPY_CMD = {
+        name: "Copy",
+        info: "Place a copy of the selection in the clipboard.",
+        shortcut: [shortcut!(CTRL+C), shortcut!(CTRL+Insert)],
+    };
 
     /// Represents the clipboard **paste** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Paste"                                               |
-    /// | [`info`]     | "Insert content from the clipboard."                  |
-    /// | [`shortcut`] | `CTRL+V`, `SHIFT+Insert`                              |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub PasteCommand
-        .init_name("Paste")
-        .init_info("Insert content from the clipboard.")
-        .init_shortcut([shortcut!(CTRL+V), shortcut!(SHIFT+Insert)]);
+    pub static PASTE_CMD = {
+        name: "Paste",
+        info: "Insert content from the clipboard.",
+        shortcut: [shortcut!(CTRL+V), shortcut!(SHIFT+Insert)],
+    };
 
     /// Represents the context menu **open** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Context Menu"                                        |
-    /// | [`info`]     | "Open the context menu."                              |
-    /// | [`shortcut`] | `SHIFT+F10`, `Apps`                                   |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub ContextMenuCommand
-        .init_name("Context Menu")
-        .init_info("Open the context menu.")
-        .init_shortcut([shortcut!(SHIFT+F10), shortcut!(Apps)]);
+    pub static CONTEXT_MENU_CMD = {
+        name: "Context Menu",
+        info: "Open the context menu.",
+        shortcut: [shortcut!(SHIFT+F10), shortcut!(Apps)],
+    };
 }

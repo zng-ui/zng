@@ -1,17 +1,21 @@
-use zero_ui::core::command::CommandHandle;
-use zero_ui::core::context::InfoContext;
-use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
-use zero_ui::core::widget_info::WidgetSubscriptions;
-use zero_ui::core::{command::command, context::StaticStateId, event::EventUpdateArgs, impl_ui_node};
-use zero_ui::prelude::*;
+use zero_ui::{
+    core::{
+        context::{InfoContext, StaticStateId},
+        event::{command, CommandHandle, EventUpdate},
+        impl_ui_node,
+        keyboard::HeadlessAppKeyboardExt,
+        widget_info::WidgetSubscriptions,
+    },
+    prelude::*,
+};
 
 #[test]
 fn notify() {
     let mut app = App::default().run_headless(false);
     app.open_window(|_| listener_window(false));
 
-    let cmd = FooCommand;
-    assert!(cmd.notify(&mut app, None));
+    let cmd = FOO_CMD;
+    cmd.notify(&mut app);
 
     let _ = app.update(false);
 
@@ -28,10 +32,10 @@ fn notify_scoped() {
     let mut app = App::default().run_headless(false);
     let window_id = app.open_window(|_| listener_window(false));
 
-    let cmd = FooCommand;
+    let cmd = FOO_CMD;
     let cmd_scoped = cmd.scoped(window_id);
 
-    assert!(cmd_scoped.notify(&mut app, None));
+    cmd_scoped.notify(&mut app);
 
     let _ = app.update(false);
 
@@ -53,7 +57,7 @@ fn shortcut() {
     let mut app = App::default().run_headless(false);
     let window_id = app.open_window(|_| listener_window(false));
 
-    FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
+    FOO_CMD.shortcut().set(&app, shortcut!(F)).unwrap();
 
     app.press_key(window_id, Key::F);
 
@@ -80,7 +84,7 @@ fn shortcut_with_focused_scope() {
     let mut app = App::default().run_headless(false);
     let window_id = app.open_window(|_| listener_window(true));
 
-    FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
+    FOO_CMD.shortcut().set(&app, shortcut!(F)).unwrap();
 
     app.press_key(window_id, Key::F);
 
@@ -107,8 +111,8 @@ fn shortcut_scoped() {
     let mut app = App::default().run_headless(false);
     let window_id = app.open_window(|_| listener_window(false));
 
-    FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
-    FooCommand.scoped(window_id).shortcut().set(&app, shortcut!(G)).unwrap();
+    FOO_CMD.shortcut().set(&app, shortcut!(F)).unwrap();
+    FOO_CMD.scoped(window_id).shortcut().set(&app, shortcut!(G)).unwrap();
 
     app.press_key(window_id, Key::G);
 
@@ -154,15 +158,15 @@ fn listener_window(focused_wgt: bool) -> Window {
     #[impl_ui_node(none)]
     impl UiNode for FooHandlerNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = Some(FooCommand.new_handle(ctx, true));
-            self.handle_scoped = Some(FooCommand.scoped(ctx.path.window_id()).new_handle(ctx, true));
-            self.handle_scoped_wgt = Some(FooCommand.scoped(ctx.path.widget_id()).new_handle(ctx, true));
+            self.handle = Some(FOO_CMD.new_handle(ctx, true));
+            self.handle_scoped = Some(FOO_CMD.scoped(ctx.path.window_id()).new_handle(ctx, true));
+            self.handle_scoped_wgt = Some(FOO_CMD.scoped(ctx.path.widget_id()).new_handle(ctx, true));
         }
         fn subscriptions(&self, _ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(FooCommand);
+            subs.event(&FOO_CMD);
         }
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = FooCommand.update(args) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            if let Some(args) = FOO_CMD.on(update) {
                 args.handle(|args| {
                     ctx.app_state
                         .entry(&TEST_TRACE)
@@ -176,7 +180,7 @@ fn listener_window(focused_wgt: bool) -> Window {
                     .push(format!("no-scope / {:?}", args.scope));
             }
 
-            if let Some(args) = FooCommand.scoped(ctx.path.window_id()).update(args) {
+            if let Some(args) = FOO_CMD.scoped(ctx.path.window_id()).on(update) {
                 args.handle(|args| {
                     ctx.app_state
                         .entry(&TEST_TRACE)
@@ -190,7 +194,7 @@ fn listener_window(focused_wgt: bool) -> Window {
                     .push(format!("scoped-win / {:?}", args.scope));
             }
 
-            if let Some(args) = FooCommand.scoped(ctx.path.widget_id()).update(args) {
+            if let Some(args) = FOO_CMD.scoped(ctx.path.widget_id()).on(update) {
                 args.handle(|args| {
                     ctx.app_state
                         .entry(&TEST_TRACE)
@@ -229,7 +233,7 @@ fn listener_window(focused_wgt: bool) -> Window {
 }
 
 command! {
-    pub FooCommand;
+    pub static FOO_CMD;
 }
 
 static TEST_TRACE: StaticStateId<Vec<String>> = StaticStateId::new_unique();

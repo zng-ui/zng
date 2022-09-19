@@ -15,14 +15,14 @@ event_property! {
     /// of consecutive clicks. Use [`click`](fn@click) to handle only primary button clicks or [`on_any_single_click`](fn@on_any_single_click)
     /// to not include double/triple clicks.
     pub fn any_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click from any source and of any click count and the widget is disabled.
     pub fn disabled_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
     }
@@ -32,7 +32,7 @@ event_property! {
     /// This raises for all possible sources of [`ClickEvent`], but only when the click count is one. Use
     /// [`on_single_click`](fn@on_single_click) to handle only primary button clicks.
     pub fn any_single_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_single() && args.is_enabled(ctx.path.widget_id()),
     }
@@ -42,7 +42,7 @@ event_property! {
     /// This raises for all possible sources of [`ClickEvent`], but only when the click count is two. Use
     /// [`on_double_click`](fn@on_double_click) to handle only primary button clicks.
     pub fn any_double_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_double() && args.is_enabled(ctx.path.widget_id()),
     }
@@ -52,7 +52,7 @@ event_property! {
     /// This raises for all possible sources of [`ClickEvent`], but only when the click count is three. Use
     /// [`on_triple_click`](fn@on_triple_click) to handle only primary button clicks.
     pub fn any_triple_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_triple() && args.is_enabled(ctx.path.widget_id()),
     }
@@ -63,7 +63,7 @@ event_property! {
     /// Use [`on_any_click`](fn@on_any_click) to handle clicks from any button or [`on_single_click`](fn@on_single_click) to not include
     /// double/triple clicks.
     pub fn click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_primary() && args.is_enabled(ctx.path.widget_id()),
     }
@@ -73,7 +73,7 @@ event_property! {
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is one. Use
     /// [`on_any_single_click`](fn@on_any_single_click) to handle single clicks from any button.
     pub fn single_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_primary() && args.is_single() && args.is_enabled(ctx.path.widget_id()),
     }
@@ -83,7 +83,7 @@ event_property! {
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is two. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
     pub fn double_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_primary() && args.is_double() && args.is_enabled(ctx.path.widget_id()),
     }
@@ -93,7 +93,7 @@ event_property! {
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is three. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
     pub fn triple_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_primary() && args.is_triple() && args.is_enabled(ctx.path.widget_id()),
     }
@@ -102,7 +102,7 @@ event_property! {
     ///
     /// This raises only if the click [is context](ClickArgs::is_context).
     pub fn context_click {
-        event: ClickEvent,
+        event: CLICK_EVENT,
         args: ClickArgs,
         filter: |ctx, args| args.is_context() && args.is_enabled(ctx.path.widget_id()),
     }

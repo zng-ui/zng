@@ -1,29 +1,16 @@
 //! Commands that control the scoped window.
 
-use crate::core::{command::*, gesture::*};
+use crate::core::{event::*, gesture::*};
 
 pub use crate::core::window::commands::*;
 
 command! {
     /// Represent the window **inspect** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Debug Inspector"                                     |
-    /// | [`info`]     | "Inspect the current window."                         |
-    /// | [`shortcut`] | `CTRL|SHIFT+I`, `F12`                                 |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub InspectCommand
-        .init_name("Debug Inspector")
-        .init_info("Inspect the current window.")
-        .init_shortcut([shortcut!(CTRL|SHIFT+I), shortcut!(F12)]);
+    pub static INSPECT_CMD = {
+        name: "Debug Inspector",
+        info: "Inspect the current window.",
+        shortcut: [shortcut!(CTRL|SHIFT+I), shortcut!(F12)],
+    };
 }
 
 #[cfg(inspector)]
@@ -37,7 +24,7 @@ pub(super) fn inspect_node(child: impl crate::core::UiNode, can_inspect: impl cr
 
     on_command(
         child,
-        |ctx| InspectCommand.scoped(ctx.path.window_id()),
+        |ctx| INSPECT_CMD.scoped(ctx.path.window_id()),
         move |_| can_inspect.clone(),
         hn!(|ctx, args: &CommandArgs| {
             if !args.enabled {

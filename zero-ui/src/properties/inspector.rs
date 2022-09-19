@@ -6,7 +6,7 @@ use zero_ui_core::window::WindowVars;
 
 use crate::core::{
     focus::*,
-    mouse::{MouseHoveredEvent, MouseMoveEvent},
+    mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
     widget_info::*,
 };
 use crate::prelude::new_property::*;
@@ -149,13 +149,13 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.enabled);
             if self.enabled.copy(ctx.vars) {
-                subs.event(MouseMoveEvent).event(MouseHoveredEvent);
+                subs.event(&MOUSE_MOVE_EVENT).event(&MOUSE_HOVERED_EVENT);
             }
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = MouseMoveEvent.update(args) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                 if self.valid && self.enabled.copy(ctx) {
                     let factor = WindowVars::req(ctx).scale_factor().copy(ctx.vars);
                     let pt = args.position.to_px(factor.0);
@@ -188,19 +188,15 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                         ctx.updates.render();
                     }
                 }
-
-                self.child.event(ctx, args);
-            } else if let Some(args) = MouseHoveredEvent.update(args) {
+            } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 if args.target.is_none() && !self.fails.is_empty() && !self.hits.is_empty() {
                     self.fails.clear();
                     self.hits.clear();
 
                     ctx.updates.render();
                 }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -269,13 +265,13 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.orientation);
             if self.orientation.copy(ctx.vars).is_some() {
-                subs.event(MouseHoveredEvent);
+                subs.event(&MOUSE_HOVERED_EVENT);
             }
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = MouseHoveredEvent.update(args) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 if let Some(orientation) = self.orientation.copy(ctx) {
                     let mut none = true;
                     if let Some(target) = &args.target {
@@ -304,11 +300,8 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                         ctx.updates.render();
                     }
                 }
-
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
             }
+            self.child.event(ctx, update);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

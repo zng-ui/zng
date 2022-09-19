@@ -3,7 +3,7 @@
 use std::cell::{Cell, RefCell};
 
 use super::properties::*;
-use crate::core::{focus::FocusInfoBuilder, keyboard::CharInputEvent, text::*};
+use crate::core::{focus::FocusInfoBuilder, keyboard::CHAR_INPUT_EVENT, text::*};
 use crate::prelude::new_widget::*;
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
@@ -142,7 +142,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
 
             if TEXT_EDITABLE_VAR.copy(ctx) {
-                subs.event(CharInputEvent);
+                subs.event(&CHAR_INPUT_EVENT);
             }
 
             self.with(ctx.vars, |c| c.subscriptions(ctx, subs))
@@ -153,10 +153,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             self.resolved = None;
         }
 
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = CharInputEvent.update(args) {
-                self.with_mut(ctx.vars, |c| c.event(ctx, args));
-
+        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                 if !args.propagation().is_stopped() && !self.text.is_read_only(ctx.vars) && args.is_enabled(ctx.path.widget_id()) {
                     args.propagation().stop();
 
@@ -173,7 +171,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                         });
                     }
                 }
-            } else if let Some(_args) = FontChangedEvent.update(args) {
+            } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
                 // font query may return a different result.
 
                 let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
@@ -188,11 +186,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     r.reshape = true;
                     ctx.updates.layout();
                 }
-
-                self.with_mut(ctx.vars, |c| c.event(ctx, args))
-            } else {
-                self.with_mut(ctx.vars, |c| c.event(ctx, args))
             }
+            self.with_mut(ctx.vars, |c| c.event(ctx, update))
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
