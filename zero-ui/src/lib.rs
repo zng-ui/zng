@@ -666,10 +666,10 @@
 //! use zero_ui::prelude::*;
 //!
 //! button! {
-//!     on_click = hn!(|ctx, _| { CopyCommand.notify(ctx, None); });
-//!     content = text(CopyCommand.name());
-//!     enabled = CopyCommand.enabled();
-//!     visibility = CopyCommand.has_handlers().map_into();
+//!     on_click = hn!(|ctx, _| COPY_CMD.notify(ctx));
+//!     content = text(COPY_CMD.name());
+//!     enabled = COPY_CMD.is_enabled();
+//!     visibility = COPY_CMD.has_handlers().map_into();
 //! }
 //! # ;
 //! ```
