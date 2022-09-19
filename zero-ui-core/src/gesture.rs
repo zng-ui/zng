@@ -1360,7 +1360,7 @@ impl ShortcutActions {
             CLICK_EVENT.notify(events, args);
         }
         for command in &self.commands {
-            command.notify_linked(events, None, propagation);
+            command.notify_linked(events, propagation.clone(), None);
         }
     }
 }
@@ -1778,7 +1778,7 @@ impl CommandShortcutExt for Command {
     }
 
     fn shortcut_matches<Vr: WithVarsRead>(self, vars: &Vr, shortcut: Shortcut) -> bool {
-        self.enabled_value().is_some() && vars.with_vars_read(|vars| self.shortcut().get(vars).contains(shortcut))
+        vars.with_vars_read(|vars| self.has_handlers().copy(vars) && self.shortcut().get(vars).contains(shortcut))
     }
 }
 

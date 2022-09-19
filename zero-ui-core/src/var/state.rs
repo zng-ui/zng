@@ -31,7 +31,7 @@ pub fn event_state<A: EventArgs>(
             self.child.deinit(ctx);
         }
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(self.event);
+            subs.event(&self.event);
             self.child.subscriptions(ctx, subs);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
@@ -97,30 +97,29 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
             self.child.deinit(ctx);
         }
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(self.events.0).event(self.events.1);
+            subs.event(&self.events.0).event(&self.events.1);
             self.child.subscriptions(ctx, subs);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
-            let mut update = false;
+            let mut updated = false;
             if let Some(args) = self.events.0.on(update) {
                 if let Some(state) = (self.on_events.0)(ctx, args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
-                        update = true;
+                        updated = true;
                     }
                 }
             } else if let Some(args) = self.events.1.on(update) {
                 if let Some(state) = (self.on_events.1)(ctx, args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
-                        update = true;
+                        updated = true;
                     }
                 }
-            } else {
             }
             self.child.event(ctx, update);
 
-            if update {
+            if updated {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1) {
                     self.state.set_ne(ctx, value);
                 }
@@ -189,36 +188,36 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
             self.child.deinit(ctx);
         }
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(self.events.0).event(self.events.1).event(self.events.2);
+            subs.event(&self.events.0).event(&self.events.1).event(&self.events.2);
             self.child.subscriptions(ctx, subs);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
-            let mut update = false;
+            let mut updated = false;
             if let Some(args) = self.events.0.on(update) {
                 if let Some(state) = (self.on_events.0)(ctx, args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
-                        update = true;
+                        updated = true;
                     }
                 }
             } else if let Some(args) = self.events.1.on(update) {
                 if let Some(state) = (self.on_events.1)(ctx, args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
-                        update = true;
+                        updated = true;
                     }
                 }
             } else if let Some(args) = self.events.2.on(update) {
                 if let Some(state) = (self.on_events.2)(ctx, args) {
                     if self.partial.2 != state {
                         self.partial.2 = state;
-                        update = true;
+                        updated = true;
                     }
                 }
             }
             self.child.event(ctx, update);
 
-            if update {
+            if updated {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1, self.partial.2) {
                     self.state.set_ne(ctx, value);
                 }

@@ -1252,7 +1252,7 @@ impl<E: AppExtension> RunningApp<E> {
                         font_aa,
                         animations_enabled,
                     );
-                    self.notify_event(VIEW_PROCESS_INITED_EVENT.update(args), observer);
+                    self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }
                 zero_ui_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.
@@ -1269,7 +1269,7 @@ impl<E: AppExtension> RunningApp<E> {
                     }
                 }
             },
-            AppEvent::Event(ev) => self.ctx().events.notify(ev),
+            AppEvent::Event(ev) => self.ctx().events.notify(ev.get()),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
             AppEvent::Update(mask) => self.ctx().updates.update_internal(mask),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),

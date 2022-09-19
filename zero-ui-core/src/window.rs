@@ -202,9 +202,9 @@ impl HeadlessAppWindowExt for HeadlessApp {
 
         let _ = self.update_observe_event(
             |_, update| {
-                if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.update(update) {
+                if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
                     requested |= args.windows.contains(&window_id);
-                } else if let Some(args) = WINDOW_CLOSE_EVENT.update(update) {
+                } else if let Some(args) = WINDOW_CLOSE_EVENT.on(update) {
                     closed |= args.windows.contains(&window_id);
                 }
             },

@@ -548,7 +548,7 @@ impl TestWidgetContext {
         for ev in self.receiver.try_iter() {
             match ev {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
-                crate::app::AppEvent::Event(ev) => self.events.notify(ev),
+                crate::app::AppEvent::Event(ev) => self.events.notify(ev.get()),
                 crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
                 crate::app::AppEvent::Update(mask) => self.updates.update_internal(mask),
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),

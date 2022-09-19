@@ -422,9 +422,9 @@ impl Vars {
     }
 
     pub(crate) fn event_preview(ctx: &mut AppContext, update: &EventUpdate) {
-        if let Some(args) = VIEW_PROCESS_INITED_EVENT.update(update) {
+        if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
-        } else if let Some(args) = RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.update(update) {
+        } else if let Some(args) = RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.on(update) {
             ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.enabled);
         }
     }

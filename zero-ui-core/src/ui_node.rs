@@ -559,7 +559,7 @@ impl UiNode for BoxedUiNode {
     }
 
     fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
-        self.as_mut().event_boxed(ctx, &update);
+        self.as_mut().event_boxed(ctx, update);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

@@ -356,7 +356,7 @@ mod util {
         }
 
         pub fn notify_render_update(wgt: &mut impl Widget, ctx: &mut TestWidgetContext) {
-            wgt.test_event(ctx, &EventUpdate::new(RENDER_UPDATE_EVENT, RenderUpdateArgs::now()));
+            wgt.test_event(ctx, &RENDER_UPDATE_EVENT.new_update(RenderUpdateArgs::now()));
         }
     }
     impl UiNode for TestTraceNode {

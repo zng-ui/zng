@@ -9,6 +9,7 @@ use std::{
 use crate::{
     context::*,
     crate_util::{FxHashMap, Handle, HandleOwner},
+    gesture::CommandShortcutExt,
     handler::WidgetHandler,
     impl_ui_node,
     text::Text,
@@ -67,6 +68,23 @@ use super::*;
 ///
 /// The initialization uses the [command extensions] pattern and runs once for each app, so usually just once.
 ///
+/// Or you can use a custom closure to initialize the command:
+///
+/// ```
+/// use zero_ui_core::{event::{command, CommandNameExt, CommandInfoExt}, gesture::{CommandShortcutExt, shortcut}};
+///
+/// command! {
+///     /// Represents the **foo** action.
+///     pub FOO_CMD => |cmd| {
+///         cmd.init_name("Foo!");
+///         cmd.init_info("Does the foo! thing.");
+///         cmd.init_shortcut(shortcut![CTRL+F]);
+///     };
+/// }
+/// ```
+///
+/// For the first kind of metadata initialization a documentation section is also generated with a table of metadata.
+///
 /// [`Command`]: crate::event::Command
 /// [`CommandArgs`]: crate::event::CommandArgs
 /// [`CommandNameExt`]: crate::event::CommandNameExt
@@ -79,37 +97,75 @@ use super::*;
 macro_rules! command {
     ($(
         $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident $(= { $($meta_ident:ident : $meta_init:expr),+ $(,)? })? ;
+        $vis:vis static $COMMAND:ident $(=> $custom_meta_init:expr ;)? $(= { $($meta_ident:ident : $meta_init:expr),* $(,)? };)? $(;)?
     )+) => {
         $(
-            paste::paste! {
-                std::thread_local! {
-                    #[doc(hidden)]
-                    static [<$COMMAND _LOCAL>]: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($EVENT));
-                    #[doc(hidden)]
-                    static [<$COMMAND _DATA>]: $crate::event::CommandData = $crate::event::CommandData::new(std::boxed::Box::new(|cmd| {
-                        $($( cmd.[<init_ $meta_ident>]($meta_init); )+)?
-                    }));
-                }
-
+            $crate::__command! {
                 $(#[$attr])*
-                $(
-                    ///
-                    /// # Metadata
-                    ///
-                    /// This command initializes with the following metadata:
-                    ///
-                    /// | metadata | value |
-                    /// |----------|-------|
-                    $(#[doc = "|  `" $meta_ident "`  |  `" $meta_init "`  |"])+
-                )?
-                $vis static $COMMAND: $crate::event::Command = $crate::event::Command::new(&[<$COMMAND _LOCAL>], &[<$COMMAND _DATA>]);
+                $vis static $COMMAND $(=> $custom_meta_init)? $(= {
+                    $($meta_ident: $meta_init,)+
+                })? ;
             }
         )+
     }
 }
 #[doc(inline)]
 pub use command;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __command {
+    (
+        $(#[$attr:meta])*
+        $vis:vis static $COMMAND:ident => $meta_init:expr;
+    ) => {
+        paste::paste! {
+            std::thread_local! {
+                #[doc(hidden)]
+                static [<$COMMAND _LOCAL>]: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($EVENT));
+                #[doc(hidden)]
+                static [<$COMMAND _DATA>]: $crate::event::CommandData = $crate::event::CommandData::new(std::boxed::Box::new($meta_init));
+            }
+
+            $(#[$attr])*
+            $vis static $COMMAND: $crate::event::Command = $crate::event::Command::new(&[<$COMMAND _LOCAL>], &[<$COMMAND _DATA>]);
+        }
+    };
+    (
+        $(#[$attr:meta])*
+        $vis:vis static $COMMAND:ident = { $($meta_ident:ident : $meta_init:expr),* $(,)? };
+    ) => {
+        paste::paste! {
+            $crate::__command! {
+                $(#[$attr])*
+                ///
+                /// # Metadata
+                ///
+                /// This command initializes with the following metadata:
+                ///
+                /// | metadata | value |
+                /// |----------|-------|
+                $(#[doc = "|  `" $meta_ident "`  |  `"  "`  |"])+
+                $vis static $COMMAND => |cmd| {
+                    $(
+                        cmd.[<init_ $meta_ident>]($meta_init);
+                    )*
+                };
+            }
+        }
+    };
+    (
+        $(#[$attr:meta])*
+        $vis:vis static $COMMAND:ident;
+    ) => {
+        $crate::__command! {
+            $(#[$attr])*
+            $vis static $COMMAND => $crate::event::__command_no_meta;
+        }
+    };
+}
+#[doc(hidden)]
+pub fn __command_no_meta(_: Command) {}
 
 /// Identifies a command event.
 ///
@@ -181,7 +237,7 @@ impl fmt::Debug for Command {
 }
 impl Command {
     #[doc(hidden)]
-    pub fn new(event_local: &'static LocalKey<EventData>, command_local: &'static LocalKey<CommandData>) -> Self {
+    pub const fn new(event_local: &'static LocalKey<EventData>, command_local: &'static LocalKey<CommandData>) -> Self {
         Command {
             event: Event::new(event_local),
             local: command_local,
@@ -193,7 +249,7 @@ impl Command {
     ///
     /// A handle indicates that there is an active *handler* for the event, the handle can also
     /// be used to set the [`is_enabled`](Self::is_enabled) state.
-    fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
+    pub fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
         events.with_events(|events| self.local.with(|l| l.new_handle(events, *self, enabled)))
     }
 
@@ -208,42 +264,42 @@ impl Command {
     }
 
     /// Gets the command in a new `scope`.
-    pub fn scoped(mut self, scope: CommandScope) -> Command {
-        self.scope = scope;
+    pub fn scoped(mut self, scope: impl Into<CommandScope>) -> Command {
+        self.scope = scope.into();
         self
     }
 
     /// Visit the command custom metadata of the current scope.
     pub fn with_meta<R>(&self, visit: impl FnOnce(&mut CommandMeta) -> R) -> R {
-        enum Meta<R> {
+        enum Meta<R, F> {
             Result(R),
-            Init(Box<dyn Fn(Command)>),
+            Init(Box<dyn Fn(Command)>, F),
         }
         let r = self.local.with(|l| {
             if l.meta_inited.replace(true) {
                 let r = match self.scope {
                     CommandScope::App => visit(&mut CommandMeta {
-                        meta: l.meta_init.borrow_mut().borrow_mut(),
+                        meta: l.meta.borrow_mut().borrow_mut(),
                         scope: None,
                     }),
                     scope => {
                         let mut scopes = l.scopes.borrow_mut();
                         let scope = scopes.entry(scope).or_default();
                         visit(&mut CommandMeta {
-                            meta: l.meta_init.borrow_mut().borrow_mut(),
+                            meta: l.meta.borrow_mut().borrow_mut(),
                             scope: Some(scope.meta.borrow_mut()),
                         })
                     }
                 };
                 Meta::Result(r)
             } else {
-                Meta::Init(l.meta_init.borrow_mut().take().unwrap())
+                Meta::Init(l.meta_init.borrow_mut().take().unwrap(), visit)
             }
         });
 
         match r {
             Meta::Result(r) => r,
-            Meta::Init(init) => {
+            Meta::Init(init, visit) => {
                 init(*self);
                 self.local.with(|l| *l.meta_init.borrow_mut() = Some(init));
                 self.with_meta(visit)
@@ -281,7 +337,14 @@ impl Command {
     pub fn has_handlers(&self) -> ReadOnlyRcVar<bool> {
         self.local.with(|l| match self.scope {
             CommandScope::App => l.has_handlers.clone().into_read_only(),
-            scope => l.scopes.borrow().entry(scope).or_default().has_handlers.clone().into_read_only(),
+            scope => l
+                .scopes
+                .borrow_mut()
+                .entry(scope)
+                .or_default()
+                .has_handlers
+                .clone()
+                .into_read_only(),
         })
     }
 
@@ -289,7 +352,15 @@ impl Command {
     pub fn is_enabled(&self) -> ReadOnlyRcVar<bool> {
         self.local.with(|l| match self.scope {
             CommandScope::App => l.is_enabled.clone().into_read_only(),
-            scope => l.scopes.borrow().entry(scope).or_default().is_enabled.clone().into_read_only(),
+            scope => l.scopes.borrow_mut().entry(scope).or_default().is_enabled.clone().into_read_only(),
+        })
+    }
+
+    #[cfg(test)]
+    fn has_handlers_value(&self) -> bool {
+        self.local.with(|l| match self.scope {
+            CommandScope::App => !l.handle.is_dropped(),
+            scope => l.scopes.borrow().get(&scope).map(|l| !l.handle.is_dropped()).unwrap_or(false),
         })
     }
 
@@ -317,6 +388,39 @@ impl Command {
             events,
             CommandArgs::now(CommandParam::new(param), self.scope, self.is_enabled_value()),
         );
+    }
+
+    /// Schedule a command update linked with an external event `propagation`.
+    pub fn notify_linked<Ev: WithEvents>(&self, events: &mut Ev, propagation: EventPropagationHandle, param: Option<CommandParam>) {
+        self.event.notify(
+            events,
+            CommandArgs::new(Instant::now(), propagation, param, self.scope, self.is_enabled_value()),
+        )
+    }
+
+    pub(crate) fn update_state(&self, vars: &Vars) {
+        self.local.with(|l| {
+            if let CommandScope::App = self.scope {
+                let has_handlers = !l.handle.is_dropped();
+                l.has_handlers.set_ne(vars, has_handlers);
+                l.is_enabled
+                    .set_ne(vars, has_handlers && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0);
+            } else if let Some(scope) = l.scopes.borrow().get(&self.scope) {
+                let has_handlers = !scope.handle.is_dropped();
+                scope.has_handlers.set_ne(vars, has_handlers);
+                scope
+                    .is_enabled
+                    .set_ne(vars, has_handlers && scope.handle.data().enabled_count.load(Ordering::Relaxed) > 0);
+            }
+        });
+    }
+
+    pub(crate) fn on_exit(&self) {
+        self.local.with(|l| {
+            l.registered.set(false);
+            l.scopes.borrow_mut().clear();
+            l.meta.borrow_mut().clear();
+        });
     }
 }
 impl Deref for Command {
@@ -811,8 +915,9 @@ impl CommandNameExt for Command {
                 let mut lower = false;
                 for c in name.chars() {
                     if c == '_' {
-                        title.trim_end();
-                        title.push(' ');
+                        if !title.ends_with(' ') {
+                            title.push(' ');
+                        }
                         lower = false;
                     } else if lower {
                         for l in c.to_lowercase() {
@@ -859,7 +964,7 @@ pub trait CommandInfoExt {
 static COMMAND_INFO_ID: StaticCommandMetaVarId<Text> = StaticCommandMetaVarId::new_unique();
 impl CommandInfoExt for Command {
     fn info(self) -> CommandMetaVar<Text> {
-        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, || "".to_text()))
+        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, Text::empty))
     }
 
     fn init_info(self, info: impl Into<Text>) -> Self {
@@ -986,7 +1091,7 @@ where
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(self.command.expect("OnCommandNode not initialized"))
+            subs.event(&self.command.expect("OnCommandNode not initialized").event())
                 .var(ctx, self.enabled.as_ref().unwrap())
                 .handler(&self.handler);
 
@@ -1088,7 +1193,7 @@ where
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(self.command.expect("OnPreCommandNode not initialized"))
+            subs.event(&self.command.expect("OnPreCommandNode not initialized").event())
                 .var(ctx, self.enabled.as_ref().unwrap())
                 .handler(&self.handler);
 
@@ -1149,19 +1254,20 @@ mod tests {
     #[test]
     fn enabled() {
         let mut ctx = TestWidgetContext::new();
-        assert!(FOO_CMD.enabled_value().is_none());
+        assert!(!FOO_CMD.has_handlers_value());
 
         let handle = FOO_CMD.new_handle(&mut ctx, true);
-        assert_eq!(Some(true), FOO_CMD.enabled_value());
+        assert!(FOO_CMD.is_enabled_value());
 
         handle.set_enabled(false);
-        assert_eq!(Some(false), FOO_CMD.enabled_value());
+        assert!(FOO_CMD.has_handlers_value());
+        assert!(!FOO_CMD.is_enabled_value());
 
         handle.set_enabled(true);
-        assert_eq!(Some(true), FOO_CMD.enabled_value());
+        assert!(FOO_CMD.is_enabled_value());
 
         drop(handle);
-        assert!(FOO_CMD.enabled_value().is_none());
+        assert!(!FOO_CMD.has_handlers_value());
     }
 
     #[test]
@@ -1170,24 +1276,25 @@ mod tests {
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(ctx.window_id);
-        assert!(cmd.enabled_value().is_none());
-        assert!(cmd_scoped.enabled_value().is_none());
+        assert!(!cmd.has_handlers_value());
+        assert!(!cmd_scoped.has_handlers_value());
 
         let handle_scoped = cmd_scoped.new_handle(&mut ctx, true);
-        assert!(cmd.enabled_value().is_none());
-        assert_eq!(Some(true), cmd_scoped.enabled_value());
+        assert!(!cmd.has_handlers_value());
+        assert!(cmd_scoped.is_enabled_value());
 
         handle_scoped.set_enabled(false);
-        assert!(cmd.enabled_value().is_none());
-        assert_eq!(Some(false), cmd_scoped.enabled_value());
+        assert!(!cmd.has_handlers_value());
+        assert!(!cmd_scoped.is_enabled_value());
+        assert!(cmd_scoped.has_handlers_value());
 
         handle_scoped.set_enabled(true);
-        assert!(cmd.enabled_value().is_none());
-        assert_eq!(Some(true), cmd_scoped.enabled_value());
+        assert!(!cmd.has_handlers_value());
+        assert!(cmd_scoped.is_enabled_value());
 
         drop(handle_scoped);
-        assert!(cmd.enabled_value().is_none());
-        assert!(cmd_scoped.enabled_value().is_none());
+        assert!(!cmd.has_handlers_value());
+        assert!(!cmd_scoped.has_handlers_value());
     }
 
     #[test]

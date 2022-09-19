@@ -1970,7 +1970,7 @@ impl WidgetSubscriptions {
 
     /// Returns `true` if the widget subscribes to events in the slot.
     pub fn event_contains(&self, event: &EventUpdate) -> bool {
-        self.event.contains(event.slot())
+        self.event.contains(event.event_slot())
     }
 
     /// Returns `true` if the widget is interested in variables or other update sources that are flagged in `updates`.

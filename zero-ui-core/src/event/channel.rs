@@ -11,8 +11,13 @@ pub(crate) struct EventUpdateMsg {
     args: Box<dyn FnOnce() -> EventUpdate + Send>,
 }
 impl EventUpdateMsg {
-    fn get(self) -> EventUpdate {
+    pub(crate) fn get(self) -> EventUpdate {
         (self.args)()
+    }
+}
+impl fmt::Debug for EventUpdateMsg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EventUpdateMsg").finish_non_exhaustive()
     }
 }
 
@@ -23,8 +28,8 @@ pub struct EventSender<A>
 where
     A: EventArgs + Send,
 {
-    sender: AppEventSender,
-    event: Event<A>,
+    pub(super) sender: AppEventSender,
+    pub(super) event: Event<A>,
 }
 impl<A> Clone for EventSender<A>
 where
@@ -60,7 +65,7 @@ where
 
         self.sender.send_event(msg).map_err(|e| {
             if let Ok(args) = (e.0.args)().args.downcast::<A>() {
-                AppDisconnected(args)
+                AppDisconnected(*args)
             } else {
                 unreachable!()
             }
@@ -80,8 +85,8 @@ pub struct EventReceiver<A>
 where
     A: EventArgs + Send,
 {
-    event: Event<A>,
-    receiver: flume::Receiver<A>,
+    pub(super) event: Event<A>,
+    pub(super) receiver: flume::Receiver<A>,
 }
 impl<A> Clone for EventReceiver<A>
 where
@@ -198,7 +203,7 @@ where
 #[derive(Clone)]
 pub struct EventBuffer<A: EventArgs> {
     event: Event<A>,
-    queue: Rc<RefCell<VecDeque<A>>>,
+    pub(super) queue: Rc<RefCell<VecDeque<A>>>,
 }
 impl<A: EventArgs> EventBuffer<A> {
     /// If there are any updates in the buffer.

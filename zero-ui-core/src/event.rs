@@ -103,7 +103,7 @@ pub struct EventId(usize);
 /// Represents an event.
 pub struct Event<E: EventArgs> {
     local: &'static LocalKey<EventData>,
-    _args: PhantomData<E>,
+    _args: PhantomData<fn(E)>,
 }
 impl<E: EventArgs> fmt::Debug for Event<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -116,7 +116,7 @@ impl<E: EventArgs> fmt::Debug for Event<E> {
 }
 impl<E: EventArgs> Event<E> {
     #[doc(hidden)]
-    pub fn new(local: &'static LocalKey<EventData>) -> Self {
+    pub const fn new(local: &'static LocalKey<EventData>) -> Self {
         Event { local, _args: PhantomData }
     }
 
@@ -189,7 +189,7 @@ impl<E: EventArgs> Event<E> {
     {
         let update = self.new_update(args);
         events.with_events(|ev| {
-            // ev.notify(event, args)
+            ev.notify(update);
         })
     }
 }
@@ -323,5 +323,17 @@ impl EventUpdate {
         } else {
             None
         }
+    }
+}
+impl fmt::Debug for EventUpdate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EventUpdate")
+            .field("event_id", &self.event_id)
+            .field("event_slot", &self.event_slot)
+            .field("event_name", &self.event_name)
+            .field("delivery_list", &self.delivery_list)
+            .field("timestamp", &self.timestamp)
+            .field("propagation", &self.propagation)
+            .finish_non_exhaustive()
     }
 }

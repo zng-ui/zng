@@ -132,7 +132,7 @@ impl Events {
     }
 
     pub(crate) fn register_command(&mut self, command: Command) {
-        if self.commands.iter().any(|c| c == command) {
+        if self.commands.iter().any(|c| c == &command) {
             panic!("command `{command:?}` is already registered")
         }
         self.commands.push(command);
@@ -314,7 +314,7 @@ impl Events {
         Self::push_event_handler(&mut self.pos_handlers, event, false, handler)
     }
 
-    fn push_event_handler<A, H>(handlers: &mut Vec<OnEventHandler>, event: A, is_preview: bool, mut handler: H) -> OnEventHandle
+    fn push_event_handler<A, H>(handlers: &mut Vec<OnEventHandler>, event: Event<A>, is_preview: bool, mut handler: H) -> OnEventHandle
     where
         A: EventArgs,
         H: AppHandler<A>,
@@ -339,14 +339,14 @@ impl Events {
     }
 
     #[must_use]
-    pub(super) fn apply_updates(&mut self, vars: &Vars) -> Vec<EventUpdate> {
+    pub(crate) fn apply_updates(&mut self, vars: &Vars) -> Vec<EventUpdate> {
         for command in &self.commands {
             command.update_state(vars);
         }
         self.updates.drain(..).collect()
     }
 
-    pub(super) fn on_pre_events(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(crate) fn on_pre_events(ctx: &mut AppContext, update: &EventUpdate) {
         ctx.events.pre_buffers.retain(|buf| buf(update));
 
         let mut handlers = mem::take(&mut ctx.events.pre_handlers);
@@ -355,7 +355,7 @@ impl Events {
         ctx.events.pre_handlers = handlers;
     }
 
-    pub(super) fn on_events(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(crate) fn on_events(ctx: &mut AppContext, update: &EventUpdate) {
         let mut handlers = mem::take(&mut ctx.events.pos_handlers);
         Self::notify_retain(&mut handlers, ctx, update);
         handlers.extend(mem::take(&mut ctx.events.pos_handlers));

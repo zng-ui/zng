@@ -4,6 +4,7 @@
         - AppEventObserverDyn?
     - Stop propagation when this is requested.
     - Stop propagation when all items in delivery list visited.
+    - Auto doc of command metadata needs a proc-macro.
 
 * Review `unsafe`, only use when there is no alternative.
 * Implement all `todo!` code.
