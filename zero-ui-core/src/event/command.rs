@@ -145,7 +145,7 @@ macro_rules! __command {
                 ///
                 ///| metadata | value |
                 ///|----------|-------|
-                $(#[doc = "|  `" $meta_ident "`  |  TODO  |"])+
+                $(#[doc = concat!("|  `", stringify!($meta_ident), "`  |  ", stringify!($meta_init), "  |")])+
                 ///
                 $vis static $COMMAND => |cmd| {
                     $(

@@ -1,6 +1,5 @@
 * Stop propagation when it is requested.
 * Stop propagation when all items in delivery list visited.
-* Auto doc of command metadata needs a proc-macro.
 * Subscription to scoped commands?
 
 * Massive increase of zero-ui "llvm-lines" after dynamic when.
