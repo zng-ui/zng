@@ -1,12 +1,13 @@
-* Finish event rewrite.
-    - UiNodeBoxed not needed anymore?
-        - And AppExtensionBoxed?
-        - AppEventObserverDyn?
-    - Stop propagation when this is requested.
-    - Stop propagation when all items in delivery list visited.
-    - Auto doc of command metadata needs a proc-macro.
-    - Subscription to scoped commands?
+* UiNodeBoxed not needed anymore?
+* And AppExtensionBoxed?
+* AppEventObserverDyn?
+* Stop propagation when this is requested.
+* Stop propagation when all items in delivery list visited.
+* Auto doc of command metadata needs a proc-macro.
+* Subscription to scoped commands?
 
+* Massive increase of "llvm-lines" after dynamic when.
+    - was 451610 now is 1771218, event-2 regained ~37000, but after dynamic when was 1808286!.
 * Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
     - Bug already existed in previous implementation.
 * Review `unsafe`, only use when there is no alternative.
