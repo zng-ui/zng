@@ -31,6 +31,7 @@ pub mod properties;
 #[widget($crate::widgets::window)]
 pub mod window {
     use super::*;
+    use crate::widgets::mixins::focusable_mixin::vis::*;
 
     inherit!(container);
 
@@ -188,6 +189,15 @@ pub mod window {
 
         /// Window text color.
         text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
+
+        focus_highlight = {
+            offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
+            widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
+            sides: color_scheme_map(
+                BorderSides::dashed(rgba(200, 200, 200, 1.0)),
+                BorderSides::dashed(colors::BLACK)
+            ),
+        };
 
         /// Window clear color.
         ///
