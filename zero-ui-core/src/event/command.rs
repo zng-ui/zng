@@ -122,7 +122,7 @@ macro_rules! __command {
         $crate::paste! {
             std::thread_local! {
                 #[doc(hidden)]
-                static [<$COMMAND _LOCAL>]: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($EVENT));
+                static [<$COMMAND _LOCAL>]: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($COMMAND));
                 #[doc(hidden)]
                 static [<$COMMAND _DATA>]: $crate::event::CommandData = $crate::event::CommandData::new(std::boxed::Box::new($meta_init));
             }
@@ -277,24 +277,25 @@ impl Command {
             Init(Box<dyn Fn(Command)>, F),
         }
         let r = self.local.with(|l| {
-            if l.meta_inited.replace(true) {
+            let mut l = l.data.borrow_mut();
+            if mem::replace(&mut l.meta_inited, true) {
                 let r = match self.scope {
                     CommandScope::App => visit(&mut CommandMeta {
-                        meta: l.meta.borrow_mut().borrow_mut(),
+                        meta: l.meta.borrow_mut(),
                         scope: None,
                     }),
                     scope => {
-                        let mut scopes = l.scopes.borrow_mut();
-                        let scope = scopes.entry(scope).or_default();
+                        let l = &mut *l;
+                        let scope = l.scopes.entry(scope).or_default();
                         visit(&mut CommandMeta {
-                            meta: l.meta.borrow_mut().borrow_mut(),
+                            meta: l.meta.borrow_mut(),
                             scope: Some(scope.meta.borrow_mut()),
                         })
                     }
                 };
                 Meta::Result(r)
             } else {
-                Meta::Init(l.meta_init.borrow_mut().take().unwrap(), visit)
+                Meta::Init(l.meta_init.take().unwrap(), visit)
             }
         });
 
@@ -302,7 +303,10 @@ impl Command {
             Meta::Result(r) => r,
             Meta::Init(init, visit) => {
                 init(*self);
-                self.local.with(|l| *l.meta_init.borrow_mut() = Some(init));
+                self.local.with(|l| {
+                    let mut l = l.data.borrow_mut();
+                    l.meta_init = Some(init);
+                });
                 self.with_meta(visit)
             }
         }
@@ -336,44 +340,48 @@ impl Command {
 
     /// Gets a variable that tracks if this command has any live handlers.
     pub fn has_handlers(&self) -> ReadOnlyRcVar<bool> {
-        self.local.with(|l| match self.scope {
-            CommandScope::App => l.has_handlers.clone().into_read_only(),
-            scope => l
-                .scopes
-                .borrow_mut()
-                .entry(scope)
-                .or_default()
-                .has_handlers
-                .clone()
-                .into_read_only(),
+        self.local.with(|l| {
+            let mut l = l.data.borrow_mut();
+            match self.scope {
+                CommandScope::App => l.has_handlers.clone().into_read_only(),
+                scope => l.scopes.entry(scope).or_default().has_handlers.clone().into_read_only(),
+            }
         })
     }
 
     /// Gets a variable that tracks if this command has any enabled live handlers.
     pub fn is_enabled(&self) -> ReadOnlyRcVar<bool> {
-        self.local.with(|l| match self.scope {
-            CommandScope::App => l.is_enabled.clone().into_read_only(),
-            scope => l.scopes.borrow_mut().entry(scope).or_default().is_enabled.clone().into_read_only(),
+        self.local.with(|l| {
+            let mut l = l.data.borrow_mut();
+            match self.scope {
+                CommandScope::App => l.is_enabled.clone().into_read_only(),
+                scope => l.scopes.entry(scope).or_default().is_enabled.clone().into_read_only(),
+            }
         })
     }
 
     #[cfg(test)]
     fn has_handlers_value(&self) -> bool {
-        self.local.with(|l| match self.scope {
-            CommandScope::App => !l.handle.is_dropped(),
-            scope => l.scopes.borrow().get(&scope).map(|l| !l.handle.is_dropped()).unwrap_or(false),
+        self.local.with(|l| {
+            let l = l.data.borrow();
+            match self.scope {
+                CommandScope::App => !l.handle.is_dropped(),
+                scope => l.scopes.get(&scope).map(|l| !l.handle.is_dropped()).unwrap_or(false),
+            }
         })
     }
 
     fn is_enabled_value(&self) -> bool {
-        self.local.with(|l| match self.scope {
-            CommandScope::App => !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0,
-            scope => l
-                .scopes
-                .borrow()
-                .get(&scope)
-                .map(|l| !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
-                .unwrap_or(false),
+        self.local.with(|l| {
+            let l = l.data.borrow();
+            match self.scope {
+                CommandScope::App => !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0,
+                scope => l
+                    .scopes
+                    .get(&scope)
+                    .map(|l| !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
+                    .unwrap_or(false),
+            }
         })
     }
 
@@ -401,12 +409,13 @@ impl Command {
 
     pub(crate) fn update_state(&self, vars: &Vars) {
         self.local.with(|l| {
+            let l = l.data.borrow();
             if let CommandScope::App = self.scope {
                 let has_handlers = !l.handle.is_dropped();
                 l.has_handlers.set_ne(vars, has_handlers);
                 l.is_enabled
                     .set_ne(vars, has_handlers && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0);
-            } else if let Some(scope) = l.scopes.borrow().get(&self.scope) {
+            } else if let Some(scope) = l.scopes.get(&self.scope) {
                 let has_handlers = !scope.handle.is_dropped();
                 scope.has_handlers.set_ne(vars, has_handlers);
                 scope
@@ -418,9 +427,14 @@ impl Command {
 
     pub(crate) fn on_exit(&self) {
         self.local.with(|l| {
-            l.registered.set(false);
-            l.scopes.borrow_mut().clear();
-            l.meta.borrow_mut().clear();
+            let mut l = l.data.borrow_mut();
+            l.registered = false;
+            l.scopes.clear();
+            l.meta.clear();
+            l.meta_inited = false;
+            l.has_handlers = var(false);
+            l.is_enabled = var(false);
+            l.handle = HandleOwner::dropped(CommandHandleData::default());
         });
     }
 }
@@ -976,47 +990,54 @@ enum CommandMetaState {}
 
 #[doc(hidden)]
 pub struct CommandData {
-    meta_init: RefCell<Option<Box<dyn Fn(Command)>>>,
-    meta_inited: Cell<bool>,
-    meta: RefCell<OwnedStateMap<CommandMetaState>>,
+    data: RefCell<CommandDataInner>,
+}
+struct CommandDataInner {
+    meta_init: Option<Box<dyn Fn(Command)>>,
+    meta_inited: bool,
+    meta: OwnedStateMap<CommandMetaState>,
 
     handle: HandleOwner<CommandHandleData>,
-    registered: Cell<bool>,
+    registered: bool,
 
     has_handlers: RcVar<bool>,
     is_enabled: RcVar<bool>,
 
-    scopes: RefCell<FxHashMap<CommandScope, ScopedValue>>,
+    scopes: FxHashMap<CommandScope, ScopedValue>,
 }
+
 impl CommandData {
     pub fn new(meta_init: Box<dyn Fn(Command)>) -> Self {
         CommandData {
-            meta_init: RefCell::new(Some(meta_init)),
-            meta_inited: Cell::new(false),
-            meta: RefCell::default(),
+            data: RefCell::new(CommandDataInner {
+                meta_init: Some(meta_init),
+                meta_inited: false,
+                meta: OwnedStateMap::default(),
 
-            handle: HandleOwner::dropped(CommandHandleData::default()),
-            registered: Cell::new(false),
+                handle: HandleOwner::dropped(CommandHandleData::default()),
+                registered: false,
 
-            has_handlers: var(false),
-            is_enabled: var(false),
+                has_handlers: var(false),
+                is_enabled: var(false),
 
-            scopes: RefCell::default(),
+                scopes: FxHashMap::default(),
+            }),
         }
     }
 
     fn new_handle(&self, events: &mut Events, command: Command, enabled: bool) -> CommandHandle {
+        let mut data = self.data.borrow_mut();
+
         let handle = match command.scope {
             CommandScope::App => {
-                if !self.registered.replace(true) {
+                if !mem::replace(&mut data.registered, true) {
                     events.register_command(command);
                 }
 
-                self.handle.reanimate()
+                data.handle.reanimate()
             }
             scope => {
-                let mut scopes = self.scopes.borrow_mut();
-                let scope = scopes.entry(scope).or_default();
+                let scope = data.scopes.entry(scope).or_default();
 
                 if !mem::replace(&mut scope.registered, true) {
                     events.register_command(command);

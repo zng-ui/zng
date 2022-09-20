@@ -231,9 +231,9 @@ fn window_tab_contained_and_continue(tab_nav: TabNav) {
         let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
         let buttons = widgets![
-            button! { content = text("Button 0"); tab_index = tab_ids[0] },
-            button! { content = text("Button 1"); tab_index = tab_ids[1] },
-            button! { content = text("Button 2"); tab_index = tab_ids[2] },
+            button! { id = "btn-0"; content = text("Button 0"); tab_index = tab_ids[0] },
+            button! { id = "btn-1"; content = text("Button 1"); tab_index = tab_ids[1] },
+            button! { id = "btn-2"; content = text("Button 2"); tab_index = tab_ids[2] },
         ];
         // we collect the widget_id values in the TAB navigation order.
         let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();

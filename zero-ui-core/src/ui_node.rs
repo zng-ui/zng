@@ -195,7 +195,7 @@ pub trait UiNode: Any {
     ///
     /// Every call to this method is for a single update of a single event type, you can listen to events
     /// using the [`Event::on`] method or other methods of the [`Event`] type.
-    /// 
+    ///
     /// [`Event::on`]: crate::event::Event::on
     /// [`Event`]: crate::event::Event
     fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate);

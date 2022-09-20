@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::focus::{FOCUS_CHANGED_EVENT, FocusRequest, FocusTarget};
+use zero_ui::core::focus::{FocusRequest, FocusTarget, FOCUS_CHANGED_EVENT};
 use zero_ui::prelude::*;
 use zero_ui::widgets::window::{LayerIndex, WindowLayers};
 

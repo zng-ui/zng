@@ -123,7 +123,7 @@ impl AppProcess {
 
 command! {
     /// Represents the app process [`exit`] request.
-    /// 
+    ///
     /// [`exit`]: AppProcess::exit
     pub static EXIT_CMD = {
         name: "Exit",

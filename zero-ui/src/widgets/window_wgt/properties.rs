@@ -10,8 +10,8 @@ use crate::core::color::ColorScheme;
 use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WINDOW_CLOSE_REQUESTED_EVENT, WindowIcon, WindowId, WINDOW_LOAD_EVENT,
-    WindowLoadingHandle, WindowState, WindowVars, Windows,
+    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars,
+    Windows, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -311,7 +311,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
             self.child.event(ctx, update);
             if WINDOW_LOAD_EVENT.has(update) {
                 self.task = Task::None;
-            }else if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
+            } else if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
                 if !args.propagation().is_stopped() {
                     if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
                         match &self.task {
