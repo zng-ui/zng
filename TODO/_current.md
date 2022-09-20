@@ -3,8 +3,9 @@
 * Auto doc of command metadata needs a proc-macro.
 * Subscription to scoped commands?
 
-* Massive increase of "llvm-lines" after dynamic when.
-    - was 451610 now is 1771218, event-2 regained ~37000, but after dynamic when was 1808286!.
+* Massive increase of zero-ui "llvm-lines" after dynamic when.
+    - was 451,610 now is 1,771,218, event-2 regained ~37,000, but after dynamic when was 1,808,286!
+    - example window improved by -122,989, from 537,674 to 414,685.
 * Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
     - Bug already existed in previous implementation.
 * Review `unsafe`, only use when there is no alternative.
