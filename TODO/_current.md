@@ -1,13 +1,19 @@
-* Stop propagation when it is requested.
+* Implement a WidgetPath radix tree, use it for DeliveryList.
+    - Can walk the tree as we walk the UiNode tree.
+    - Or we can just use an `IdMap`.
+        - WidgetId is its own hash, can count visits left just as easy.
+        - Better one IdMap and count per window.
+* Implement delivery-list/subscribers for variables.
+* Implement delivery-list for raw update requests.
+* Remove UiNode::subscriptions.
 * Stop propagation when all items in delivery list visited.
-* Subscription to scoped commands?
+* Stop propagation when it is requested.
 
-* Massive increase of zero-ui "llvm-lines" after dynamic when.
-    - was 451,610 now is 1,771,218, event-2 regained ~37,000, but after dynamic when was 1,808,286!
-    - example window improved by -122,989, from 537,674 to 414,685.
+* Review `unsafe`, only use when there is no alternative.
+
 * Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
     - Bug already existed in previous implementation.
-* Review `unsafe`, only use when there is no alternative.
+    - Have an AppId?
 * Implement all `todo!` code.
 
 # Light Color Scheme

@@ -1,3 +1,9 @@
+# Build Time
+
+* Massive increase of zero-ui "llvm-lines" after dynamic when.
+    - was 451,610 now is 1,771,218, event-2 regained ~37,000, but after dynamic when was 1,808,286!
+    - example window improved by -122,989, from 537,674 to 414,685.
+
 # Update Mask
 
 * Review the icon example with all icon to see what happens with lots of false positives.
