@@ -1,7 +1,4 @@
-* UiNodeBoxed not needed anymore?
-* And AppExtensionBoxed?
-* AppEventObserverDyn?
-* Stop propagation when this is requested.
+* Stop propagation when it is requested.
 * Stop propagation when all items in delivery list visited.
 * Auto doc of command metadata needs a proc-macro.
 * Subscription to scoped commands?
