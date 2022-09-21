@@ -258,8 +258,7 @@ impl AnyEvent {
         })
     }
 
-    /// Register the widget to receive targeted events from this event.
-    pub fn subscribe_widget(&self, widget_id: WidgetId) -> EventWidgetHandle {
+    fn subscribe_widget_raw(&self, widget_id: WidgetId) {
         self.local.with(|l| match l.widget_subs.borrow_mut().entry(widget_id) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 *e.get_mut() += 1;
@@ -268,6 +267,11 @@ impl AnyEvent {
                 e.insert(1);
             }
         });
+    }
+
+    /// Register the widget to receive targeted events from this event.
+    pub fn subscribe_widget(&self, widget_id: WidgetId) -> EventWidgetHandle {
+        self.subscribe_widget_raw(widget_id);
         EventWidgetHandle { event: *self, widget_id }
     }
 }

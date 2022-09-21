@@ -346,6 +346,8 @@ impl Timers {
 
     /// does on_* notifications.
     pub(crate) fn notify(ctx: &mut AppContext) {
+        let _s = tracing::trace_span!("Timers").entered();
+
         // we need to detach the handlers from the AppContext, so we can pass the context for then
         // so we `mem::take` for the duration of the call. But new timers can be registered inside
         // the handlers, so we add those handlers using `extend`.

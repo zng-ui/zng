@@ -1,8 +1,8 @@
-* Implement a WidgetPath radix tree, use it for DeliveryList.
-    - Can walk the tree as we walk the UiNode tree.
-    - Or we can just use an `IdMap`.
-        - WidgetId is its own hash, can count visits left just as easy.
-        - Better one IdMap and count per window.
+* Try linear search in delivery list.
+    - Merge.
+* Review event docs.
+* Update webrender.
+    - https://github.com/servo/webrender/commit/244a0ff74b57aa64b3760445ea6f71fb856dbe45
 * Implement delivery-list/subscribers for variables.
 * Implement delivery-list for raw update requests.
 * Remove UiNode::subscriptions.

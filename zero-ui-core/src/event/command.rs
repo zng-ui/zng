@@ -3,12 +3,11 @@ use std::{
     cell::{Cell, RefCell},
     mem,
     rc::Rc,
-    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use crate::{
     context::*,
-    crate_util::{FxHashMap, Handle, HandleOwner},
+    crate_util::FxHashMap,
     gesture::CommandShortcutExt,
     handler::WidgetHandler,
     impl_ui_node,
@@ -250,8 +249,9 @@ impl Command {
     ///
     /// A handle indicates that there is an active *handler* for the event, the handle can also
     /// be used to set the [`is_enabled`](Self::is_enabled) state.
+    ///
+    /// If the handle is scoped on a widget it it is added to the command event subscribers.
     pub fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
-        // TODO !! EventWidgetHandle
         events.with_events(|events| self.local.with(|l| l.new_handle(events, *self, enabled)))
     }
 
@@ -366,8 +366,8 @@ impl Command {
         self.local.with(|l| {
             let l = l.data.borrow();
             match self.scope {
-                CommandScope::App => !l.handle.is_dropped(),
-                scope => l.scopes.get(&scope).map(|l| !l.handle.is_dropped()).unwrap_or(false),
+                CommandScope::App => l.handle_count > 0,
+                scope => l.scopes.get(&scope).map(|l| l.handle_count > 0).unwrap_or(false),
             }
         })
     }
@@ -376,12 +376,8 @@ impl Command {
         self.local.with(|l| {
             let l = l.data.borrow();
             match self.scope {
-                CommandScope::App => !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0,
-                scope => l
-                    .scopes
-                    .get(&scope)
-                    .map(|l| !l.handle.is_dropped() && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
-                    .unwrap_or(false),
+                CommandScope::App => l.enabled_count > 0,
+                scope => l.scopes.get(&scope).map(|l| l.enabled_count > 0).unwrap_or(false),
             }
         })
     }
@@ -412,16 +408,13 @@ impl Command {
         self.local.with(|l| {
             let l = l.data.borrow();
             if let CommandScope::App = self.scope {
-                let has_handlers = !l.handle.is_dropped();
+                let has_handlers = l.handle_count > 0;
                 l.has_handlers.set_ne(vars, has_handlers);
-                l.is_enabled
-                    .set_ne(vars, has_handlers && l.handle.data().enabled_count.load(Ordering::Relaxed) > 0);
+                l.is_enabled.set_ne(vars, has_handlers && l.enabled_count > 0);
             } else if let Some(scope) = l.scopes.get(&self.scope) {
-                let has_handlers = !scope.handle.is_dropped();
+                let has_handlers = !scope.handle_count > 0;
                 scope.has_handlers.set_ne(vars, has_handlers);
-                scope
-                    .is_enabled
-                    .set_ne(vars, has_handlers && scope.handle.data().enabled_count.load(Ordering::Relaxed) > 0);
+                scope.is_enabled.set_ne(vars, has_handlers && scope.enabled_count > 0);
             }
         });
     }
@@ -435,7 +428,8 @@ impl Command {
             l.meta_inited = false;
             l.has_handlers = var(false);
             l.is_enabled = var(false);
-            l.handle = HandleOwner::dropped(CommandHandleData::default());
+            l.enabled_count = 0;
+            l.handle_count = 0;
         });
     }
 }
@@ -580,29 +574,46 @@ impl CommandArgs {
 ///
 /// You can use the [`Command::new_handle`] method in a command type to create a handle.
 pub struct CommandHandle {
-    handle: Handle<CommandHandleData>,
+    command: Option<Command>,
     local_enabled: Cell<bool>,
 }
 impl CommandHandle {
+    /// The command.
+    pub fn command(&self) -> Option<Command> {
+        self.command
+    }
+
     /// Sets if the command event handler is active.
     ///
     /// When at least one [`CommandHandle`] is enabled the command is [`is_enabled`](Command::is_enabled).
     pub fn set_enabled(&self, enabled: bool) {
-        if self.local_enabled.get() != enabled {
-            UpdatesTrace::log_var::<bool>();
+        if let Some(command) = self.command {
+            if self.local_enabled.get() != enabled {
+                UpdatesTrace::log_var::<bool>();
 
-            self.local_enabled.set(enabled);
-            let data = self.handle.data();
-
-            if enabled {
-                let check = data.enabled_count.fetch_add(1, Ordering::Relaxed);
-                if check == usize::MAX {
-                    data.enabled_count.store(usize::MAX, Ordering::Relaxed);
-                    panic!("CommandHandle reached usize::MAX")
-                }
-            } else {
-                data.enabled_count.fetch_sub(1, Ordering::Relaxed);
-            };
+                self.local_enabled.set(enabled);
+                command.local.with(|l| {
+                    let mut data = l.data.borrow_mut();
+                    match command.scope {
+                        CommandScope::App => {
+                            if enabled {
+                                data.enabled_count += 1;
+                            } else {
+                                data.enabled_count -= 1;
+                            }
+                        }
+                        scope => {
+                            if let Some(data) = data.scopes.get_mut(&scope) {
+                                if enabled {
+                                    data.enabled_count += 1;
+                                } else {
+                                    data.enabled_count -= 1;
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
     }
 
@@ -611,10 +622,10 @@ impl CommandHandle {
         self.local_enabled.get()
     }
 
-    /// Returns a dummy [`CommandHandle`] that is not connected to any command.
+    /// New handle not connected to any command.
     pub fn dummy() -> Self {
         CommandHandle {
-            handle: Handle::dummy(CommandHandleData::default()),
+            command: None,
             local_enabled: Cell::new(false),
         }
     }
@@ -622,21 +633,39 @@ impl CommandHandle {
 impl fmt::Debug for CommandHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CommandHandle")
-            .field("handle", &self.handle)
+            .field("command", &self.command)
             .field("local_enabled", &self.local_enabled)
             .finish()
     }
 }
 impl Drop for CommandHandle {
     fn drop(&mut self) {
-        if self.local_enabled.get() {
-            self.handle.data().enabled_count.fetch_sub(1, Ordering::Relaxed);
+        if let Some(command) = self.command {
+            command.local.with(|l| {
+                let mut data = l.data.borrow_mut();
+                match command.scope {
+                    CommandScope::App => {
+                        data.handle_count -= 1;
+                        if self.local_enabled.get() {
+                            data.enabled_count -= 1;
+                        }
+                    }
+                    scope => {
+                        if let Some(data) = data.scopes.get_mut(&scope) {
+                            data.handle_count -= 1;
+                            if self.local_enabled.get() {
+                                data.enabled_count -= 1;
+                            }
+
+                            if let CommandScope::Widget(id) = scope {
+                                command.event.as_any().unsubscribe_widget(id);
+                            }
+                        }
+                    }
+                }
+            });
         }
     }
-}
-#[derive(Default)]
-struct CommandHandleData {
-    enabled_count: AtomicUsize,
 }
 
 /// Represents a reference counted `dyn Any` object.
@@ -997,7 +1026,8 @@ struct CommandDataInner {
     meta_inited: bool,
     meta: OwnedStateMap<CommandMetaState>,
 
-    handle: HandleOwner<CommandHandleData>,
+    handle_count: usize,
+    enabled_count: usize,
     registered: bool,
 
     has_handlers: RcVar<bool>,
@@ -1014,7 +1044,8 @@ impl CommandData {
                 meta_inited: false,
                 meta: OwnedStateMap::default(),
 
-                handle: HandleOwner::dropped(CommandHandleData::default()),
+                handle_count: 0,
+                enabled_count: 0,
                 registered: false,
 
                 has_handlers: var(false),
@@ -1028,40 +1059,45 @@ impl CommandData {
     fn new_handle(&self, events: &mut Events, command: Command, enabled: bool) -> CommandHandle {
         let mut data = self.data.borrow_mut();
 
-        let handle = match command.scope {
+        match command.scope {
             CommandScope::App => {
                 if !mem::replace(&mut data.registered, true) {
                     events.register_command(command);
                 }
 
-                data.handle.reanimate()
+                data.handle_count += 1;
+                if enabled {
+                    data.enabled_count += 1;
+                }
             }
             scope => {
-                let scope = data.scopes.entry(scope).or_default();
+                let data = data.scopes.entry(scope).or_default();
 
-                if !mem::replace(&mut scope.registered, true) {
+                if !mem::replace(&mut data.registered, true) {
                     events.register_command(command);
                 }
 
-                scope.handle.reanimate()
+                data.handle_count += 1;
+                if enabled {
+                    data.enabled_count += 1;
+                }
+
+                if let CommandScope::Widget(id) = scope {
+                    command.event.as_any().subscribe_widget_raw(id);
+                }
             }
-        };
-
-        let handle = CommandHandle {
-            handle,
-            local_enabled: Cell::new(false),
-        };
-
-        if enabled {
-            handle.set_enabled(true);
         }
 
-        handle
+        CommandHandle {
+            command: Some(command),
+            local_enabled: Cell::new(enabled),
+        }
     }
 }
 
 struct ScopedValue {
-    handle: HandleOwner<CommandHandleData>,
+    handle_count: usize,
+    enabled_count: usize,
     is_enabled: RcVar<bool>,
     has_handlers: RcVar<bool>,
     meta: OwnedStateMap<CommandMetaState>,
@@ -1072,7 +1108,8 @@ impl Default for ScopedValue {
         ScopedValue {
             is_enabled: var(false),
             has_handlers: var(false),
-            handle: HandleOwner::dropped(CommandHandleData::default()),
+            handle_count: 0,
+            enabled_count: 0,
             meta: OwnedStateMap::default(),
             registered: false,
         }

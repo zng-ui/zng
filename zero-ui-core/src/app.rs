@@ -1420,7 +1420,7 @@ impl<E: AppExtension> RunningApp<E> {
                     return false;
                 }
 
-                let _s = tracing::debug_span!("apply_update").entered();
+                let _s = tracing::debug_span!("extensions").entered();
 
                 let ctx = &mut self.owned_ctx.borrow();
 

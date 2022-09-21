@@ -372,6 +372,8 @@ impl Vars {
     ///
     /// Returns new app wake time if there are active animations.
     pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
+        let _s = tracing::trace_span!("Vars").entered();
+
         self.read.update_id = self.update_id.wrapping_add(1);
         self.ans.animation_start_time.set(None);
 

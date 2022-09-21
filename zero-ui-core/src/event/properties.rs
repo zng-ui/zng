@@ -103,7 +103,7 @@ macro_rules! __event_property {
 ///
 /// # Filter
 ///
-/// App events are delivered to all `UiNode` inside all widgets in the [`EventDeliveryList`], some event properties can
+/// App events are delivered to all `UiNode` inside all widgets in the [`UpdateDeliveryList`], some event properties can
 /// also specialize further on top of a more general app event. To implement this you can use a filter predicate.
 ///
 /// The `filter` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments

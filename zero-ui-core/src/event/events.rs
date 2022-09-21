@@ -340,6 +340,7 @@ impl Events {
 
     #[must_use]
     pub(crate) fn apply_updates(&mut self, vars: &Vars) -> Vec<EventUpdate> {
+        let _s = tracing::trace_span!("Events").entered();
         for command in &self.commands {
             command.update_state(vars);
         }

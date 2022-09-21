@@ -684,6 +684,7 @@ impl<D: Send + Sync> HandleOwner<D> {
         state == FORCE_DROP || (state != PERMANENT && Arc::strong_count(&self.0 .0) <= 1)
     }
 
+    /*
     /// New handle owner in the dropped state.
     pub fn dropped(data: D) -> HandleOwner<D> {
         HandleOwner(Handle(Arc::new(HandleState {
@@ -699,6 +700,7 @@ impl<D: Send + Sync> HandleOwner<D> {
         self.0 .0.state.store(NONE, Ordering::Relaxed);
         self.0.clone()
     }
+    */
 
     /// Gets an weak handle that may-not be able to upgrade.
     pub fn weak_handle(&self) -> WeakHandle<D> {
