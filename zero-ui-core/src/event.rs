@@ -5,7 +5,7 @@ use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, ops::Deref, thread:
 use crate::{
     context::{UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
     crate_util::{IdMap, IdSet},
-    widget_info::{EventSlot, WidgetInfoTree},
+    widget_info::WidgetInfoTree,
     WidgetId,
 };
 
@@ -78,7 +78,6 @@ pub use crate::event_macro as event;
 
 #[doc(hidden)]
 pub struct EventData {
-    slot: EventSlot,
     name: &'static str,
     widget_subs: RefCell<IdMap<WidgetId, usize>>,
 }
@@ -86,14 +85,9 @@ impl EventData {
     #[doc(hidden)]
     pub fn new(name: &'static str) -> Self {
         EventData {
-            slot: EventSlot::next(),
             name,
             widget_subs: RefCell::default(),
         }
-    }
-
-    fn slot(&self) -> EventSlot {
-        self.slot
     }
 
     fn name(&self) -> &'static str {
@@ -133,11 +127,6 @@ impl<E: EventArgs> Event<E> {
     /// Event ID.
     pub fn id(&self) -> EventId {
         EventId(self.local as *const _ as _)
-    }
-
-    /// Event slot in the app of the current thread.
-    pub fn slot(&self) -> EventSlot {
-        self.local.with(EventData::slot)
     }
 
     /// Register the widget to receive targeted events from this event.
@@ -180,11 +169,10 @@ impl<E: EventArgs> Event<E> {
 
     /// Create an event update for this event.
     pub fn new_update(&self, args: E) -> EventUpdate {
-        let mut delivery_list = UpdateDeliveryList::new_any(); // ::new(Box::new(self.as_any()));
+        let mut delivery_list = UpdateDeliveryList::new(Box::new(self.as_any()));
         args.delivery_list(&mut delivery_list);
         EventUpdate {
             event_id: self.id(),
-            event_slot: self.slot(),
             event_name: self.name(),
             delivery_list,
             timestamp: args.timestamp(),
@@ -239,11 +227,6 @@ impl AnyEvent {
     /// Event ID.
     pub fn id(&self) -> EventId {
         EventId(self.local as *const _ as _)
-    }
-
-    /// Event slot in the app of the current thread.
-    pub fn slot(&self) -> EventSlot {
-        self.local.with(EventData::slot)
     }
 
     /// Display name.
@@ -308,7 +291,6 @@ impl<E: EventArgs> PartialEq<Event<E>> for AnyEvent {
 /// Represents a single event update.
 pub struct EventUpdate {
     event_id: EventId,
-    event_slot: EventSlot,
     event_name: &'static str,
     delivery_list: UpdateDeliveryList,
     timestamp: Instant,
@@ -319,11 +301,6 @@ impl EventUpdate {
     /// Event ID.
     pub fn event_id(&self) -> EventId {
         self.event_id
-    }
-
-    /// Event slot.
-    pub fn event_slot(&self) -> EventSlot {
-        self.event_slot
     }
 
     /// Event name.

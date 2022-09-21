@@ -176,12 +176,17 @@ pub mod properties {
         struct CheckedNode<C, B> {
             child: C,
             checked: B,
+            click_handle: Option<EventWidgetHandle>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<bool>> UiNode for CheckedNode<C, B> {
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(&CLICK_EVENT);
-                self.child.subscriptions(ctx, subs);
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.child.init(ctx);
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.child.deinit(ctx);
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -204,6 +209,7 @@ pub mod properties {
         let node = CheckedNode {
             child: child.cfg_boxed(),
             checked: checked.clone(),
+            click_handle: None,
         }
         .cfg_boxed();
         with_context_var(node, IS_CHECKED_VAR, checked.map_into())
@@ -217,12 +223,17 @@ pub mod properties {
         struct CheckedOptNode<C, B> {
             child: C,
             checked: B,
+            click_handle: Option<EventWidgetHandle>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<Option<bool>>> UiNode for CheckedOptNode<C, B> {
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(&CLICK_EVENT);
-                self.child.subscriptions(ctx, subs);
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.child.init(ctx);
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.child.deinit(ctx);
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -260,6 +271,7 @@ pub mod properties {
         let node = CheckedOptNode {
             child: child.cfg_boxed(),
             checked: checked.clone(),
+            click_handle: None,
         }
         .cfg_boxed();
 
@@ -291,6 +303,7 @@ pub mod properties {
             value: V,
             checked: RcVar<Option<bool>>,
             prev_value: Option<T>,
+            click_handle: Option<EventWidgetHandle>,
         }
         impl<C, T: VarValue + PartialEq, V> ValueNode<C, T, V> {
             fn select(ctx: &mut WidgetContext, value: &T) -> bool {
@@ -349,6 +362,8 @@ pub mod properties {
                     self.prev_value = Some(value.clone());
                 }
 
+                self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
+
                 self.child.init(ctx);
             }
 
@@ -361,6 +376,7 @@ pub mod properties {
                 }
 
                 self.prev_value = None;
+                self.click_handle = None;
 
                 self.child.deinit(ctx);
             }
@@ -368,7 +384,6 @@ pub mod properties {
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 SELECTOR_VAR.get(ctx.vars).instance.borrow().subscribe(ctx, subs);
                 subs.vars(ctx).var(&self.value).var(&SELECTOR_VAR).var(&DESELECT_ON_NEW_VAR);
-                subs.event(&CLICK_EVENT);
                 self.child.subscriptions(ctx, subs);
             }
 
@@ -435,6 +450,7 @@ pub mod properties {
             value: value.into_var(),
             checked,
             prev_value: None,
+            click_handle: None,
         }
     }
 

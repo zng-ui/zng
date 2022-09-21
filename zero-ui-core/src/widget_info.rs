@@ -14,7 +14,6 @@ use crate::{
     border::ContextBorders,
     context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMapRef, Updates},
     crate_util::IdMap,
-    event::{Event, EventArgs, EventUpdate},
     handler::WidgetHandler,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
@@ -1878,18 +1877,10 @@ update_slot! {
     ///
     /// [`UiNode::update`]: crate::UiNode::update
     pub struct UpdateSlot -> UpdateMask;
-
-    /// Represents a single event in a [`EventMask`].
-    ///
-    /// Every event is assigned on of these slots.
-    pub struct EventSlot -> EventMask;
 }
 update_mask! {
     /// Represents the combined update sources that affect an UI tree or widget.
     pub struct UpdateMask <- UpdateSlot;
-
-    /// Represents the combined events that are listened by an UI tree or widget.
-    pub struct EventMask <- EventSlot;
 }
 
 /// Represents all event and update subscriptions of a widget.
@@ -1901,27 +1892,12 @@ update_mask! {
 /// [`UiNode::update`]: crate::UiNode::update
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct WidgetSubscriptions {
-    event: EventMask,
     update: UpdateMask,
 }
 impl WidgetSubscriptions {
     /// New default, no subscriptions.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Register an [`Event`] or command subscription.
-    ///
-    /// [`Event`]: crate::event::Event
-    pub fn event<A: EventArgs>(&mut self, event: &Event<A>) -> &mut Self {
-        self.event.insert(event.slot());
-        self
-    }
-
-    /// Register multiple event or command subscriptions.
-    pub fn events(&mut self, mask: &EventMask) -> &mut Self {
-        self.event.extend(mask);
-        self
     }
 
     /// Register async handler waker update source.
@@ -1947,7 +1923,7 @@ impl WidgetSubscriptions {
 
     /// Register all subscriptions from `other` in `self`.
     pub fn extend(&mut self, other: &WidgetSubscriptions) -> &mut Self {
-        self.events(&other.event).updates(&other.update)
+        self.updates(&other.update)
     }
 
     /// Register a variable subscription.
@@ -1968,19 +1944,9 @@ impl WidgetSubscriptions {
         }
     }
 
-    /// Returns `true` if the widget subscribes to events in the slot.
-    pub fn event_contains(&self, event: &EventUpdate) -> bool {
-        self.event.contains(event.event_slot())
-    }
-
     /// Returns `true` if the widget is interested in variables or other update sources that are flagged in `updates`.
     pub fn update_intersects(&self, updates: &Updates) -> bool {
         self.update.intersects(updates.current())
-    }
-
-    /// Returns the current set event subscriptions.
-    pub fn event_mask(&self) -> EventMask {
-        self.event
     }
 
     /// Returns the current set update subscriptions.
@@ -1990,7 +1956,7 @@ impl WidgetSubscriptions {
 
     /// Returns if both event and update subscriptions are none.
     pub fn is_none(&self) -> bool {
-        self.event.is_none() && self.update.is_none()
+        self.update.is_none()
     }
 }
 impl ops::BitOr for WidgetSubscriptions {
@@ -2003,7 +1969,6 @@ impl ops::BitOr for WidgetSubscriptions {
 }
 impl ops::BitOrAssign for WidgetSubscriptions {
     fn bitor_assign(&mut self, rhs: Self) {
-        self.event |= rhs.event;
         self.update |= rhs.update;
     }
 }

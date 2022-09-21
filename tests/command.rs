@@ -1,10 +1,9 @@
 use zero_ui::{
     core::{
-        context::{InfoContext, StaticStateId},
+        context::StaticStateId,
         event::{command, CommandHandle, EventUpdate},
         impl_ui_node,
         keyboard::HeadlessAppKeyboardExt,
-        widget_info::WidgetSubscriptions,
     },
     prelude::*,
 };
@@ -161,9 +160,6 @@ fn listener_window(focused_wgt: bool) -> Window {
             self.handle = Some(FOO_CMD.new_handle(ctx, true));
             self.handle_scoped = Some(FOO_CMD.scoped(ctx.path.window_id()).new_handle(ctx, true));
             self.handle_scoped_wgt = Some(FOO_CMD.scoped(ctx.path.widget_id()).new_handle(ctx, true));
-        }
-        fn subscriptions(&self, _ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&FOO_CMD);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = FOO_CMD.on(update) {

@@ -385,14 +385,12 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event_name(), self.id);
                     }
 
-                    if self.subscriptions.borrow().event_contains(update) {
-                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
-                            update.with_widget(ctx, |ctx, update| {
-                                self.child.event(ctx, update);
-                            });
+                    let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
+                        update.with_widget(ctx, |ctx, update| {
+                            self.child.event(ctx, update);
                         });
-                        *self.pending_updates.get_mut() |= updates;
-                    }
+                    });
+                    *self.pending_updates.get_mut() |= updates;
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {

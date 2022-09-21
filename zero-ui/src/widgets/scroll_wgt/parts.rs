@@ -129,13 +129,27 @@ pub mod thumb {
             viewport_length: Px,
             thumb_length: Px,
             scale_factor: Factor,
+            event_handles: Option<[EventWidgetHandle; 2]>,
 
             mouse_down: Option<(Px, Factor)>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.event_handles = Some([
+                    MOUSE_MOVE_EVENT.subscribe_widget(ctx.path.widget_id()),
+                    MOUSE_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()),
+                ]);
+                self.child.init(ctx);
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.event_handles = None;
+                self.child.deinit(ctx);
+            }
+
             fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(&MOUSE_MOVE_EVENT).event(&MOUSE_INPUT_EVENT).var(ctx, &THUMB_OFFSET_VAR);
+                subs.var(ctx, &THUMB_OFFSET_VAR);
                 self.child.subscriptions(ctx, subs);
             }
 
@@ -220,6 +234,7 @@ pub mod thumb {
             viewport_length: Px(0),
             thumb_length: Px(0),
             scale_factor: 1.fct(),
+            event_handles: None,
 
             mouse_down: None,
         }

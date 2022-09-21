@@ -251,6 +251,7 @@ impl Command {
     /// A handle indicates that there is an active *handler* for the event, the handle can also
     /// be used to set the [`is_enabled`](Self::is_enabled) state.
     pub fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
+        // TODO !! EventWidgetHandle
         events.with_events(|events| self.local.with(|l| l.new_handle(events, *self, enabled)))
     }
 
@@ -1110,9 +1111,7 @@ where
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&self.command.expect("OnCommandNode not initialized").event())
-                .var(ctx, self.enabled.as_ref().unwrap())
-                .handler(&self.handler);
+            subs.var(ctx, self.enabled.as_ref().unwrap()).handler(&self.handler);
 
             self.child.subscriptions(ctx, subs);
         }
@@ -1212,9 +1211,7 @@ where
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&self.command.expect("OnPreCommandNode not initialized").event())
-                .var(ctx, self.enabled.as_ref().unwrap())
-                .handler(&self.handler);
+            subs.var(ctx, self.enabled.as_ref().unwrap()).handler(&self.handler);
 
             self.child.subscriptions(ctx, subs);
         }

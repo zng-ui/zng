@@ -35,11 +35,21 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     struct CaptureMouseNode<C: UiNode, M: Var<CaptureMode>> {
         child: C,
         mode: M,
+        mouse_input_handle: Option<EventWidgetHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.mouse_input_handle = Some(MOUSE_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()));
+            self.child.init(ctx);
+        }
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.mouse_input_handle = None;
+            self.child.deinit(ctx);
+        }
+
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.mode).event(&MOUSE_INPUT_EVENT);
+            subs.var(ctx, &self.mode);
 
             self.child.subscriptions(ctx, subs);
         }
@@ -92,6 +102,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     CaptureMouseNode {
         child,
         mode: mode.into_var(),
+        mouse_input_handle: None,
     }
 }
 

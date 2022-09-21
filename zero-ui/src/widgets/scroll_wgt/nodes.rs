@@ -284,15 +284,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            let scope = ctx.path.widget_id();
-
-            subs.event(&SCROLL_UP_CMD.scoped(scope).event())
-                .event(&SCROLL_DOWN_CMD.scoped(scope).event())
-                .event(&SCROLL_LEFT_CMD.scoped(scope).event())
-                .event(&SCROLL_RIGHT_CMD.scoped(scope).event())
-                .vars(ctx)
-                .var(&VERTICAL_LINE_UNIT_VAR)
-                .var(&HORIZONTAL_LINE_UNIT_VAR);
+            subs.vars(ctx).var(&VERTICAL_LINE_UNIT_VAR).var(&HORIZONTAL_LINE_UNIT_VAR);
 
             self.child.subscriptions(ctx, subs);
         }
@@ -420,15 +412,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            let scope = ctx.path.widget_id();
-
-            subs.event(&PAGE_UP_CMD.scoped(scope).event())
-                .event(&PAGE_DOWN_CMD.scoped(scope).event())
-                .event(&PAGE_LEFT_CMD.scoped(scope).event())
-                .event(&PAGE_RIGHT_CMD.scoped(scope).event())
-                .vars(ctx)
-                .var(&VERTICAL_PAGE_UNIT_VAR)
-                .var(&HORIZONTAL_PAGE_UNIT_VAR);
+            subs.vars(ctx).var(&VERTICAL_PAGE_UNIT_VAR).var(&HORIZONTAL_PAGE_UNIT_VAR);
 
             self.child.subscriptions(ctx, subs);
         }
@@ -558,17 +542,6 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             self.rightmost = CommandHandle::dummy();
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            let scope = ctx.path.widget_id();
-
-            subs.event(&SCROLL_TO_TOP_CMD.scoped(scope).event())
-                .event(&SCROLL_TO_BOTTOM_CMD.scoped(scope).event())
-                .event(&SCROLL_TO_LEFTMOST_CMD.scoped(scope).event())
-                .event(&SCROLL_TO_RIGHTMOST_CMD.scoped(scope).event());
-
-            self.child.subscriptions(ctx, subs);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
@@ -632,11 +605,6 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.handle = CommandHandle::dummy();
             self.child.deinit(ctx);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&SCROLL_TO_CMD.scoped(ctx.path.widget_id()).event());
-            self.child.subscriptions(ctx, subs);
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -788,12 +756,18 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
     struct ScrollWheelNode<C> {
         child: C,
         offset: Vector,
+        mouse_wheel_handle: Option<EventWidgetHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollWheelNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&MOUSE_WHEEL_EVENT);
-            self.child.subscriptions(ctx, subs);
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.mouse_wheel_handle = Some(MOUSE_WHEEL_EVENT.subscribe_widget(ctx.path.widget_id()));
+            self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.mouse_wheel_handle = None;
+            self.child.deinit(ctx);
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -847,6 +821,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
     ScrollWheelNode {
         child: child.cfg_boxed(),
         offset: Vector::zero(),
+        mouse_wheel_handle: None,
     }
     .cfg_boxed()
 }

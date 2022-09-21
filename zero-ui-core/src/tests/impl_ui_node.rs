@@ -255,7 +255,6 @@ pub fn default_no_child() {
     let mut subs = WidgetSubscriptions::new();
     wgt.test_subscriptions(&mut ctx, &mut subs);
     assert!(subs.update_mask().is_none());
-    assert!(subs.event_mask().is_none());
 
     let mut frame = FrameBuilder::new_renderless(
         FrameId::INVALID,
@@ -296,7 +295,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         units::*,
         widget_base::implicit_base,
-        widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+        widget_info::{UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
         UiNode, Widget,
     };
 
@@ -373,7 +372,7 @@ mod util {
         }
 
         fn subscriptions(&self, _: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.updates(&UpdateMask::all()).events(&EventMask::all());
+            subs.updates(&UpdateMask::all());
             self.test_trace("subscriptions");
         }
 

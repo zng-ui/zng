@@ -184,6 +184,7 @@ where
         event: Event<A>,
         filter: F,
         handler: H,
+        handle: Option<EventWidgetHandle>,
     }
     #[impl_ui_node(child)]
     impl<C, A, F, H> UiNode for OnEventNode<C, A, F, H>
@@ -197,8 +198,18 @@ where
             self.child.info(ctx, widget_info);
         }
 
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.handle = Some(self.event.subscribe_widget(ctx.path.widget_id()));
+            self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.handle = None;
+            self.child.deinit(ctx);
+        }
+
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&self.event).handler(&self.handler);
+            subs.handler(&self.handler);
             self.child.subscriptions(ctx, subs);
         }
 
@@ -225,6 +236,7 @@ where
         event,
         filter,
         handler: handler.cfg_boxed(),
+        handle: None,
     }
     .cfg_boxed()
 }
@@ -266,6 +278,7 @@ where
         event: Event<A>,
         filter: F,
         handler: H,
+        handle: Option<EventWidgetHandle>,
     }
     #[impl_ui_node(child)]
     impl<C, A, F, H> UiNode for OnPreviewEventNode<C, A, F, H>
@@ -279,8 +292,18 @@ where
             self.child.info(ctx, widget_info);
         }
 
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.handle = Some(self.event.subscribe_widget(ctx.path.widget_id()));
+            self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.handle = None;
+            self.child.deinit(ctx);
+        }
+
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&self.event).handler(&self.handler);
+            subs.handler(&self.handler);
             self.child.subscriptions(ctx, subs);
         }
 
@@ -307,6 +330,7 @@ where
         event,
         filter,
         handler: handler.cfg_boxed(),
+        handle: None,
     }
     .cfg_boxed()
 }

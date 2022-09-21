@@ -1,4 +1,4 @@
-use crate::{context::*, event::*, var::*, widget_info::*, *};
+use crate::{context::*, event::*, var::*, *};
 
 /// Helper for declaring state properties that depend on a single event.
 pub fn event_state<A: EventArgs>(
@@ -14,6 +14,7 @@ pub fn event_state<A: EventArgs>(
         default: bool,
         state: StateVar,
         on_event: S,
+        handle: Option<EventWidgetHandle>,
     }
     #[impl_ui_node(child)]
     impl<C, A, S> UiNode for EventStateNode<C, A, S>
@@ -24,15 +25,13 @@ pub fn event_state<A: EventArgs>(
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
+            self.handle = Some(self.event.subscribe_widget(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
+            self.handle = None;
             self.child.deinit(ctx);
-        }
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&self.event);
-            self.child.subscriptions(ctx, subs);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
@@ -49,6 +48,7 @@ pub fn event_state<A: EventArgs>(
         default,
         state,
         on_event,
+        handle: None,
     }
     .cfg_boxed()
 }
@@ -76,6 +76,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
         partial_default: (bool, bool),
         partial: (bool, bool),
         merge: M,
+        handle: Option<[EventWidgetHandle; 2]>,
     }
     #[impl_ui_node(child)]
     impl<C, A0, A1, S0, S1, M> UiNode for EventState2Node<C, A0, A1, S0, S1, M>
@@ -90,15 +91,14 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);
+            let w = ctx.path.widget_id();
+            self.handle = Some([self.events.0.subscribe_widget(w), self.events.1.subscribe_widget(w)]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
+            self.handle = None;
             self.child.deinit(ctx);
-        }
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&self.events.0).event(&self.events.1);
-            self.child.subscriptions(ctx, subs);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             let mut updated = false;
@@ -135,6 +135,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
         partial_default: (default0, default1),
         partial: (default0, default1),
         merge,
+        handle: None,
     }
     .cfg_boxed()
 }
@@ -165,6 +166,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         partial_default: (bool, bool, bool),
         partial: (bool, bool, bool),
         merge: M,
+        handle: Option<[EventWidgetHandle; 3]>,
     }
     #[impl_ui_node(child)]
     impl<C, A0, A1, A2, S0, S1, S2, M> UiNode for EventState3Node<C, A0, A1, A2, S0, S1, S2, M>
@@ -181,15 +183,18 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);
+            let w = ctx.path.widget_id();
+            self.handle = Some([
+                self.events.0.subscribe_widget(w),
+                self.events.1.subscribe_widget(w),
+                self.events.2.subscribe_widget(w),
+            ]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
+            self.handle = None;
             self.child.deinit(ctx);
-        }
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&self.events.0).event(&self.events.1).event(&self.events.2);
-            self.child.subscriptions(ctx, subs);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             let mut updated = false;
@@ -233,6 +238,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         partial_default: (default0, default1, default2),
         partial: (default0, default1, default2),
         merge,
+        handle: None,
     }
     .cfg_boxed()
 }

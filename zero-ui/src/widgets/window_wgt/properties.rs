@@ -269,6 +269,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
     struct SaveStateNode<C> {
         child: C,
         enabled: SaveState,
+        event_handles: Option<[EventWidgetHandle; 2]>,
 
         task: Task,
     }
@@ -291,7 +292,20 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                     .and_then(|t| Windows::req(ctx.services).loading_handle(ctx.path.window_id(), t));
                 self.task = Task::Read { rsp, loading };
             }
+
+            if self.enabled.is_enabled() {
+                self.event_handles = Some([
+                    WINDOW_CLOSE_REQUESTED_EVENT.subscribe_widget(ctx.path.widget_id()),
+                    WINDOW_LOAD_EVENT.subscribe_widget(ctx.path.widget_id()),
+                ]);
+            }
+
             self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.event_handles = None;
+            self.child.deinit(ctx);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
@@ -300,9 +314,6 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                     subs.var(ctx.vars, rsp);
                 }
                 Task::None => {}
-            }
-            if self.enabled.is_enabled() {
-                subs.event(&WINDOW_CLOSE_REQUESTED_EVENT).event(&WINDOW_LOAD_EVENT);
             }
             self.child.subscriptions(ctx, subs);
         }
@@ -361,6 +372,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
     SaveStateNode {
         child,
         enabled,
+        event_handles: None,
         task: Task::None,
     }
 }

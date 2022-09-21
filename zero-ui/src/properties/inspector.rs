@@ -134,6 +134,8 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 
         fails: Vec<PxRect>,
         hits: Vec<PxRect>,
+
+        event_handles: Option<[EventWidgetHandle; 2]>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for ShowHitTestNode<C, E> {
@@ -143,14 +145,23 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
+            if self.enabled.copy(ctx.vars) {
+                self.event_handles = Some([
+                    MOUSE_MOVE_EVENT.subscribe_widget(ctx.path.widget_id()),
+                    MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()),
+                ]);
+            }
+
             self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.event_handles = None;
+            self.child.deinit(ctx);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.enabled);
-            if self.enabled.copy(ctx.vars) {
-                subs.event(&MOUSE_MOVE_EVENT).event(&MOUSE_HOVERED_EVENT);
-            }
             self.child.subscriptions(ctx, subs);
         }
 
@@ -200,8 +211,15 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.enabled.is_new(ctx) {
-                ctx.updates.subscriptions();
+            if let Some(enabled) = self.enabled.copy_new(ctx) {
+                if enabled {
+                    self.event_handles = Some([
+                        MOUSE_MOVE_EVENT.subscribe_widget(ctx.path.widget_id()),
+                        MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()),
+                    ]);
+                } else {
+                    self.event_handles = None;
+                }
                 ctx.updates.render();
             }
             self.child.update(ctx);
@@ -230,6 +248,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
     ShowHitTestNode {
         child,
         enabled: enabled.into_var(),
+        event_handles: None,
         valid: false,
         fails: vec![],
         hits: vec![],
@@ -250,6 +269,8 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         valid: bool,
 
         search_quads: Vec<PxRect>,
+
+        mouse_hovered_handle: Option<EventWidgetHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<Option<Orientation2D>>> UiNode for ShowDirectionalQueryNode<C, E> {
@@ -259,14 +280,21 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
+            if self.orientation.copy(ctx.vars).is_some() {
+                self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()));
+            }
+
             self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.mouse_hovered_handle = None;
+            self.child.deinit(ctx);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.orientation);
-            if self.orientation.copy(ctx.vars).is_some() {
-                subs.event(&MOUSE_HOVERED_EVENT);
-            }
+
             self.child.subscriptions(ctx, subs);
         }
 
@@ -305,9 +333,15 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.orientation.is_new(ctx) {
+            if let Some(ori) = self.orientation.copy_new(ctx) {
                 self.search_quads.clear();
-                ctx.updates.subscriptions();
+
+                if ori.is_some() {
+                    self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()));
+                } else {
+                    self.mouse_hovered_handle = None;
+                }
+
                 ctx.updates.render();
             }
             self.child.update(ctx);
@@ -334,5 +368,6 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         orientation: orientation.into_var(),
         valid: false,
         search_quads: vec![],
+        mouse_hovered_handle: None,
     }
 }

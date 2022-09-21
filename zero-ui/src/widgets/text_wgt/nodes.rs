@@ -101,6 +101,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         child: C,
         text: T,
         resolved: Option<ResolvedText>,
+        char_input_handle: Option<EventWidgetHandle>,
     }
     impl<C: UiNode, T> ResolveTextNode<C, T> {
         fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
@@ -128,6 +129,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 baseline: Cell::new(Px(0)),
             });
 
+            if TEXT_EDITABLE_VAR.copy(ctx) {
+                self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()));
+            }
+
             self.with_mut(ctx.vars, |c| c.init(ctx))
         }
 
@@ -140,15 +145,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
-
-            if TEXT_EDITABLE_VAR.copy(ctx) {
-                subs.event(&CHAR_INPUT_EVENT);
-            }
-
             self.with(ctx.vars, |c| c.subscriptions(ctx, subs))
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.char_input_handle = None;
             self.with_mut(ctx.vars, |c| c.deinit(ctx));
             self.resolved = None;
         }
@@ -238,8 +239,12 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             }
 
-            if TEXT_EDITABLE_VAR.is_new(ctx) {
-                ctx.updates.info();
+            if let Some(enabled) = TEXT_EDITABLE_VAR.copy_new(ctx) {
+                if enabled && self.char_input_handle.is_none() {
+                    self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()));
+                } else {
+                    self.char_input_handle = None;
+                }
             }
 
             self.with_mut(ctx.vars, |c| c.update(ctx))
@@ -266,6 +271,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         child: child.cfg_boxed(),
         text: text.into_var(),
         resolved: None,
+        char_input_handle: None,
     }
     .cfg_boxed()
 }

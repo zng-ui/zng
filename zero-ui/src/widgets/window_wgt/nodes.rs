@@ -109,6 +109,7 @@ impl WindowLayers {
             anchor: A,
             mode: M,
             widget: W,
+            info_changed_handle: Option<EventWidgetHandle>,
 
             anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo)>,
             offset_point: PxPoint,
@@ -127,12 +128,6 @@ impl WindowLayers {
             M: Var<AnchorMode>,
             W: Widget,
         {
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.event(&WIDGET_INFO_CHANGED_EVENT);
-
-                self.widget.subscriptions(ctx, subs)
-            }
-
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
                     let anchor = self.anchor.copy(ctx);
@@ -163,12 +158,14 @@ impl WindowLayers {
                 }
 
                 self.interaction = self.mode.get(ctx).interaction;
+                self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe_widget(ctx.path.widget_id()));
 
                 self.widget.init(ctx);
             }
 
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 self.anchor_info = None;
+                self.info_changed_handle = None;
                 self.widget.deinit(ctx);
             }
 
@@ -427,6 +424,7 @@ impl WindowLayers {
                 anchor: anchor.into_var(),
                 mode: mode.into_var(),
                 widget: widget.cfg_boxed_wgt(),
+                info_changed_handle: None,
 
                 anchor_info: None,
                 offset_point: PxPoint::zero(),

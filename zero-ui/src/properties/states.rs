@@ -175,19 +175,21 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         child: C,
         state: StateVar,
         shortcut_press: Option<DeadlineVar>,
+        click_handle: Option<EventWidgetHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsShortcutPressedNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, false);
+            self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, false);
+            self.click_handle = None;
             self.child.deinit(ctx);
         }
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(&CLICK_EVENT);
             if let Some(timer) = &self.shortcut_press {
                 subs.var(ctx, timer);
             }
@@ -230,6 +232,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         child: child.cfg_boxed(),
         state,
         shortcut_press: None,
+        click_handle: None,
     }
     .cfg_boxed()
 }

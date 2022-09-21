@@ -1482,15 +1482,13 @@ impl ContentCtrl {
     pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         debug_assert!(self.inited);
 
-        if self.subs.event_contains(update) {
-            update.with_window(ctx, |ctx, update| {
-                ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                    update.with_widget(ctx, |ctx, update| {
-                        self.root.event(ctx, update);
-                    });
+        update.with_window(ctx, |ctx, update| {
+            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
+                update.with_widget(ctx, |ctx, update| {
+                    self.root.event(ctx, update);
                 });
             });
-        }
+        });
     }
 
     pub fn close(&mut self, ctx: &mut WindowContext) {
