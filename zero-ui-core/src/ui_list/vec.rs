@@ -332,6 +332,10 @@ impl UiNodeList for WidgetVec {
     fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         for widget in &mut self.vec {
             widget.event(ctx, update);
+
+            if update.delivery_list().is_done() {
+                break;
+            }
         }
     }
 
