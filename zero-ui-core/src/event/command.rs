@@ -428,8 +428,10 @@ impl Command {
             l.meta_inited = false;
             l.has_handlers = var(false);
             l.is_enabled = var(false);
-            l.enabled_count = 0;
-            l.handle_count = 0;
+
+            // can't clear these because handles may be dropped later.
+            // l.enabled_count = 0;
+            // l.handle_count = 0;
         });
     }
 }
@@ -576,6 +578,7 @@ impl CommandArgs {
 pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Cell<bool>,
+    _not_send: PhantomData<Rc<()>>,
 }
 impl CommandHandle {
     /// The command.
@@ -627,6 +630,7 @@ impl CommandHandle {
         CommandHandle {
             command: None,
             local_enabled: Cell::new(false),
+            _not_send: PhantomData,
         }
     }
 }
@@ -1091,6 +1095,7 @@ impl CommandData {
         CommandHandle {
             command: Some(command),
             local_enabled: Cell::new(enabled),
+            _not_send: PhantomData,
         }
     }
 }

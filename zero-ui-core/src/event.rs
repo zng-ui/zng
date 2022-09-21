@@ -276,7 +276,11 @@ impl AnyEvent {
     /// Register the widget to receive targeted events from this event.
     pub fn subscribe_widget(&self, widget_id: WidgetId) -> EventWidgetHandle {
         self.subscribe_widget_raw(widget_id);
-        EventWidgetHandle { event: *self, widget_id }
+        EventWidgetHandle {
+            event: *self,
+            widget_id,
+            _not_send: PhantomData,
+        }
     }
 }
 impl PartialEq for AnyEvent {
@@ -387,6 +391,7 @@ impl UpdateSubscribers for AnyEvent {
 pub struct EventWidgetHandle {
     widget_id: WidgetId,
     event: AnyEvent,
+    _not_send: PhantomData<std::rc::Rc<()>>,
 }
 impl EventWidgetHandle {
     /// The event.
