@@ -1,4 +1,3 @@
-* Try linear search in delivery list.
     - Merge.
 * Review event docs.
 * Update webrender.

@@ -3,6 +3,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use linear_map::set::LinearSet;
+
 use crate::{
     app::AppEventSender,
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
@@ -705,7 +707,7 @@ impl std::ops::BitOr for WindowRenderUpdate {
 pub struct UpdateDeliveryList {
     subscribers: Box<dyn UpdateSubscribers>,
 
-    windows: IdSet<WindowId>,
+    windows: LinearSet<WindowId>,
     widgets: IdSet<WidgetId>,
     search: IdSet<WidgetId>,
 }
@@ -723,7 +725,7 @@ impl UpdateDeliveryList {
     pub fn new(subscribers: Box<dyn UpdateSubscribers>) -> Self {
         Self {
             subscribers,
-            windows: IdSet::default(),
+            windows: LinearSet::default(),
             widgets: IdSet::default(),
             search: IdSet::default(),
         }
