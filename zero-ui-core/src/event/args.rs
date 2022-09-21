@@ -110,7 +110,7 @@ impl std::hash::Hash for EventPropagationHandle {
 ///         ..
 ///         
 ///         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-///             list.push_path(&self.target);
+///             list.insert_path(&self.target);
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.

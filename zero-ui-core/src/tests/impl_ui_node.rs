@@ -290,13 +290,15 @@ mod util {
     use std::{cell::RefCell, rc::Rc};
 
     use crate::{
-        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, TestWidgetContext, WidgetContext},
+        context::{
+            InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, TestWidgetContext, UpdateDeliveryList, WidgetContext,
+        },
         event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::*,
         widget_base::implicit_base,
         widget_info::{UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-        UiNode, Widget,
+        UiNode, Widget, WidgetId,
     };
 
     pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();
@@ -355,7 +357,10 @@ mod util {
         }
 
         pub fn notify_render_update(wgt: &mut impl Widget, ctx: &mut TestWidgetContext) {
-            wgt.test_event(ctx, &mut RENDER_UPDATE_EVENT.new_update(RenderUpdateArgs::now()));
+            wgt.test_event(
+                ctx,
+                &mut RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(wgt.id()), UpdateDeliveryList::new_any()),
+            );
         }
     }
     impl UiNode for TestTraceNode {
@@ -413,10 +418,12 @@ mod util {
 
     event_args! {
         struct RenderUpdateArgs {
+            target: WidgetId,
+
             ..
 
             fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-                list.search_all()
+                list.search_widget(self.target);
             }
         }
     }

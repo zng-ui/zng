@@ -831,6 +831,9 @@ pub trait Widget: UiNode {
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_event(&mut self, ctx: &mut TestWidgetContext, update: &mut EventUpdate) {
+        if update.delivery_list().has_pending_search() {
+            update.fulfill_search(Some(&ctx.info_tree).into_iter());
+        }
         ctx.widget_context(|ctx| self.event(ctx, update))
     }
 }

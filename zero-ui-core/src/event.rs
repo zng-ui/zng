@@ -167,9 +167,13 @@ impl<E: EventArgs> Event<E> {
         }
     }
 
-    /// Create an event update for this event.
+    /// Create an event update for this event with delivery list filtered by the event subscribers.
     pub fn new_update(&self, args: E) -> EventUpdate {
-        let mut delivery_list = UpdateDeliveryList::new(Box::new(self.as_any()));
+        self.new_update_custom(args, UpdateDeliveryList::new(Box::new(self.as_any())))
+    }
+
+    /// Create and event update for this event with a custom delivery list.
+    pub fn new_update_custom(&self, args: E, mut delivery_list: UpdateDeliveryList) -> EventUpdate {
         args.delivery_list(&mut delivery_list);
         EventUpdate {
             event_id: self.id(),
