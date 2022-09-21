@@ -105,7 +105,7 @@ pub trait RcNodeTakeSignal: 'static {
     }
 
     /// Returns `true` when the slot must take the node as its child.
-    fn event_take(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) -> bool {
+    fn event_take(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) -> bool {
         let _ = (ctx, update);
         false
     }
@@ -141,7 +141,7 @@ where
         A: EventArgs,
         F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
     {
-        fn event_take(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) -> bool {
+        fn event_take(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) -> bool {
             self.0.on(update).map(|a| (self.1)(ctx, a)).unwrap_or_default()
         }
     }
@@ -303,7 +303,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate)
+    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate)
     where
         Self: Sized,
     {

@@ -307,7 +307,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
             if WINDOW_LOAD_EVENT.has(update) {
                 self.task = Task::None;

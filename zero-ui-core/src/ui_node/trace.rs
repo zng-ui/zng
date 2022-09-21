@@ -56,7 +56,7 @@ where
         self.node.deinit(ctx);
     }
 
-    fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         let _span = (self.enter_mtd)(&mut ctx.as_info(), "event");
         self.node.event(ctx, update);
     }

@@ -172,7 +172,7 @@ impl WindowLayers {
                 self.widget.deinit(ctx);
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == ctx.path.window_id() {
                         self.anchor_info = ctx

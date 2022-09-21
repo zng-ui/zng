@@ -50,8 +50,8 @@ event_args! {
         ..
 
         /// The [`target`](Self::target).
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target)
         }
     }
 
@@ -69,8 +69,8 @@ event_args! {
         ..
 
         /// The [`target`](Self::target).
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target)
         }
     }
 
@@ -85,8 +85,8 @@ event_args! {
         ..
 
         /// Broadcast to all.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::all()
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 }
@@ -189,7 +189,7 @@ impl AppExtension for KeyboardManager {
         r.services.register(kb);
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = Focus::req(ctx.services).focused().get_clone(ctx);
             let keyboard = Keyboard::req(ctx.services);

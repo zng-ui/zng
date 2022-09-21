@@ -1,11 +1,12 @@
 //! App event and commands API.
 
-use std::{any::Any, fmt, marker::PhantomData, ops::Deref, thread::LocalKey, time::Instant};
+use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, ops::Deref, thread::LocalKey, time::Instant};
 
 use crate::{
-    context::{WidgetContext, WindowContext},
-    crate_util::RunOnDrop,
-    widget_info::EventSlot,
+    context::{UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
+    crate_util::{IdMap, IdSet},
+    widget_info::{EventSlot, WidgetInfoTree},
+    WidgetId,
 };
 
 mod args;
@@ -79,6 +80,7 @@ pub use crate::event_macro as event;
 pub struct EventData {
     slot: EventSlot,
     name: &'static str,
+    widget_subs: RefCell<IdMap<WidgetId, usize>>,
 }
 impl EventData {
     #[doc(hidden)]
@@ -86,6 +88,7 @@ impl EventData {
         EventData {
             slot: EventSlot::next(),
             name,
+            widget_subs: RefCell::default(),
         }
     }
 
@@ -110,7 +113,7 @@ pub struct Event<E: EventArgs> {
 impl<E: EventArgs> fmt::Debug for Event<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "Event<{}>", self.name())
+            write!(f, "Event({})", self.name())
         } else {
             write!(f, "{}", self.name())
         }
@@ -135,6 +138,11 @@ impl<E: EventArgs> Event<E> {
     /// Event slot in the app of the current thread.
     pub fn slot(&self) -> EventSlot {
         self.local.with(EventData::slot)
+    }
+
+    /// Register the widget to receive targeted events from this event.
+    pub fn subscribe_widget(&self, widget_id: WidgetId) -> EventWidgetHandle {
+        self.as_any().subscribe_widget(widget_id)
     }
 
     /// Event name.
@@ -172,11 +180,13 @@ impl<E: EventArgs> Event<E> {
 
     /// Create an event update for this event.
     pub fn new_update(&self, args: E) -> EventUpdate {
+        let mut delivery_list = UpdateDeliveryList::new_any(); // ::new(Box::new(self.as_any()));
+        args.delivery_list(&mut delivery_list);
         EventUpdate {
             event_id: self.id(),
             event_slot: self.slot(),
             event_name: self.name(),
-            delivery_list: args.delivery_list(),
+            delivery_list,
             timestamp: args.timestamp(),
             propagation: args.propagation().clone(),
 
@@ -216,6 +226,15 @@ impl<E: EventArgs> Eq for Event<E> {}
 pub struct AnyEvent {
     local: &'static LocalKey<EventData>,
 }
+impl fmt::Debug for AnyEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "AnyEvent({})", self.name())
+        } else {
+            write!(f, "{}", self.name())
+        }
+    }
+}
 impl AnyEvent {
     /// Event ID.
     pub fn id(&self) -> EventId {
@@ -241,6 +260,33 @@ impl AnyEvent {
     pub fn has(&self, update: &EventUpdate) -> bool {
         self.id() == update.event_id
     }
+
+    fn unsubscribe_widget(&self, widget_id: WidgetId) {
+        self.local.with(|l| match l.widget_subs.borrow_mut().entry(widget_id) {
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                let i = e.get_mut();
+                if *i == 1 {
+                    e.remove();
+                } else {
+                    *i -= 1;
+                }
+            }
+            std::collections::hash_map::Entry::Vacant(_) => unreachable!(),
+        })
+    }
+
+    /// Register the widget to receive targeted events from this event.
+    pub fn subscribe_widget(&self, widget_id: WidgetId) -> EventWidgetHandle {
+        self.local.with(|l| match l.widget_subs.borrow_mut().entry(widget_id) {
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                *e.get_mut() += 1;
+            }
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(1);
+            }
+        });
+        EventWidgetHandle { event: *self, widget_id }
+    }
 }
 impl PartialEq for AnyEvent {
     fn eq(&self, other: &Self) -> bool {
@@ -264,7 +310,7 @@ pub struct EventUpdate {
     event_id: EventId,
     event_slot: EventSlot,
     event_name: &'static str,
-    delivery_list: EventDeliveryList,
+    delivery_list: UpdateDeliveryList,
     timestamp: Instant,
     propagation: EventPropagationHandle,
     args: Box<dyn Any>,
@@ -286,7 +332,7 @@ impl EventUpdate {
     }
 
     /// Event delivery list.
-    pub fn delivery_list(&self) -> &EventDeliveryList {
+    pub fn delivery_list(&self) -> &UpdateDeliveryList {
         &self.delivery_list
     }
 
@@ -303,25 +349,26 @@ impl EventUpdate {
         &self.propagation
     }
 
-    /// Calls `handle` if the event targets the window.
+    /// Find all targets.
     ///
-    /// Good window implementations should check if the window event subscriptions includes the event slot before calling this.
-    pub fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_window(ctx) {
-            let _clean = RunOnDrop::new(|| self.delivery_list.exit_window());
-            Some(handle(ctx))
+    /// This must be called before the first window visit, see [`UpdateDeliveryList::fulfill_search`] for details.
+    pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
+        self.delivery_list.fulfill_search(windows)
+    }
+
+    /// Calls `handle` if the event targets the window.
+    pub fn with_window<H: FnOnce(&mut WindowContext, &mut Self) -> R, R>(&mut self, ctx: &mut WindowContext, handle: H) -> Option<R> {
+        if self.delivery_list.enter_window(*ctx.window_id) {
+            Some(handle(ctx, self))
         } else {
             None
         }
     }
 
     /// Calls `handle` if the event targets the widget.
-    ///
-    /// Good widget implementations should check if the widget event subscriptions includes the event slot before calling this.
-    pub fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
+    pub fn with_widget<H: FnOnce(&mut WidgetContext, &mut Self) -> R, R>(&mut self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
         if self.delivery_list.enter_widget(ctx.path.widget_id()) {
-            let _clean = RunOnDrop::new(|| self.delivery_list.exit_widget());
-            Some(handle(ctx))
+            Some(handle(ctx, self))
         } else {
             None
         }
@@ -331,11 +378,49 @@ impl fmt::Debug for EventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("EventUpdate")
             .field("event_id", &self.event_id)
-            .field("event_slot", &self.event_slot)
             .field("event_name", &self.event_name)
             .field("delivery_list", &self.delivery_list)
             .field("timestamp", &self.timestamp)
             .field("propagation", &self.propagation)
             .finish_non_exhaustive()
+    }
+}
+
+impl UpdateSubscribers for AnyEvent {
+    fn contains(&self, widget_id: WidgetId) -> bool {
+        self.local.with(|l| l.widget_subs.borrow().contains_key(&widget_id))
+    }
+
+    fn to_set(&self) -> IdSet<WidgetId> {
+        self.local.with(|l| l.widget_subs.borrow().keys().copied().collect())
+    }
+}
+
+/// Handle to an event subscription for a widget.
+#[derive(Debug)]
+#[must_use = "only widgets with subscription handles receive the event"]
+pub struct EventWidgetHandle {
+    widget_id: WidgetId,
+    event: AnyEvent,
+}
+impl EventWidgetHandle {
+    /// The event.
+    pub fn event(&self) -> AnyEvent {
+        self.event
+    }
+
+    /// The widget.
+    pub fn widget_id(&self) -> WidgetId {
+        self.widget_id
+    }
+}
+impl Clone for EventWidgetHandle {
+    fn clone(&self) -> Self {
+        self.event.subscribe_widget(self.widget_id)
+    }
+}
+impl Drop for EventWidgetHandle {
+    fn drop(&mut self) {
+        self.event.unsubscribe_widget(self.widget_id);
     }
 }

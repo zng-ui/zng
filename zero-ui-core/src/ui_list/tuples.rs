@@ -225,7 +225,7 @@ macro_rules! impl_tuples {
                 $(self.items.$n.update(ctx);)+
             }
 
-            fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 $(self.items.$n.event(ctx, update);)+
             }
 
@@ -453,7 +453,7 @@ macro_rules! empty_node_list {
 
             fn update_all<O: UiListObserver>(&mut self, _: &mut WidgetContext, _: &mut O) {}
 
-            fn event_all(&mut self, _: &mut WidgetContext, _: &EventUpdate) {}
+            fn event_all(&mut self, _: &mut WidgetContext, _: &mut EventUpdate) {}
 
             fn measure_all<C, D>(&self, _: &mut MeasureContext, _: C, _: D)
             where

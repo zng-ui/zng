@@ -313,7 +313,7 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         for widget in &mut self.vec {
             widget.event(ctx, update);
         }

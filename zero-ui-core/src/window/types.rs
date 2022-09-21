@@ -605,9 +605,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets in the window.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 
@@ -620,13 +620,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets in the window.
-        fn delivery_list(&self) -> EventDeliveryList {
-            let mut list = EventDeliveryList::none();
-            for w in self.windows.iter() {
-                list = list.with_window(*w);
-            }
-            list
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 
@@ -649,9 +645,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets in the window.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 
@@ -668,9 +664,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets in the previous and new focused window.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window_opt(self.prev_focus).with_window_opt(self.new_focus)
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 
@@ -699,9 +695,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets in the window.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 
@@ -720,9 +716,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets in the window.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 
@@ -740,13 +736,9 @@ event_args! {
 
         ..
 
-        /// Broadcast to all widgets in the windows.
-        fn delivery_list(&self) -> EventDeliveryList {
-            let mut list = EventDeliveryList::none();
-            for w in self.windows.iter() {
-                list = list.with_window(*w);
-            }
-            list
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 }

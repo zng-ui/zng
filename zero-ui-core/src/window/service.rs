@@ -9,7 +9,7 @@ use super::*;
 use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap};
-use crate::event::EventUpdate;
+use crate::event::{EventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
 use crate::service::Service;
@@ -483,7 +483,7 @@ impl Windows {
         }
     }
 
-    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             let wns = Windows::req(ctx.services);
 
@@ -543,7 +543,10 @@ impl Windows {
         })
     }
 
-    pub(super) fn on_ui_event(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(super) fn on_ui_event(ctx: &mut AppContext, update: &mut EventUpdate) {
+        if update.delivery_list().has_pending_search() {
+            update.fulfill_search(Windows::req(ctx).windows_info.values().map(|w| &w.widget_tree));
+        }
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
                 window.ui_event(ctx, update);
@@ -551,7 +554,7 @@ impl Windows {
         });
     }
 
-    pub(super) fn on_event(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(super) fn on_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
             let key = args.windows.iter().next().unwrap();
             if let Some(rsp) = Windows::req(ctx.services).close_responders.remove(key) {
@@ -837,11 +840,11 @@ impl AppWindow {
         }
     }
 
-    pub fn pre_event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    pub fn pre_event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.pre_event(ctx, update))
     }
 
-    pub fn ui_event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    pub fn ui_event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.ui_event(ctx, update))
     }
 

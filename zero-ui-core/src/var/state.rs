@@ -34,7 +34,7 @@ pub fn event_state<A: EventArgs>(
             subs.event(&self.event);
             self.child.subscriptions(ctx, subs);
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
                 if let Some(state) = (self.on_event)(ctx, args) {
                     self.state.set_ne(ctx, state);
@@ -100,7 +100,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
             subs.event(&self.events.0).event(&self.events.1);
             self.child.subscriptions(ctx, subs);
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             let mut updated = false;
             if let Some(args) = self.events.0.on(update) {
                 if let Some(state) = (self.on_events.0)(ctx, args) {
@@ -191,7 +191,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
             subs.event(&self.events.0).event(&self.events.1).event(&self.events.2);
             self.child.subscriptions(ctx, subs);
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             let mut updated = false;
             if let Some(args) = self.events.0.on(update) {
                 if let Some(state) = (self.on_events.0)(ctx, args) {

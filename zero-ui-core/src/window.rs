@@ -57,16 +57,16 @@ impl AppExtension for WindowManager {
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         Monitors::on_pre_event(ctx, update);
         Windows::on_pre_event(ctx, update);
     }
 
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         Windows::on_ui_event(ctx, update);
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         Windows::on_event(ctx, update);
     }
 

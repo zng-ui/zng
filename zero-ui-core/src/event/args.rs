@@ -1,6 +1,5 @@
 use std::{
-    cell::{Cell, RefCell},
-    fmt, mem,
+    fmt,
     sync::{
         atomic::{self, AtomicBool},
         Arc,
@@ -8,7 +7,7 @@ use std::{
     time::Instant,
 };
 
-use crate::{context::WindowContext, window::WindowId, WidgetId, WidgetPath};
+use crate::context::UpdateDeliveryList;
 
 /// [`Event<A>`] arguments.
 ///
@@ -17,8 +16,8 @@ pub trait EventArgs: fmt::Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;
 
-    /// Generate an [`EventDeliveryList`] that defines all targets of the event.
-    fn delivery_list(&self) -> EventDeliveryList;
+    /// Insert all targets of this event on the [`UpdateDeliveryList`].
+    fn delivery_list(&self, list: &mut UpdateDeliveryList);
 
     /// Propagation handle associated with this event instance.
     ///
@@ -93,276 +92,6 @@ impl std::hash::Hash for EventPropagationHandle {
     }
 }
 
-#[derive(Debug)]
-struct WindowDelivery {
-    id: WindowId,
-    widgets: Vec<WidgetPath>,
-    all: bool,
-}
-
-/// Delivery list for an [`EventArgs`].
-///
-/// Windows and widgets use this list to find all targets of the event.
-pub struct EventDeliveryList {
-    windows: RefCell<Vec<WindowDelivery>>,
-    all: bool,
-    window: Cell<usize>,
-    depth: Cell<usize>,
-
-    search: RefCell<Vec<WidgetId>>,
-}
-impl fmt::Debug for EventDeliveryList {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "EventDeliveryList {{")?;
-        if self.all {
-            writeln!(f, "   <all-widgets>")?;
-        } else {
-            for w in self.windows.borrow().iter() {
-                if w.all {
-                    writeln!(f, "   {}//<all-widgets>", w.id)?;
-                } else {
-                    for wgt in w.widgets.iter() {
-                        writeln!(f, "   {wgt}")?;
-                    }
-                }
-            }
-        }
-        writeln!(f, "}}")
-    }
-}
-impl Default for EventDeliveryList {
-    /// None.
-    fn default() -> Self {
-        Self::none()
-    }
-}
-impl EventDeliveryList {
-    /// Target no widgets or windows.
-    ///
-    /// Only app extensions receive the event.
-    pub fn none() -> Self {
-        Self {
-            windows: RefCell::new(vec![]),
-            all: false,
-            window: Cell::new(0),
-            depth: Cell::new(0),
-
-            search: RefCell::new(vec![]),
-        }
-    }
-
-    /// Target all widgets and windows.
-    ///
-    /// The event is broadcast to everyone.
-    pub fn all() -> Self {
-        let mut s = Self::none();
-        s.all = true;
-        s
-    }
-
-    /// All widgets inside the window.
-    pub fn window(window_id: WindowId) -> Self {
-        Self::none().with_window(window_id)
-    }
-
-    /// All widgets inside the window.
-    pub fn window_opt(window_id: Option<WindowId>) -> Self {
-        Self::none().with_window_opt(window_id)
-    }
-
-    /// All widgets in the path.
-    pub fn widgets(widget_path: &WidgetPath) -> Self {
-        Self::none().with_widgets(widget_path)
-    }
-
-    /// All widgets in each path on the list.
-    pub fn widgets_list<'a>(list: impl IntoIterator<Item = &'a WidgetPath>) -> Self {
-        Self::none().with_widgets_list(list)
-    }
-
-    /// All widgets in the path.
-    pub fn widgets_opt(widget_path: Option<&WidgetPath>) -> Self {
-        Self::none().with_widgets_opt(widget_path)
-    }
-
-    /// A widget ID to be searched before send.
-    ///
-    /// The windows info trees are searched before the event is send for delivery.
-    pub fn find_widget(widget_id: WidgetId) -> Self {
-        Self::none().with_find_widget(widget_id)
-    }
-
-    /// Add all widgets inside the window for delivery.
-    ///
-    /// The event is broadcast inside the window.
-    pub fn with_window(mut self, window_id: WindowId) -> Self {
-        if self.all {
-            return self;
-        }
-
-        if let Some(w) = self.windows.get_mut().iter_mut().find(|w| w.id == window_id) {
-            w.widgets.clear();
-            w.all = true;
-        } else {
-            self.windows.get_mut().push(WindowDelivery {
-                id: window_id,
-                widgets: vec![],
-                all: true,
-            });
-        }
-        self
-    }
-
-    /// All the widgets in the window if it is some.
-    pub fn with_window_opt(self, window_id: Option<WindowId>) -> Self {
-        if let Some(window_id) = window_id {
-            self.with_window(window_id)
-        } else {
-            self
-        }
-    }
-
-    /// Add the widgets in the path to the delivery.
-    pub fn with_widgets(mut self, widget_path: &WidgetPath) -> Self {
-        if self.all {
-            return self;
-        }
-
-        if let Some(w) = self.windows.get_mut().iter_mut().find(|w| w.id == widget_path.window_id()) {
-            if !w.all {
-                w.widgets.push(widget_path.clone());
-            }
-        } else {
-            self.windows.get_mut().push(WindowDelivery {
-                id: widget_path.window_id(),
-                widgets: vec![widget_path.clone()],
-                all: false,
-            })
-        }
-        self
-    }
-
-    /// All the widgets in each path on the list.
-    pub fn with_widgets_list<'a>(mut self, list: impl IntoIterator<Item = &'a WidgetPath>) -> Self {
-        for path in list {
-            self = self.with_widgets(path);
-        }
-        self
-    }
-
-    /// Add the widgets in the path if it is some.
-    pub fn with_widgets_opt(self, widget_path: Option<&WidgetPath>) -> Self {
-        if let Some(path) = widget_path {
-            self.with_widgets(path)
-        } else {
-            self
-        }
-    }
-
-    /// A widget ID to be searched before send.
-    ///
-    /// The windows info trees are searched before the event is send for delivery.
-    pub fn with_find_widget(mut self, widget_id: WidgetId) -> Self {
-        self.search.get_mut().push(widget_id);
-        self
-    }
-
-    /// Returns `true` if the event has target in the window.
-    pub fn enter_window(&self, ctx: &mut WindowContext) -> bool {
-        if self.all {
-            return true;
-        }
-
-        self.find_widgets(ctx);
-
-        let window_id = *ctx.window_id;
-
-        if let Some(i) = self.windows.borrow().iter().position(|w| w.id == window_id) {
-            self.window.set(i);
-            self.depth.set(0);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Returns `true` if the event has targets in the widget or targets the widget.
-    pub fn enter_widget(&self, widget_id: WidgetId) -> bool {
-        if self.all {
-            self.depth.set(self.depth.get() + 1);
-            return true;
-        }
-
-        let windows = self.windows.borrow();
-
-        if windows.is_empty() {
-            self.depth.set(self.depth.get() + 1);
-            return false;
-        }
-
-        let window = &windows[self.window.get()];
-        if window.all {
-            self.depth.set(self.depth.get() + 1);
-            true
-        } else {
-            for path in &window.widgets {
-                let path = path.widgets_path();
-                if path.len() > self.depth.get() && path[self.depth.get()] == widget_id {
-                    self.depth.set(self.depth.get() + 1);
-                    return true;
-                }
-            }
-            false
-        }
-    }
-
-    /// Must be called if [`enter_widget`] returned `true`.
-    ///
-    /// [`enter_widget`]: Self::enter_widget
-    pub fn exit_widget(&self) {
-        self.depth.set(self.depth.get() - 1);
-    }
-
-    /// Must be called if [`exit_window`] returned `true`.
-    ///
-    /// [`exit_window`]: Self::exit_window
-    pub fn exit_window(&self) {
-        self.depth.set(0);
-    }
-
-    /// Resolve `find_widget` pending queries.
-    fn find_widgets(&self, ctx: &mut WindowContext) {
-        let search = mem::take(&mut *self.search.borrow_mut());
-
-        if self.all || search.is_empty() {
-            return;
-        }
-
-        if let Some(windows) = ctx.services.get::<crate::window::Windows>() {
-            let mut self_windows = self.windows.borrow_mut();
-            'search: for wgt in search {
-                for win in windows.widget_trees() {
-                    if let Some(info) = win.get(wgt) {
-                        if let Some(w) = self_windows.iter_mut().find(|w| w.id == win.window_id()) {
-                            if !w.all {
-                                w.widgets.push(info.path());
-                            }
-                        } else {
-                            self_windows.push(WindowDelivery {
-                                id: win.window_id(),
-                                widgets: vec![info.path()],
-                                all: false,
-                            });
-                        }
-
-                        continue 'search;
-                    }
-                }
-            }
-        }
-    }
-}
-
 ///<span data-del-macro-root></span> Declares new [`EventArgs`] types.
 ///
 /// # Examples
@@ -379,10 +108,9 @@ impl EventDeliveryList {
 ///         pub target: WidgetPath,
 ///
 ///         ..
-///
-///         /// If `target` starts with the current path.
-///         fn delivery_list(&self) -> EventDeliveryList {
-///             EventDeliveryList::widgets(&self.target)
+///         
+///         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+///             list.push_path(&self.target);
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
@@ -410,7 +138,7 @@ macro_rules! event_args {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
+            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
 
             $(
                 $(#[$validate_outer:meta])*
@@ -426,7 +154,7 @@ macro_rules! event_args {
                 ..
 
                 $(#[$delivery_list_outer])*
-                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
+                fn delivery_list(&$self, $delivery_list_ident: &mut UpdateDeliveryList) { $($delivery_list)* }
 
                 $(
                     $(#[$validate_outer])*
@@ -446,7 +174,7 @@ macro_rules! __event_args {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
+            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
 
             $(#[$validate_outer:meta])*
             fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
@@ -459,7 +187,7 @@ macro_rules! __event_args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
                 $(#[$delivery_list_outer])*
-                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
+                fn delivery_list(&$self, $delivery_list_ident: &mut UpdateDeliveryList) { $($delivery_list)* }
             }
         }
         impl $Args {
@@ -543,7 +271,7 @@ macro_rules! __event_args {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
+            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
         }
     ) => {
         $crate::__event_args! {common=>
@@ -553,7 +281,7 @@ macro_rules! __event_args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
                 $(#[$delivery_list_outer])*
-                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+  }
+                fn delivery_list(&$self, $delivery_list_ident: &mut UpdateDeliveryList) { $($delivery_list)*  }
             }
         }
 
@@ -588,7 +316,7 @@ macro_rules! __event_args {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
+            fn delivery_list(&$self:ident, $delivery_list_ident:ident: &mut UpdateDeliveryList) { $($delivery_list:tt)* }
         }
     ) => {
         $(#[$outer])*
@@ -600,30 +328,6 @@ macro_rules! __event_args {
 
             propagation_handle: $crate::event::EventPropagationHandle,
         }
-        impl $Args {
-            /// Propagation handle associated with this event instance.
-            #[allow(unused)]
-            pub fn propagation(&self) -> &$crate::event::EventPropagationHandle {
-                <Self as $crate::event::EventArgs>::propagation(self)
-            }
-
-            $(#[$delivery_list_outer])*
-            #[allow(unused)]
-            pub fn delivery_list(&self) -> $crate::event::EventDeliveryList {
-                <Self as $crate::event::EventArgs>::delivery_list(self)
-            }
-
-            /// Calls `handler` and stops propagation if propagation is still allowed.
-            ///
-            /// Returns the `handler` result if it was called.
-            #[allow(unused)]
-            pub fn handle<F, R>(&self, handler: F) -> Option<R>
-            where
-                F: FnOnce(&Self) -> R,
-            {
-                <Self as $crate::event::EventArgs>::handle(self, handler)
-            }
-        }
         impl $crate::event::EventArgs for $Args {
 
             fn timestamp(&self) -> std::time::Instant {
@@ -632,10 +336,11 @@ macro_rules! __event_args {
 
 
             $(#[$delivery_list_outer])*
-            fn delivery_list(&$self) -> $crate::event::EventDeliveryList {
-                use $crate::event::EventDeliveryList;
+            fn delivery_list(&$self, $delivery_list_ident: &mut $crate::context::UpdateDeliveryList) {
+                #[allow(unused_imports)]
+                use $crate::context::UpdateDeliveryList;
 
-                $($delivery_list)+
+                $($delivery_list)*
             }
 
 

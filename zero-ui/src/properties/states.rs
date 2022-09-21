@@ -193,7 +193,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             self.child.subscriptions(ctx, subs);
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = CLICK_EVENT.on(update) {
                 if args.shortcut().is_some() {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`

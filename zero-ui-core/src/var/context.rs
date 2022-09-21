@@ -669,7 +669,7 @@ mod properties {
                 self.with_mut(ctx.vars, |c| c.update(ctx));
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.with_mut(ctx.vars, |c| c.event(ctx, update));
             }
 
@@ -760,7 +760,7 @@ mod properties {
                 self.with_mut(ctx.vars, |c| c.update(ctx));
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.with_mut(ctx.vars, |c| c.event(ctx, update));
             }
 

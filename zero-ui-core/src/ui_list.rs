@@ -72,7 +72,7 @@ pub trait UiNodeList: 'static {
     fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O);
 
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate);
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
 
     /// Calls [`UiNode::measure`] in all widgets in the list, sequentially.
     ///

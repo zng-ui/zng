@@ -154,7 +154,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                 if self.valid && self.enabled.copy(ctx) {
                     let factor = WindowVars::req(ctx).scale_factor().copy(ctx.vars);
@@ -270,7 +270,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 if let Some(orientation) = self.orientation.copy(ctx) {
                     let mut none = true;

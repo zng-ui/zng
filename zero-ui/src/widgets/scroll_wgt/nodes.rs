@@ -310,7 +310,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
 
             let scope = ctx.path.widget_id();
@@ -446,7 +446,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
 
             let scope = ctx.path.widget_id();
@@ -578,7 +578,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             self.rightmost.set_enabled(ScrollContext::can_scroll_right(ctx));
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
 
             let scope = ctx.path.widget_id();
@@ -639,7 +639,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             let self_id = ctx.path.widget_id();
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if let Some(path) = &args.new_focus {
@@ -796,7 +796,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
                 if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.copy(ctx)) {
                     args.handle(|_| {

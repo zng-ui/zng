@@ -134,8 +134,13 @@ event_args! {
         ..
 
         /// The [`prev_focus`](Self::prev_focus) and [`new_focus`](Self::new_focus).
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(self.prev_focus.as_deref()).with_widgets_opt(self.new_focus.as_deref())
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            if let Some(prev) = &self.prev_focus {
+                list.insert_path(prev);
+            }
+            if let Some(new) = &self.new_focus {
+                list.insert_path(new);
+            }
         }
     }
 
@@ -156,10 +161,16 @@ event_args! {
 
         /// The [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
         /// and [`scope`](Self::scope).
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(self.scope.as_deref())
-                .with_widgets_opt(self.prev_return.as_deref())
-                .with_widgets_opt(self.new_return.as_deref())
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            if let Some(scope) = &self.scope {
+                list.insert_path(scope)
+            }
+            if let Some(prev_return) = &self.prev_return {
+                list.insert_path(prev_return)
+            }
+            if let Some(new_return) = &self.new_return {
+                list.insert_path(new_return)
+            }
         }
     }
 }
@@ -400,7 +411,7 @@ impl AppExtension for FocusManager {
         self.commands = Some(FocusCommands::new(ctx.events));
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
             if Focus::req(ctx)
                 .focused
@@ -447,7 +458,7 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         let mut request = None;
 
         if let Some(args) = MOUSE_INPUT_EVENT.on(update) {

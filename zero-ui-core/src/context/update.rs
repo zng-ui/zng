@@ -1,14 +1,16 @@
 use std::{
-    mem,
+    fmt, mem,
     ops::{Deref, DerefMut},
 };
 
 use crate::{
     app::AppEventSender,
-    crate_util::{Handle, HandleOwner, WeakHandle},
+    crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::EventUpdate,
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
-    widget_info::UpdateMask,
+    widget_info::{UpdateMask, WidgetInfoTree},
+    window::WindowId,
+    WidgetId, WidgetPath,
 };
 
 use super::{AppContext, UpdatesTrace};
@@ -697,4 +699,134 @@ impl std::ops::BitOr for WindowRenderUpdate {
         self |= rhs;
         self
     }
+}
+
+/// Represents all the widgets and windows on route to an update target.
+pub struct UpdateDeliveryList {
+    subscribers: Box<dyn UpdateSubscribers>,
+
+    windows: IdSet<WindowId>,
+    widgets: IdSet<WidgetId>,
+    search: IdSet<WidgetId>,
+}
+impl fmt::Debug for UpdateDeliveryList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UpdateDeliveryList")
+            .field("windows", &self.windows)
+            .field("widgets", &self.widgets)
+            .field("search", &self.search)
+            .finish_non_exhaustive()
+    }
+}
+impl UpdateDeliveryList {
+    /// New list that only allows `subscribers`.
+    pub fn new(subscribers: Box<dyn UpdateSubscribers>) -> Self {
+        Self {
+            subscribers,
+            windows: IdSet::default(),
+            widgets: IdSet::default(),
+            search: IdSet::default(),
+        }
+    }
+
+    /// New list that does not allow any entry.
+    pub fn new_none() -> Self {
+        struct UpdateDeliveryListNone;
+        impl UpdateSubscribers for UpdateDeliveryListNone {
+            fn contains(&self, _: WidgetId) -> bool {
+                false
+            }
+            fn to_set(&self) -> IdSet<WidgetId> {
+                IdSet::default()
+            }
+        }
+        Self::new(Box::new(UpdateDeliveryListNone))
+    }
+
+    /// New list that does allows all entries.
+    pub fn new_any() -> Self {
+        struct UpdateDeliveryListAny;
+        impl UpdateSubscribers for UpdateDeliveryListAny {
+            fn contains(&self, _: WidgetId) -> bool {
+                true
+            }
+            fn to_set(&self) -> IdSet<WidgetId> {
+                IdSet::default()
+            }
+        }
+        Self::new(Box::new(UpdateDeliveryListAny))
+    }
+
+    /// Insert the widgets in the `path` up-to the inner most that is included in the subscribers.
+    pub fn insert_path(&mut self, path: &WidgetPath) {
+        if let Some(i) = path.widgets_path().iter().rposition(|w| self.subscribers.contains(*w)) {
+            self.windows.insert(path.window_id());
+            for w in &path.widgets_path()[..=i] {
+                self.widgets.insert(*w);
+            }
+        }
+    }
+
+    /// Register all subscribers for search and delivery.
+    pub fn search_all(&mut self) {
+        self.search = self.subscribers.to_set();
+    }
+
+    /// Register the widget of unknown location for search before delivery routing starts.
+    pub fn search_widget(&mut self, widget_id: WidgetId) {
+        if self.subscribers.contains(widget_id) {
+            self.search.insert(widget_id);
+        }
+    }
+
+    /// If the the list has pending widgets that must be found before delivery can start.
+    pub fn has_pending_search(&self) -> bool {
+        !self.search.is_empty()
+    }
+
+    /// Search all pending widgets in all `windows`, all search items are cleared, even if not found.
+    pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
+        for window in windows {
+            self.search.retain(|w| {
+                if let Some(w) = window.get(*w) {
+                    for w in w.self_and_ancestors() {
+                        self.widgets.insert(w.widget_id());
+                    }
+                    self.windows.insert(window.window_id());
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+        self.search.clear();
+    }
+
+    /// Returns `true` if the window is on the list.
+    ///
+    /// The window is removed from the list.
+    pub fn enter_window(&mut self, window_id: WindowId) -> bool {
+        self.windows.remove(&window_id)
+    }
+
+    /// Returns `true` if the widget is on the list.
+    ///
+    /// The widget is removed from the list.
+    pub fn enter_widget(&mut self, widget_id: WidgetId) -> bool {
+        self.widgets.remove(&widget_id)
+    }
+
+    /// Returns `true` if has entered all widgets on the list.
+    pub fn is_done(&self) -> bool {
+        self.widgets.is_empty()
+    }
+}
+
+/// Represents a set of widgets that subscribe to an event source.
+pub trait UpdateSubscribers: 'static {
+    /// Returns `true` if the widget is one of the subscribers.
+    fn contains(&self, widget_id: WidgetId) -> bool;
+
+    /// Gets all subscribers as a set.
+    fn to_set(&self) -> IdSet<WidgetId>;
 }

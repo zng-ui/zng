@@ -202,7 +202,7 @@ where
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
             if let Some(args) = self.event.on(update) {
                 if !args.propagation().is_stopped() && (self.filter)(ctx, args) {
@@ -284,7 +284,7 @@ where
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
                 if !args.propagation().is_stopped() && (self.filter)(ctx, args) {
                     self.handler.event(ctx, args);

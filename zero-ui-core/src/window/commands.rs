@@ -85,7 +85,7 @@ impl WindowCommands {
         }
     }
 
-    pub fn event(&mut self, ctx: &mut WindowContext, window_vars: &WindowVars, update: &EventUpdate) {
+    pub fn event(&mut self, ctx: &mut WindowContext, window_vars: &WindowVars, update: &mut EventUpdate) {
         let scope = *ctx.window_id;
         if let Some(args) = MAXIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.maximize_handle, |_| {

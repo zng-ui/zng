@@ -95,8 +95,8 @@ event_args! {
         /// The [`target`].
         ///
         /// [`target`]: Self::target
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target)
         }
     }
 
@@ -122,8 +122,8 @@ event_args! {
         ..
 
         /// No target, only app extensions.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::none()
+        fn delivery_list(&self, _list: &mut UpdateDeliveryList) {
+
         }
     }
 }
@@ -757,7 +757,7 @@ impl AppExtension for GestureManager {
         r.services.register(Gestures::new());
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_CLICK_EVENT.on(update) {
             // Generate click events from mouse clicks.
             if !args.propagation().is_stopped() {

@@ -139,7 +139,7 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         }
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         self.list.event_all(ctx, update)
     }
 

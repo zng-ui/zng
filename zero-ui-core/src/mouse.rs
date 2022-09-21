@@ -54,9 +54,11 @@ event_args! {
         ///
         /// [`target`]: Self::target
         /// [`capture`]: Self::capture
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
-                .with_widgets_opt(self.capture.as_ref().map(|p|&p.target))
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target);
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
+            }
         }
     }
 
@@ -107,10 +109,14 @@ event_args! {
         /// [`target`]: Self::target
         /// [`prev_pressed`]: Self::prev_pressed
         /// [`capture`]: Self::capture
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
-                .with_widgets_opt(self.prev_pressed.as_deref())
-                .with_widgets_opt(self.capture.as_ref().map(|c| &c.target))
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target);
+            if let Some(p) = &self.prev_pressed {
+                list.insert_path(p);
+            }
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
+            }
         }
     }
 
@@ -160,8 +166,8 @@ event_args! {
         /// The [`target`].
         ///
         /// [`target`]: MouseClickArgs::target
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target)
         }
     }
 
@@ -203,10 +209,16 @@ event_args! {
         /// [`target`]: Self::target
         /// [`prev_target`]: Self::prev_target
         /// [`capture`]: Self::capture
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(self.prev_target.as_deref())
-                .with_widgets_opt(self.target.as_deref())
-                .with_widgets_opt(self.capture.as_ref().map(|c|&c.target))
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            if let Some(p) = &self.prev_target {
+                list.insert_path(p);
+            }
+            if let Some(p) = &self.target {
+                list.insert_path(p);
+            }
+            if let Some(c) = &self.capture {
+                list.insert_path(&c.target);
+            }
         }
     }
 
@@ -223,15 +235,13 @@ event_args! {
         ///
         /// [`prev_capture`]: Self::prev_capture
         /// [`new_capture`]: Self::new_capture
-        fn delivery_list(&self) -> EventDeliveryList {
-            let mut list = EventDeliveryList::none();
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             if let Some((p, _)) = &self.prev_capture {
-                list = list.with_widgets(p);
+                list.insert_path(p);
             }
             if let Some((p, _)) = &self.new_capture {
-                list = list.with_widgets(p);
+                list.insert_path(p);
             }
-            list
         }
     }
 
@@ -265,8 +275,8 @@ event_args! {
         /// The [`target`].
         ///
         /// [`target`]: MouseWheelArgs::target
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.target)
         }
     }
 }
@@ -1117,7 +1127,7 @@ impl AppExtension for MouseManager {
             .register(Mouse::new(ctx.updates.sender(), self.multi_click_config.clone()));
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
@@ -1217,7 +1227,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_CAPTURE_EVENT.on(update) {
             if let Some(path) = &self.hovered {
                 if let Some(window_id) = self.pos_window {

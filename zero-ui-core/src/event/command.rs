@@ -313,7 +313,7 @@ impl Command {
     }
 
     /// Returns `true` if the update is for this command and scope.
-    pub fn has(&self, update: &EventUpdate) -> bool {
+    pub fn has(&self, update: &mut EventUpdate) -> bool {
         self.on(update).is_some()
     }
 
@@ -330,7 +330,7 @@ impl Command {
     }
 
     /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.
-    pub fn handle<R>(&self, update: &EventUpdate, handler: impl FnOnce(&CommandArgs) -> R) -> Option<R> {
+    pub fn handle<R>(&self, update: &mut EventUpdate, handler: impl FnOnce(&CommandArgs) -> R) -> Option<R> {
         if let Some(args) = self.on(update) {
             args.handle(handler)
         } else {
@@ -515,11 +515,10 @@ event_args! {
         /// Broadcast to all widgets in the window for [`CommandScope::Window`].
         ///
         /// Target ancestors and widget for [`CommandScope::Widget`], if it is found.
-        fn delivery_list(&self) -> EventDeliveryList {
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             match self.scope {
-                CommandScope::Widget(id) => EventDeliveryList::find_widget(id),
-                CommandScope::Window(id) => EventDeliveryList::window(id),
-                _ => EventDeliveryList::all(),
+                CommandScope::Widget(id) => list.search_widget(id),
+                _ => list.search_all(),
             }
         }
     }
@@ -1131,7 +1130,7 @@ where
             self.handle = Some(command.new_handle(ctx, is_enabled));
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
             if let Some(args) = self.command.expect("OnCommandNode not initialized").on_unhandled(update) {
                 self.handler.event(ctx, args);
@@ -1220,7 +1219,7 @@ where
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = self.command.expect("OnPreCommandNode not initialized").on_unhandled(update) {
                 self.handler.event(ctx, args);
             }

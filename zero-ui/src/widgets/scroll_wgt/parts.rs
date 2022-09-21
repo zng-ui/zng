@@ -139,7 +139,7 @@ pub mod thumb {
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                         let offset = match THUMB_ORIENTATION_VAR.copy(ctx) {

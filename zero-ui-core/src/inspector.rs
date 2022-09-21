@@ -642,7 +642,7 @@ impl UiNode for InspectPropertyNode {
         self.child.subscriptions(ctx, subs);
     }
 
-    fn event(&mut self, ctx: &mut context::WidgetContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
         let _span = UpdatesTrace::property_span(self.meta.property_name, "event");
         self.child.event(ctx, update);
     }
@@ -719,7 +719,7 @@ impl UiNode for InspectWidgetNode {
         self.child.subscriptions(ctx, subs);
     }
 
-    fn event(&mut self, ctx: &mut context::WidgetContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "event");
         self.child.event(ctx, update);
     }
@@ -799,7 +799,7 @@ impl UiNode for InspectConstructorNode {
         self.child.subscriptions(ctx, subs);
     }
 
-    fn event(&mut self, ctx: &mut context::WidgetContext, update: &EventUpdate) {
+    fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
         let _span = UpdatesTrace::constructor_span(self.fn_name, "event");
         self.child.event(ctx, update);
     }

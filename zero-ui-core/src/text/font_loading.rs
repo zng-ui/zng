@@ -53,8 +53,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::all()
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 }
@@ -99,7 +99,7 @@ impl AppExtension for FontManager {
         ctx.services.register(Fonts::new(ctx.updates.sender()));
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if RAW_FONT_CHANGED_EVENT.has(update) {
             FONT_CHANGED_EVENT.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {

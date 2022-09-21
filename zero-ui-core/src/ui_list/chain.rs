@@ -49,7 +49,7 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         self.0.event_all(ctx, update);
         self.1.event_all(ctx, update);
     }
@@ -402,7 +402,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         self.0.event_all(ctx, update);
         self.1.event_all(ctx, update);
     }

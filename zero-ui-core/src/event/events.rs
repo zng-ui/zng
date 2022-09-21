@@ -12,7 +12,7 @@ use super::*;
 
 struct OnEventHandler {
     handle: HandleOwner<()>,
-    handler: Box<dyn FnMut(&mut AppContext, &EventUpdate, &dyn AppWeakHandle)>,
+    handler: Box<dyn FnMut(&mut AppContext, &mut EventUpdate, &dyn AppWeakHandle)>,
 }
 
 /// Represents an app context event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
@@ -320,7 +320,7 @@ impl Events {
         H: AppHandler<A>,
     {
         let (handle_owner, handle) = OnEventHandle::new();
-        let handler = move |ctx: &mut AppContext, update: &EventUpdate, handle: &dyn AppWeakHandle| {
+        let handler = move |ctx: &mut AppContext, update: &mut EventUpdate, handle: &dyn AppWeakHandle| {
             if let Some(args) = event.on(update) {
                 if !args.propagation().is_stopped() {
                     handler.event(ctx, args, &AppHandlerArgs { handle, is_preview });
@@ -346,7 +346,7 @@ impl Events {
         self.updates.drain(..).collect()
     }
 
-    pub(crate) fn on_pre_events(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(crate) fn on_pre_events(ctx: &mut AppContext, update: &mut EventUpdate) {
         ctx.events.pre_buffers.retain(|buf| buf(update));
 
         let mut handlers = mem::take(&mut ctx.events.pre_handlers);
@@ -355,7 +355,7 @@ impl Events {
         ctx.events.pre_handlers = handlers;
     }
 
-    pub(crate) fn on_events(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(crate) fn on_events(ctx: &mut AppContext, update: &mut EventUpdate) {
         let mut handlers = mem::take(&mut ctx.events.pos_handlers);
         Self::notify_retain(&mut handlers, ctx, update);
         handlers.extend(mem::take(&mut ctx.events.pos_handlers));
@@ -364,7 +364,7 @@ impl Events {
         ctx.events.buffers.retain(|buf| buf(update));
     }
 
-    fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, update: &EventUpdate) {
+    fn notify_retain(handlers: &mut Vec<OnEventHandler>, ctx: &mut AppContext, update: &mut EventUpdate) {
         handlers.retain_mut(|e| {
             !e.handle.is_dropped() && {
                 (e.handler)(ctx, update, &e.handle.weak_handle());
@@ -401,7 +401,7 @@ impl Drop for Events {
 ///
 /// ```
 /// # use zero_ui_core::{var::*, event::*, context::*};
-/// # event_args! { pub struct BarArgs { pub msg: &'static str, .. fn delivery_list(&self) -> EventDeliveryList { EventDeliveryList::all() } } }
+/// # event_args! { pub struct BarArgs { pub msg: &'static str, .. fn delivery_list(&self, list: &mut UpdateDeliveryList) { list.search_all() } } }
 /// # event! { pub static BAR_EVENT: BarArgs; }
 /// # struct Foo { } impl Foo {
 /// fn update(&mut self, ctx: &mut WidgetContext) {

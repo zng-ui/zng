@@ -9,7 +9,7 @@ use crate::{
         view_process::VIEW_PROCESS_INITED_EVENT,
     },
     context::AppContext,
-    event::{event, EventUpdate, Events},
+    event::{event, EventArgs, EventUpdate, Events},
     event_args,
     service::Service,
     text::*,
@@ -150,7 +150,7 @@ impl Monitors {
         }
     }
 
-    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = Monitors::req(ctx.services).monitor(args.monitor_id) {
                 m.scale_factor.set_ne(ctx.vars, args.scale_factor);
@@ -442,8 +442,8 @@ event_args! {
         ..
 
         /// Broadcast to all widgets.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::all()
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
     }
 }

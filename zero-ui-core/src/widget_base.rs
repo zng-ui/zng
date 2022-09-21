@@ -379,7 +379,7 @@ pub mod implicit_base {
                     }
                 }
 
-                fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+                fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event_name(), self.id);
@@ -387,7 +387,7 @@ pub mod implicit_base {
 
                     if self.subscriptions.borrow().event_contains(update) {
                         let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
-                            update.with_widget(ctx, |ctx| {
+                            update.with_widget(ctx, |ctx, update| {
                                 self.child.event(ctx, update);
                             });
                         });

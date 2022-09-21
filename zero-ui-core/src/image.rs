@@ -47,7 +47,7 @@ impl AppExtension for ImageManager {
         ctx.services.register(images);
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
             let images = Images::req(ctx.services);
             let vars = ctx.vars;

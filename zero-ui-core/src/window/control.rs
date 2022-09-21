@@ -12,7 +12,7 @@ use crate::{
     },
     color::{ColorScheme, RenderColor},
     context::{state_map, LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
-    event::EventUpdate,
+    event::{EventArgs, EventUpdate},
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::Fonts,
@@ -395,7 +395,7 @@ impl HeadedCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_WINDOW_CHANGED_EVENT.on(update) {
             if args.window_id == *ctx.window_id {
                 let mut state_change = None;
@@ -584,7 +584,7 @@ impl HeadedCtrl {
         self.content.pre_event(ctx, update);
     }
 
-    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         self.content.ui_event(ctx, update);
     }
 
@@ -1015,7 +1015,7 @@ impl HeadlessWithRendererCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_HEADLESS_OPEN_EVENT.on(update) {
             if args.window_id == *ctx.window_id {
                 self.waiting_view = false;
@@ -1066,7 +1066,7 @@ impl HeadlessWithRendererCtrl {
         self.headless_simulator.pre_event(ctx, update);
     }
 
-    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         self.content.ui_event(ctx, update);
     }
 
@@ -1241,12 +1241,12 @@ impl HeadlessCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         self.content.pre_event(ctx, update);
         self.headless_simulator.pre_event(ctx, update);
     }
 
-    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         self.content.ui_event(ctx, update);
     }
 
@@ -1318,7 +1318,7 @@ impl HeadlessSimulator {
             .get_or_insert_with(|| crate::app::App::window_mode(ctx.services).is_headless())
     }
 
-    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         if self.enabled(ctx) && self.is_open && VIEW_PROCESS_INITED_EVENT.on(update).map(|a| a.is_respawn).unwrap_or(false) {
             self.is_open = false;
         }
@@ -1453,7 +1453,7 @@ impl ContentCtrl {
         }
     }
 
-    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if args.window_id == *ctx.window_id {
                 self.is_rendering = false;
@@ -1479,13 +1479,13 @@ impl ContentCtrl {
         }
     }
 
-    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         debug_assert!(self.inited);
 
         if self.subs.event_contains(update) {
-            update.with_window(ctx, |ctx| {
+            update.with_window(ctx, |ctx, update| {
                 ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                    update.with_widget(ctx, |ctx| {
+                    update.with_widget(ctx, |ctx, update| {
                         self.root.event(ctx, update);
                     });
                 });
@@ -1749,7 +1749,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.pre_event(ctx, update),
             WindowCtrlMode::Headless(c) => c.pre_event(ctx, update),
@@ -1757,7 +1757,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &EventUpdate) {
+    pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.ui_event(ctx, update),
             WindowCtrlMode::Headless(c) => c.ui_event(ctx, update),

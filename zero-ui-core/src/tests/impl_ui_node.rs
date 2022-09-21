@@ -356,7 +356,7 @@ mod util {
         }
 
         pub fn notify_render_update(wgt: &mut impl Widget, ctx: &mut TestWidgetContext) {
-            wgt.test_event(ctx, &RENDER_UPDATE_EVENT.new_update(RenderUpdateArgs::now()));
+            wgt.test_event(ctx, &mut RENDER_UPDATE_EVENT.new_update(RenderUpdateArgs::now()));
         }
     }
     impl UiNode for TestTraceNode {
@@ -385,7 +385,7 @@ mod util {
             self.test_trace("update");
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.test_trace("event");
 
             if RENDER_UPDATE_EVENT.has(update) {
@@ -416,8 +416,8 @@ mod util {
         struct RenderUpdateArgs {
             ..
 
-            fn delivery_list(&self) -> EventDeliveryList {
-                EventDeliveryList::all()
+            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+                list.search_all()
             }
         }
     }

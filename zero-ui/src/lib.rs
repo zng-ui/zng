@@ -903,7 +903,7 @@ pub mod prelude {
         clone_move,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
         context::{AppContext, WidgetContext, WindowContext},
-        event::{Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, Events},
+        event::{Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, Events},
         focus::{DirectionalNav, Focus, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},

@@ -126,7 +126,7 @@ impl FocusCommands {
         self.enter_handle.set_enabled(nav.contains(FocusNavAction::ENTER));
     }
 
-    pub fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    pub fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         macro_rules! handle {
             ($($CMD:ident($handle:ident) => $method:ident,)+) => {$(
                 if let Some(args) = $CMD.on(update) {

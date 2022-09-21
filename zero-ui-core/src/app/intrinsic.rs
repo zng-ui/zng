@@ -61,7 +61,7 @@ impl AppIntrinsic {
     }
 }
 impl AppExtension for AppIntrinsic {
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &EventUpdate) {
+    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
                 AppProcess::req(ctx.services).exit();

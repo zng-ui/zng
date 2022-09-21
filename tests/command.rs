@@ -165,7 +165,7 @@ fn listener_window(focused_wgt: bool) -> Window {
         fn subscriptions(&self, _ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.event(&FOO_CMD);
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = FOO_CMD.on(update) {
                 args.handle(|args| {
                     ctx.app_state

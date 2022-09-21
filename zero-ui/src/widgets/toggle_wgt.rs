@@ -184,7 +184,7 @@ pub mod properties {
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
@@ -225,7 +225,7 @@ pub mod properties {
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
@@ -372,7 +372,7 @@ pub mod properties {
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary() && !args.propagation().is_stopped() && args.is_enabled(ctx.path.widget_id()) {

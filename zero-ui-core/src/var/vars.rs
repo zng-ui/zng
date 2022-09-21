@@ -421,7 +421,7 @@ impl Vars {
         self.receivers.borrow_mut().retain(|f| f(self));
     }
 
-    pub(crate) fn event_preview(ctx: &mut AppContext, update: &EventUpdate) {
+    pub(crate) fn event_preview(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
         } else if let Some(args) = RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.on(update) {

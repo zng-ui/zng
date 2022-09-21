@@ -329,7 +329,7 @@ impl UiNodeList for WidgetVec {
         }
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         for widget in &mut self.vec {
             widget.event(ctx, update);
         }
@@ -853,7 +853,7 @@ impl UiNodeList for UiNodeVec {
             node.update(ctx);
         }
     }
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
         for node in self.iter_mut() {
             node.event(ctx, update);
         }

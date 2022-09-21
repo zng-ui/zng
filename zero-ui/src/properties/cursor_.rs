@@ -36,7 +36,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &EventUpdate) {
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 let state = *ctx.update_state.entry(&CURSOR_STATE_ID).or_default();
