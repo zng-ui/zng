@@ -1214,10 +1214,9 @@ mod space_and_clip {
     impl SpaceAndClip {
         pub fn new(pipeline_id: PipelineId) -> Self {
             let sid = wr::SpatialId::root_reference_frame(pipeline_id);
-            let cid = wr::ClipId::root(pipeline_id);
             SpaceAndClip {
                 spatial_stack: vec![sid],
-                clip_stack: vec![cid],
+                clip_stack: vec![],
                 clip_chain_stack: vec![],
             }
         }
@@ -1274,10 +1273,8 @@ mod space_and_clip {
                 if self.clip_chain_stack.len() >= 2 {
                     tracing::error!("found {} clip chains, expected 0 or 1", self.clip_chain_stack.len());
                 }
-                if self.clip_stack.len() != 1 {
-                    tracing::error!("found {} clips, expected 1 root", self.clip_stack.len());
-                } else if self.clip_stack[0].0 != 0 {
-                    tracing::error!("found other clip, expected root");
+                if self.clip_stack.len() > 0 {
+                    tracing::error!("found {} clips, expected 0", self.clip_stack.len());
                 }
                 if self.spatial_stack.len() != 1 {
                     tracing::error!("found {} spatial, expected 1 root_reference_frame", self.spatial_stack.len());
@@ -1287,7 +1284,6 @@ mod space_and_clip {
             }
 
             self.clip_stack.clear();
-            self.clip_stack.push(wr::ClipId::root(pipeline_id));
 
             self.spatial_stack.clear();
             self.spatial_stack.push(wr::SpatialId::root_reference_frame(pipeline_id));

@@ -6,7 +6,7 @@ use webrender::{
         ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation,
         IdNamespace, ImageKey, PipelineId,
     },
-    RenderApi, Renderer,  Transaction, UploadMethod, VertexUsageHint,
+    RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
 };
 use winit::{
     event_loop::EventLoopWindowTarget,
