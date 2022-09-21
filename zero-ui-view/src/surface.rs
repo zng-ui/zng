@@ -8,7 +8,7 @@ use webrender::{
         ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation,
         IdNamespace, ImageKey, PipelineId,
     },
-    RenderApi, Renderer, RendererOptions, Transaction,
+    RenderApi, Renderer, Transaction,
 };
 use zero_ui_view_api::{
     units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
@@ -67,7 +67,7 @@ impl Surface {
         context.resize(size.to_winit());
         let context = context;
 
-        let opts = RendererOptions {
+        let opts = webrender::WebRenderOptions {
             // text-aa config from Firefox.
             enable_aa: true,
             force_subpixel_aa: false,
@@ -89,7 +89,7 @@ impl Surface {
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
         let (mut renderer, sender) =
-            webrender::Renderer::new(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
+            webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();

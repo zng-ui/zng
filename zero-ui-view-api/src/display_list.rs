@@ -1276,15 +1276,8 @@ mod space_and_clip {
                 }
                 if self.clip_stack.len() != 1 {
                     tracing::error!("found {} clips, expected 1 root", self.clip_stack.len());
-                } else {
-                    match self.clip_stack[0] {
-                        wr::ClipId::Clip(i, _) => {
-                            if i != 0 {
-                                tracing::error!("found other clip, expected root");
-                            }
-                        }
-                        wr::ClipId::ClipChain(_) => tracing::error!("found clip chain, expected root"),
-                    }
+                } else if self.clip_stack[0].0 != 0 {
+                    tracing::error!("found other clip, expected root");
                 }
                 if self.spatial_stack.len() != 1 {
                     tracing::error!("found {} spatial, expected 1 root_reference_frame", self.spatial_stack.len());

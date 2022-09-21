@@ -1,7 +1,4 @@
-    - Merge.
 * Review event docs.
-* Update webrender.
-    - https://github.com/servo/webrender/commit/244a0ff74b57aa64b3760445ea6f71fb856dbe45
 * Implement delivery-list/subscribers for variables.
 * Implement delivery-list for raw update requests.
 * Remove UiNode::subscriptions.

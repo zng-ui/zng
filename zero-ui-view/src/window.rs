@@ -6,7 +6,7 @@ use webrender::{
         ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation,
         IdNamespace, ImageKey, PipelineId,
     },
-    RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
+    RenderApi, Renderer,  Transaction, UploadMethod, VertexUsageHint,
 };
 use winit::{
     event_loop::EventLoopWindowTarget,
@@ -217,7 +217,7 @@ impl Window {
 
         let device_size = winit_window.inner_size().to_px().to_wr_device();
 
-        let opts = RendererOptions {
+        let opts = webrender::WebRenderOptions {
             // text-aa config from Firefox.
             enable_aa: true,
             force_subpixel_aa: false,
@@ -240,7 +240,7 @@ impl Window {
         };
 
         let (mut renderer, sender) =
-            webrender::Renderer::new(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
+            webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();
