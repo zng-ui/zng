@@ -376,9 +376,9 @@ impl Events {
 
     /// Commands that had handles generated in this app.
     ///
-    /// When [`Command::new_handle`] is called for the first time in an app, the command gets registered here.
+    /// When [`Command::subscribe`] is called for the first time in an app, the command gets registered here.
     ///
-    /// [`Command::new_handle`]: crate::event::Command::new_handle
+    /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> impl Iterator<Item = Command> + '_ {
         self.commands.iter().copied()
     }

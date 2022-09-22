@@ -194,7 +194,7 @@ pub fn __command_no_meta(_: Command) {}
 /// # Handles
 ///
 /// Unlike other events, commands only notify if it has at least one handler, handlers
-/// must call [`new_handle`] to indicate that the command is relevant to the current app state and
+/// must call [`subscribe`] to indicate that the command is relevant to the current app state and
 /// [set its enabled] flag to indicate that the handler can fulfill command requests.
 ///
 /// Properties that setup a handler for a command event should do this automatically and are usually
@@ -208,7 +208,7 @@ pub fn __command_no_meta(_: Command) {}
 /// of scoped commands inherit from the app scope metadata, but setting it overrides only for the scope.
 ///
 /// [`command!`]: macro@crate::event::command
-/// [`new_handle`]: Command::new_handle
+/// [`subscribe`]: Command::subscribe
 /// [set its enabled]: CommandHandle::set_enabled
 /// [`with_meta`]: Command::with_meta
 /// [`scoped`]: Command::scoped
@@ -251,8 +251,8 @@ impl Command {
     /// be used to set the [`is_enabled`](Self::is_enabled) state.
     ///
     /// If the handle is scoped on a widget it it is added to the command event subscribers.
-    pub fn new_handle<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
-        events.with_events(|events| self.local.with(|l| l.new_handle(events, *self, enabled)))
+    pub fn subscribe<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
+        events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled)))
     }
 
     /// Raw command event.
@@ -574,7 +574,7 @@ impl CommandArgs {
 /// Holding the command handle indicates that the command is relevant in the current app state.
 /// The handle needs to be enabled to indicate that the command primary action can be executed.
 ///
-/// You can use the [`Command::new_handle`] method in a command type to create a handle.
+/// You can use the [`Command::subscribe`] method in a command type to create a handle.
 pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Cell<bool>,
@@ -1060,7 +1060,7 @@ impl CommandData {
         }
     }
 
-    fn new_handle(&self, events: &mut Events, command: Command, enabled: bool) -> CommandHandle {
+    fn subscribe(&self, events: &mut Events, command: Command, enabled: bool) -> CommandHandle {
         let mut data = self.data.borrow_mut();
 
         match command.scope {
@@ -1168,7 +1168,7 @@ where
             let command = (self.command_builder)(ctx);
             self.command = Some(command);
 
-            self.handle = Some(command.new_handle(ctx, is_enabled));
+            self.handle = Some(command.subscribe(ctx, is_enabled));
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -1245,7 +1245,7 @@ where
             let command = (self.command_builder)(ctx);
             self.command = Some(command);
 
-            self.handle = Some(command.new_handle(ctx, is_enabled));
+            self.handle = Some(command.subscribe(ctx, is_enabled));
         }
 
         fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
@@ -1314,7 +1314,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
         assert!(!FOO_CMD.has_handlers_value());
 
-        let handle = FOO_CMD.new_handle(&mut ctx, true);
+        let handle = FOO_CMD.subscribe(&mut ctx, true);
         assert!(FOO_CMD.is_enabled_value());
 
         handle.set_enabled(false);
@@ -1337,7 +1337,7 @@ mod tests {
         assert!(!cmd.has_handlers_value());
         assert!(!cmd_scoped.has_handlers_value());
 
-        let handle_scoped = cmd_scoped.new_handle(&mut ctx, true);
+        let handle_scoped = cmd_scoped.subscribe(&mut ctx, true);
         assert!(!cmd.has_handlers_value());
         assert!(cmd_scoped.is_enabled_value());
 
@@ -1360,7 +1360,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
         assert!(!FOO_CMD.has_handlers_value());
 
-        let handle = FOO_CMD.new_handle(&mut ctx, false);
+        let handle = FOO_CMD.subscribe(&mut ctx, false);
         assert!(FOO_CMD.has_handlers_value());
 
         drop(handle);
@@ -1377,7 +1377,7 @@ mod tests {
         assert!(!cmd.has_handlers_value());
         assert!(!cmd_scoped.has_handlers_value());
 
-        let handle = cmd_scoped.new_handle(&mut ctx, false);
+        let handle = cmd_scoped.subscribe(&mut ctx, false);
 
         assert!(!cmd.has_handlers_value());
         assert!(cmd_scoped.has_handlers_value());

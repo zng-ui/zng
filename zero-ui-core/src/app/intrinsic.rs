@@ -42,7 +42,7 @@ impl AppIntrinsic {
         }
 
         AppIntrinsic {
-            exit_handle: EXIT_CMD.new_handle(ctx, true),
+            exit_handle: EXIT_CMD.subscribe(ctx, true),
             pending_exit: None,
         }
     }

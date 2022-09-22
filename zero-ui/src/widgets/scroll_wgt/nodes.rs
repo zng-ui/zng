@@ -266,10 +266,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.up = SCROLL_UP_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = SCROLL_DOWN_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = SCROLL_LEFT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = SCROLL_RIGHT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = SCROLL_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
+            self.down = SCROLL_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down(ctx));
+            self.left = SCROLL_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left(ctx));
+            self.right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right(ctx));
 
             self.child.init(ctx);
         }
@@ -394,10 +394,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.up = PAGE_UP_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = PAGE_DOWN_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = PAGE_LEFT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = PAGE_RIGHT_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = PAGE_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
+            self.down = PAGE_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down(ctx));
+            self.left = PAGE_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left(ctx));
+            self.right = PAGE_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right(ctx));
 
             self.child.init(ctx);
         }
@@ -519,16 +519,16 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.top = SCROLL_TO_TOP_CMD.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
+            self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
             self.bottom = SCROLL_TO_BOTTOM_CMD
                 .scoped(scope)
-                .new_handle(ctx, ScrollContext::can_scroll_down(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_down(ctx));
             self.leftmost = SCROLL_TO_LEFTMOST_CMD
                 .scoped(scope)
-                .new_handle(ctx, ScrollContext::can_scroll_left(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_left(ctx));
             self.rightmost = SCROLL_TO_RIGHTMOST_CMD
                 .scoped(scope)
-                .new_handle(ctx, ScrollContext::can_scroll_right(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_right(ctx));
 
             self.child.init(ctx);
         }
@@ -598,7 +598,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = SCROLL_TO_CMD.scoped(ctx.path.widget_id()).new_handle(ctx, true);
+            self.handle = SCROLL_TO_CMD.scoped(ctx.path.widget_id()).subscribe(ctx, true);
             self.child.init(ctx);
         }
 

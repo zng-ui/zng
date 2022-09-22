@@ -157,9 +157,9 @@ fn listener_window(focused_wgt: bool) -> Window {
     #[impl_ui_node(none)]
     impl UiNode for FooHandlerNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = Some(FOO_CMD.new_handle(ctx, true));
-            self.handle_scoped = Some(FOO_CMD.scoped(ctx.path.window_id()).new_handle(ctx, true));
-            self.handle_scoped_wgt = Some(FOO_CMD.scoped(ctx.path.widget_id()).new_handle(ctx, true));
+            self.handle = Some(FOO_CMD.subscribe(ctx, true));
+            self.handle_scoped = Some(FOO_CMD.scoped(ctx.path.window_id()).subscribe(ctx, true));
+            self.handle_scoped_wgt = Some(FOO_CMD.scoped(ctx.path.widget_id()).subscribe(ctx, true));
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = FOO_CMD.on(update) {
