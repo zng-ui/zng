@@ -1273,7 +1273,7 @@ mod space_and_clip {
                 if self.clip_chain_stack.len() >= 2 {
                     tracing::error!("found {} clip chains, expected 0 or 1", self.clip_chain_stack.len());
                 }
-                if self.clip_stack.len() > 0 {
+                if !self.clip_stack.is_empty() {
                     tracing::error!("found {} clips, expected 0", self.clip_stack.len());
                 }
                 if self.spatial_stack.len() != 1 {

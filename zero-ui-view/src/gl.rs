@@ -533,7 +533,6 @@ impl Drop for GlContext {
         match mem::replace(&mut self.backend, GlBackend::Dropped) {
             GlBackend::Glutin { headless, .. } => {
                 if let Some(h) = headless {
-                    #[cfg(windows)]
                     let _ = h.hidden_window;
 
                     h.destroy(&self.gl);
