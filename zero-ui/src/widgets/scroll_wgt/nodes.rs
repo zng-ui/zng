@@ -761,7 +761,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollWheelNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_wheel_handle = Some(MOUSE_WHEEL_EVENT.subscribe_widget(ctx.path.widget_id()));
+            self.mouse_wheel_handle = Some(MOUSE_WHEEL_EVENT.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
 

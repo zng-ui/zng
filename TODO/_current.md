@@ -1,4 +1,3 @@
-* Review event docs.
 * Implement delivery-list/subscribers for variables.
 * Implement delivery-list for raw update requests.
 * Remove UiNode::subscriptions.

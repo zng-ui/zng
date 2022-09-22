@@ -137,8 +137,8 @@ pub mod thumb {
         impl<C: UiNode> UiNode for DragNode<C> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.event_handles = Some([
-                    MOUSE_MOVE_EVENT.subscribe_widget(ctx.path.widget_id()),
-                    MOUSE_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()),
+                    MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
+                    MOUSE_INPUT_EVENT.subscribe(ctx.path.widget_id()),
                 ]);
                 self.child.init(ctx);
             }

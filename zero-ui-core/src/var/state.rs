@@ -25,7 +25,7 @@ pub fn event_state<A: EventArgs>(
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
-            self.handle = Some(self.event.subscribe_widget(ctx.path.widget_id()));
+            self.handle = Some(self.event.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -92,7 +92,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);
             let w = ctx.path.widget_id();
-            self.handle = Some([self.events.0.subscribe_widget(w), self.events.1.subscribe_widget(w)]);
+            self.handle = Some([self.events.0.subscribe(w), self.events.1.subscribe(w)]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -184,11 +184,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);
             let w = ctx.path.widget_id();
-            self.handle = Some([
-                self.events.0.subscribe_widget(w),
-                self.events.1.subscribe_widget(w),
-                self.events.2.subscribe_widget(w),
-            ]);
+            self.handle = Some([self.events.0.subscribe(w), self.events.1.subscribe(w), self.events.2.subscribe(w)]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {

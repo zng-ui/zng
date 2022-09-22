@@ -130,7 +130,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             });
 
             if TEXT_EDITABLE_VAR.copy(ctx) {
-                self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
             }
 
             self.with_mut(ctx.vars, |c| c.init(ctx))
@@ -241,7 +241,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
             if let Some(enabled) = TEXT_EDITABLE_VAR.copy_new(ctx) {
                 if enabled && self.char_input_handle.is_none() {
-                    self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()));
+                    self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
                 } else {
                     self.char_input_handle = None;
                 }

@@ -158,7 +158,7 @@ impl WindowLayers {
                 }
 
                 self.interaction = self.mode.get(ctx).interaction;
-                self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
                 self.widget.init(ctx);
             }

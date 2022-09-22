@@ -40,7 +40,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_input_handle = Some(MOUSE_INPUT_EVENT.subscribe_widget(ctx.path.widget_id()));
+            self.mouse_input_handle = Some(MOUSE_INPUT_EVENT.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {

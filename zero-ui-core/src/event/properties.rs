@@ -103,8 +103,8 @@ macro_rules! __event_property {
 ///
 /// # Filter
 ///
-/// App events are delivered to all `UiNode` inside all widgets in the [`UpdateDeliveryList`], some event properties can
-/// also specialize further on top of a more general app event. To implement this you can use a filter predicate.
+/// App events are delivered to all `UiNode` inside all widgets in the [`UpdateDeliveryList`] and event subscribers list,
+/// event properties can specialize further by defining a filter predicate.
 ///
 /// The `filter` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments
 /// are relevant in the context of the widget and event property. If it returns `true` the `handler` closure is called.
@@ -199,7 +199,7 @@ where
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = Some(self.event.subscribe_widget(ctx.path.widget_id()));
+            self.handle = Some(self.event.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
 
@@ -293,7 +293,7 @@ where
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = Some(self.event.subscribe_widget(ctx.path.widget_id()));
+            self.handle = Some(self.event.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
 

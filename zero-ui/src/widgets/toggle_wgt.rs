@@ -181,7 +181,7 @@ pub mod properties {
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<bool>> UiNode for CheckedNode<C, B> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
                 self.child.init(ctx);
             }
 
@@ -228,7 +228,7 @@ pub mod properties {
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<Option<bool>>> UiNode for CheckedOptNode<C, B> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
                 self.child.init(ctx);
             }
 
@@ -362,7 +362,7 @@ pub mod properties {
                     self.prev_value = Some(value.clone());
                 }
 
-                self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
 
                 self.child.init(ctx);
             }

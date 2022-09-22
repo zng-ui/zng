@@ -295,8 +295,8 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 
             if self.enabled.is_enabled() {
                 self.event_handles = Some([
-                    WINDOW_CLOSE_REQUESTED_EVENT.subscribe_widget(ctx.path.widget_id()),
-                    WINDOW_LOAD_EVENT.subscribe_widget(ctx.path.widget_id()),
+                    WINDOW_CLOSE_REQUESTED_EVENT.subscribe(ctx.path.widget_id()),
+                    WINDOW_LOAD_EVENT.subscribe(ctx.path.widget_id()),
                 ]);
             }
 

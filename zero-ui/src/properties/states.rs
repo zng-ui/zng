@@ -181,7 +181,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     impl<C: UiNode> UiNode for IsShortcutPressedNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, false);
-            self.click_handle = Some(CLICK_EVENT.subscribe_widget(ctx.path.widget_id()));
+            self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {

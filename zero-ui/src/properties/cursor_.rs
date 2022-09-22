@@ -33,7 +33,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         C: Var<Option<CursorIcon>>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()));
+            self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
 

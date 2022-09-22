@@ -147,8 +147,8 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 
             if self.enabled.copy(ctx.vars) {
                 self.event_handles = Some([
-                    MOUSE_MOVE_EVENT.subscribe_widget(ctx.path.widget_id()),
-                    MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()),
+                    MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
+                    MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
                 ]);
             }
 
@@ -214,8 +214,8 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             if let Some(enabled) = self.enabled.copy_new(ctx) {
                 if enabled {
                     self.event_handles = Some([
-                        MOUSE_MOVE_EVENT.subscribe_widget(ctx.path.widget_id()),
-                        MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()),
+                        MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
+                        MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
                     ]);
                 } else {
                     self.event_handles = None;
@@ -281,7 +281,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             }
 
             if self.orientation.copy(ctx.vars).is_some() {
-                self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()));
+                self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
             }
 
             self.child.init(ctx);
@@ -337,7 +337,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                 self.search_quads.clear();
 
                 if ori.is_some() {
-                    self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe_widget(ctx.path.widget_id()));
+                    self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
                 } else {
                     self.mouse_hovered_handle = None;
                 }
