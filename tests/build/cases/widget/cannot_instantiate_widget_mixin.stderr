@@ -1,5 +1,5 @@
 error: cannot instantiate widget mix-ins
- --> $DIR/cannot_instantiate_widget_mixin.rs:3:1
+ --> cases/widget/cannot_instantiate_widget_mixin.rs:3:1
   |
 3 | #[widget_mixin($crate::test_mixin)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -7,4 +7,4 @@ error: cannot instantiate widget mix-ins
 7 |     let _ = test_mixin!();
   |             ------------- in this macro invocation
   |
-  = note: this error originates in the macro `$crate::test_mixin::__widget_macro` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the macro `$crate::test_mixin::__widget_macro` which comes from the expansion of the macro `test_mixin` (in Nightly builds, run with -Z macro-backtrace for more info)

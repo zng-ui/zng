@@ -1322,17 +1322,15 @@ impl<'a> WidgetInfo<'a> {
     /// [`center`]: Self::center
     pub fn orientation_from(self, origin: PxPoint) -> Option<Orientation2D> {
         let o = self.center();
-        for &d in &[
+        [
             Orientation2D::Above,
             Orientation2D::Right,
             Orientation2D::Below,
             Orientation2D::Left,
-        ] {
-            if d.is(origin, o) {
-                return Some(d);
-            }
-        }
-        None
+        ]
+        .iter()
+        .find(|&&d| d.is(origin, o))
+        .copied()
     }
 
     /// Value that indicates the distance between this widget center and `origin`.

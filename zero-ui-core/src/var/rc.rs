@@ -24,7 +24,7 @@ impl<T: Clone> Clone for Data<T> {
             panic!("cannot `deep_clone`, value is mutable borrowed")
         }
         // SAFETY: we panic if `value` is exclusive borrowed.
-        let value = unsafe { (&*self.value.get()).clone() };
+        let value = unsafe { (*self.value.get()).clone() };
         Data {
             value: UnsafeCell::new(value),
             modifying: Cell::new(false),

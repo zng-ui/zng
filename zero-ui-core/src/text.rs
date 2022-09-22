@@ -1387,7 +1387,7 @@ fn inline_to_str(d: &[u8; INLINE_MAX]) -> &str {
 }
 fn str_to_inline(s: &str) -> [u8; INLINE_MAX] {
     let mut inline = [b'\0'; INLINE_MAX];
-    (&mut inline[..s.len()]).copy_from_slice(s.as_bytes());
+    inline[..s.len()].copy_from_slice(s.as_bytes());
     inline
 }
 

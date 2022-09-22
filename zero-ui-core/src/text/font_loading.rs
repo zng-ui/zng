@@ -652,7 +652,7 @@ impl Font {
     pub(super) fn to_small_word(s: &str) -> Option<[u8; Self::SMALL_WORD_LEN]> {
         if s.len() <= Self::SMALL_WORD_LEN {
             let mut a = [b'\0'; Self::SMALL_WORD_LEN];
-            (&mut a[..s.len()]).copy_from_slice(s.as_bytes());
+            a[..s.len()].copy_from_slice(s.as_bytes());
             Some(a)
         } else {
             None

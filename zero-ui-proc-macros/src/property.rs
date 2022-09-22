@@ -498,7 +498,7 @@ mod analysis {
             match input {
                 syn::FnArg::Typed(t) => {
                     // any pat : ty
-                    arg_types.push((&*t.ty).clone());
+                    arg_types.push((*t.ty).clone());
                     match &*t.pat {
                         syn::Pat::Ident(ident_pat) => {
                             if ident_pat.ident == "self" {
@@ -976,6 +976,7 @@ mod output {
                     ///
                     /// This property is `capture_only`, it can only be used in widget declarations
                     /// to define a property that is captured by the widget.
+                    #[allow(dead_code)]
                 });
             } else if !wgt {
                 tokens.extend(quote! {

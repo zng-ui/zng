@@ -616,9 +616,7 @@ mod file_cache {
 
         fn remove_files(dir: &Path) -> std::io::Result<()> {
             for file in [Self::BODY, Self::POLICY, Self::WRITING] {
-                if let Err(e) = fs::remove_file(dir.join(file)) {
-                    return Err(e);
-                }
+                fs::remove_file(dir.join(file))?
             }
             Ok(())
         }

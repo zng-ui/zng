@@ -2,7 +2,7 @@ error[E0599]: no method named `iter` found for struct `NoIterMethods` in the cur
  --> cases/impl_ui_node/delegate_iter_not_iter_methods_children_iter.rs:9:16
   |
 3 | struct NoIterMethods;
-  | --------------------- method `iter` not found for this
+  | -------------------- method `iter` not found for this struct
 ...
 9 | #[impl_ui_node(children_iter)]
   |                ^^^^^^^^^^^^^ method not found in `NoIterMethods`
@@ -11,7 +11,7 @@ error[E0599]: no method named `iter_mut` found for struct `NoIterMethods` in the
  --> cases/impl_ui_node/delegate_iter_not_iter_methods_children_iter.rs:9:16
   |
 3 | struct NoIterMethods;
-  | --------------------- method `iter_mut` not found for this
+  | -------------------- method `iter_mut` not found for this struct
 ...
 9 | #[impl_ui_node(children_iter)]
   |                ^^^^^^^^^^^^^ method not found in `NoIterMethods`

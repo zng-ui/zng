@@ -1,23 +1,9 @@
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
- --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:27
+ --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:1
   |
 9 | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
-  | --------------------------^--------------------------------------------
-  | |                         |
-  | |                         the trait `UiNode` is not implemented for `NotANode`
-  | required by a bound introduced by this call
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotANode`
   |
   = help: the following other types implement trait `UiNode`:
             <implementers-list>
-
-error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
- --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
-  |
-9 | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
-  | ------------------------------------------------------^----------------
-  | |                                                     |
-  | |                                                     the trait `UiNode` is not implemented for `NotANode`
-  | required by a bound introduced by this call
-  |
-  = help: the following other types implement trait `UiNode`:
-            <implementers-list>
+  = note: this error originates in the attribute macro `impl_ui_node` (in Nightly builds, run with -Z macro-backtrace for more info)
