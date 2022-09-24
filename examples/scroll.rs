@@ -23,7 +23,10 @@ fn app_main() {
                 scroll! {
                     id = "scroll";
                     padding = 20;
-                    background_color = hex!(#245E81);
+                    background_color = color_scheme_map(
+                        hex!(#245E81),
+                        colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
+                    );
                     // smooth_scrolling = false;
                     content = v_stack!{
                         items_align = Align::LEFT;
@@ -57,7 +60,7 @@ fn commands() -> impl Widget {
     v_stack! {
         align = Align::TOP;
         padding = 5;
-        background_color = rgba(0, 0, 0, 90.pct());
+        background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
         corner_radius = (0, 0, 8, 8);
         alt_focus_scope = true;
 

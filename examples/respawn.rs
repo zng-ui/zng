@@ -95,7 +95,7 @@ fn window_status(ctx: &mut WindowContext) -> impl Widget {
         spacing = 5;
         margin = 10;
         align = Align::TOP_LEFT;
-        background_color = rgb(0.1, 0.1, 0.1);
+        background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         font_family = "monospace";
         opacity = 80.pct();
         items = widgets![

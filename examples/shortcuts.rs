@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{prelude::*, widgets::text::properties::TEXT_COLOR_VAR};
+use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -19,7 +19,7 @@ fn app_main() {
     App::default().run_window(|ctx| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());
-        let shortcut_color = var(TEXT_COLOR_VAR.default_value());
+        let shortcut_error = var(false);
 
         // examples_util::trace_var!(ctx, ?shortcut_text);
         // examples_util::trace_var!(ctx, ?keypress_text);
@@ -30,13 +30,13 @@ fn app_main() {
                 zero_ui::core::gesture::SHORTCUT_EVENT,
                 app_hn!(
                     shortcut_text,
-                    shortcut_color,
+                    shortcut_error,
                     |ctx, args: &zero_ui::core::gesture::ShortcutArgs, _| {
                         if args.is_repeat {
                             return;
                         }
                         shortcut_text.set(ctx, args.shortcut.to_text());
-                        shortcut_color.set(ctx, TEXT_COLOR_VAR.default_value());
+                        shortcut_error.set(ctx, false);
                     }
                 ),
             )
@@ -44,7 +44,7 @@ fn app_main() {
         ctx.events
             .on_pre_event(
                 zero_ui::core::keyboard::KEY_INPUT_EVENT,
-                app_hn!(shortcut_text, keypress_text, shortcut_color, |ctx, args: &KeyInputArgs, _| {
+                app_hn!(shortcut_text, keypress_text, shortcut_error, |ctx, args: &KeyInputArgs, _| {
                     if args.is_repeat || args.state != KeyState::Pressed {
                         return;
                     }
@@ -59,7 +59,7 @@ fn app_main() {
                     }
 
                     shortcut_text.set(ctx, new_shortcut_text);
-                    shortcut_color.set(ctx, colors::SALMON);
+                    shortcut_error.set(ctx, true);
                 }),
             )
             .perm();
@@ -84,8 +84,11 @@ fn app_main() {
                         align = Align::CENTER;
                         margin = (10, 0);
                         font_size = 28.pt();
-                        color = shortcut_color;
                         text = shortcut_text;
+
+                        when *#{shortcut_error} {
+                            color = colors::SALMON;
+                        }
                     },
                     text! {
                         align = Align::CENTER;

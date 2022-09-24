@@ -71,14 +71,17 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
     container! {
         id;
         modal = true;
-        background_color = colors::GRAY.with_alpha(10.pct());
+        background_color = color_scheme_map(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
         content_align = Align::CENTER;
         content = container! {
             offset = (offset, offset);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            background_color = colors::GREEN.darken(80.pct());
+            background_color = color_scheme_map(
+                colors::GREEN.darken(80.pct()),
+                colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN)
+            );
             button::vis::extend_style = style_generator!(|_, _| style! {
                 corner_radius = unset!;
             });
@@ -135,6 +138,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
                 id;
                 content = text! {
                     text = label.clone();
+                    color = rgb(0.92, 0.92, 0.92);
                     font_size = 16;
                     font_weight = FontWeight::BOLD;
                 };
@@ -196,9 +200,10 @@ fn anchor_example() -> impl Widget {
             WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
                 id = "anchored";
                 text = "Example";
+                color = rgb(0.92, 0.92, 0.92);
                 padding = 4;
                 font_weight = FontWeight::BOLD;
-                background_color = colors::GREEN.darken(40.pct());
+                background_color = colors::DARK_GREEN.with_alpha(80.pct());
                 border = 1, colors::GREEN.darken(20.pct());
                 offset = point.map(|p|p.clone().as_vector() - Vector::splat(100.pct()));
                 margin = 2;

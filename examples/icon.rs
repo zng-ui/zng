@@ -118,7 +118,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
     container! {
         id = "expanded-icon";
         modal = true;
-        background_color = colors::WHITE.with_alpha(10.pct());
+        background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         content_align = Align::CENTER;
         on_click = hn!(|ctx, args: &ClickArgs| {
             if ctx.path.widget_id() == args.target.widget_id() {
@@ -128,7 +128,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
         });
         content = container! {
             id = "panel";
-            background_color = rgb(0.1, 0.1, 0.1);
+            background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
@@ -144,7 +144,6 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                             text = ico.name;
                             font_family = FontName::monospace();
                             font_size = 18;
-                            color = colors::WHITE.darken(4.pct());
                         },
                         sub_title("Using `icon!`:"),
                         h_stack! {
@@ -159,7 +158,10 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                                             icon = ico.clone();
                                             icon_size = size;
 
-                                            background_color = rgb(0.15, 0.15, 0.15);
+                                            background_color =  color_scheme_map(
+                                                colors::BLACK.with_alpha(85.pct()),
+                                                colors::WHITE.with_alpha(85.pct())
+                                            );
                                             corner_radius = 4;
                                             padding = 2;
                                         }
@@ -182,7 +184,10 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                                             font_family = ico.font.clone();
                                             font_size = size;
 
-                                            background_color = rgb(0.15, 0.15, 0.15);
+                                            background_color = color_scheme_map(
+                                                colors::BLACK.with_alpha(85.pct()),
+                                                colors::WHITE.with_alpha(85.pct())
+                                            );
                                             corner_radius = 4;
                                             padding = 2;
                                         }
