@@ -57,7 +57,7 @@ use super::*;
 ///
 /// The return type is [`RcWhenVar<T>`] where `T` is the condition values and default type.
 #[macro_export]
-macro_rules! when_var {
+macro_rules! when_var2 {
     ($($tt:tt)*) => {
         $crate::var::types::__when_var! {
             $crate::var
@@ -67,7 +67,7 @@ macro_rules! when_var {
 }
 
 #[doc(inline)]
-pub use crate::when_var;
+pub use crate::when_var2 as when_var;
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::when_var as __when_var;
@@ -93,10 +93,11 @@ impl<T: VarValue> WhenVarBuilder<T> {
     }
 
     /// Finish the build.
-    pub fn build(self) -> RcWhenVar<T> {
+    pub fn build(mut self) -> RcWhenVar<T> {
+        self.conditions.shrink_to_fit();
         let rc_when = Rc::new(RefCell::new(Data {
             default: self.default,
-            conditions: self.conditions.into_boxed_slice(),
+            conditions: self.conditions,
             input_handles: Box::new([]),
             hooks: vec![],
             last_update: VarUpdateId::never(),
@@ -163,10 +164,7 @@ impl AnyWhenVarBuilder {
         let data = var.0.borrow();
         Self {
             default: data.default.clone_any(),
-            conditions: data.conditions
-                .iter()
-                .map(|(c, v)| (c.clone(), v.clone_any()))
-                .collect(),
+            conditions: data.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
         }
     }
 
@@ -215,10 +213,10 @@ impl AnyWhenVarBuilder {
 
         let mut when = WhenVarBuilder::new(default.clone());
 
-        for (c, v) in self.conditions {
+        for (c, v) in &self.conditions {
             let value = v.as_any().downcast_ref::<BoxedVar<T>>()?;
 
-           when.push(c.clone(), value.clone());
+            when.push(c.clone(), value.clone());
         }
 
         Some(when.build())
@@ -251,7 +249,7 @@ impl Clone for AnyWhenVarBuilder {
 
 struct Data<T> {
     default: BoxedVar<T>,
-    conditions: Box<[(BoxedVar<bool>, BoxedVar<T>)]>,
+    conditions: Vec<(BoxedVar<bool>, BoxedVar<T>)>,
     input_handles: Box<[VarHandle]>,
     hooks: Vec<VarHook>,
 
@@ -283,14 +281,18 @@ impl<T: VarValue> RcWhenVar<T> {
                 let mut data_mut = rc_when.borrow_mut();
                 let mut update = false;
 
-                if data_mut.active == i {
-                    if let Some(&false) = value.as_any().downcast_ref::<bool>() {
-                        update = true;
+                match data_mut.active.cmp(&i) {
+                    std::cmp::Ordering::Equal => {
+                        if let Some(&false) = value.as_any().downcast_ref::<bool>() {
+                            update = true;
+                        }
                     }
-                } else if data_mut.active > i {
-                    if let Some(&true) = value.as_any().downcast_ref::<bool>() {
-                        update = true;
+                    std::cmp::Ordering::Greater => {
+                        if let Some(&true) = value.as_any().downcast_ref::<bool>() {
+                            update = true;
+                        }
                     }
+                    std::cmp::Ordering::Less => {}
                 }
 
                 if update && data_mut.last_apply_request != vars.apply_update_id() {
@@ -343,8 +345,8 @@ impl<T: VarValue> RcWhenVar<T> {
             };
 
             active.with(|value| {
-                data.hooks.retain(|h| h.call(vars, updates, &value));
-            })
+                data.hooks.retain(|h| h.call(vars, updates, value));
+            });
         })
     }
 }
@@ -479,11 +481,11 @@ impl<T: VarValue> Var<T> for RcWhenVar<T> {
     fn into_value(self) -> T {
         match Rc::try_unwrap(self.0) {
             Ok(data) => {
-                let data = data.into_inner();
+                let mut data = data.into_inner();
                 if data.active == usize::MAX {
                     data.default.into_value()
                 } else {
-                    data.conditions[data.active].1.into_value()
+                    data.conditions.swap_remove(data.active).1.into_value()
                 }
             }
             Err(rc) => Self(rc).get(),

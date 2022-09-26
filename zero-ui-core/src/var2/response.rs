@@ -79,7 +79,7 @@ impl<T: VarValue> ResponseVar<T> {
     ///
     /// [`rsp`]: Self::rsp
     pub async fn wait_rsp<Vr: WithVars>(&self, vars: &Vr) {
-        while vars.with_vars(|v| self.with_rsp(|_| false).unwrap_or(true)) {
+        while self.with_rsp(|_| false).unwrap_or(true) {
             self.wait_new(vars).await;
         }
     }
@@ -155,7 +155,7 @@ impl<T: VarValue> ResponseVar<T> {
     pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> impl Var<O>
     where
         O: VarValue,
-        I: FnOnce() -> O + 'static,
+        I: Fn() -> O + 'static,
         M: FnOnce(&T) -> O + 'static,
     {
         let mut map = Some(map);
@@ -173,7 +173,7 @@ impl<T: VarValue> ResponderVar<T> {
     /// Sets the one time response.
     pub fn respond<'a, Vw: WithVars>(&'a self, vars: &'a Vw, response: T) {
         vars.with_vars(|vars| {
-            self.set(vars, Response::Done(response));
+            let _ = self.set(vars, Response::Done(response));
         })
     }
 

@@ -151,6 +151,12 @@ impl Updates {
         self.update_internal(mask);
     }
 
+    /// Schedules an update.
+    pub fn update2(&mut self, target: WidgetId) {
+        UpdatesTrace::log_update();
+        todo!()
+    }
+
     pub(crate) fn update_internal(&mut self, mask: UpdateMask) {
         self.next_updates |= mask;
         self.update = true;

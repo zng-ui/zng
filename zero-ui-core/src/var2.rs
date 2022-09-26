@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::handler::{AppHandler, app_hn};
+use crate::handler::{app_hn, AppHandler};
 
 pub mod animation;
 mod boxed;
@@ -15,7 +15,7 @@ mod channel;
 mod context;
 mod contextualized;
 mod cow;
-mod expr;
+// mod expr;
 mod flat_map;
 mod future;
 mod local;
@@ -23,23 +23,23 @@ mod merge;
 mod rc;
 mod read_only;
 mod response;
-mod state;
-mod tests;
-mod util;
+// mod state;
+// mod tests;
+// mod util;
 mod vars;
 mod when;
 
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
-pub use context::{context_var, with_context_var, with_context_var_init, ContextVar};
-pub use expr::expr_var;
+pub use context::{context_var2, with_context_var, with_context_var_init, ContextVar};
+// pub use expr::expr_var;
 pub use local::LocalVar;
 pub use merge::merge_var;
 pub use rc::{var, var_from, RcVar};
 pub use read_only::ReadOnlyRcVar;
 pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
-pub use state::*;
-pub use util::*;
+// pub use state::*;
+// pub use util::*;
 pub use vars::*;
 pub use when::when_var;
 
@@ -49,8 +49,9 @@ use crate::{context::Updates, WidgetId};
 pub mod types {
     pub use super::boxed::{VarBoxed, WeakVarBoxed};
     pub use super::context::ContextData;
+    pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
     pub use super::cow::{RcCowVar, WeakCowVar};
-    pub use super::expr::__expr_var;
+    // pub use super::expr::__expr_var;
     pub use super::flat_map::{RcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNewFut, WaitNewFut};
     pub use super::merge::{RcMergeVar, __merge_var, input_downcaster, WeakMergeVar};
@@ -58,7 +59,6 @@ pub mod types {
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
     pub use super::when::{AnyWhenVarBuilder, RcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
-    pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
 }
 
 /// A type that can be a [`Var<T>`] value.
@@ -295,7 +295,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     fn as_any(&self) -> &dyn Any;
 
     /// Access to `Box<dyn Any>` methods, with the [`BoxedVar<T>`] type.
-    /// 
+    ///
     /// This is a double-boxed to allow downcast to [`BoxedVar<T>`].
     fn into_boxed_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -320,14 +320,15 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Flags that indicate what operations the variable is capable of.
     fn capabilities(&self) -> VarCapabilities;
 
-    /// Setups a callback for just after the variable value is touched.
+    /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
+    /// the `modify` closure.
     ///
     /// Variables store a weak reference to the callback if they have the `MODIFY` or `CAP_CHANGE` capabilities, otherwise
-    /// the callback is immediately discarded and [`VarHandle::dummy`] returned.
+    /// the callback is discarded and [`VarHandle::dummy`] returned.
     ///
-    /// This is the most basic callback, used by the variables themselves, you can create a more elaborate handle using [`on_update`].
+    /// This is the most basic callback, used by the variables themselves, you can create a more elaborate handle using [`on_new`].
     ///
-    /// [`on_update`]: Var::on_update
+    /// [`on_new`]: Var::on_new
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle;
 
     /// Register the widget to receive update when this variable is new.
@@ -761,38 +762,60 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Creates a ref-counted var that maps from this variable.
     ///
-    /// The `map` closure is called immediately to generate the initial value, and then once every time
+    /// The `map` closure is called once on initialization, and then once every time
     /// the source variable updates. The source variable is not held by the map variable, if dropped the map
     /// variable stops updating.
     ///
     /// The mapping variable is read-only, you can use [`map_bidi`] to map back.
     ///
+    /// Note that the mapping var is [contextualized], meaning the map binding will initialize in the fist usage context, not
+    /// the creation context, so `property = CONTEXT_VAR.map(|&b|!b);` will bind with the `CONTEXT_VAR` in the `property` context,
+    /// not the property instantiation. The `map` closure itself runs in the root app context, trying to read other context variables
+    /// inside it will only read the default value.
+    ///
     /// [`map_bidi`]: Var::map_bidi
-    fn map<O, M>(&self, mut map: M) -> ReadOnlyRcVar<O>
+    /// [contextualized]: Types::ContextualizedVar
+    fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> O + 'static,
     {
-        let other = var(self.with(&mut map));
-        self.bind_map(&other, map).perm();
-        other.read_only()
+        let me = self.clone();
+        let map = Rc::new(RefCell::new(map));
+        types::ContextualizedVar::new(Rc::new(move || {
+            let other = var(me.with(&mut *map.borrow_mut()));
+            let map = map.clone();
+            me.bind_map(&other, move |t| map.borrow_mut()(t)).perm();
+            other.read_only()
+        }))
     }
 
     /// Create a ref-counted var that maps from this variable on read and to it on write.
     ///
-    /// The `map` closure is called immediately to generate the initial value, and then once every time
+    /// The `map` closure is called once on initialization, and then once every time
     /// the source variable updates, the `map_back` closure is called every time the output value is modified.
-    fn map_bidi<O, M, B>(&self, mut map: M, map_back: B) -> RcVar<O>
+    ///
+    /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    ///
+    /// [contextualized]: Types::ContextualizedVar
+    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> types::ContextualizedVar<O, RcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> O + 'static,
         B: FnMut(&O) -> T + 'static,
     {
-        let other = var(self.with(&mut map));
-        let [h1, h2] = self.bind_map_bidi(&other, map, map_back);
-        h1.perm();
-        h2.perm();
-        other
+        let me = self.clone();
+        let map = Rc::new(RefCell::new(map));
+        let map_back = Rc::new(RefCell::new(map_back));
+        types::ContextualizedVar::new(Rc::new(move || {
+            let other = var(me.with(&mut *map.borrow_mut()));
+            let map = map.clone();
+            let map_back = map_back.clone();
+            let [h1, h2] = me.bind_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o));
+            h1.perm();
+            h2.perm();
+            other
+        }))
     }
 
     /// Create a ref-counted var that maps to an inner variable that is found inside the value of this variable.
@@ -801,57 +824,85 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// the source variable updates.
     ///
     /// The mapping var has the same capabilities of the inner var + `CAP_CHANGE`, modifying the mapping var modifies the inner var.
-    fn flat_map<O, V, M>(&self, map: M) -> types::RcFlatMapVar<O, V>
+    ///
+    /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    ///
+    /// [contextualized]: Types::ContextualizedVar
+    fn flat_map<O, V, M>(&self, map: M) -> types::ContextualizedVar<O, types::RcFlatMapVar<O, V>>
     where
         O: VarValue,
         V: Var<O>,
         M: FnMut(&T) -> V + 'static,
     {
-        types::RcFlatMapVar::new(self, map)
+        let me = self.clone();
+        let map = Rc::new(RefCell::new(map));
+        types::ContextualizedVar::new(Rc::new(move || {
+            let map = map.clone();
+            types::RcFlatMapVar::new(&me, move |i| map.borrow_mut()(i))
+        }))
     }
 
     /// Creates a ref-counted var that maps from this variable, but can retain a previous mapped value.
     ///
-    /// The `map` closure is called immediately to generate the initial value, if it returns `None` the `init` closure is called to generate
+    /// The `map` closure is called once on initialization, if it returns `None` the `init` closure is called to generate
     /// a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
     /// otherwise the previous value is retained, either way the mapping variable is *new*.
     ///
     /// The mapping variable is read-only, use [`filter_map_bidi`] to map back.
     ///
+    /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    ///
+    /// [contextualized]: Types::ContextualizedVar
     /// [`map_bidi`]: Var::map_bidi
-    fn filter_map<O, M, I>(&self, mut map: M, init: I) -> ReadOnlyRcVar<O>
+    fn filter_map<O, M, I>(&self, map: M, init: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + 'static,
-        I: FnOnce() -> O,
+        I: Fn() -> O + 'static,
     {
-        let other = var(self.with(&mut map).unwrap_or_else(init));
-        self.bind_filter_map(&other, map).perm();
-        other.read_only()
+        let me = self.clone();
+        let map = Rc::new(RefCell::new(map));
+        types::ContextualizedVar::new(Rc::new(move || {
+            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&init));
+            let map = map.clone();
+            me.bind_filter_map(&other, move |i| map.borrow_mut()(i)).perm();
+            other.read_only()
+        }))
     }
 
     /// Create a ref-counted var that maps from this variable on read and to it on write, mapping in both directions can skip
     /// a value, retaining the previous mapped value.
     ///
-    /// The `map` closure is called immediately to generate the initial value, if it returns `None` the `init` closure is called
+    /// The `map` closure is called once on initialization, if it returns `None` the `init` closure is called
     /// to generate a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
     /// otherwise the previous value is retained, either way the mapping variable is *new*. The `map_back` closure
     /// is called every time the output value is modified, if it returns `Some(_)` the source variable is set, otherwise the source
     /// value is not touched.
-    fn filter_map_bidi<O, M, B, I>(&self, mut map: M, map_back: B, init: I) -> RcVar<O>
+    ///
+    /// The mapping var is [contextualized], see [`Var::map`] for more details.
+    ///
+    /// [contextualized]: Types::ContextualizedVar
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, init: I) -> types::ContextualizedVar<O, RcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + 'static,
         B: FnMut(&O) -> Option<T> + 'static,
-        I: FnOnce() -> O,
+        I: Fn() -> O + 'static,
     {
-        let other = var(self.with(&mut map).unwrap_or_else(init));
-        let [h1, h2] = self.bind_filter_map_bidi(&other, map, map_back);
-        h1.perm();
-        h2.perm();
-        other
+        let me = self.clone();
+        let map = Rc::new(RefCell::new(map));
+        let map_back = Rc::new(RefCell::new(map_back));
+        types::ContextualizedVar::new(Rc::new(move || {
+            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&init));
+            let map = map.clone();
+            let map_back = map_back.clone();
+            let [h1, h2] = me.bind_filter_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o));
+            h1.perm();
+            h2.perm();
+            other
+        }))
     }
 
     /// Setup a hook that assigns `other` with the new values of `self` transformed by `map`.
@@ -1153,7 +1204,7 @@ where
 
 fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
     Box::new(move |_, updates, _| {
-        updates.update(widget_id);
+        updates.update2(widget_id);
         true
     })
 }

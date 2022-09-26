@@ -36,7 +36,7 @@ use super::*;
 ///
 /// It is recommended that the type name ends with the `_VAR` suffix.
 #[macro_export]
-macro_rules! context_var {
+macro_rules! context_var2 {
     ($(
         $(#[$attr:meta])*
         $vis:vis static $NAME:ident: $Type:ty = $default:expr;
@@ -44,41 +44,16 @@ macro_rules! context_var {
         $crate::paste! {
             std::thread_local! {
                 #[doc(hidden)]
-                static [<$NAME _LOCAL>]: $crate::var::types::ContextData<$Type> = $crate::var::types::ContextData::init($default);
+                static [<$NAME _LOCAL>]: $crate::var2::types::ContextData<$Type> = $crate::var2::types::ContextData::init($default);
             }
         }
 
         $(#[$attr])*
-        $vis static $NAME: $crate::var::ContextVar<$Type> = paste::paste! { $crate::var::ContextVar::new(&[<$NAME _LOCAL>]) };
+        $vis static $NAME: $crate::var2::ContextVar<$Type> = paste::paste! { $crate::var2::ContextVar::new(&[<$NAME _LOCAL>]) };
     )+}
 }
 #[doc(inline)]
-pub use crate::context_var;
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __context_var {
-    (
-        $(#[$attr:meta])*
-        $vis:vis static $NAME:ident : $Type:ty => $PARENT:path;
-    ) => {
-        paste::paste! {
-            std::thread_local! {
-                #[doc(hidden)]
-                static [<$NAME _LOCAL>]: $crate::var::types::ContextData<$Type> = $PARENT.derive_local();
-            }
-        }
-
-        $(#[$attr])*
-        $vis static $NAME: $crate::var::ContextVar<$Type> = paste::paste! { $crate::var::ContextVar::new(&[<$NAME _LOCAL>]) };
-    };
-    (
-        $(#[$attr:meta])*
-        $vis:vis static $NAME:ident : $Type:ty = $default:expr;
-    ) => {
-
-    };
-}
+pub use crate::context_var2;
 
 #[doc(hidden)]
 pub struct ContextData<T: VarValue> {
@@ -111,6 +86,11 @@ impl<T: VarValue> ContextVar<T> {
     /// Runs `action` with this context var representing the other `var` in the current thread.
     ///
     /// Returns the `var` and the result of `action`.
+    ///
+    /// Note that the `var` must be the same for subsequent calls in the same *context*, otherwise [contextualized]
+    /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
+    ///
+    /// [contextualized]: types::ContextualizedVar
     pub fn with_context<R, F: FnOnce() -> R>(self, var: impl IntoVar<T>, action: F) -> (BoxedVar<T>, R) {
         let var = var.into_var().boxed();
         self.local.with(move |local| {
@@ -241,7 +221,7 @@ pub use helpers::*;
 mod helpers {
     use std::cell::RefCell;
 
-    use crate::{context::*, event::*, render::*, units::*, var::*, widget_info::*, *};
+    use crate::{context::*, event::*, render::*, units::*, var2::*, widget_info::*, *};
 
     /// Helper for declaring properties that sets a context var.
     ///
@@ -380,6 +360,10 @@ mod helpers {
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(ctx, update))
             }
+
+            fn subscriptions(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
+                todo!()
+            }
         }
 
         WithContextVarNode {
@@ -469,6 +453,10 @@ mod helpers {
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(ctx, update));
+            }
+
+            fn subscriptions(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
+                todo!()
             }
         }
         WithContextVarInitNode {

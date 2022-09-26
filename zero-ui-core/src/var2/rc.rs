@@ -39,6 +39,12 @@ impl<T: VarValue> WeakRcVar<T> {
     }
 }
 
+impl<T: VarValue> Default for WeakRcVar<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: VarValue> crate::private::Sealed for RcVar<T> {}
 
 impl<T: VarValue> crate::private::Sealed for WeakRcVar<T> {}

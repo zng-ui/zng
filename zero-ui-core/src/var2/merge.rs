@@ -24,7 +24,7 @@ use super::*;
 /// let greeting_text = text(merge_var!(&var0, &var1, |a, b| formatx!("{a} {b}!")));
 /// ```
 #[macro_export]
-macro_rules! merge_var {
+macro_rules! merge_var2 {
     ($($tt:tt)+) => {
         $crate::var::types::__merge_var! {
             $crate::var,
@@ -33,7 +33,7 @@ macro_rules! merge_var {
     };
 }
 #[doc(inline)]
-pub use crate::merge_var;
+pub use crate::merge_var2 as merge_var;
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::merge_var as __merge_var;

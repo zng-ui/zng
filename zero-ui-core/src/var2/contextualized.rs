@@ -4,9 +4,22 @@ use super::*;
 
 /// Represents a variable that delays initialization until the first usage.
 ///
-/// Usage that initializes are all [`AnyVar`] and [`Var<T>`] methods except `read_only`, `downgrade` and `boxed`.
-///
+/// Usage that initializes the variable are all [`AnyVar`] and [`Var<T>`] methods except `read_only`, `downgrade` and `boxed`.
 /// Clones of this variable are always not initialized and re-init on first usage.
+///
+/// This variable use used in the [`Var::map`] and other mapping methods to support mapping from [`ContextVar<T>`].
+///
+/// ```
+/// # fake!{($($tt:tt)*) => {}}
+/// # fake! {
+/// let wgt = my_wgt! {
+///     my_property = MY_CTX_VAR.map(|&b| !b);
+/// };
+/// # }
+/// ```
+///
+/// In the example above the mapping var will bind with the `MY_CTX_VAR` context inside the property node, not
+/// the context at the moment the widget is instantiated.
 pub struct ContextualizedVar<T, S> {
     _type: PhantomData<T>,
     init: Rc<dyn Fn() -> S>,

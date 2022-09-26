@@ -1,3 +1,27 @@
+# Var/Update Rewrite
+
+* Get `merge_var!` and `when_var!` contextualized.
+* Implement animation in new var API.
+* Review every old var API, do we really don't need `switch_var!` and `map_ref`? 
+* Implement delivery-list for update requests.
+    - Use it in new var API.
+    - Add the current updates list to `UiNode::update` ?
+* Implement `ui_node!`, see [#Better Node Macro].
+    - Remove `UiNode::subscriptions`.
+    - Remove old var, rename `var2`, rewrite everything.
+    - Tests.
+* Stop propagation when all items in delivery list visited.
+* Stop propagation when it is requested.
+
+* Review `unsafe`, only use when there is no alternative.
+
+* Implement event handlers using a callback in the event that queues the handlers to run once. 
+    - This avoids the linear event update search.
+* Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
+    - Bug already existed in previous implementation.
+    - Have an AppId?
+* Implement all `todo!` code.
+
 # Better Node Macro
 
 * We really need a better way to declare nodes, some property nodes have have 20 lines of generics metadata.
@@ -70,31 +94,3 @@ fn foo(child: impl UiNode, foo: impl IntoVar<bool>, bar: impl IntoVar<bool>) -> 
     }
 }
 ```
-
-# Var Rewrite/Remove Subscriptions
-
-* Need a "eval-on-subscribe" var type? Like Length::Expr
-* Implement delivery-list/subscribers for variables.
-* Implement delivery-list for raw update requests.
-* Remove UiNode::subscriptions.
-* Stop propagation when all items in delivery list visited.
-* Stop propagation when it is requested.
-
-* Review `unsafe`, only use when there is no alternative.
-
-* Implement event handlers using a callback in the event that queues the handlers to run once. 
-    - This avoids the linear event update search.
-* Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
-    - Bug already existed in previous implementation.
-    - Have an AppId?
-* Implement all `todo!` code.
-
-# Light Color Scheme
-
-* Review light color scheme in all examples.
-
-- example    - description
-- text       - colored text is hard to see in light mode
-             - font size widget background is not changed
-
-- transform  - red

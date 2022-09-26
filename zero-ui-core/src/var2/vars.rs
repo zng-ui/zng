@@ -128,6 +128,9 @@ impl WithVars for Vars {
         action(self)
     }
 }
+
+/*
+
 impl<'a> WithVars for crate::context::AppContext<'a> {
     fn with_vars<R, A>(&self, action: A) -> R
     where
@@ -139,7 +142,7 @@ impl<'a> WithVars for crate::context::AppContext<'a> {
 impl<'a> WithVars for crate::context::WindowContext<'a> {
     fn with_vars<R, A>(&self, action: A) -> R
     where
-        A: FnOnce(&Vars) -> R,
+    A: FnOnce(&Vars) -> R,
     {
         action(self.vars)
     }
@@ -180,7 +183,7 @@ impl WithVars for crate::context::WidgetContextMut {
 impl WithVars for crate::context::TestWidgetContext {
     fn with_vars<R, A>(&self, action: A) -> R
     where
-        A: FnOnce(&Vars) -> R,
+    A: FnOnce(&Vars) -> R,
     {
         action(&self.vars)
     }
@@ -193,3 +196,5 @@ impl WithVars for crate::app::HeadlessApp {
         action(self.vars())
     }
 }
+
+        */

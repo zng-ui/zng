@@ -19,7 +19,7 @@ mod any {
 
     #[test]
     fn downcast_ref_context_var() {
-        context_var! {
+        context_var2! {
             static FOO_VAR: bool = true;
         }
         let any_var = FOO_VAR.into_any();
@@ -57,7 +57,7 @@ mod any {
 mod bindings {
     use crate::app::App;
     use crate::text::ToText;
-    use crate::var::{var, Var};
+    use crate::var2::{var, Var};
 
     #[test]
     fn one_way_binding() {
@@ -320,9 +320,9 @@ mod bindings {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_bidi(&app.ctx(), &b).perm();
-        b.bind_bidi(&app.ctx(), &c).perm();
-        c.bind_bidi(&app.ctx(), &d).perm();
+        a.bind_bidi(&b).perm();
+        b.bind_bidi(&c).perm();
+        c.bind_bidi(&d).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -457,7 +457,7 @@ mod bindings {
 }
 
 mod context {
-    use crate::{app::*, context::*, text::*, var::*, *};
+    use crate::{app::*, context::*, text::*, var2::*, *};
 
     context_var! {
         static TEST_VAR: Text = "";
@@ -516,7 +516,7 @@ mod context {
         OnInitNode { child, handler }
     }
 
-    #[widget($crate::var::tests::context::test_wgt)]
+    #[widget($crate::var2::tests::context::test_wgt)]
     mod test_wgt {
         use super::*;
 
@@ -719,7 +719,7 @@ mod context {
 }
 
 mod flat_map {
-    use crate::{context::TestWidgetContext, var::*};
+    use crate::{context::TestWidgetContext, var2::*};
     use std::fmt;
 
     #[derive(Clone)]

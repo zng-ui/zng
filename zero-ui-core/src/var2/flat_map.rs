@@ -25,7 +25,8 @@ where
     T: VarValue,
     V: Var<T>,
 {
-    pub(super) fn new<I: VarValue>(source: &impl Var<I>, mut map: impl FnMut(&I) -> V + 'static) -> Self {
+    /// New.
+    pub fn new<I: VarValue>(source: &impl Var<I>, mut map: impl FnMut(&I) -> V + 'static) -> Self {
         let flat = Rc::new(RefCell::new(Data {
             _t: PhantomData,
             var: source.with(&mut map),
