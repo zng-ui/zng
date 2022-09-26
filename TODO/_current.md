@@ -1,6 +1,7 @@
 # Var/Update Rewrite
 
 * Get `merge_var!` and `when_var!` contextualized.
+* Implement "specialization" of mapping vars by returning boxed.
 * Implement animation in new var API.
 * Review every old var API, do we really don't need `switch_var!` and `map_ref`? 
 * Implement delivery-list for update requests.

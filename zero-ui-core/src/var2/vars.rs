@@ -56,6 +56,8 @@ pub struct Vars {
 
     updates: RefCell<Vec<VarUpdateFn>>,
     spare_updates: Vec<VarUpdateFn>,
+
+    modify_receivers: RefCell<Vec<Box<dyn Fn(&Vars) -> bool>>>,
 }
 impl Vars {
     /// Id of the current vars update in the app scope.
@@ -73,6 +75,7 @@ impl Vars {
             apply_update_id: VarApplyUpdateId(1),
             updates: RefCell::new(Vec::with_capacity(128)),
             spare_updates: Vec::with_capacity(128),
+            modify_receivers: RefCell::new(vec![]),
         }
     }
 
@@ -108,8 +111,21 @@ impl Vars {
         todo!()
     }
 
+    pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn(&Vars) -> bool>) {
+        self.modify_receivers.borrow_mut().push(recv_modify);
+    }
+
+    pub(crate) fn app_event_sender(&self) -> AppEventSender {
+        self.app_event_sender.clone()
+    }
+
     pub(crate) fn receive_sended_modify(&self) {
-        todo!()
+        let mut rcvs = mem::take(&mut *self.modify_receivers.borrow_mut());
+        rcvs.retain(|rcv| rcv(self));
+
+        let mut rcvs_mut = self.modify_receivers.borrow_mut();
+        rcvs.extend(rcvs_mut.drain(..));
+        *rcvs_mut = rcvs;
     }
 }
 

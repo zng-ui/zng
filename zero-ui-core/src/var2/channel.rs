@@ -29,6 +29,27 @@ impl<T: VarValue + Send> fmt::Debug for VarReceiver<T> {
     }
 }
 impl<T: VarValue + Send> VarReceiver<T> {
+    /// New from `source`.
+    pub fn new(source: &impl Var<T>, send_current: bool) -> VarReceiver<T> {
+        let (sender, receiver) = flume::unbounded();
+        if send_current {
+            let _ = sender.send(source.get());
+        }
+        if !source.capabilities().is_always_static() {
+            source
+                .hook(Box::new(move |_, _, value| {
+                    if let Some(value) = value.as_any().downcast_ref::<T>() {
+                        if sender.send(value.clone()).is_err() {
+                            return false;
+                        }
+                    }
+                    true
+                }))
+                .perm();
+        }
+        Self { receiver }
+    }
+
     /// Receives the oldest sent update not received, blocks until the variable updates.
     pub fn recv(&self) -> Result<T, AppDisconnected<()>> {
         self.receiver.recv().map_err(|_| AppDisconnected(()))
@@ -123,10 +144,39 @@ impl<T: VarValue + Send> fmt::Debug for VarSender<T> {
         write!(f, "VarSender")
     }
 }
+
 impl<T> VarSender<T>
 where
     T: VarValue + Send,
 {
+    /// New sender that sets `target`.
+    pub fn new(vars: &Vars, target: &impl Var<T>) -> Self {
+        let (sender, recv) = flume::unbounded();
+
+        if !target.capabilities().is_always_read_only() {
+            let wk_target = target.downgrade();
+            vars.register_channel_recv(Box::new(move |vars| {
+                if let Some(target) = wk_target.upgrade() {
+                    if let Some(value) = recv.try_iter().last() {
+                        match target.set(vars, value) {
+                            Ok(_) => true,
+                            Err(e) => !e.capabilities.is_always_read_only(),
+                        }
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            }));
+        }
+
+        Self {
+            wake: vars.app_event_sender(),
+            sender,
+        }
+    }
+
     /// Sends a new value for the variable, unless the connected app has exited.
     ///
     /// If the variable is read-only when the `new_value` is received it is silently dropped, if more then one
@@ -171,6 +221,34 @@ impl<T> VarModifySender<T>
 where
     T: VarValue,
 {
+    /// New sender that sets `target`.
+    pub fn new(vars: &Vars, target: &impl Var<T>) -> Self {
+        let (sender, recv) = flume::unbounded();
+
+        if !target.capabilities().is_always_read_only() {
+            let wk_target = target.downgrade();
+            vars.register_channel_recv(Box::new(move |vars| {
+                if let Some(target) = wk_target.upgrade() {
+                    if let Some(modify) = recv.try_iter().last() {
+                        match target.modify(vars, modify) {
+                            Ok(_) => true,
+                            Err(e) => !e.capabilities.is_always_read_only(),
+                        }
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            }));
+        }
+
+        Self {
+            wake: vars.app_event_sender(),
+            sender,
+        }
+    }
+
     /// Sends a modification for the variable, unless the connected app has exited.
     ///
     /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one

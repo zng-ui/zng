@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::handler::{app_hn, AppHandler};
+use crate::handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs};
 
 pub mod animation;
 mod boxed;
@@ -1045,7 +1045,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T: Send,
     {
-        todo!()
+        vars.with_vars(|vars| VarSender::new(vars, self))
     }
 
     /// Creates a sender that modify `self` from other threads and without access to [`Vars`].
@@ -1055,18 +1055,17 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         V: WithVars,
     {
-        todo!()
+        vars.with_vars(|vars| VarModifySender::new(vars, self))
     }
 
     /// Creates a channel that can receive `var` updates from another thread.
     ///
     /// Every time the variable updates a clone of the value is sent to the receiver. The current value is sent immediately.
-    fn receiver<V>(&self, vars: &V) -> VarReceiver<T>
+    fn receiver<V>(&self) -> VarReceiver<T>
     where
         T: Send,
-        V: WithVars,
     {
-        todo!()
+        VarReceiver::new(self, true)
     }
 
     /// Add a preview `handler` that is called every time this variable value is set, modified or touched,
@@ -1077,7 +1076,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         H: AppHandler<T>,
     {
-        todo!()
+        var_on_new(self, handler, true)
     }
 
     // Add a `handler` that is called every time this variable value is set, modified or touched,
@@ -1088,7 +1087,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         H: AppHandler<T>,
     {
-        todo!()
+        var_on_new(self, handler, false)
     }
 
     /// Debug helper for tracing the lifetime of a value in this variable.
@@ -1238,5 +1237,40 @@ fn var_bind_ok<I: VarValue, O: VarValue, W: WeakVar<O>>(
         } else {
             false
         }
+    }))
+}
+
+fn var_on_new<T: VarValue>(var: &impl Var<T>, handler: impl AppHandler<T>, is_preview: bool) -> VarHandle {
+    if var.capabilities().is_always_static() {
+        return VarHandle::dummy();
+    }
+
+    let handler = Rc::new(RefCell::new(handler));
+    let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
+    var.hook(Box::new(move |_, updates, value| {
+        if inner_handle_owner.is_dropped() {
+            return false;
+        }
+
+        if let Some(value) = value.as_any().downcast_ref::<T>() {
+            let handle = inner_handle.downgrade();
+            let update_once = app_hn_once!(handler, value, |ctx, _| {
+                handler.borrow_mut().event(
+                    ctx,
+                    &value,
+                    &AppHandlerArgs {
+                        handle: &handle,
+                        is_preview,
+                    },
+                );
+            });
+
+            if is_preview {
+                updates.on_pre_update(update_once).perm();
+            } else {
+                updates.on_update(update_once).perm();
+            }
+        }
+        true
     }))
 }
