@@ -288,24 +288,16 @@ impl VarHandle {
 ///
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 pub trait AnyVar: Any + crate::private::Sealed {
-    /// Clone the variable into a type erased box.
+    /// Clone the variable into a type erased box, this is never [`BoxedVar<T>`].
     fn clone_any(&self) -> BoxedAnyVar;
 
     /// Access to `dyn Any` methods.
-    fn as_any(&self) -> &dyn Any
-    where
-        Self: Sized,
-    {
-        self
-    }
+    fn as_any(&self) -> &dyn Any;
 
-    /// Access to `Box<dyn Any>` methods.
-    fn into_any(self: Box<Self>) -> Box<dyn Any>
-    where
-        Self: Sized,
-    {
-        self
-    }
+    /// Access to `Box<dyn Any>` methods, with the [`BoxedVar<T>`] type.
+    /// 
+    /// This is a double-boxed to allow downcast to [`BoxedVar<T>`].
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any>;
 
     /// Gets the [`TypeId`] of `T` in `Var<T>`.
     fn var_type_id(&self) -> TypeId;

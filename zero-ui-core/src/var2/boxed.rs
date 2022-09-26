@@ -120,6 +120,14 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).clone_any()
     }
 
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
     fn var_type_id(&self) -> TypeId {
         (**self).var_type_id()
     }

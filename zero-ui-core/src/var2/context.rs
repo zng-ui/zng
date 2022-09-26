@@ -136,6 +136,15 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         Box::new(*self)
     }
 
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
+    }
+
     fn var_type_id(&self) -> TypeId {
         TypeId::of::<T>()
     }
@@ -156,12 +165,12 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.local.with(|l| l.var.borrow().capabilities()) | VarCapabilities::CAP_CHANGE
     }
 
-    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        self.local.with(|l| l.var.borrow().subscribe(widget_id))
-    }
-
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
         self.local.with(|l| l.var.borrow().hook(pos_modify_action))
+    }
+
+    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
+        self.local.with(|l| l.var.borrow().subscribe(widget_id))
     }
 
     fn strong_count(&self) -> usize {

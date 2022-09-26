@@ -13,6 +13,15 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         Box::new(self.clone())
     }
 
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
+    }
+
     fn var_type_id(&self) -> TypeId {
         TypeId::of::<T>()
     }

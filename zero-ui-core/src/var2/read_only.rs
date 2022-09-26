@@ -34,6 +34,15 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         Box::new(self.clone())
     }
 
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
+    }
+
     fn var_type_id(&self) -> TypeId {
         self.1.var_type_id()
     }
@@ -56,12 +65,12 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.capabilities().as_read_only()
     }
 
-    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        self.1.subscribe(widget_id)
-    }
-
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
         self.1.hook(pos_modify_action)
+    }
+
+    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
+        self.1.subscribe(widget_id)
     }
 
     fn strong_count(&self) -> usize {

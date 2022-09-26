@@ -147,11 +147,11 @@ pub struct AnyWhenVarBuilder {
 impl AnyWhenVarBuilder {
     /// Start building with only the default value.
     pub fn new<O: VarValue>(default: impl IntoVar<O>) -> Self {
-        Self::new_any(default.into_var().boxed().into_any())
+        Self::new_any(Box::new(default.into_var()))
     }
 
-    /// Start building with an already type erased default var.
-    pub fn new_any(default: Box<dyn AnyVar>) -> Self {
+    /// Start building with already boxed var.
+    pub fn new_any(default: BoxedAnyVar) -> AnyWhenVarBuilder {
         Self {
             default,
             conditions: vec![],
@@ -160,13 +160,12 @@ impl AnyWhenVarBuilder {
 
     /// Create a builder from the parts of a formed [`rc_when_var!`].
     pub fn from_var<O: VarValue>(var: &RcWhenVar<O>) -> Self {
+        let data = var.0.borrow();
         Self {
-            default: var.0.default_.clone().into_any(),
-            conditions: var
-                .0
-                .whens
+            default: data.default.clone_any(),
+            conditions: data.conditions
                 .iter()
-                .map(|w| (w.condition.clone(), w.value.clone().into_any()))
+                .map(|(c, v)| (c.clone(), v.clone_any()))
                 .collect(),
         }
     }
@@ -178,21 +177,21 @@ impl AnyWhenVarBuilder {
 
     /// Set/replace the default value.
     pub fn set_default<O: VarValue>(&mut self, default: impl IntoVar<O>) {
-        self.set_default_any(default.into_var().boxed().into_any());
+        self.set_default_any(Box::new(default.into_var()));
     }
 
     /// Set/replace the default value with an already typed erased var.
-    pub fn set_default_any(&mut self, default: Box<dyn AnyVar>) {
+    pub fn set_default_any(&mut self, default: BoxedAnyVar) {
         self.default = default;
     }
 
     /// Push a when condition.
     pub fn push<C: Var<bool>, O: VarValue, V: IntoVar<O>>(self, condition: C, value: V) -> Self {
-        self.push_any(condition.boxed(), value.into_var().boxed().into_any())
+        self.push_any(condition.boxed(), Box::new(value.into_var()))
     }
 
     /// Push a when condition already boxed and type erased.
-    pub fn push_any(mut self, condition: BoxedVar<bool>, value: Box<dyn AnyVar>) -> Self {
+    pub fn push_any(mut self, condition: BoxedVar<bool>, value: BoxedAnyVar) -> Self {
         self.conditions.push((condition, value));
         self
     }
@@ -219,7 +218,7 @@ impl AnyWhenVarBuilder {
         for (c, v) in self.conditions {
             let value = v.as_any().downcast_ref::<BoxedVar<T>>()?;
 
-            when = when.push(c.clone(), value.clone());
+           when.push(c.clone(), value.clone());
         }
 
         Some(when.build())
@@ -367,6 +366,15 @@ impl<T: VarValue> crate::private::Sealed for WeakWhenVar<T> {}
 impl<T: VarValue> AnyVar for RcWhenVar<T> {
     fn clone_any(&self) -> BoxedAnyVar {
         Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
     }
 
     fn var_type_id(&self) -> TypeId {
