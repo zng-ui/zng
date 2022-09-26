@@ -73,7 +73,8 @@ pub use crate::when_var;
 pub use zero_ui_proc_macros::when_var as __when_var;
 
 /// Manually build a [`RcWhenVar<T>`].
-pub struct WhenVarBuilder<T> {
+#[derive(Clone)]
+pub struct WhenVarBuilder<T: VarValue> {
     default: BoxedVar<T>,
     conditions: Vec<(BoxedVar<bool>, BoxedVar<T>)>,
 }
@@ -130,6 +131,11 @@ impl<T: VarValue> WhenVarBuilder<T> {
         }
 
         RcWhenVar(rc_when)
+    }
+
+    /// Defer build to a [`types::ContextualizedVar`] first use.
+    pub fn contextualized_build(self) -> types::ContextualizedVar<T, RcWhenVar<T>> {
+        types::ContextualizedVar::new(Rc::new(move || self.clone().build()))
     }
 }
 
@@ -210,13 +216,22 @@ impl AnyWhenVarBuilder {
 
         let mut when = WhenVarBuilder::new(default.clone());
 
-        for (c, v) in &self.conditions {
+        for (c, v) in self.conditions {
             let value = v.as_any().downcast_ref::<BoxedVar<T>>()?;
 
             when = when.push(c.clone(), value.clone());
         }
 
         Some(when.build())
+    }
+
+    /// Defer build to a [`types::ContextualizedVar`] first use.
+    pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T, RcWhenVar<T>>> {
+        if self.default.var_type_id() == TypeId::of::<T>() {
+            Some(types::ContextualizedVar::new(Rc::new(move || self.build().unwrap())))
+        } else {
+            None
+        }
     }
 }
 impl fmt::Debug for AnyWhenVarBuilder {
@@ -254,7 +269,7 @@ pub struct WeakWhenVar<T>(Weak<RefCell<Data<T>>>);
 
 impl<T: VarValue> RcWhenVar<T> {
     fn active(&self) -> Ref<BoxedVar<T>> {
-        RefCell::map(self.0.borrow(), |data| {
+        Ref::map(self.0.borrow(), |data| {
             if data.active == usize::MAX {
                 &data.default
             } else {
@@ -263,18 +278,18 @@ impl<T: VarValue> RcWhenVar<T> {
         })
     }
 
-    fn handle_condition(wk_when: Weak<RefCell<Data<T>>>, i: usize) -> VarUpdateFn {
+    fn handle_condition(wk_when: Weak<RefCell<Data<T>>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
         Box::new(move |vars, _, value| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.borrow_mut();
                 let mut update = false;
 
                 if data_mut.active == i {
-                    if let Some(&false) = value.downcast_ref::<bool>() {
+                    if let Some(&false) = value.as_any().downcast_ref::<bool>() {
                         update = true;
                     }
                 } else if data_mut.active > i {
-                    if let Some(&true) = value.downcast_ref::<bool>() {
+                    if let Some(&true) = value.as_any().downcast_ref::<bool>() {
                         update = true;
                     }
                 }
@@ -292,7 +307,7 @@ impl<T: VarValue> RcWhenVar<T> {
         })
     }
 
-    fn handle_value(wk_when: Weak<RefCell<Data<T>>>, i: usize) -> VarUpdateFn {
+    fn handle_value(wk_when: Weak<RefCell<Data<T>>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
         Box::new(move |vars, _, _| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.borrow_mut();
@@ -322,7 +337,15 @@ impl<T: VarValue> RcWhenVar<T> {
             }
             data.last_update = vars.update_id();
 
-            data.hooks.retain(|h| h.call(vars, updates, &data.value));
+            let active = if data.active == usize::MAX {
+                &data.default
+            } else {
+                &data.conditions[data.active].1
+            };
+
+            active.with(|value| {
+                data.hooks.retain(|h| h.call(vars, updates, &value));
+            })
         })
     }
 }

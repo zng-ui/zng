@@ -7,12 +7,13 @@ use std::{
     rc::Rc,
 };
 
-use crate::handler::AppHandler;
+use crate::handler::{AppHandler, app_hn};
 
 pub mod animation;
 mod boxed;
 mod channel;
 mod context;
+mod contextualized;
 mod cow;
 mod expr;
 mod flat_map;
@@ -57,6 +58,7 @@ pub mod types {
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
     pub use super::when::{AnyWhenVarBuilder, RcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
+    pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
 }
 
 /// A type that can be a [`Var<T>`] value.

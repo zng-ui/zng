@@ -73,6 +73,7 @@ fn foo(child: impl UiNode, foo: impl IntoVar<bool>, bar: impl IntoVar<bool>) -> 
 
 # Var Rewrite/Remove Subscriptions
 
+* Need a "eval-on-subscribe" var type? Like Length::Expr
 * Implement delivery-list/subscribers for variables.
 * Implement delivery-list for raw update requests.
 * Remove UiNode::subscriptions.

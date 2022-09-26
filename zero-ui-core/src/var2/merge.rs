@@ -41,7 +41,7 @@ pub use zero_ui_proc_macros::merge_var as __merge_var;
 #[doc(hidden)]
 pub fn input_downcaster<T: VarValue, V: Var<T>>(_: &V) -> fn(&dyn Any) -> &T {
     fn cast<T: VarValue>(value: &dyn Any) -> &T {
-        value.downcast_ref()
+        value.downcast_ref().unwrap()
     }
 
     cast::<T>

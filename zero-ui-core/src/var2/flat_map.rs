@@ -17,7 +17,8 @@ struct Data<T, V> {
 /// See [`Var::flat_map`].
 pub struct RcFlatMapVar<T, V>(Rc<RefCell<Data<T, V>>>);
 
-struct WeakFlatMapVar<T, V>(Weak<RefCell<Data<T, V>>>);
+/// Weak reference to a [`RcFlatMapVar<T, V>`].
+pub struct WeakFlatMapVar<T, V>(Weak<RefCell<Data<T, V>>>);
 
 impl<T, V> RcFlatMapVar<T, V>
 where
