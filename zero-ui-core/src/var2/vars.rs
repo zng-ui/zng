@@ -1,11 +1,11 @@
-use std::mem;
+use std::{mem, time::Duration};
 
 use crate::{
     app::AppEventSender,
-    context::{AppContext, Updates},
+    context::{AppContext, Updates}, units::Factor,
 };
 
-use super::*;
+use super::{animation::Animations, *};
 
 /// Represents the last time a variable was mutated or the current update cycle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +50,7 @@ thread_singleton!(SingletonVars);
 pub struct Vars {
     _singleton: SingletonVars,
     app_event_sender: AppEventSender,
+    pub(super) ans: Animations,
 
     update_id: VarUpdateId,
     apply_update_id: VarApplyUpdateId,
@@ -67,10 +68,105 @@ impl Vars {
         self.update_id
     }
 
+    /// Returns a read-only variable that tracks if animations are enabled in the operating system.
+    ///
+    /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
+    pub fn animations_enabled(&self) -> ReadOnlyRcVar<bool> {
+        self.ans.animations_enabled.read_only()
+    }
+
+    /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
+    pub fn frame_duration(&self) -> &RcVar<Duration> {
+        &self.ans.frame_duration
+    }
+
+    /// Variable that defines a global scale for the elapsed time of animations.
+    pub fn animation_time_scale(&self) -> &RcVar<Factor> {
+        &self.ans.animation_time_scale
+    }
+
+        /// Adds an animation handler that is called every frame to update captured variables.
+    ///
+    /// This is used by the [`Var`] ease methods default implementation, it enables any kind of variable animation,
+    /// including multiple variables.
+    ///
+    /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
+    /// make the animation [`perm`].
+    ///
+    /// # Variable Control
+    ///
+    /// Animations assume *control* of a variable on the first time they cause its value to be new, after this
+    /// moment the [`Var::is_animating`] value is `true` until the animation stops. Only one animation can control a
+    /// variable at a time, if an animation loses control of a variable all attempts to modify it from inside the animation are ignored.
+    ///
+    /// Later started animations steal control from previous animations, direct touch, modify or set calls also remove the variable
+    /// from being affected by a running animation.
+    ///
+    /// # Nested Animations
+    ///
+    /// Other animations can be started from inside the animation closure, these *nested* animations have the same handle
+    /// as the *parent* animation, stopping an animation by dropping the handle or calling [`stop`] stops the parent animation
+    /// and any other animation started by it.
+    ///
+    /// # Examples
+    ///
+    /// The example animates a `text` variable from `"Animation at 0%"` to `"Animation at 100%"`, when the animation
+    /// stops the `completed` variable is set to `true`.
+    ///
+    /// ```
+    /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
+    /// #
+    /// fn animate_text(text: &impl Var<Text>, completed: &impl Var<bool>, vars: &Vars) {
+    ///     let transition = animation::Transition::new(0u8, 100);
+    ///     let mut prev_value = 101;
+    ///     vars.animate(clone_move!(text, completed, |vars, animation| {
+    ///         let step = easing::expo(animation.elapsed_stop(1.secs()));
+    ///         let value = transition.sample(step);
+    ///         if value != prev_value {
+    ///             if value == 100 {
+    ///                 animation.stop();
+    ///                 completed.set(vars, true);
+    ///             }
+    ///             let _ = text.set(vars, formatx!("Animation at {value}%"));
+    ///             prev_value = value;
+    ///         }
+    ///     }))
+    ///     .perm()
+    /// }
+    /// ```
+    ///
+    /// Note that the animation can be stopped from the inside, the closure second parameter is an [`AnimationArgs`]. In
+    /// the example this is the only way to stop the animation, because we called [`perm`]. Animations hold a clone
+    /// of the variables they affect and exist for the duration of the app if not stopped, causing the app to wake and call the
+    /// animation closure for every frame.
+    ///
+    /// This method is the most basic animation interface, used to build all other animations and *easing*, its rare that you
+    /// will need to use it directly, most of the time animation effects can be composted using the [`Var`] easing and mapping
+    /// methods.
+    ///
+    /// ```
+    /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
+    /// # fn demo(vars: &Vars) {
+    /// let value = var(0u8);
+    /// let text = value.map(|v| formatx!("Animation at {v}%"));
+    /// value.ease_ne(vars, 100, 1.secs(), easing::expo);
+    /// # }
+    /// ```
+    ///
+    /// [`stop`]: AnimationHandle::stop
+    /// [`perm`]: AnimationHandle::perm
+    pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
+    where
+        A: FnMut(&Vars, &animation::AnimationArgs) + 'static,
+    {
+        Animations::animate(self, animation)
+    }
+
     pub(crate) fn instance(app_event_sender: AppEventSender) -> Vars {
         Vars {
             _singleton: SingletonVars::assert_new("Vars"),
             app_event_sender,
+            ans: Animations::new(),
             update_id: VarUpdateId(1),
             apply_update_id: VarApplyUpdateId(1),
             updates: RefCell::new(Vec::with_capacity(128)),
