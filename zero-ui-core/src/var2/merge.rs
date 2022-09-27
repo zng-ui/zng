@@ -1,4 +1,4 @@
-use std::{rc::Weak, marker::PhantomData};
+use std::{marker::PhantomData, rc::Weak};
 
 use super::*;
 

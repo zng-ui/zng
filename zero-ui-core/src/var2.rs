@@ -30,6 +30,7 @@ mod response;
 // mod state;
 // mod tests;
 // mod util;
+mod map_ref;
 mod vars;
 mod when;
 
@@ -58,7 +59,8 @@ pub mod types {
     // pub use super::expr::__expr_var;
     pub use super::flat_map::{RcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNewFut, WaitNewFut};
-    pub use super::merge::{RcMergeVar, __merge_var, RcMergeVarInput, WeakMergeVar};
+    pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
+    pub use super::merge::{RcMergeVar, RcMergeVarInput, WeakMergeVar, __merge_var};
     pub use super::rc::WeakRcVar;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
@@ -232,6 +234,29 @@ impl<'a, T: VarValue> VarModifyValue<'a, T> {
     /// Update ID that will be used for the variable if the value is touched.
     pub fn update_id(&self) -> VarUpdateId {
         self.update_id
+    }
+
+    /// Runs `modify` with a mutable reference `B` derived from `T` using `map`.
+    /// The touched flag is only set if `modify` touches the the value.
+    ///
+    /// Note that modifying the value inside `map` is a logic error, it will not flag as touched
+    /// so the variable will have a new value that is not propagated, only use `map` to borrow the
+    /// map target.
+    pub fn map_ref<B, M, Mo>(&mut self, map: M, modify: Mo)
+    where
+        B: VarValue,
+        M: FnOnce(&mut T) -> &mut B,
+        Mo: FnOnce(&mut VarModifyValue<B>),
+    {
+        let mut inner = VarModifyValue {
+            update_id: self.update_id,
+            value: map(self.value),
+            touched: self.touched,
+        };
+
+        modify(&mut inner);
+
+        self.touched |= inner.touched;
     }
 }
 
@@ -907,6 +932,28 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             h2.perm();
             other
         }))
+    }
+
+    /// Create a mapping wrapper around `self`. The `map` closure is called for each value access, it must reference the
+    /// value `O` that already exists in `T`.
+    fn map_ref<O, M>(&self, map: M) -> types::MapRef<T, O, Self>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + 'static,
+    {
+        types::MapRef::new(self.clone(), Rc::new(map))
+    }
+
+    /// Create a mapping wrapper around `self`. The `map` closure is called for each value access, it must reference the
+    /// value `O` that already exists in `T`, the `map_mut` closure is called for every modify request, it must do the same
+    /// as `map` but with mutable access.
+    fn map_ref_bidi<O, M, B>(&self, map: M, map_mut: B) -> types::MapRefBidi<T, O, Self>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + 'static,
+        B: Fn(&mut T) -> &mut O + 'static,
+    {
+        types::MapRefBidi::new(self.clone(), Rc::new(map), Rc::new(map_mut))
     }
 
     /// Setup a hook that assigns `other` with the new values of `self` transformed by `map`.

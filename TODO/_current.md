@@ -1,15 +1,17 @@
 # Var/Update Rewrite
 
-* Review every old var API, do we really don't need `switch_var!` and `map_ref`, the many helper mapping stuff? 
+* Review every old var API, do we really need the many helper mapping stuff? 
+* Implement new `Var::animate`, implement overrides, review previous impl using ids.
 * Refactor var proc-macros to use new API.
     - Use contextualized constructors.
     - Remove "is_rc" stuff.
 * Implement delivery-list for update requests.
     - Use it in new var API.
     - Add the current updates list to `UiNode::update` ?
-* Remove `UiNode::subscriptions`.
-    - Remove old var, rename `var2`, rewrite everything.
+* !! Remove old var, rename `var2`, rewrite everything.
     - Tests.
+* Remove `UiNode::subscriptions`, should be mostly removed already.
+    - Refactor WidgetHandle, some other context-var wrappers also.
 * Stop propagation when all items in delivery list visited.
 * Stop propagation when it is requested.
 
