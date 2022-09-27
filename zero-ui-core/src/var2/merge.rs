@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, rc::Weak};
 
-use super::*;
+use super::{animation::AnimateModifyInfo, *};
 
 ///<span data-del-macro-root></span> Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
@@ -64,6 +64,7 @@ struct Data<T> {
     last_update: VarUpdateId,
     last_apply_request: VarApplyUpdateId,
     hooks: Vec<VarHook>,
+    animation: AnimateModifyInfo,
 }
 
 /// See [`merge_var!`].
@@ -101,6 +102,7 @@ impl<T: VarValue> RcMergeVar<T> {
             last_update: VarUpdateId::never(),
             last_apply_request: VarApplyUpdateId::initial(),
             hooks: vec![],
+            animation: AnimateModifyInfo::never(),
         }));
         let wk_merge = Rc::downgrade(&rc_merge);
 
@@ -146,6 +148,7 @@ impl<T: VarValue> RcMergeVar<T> {
             let data = &mut *data;
             data.value = (data.merge)(&data.inputs);
             data.last_update = vars.update_id();
+            data.animation = vars.current_animation();
 
             data.hooks.retain(|h| h.call(vars, updates, &data.value));
         })
@@ -227,6 +230,10 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(WeakMergeVar(Rc::downgrade(&self.0)))
+    }
+
+    fn is_animating(&self) -> bool {
+        self.0.borrow().animation.is_animating()
     }
 }
 

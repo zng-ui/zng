@@ -86,6 +86,11 @@ impl Vars {
         &self.ans.animation_time_scale
     }
 
+    /// Gets info about the currently executing [`Var::modify`] closure.
+    pub fn current_animation(&self) -> animation::AnimateModifyInfo {
+        self.ans.current_animation.borrow().clone()
+    }
+
     /// Adds an animation handler that is called every frame to update captured variables.
     ///
     /// This is used by the [`Var<T>`] ease methods default implementation, it enables any kind of variable animation,

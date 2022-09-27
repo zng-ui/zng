@@ -168,6 +168,10 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         self.local.with(|l| l.var.borrow().downgrade_any())
     }
+
+    fn is_animating(&self) -> bool {
+        self.local.with(|l| l.var.borrow().is_animating())
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for ContextVar<T> {

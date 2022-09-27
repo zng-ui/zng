@@ -1,11 +1,12 @@
 use std::rc::{Rc, Weak};
 
-use super::*;
+use super::{animation::AnimateModifyInfo, *};
 
 struct Data<T> {
     value: T,
     last_update: VarUpdateId,
     hooks: Vec<VarHook>,
+    animation: AnimateModifyInfo,
 }
 
 /// Reference counted read/write variable.
@@ -24,6 +25,7 @@ pub fn var<T: VarValue>(value: T) -> RcVar<T> {
         value,
         last_update: VarUpdateId::never(),
         hooks: vec![],
+        animation: AnimateModifyInfo::never(),
     })))
 }
 
@@ -104,6 +106,10 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(WeakRcVar(Rc::downgrade(&self.0)))
     }
+
+    fn is_animating(&self) -> bool {
+        self.0.borrow().animation.is_animating()
+    }
 }
 
 impl<T: VarValue> AnyWeakVar for WeakRcVar<T> {
@@ -138,6 +144,14 @@ impl<T: VarValue> RcVar<T> {
         vars.schedule_update(Box::new(move |vars, updates| {
             let mut data = me.0.borrow_mut();
             let data = &mut *data;
+
+            let curr_anim = vars.current_animation();
+            if curr_anim.importance() < data.animation.importance() {
+                return;
+            }
+
+            data.animation = curr_anim;
+
             let mut value = VarModifyValue {
                 update_id: vars.update_id(),
                 value: &mut data.value,

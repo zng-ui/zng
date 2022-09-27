@@ -88,6 +88,10 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(WeakReadOnlyVar(PhantomData, self.1.downgrade()))
     }
+
+    fn is_animating(&self) -> bool {
+        self.1.is_animating()
+    }
 }
 
 impl<T: VarValue, V: WeakVar<T>> AnyWeakVar for WeakReadOnlyVar<T, V> {

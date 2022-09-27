@@ -420,6 +420,10 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(WeakWhenVar(Rc::downgrade(&self.0)))
     }
+
+    fn is_animating(&self) -> bool {
+        self.active().is_animating()
+    }
 }
 
 impl<T: VarValue> AnyWeakVar for WeakWhenVar<T> {

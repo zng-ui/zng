@@ -170,6 +170,10 @@ where
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(self.downgrade())
     }
+
+    fn is_animating(&self) -> bool {
+        self.0.borrow().var.is_animating()
+    }
 }
 
 impl<T, V> AnyWeakVar for WeakFlatMapVar<T, V>

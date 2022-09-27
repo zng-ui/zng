@@ -3,7 +3,7 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use super::*;
+use super::{animation::AnimateModifyInfo, *};
 
 enum Data<T, S> {
     Source {
@@ -15,6 +15,7 @@ enum Data<T, S> {
         value: T,
         last_update: VarUpdateId,
         hooks: Vec<VarHook>,
+        animation: AnimateModifyInfo,
     },
 }
 
@@ -73,10 +74,23 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
                             last_update: mod_value.update_id,
                             value,
                             hooks: mem::take(hooks),
+                            animation: vars.current_animation(),
                         }
                     }
                 }
-                Data::Value { value, last_update, hooks } => {
+                Data::Value {
+                    value,
+                    last_update,
+                    hooks,
+                    animation,
+                } => {
+                    let curr_anim = vars.current_animation();
+                    if curr_anim.importance() < animation.importance() {
+                        return;
+                    }
+
+                    *animation = curr_anim;
+
                     let mut value = VarModifyValue {
                         update_id: vars.update_id(),
                         value,
@@ -178,6 +192,13 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(WeakCowVar(Rc::downgrade(&self.0)))
+    }
+
+    fn is_animating(&self) -> bool {
+        match &*self.0.borrow() {
+            Data::Source { source, .. } => source.is_animating(),
+            Data::Value { animation, .. } => animation.is_animating(),
+        }
     }
 }
 

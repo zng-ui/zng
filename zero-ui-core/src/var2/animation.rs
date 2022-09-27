@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{app::LoopTimer, clone_move, crate_util, units::*};
+use crate::{app::LoopTimer, clone_move, crate_util};
 
 use super::*;
 
@@ -348,8 +348,8 @@ where
 
 pub(super) struct Animations {
     animations: RefCell<Vec<AnimationFn>>,
-    animation_id: Cell<u32>,
-    pub(super) current_animation: RefCell<(Option<WeakAnimationHandle>, u32)>,
+    animation_id: Cell<usize>,
+    pub(super) current_animation: RefCell<AnimateModifyInfo>,
     pub(super) animation_start_time: Cell<Option<Instant>>,
     next_frame: Cell<Option<Deadline>>,
     pub(super) animations_enabled: RcVar<bool>,
@@ -361,7 +361,10 @@ impl Animations {
         Self {
             animations: RefCell::default(),
             animation_id: Cell::new(1),
-            current_animation: RefCell::new((None, 1)),
+            current_animation: RefCell::new(AnimateModifyInfo {
+                handle: None,
+                importance: 1,
+            }),
             animation_start_time: Cell::new(None),
             next_frame: Cell::new(None),
             animations_enabled: var(true),
@@ -461,13 +464,13 @@ impl Animations {
             next_set_id = 1;
         }
         vars.ans.animation_id.set(next_set_id);
-        vars.ans.current_animation.borrow_mut().1 = next_set_id;
+        vars.ans.current_animation.borrow_mut().importance = next_set_id;
 
         let handle_owner;
         let handle;
         let weak_handle;
 
-        if let Some(parent_handle) = vars.ans.current_animation.borrow().0.clone() {
+        if let Some(parent_handle) = vars.ans.current_animation.borrow().handle.clone() {
             // is `animate` request inside other animate closure,
             // in this case we give it the same animation handle as the *parent*
             // animation, that holds the actual handle owner.
@@ -506,7 +509,13 @@ impl Animations {
 
                 anim.reset_state(info.animations_enabled, info.now, info.time_scale);
 
-                let prev = mem::replace(&mut *vars.ans.current_animation.borrow_mut(), (Some(weak_handle.clone()), id));
+                let prev = mem::replace(
+                    &mut *vars.ans.current_animation.borrow_mut(),
+                    AnimateModifyInfo {
+                        handle: Some(weak_handle.clone()),
+                        importance: id,
+                    },
+                );
                 let _cleanup = crate_util::RunOnDrop::new(|| *vars.ans.current_animation.borrow_mut() = prev);
 
                 animation(vars, &anim);
@@ -890,4 +899,38 @@ where
     });
 
     (anim, next_target)
+}
+
+/// Represents the current *modify* operation when it is applying.
+#[derive(Clone)]
+pub struct AnimateModifyInfo {
+    handle: Option<WeakAnimationHandle>,
+    importance: usize,
+}
+impl AnimateModifyInfo {
+    /// Initial value, is always of lowest importance.
+    pub fn never() -> Self {
+        AnimateModifyInfo {
+            handle: None,
+            importance: 0,
+        }
+    }
+
+    /// Indicates the *override* importance of the operation, when two animations target
+    /// a variable only the newer one must apply, and all running animations are *overridden* by
+    /// a later modify/set operation.
+    ///
+    /// Variables ignore modify requests from lower importance closures.
+    pub fn importance(&self) -> usize {
+        self.importance
+    }
+
+    /// Indicates if the *modify* request was made from inside an animation, if `true` the [`importance`]
+    /// is for that animation, even if the modify request is from the current frame.
+    ///
+    /// You can clone this info to track this animation, when it stops or is dropped this returns `false`. Note
+    /// that *paused* or sleeping animations still count as animating.
+    pub fn is_animating(&self) -> bool {
+        self.handle.as_ref().map(|h| h.upgrade().is_some()).unwrap_or(false)
+    }
 }

@@ -349,6 +349,14 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Flags that indicate what operations the variable is capable of.
     fn capabilities(&self) -> VarCapabilities;
 
+    /// if the variable current value was set by an active animation.
+    ///
+    /// The variable [`is_new`] when this changes to `true`, but it can change to `false` at any time
+    /// without the value updating.
+    ///
+    /// [`is_new`]: Var::is_new
+    fn is_animating(&self) -> bool;
+
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
     /// the `modify` closure.
     ///

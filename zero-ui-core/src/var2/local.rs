@@ -67,6 +67,10 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(WeakRcVar::<T>::new())
     }
+
+    fn is_animating(&self) -> bool {
+        false
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for LocalVar<T> {

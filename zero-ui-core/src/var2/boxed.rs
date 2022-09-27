@@ -171,6 +171,10 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         (**self).downgrade_any()
     }
+
+    fn is_animating(&self) -> bool {
+        (**self).is_animating()
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for BoxedVar<T> {
@@ -228,7 +232,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     }
 
     fn into_value(self) -> T {
-        self.get() // TODO !!: can we unbox here?
+        self.get()
     }
 
     fn read_only(&self) -> Self::ReadOnly {

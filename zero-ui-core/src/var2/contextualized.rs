@@ -145,6 +145,10 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(self.downgrade())
     }
+
+    fn is_animating(&self) -> bool {
+        self.borrow_init().is_animating()
+    }
 }
 impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {
     fn clone_any(&self) -> BoxedAnyWeakVar {

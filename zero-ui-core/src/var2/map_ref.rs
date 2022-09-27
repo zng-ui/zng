@@ -101,6 +101,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(self.downgrade())
     }
+
+    fn is_animating(&self) -> bool {
+        self.source.is_animating()
+    }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRef<I, O, S> {
     fn clone_any(&self) -> BoxedAnyWeakVar {
@@ -291,6 +295,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
         Box::new(self.downgrade())
+    }
+
+    fn is_animating(&self) -> bool {
+        self.source.is_animating()
     }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRefBidi<I, O, S> {

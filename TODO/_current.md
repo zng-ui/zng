@@ -1,7 +1,10 @@
 # Var/Update Rewrite
 
 * Review every old var API, do we really need the many helper mapping stuff? 
-* Implement new `Var::animate`, implement overrides, review previous impl using ids.
+* Implement new `Var::animate`, implement overrides.
+    - Track update id and implement is_animating for all variables.
+        - Verify modify requests made inside hooks inside animations are getting the right handle
+* Implement RcCow::pass_trough, or replace it with something better.
 * Refactor var proc-macros to use new API.
     - Use contextualized constructors.
     - Remove "is_rc" stuff.
