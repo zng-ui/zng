@@ -1,8 +1,9 @@
 # Var/Update Rewrite
 
-* Get `merge_var!` and `when_var!` contextualized.
-* Implement "specialization" of mapping vars by returning boxed.
 * Review every old var API, do we really don't need `switch_var!` and `map_ref`, the many helper mapping stuff? 
+* Refactor var proc-macros to use new API.
+    - Use contextualized constructors.
+    - Remove "is_rc" stuff.
 * Implement delivery-list for update requests.
     - Use it in new var API.
     - Add the current updates list to `UiNode::update` ?

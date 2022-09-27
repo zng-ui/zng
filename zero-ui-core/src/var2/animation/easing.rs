@@ -4,8 +4,6 @@
 
 use std::f32::consts::{FRAC_PI_2, TAU};
 
-use crate::units::*;
-
 use super::*;
 
 /// Common easing modifier functions as an enum.

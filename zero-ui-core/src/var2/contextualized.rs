@@ -49,6 +49,14 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         let act = self.actual.borrow();
         Ref::map(act, |opt| opt.as_ref().unwrap())
     }
+
+    /// Unwraps the initialized actual var or initializes it now.
+    pub fn into_init(self) -> S {
+        match self.actual.into_inner() {
+            Some(s) => s,
+            None => (self.init)(),
+        }
+    }
 }
 
 /// Weak var that upgrades to an uninitialized [`ContextualizedVar<T, S>`].

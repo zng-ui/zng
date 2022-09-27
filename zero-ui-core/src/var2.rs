@@ -58,7 +58,7 @@ pub mod types {
     // pub use super::expr::__expr_var;
     pub use super::flat_map::{RcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNewFut, WaitNewFut};
-    pub use super::merge::{RcMergeVar, __merge_var, input_downcaster, WeakMergeVar};
+    pub use super::merge::{RcMergeVar, __merge_var, RcMergeVarInput, WeakMergeVar};
     pub use super::rc::WeakRcVar;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;

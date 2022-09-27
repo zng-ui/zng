@@ -1,4 +1,4 @@
-use std::rc::Weak;
+use std::{rc::Weak, marker::PhantomData};
 
 use super::*;
 
@@ -11,6 +11,11 @@ use super::*;
 ///
 /// * `var0..N`: A list of [vars](crate::var::Var), minimal 2.
 /// * `merge`: A new closure that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
+///
+/// # Contextualized
+///
+/// The merge var is [contextualized], meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
+/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, RcMergeVar<T>>`.
 ///
 /// # Examples
 ///
@@ -39,12 +44,16 @@ pub use crate::merge_var2 as merge_var;
 pub use zero_ui_proc_macros::merge_var as __merge_var;
 
 #[doc(hidden)]
-pub fn input_downcaster<T: VarValue, V: Var<T>>(_: &V) -> fn(&dyn Any) -> &T {
-    fn cast<T: VarValue>(value: &dyn Any) -> &T {
-        value.downcast_ref().unwrap()
+pub struct RcMergeVarInput<T: VarValue, V: Var<T>>(PhantomData<(V, T)>);
+impl<T: VarValue, V: Var<T>> RcMergeVarInput<T, V> {
+    pub fn new(_: &V) -> Self {
+        RcMergeVarInput(PhantomData)
     }
 
-    cast::<T>
+    #[allow(clippy::borrowed_box)]
+    pub fn get(&self, var: &Box<dyn AnyVar>) -> T {
+        var.as_any().downcast_ref::<V>().unwrap().get()
+    }
 }
 
 struct Data<T> {
@@ -65,7 +74,24 @@ pub struct WeakMergeVar<T>(Weak<RefCell<Data<T>>>);
 
 impl<T: VarValue> RcMergeVar<T> {
     #[doc(hidden)]
-    pub fn new(input_vars: &[&dyn AnyVar], mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T>) -> Self {
+    pub fn new_contextualized(
+        inputs: Box<[Box<dyn AnyVar>]>,
+        merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + 'static,
+    ) -> types::ContextualizedVar<T, RcMergeVar<T>> {
+        Self::new_contextualized_impl(inputs, Rc::new(RefCell::new(merge)))
+    }
+
+    fn new_contextualized_impl(
+        inputs: Box<[Box<dyn AnyVar>]>,
+        merge: Rc<RefCell<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + 'static>>,
+    ) -> types::ContextualizedVar<T, RcMergeVar<T>> {
+        types::ContextualizedVar::new(Rc::new(move || {
+            let merge = merge.clone();
+            RcMergeVar::new(&inputs, Box::new(move |values| merge.borrow_mut()(values)))
+        }))
+    }
+
+    fn new(input_vars: &[Box<dyn AnyVar>], mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T>) -> Self {
         let inputs: Box<[_]> = input_vars.iter().map(|v| v.get_any()).collect();
         let rc_merge = Rc::new(RefCell::new(Data {
             value: merge(&inputs),

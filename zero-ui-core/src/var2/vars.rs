@@ -202,13 +202,6 @@ impl Vars {
         }
     }
 
-    pub(crate) fn on_pre_vars(ctx: &mut AppContext) {
-        todo!()
-    }
-    pub(crate) fn on_vars(ctx: &mut AppContext) {
-        todo!()
-    }
-
     pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn(&Vars) -> bool>) {
         self.modify_receivers.borrow_mut().push(recv_modify);
     }
