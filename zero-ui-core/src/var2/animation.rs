@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{app::LoopTimer, crate_util, units::*};
+use crate::{app::LoopTimer, clone_move, crate_util, units::*};
 
 use super::*;
 
@@ -553,6 +553,7 @@ pub(super) fn var_animate<T: VarValue>(
     if !target.capabilities().is_always_read_only() {
         let target = target.actual_var();
         if !target.capabilities().is_always_read_only() {
+            let wk_target = target.downgrade();
             return vars.animate(|vars, args| {
                 // need to make args an Rc to support an actual modify?
                 // Var::animate needs to be implemented by variables, like modify.
@@ -563,4 +564,330 @@ pub(super) fn var_animate<T: VarValue>(
         }
     }
     AnimationHandle::dummy()
+}
+
+pub(super) fn var_set_ease<T>(
+    start_value: T,
+    end_value: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + Transitionable,
+{
+    let transition = Transition::new(start_value, end_value);
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+
+        if prev_step != step {
+            *value.get_mut() = transition.sample(step);
+            prev_step = step;
+        }
+    }
+}
+
+pub(super) fn var_set_ease_ne<T>(
+    start_value: T,
+    end_value: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + Transitionable + PartialEq,
+{
+    let transition = Transition::new(start_value, end_value);
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+
+        if prev_step != step {
+            let val = transition.sample(step);
+            if value.get() != &val {
+                *value.get_mut() = val;
+            }
+            prev_step = step;
+        }
+    }
+}
+
+pub(super) fn var_set_ease_keyed<T>(
+    transition: TransitionKeyed<T>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + Transitionable,
+{
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+
+        if prev_step != step {
+            *value.get_mut() = transition.sample(step);
+            prev_step = step;
+        }
+    }
+}
+
+pub(super) fn var_set_ease_keyed_ne<T>(
+    transition: TransitionKeyed<T>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + Transitionable + PartialEq,
+{
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+
+        if prev_step != step {
+            let val = transition.sample(step);
+            if value.get() != &val {
+                *value.get_mut() = val;
+            }
+            prev_step = step;
+        }
+    }
+}
+
+pub(super) fn var_step<T>(new_value: T, delay: Duration) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue,
+{
+    let mut new_value = Some(new_value);
+    move |args, value| {
+        if !args.animations_enabled() || args.elapsed_dur() >= delay {
+            args.stop();
+            if let Some(nv) = new_value.take() {
+                *value.get_mut() = nv;
+            }
+        } else {
+            args.sleep(delay);
+        }
+    }
+}
+
+pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + PartialEq,
+{
+    let mut new_value = Some(new_value);
+    move |args, value| {
+        if !args.animations_enabled() || args.elapsed_dur() >= delay {
+            args.stop();
+            if let Some(nv) = new_value.take() {
+                if value.get() != &nv {
+                    *value.get_mut() = nv;
+                }
+            }
+        } else {
+            args.sleep(delay);
+        }
+    }
+}
+
+pub(super) fn var_steps<T: VarValue>(
+    steps: Vec<(Factor, T)>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) {
+    let mut prev_step = 999.fct();
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+        if step != prev_step {
+            prev_step = step;
+            if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
+                *value.get_mut() = val;
+            }
+        }
+    }
+}
+
+pub(super) fn var_steps_ne<T>(
+    steps: Vec<(Factor, T)>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + PartialEq,
+{
+    let mut prev_step = 999.fct();
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+        if step != prev_step {
+            prev_step = step;
+            if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
+                if value.get() != &val {
+                    *value.get_mut() = val;
+                }
+            }
+        }
+    }
+}
+
+/// Represents a running chase animation created by [`Var::chase`] or other *chase* animation methods.
+#[derive(Clone, Debug)]
+pub struct ChaseAnimation<T> {
+    /// Underlying animation handle.
+    pub handle: AnimationHandle,
+    pub(super) next_target: Rc<RefCell<ChaseMsg<T>>>,
+}
+impl<T: VarValue> ChaseAnimation<T> {
+    /// Sets a new target value for the easing animation and restarts the time.
+    ///
+    /// The animation will update to lerp between the current variable value to the `new_target`.
+    pub fn reset(&self, new_target: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Replace(new_target);
+    }
+
+    /// Adds `increment` to the current target value for the easing animation and restarts the time.
+    pub fn add(&self, increment: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Add(increment);
+    }
+}
+#[derive(Debug)]
+pub(super) enum ChaseMsg<T> {
+    None,
+    Replace(T),
+    Add(T),
+}
+impl<T> Default for ChaseMsg<T> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+pub(super) fn var_chase<T>(
+    from: T,
+    first_target: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+) -> (
+    impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    Rc<RefCell<ChaseMsg<T>>>,
+)
+where
+    T: VarValue + animation::Transitionable,
+{
+    let mut prev_step = 0.fct();
+    let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+    let mut transition = Transition::new(from, first_target);
+
+    let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut VarModifyValue<T>| {
+        let step = easing(args.elapsed_stop(duration));
+        match mem::take(&mut *next_target.borrow_mut()) {
+            ChaseMsg::Add(inc) => {
+                args.restart();
+                let from = transition.sample(step);
+                transition.start = from.clone();
+                transition.increment += inc;
+                if step != prev_step {
+                    prev_step = step;
+                    *value.get_mut() = from;
+                }
+            }
+            ChaseMsg::Replace(new_target) => {
+                args.restart();
+                let from = transition.sample(step);
+                transition = Transition::new(from.clone(), new_target);
+                if step != prev_step {
+                    prev_step = step;
+                    *value.get_mut() = from;
+                }
+            }
+            ChaseMsg::None => {
+                if step != prev_step {
+                    prev_step = step;
+                    *value.get_mut() = transition.sample(step);
+                }
+            }
+        }
+    });
+
+    (anim, next_target)
+}
+
+pub(super) fn var_chase_bounded<T>(
+    from: T,
+    first_target: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    bounds: ops::RangeInclusive<T>,
+) -> (
+    impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    Rc<RefCell<ChaseMsg<T>>>,
+)
+where
+    T: VarValue + animation::Transitionable + std::cmp::PartialOrd<T>,
+{
+    let mut prev_step = 0.fct();
+    let mut check_linear = !bounds.contains(&first_target);
+    let mut transition = Transition::new(from, first_target);
+
+    let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+
+    let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut VarModifyValue<T>| {
+        let mut time = args.elapsed_stop(duration);
+        let mut step = easing(time);
+        match mem::take(&mut *next_target.borrow_mut()) {
+            // to > bounds
+            // stop animation when linear sampling > bounds
+            ChaseMsg::Add(inc) => {
+                args.restart();
+
+                let partial_inc = transition.increment.clone() * step;
+                let from = transition.start.clone() + partial_inc.clone();
+                let to = from.clone() + transition.increment.clone() - partial_inc + inc;
+
+                check_linear = !bounds.contains(&to);
+
+                transition = Transition::new(from, to);
+
+                step = 0.fct();
+                prev_step = 1.fct();
+                time = EasingTime::start();
+            }
+            ChaseMsg::Replace(new_target) => {
+                args.restart();
+                let from = transition.sample(step);
+
+                check_linear = !bounds.contains(&new_target);
+
+                transition = Transition::new(from, new_target);
+
+                step = 0.fct();
+                prev_step = 1.fct();
+                time = EasingTime::start();
+            }
+            ChaseMsg::None => {
+                // normal execution
+            }
+        }
+
+        if step != prev_step {
+            prev_step = step;
+
+            if check_linear {
+                let linear_sample = transition.sample(time.fct());
+                if &linear_sample > bounds.end() {
+                    args.stop();
+                    *value.get_mut() = bounds.end().clone();
+                    return;
+                } else if &linear_sample < bounds.start() {
+                    args.stop();
+                    *value.get_mut() = bounds.start().clone();
+                    return;
+                }
+            }
+            *value.get_mut() = transition.sample(step);
+        }
+    });
+
+    (anim, next_target)
 }
