@@ -2,7 +2,8 @@ use std::{mem, time::Duration};
 
 use crate::{
     app::AppEventSender,
-    context::{AppContext, Updates}, units::Factor,
+    context::{AppContext, Updates},
+    units::Factor,
 };
 
 use super::{animation::Animations, *};
@@ -85,9 +86,9 @@ impl Vars {
         &self.ans.animation_time_scale
     }
 
-        /// Adds an animation handler that is called every frame to update captured variables.
+    /// Adds an animation handler that is called every frame to update captured variables.
     ///
-    /// This is used by the [`Var`] ease methods default implementation, it enables any kind of variable animation,
+    /// This is used by the [`Var<T>`] ease methods default implementation, it enables any kind of variable animation,
     /// including multiple variables.
     ///
     /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
@@ -153,8 +154,9 @@ impl Vars {
     /// # }
     /// ```
     ///
-    /// [`stop`]: AnimationHandle::stop
-    /// [`perm`]: AnimationHandle::perm
+    /// [`AnimationHandle`]: animation::AnimationHandle
+    /// [`stop`]: animation::AnimationHandle::stop
+    /// [`perm`]: animation::AnimationHandle::perm
     pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
     where
         A: FnMut(&Vars, &animation::AnimationArgs) + 'static,

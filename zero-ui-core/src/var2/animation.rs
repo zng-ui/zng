@@ -1,6 +1,11 @@
-use std::{time::{Instant, Duration}, mem, ops};
+//! Var animation types and functions.
 
-use crate::{units::*, app::LoopTimer, crate_util};
+use std::{
+    mem, ops,
+    time::{Duration, Instant},
+};
+
+use crate::{app::LoopTimer, crate_util, units::*};
 
 use super::*;
 
@@ -483,11 +488,7 @@ impl Animations {
             handle = h;
         };
 
-        let mut anim = AnimationArgs::new(
-            vars.ans.animations_enabled.get(),
-            start_time,
-            vars.ans.animation_time_scale.get(),
-        );
+        let mut anim = AnimationArgs::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
         vars.ans.animations.borrow_mut().push(Box::new(move |vars, info| {
             let _handle_owner = &handle_owner; // capture and own the handle owner.
 
@@ -542,4 +543,24 @@ struct AnimationUpdateInfo {
     now: Instant,
     time_scale: Factor,
     next_frame: Deadline,
+}
+
+pub(super) fn var_animate<T: VarValue>(
+    vars: &Vars,
+    target: &impl Var<T>,
+    animate: impl FnMut(&animation::AnimationArgs, &mut VarModifyValue<T>) + 'static,
+) -> AnimationHandle {
+    if !target.capabilities().is_always_read_only() {
+        let target = target.actual_var();
+        if !target.capabilities().is_always_read_only() {
+            return vars.animate(|vars, args| {
+                // need to make args an Rc to support an actual modify?
+                // Var::animate needs to be implemented by variables, like modify.
+                // checkout the override ids stuff first.
+                // implement other helpers using this signature first.
+                todo!()
+            });
+        }
+    }
+    AnimationHandle::dummy()
 }

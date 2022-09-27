@@ -93,5 +93,47 @@ fn foo(child: impl UiNode, foo: impl IntoVar<bool>, bar: impl IntoVar<bool>) -> 
             self.child.render(ctx, frame);
         }
     }
+
+    // ---
+
+    struct NodeVars<V_foo, V_bar> {
+        foo: V_foo,
+        bar: V_bar,
+    }
+    struct NodeEvents<E_foo> {
+        foo: E_foo
+    }
+    struct Node<C, V, E, C_custom> {
+        child,
+        var: V,
+        event: E,
+        custom: C_custom
+    }
+
+    Node {
+        child,
+        var: Vars {
+            foo: foo.into_var(),
+            bar: bar.into_var(),
+        },
+        event: NodeEvents {
+            foo: FOO_EVENT
+        },
+        custom: vec![],
+    }
+    #[impl_ui_node(child)]
+    impl<V> Node<V> {
+        fn custom(&mut self) {
+            println!("{}", self.var.foo.get());
+        }
+
+        #[UiNode]
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            if self.var.foo.get() {
+                frame.push_color(..);
+            }
+            self.child.render(ctx, frame);
+        }
+    }
 }
 ```

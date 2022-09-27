@@ -5,9 +5,13 @@ use std::{
     cell::{Cell, RefCell},
     fmt,
     rc::Rc,
+    time::Duration,
 };
 
-use crate::handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs};
+use crate::{
+    handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs},
+    units::*,
+};
 
 pub mod animation;
 mod boxed;
@@ -1143,6 +1147,237 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let _ = span.take();
             span = Some(enter_value(value));
         }))
+    }
+
+    /// Schedule an animation that targets this variable.
+    ///
+    /// If the variable is always read-only no animation is created and a dummy handle returned. The animation
+    /// targets the current [`actual_var`] and is stopped if the variable is dropped.
+    ///
+    /// The `animate` closure is called every frame with the [`AnimationArgs`] and *modify* access to the variable value, the args
+    /// can be used to calculate the new variable value and to control or stop the animation.
+    ///
+    /// [`actual_var`]: Var::actual_var
+    /// [`AnimationArgs`]: animation::AnimationArgs
+    fn animate<V, A>(&self, vars: &V, animate: A) -> animation::AnimationHandle
+    where
+        V: WithVars,
+        A: FnMut(&animation::AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    {
+        vars.with_vars(move |vars| animation::var_animate(vars, self, animate))
+    }
+
+    /// Schedule an easing transition from the `start_value` to `end_value`.
+    ///
+    /// The variable updates every time the [`EasingStep`] for each frame changes, it will update even
+    /// if the [`animation::Transition`] samples the same value, you can use [`ease_ne`] to only update
+    /// when the value changes.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    ///
+    /// [`ease_ne`]: Var::ease_ne
+    fn set_ease<V, S, E, F>(&self, vars: &V, start_value: S, end_value: E, duration: Duration, mut easing: F) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        V: WithVars,
+        S: Into<T>,
+        E: Into<T>,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        let transition = animation::Transition::new(start_value.into(), end_value.into());
+        let mut prev_step = 999.fct();
+        self.animate(vars, move |args, value| {
+            let step = easing(args.elapsed_stop(duration));
+
+            if prev_step != step {
+                *value.get_mut() = transition.sample(step);
+                prev_step = step;
+            }
+        })
+    }
+
+    /// Schedule an easing transition from the current value to `new_value`.
+    ///
+    /// The variable updates every time the [`EasingStep`] for each frame changes, it will update even
+    /// if the [`animation::Transition`] samples the same value, you can use [`ease_ne`] to only update
+    /// when the value changes.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    ///
+    /// [`ease_ne`]: Var::ease_ne
+    fn ease<V, E, F>(&self, vars: &V, new_value: E, duration: Duration, mut easing: F) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        V: WithVars,
+        E: Into<T>,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        let transition = animation::Transition::new(self.get(), new_value.into());
+        let mut prev_step = 0.fct();
+        self.animate(vars, move |args, value| {
+            let step = easing(args.elapsed_stop(duration));
+
+            if prev_step != step {
+                *value.get_mut() = transition.sample(step);
+                prev_step = step;
+            }
+        })
+    }
+
+    /// Like [`set_ease`] but checks if the sampled value actually changed before updating.
+    ///
+    /// [`set_ease`]: Var::set_ease
+    fn set_ease_ne<V, S, E, F>(
+        &self,
+        vars: &V,
+        start_value: S,
+        end_value: E,
+        duration: Duration,
+        mut easing: F,
+    ) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable + PartialEq,
+        V: WithVars,
+        S: Into<T>,
+        E: Into<T>,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        let transition = animation::Transition::new(start_value.into(), end_value.into());
+        let mut prev_step = 999.fct();
+        self.animate(vars, move |args, value| {
+            let step = easing(args.elapsed_stop(duration));
+
+            if prev_step != step {
+                let sample = transition.sample(step);
+                if value.get() != &sample {
+                    *value.get_mut() = sample;
+                }
+                prev_step = step;
+            }
+        })
+    }
+
+    /// Like [`ease`] but checks if the sampled value actually changed before updating.
+    ///
+    /// [`ease`]: Var::ease
+    fn ease_ne<V, E, F>(&self, vars: &V, new_value: E, duration: Duration, mut easing: F) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable + PartialEq,
+        V: WithVars,
+        E: Into<T>,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        let transition = animation::Transition::new(self.get(), new_value.into());
+        let mut prev_step = 0.fct();
+        self.animate(vars, move |args, value| {
+            let step = easing(args.elapsed_stop(duration));
+
+            if prev_step != step {
+                let sample = transition.sample(step);
+                if value.get() != &sample {
+                    *value.get_mut() = sample;
+                }
+                prev_step = step;
+            }
+        })
+    }
+
+    /// Schedule a keyframed transition animation for the variable, starting from the first key.
+    ///
+    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    fn set_ease_keyed<V, F>(&self, vars: &V, keys: Vec<(Factor, T)>, duration: Duration, mut easing: F) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        V: WithVars,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        if let Some(transition) = animation::TransitionKeyed::new(keys) {
+            let mut prev_step = 999.fct();
+            self.animate(vars, move |args, value| {
+                let step = easing(args.elapsed_stop(duration));
+
+                if prev_step != step {
+                    *value.get_mut() = transition.sample(step);
+                    prev_step = step;
+                }
+            })
+        } else {
+            animation::AnimationHandle::dummy()
+        }
+    }
+
+    /// Schedule a keyframed transition animation for the variable, starting from the current value.
+    ///
+    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    ///
+    /// See [`Var::animate`] for details about animations.
+    fn ease_keyed<V, F>(&self, vars: &V, mut keys: Vec<(Factor, T)>, duration: Duration, mut easing: F) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        V: WithVars,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        keys.insert(0, (0.fct(), self.get()));
+
+        let transition = animation::TransitionKeyed::new(keys).unwrap();
+        let mut prev_step = 0.fct();
+        self.animate(vars, move |args, value| {
+            let step = easing(args.elapsed_stop(duration));
+
+            if prev_step != step {
+                *value.get_mut() = transition.sample(step);
+                prev_step = step;
+            }
+        })
+    }
+
+    /// Like [`set_ease_keyed`] but checks if the sampled value actually changed before updating.
+    ///
+    /// [`set_ease_keyed`]: Var::set_ease_keyed
+    fn set_ease_keyed_ne<V, F>(&self, vars: &V, keys: Vec<(Factor, T)>, duration: Duration, mut easing: F) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        V: WithVars,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        if let Some(transition) = animation::TransitionKeyed::new(keys) {
+            let mut prev_step = 999.fct();
+            self.animate(vars, move |args, value| {
+                let step = easing(args.elapsed_stop(duration));
+
+                if prev_step != step {
+                    *value.get_mut() = transition.sample(step);
+                    prev_step = step;
+                }
+            })
+        } else {
+            animation::AnimationHandle::dummy()
+        }
+    }
+
+    /// Like [`ease_keyed`] but checks if the sampled value actually changed before updating.
+    ///
+    /// [`ease_keyed`]: Var::ease_keyed
+    fn ease_keyed_ne<V, F>(&self, vars: &V, mut keys: Vec<(Factor, T)>, duration: Duration, mut easing: F) -> animation::AnimationHandle
+    where
+        T: animation::Transitionable,
+        V: WithVars,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        keys.insert(0, (0.fct(), self.get()));
+
+        let transition = animation::TransitionKeyed::new(keys).unwrap();
+        let mut prev_step = 0.fct();
+        self.animate(vars, move |args, value| {
+            let step = easing(args.elapsed_stop(duration));
+
+            if prev_step != step {
+                *value.get_mut() = transition.sample(step);
+                prev_step = step;
+            }
+        })
     }
 }
 
