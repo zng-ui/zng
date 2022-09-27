@@ -2,8 +2,7 @@
 
 * Get `merge_var!` and `when_var!` contextualized.
 * Implement "specialization" of mapping vars by returning boxed.
-* Implement animation in new var API.
-* Review every old var API, do we really don't need `switch_var!` and `map_ref`? 
+* Review every old var API, do we really don't need `switch_var!` and `map_ref`, the many helper mapping stuff? 
 * Implement delivery-list for update requests.
     - Use it in new var API.
     - Add the current updates list to `UiNode::update` ?

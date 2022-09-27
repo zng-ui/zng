@@ -327,12 +327,13 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
     /// the `modify` closure.
     ///
-    /// Variables store a weak reference to the callback if they have the `MODIFY` or `CAP_CHANGE` capabilities, otherwise
+    /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAP_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
     ///
     /// This is the most basic callback, used by the variables themselves, you can create a more elaborate handle using [`on_new`].
     ///
     /// [`on_new`]: Var::on_new
+    /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle;
 
     /// Register the widget to receive update when this variable is new.
@@ -767,8 +768,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Creates a ref-counted var that maps from this variable.
     ///
     /// The `map` closure is called once on initialization, and then once every time
-    /// the source variable updates. The source variable is not held by the map variable, if dropped the map
-    /// variable stops updating.
+    /// the source variable updates.
     ///
     /// The mapping variable is read-only, you can use [`map_bidi`] to map back.
     ///
@@ -1417,6 +1417,61 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         let (anim, next_target) = animation::var_chase_bounded(self.get(), first_target.into(), duration, easing, bounds);
         let handle = self.animate(vars, anim);
         animation::ChaseAnimation { handle, next_target }
+    }
+
+    /// Create a vars that [`ease`] to each new value of `self`.
+    ///
+    /// Note that the mapping var is [contextualized], meaning the binding will initialize in the fist usage context, not
+    /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR` in the `property` context,
+    /// not the property instantiation.
+    ///
+    /// [contextualized]: Types::ContextualizedVar
+    /// [`ease`]: Var::ease
+    fn easing<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
+    where
+        T: animation::Transitionable,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        let me = self.clone();
+        let easing = Rc::new(RefCell::new(easing));
+        types::ContextualizedVar::new(Rc::new(move || {
+            let other = var(me.get());
+
+            let easing = easing.clone();
+            let mut _anim_handle = animation::AnimationHandle::dummy();
+            var_bind(&me, &other, move |vars, _, value, other| {
+                let easing = easing.clone();
+                _anim_handle = other.ease(vars, value.clone(), duration, move |t| easing.borrow_mut()(t));
+            })
+            .perm();
+            other.read_only()
+        }))
+    }
+
+    /// Line [`easing`], but uses [`ease_ne`] to animate.
+    ///
+    /// [`easing`]: Var::easing
+    /// [`ease_ne`]: Var::ease_ne
+    fn easing_ne<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
+    where
+        T: animation::Transitionable + PartialEq,
+        F: FnMut(EasingTime) -> EasingStep + 'static,
+    {
+        let me = self.clone();
+        let easing = Rc::new(RefCell::new(easing));
+        types::ContextualizedVar::new(Rc::new(move || {
+            let other = var(me.get());
+
+            let easing = easing.clone();
+
+            let mut _anim_handle = animation::AnimationHandle::dummy();
+            var_bind(&me, &other, move |vars, _, value, other| {
+                let easing = easing.clone();
+                _anim_handle = other.ease_ne(vars, value.clone(), duration, move |t| easing.borrow_mut()(t));
+            })
+            .perm();
+            other.read_only()
+        }))
     }
 }
 
