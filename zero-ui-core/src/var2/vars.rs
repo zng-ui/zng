@@ -3,10 +3,14 @@ use std::{mem, time::Duration};
 use crate::{
     app::AppEventSender,
     context::{AppContext, Updates},
+    crate_util,
     units::Factor,
 };
 
-use super::{animation::Animations, *};
+use super::{
+    animation::{AnimateModifyInfo, Animations},
+    *,
+};
 
 /// Represents the last time a variable was mutated or the current update cycle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,8 +60,8 @@ pub struct Vars {
     update_id: VarUpdateId,
     apply_update_id: VarApplyUpdateId,
 
-    updates: RefCell<Vec<VarUpdateFn>>,
-    spare_updates: Vec<VarUpdateFn>,
+    updates: RefCell<Vec<(AnimateModifyInfo, VarUpdateFn)>>,
+    spare_updates: Vec<(AnimateModifyInfo, VarUpdateFn)>,
 
     modify_receivers: RefCell<Vec<Box<dyn Fn(&Vars) -> bool>>>,
 }
@@ -86,8 +90,9 @@ impl Vars {
         &self.ans.animation_time_scale
     }
 
-    /// Gets info about the currently executing [`Var::modify`] closure.
-    pub fn current_animation(&self) -> animation::AnimateModifyInfo {
+    /// Gets info about the [`Vars::animate`] closure that is currently running or that generated the var modify closure
+    /// that is currently running.
+    pub fn current_animation(&self) -> AnimateModifyInfo {
         self.ans.current_animation.borrow().clone()
     }
 
@@ -183,7 +188,8 @@ impl Vars {
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn) {
-        self.updates.borrow_mut().push(update);
+        let curr_anim = self.current_animation();
+        self.updates.borrow_mut().push((curr_anim, update));
     }
 
     /// Id of each `schedule_update` cycle during `apply_updates`
@@ -198,7 +204,9 @@ impl Vars {
 
         while !self.updates.get_mut().is_empty() {
             let mut var_updates = mem::replace(self.updates.get_mut(), mem::take(&mut self.spare_updates));
-            for update in var_updates.drain(..) {
+            for (animation_info, update) in var_updates.drain(..) {
+                let prev_info = mem::replace(&mut *self.ans.current_animation.borrow_mut(), animation_info);
+                let _cleanup = crate_util::RunOnDrop::new(|| *self.ans.current_animation.borrow_mut() = prev_info);
                 update(self, updates);
             }
             self.spare_updates = var_updates;
