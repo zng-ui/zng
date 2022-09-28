@@ -1,8 +1,6 @@
 # Var/Update Rewrite
 
-* Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
 * Review every old var API, do we really need the many helper mapping stuff? 
-* Implement RcCow::pass_trough, or replace it with something better.
 * Refactor var proc-macros to use new API.
     - Use contextualized constructors.
     - Remove "is_rc" stuff.
@@ -13,8 +11,11 @@
     - Tests.
 * Remove `UiNode::subscriptions`, should be mostly removed already.
     - Refactor WidgetHandle, some other context-var wrappers also.
+
 * Stop propagation when all items in delivery list visited.
 * Stop propagation when it is requested.
+* Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
+    - Using clone for now, after merge refactor this.
 
 * Review `unsafe`, only use when there is no alternative.
 

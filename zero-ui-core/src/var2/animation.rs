@@ -557,7 +557,7 @@ struct AnimationUpdateInfo {
 pub(super) fn var_animate<T: VarValue>(
     vars: &Vars,
     target: &impl Var<T>,
-    animate: impl FnMut(&animation::AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    mut animate: impl FnMut(&animation::AnimationArgs, &mut VarModifyValue<T>) + 'static,
 ) -> AnimationHandle {
     if !target.capabilities().is_always_read_only() {
         let target = target.actual_var();
@@ -565,14 +565,22 @@ pub(super) fn var_animate<T: VarValue>(
             let wk_target = target.downgrade();
             return vars.animate(move |vars, args| {
                 if let Some(target) = wk_target.upgrade() {
-                    let r = target.modify(vars, |value| {
-                        // need to make args an Rc to support actual modify.
-                        // the Animations expects an updated args immediately after this closure is called.
-                        // but only to update the next_deadline
-                    });
-                    if let Err(VarIsReadOnlyError { .. }) = r {
-                        // var can maybe change to allow write again, but we wipe all animations anyway.
-                        args.stop();
+                    // TODO refactor animation to allow using modify here.
+                    let mut value = target.get();
+                    let mut modify = VarModifyValue {
+                        update_id: vars.update_id(),
+                        value: &mut value,
+                        touched: false,
+                    };
+                    animate(args, &mut modify);
+
+                    if modify.touched {
+                        let r = target.set(vars, value);
+
+                        if let Err(VarIsReadOnlyError { .. }) = r {
+                            // var can maybe change to allow write again, but we wipe all animations anyway.
+                            args.stop();
+                        }
                     }
                 } else {
                     // target dropped.

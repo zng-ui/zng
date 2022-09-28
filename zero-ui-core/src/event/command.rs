@@ -888,12 +888,12 @@ impl<'a> CommandMeta<'a> {
                 .entry(id.scope())
                 .or_insert_with(|| {
                     let var = meta.entry(id.app()).or_insert_with(|| var(init())).clone();
-                    CommandMetaVar::new(var)
+                    RcCowVar::new(var)
                 })
                 .clone()
+                .boxed()
         } else {
-            let var = self.meta.entry(id.app()).or_insert_with(|| var(init())).clone();
-            CommandMetaVar::pass_through(var)
+            self.meta.entry(id.app()).or_insert_with(|| var(init())).clone().boxed()
         }
     }
 
@@ -924,10 +924,8 @@ impl<'a> CommandMeta<'a> {
 /// the value for all scopes. If you get this variable using a scoped command,
 /// setting it overrides only the value for the scope.
 ///
-/// The aliased type is an [`RcVar`] wrapped in a [`RcCowVar`], for not scoped commands the
-/// [`RcCowVar::pass_through`] is used so that the wrapped [`RcVar`] is set directly on assign
-/// but the variable type matches that from a scoped command.
-pub type CommandMetaVar<T> = RcCowVar<T, RcVar<T>>;
+/// The boxed var is an [`RcVar<T>`] for *app* scope, or [`RcCowVar<T, RcVar<T>>`] for scoped commands.
+pub type CommandMetaVar<T> = BoxedVar<T>;
 
 /// Read-only command metadata variable.
 ///
