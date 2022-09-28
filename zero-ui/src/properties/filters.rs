@@ -36,7 +36,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(f) = self.filter.get_new(ctx.vars) {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
@@ -46,7 +46,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
                     ctx.updates.layout();
                 }
             }
-            self.child.update(ctx)
+            self.child.update(ctx, updates)
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -101,7 +101,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(f) = self.filter.get_new(ctx.vars) {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
@@ -111,7 +111,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
                     ctx.updates.layout();
                 }
             }
-            self.child.update(ctx)
+            self.child.update(ctx, updates)
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -283,11 +283,11 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.alpha.is_new(ctx) {
                 ctx.updates.render_update();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -329,11 +329,11 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.alpha.is_new(ctx) {
                 ctx.updates.render_update();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

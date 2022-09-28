@@ -29,8 +29,8 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
             if self.transform.is_new(ctx.vars) {
                 ctx.updates.layout();
             }

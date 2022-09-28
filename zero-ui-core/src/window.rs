@@ -23,7 +23,7 @@ use crate::{
         raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
-    context::{AppContext, WindowContext},
+    context::{AppContext, WindowContext, WidgetUpdates},
     event::EventUpdate,
     image::ImageVar,
     var::WithVars,
@@ -70,8 +70,8 @@ impl AppExtension for WindowManager {
         Windows::on_event(ctx, update);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        Windows::on_ui_update(ctx);
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        Windows::on_ui_update(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {

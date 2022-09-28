@@ -665,8 +665,8 @@ mod properties {
                 self.with_mut(ctx.vars, |c| c.deinit(ctx));
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(ctx.vars, |c| c.update(ctx));
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.with_mut(ctx.vars, |c| c.update(ctx, updates));
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -756,8 +756,8 @@ mod properties {
                 self.value = None;
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(ctx.vars, |c| c.update(ctx));
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.with_mut(ctx.vars, |c| c.update(ctx, updates));
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -848,8 +848,8 @@ mod tests {
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                self.child.update(ctx);
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.child.update(ctx, updates);
                 self.handler.update(ctx);
             }
         }

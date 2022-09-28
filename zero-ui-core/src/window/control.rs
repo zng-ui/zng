@@ -11,7 +11,7 @@ use crate::{
         view_process::*,
     },
     color::{ColorScheme, RenderColor},
-    context::{state_map, LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, InfoLayoutRenderUpdates},
+    context::{state_map, InfoLayoutRenderUpdates, LayoutContext, OwnedStateMap, WidgetUpdates, WindowContext, WindowRenderUpdate},
     event::{EventArgs, EventUpdate},
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
@@ -105,7 +105,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn update(&mut self, ctx: &mut WindowContext) {
+    pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
             ctx.updates.layout();
@@ -388,7 +388,7 @@ impl HeadedCtrl {
             }
         }
 
-        self.content.update(ctx);
+        self.content.update(ctx, updates);
     }
 
     pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
@@ -988,7 +988,7 @@ impl HeadlessWithRendererCtrl {
         }
     }
 
-    pub fn update(&mut self, ctx: &mut WindowContext) {
+    pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if self.surface.is_some() {
             if self.vars.size().is_new(ctx)
                 || self.vars.min_size().is_new(ctx)
@@ -1008,7 +1008,7 @@ impl HeadlessWithRendererCtrl {
             self.var_bindings = Some(h);
         }
 
-        self.content.update(ctx);
+        self.content.update(ctx, updates);
     }
 
     pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
@@ -1211,7 +1211,7 @@ impl HeadlessCtrl {
         }
     }
 
-    pub fn update(&mut self, ctx: &mut WindowContext) {
+    pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if self.vars.size().is_new(ctx)
             || self.vars.min_size().is_new(ctx)
             || self.vars.max_size().is_new(ctx)
@@ -1234,7 +1234,7 @@ impl HeadlessCtrl {
             self.var_bindings = Some(h);
         }
 
-        self.content.update(ctx);
+        self.content.update(ctx, updates);
     }
 
     pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
@@ -1400,7 +1400,7 @@ impl ContentCtrl {
         }
     }
 
-    pub fn update(&mut self, ctx: &mut WindowContext) {
+    pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if !self.inited {
             self.commands.init(ctx.vars, &self.vars);
             ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
@@ -1412,9 +1412,14 @@ impl ContentCtrl {
             self.inited = true;
         } else {
             self.commands.update(ctx.vars, &self.vars);
-            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                self.root.update(ctx);
-            })
+
+            updates.with_window(ctx, |ctx, updates| {
+                ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
+                    updates.with_widget(ctx, |ctx, updates| {
+                        self.root.update(ctx, updates);
+                    });
+                });
+            });
         }
     }
 
@@ -1731,11 +1736,11 @@ impl WindowCtrl {
         })
     }
 
-    pub fn update(&mut self, ctx: &mut WindowContext) {
+    pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.update(ctx),
-            WindowCtrlMode::Headless(c) => c.update(ctx),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.update(ctx),
+            WindowCtrlMode::Headed(c) => c.update(ctx, updates),
+            WindowCtrlMode::Headless(c) => c.update(ctx, updates),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.update(ctx, updates),
         }
     }
 

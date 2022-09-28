@@ -6,7 +6,7 @@ use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 
 use crate::{
     color::RenderColor,
-    context::{TestWidgetContext, WidgetContext},
+    context::{TestWidgetContext, WidgetContext, WidgetUpdates},
     impl_ui_node, node_vec, nodes,
     render::{FrameBuilder, FrameId, FrameUpdate},
     ui_list::UiNodeVec,
@@ -114,7 +114,7 @@ fn test_trace(node: impl UiNode) {
     assert_only_traced!(wgt.state(), "subscriptions");
 
     ctx.set_current_update(UpdateMask::all());
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     assert_only_traced!(wgt.state(), "update");
 
     wgt.test_layout(&mut ctx, PxConstrains2d::new_bounded_size(l_size).into());
@@ -158,8 +158,8 @@ pub fn allow_missing_delegate() {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for Node1<C> {
         #[allow_(zero_ui::missing_delegate)]
-        fn update(&mut self, _: &mut WidgetContext) {
-            // self.child.update(ctx);
+        fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
+            // self.child.update(ctx, updates);
         }
     }
     struct Node2<C> {
@@ -168,8 +168,8 @@ pub fn allow_missing_delegate() {
     #[impl_ui_node(child)]
     #[allow_(zero_ui::missing_delegate)]
     impl<C: UiNode> UiNode for Node2<C> {
-        fn update(&mut self, _: &mut WidgetContext) {
-            // self.child.update(ctx);
+        fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
+            // self.child.update(ctx, updates);
         }
     }
 
@@ -180,7 +180,7 @@ pub fn allow_missing_delegate() {
         wgt.test_init(&mut ctx);
         assert_only_traced!(wgt.state(), "init");
 
-        wgt.test_update(&mut ctx);
+        wgt.test_update(&mut ctx, None);
         assert_did_not_trace!(wgt.state());
     }
 
@@ -204,7 +204,7 @@ pub fn default_no_child() {
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     wgt.test_deinit(&mut ctx);
     let (wu, u) = ctx.apply_updates();
 
@@ -292,6 +292,7 @@ mod util {
     use crate::{
         context::{
             InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, TestWidgetContext, UpdateDeliveryList, WidgetContext,
+            WidgetUpdates,
         },
         event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
@@ -385,7 +386,7 @@ mod util {
             self.test_trace("deinit");
         }
 
-        fn update(&mut self, _: &mut WidgetContext) {
+        fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
             self.test_trace("update");
         }
 

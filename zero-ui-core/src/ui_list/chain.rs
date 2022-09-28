@@ -1,5 +1,7 @@
 use crate::{
-    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WidgetUpdates,
+    },
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
@@ -44,9 +46,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.deinit_all(ctx);
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
-        self.0.update_all(ctx, observer);
-        self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
+        self.0.update_all(ctx, updates, observer);
+        self.1.update_all(ctx, updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -397,9 +399,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.deinit_all(ctx);
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
-        self.0.update_all(ctx, observer);
-        self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
+        self.0.update_all(ctx, updates, observer);
+        self.1.update_all(ctx, updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {

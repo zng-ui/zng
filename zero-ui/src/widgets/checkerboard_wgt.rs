@@ -121,7 +121,7 @@ pub fn node() -> impl UiNode {
             self.colors = [c0.into(), c1.into()];
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if let Some((c0, c1)) = CHECKERBOARD_COLORS_VAR.copy_new(ctx) {
                 self.colors = [c0.into(), c1.into()];
                 ctx.updates.render();

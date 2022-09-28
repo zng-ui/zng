@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
     event::{Event, EventArgs, EventUpdate},
     render::{FrameBuilder, FrameUpdate},
     units::PxSize,
@@ -319,7 +319,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         match &self.state {
             SlotNodeState::Inactive(wk) => {
                 // fulfill event take_signal or update take_signal:
@@ -373,7 +373,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     rc.inited.set(true);
                     ctx.updates.info_layout_and_render();
                 } else {
-                    rc.node.borrow_mut().update(ctx);
+                    rc.node.borrow_mut().update(ctx, updates);
                 }
             }
             SlotNodeState::ActiveDeinited(_) => {

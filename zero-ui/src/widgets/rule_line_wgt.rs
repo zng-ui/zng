@@ -69,7 +69,7 @@ pub mod rule_line {
                 .var(&self.style);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.stroke_thickness.is_new(ctx) || self.length.is_new(ctx) || self.orientation.is_new(ctx) {
                 ctx.updates.layout();
             }

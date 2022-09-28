@@ -131,13 +131,13 @@ pub mod styleable {
                 self.child.subscriptions(ctx, subs);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if self.style.is_new(ctx.vars) {
                     self.deinit(ctx);
                     self.init(ctx);
                     ctx.updates.info_layout_and_render();
                 } else {
-                    self.child.update(ctx);
+                    self.child.update(ctx, updates);
                 }
             }
         }

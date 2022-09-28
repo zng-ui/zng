@@ -46,8 +46,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             if self.mode.is_new(ctx) || SCROLL_VERTICAL_OFFSET_VAR.is_new(ctx) || SCROLL_HORIZONTAL_OFFSET_VAR.is_new(ctx) {
                 ctx.updates.layout();
@@ -289,8 +289,8 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
             self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
@@ -417,8 +417,8 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
             self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
@@ -542,8 +542,8 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             self.rightmost = CommandHandle::dummy();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             self.top.set_enabled(ScrollContext::can_scroll_up(ctx));
             self.bottom.set_enabled(ScrollContext::can_scroll_down(ctx));

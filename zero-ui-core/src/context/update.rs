@@ -365,7 +365,9 @@ impl Updates {
         self.current = mem::take(&mut self.next_updates);
         (
             mem::take(&mut self.update),
-            WidgetUpdates { delivery_list: mem::take(&mut self.update_widgets) },
+            WidgetUpdates {
+                delivery_list: mem::take(&mut self.update_widgets),
+            },
             mem::take(&mut self.layout),
             mem::take(&mut self.l_updates.render),
         )
@@ -495,6 +497,11 @@ pub struct WidgetUpdates {
     delivery_list: UpdateDeliveryList,
 }
 impl WidgetUpdates {
+    /// New with list.
+    pub fn new(delivery_list: UpdateDeliveryList) -> Self {
+        Self { delivery_list }
+    }
+
     /// Updates delivery list.
     pub fn delivery_list(&self) -> &UpdateDeliveryList {
         &self.delivery_list

@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    context::InfoContext,
+    context::{InfoContext, WidgetUpdates},
     handler::WidgetHandler,
     impl_ui_node,
     widget_info::{WidgetInfoBuilder, WidgetSubscriptions},
@@ -222,8 +222,8 @@ where
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
             self.handler.update(ctx);
         }
     }
@@ -316,9 +316,9 @@ where
             self.child.event(ctx, update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.handler.update(ctx);
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
 

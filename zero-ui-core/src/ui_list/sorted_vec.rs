@@ -1,7 +1,10 @@
 use std::{cell::RefCell, cmp, mem, ops::Deref, rc::Rc};
 
 use crate::{
-    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WithUpdates},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WidgetUpdates,
+        WithUpdates,
+    },
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
@@ -306,10 +309,10 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
         self.fullfill_requests(ctx, observer);
         for widget in &mut self.vec {
-            widget.update(ctx);
+            widget.update(ctx, updates);
         }
     }
 

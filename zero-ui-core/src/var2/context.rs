@@ -345,8 +345,8 @@ mod helpers {
                 self.with_mut(|c| c.event(ctx, update))
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.update(ctx))
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.with_mut(|c| c.update(ctx, updates))
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> units::PxSize {
@@ -435,8 +435,8 @@ mod helpers {
                 *self.value.get_mut() = None;
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.update(ctx));
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.with_mut(|c| c.update(ctx, updates));
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {

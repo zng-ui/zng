@@ -194,12 +194,12 @@ pub mod thumb {
                 self.child.event(ctx, update);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if THUMB_OFFSET_VAR.is_new(ctx) {
                     ctx.updates.layout();
                 }
 
-                self.child.update(ctx);
+                self.child.update(ctx, updates);
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

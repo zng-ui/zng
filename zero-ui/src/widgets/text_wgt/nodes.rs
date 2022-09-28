@@ -191,7 +191,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             self.with_mut(ctx.vars, |c| c.event(ctx, update))
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let r = self.resolved.as_mut().unwrap();
 
             // update `r.text`, affects layout.
@@ -247,7 +247,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             }
 
-            self.with_mut(ctx.vars, |c| c.update(ctx))
+            self.with_mut(ctx.vars, |c| c.update(ctx, updates))
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -527,7 +527,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             self.txt.get_mut().layout = None;
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if TextContext::font_update(ctx).is_some() {
                 self.pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
@@ -552,7 +552,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 ctx.updates.layout();
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -618,12 +618,12 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for RenderUnderlineNode<C> {
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if UNDERLINE_STYLE_VAR.is_new(ctx) || UNDERLINE_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -661,12 +661,12 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for RenderStrikethroughsNode<C> {
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if STRIKETHROUGH_STYLE_VAR.is_new(ctx) || STRIKETHROUGH_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -704,12 +704,12 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for RenderOverlineNode<C> {
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if OVERLINE_STYLE_VAR.is_new(ctx) || OVERLINE_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -748,12 +748,12 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for RenderCaretNode<C> {
         // subscriptions are handled by the `editable` property node.
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if TEXT_EDITABLE_VAR.is_new(ctx) || CARET_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -820,7 +820,7 @@ pub fn render_text() -> impl UiNode {
         }
 
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if FONT_AA_VAR.is_new(ctx) {
                 ctx.updates.render();
             } else if TEXT_COLOR_VAR.is_new(ctx) {

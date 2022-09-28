@@ -2,7 +2,7 @@
 
 use std::{fmt, mem};
 
-use crate::context::{MeasureContext, RenderContext};
+use crate::context::{MeasureContext, RenderContext, WidgetUpdates};
 use crate::render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId};
 use crate::widget_info::WidgetBorderInfo;
 use crate::{nodes, UiNodeList, WidgetId};
@@ -712,11 +712,11 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             self.content.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if BORDER_ALIGN_VAR.is_new(ctx) {
                 ctx.updates.layout();
             }
-            self.content.update(ctx);
+            self.content.update(ctx, updates);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -811,11 +811,11 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             self.children.init_all(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.offsets.clone_new_ne(ctx, &mut self.layout_offsets) {
                 ctx.updates.layout();
             }
-            self.children.update_all(ctx, &mut ());
+            self.children.update_all(ctx, updates, &mut ());
         }
 
         fn measure(&self, ctx: &mut crate::context::MeasureContext) -> PxSize {

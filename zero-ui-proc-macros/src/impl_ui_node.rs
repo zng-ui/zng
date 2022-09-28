@@ -239,7 +239,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) { }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) { }]
 
@@ -288,9 +288,9 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::UiNode::deinit(#deref_mut, ctx);
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::update(#deref_mut, ctx);
+            #crate_::UiNode::update(#deref_mut, ctx, updates);
         }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
@@ -350,10 +350,10 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::deinit_all(#deref_mut, ctx)
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#borrow_mut};
             let mut changed = false;
-            #crate_::UiNodeList::update_all(#deref_mut, ctx, &mut changed);
+            #crate_::UiNodeList::update_all(#deref_mut, ctx, updates, &mut changed);
             if changed {
                 ctx.updates.layout_and_render();
             }
@@ -426,9 +426,9 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterMutImpl::deinit_all(#children_mut, ctx);
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::update_all(#children_mut, ctx);
+            #crate_::impl_ui_node_util::IterMutImpl::update_all(#children_mut, ctx, updates);
         }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {

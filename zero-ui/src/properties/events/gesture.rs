@@ -4,7 +4,6 @@
 //! Prefer using these events over the events directly tied to an input device.
 
 use super::event_property;
-use crate::core::context::WidgetContext;
 use crate::core::gesture::*;
 use crate::prelude::new_property::*;
 
@@ -155,8 +154,8 @@ where
         self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        self.child.update(ctx, updates);
 
         if let Some(s) = self.shortcuts.clone_new(ctx) {
             self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));

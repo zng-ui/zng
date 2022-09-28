@@ -405,7 +405,7 @@ pub mod properties {
                 }
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 let selected = if let Some(new) = self.value.get_new(ctx.vars) {
                     // auto select new.
                     let selected = if self.checked.copy(ctx) == Some(true) && SELECT_ON_NEW_VAR.copy(ctx.vars) {
@@ -440,7 +440,7 @@ pub mod properties {
                     self.prev_value = None;
                 }
 
-                self.child.update(ctx);
+                self.child.update(ctx, updates);
             }
         }
         let checked = var(Some(false));

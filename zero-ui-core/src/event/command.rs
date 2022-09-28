@@ -1176,8 +1176,8 @@ where
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             self.handler.update(ctx);
 
@@ -1263,14 +1263,14 @@ where
             self.child.event(ctx, update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.handler.update(ctx);
 
             if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").copy_new(ctx) {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {

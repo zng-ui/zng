@@ -259,8 +259,8 @@ pub trait AppExtension: 'static {
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::update`](super::UiNode::update)
     /// method is called here.
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        let _ = (ctx, updates);
     }
 
     /// Called after every [`update_ui`](Self::update_ui).
@@ -306,7 +306,7 @@ pub trait AppExtensionBoxed: 'static {
     fn init_boxed(&mut self, ctx: &mut AppContext);
     fn enable_device_events_boxed(&self) -> bool;
     fn update_preview_boxed(&mut self, ctx: &mut AppContext);
-    fn update_ui_boxed(&mut self, ctx: &mut AppContext);
+    fn update_ui_boxed(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates);
     fn update_boxed(&mut self, ctx: &mut AppContext);
     fn event_preview_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
     fn event_ui_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
@@ -336,8 +336,8 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update_preview(ctx);
     }
 
-    fn update_ui_boxed(&mut self, ctx: &mut AppContext) {
-        self.update_ui(ctx);
+    fn update_ui_boxed(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.update_ui(ctx, updates);
     }
 
     fn update_boxed(&mut self, ctx: &mut AppContext) {
@@ -389,8 +389,8 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().update_preview_boxed(ctx);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        self.as_mut().update_ui_boxed(ctx);
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.as_mut().update_ui_boxed(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -468,9 +468,9 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.update_preview(ctx);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("update_ui");
-        self.0.update_ui(ctx);
+        self.0.update_ui(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -1430,8 +1430,9 @@ impl<E: AppExtension> RunningApp<E> {
                 Vars::on_pre_vars(ctx);
                 Updates::on_pre_updates(ctx);
 
-                self.extensions.update_ui(ctx);
-                observer.update_ui(ctx);
+                let mut wgt_updates = u.update_widgets;
+                self.extensions.update_ui(ctx, &mut wgt_updates);
+                observer.update_ui(ctx, &mut wgt_updates);
 
                 self.extensions.update(ctx);
                 observer.update(ctx);
@@ -1865,8 +1866,8 @@ pub trait AppEventObserver {
     }
 
     /// Called just after [`AppExtension::update_ui`].
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        let _ = (ctx, updates);
     }
 
     /// Called just after [`AppExtension::update`].
@@ -1906,7 +1907,7 @@ trait AppEventObserverDyn {
     fn event_ui_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
     fn event_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
     fn update_preview_dyn(&mut self, ctx: &mut AppContext);
-    fn update_ui_dyn(&mut self, ctx: &mut AppContext);
+    fn update_ui_dyn(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates);
     fn update_dyn(&mut self, ctx: &mut AppContext);
     fn layout_dyn(&mut self, ctx: &mut AppContext);
     fn render_dyn(&mut self, ctx: &mut AppContext);
@@ -1932,8 +1933,8 @@ impl<O: AppEventObserver> AppEventObserverDyn for O {
         self.update_preview(ctx)
     }
 
-    fn update_ui_dyn(&mut self, ctx: &mut AppContext) {
-        self.update_ui(ctx)
+    fn update_ui_dyn(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.update_ui(ctx, updates)
     }
 
     fn update_dyn(&mut self, ctx: &mut AppContext) {
@@ -1969,8 +1970,8 @@ impl<'a> AppEventObserver for DynAppEventObserver<'a> {
         self.0.update_preview_dyn(ctx)
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        self.0.update_ui_dyn(ctx)
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.0.update_ui_dyn(ctx, updates)
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -2014,9 +2015,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.update_preview(ctx);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        self.0.update_ui(ctx);
-        self.1.update_ui(ctx);
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.0.update_ui(ctx, updates);
+        self.1.update_ui(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -2082,9 +2083,9 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         for ext in self {
-            ext.update_ui(ctx);
+            ext.update_ui(ctx, updates);
         }
     }
 

@@ -6,7 +6,10 @@ use std::{
 };
 
 use crate::{
-    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WithUpdates},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WidgetUpdates,
+        WithUpdates,
+    },
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTranslation, WidgetList},
@@ -322,10 +325,14 @@ impl UiNodeList for WidgetVec {
         }
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
         self.fullfill_requests(ctx, observer);
         for widget in &mut self.vec {
-            widget.update(ctx);
+            widget.update(ctx, updates);
+
+            if updates.delivery_list().is_done() {
+                break;
+            }
         }
     }
 
@@ -852,9 +859,9 @@ impl UiNodeList for UiNodeVec {
             node.deinit(ctx);
         }
     }
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, _: &mut O) {
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, _: &mut O) {
         for node in self.iter_mut() {
-            node.update(ctx);
+            node.update(ctx, updates);
         }
     }
     fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {

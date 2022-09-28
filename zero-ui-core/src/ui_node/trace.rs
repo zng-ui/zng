@@ -1,5 +1,5 @@
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::*,
@@ -61,9 +61,9 @@ where
         self.node.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         let _span = (self.enter_mtd)(&mut ctx.as_info(), "update");
-        self.node.update(ctx);
+        self.node.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

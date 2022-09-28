@@ -74,7 +74,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
             self.child.event(ctx, update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(new_mode) = self.mode.copy_new(ctx.vars) {
                 if ctx
                     .info_tree
@@ -96,7 +96,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     }
                 }
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     CaptureMouseNode {
@@ -215,12 +215,12 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.child.deinit(ctx)
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.enabled.is_new(ctx) {
                 ctx.updates.info();
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     ModalNode {

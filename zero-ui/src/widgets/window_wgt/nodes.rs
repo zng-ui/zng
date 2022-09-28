@@ -48,7 +48,7 @@ impl WindowLayers {
                 self.widget.init(ctx);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(index) = self.layer.copy_new(ctx) {
                     self.widget.state_mut().set(&LAYER_INDEX_ID, index);
                     ctx.window_state
@@ -56,7 +56,7 @@ impl WindowLayers {
                         .items
                         .sort(ctx.updates, ctx.path.widget_id());
                 }
-                self.widget.update(ctx);
+                self.widget.update(ctx, updates);
             }
         }
         impl<L: Var<LayerIndex>, W: Widget> Widget for LayeredWidget<L, W> {
@@ -181,7 +181,7 @@ impl WindowLayers {
                 self.widget.event(ctx, update);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(anchor) = self.anchor.copy_new(ctx) {
                     self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.get(ctx).interaction {
@@ -196,7 +196,7 @@ impl WindowLayers {
                     }
                     ctx.updates.layout_and_render();
                 }
-                self.widget.update(ctx);
+                self.widget.update(ctx, updates);
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -468,10 +468,10 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             self.children.init_all(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
 
-            self.children.update_all(ctx, &mut changed);
+            self.children.update_all(ctx, updates, &mut changed);
 
             if changed {
                 ctx.updates.layout_and_render();

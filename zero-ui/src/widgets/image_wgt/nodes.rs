@@ -74,7 +74,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             self.ctx_binding = None;
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(mut source) = self.source.clone_new(ctx) {
                 // source update:
 
@@ -118,7 +118,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 }
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
 
@@ -282,7 +282,7 @@ pub fn image_presenter() -> impl UiNode {
             self.requested_layout = true;
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 let img_size = img.size();
                 if self.img_size != img_size {

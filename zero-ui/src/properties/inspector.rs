@@ -93,11 +93,11 @@ fn show_widget_tree(
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.enabled.is_new(ctx) {
                 ctx.updates.render();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -210,7 +210,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.child.event(ctx, update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(enabled) = self.enabled.copy_new(ctx) {
                 if enabled {
                     self.event_handles = Some([
@@ -222,7 +222,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                 }
                 ctx.updates.render();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -332,7 +332,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             self.child.event(ctx, update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(ori) = self.orientation.copy_new(ctx) {
                 self.search_quads.clear();
 
@@ -344,7 +344,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
 
                 ctx.updates.render();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

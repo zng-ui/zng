@@ -148,7 +148,7 @@ where
             self.child.init(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.data.is_new(ctx) {
                 if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
                     self.child.deinit(ctx);
@@ -157,7 +157,7 @@ where
                     ctx.updates.info_layout_and_render();
                 }
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
 
@@ -334,7 +334,7 @@ impl<D> ViewGenerator<D> {
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 self.child.deinit(ctx);
             }
-            fn update(&mut self, ctx: &mut WidgetContext) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 let gen = self.gen.get(ctx.vars);
 
                 if gen.is_nil() {
@@ -356,7 +356,7 @@ impl<D> ViewGenerator<D> {
                         self.child = Some(child);
                         ctx.updates.info_layout_and_render();
                     }
-                    DataUpdate::Same => self.child.update(ctx),
+                    DataUpdate::Same => self.child.update(ctx, updates),
                     DataUpdate::None => {
                         if let Some(mut old) = self.child.take() {
                             old.deinit(ctx);

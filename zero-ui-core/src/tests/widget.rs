@@ -432,16 +432,16 @@ pub fn wgt_when() {
     assert!(util::traced(&wgt, "boo!"));
 
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "ok."));
 
     util::set_state(&mut ctx, &mut wgt, false);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "boo!"));
 }
@@ -461,16 +461,16 @@ pub fn widget_user_when() {
     assert!(util::traced(&wgt, "A"));
 
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "B"));
 
     util::set_state(&mut ctx, &mut wgt, false);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "A"));
 }
@@ -501,16 +501,16 @@ pub fn wgt_multi_when() {
     assert!(util::traced(&wgt, "default"));
 
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "state_1"));
 
     util::set_state(&mut ctx, &mut wgt, false);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "default"));
 }
@@ -611,16 +611,16 @@ pub fn wgt_cfg_when() {
     assert!(util::traced(&wgt, "trace"));
 
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "is_state"));
 
     util::set_state(&mut ctx, &mut wgt, false);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "trace"));
 }
@@ -653,16 +653,16 @@ pub fn user_cfg_when() {
     assert!(util::traced(&wgt, "trace"));
 
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "is_state"));
 
     util::set_state(&mut ctx, &mut wgt, false);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "trace"));
 }
@@ -1281,10 +1281,10 @@ pub fn allowed_in_when_without_wgt_assign1() {
     assert!(!util::traced(&wgt, "when-trace"));
 
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
 
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     assert!(util::traced(&wgt, "when-trace"));
 }
 
@@ -1311,9 +1311,9 @@ pub fn allowed_in_when_without_wgt_assign2() {
     assert!(!util::traced(&wgt, "when-trace"));
 
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     assert!(util::traced(&wgt, "when-trace"));
 }
 
@@ -1356,9 +1356,9 @@ pub fn generated_name_collision_in_when() {
     wgt.test_init(&mut ctx);
     ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "3"));
     assert!(!util::traced(&wgt, "2"));
@@ -1380,9 +1380,9 @@ pub fn generated_name_collision_in_when_assign() {
     wgt.test_init(&mut ctx);
     ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "1"));
     assert!(util::traced(&wgt, "true"));
@@ -1411,9 +1411,9 @@ pub fn name_collision_wgt_when() {
     wgt.test_init(&mut ctx);
     ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     util::set_state(&mut ctx, &mut wgt, true);
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
-    wgt.test_update(&mut ctx);
+    wgt.test_update(&mut ctx, None);
 
     assert!(util::traced(&wgt, "3"));
     assert!(!util::traced(&wgt, "2"));
@@ -1703,7 +1703,7 @@ mod util {
     };
 
     use crate::{
-        context::{InfoContext, StaticStateId, TestWidgetContext, WidgetContext},
+        context::{InfoContext, StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
         impl_ui_node, property,
         var::{IntoVar, StateVar, Var},
         widget_info::{UpdateMask, WidgetSubscriptions},
@@ -1900,8 +1900,8 @@ mod util {
             subs.updates(&UpdateMask::all());
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
             self.update_state(ctx);
         }
     }
@@ -1940,8 +1940,8 @@ mod util {
             subs.var(ctx, &self.trace);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
             if let Some(trace) = self.trace.copy_new(ctx) {
                 ctx.widget_state.entry(&TRACE_ID).or_default().insert(trace);
             }

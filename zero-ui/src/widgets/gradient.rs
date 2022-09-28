@@ -83,7 +83,7 @@ where
     }
 
     #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
         if self.axis.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
             self.do_layout = true;
             ctx.updates.layout();
@@ -157,8 +157,8 @@ where
         self.g.subscriptions(ctx, subs);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.g.update(ctx);
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        self.g.update(ctx, updates);
 
         if self.tile_size.is_new(ctx) || self.tile_spacing.is_new(ctx) {
             ctx.updates.layout();

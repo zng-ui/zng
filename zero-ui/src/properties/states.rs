@@ -216,8 +216,8 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             self.child.event(ctx, update);
         }
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             if let Some(timer) = &self.shortcut_press {
                 if timer.is_new(ctx) {

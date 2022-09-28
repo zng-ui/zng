@@ -126,10 +126,11 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.deinit_all(ctx)
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
         let mut resort = false;
         let mut items_changed = false;
-        self.list.update_all_z(ctx, &mut (observer, &mut items_changed), &mut resort);
+        self.list
+            .update_all_z(ctx, updates, &mut (observer, &mut items_changed), &mut resort);
 
         if resort || (items_changed && self.has_non_default_zs) {
             // z_index changed or inserted
@@ -365,7 +366,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
             self.child.init(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
                 if let Some(i) = self.index.copy_new(ctx) {
                     let z_ctx = Z_INDEX_VAR.get(ctx.vars);
@@ -377,7 +378,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                 }
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     ZIndexNode {
@@ -528,7 +529,13 @@ pub trait WidgetListZIndexExt {
     /// reported to the `observer`.
     ///
     /// [`update_all`]: UiNodeList::update_all
-    fn update_all_z<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O, resort_z: &mut bool);
+    fn update_all_z<O: UiListObserver>(
+        &mut self,
+        ctx: &mut WidgetContext,
+        updates: &mut WidgetUpdates,
+        observer: &mut O,
+        resort_z: &mut bool,
+    );
 }
 impl<L: WidgetList> WidgetListZIndexExt for L {
     fn widget_z_index(&self, index: usize) -> ZIndex {
@@ -539,8 +546,14 @@ impl<L: WidgetList> WidgetListZIndexExt for L {
         *sort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.init_all(ctx));
     }
 
-    fn update_all_z<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O, resort_z: &mut bool) {
-        *resort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.update_all(ctx, observer));
+    fn update_all_z<O: UiListObserver>(
+        &mut self,
+        ctx: &mut WidgetContext,
+        updates: &mut WidgetUpdates,
+        observer: &mut O,
+        resort_z: &mut bool,
+    ) {
+        *resort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.update_all(ctx, updates, observer));
     }
 }
 

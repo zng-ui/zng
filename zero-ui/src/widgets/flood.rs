@@ -1,5 +1,6 @@
 use crate::prelude::new_widget::*;
 
+
 /// Node that fills the widget area with a color.
 pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
     struct FloodNode<C> {
@@ -13,7 +14,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
             subs.var(ctx, &self.color);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.color.is_new(ctx) {
                 ctx.updates.render_update();
             }

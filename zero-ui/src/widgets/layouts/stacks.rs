@@ -74,9 +74,9 @@ pub mod h_stack {
             subs.vars(ctx).var(&self.spacing).var(&self.align);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
-            self.children.update_all(ctx, &mut changed);
+            self.children.update_all(ctx, updates, &mut changed);
 
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
@@ -320,9 +320,9 @@ pub mod v_stack {
             self.children.subscriptions_all(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
-            self.children.update_all(ctx, &mut changed);
+            self.children.update_all(ctx, updates, &mut changed);
 
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
@@ -608,9 +608,9 @@ pub mod z_stack {
             self.children.subscriptions_all(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
-            self.children.update_all(ctx, &mut changed);
+            self.children.update_all(ctx, updates, &mut changed);
 
             if changed || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
@@ -792,11 +792,11 @@ pub fn stack_nodes_layout_by(
             self.children.subscriptions_all(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.index.is_new(ctx) {
                 ctx.updates.layout();
             }
-            self.children.update_all(ctx, &mut ());
+            self.children.update_all(ctx, updates, &mut ());
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

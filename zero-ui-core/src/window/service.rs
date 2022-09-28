@@ -8,7 +8,7 @@ use super::commands::WindowCommands;
 use super::*;
 use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
-use crate::context::{state_map, OwnedStateMap};
+use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
 use crate::event::{EventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
@@ -619,12 +619,12 @@ impl Windows {
         }
     }
 
-    pub(super) fn on_ui_update(ctx: &mut AppContext) {
+    pub(super) fn on_ui_update(ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         Self::fullfill_requests(ctx);
 
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
-                window.update(ctx);
+                window.update(ctx, updates);
             }
         });
     }
@@ -848,8 +848,8 @@ impl AppWindow {
         self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.ui_event(ctx, update))
     }
 
-    pub fn update(&mut self, ctx: &mut AppContext) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.update(ctx));
+    pub fn update(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.update(ctx, updates));
     }
 
     pub fn layout(&mut self, ctx: &mut AppContext) {

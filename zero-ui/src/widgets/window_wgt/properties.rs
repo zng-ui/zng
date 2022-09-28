@@ -148,11 +148,11 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.clear_color.is_new(ctx) {
                 ctx.updates.render_update();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.set_clear_color(self.clear_color.copy(ctx).into());
@@ -345,7 +345,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Task::Read { rsp, .. } = &mut self.task {
                 if let Some(rsp) = rsp.rsp(ctx.vars) {
                     if let Some(s) = rsp {
@@ -366,7 +366,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                     ctx.updates.subscriptions();
                 }
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     SaveStateNode {

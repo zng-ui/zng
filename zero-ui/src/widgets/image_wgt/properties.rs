@@ -291,7 +291,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 if let Some(error) = new_img.error() {
                     if self.error != error {
@@ -304,7 +304,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
             }
 
             self.handler.update(ctx);
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     OnErrorNode {
@@ -346,7 +346,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 if new_img.is_loaded() {
                     self.handler.event(ctx, &ImageLoadArgs {});
@@ -354,7 +354,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
             }
 
             self.handler.update(ctx);
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     OnLoadNode { child, handler }
@@ -386,12 +386,12 @@ pub fn image_block_window_load(child: impl UiNode, enabled: impl IntoValue<Block
             self.child.subscriptions(ctx, subs);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.block.is_some() && !CONTEXT_IMAGE_VAR.get(ctx).is_loading() {
                 self.block = None;
                 ctx.updates.subscriptions();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     ImageBlockWindowLoadNode {

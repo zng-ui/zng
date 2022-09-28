@@ -18,7 +18,7 @@ use std::any::type_name;
 use std::fmt;
 use std::{any::Any, rc::Rc};
 
-use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, UpdatesTrace};
+use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, UpdatesTrace, WidgetUpdates};
 use crate::event::EventUpdate;
 use crate::render::FrameUpdate;
 use crate::text::Text;
@@ -647,9 +647,9 @@ impl UiNode for InspectPropertyNode {
         self.child.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut context::WidgetContext) {
+    fn update(&mut self, ctx: &mut context::WidgetContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::property_span(self.meta.property_name, "update");
-        self.child.update(ctx);
+        self.child.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -724,9 +724,9 @@ impl UiNode for InspectWidgetNode {
         self.child.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut context::WidgetContext) {
+    fn update(&mut self, ctx: &mut context::WidgetContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "update");
-        self.child.update(ctx);
+        self.child.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -804,9 +804,9 @@ impl UiNode for InspectConstructorNode {
         self.child.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut context::WidgetContext) {
+    fn update(&mut self, ctx: &mut context::WidgetContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::constructor_span(self.fn_name, "update");
-        self.child.update(ctx);
+        self.child.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

@@ -22,7 +22,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             subs.var(ctx, &self.sides);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.sides.is_new(ctx) {
                 ctx.updates.render();
             }
