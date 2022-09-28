@@ -563,12 +563,21 @@ pub(super) fn var_animate<T: VarValue>(
         let target = target.actual_var();
         if !target.capabilities().is_always_read_only() {
             let wk_target = target.downgrade();
-            return vars.animate(|vars, args| {
-                // need to make args an Rc to support an actual modify?
-                // Var::animate needs to be implemented by variables, like modify.
-                // checkout the override ids stuff first.
-                // implement other helpers using this signature first.
-                todo!()
+            return vars.animate(move |vars, args| {
+                if let Some(target) = wk_target.upgrade() {
+                    let r = target.modify(vars, |value| {
+                        // need to make args an Rc to support actual modify.
+                        // the Animations expects an updated args immediately after this closure is called.
+                        // but only to update the next_deadline
+                    });
+                    if let Err(VarIsReadOnlyError { .. }) = r {
+                        // var can maybe change to allow write again, but we wipe all animations anyway.
+                        args.stop();
+                    }
+                } else {
+                    // target dropped.
+                    args.stop();
+                }
             });
         }
     }

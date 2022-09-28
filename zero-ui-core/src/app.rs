@@ -1363,6 +1363,7 @@ impl<E: AppExtension> RunningApp<E> {
         if updated_timers {
             // tick timers and collect not elapsed timers.
             self.owned_ctx.update_timers(&mut self.loop_timer);
+            self.apply_updates(observer);
         }
 
         let mut events = mem::take(&mut self.pending_view_events);

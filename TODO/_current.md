@@ -1,8 +1,7 @@
 # Var/Update Rewrite
 
+* Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
 * Review every old var API, do we really need the many helper mapping stuff? 
-* Implement new `Var::animate`.
-    - Lets do it with using the modify, to be sure that the less used `Vars::animate` also works.
 * Implement RcCow::pass_trough, or replace it with something better.
 * Refactor var proc-macros to use new API.
     - Use contextualized constructors.
