@@ -1,13 +1,12 @@
 # Var/Update Rewrite
 
-* Review every old var API, do we really need the many helper mapping stuff? 
-* Refactor var proc-macros to use new API.
-    - Use contextualized constructors.
-    - Remove "is_rc" stuff.
 * Implement delivery-list for update requests.
     - Use it in new var API.
     - Add the current updates list to `UiNode::update` ?
+
 * !! Remove old var, rename `var2`, rewrite everything.
+    - Use contextualized constructors in proc-macros.
+    - Remove "is_rc" stuff from proc-macros.
     - Tests.
 * Remove `UiNode::subscriptions`, should be mostly removed already.
     - Refactor WidgetHandle, some other context-var wrappers also.

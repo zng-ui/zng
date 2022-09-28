@@ -58,7 +58,7 @@ pub mod types {
     pub use super::cow::{RcCowVar, WeakCowVar};
     // pub use super::expr::__expr_var;
     pub use super::flat_map::{RcFlatMapVar, WeakFlatMapVar};
-    pub use super::future::{WaitIsNewFut, WaitNewFut};
+    pub use super::future::{WaitIsNewFut, WaitIsNotAnimatingFut, WaitNewFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
     pub use super::merge::{RcMergeVar, RcMergeVarInput, WeakMergeVar, __merge_var};
     pub use super::rc::WeakRcVar;
@@ -661,7 +661,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         vars.with_vars(Vars::update_id) == self.last_update()
     }
 
-    /// Create a future that awaits and yields [`is_new`].
+    /// Create a future that awaits for [`is_new`] to be `true`.
     ///
     /// The future can only be used in app bound async code, it can be reused.
     ///
@@ -671,6 +671,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         C: WithVars,
     {
         types::WaitIsNewFut::new(vars, self)
+    }
+
+    /// Create a future that awaits for [`is_animating`] to be `false`.
+    ///
+    /// The future can only be used in app bound async code, it can be reused.
+    ///
+    /// [`is_animating`]: Var::is_animating
+    fn wait_animation(&self) -> types::WaitIsNotAnimatingFut<T, Self> {
+        types::WaitIsNotAnimatingFut::new(self)
     }
 
     /// Visit the current value of the variable, if it [`is_new`].
@@ -827,6 +836,46 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         }))
     }
 
+    /// Creates a [`map`] that converts from `T` to `O` using [`Into<O>`].
+    ///
+    /// [`map`]: Var::map
+    fn map_into<O>(&self) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    where
+        O: VarValue,
+        T: Into<O>,
+    {
+        self.map(|v| v.clone().into())
+    }
+
+    /// Creates a [`map`] that converts from `T` to [`Text`] using [`ToText`].
+    ///
+    /// [`map`]: Var::map
+    /// [`Text`]: crate::text::Text
+    /// [`ToText`]: crate::text::ToText
+    fn map_to_text(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyRcVar<crate::text::Text>>
+    where
+        T: crate::text::ToText,
+    {
+        self.map(crate::text::ToText::to_text)
+    }
+
+    /// Create a [`map`] that converts from `T` to [`String`] using [`ToString`].
+    ///
+    /// [`map`]: Var::map
+    fn map_to_string(&self) -> types::ContextualizedVar<String, ReadOnlyRcVar<String>>
+    where
+        T: ToString,
+    {
+        self.map(ToString::to_string)
+    }
+
+    /// Create a [`map`] that converts from `T` to a [`Text`] debug print.
+    ///
+    /// [`map`]: Var::map
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyRcVar<crate::text::Text>> {
+        self.map(|v| crate::text::formatx!("{v:?}"))
+    }
+
     /// Create a ref-counted var that maps from this variable on read and to it on write.
     ///
     /// The `map` closure is called once on initialization, and then once every time
@@ -881,7 +930,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Creates a ref-counted var that maps from this variable, but can retain a previous mapped value.
     ///
-    /// The `map` closure is called once on initialization, if it returns `None` the `init` closure is called to generate
+    /// The `map` closure is called once on initialization, if it returns `None` the `fallback` closure is called to generate
     /// a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
     /// otherwise the previous value is retained, either way the mapping variable is *new*.
@@ -892,7 +941,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [contextualized]: Types::ContextualizedVar
     /// [`map_bidi`]: Var::map_bidi
-    fn filter_map<O, M, I>(&self, map: M, init: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + 'static,
@@ -901,17 +950,42 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         let me = self.clone();
         let map = Rc::new(RefCell::new(map));
         types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&init));
+            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&fallback));
             let map = map.clone();
             me.bind_filter_map(&other, move |i| map.borrow_mut()(i)).perm();
             other.read_only()
         }))
     }
 
+    /// Create a [`filter_map`] that tries to convert from `T` to `O` using [`TryInto<O>`].
+    ///
+    /// [`filter_map`]: Var::filter_map
+    fn filter_try_into<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    where
+        O: VarValue,
+        T: TryInto<O>,
+        I: Fn() -> O + 'static,
+    {
+        self.filter_map(|v| v.clone().try_into().ok(), fallback)
+    }
+
+    /// Create a [`filter_map`] that tries to convert from `T` to `O` using [`FromStr`].
+    ///
+    /// [`filter_map`]: Var::filter_map
+    /// [`FromStr`]: std::str::FromStr
+    fn filter_parse<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    where
+        O: VarValue + std::str::FromStr,
+        T: AsRef<str>,
+        I: Fn() -> O + 'static,
+    {
+        self.filter_map(|v| v.as_ref().parse().ok(), fallback)
+    }
+
     /// Create a ref-counted var that maps from this variable on read and to it on write, mapping in both directions can skip
     /// a value, retaining the previous mapped value.
     ///
-    /// The `map` closure is called once on initialization, if it returns `None` the `init` closure is called
+    /// The `map` closure is called once on initialization, if it returns `None` the `fallback` closure is called
     /// to generate a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
     /// otherwise the previous value is retained, either way the mapping variable is *new*. The `map_back` closure
@@ -921,7 +995,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: Types::ContextualizedVar
-    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, init: I) -> types::ContextualizedVar<O, RcVar<O>>
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, RcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + 'static,
@@ -932,7 +1006,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         let map = Rc::new(RefCell::new(map));
         let map_back = Rc::new(RefCell::new(map_back));
         types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&init));
+            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&fallback));
             let map = map.clone();
             let map_back = map_back.clone();
             let [h1, h2] = me.bind_filter_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o));

@@ -77,3 +77,39 @@ impl<'a, C: WithVars, T: VarValue, V: Var<T>> Future for WaitIsNewFut<'a, C, T, 
         }
     }
 }
+
+/// See [`Var::wait_animation`].
+pub struct WaitIsNotAnimatingFut<'a, T: VarValue, V: Var<T>> {
+    var: &'a V,
+    wakers: RefCell<Vec<VarHandle>>,
+    _value: PhantomData<T>,
+}
+impl<'a, T: VarValue, V: Var<T>> WaitIsNotAnimatingFut<'a, T, V> {
+    pub(super) fn new(var: &'a V) -> Self {
+        Self {
+            var,
+            wakers: RefCell::new(vec![]),
+            _value: PhantomData,
+        }
+    }
+}
+impl<'a, T: VarValue, V: Var<T>> Future for WaitIsNotAnimatingFut<'a, T, V> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
+        match self.var.is_animating() {
+            true => {
+                self.wakers.borrow_mut().clear();
+                Poll::Ready(())
+            }
+            false => {
+                let waker = cx.waker().clone();
+                self.wakers.borrow_mut().push(self.var.hook(Box::new(move |_, _, _| {
+                    waker.wake_by_ref();
+                    false
+                })));
+                Poll::Pending
+            }
+        }
+    }
+}
