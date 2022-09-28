@@ -10,7 +10,7 @@ use crate::{
     context::*,
     event::EventUpdate,
     var::impl_from_and_into_var,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -202,7 +202,7 @@ pub trait UiNode: Any {
 
     /// Called every time an update is requested.
     ///
-    /// An update happens every time after a sequence of [`event`](Self::event), they also happen
+    /// An update can be requested using the context [`Updates`], after each request, they also happen
     /// when variables update and any other context or service structure that can be observed updates.
     fn update(&mut self, ctx: &mut WidgetContext);
 

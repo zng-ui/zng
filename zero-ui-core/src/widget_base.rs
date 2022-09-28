@@ -5,7 +5,7 @@ use std::{fmt, mem};
 use crate::{
     context::{
         state_map, InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMapMut, StateMapRef, WidgetContext,
-        WidgetUpdates,
+        InfoLayoutRenderUpdates,
     },
     event::EventUpdate,
     impl_ui_node, property,
@@ -306,7 +306,7 @@ pub mod implicit_base {
 
                 #[cfg(debug_assertions)]
                 inited: bool,
-                pending_updates: RefCell<WidgetUpdates>,
+                pending_updates: RefCell<InfoLayoutRenderUpdates>,
                 offsets_pass: Cell<LayoutPassId>,
 
                 reuse: RefCell<Option<ReuseRange>>,
@@ -319,7 +319,7 @@ pub mod implicit_base {
                     }
 
                     ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.init(ctx));
-                    *self.pending_updates.get_mut() = WidgetUpdates::all();
+                    *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::all();
 
                     #[cfg(debug_assertions)]
                     {
@@ -334,7 +334,7 @@ pub mod implicit_base {
                     }
 
                     ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.deinit(ctx));
-                    *self.pending_updates.get_mut() = WidgetUpdates::none();
+                    *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::none();
 
                     #[cfg(debug_assertions)]
                     {

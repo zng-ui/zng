@@ -11,7 +11,7 @@ use crate::{
         view_process::*,
     },
     color::{ColorScheme, RenderColor},
-    context::{state_map, LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
+    context::{state_map, LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, InfoLayoutRenderUpdates},
     event::{EventArgs, EventUpdate},
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
@@ -391,7 +391,7 @@ impl HeadedCtrl {
         self.content.update(ctx);
     }
 
-    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: WindowUpdates) {
+    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
         self.content.window_updates(ctx, updates);
     }
 
@@ -1011,7 +1011,7 @@ impl HeadlessWithRendererCtrl {
         self.content.update(ctx);
     }
 
-    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: WindowUpdates) {
+    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
         self.content.window_updates(ctx, updates);
     }
 
@@ -1237,7 +1237,7 @@ impl HeadlessCtrl {
         self.content.update(ctx);
     }
 
-    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: WindowUpdates) {
+    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
         self.content.window_updates(ctx, updates);
     }
 
@@ -1418,7 +1418,7 @@ impl ContentCtrl {
         }
     }
 
-    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: WindowUpdates) {
+    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
         self.layout_requested |= updates.layout;
         self.render_requested |= updates.render;
 
@@ -1739,7 +1739,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: WindowUpdates) {
+    pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: InfoLayoutRenderUpdates) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.window_updates(ctx, updates),
             WindowCtrlMode::Headless(c) => c.window_updates(ctx, updates),

@@ -87,11 +87,12 @@ impl OwnedAppContext {
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
 
-        let (update, layout, render) = self.updates.take_updates();
+        let (update, update_widgets, layout, render) = self.updates.take_updates();
 
         ContextUpdates {
             events,
             update,
+            update_widgets,
             layout,
             render,
         }
@@ -154,7 +155,7 @@ impl<'a> AppContext<'a> {
         window_mode: WindowMode,
         window_state: &mut OwnedStateMap<state_map::Window>,
         f: impl FnOnce(&mut WindowContext) -> R,
-    ) -> (R, WindowUpdates) {
+    ) -> (R, InfoLayoutRenderUpdates) {
         let _span = UpdatesTrace::window_span(window_id);
 
         self.updates.enter_window_ctx();
@@ -542,7 +543,7 @@ impl TestWidgetContext {
     ///
     /// Returns the [`WindowUpdates`] and [`ContextUpdates`] a full app and window would
     /// use to update the application.
-    pub fn apply_updates(&mut self) -> (WindowUpdates, ContextUpdates) {
+    pub fn apply_updates(&mut self) -> (InfoLayoutRenderUpdates, ContextUpdates) {
         let win_updt = self.updates.exit_window_ctx();
 
         for ev in self.receiver.try_iter() {
@@ -556,13 +557,14 @@ impl TestWidgetContext {
         }
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
-        let (update, layout, render) = self.updates.take_updates();
+        let (update, update_widgets, layout, render) = self.updates.take_updates();
 
         (
             win_updt,
             ContextUpdates {
                 events,
                 update,
+                update_widgets,
                 layout,
                 render,
             },
@@ -636,7 +638,7 @@ impl<'a> WidgetContext<'a> {
         widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut WidgetContext) -> R,
-    ) -> (R, WidgetUpdates) {
+    ) -> (R, InfoLayoutRenderUpdates) {
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
@@ -1116,7 +1118,7 @@ impl<'a> LayoutContext<'a> {
         widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> (R, WidgetUpdates) {
+    ) -> (R, InfoLayoutRenderUpdates) {
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
