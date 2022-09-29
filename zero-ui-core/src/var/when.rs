@@ -72,6 +72,9 @@ pub use crate::when_var;
 #[doc(hidden)]
 pub use zero_ui_proc_macros::when_var as __when_var;
 
+#[doc(hidden)]
+pub type ContextualizedRcWhenVar<T> = types::ContextualizedVar<T, RcWhenVar<T>>;
+
 /// Manually build a [`RcWhenVar<T>`].
 #[derive(Clone)]
 pub struct WhenVarBuilder<T: VarValue> {
@@ -159,13 +162,14 @@ impl AnyWhenVarBuilder {
         }
     }
 
-    /// Create a builder from the parts of a formed [`rc_when_var!`].
-    pub fn from_var<O: VarValue>(var: &RcWhenVar<O>) -> Self {
-        let data = var.0.borrow();
-        Self {
-            default: data.default.clone_any(),
-            conditions: data.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
-        }
+    /// Create a builder from the parts of a formed [`when_var!`].
+    pub fn from_var<O: VarValue>(var: &types::ContextualizedVar<O, RcWhenVar<O>>) -> Self {
+        // let data = var.0.borrow();
+        // Self {
+        //     default: data.default.clone_any(),
+        //     conditions: data.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
+        // }
+        todo!("!!: refactor when_var to contextualize inputs?")
     }
 
     /// Returns the number of conditions set.

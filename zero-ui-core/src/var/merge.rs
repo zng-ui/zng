@@ -70,15 +70,15 @@ struct Data<T> {
 /// See [`merge_var!`].
 pub struct RcMergeVar<T>(Rc<RefCell<Data<T>>>);
 
+#[doc(hidden)]
+pub type ContextualizedRcMergeVar<T> = types::ContextualizedVar<T, RcMergeVar<T>>;
+
 /// Weak reference to [`RcMergeVar<T>`].
 pub struct WeakMergeVar<T>(Weak<RefCell<Data<T>>>);
 
 impl<T: VarValue> RcMergeVar<T> {
     #[doc(hidden)]
-    pub fn new(
-        inputs: Box<[Box<dyn AnyVar>]>,
-        merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + 'static,
-    ) -> types::ContextualizedVar<T, RcMergeVar<T>> {
+    pub fn new(inputs: Box<[Box<dyn AnyVar>]>, merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + 'static) -> ContextualizedRcMergeVar<T> {
         Self::new_impl(inputs, Rc::new(RefCell::new(merge)))
     }
 

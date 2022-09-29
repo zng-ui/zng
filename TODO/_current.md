@@ -1,11 +1,13 @@
 # Var/Update Rewrite
 
-* !! Remove old var, rename `var2`, rewrite everything.
-    - Use contextualized constructors in proc-macros.
-    - Remove "is_rc" stuff from proc-macros.
-    - Tests.
+* Fix all build errors.
+* AnyWhenVarBuilder::from_var has a problem with new contextualized var.
+    - Maybe a custom contextualizing var that keeps the builder?
+    - Or contextualize each input.
 * Remove `UiNode::subscriptions`, should be mostly removed already.
     - Refactor WidgetHandle, some other context-var wrappers also.
+* Docs.
+* Test.
 
 * Stop propagation when all items in delivery list visited.
 * Stop propagation when it is requested.

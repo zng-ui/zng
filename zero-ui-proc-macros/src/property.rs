@@ -1365,7 +1365,7 @@ mod output {
                     let dyn_when_args_tuple_ty = dyn_when_args_t.iter().zip(arg_types.iter()).map(|(arg_t, arg_ty)| {
                         let span = arg_ty.span();
                         let mut r = quote_spanned! {span=>
-                            #crate_core::var::types::RcWhenVar<#arg_t>
+                            #crate_core::var::types::ContextualizedRcWhenVar<#arg_t>
                         };
                         crate::util::set_span(&mut r, span);
                         r

@@ -63,11 +63,11 @@ pub mod types {
     pub use super::flat_map::{RcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNewFut, WaitIsNotAnimatingFut, WaitNewFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
-    pub use super::merge::{RcMergeVar, RcMergeVarInput, WeakMergeVar, __merge_var};
+    pub use super::merge::{ContextualizedRcMergeVar, RcMergeVar, RcMergeVarInput, WeakMergeVar, __merge_var};
     pub use super::rc::WeakRcVar;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
-    pub use super::when::{AnyWhenVarBuilder, RcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
+    pub use super::when::{AnyWhenVarBuilder, ContextualizedRcWhenVar, RcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
 }
 
 /// A type that can be a [`Var<T>`] value.
@@ -475,7 +475,7 @@ impl<'a> VarPtr<'a> {
             _lt: std::marker::PhantomData,
             eq: VarPtrData::Rc(Rc::as_ptr(rc) as _),
         }
-    }    
+    }
 
     fn new_thread_local<T>(tl: &'static std::thread::LocalKey<T>) -> Self {
         Self {

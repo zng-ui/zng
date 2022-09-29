@@ -17,7 +17,7 @@ use crate::{
     task::{self, SignalOnce},
     text::Text,
     units::*,
-    var::{ReadOnlyRcVar, Var},
+    var::{AnyVar, ReadOnlyRcVar, Var},
     window::{FrameCaptureMode, Window, WindowId, WindowVars},
     UiNode,
 };
