@@ -126,7 +126,7 @@ where
 
     /// Takes the widget when the var value is `true`.
     fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
-        *self.get(ctx)
+        self.get()
     }
 }
 /// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates and passes the filter.

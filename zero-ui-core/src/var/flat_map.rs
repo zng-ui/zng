@@ -196,6 +196,10 @@ where
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.0.upgrade().map(|rc| Box::new(RcFlatMapVar(rc)) as _)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T, V> IntoVar<T> for RcFlatMapVar<T, V>

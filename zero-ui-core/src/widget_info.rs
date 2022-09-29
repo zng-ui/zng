@@ -1935,9 +1935,7 @@ impl WidgetSubscriptions {
 
     /// Start a [`WidgetVarSubscriptions`] to register multiple variables without needing to reference the [`VarsRead`] for every variable.
     pub fn vars<'s, I>(&'s mut self, vars: &I) -> WidgetVarSubscriptions<'s> {
-        WidgetVarSubscriptions {
-            subs: self,
-        }
+        WidgetVarSubscriptions { subs: self }
     }
 
     /// Returns `true` if the widget is interested in variables or other update sources that are flagged in `updates`.
@@ -1977,9 +1975,7 @@ pub struct WidgetVarSubscriptions<'s> {
 impl<'s> WidgetVarSubscriptions<'s> {
     /// Register a variable subscriptions.
     pub fn var<T: VarValue>(self, var: &impl Var<T>) -> Self {
-        Self {
-            subs: self.subs.var(self.vars, var),
-        }
+        self
     }
 }
 

@@ -27,7 +27,7 @@ impl ResolvedText {
     /// Gets the contextual [`ResolvedText`], returns `Some(_)` for any property with priority `event` or up
     /// set directly on a `text!` widget or any widget that uses the [`resolve_text`] node.
     pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> Option<&ResolvedText> {
-        RESOLVED_TEXT_VAR.get(vars).as_ref()
+        RESOLVED_TEXT_VAR.get().as_ref()
     }
 }
 
@@ -79,7 +79,7 @@ impl LayoutText {
     /// Gets t he contextual [`LayoutText`], returns `Some(_)` in the node layout and render methods for any property
     /// with priority `border` or `fill` set directly on a `text!` widget or any widget that uses the [`layout_text`] node.
     pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> Option<&LayoutText> {
-        LAYOUT_TEXT_VAR.get(vars).as_ref()
+        LAYOUT_TEXT_VAR.get().as_ref()
     }
 }
 
@@ -239,7 +239,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             }
 
-            if let Some(enabled) = TEXT_EDITABLE_VAR.copy_new(ctx) {
+            if let Some(enabled) = TEXT_EDITABLE_VAR.get_new(ctx) {
                 if enabled && self.char_input_handle.is_none() {
                     self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
                 } else {

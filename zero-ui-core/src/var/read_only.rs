@@ -110,6 +110,10 @@ impl<T: VarValue, V: WeakVar<T>> AnyWeakVar for WeakReadOnlyVar<T, V> {
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.1.upgrade().map(|inner| Box::new(inner.read_only()) as _)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T: VarValue, V: Var<T>> IntoVar<T> for ReadOnlyVar<T, V> {

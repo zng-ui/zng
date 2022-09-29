@@ -122,7 +122,7 @@ impl HeadedCtrl {
         if let Some(enforced_fullscreen) = &mut self.kiosk {
             // always fullscreen, but can be windowed or exclusive.
 
-            if let Some(state) = self.vars.state().copy_new(ctx) {
+            if let Some(state) = self.vars.state().get_new(ctx) {
                 if !state.is_fullscreen() {
                     tracing::error!("window in `kiosk` mode can only be fullscreen");
 
@@ -132,7 +132,7 @@ impl HeadedCtrl {
                 }
             }
 
-            if let Some(false) = self.vars.visible().copy_new(ctx) {
+            if let Some(false) = self.vars.visible().get_new(ctx) {
                 tracing::error!("window in `kiosk` mode can not be hidden");
 
                 self.vars.visible().set(ctx, true);
@@ -175,7 +175,7 @@ impl HeadedCtrl {
                     new_state.chrome_visible = chrome.is_default();
                 }
 
-                if let Some(req_state) = self.vars.state().copy_new(ctx) {
+                if let Some(req_state) = self.vars.state().get_new(ctx) {
                     new_state.set_state(req_state);
                     self.vars.0.restore_state.set_ne(ctx, new_state.restore_state);
                 }
@@ -201,7 +201,7 @@ impl HeadedCtrl {
                     }
                 }
 
-                if let Some(auto) = self.vars.auto_size().copy_new(ctx) {
+                if let Some(auto) = self.vars.auto_size().get_new(ctx) {
                     if auto != AutoSize::DISABLED {
                         self.content.layout_requested = true;
                         ctx.updates.layout();
@@ -248,19 +248,19 @@ impl HeadedCtrl {
                     }
                 }
 
-                if let Some(visible) = self.vars.visible().copy_new(ctx) {
+                if let Some(visible) = self.vars.visible().get_new(ctx) {
                     self.update_view(move |view| {
                         let _: Ignore = view.set_visible(visible);
                     });
                 }
 
-                if let Some(movable) = self.vars.movable().copy_new(ctx) {
+                if let Some(movable) = self.vars.movable().get_new(ctx) {
                     self.update_view(move |view| {
                         let _: Ignore = view.set_movable(movable);
                     });
                 }
 
-                if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
+                if let Some(resizable) = self.vars.resizable().get_new(ctx) {
                     self.update_view(move |view| {
                         let _: Ignore = view.set_resizable(resizable);
                     });
@@ -307,44 +307,44 @@ impl HeadedCtrl {
                 });
             }
 
-            if let Some(title) = self.vars.title().clone_new(ctx) {
+            if let Some(title) = self.vars.title().get_new(ctx) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_title(title.into_owned());
                 });
             }
 
-            if let Some(mode) = self.vars.video_mode().copy_new(ctx) {
+            if let Some(mode) = self.vars.video_mode().get_new(ctx) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_video_mode(mode);
                 });
             }
 
-            if let Some(cursor) = self.vars.cursor().copy_new(ctx) {
+            if let Some(cursor) = self.vars.cursor().get_new(ctx) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_cursor(cursor);
                 });
             }
 
-            if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
+            if let Some(visible) = self.vars.taskbar_visible().get_new(ctx) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_taskbar_visible(visible);
                 });
             }
 
-            if let Some(top) = self.vars.always_on_top().copy_new(ctx) {
+            if let Some(top) = self.vars.always_on_top().get_new(ctx) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_always_on_top(top);
                 });
             }
 
-            if let Some(mode) = self.vars.frame_capture_mode().copy_new(ctx.vars) {
+            if let Some(mode) = self.vars.frame_capture_mode().get_new(ctx) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
                 });
             }
 
             if let Some(m) = &self.monitor {
-                if let Some(fct) = m.scale_factor().copy_new(ctx) {
+                if let Some(fct) = m.scale_factor().get_new(ctx) {
                     self.vars.0.scale_factor.set_ne(ctx, fct);
                 }
                 if m.scale_factor().is_new(ctx) || m.size().is_new(ctx) || m.ppi().is_new(ctx) {
@@ -353,7 +353,7 @@ impl HeadedCtrl {
                 }
             }
 
-            if let Some(indicator) = self.vars.focus_indicator().copy_new(ctx) {
+            if let Some(indicator) = self.vars.focus_indicator().get_new(ctx) {
                 if Windows::req(ctx.services).is_focused(*ctx.window_id).unwrap_or(false) {
                     self.vars.focus_indicator().set_ne(ctx, None);
                 } else if let Some(view) = &self.window {
@@ -402,7 +402,8 @@ impl HeadedCtrl {
                 let mut size_change = None;
 
                 if let Some((monitor, _)) = args.monitor {
-                    if self.vars.0.actual_monitor.set_ne(ctx, Some(monitor)) {
+                    if self.vars.0.actual_monitor.get().map(|m| m != monitor).unwrap_or(true) {
+                        self.vars.0.actual_monitor.set_ne(ctx, Some(monitor)).unwrap();
                         self.monitor = None;
                         self.content.layout_requested = true;
                         ctx.updates.layout();
@@ -862,7 +863,7 @@ impl HeadedCtrl {
 /// Respond to `parent_var` updates, returns `true` if the `parent` value has changed.
 fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &WindowVars) -> bool {
     let parent_var = vars.parent();
-    if let Some(parent_id) = parent_var.copy_new(ctx) {
+    if let Some(parent_id) = parent_var.get_new(ctx) {
         if parent_id == *parent {
             return false;
         }
@@ -893,7 +894,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                         if let Ok(parent_vars) = windows.vars(parent_id) {
                             let id = *ctx.window_id;
                             parent_vars.0.children.modify(ctx.vars, move |mut c| {
-                                c.remove(&id);
+                                c.get_mut().remove(&id);
                             });
                         }
                     }
@@ -902,7 +903,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     *parent = Some(parent_id);
                     let id = *ctx.window_id;
                     parent_vars.0.children.modify(ctx.vars, move |mut c| {
-                        c.insert(id);
+                        c.get_mut().insert(id);
                     });
 
                     true
@@ -917,7 +918,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     if let Ok(parent_vars) = Windows::req(ctx.services).vars(parent_id) {
                         let id = *ctx.window_id;
                         parent_vars.0.children.modify(ctx.vars, move |mut c| {
-                            c.remove(&id);
+                            c.get_mut().remove(&id);
                         });
                     }
                     true
@@ -969,7 +970,7 @@ impl HeadlessWithRendererCtrl {
 
             actual_parent: None,
             size: DipSize::zero(),
-            var_bindings: None,
+            var_bindings: VarHandle::dummy(),
         }
     }
 
@@ -988,9 +989,8 @@ impl HeadlessWithRendererCtrl {
             ctx.updates.layout();
         }
 
-        if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_none() {
-            let h = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
-            self.var_bindings = Some(h);
+        if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
+            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1188,7 +1188,7 @@ impl HeadlessCtrl {
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
             headless_simulator: HeadlessSimulator::new(),
             actual_parent: None,
-            var_bindings: None,
+            var_bindings: VarHandle::dummy(),
         }
     }
 
@@ -1210,9 +1210,8 @@ impl HeadlessCtrl {
             ctx.updates.render();
         }
 
-        if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_none() {
-            let h = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
-            self.var_bindings = Some(h);
+        if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
+            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);

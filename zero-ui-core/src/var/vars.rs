@@ -1,8 +1,8 @@
 use std::{mem, time::Duration};
 
 use crate::{
-    app::AppEventSender,
-    context::{AppContext, Updates},
+    app::{AppEventSender, LoopTimer},
+    context::Updates,
     crate_util,
     units::Factor,
 };
@@ -235,6 +235,20 @@ impl Vars {
         let mut rcvs_mut = self.modify_receivers.borrow_mut();
         rcvs.extend(rcvs_mut.drain(..));
         *rcvs_mut = rcvs;
+    }
+
+    /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.
+    pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
+        Animations::update_animations(self, timer)
+    }
+
+    /// Returns the next animation frame, if there are any active animations.
+    pub(crate) fn next_deadline(&mut self, timer: &mut LoopTimer) {
+        Animations::next_deadline(self, timer)
+    }
+
+    pub(crate) fn has_pending_updates(&mut self) -> bool {
+        !self.updates.get_mut().is_empty()
     }
 }
 

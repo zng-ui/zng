@@ -166,6 +166,10 @@ impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.upgrade().map(|c| Box::new(c) as _)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T: VarValue, S: Var<T>> IntoVar<T> for ContextualizedVar<T, S> {

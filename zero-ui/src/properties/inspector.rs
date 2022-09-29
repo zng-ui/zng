@@ -211,7 +211,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(enabled) = self.enabled.copy_new(ctx) {
+            if let Some(enabled) = self.enabled.get_new(ctx) {
                 if enabled {
                     self.event_handles = Some([
                         MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
@@ -333,7 +333,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(ori) = self.orientation.copy_new(ctx) {
+            if let Some(ori) = self.orientation.get_new(ctx) {
                 self.search_quads.clear();
 
                 if ori.is_some() {

@@ -253,6 +253,10 @@ impl<T: VarValue> AnyWeakVar for WeakMergeVar<T> {
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.0.upgrade().map(|rc| Box::new(RcMergeVar(rc)) as _)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for RcMergeVar<T> {

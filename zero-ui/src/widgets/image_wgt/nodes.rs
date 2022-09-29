@@ -75,7 +75,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(mut source) = self.source.clone_new(ctx) {
+            if let Some(mut source) = self.source.get_new(ctx) {
                 // source update:
 
                 if let ImageSource::Render(_, args) = &mut source {
@@ -95,7 +95,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
                 self.ctx_img.set(ctx.vars, self.img.get());
                 self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
-            } else if let Some(enabled) = IMAGE_CACHE_VAR.clone_new(ctx) {
+            } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new(ctx) {
                 // cache-mode update:
                 let images = Images::req(ctx.services);
                 let is_cached = images.is_cached(self.ctx_img.get(ctx.vars));

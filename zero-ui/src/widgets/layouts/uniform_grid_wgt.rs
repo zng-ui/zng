@@ -120,7 +120,7 @@ pub mod uniform_grid {
         S: Var<GridSpacing>,
     {
         /// (columns, rows, first_column)
-        fn grid_len(&self, vars: &VarsRead, cells_count: usize) -> (i32, i32, i32) {
+        fn grid_len(&self, cells_count: usize) -> (i32, i32, i32) {
             let mut columns = self.columns.get() as i32;
             let mut rows = self.rows.get() as i32;
             let mut first_column = self.first_column.get() as i32;
@@ -203,7 +203,7 @@ pub mod uniform_grid {
                 return constrains.min_size();
             }
 
-            let (columns, rows, _) = self.grid_len(ctx.vars, count);
+            let (columns, rows, _) = self.grid_len(count);
 
             let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
 
@@ -235,7 +235,7 @@ pub mod uniform_grid {
                     n => n,
                 };
 
-                let (columns, rows, first_column) = self.grid_len(ctx.vars, count);
+                let (columns, rows, first_column) = self.grid_len(count);
                 let cell_size = PxSize::new(
                     (panel_size.width + spacing.column) / Px(columns) - spacing.column,
                     (panel_size.height + spacing.row) / Px(rows) - spacing.row,
@@ -269,7 +269,7 @@ pub mod uniform_grid {
                         return constrains.min_size();
                     }
 
-                    let (columns, rows, first_column) = self.grid_len(ctx.vars, actual_count);
+                    let (columns, rows, first_column) = self.grid_len(actual_count);
                     final_columns = columns;
                     final_first_column = first_column;
                     final_cell_size = PxSize::new(
@@ -304,7 +304,7 @@ pub mod uniform_grid {
                     return constrains.min_size();
                 }
 
-                let (columns, rows, first_column) = self.grid_len(ctx.vars, count);
+                let (columns, rows, first_column) = self.grid_len(count);
                 final_columns = columns;
                 final_first_column = first_column;
                 let panel_size = PxSize::new(

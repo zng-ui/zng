@@ -1942,7 +1942,7 @@ mod util {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if let Some(trace) = self.trace.copy_new(ctx) {
+            if let Some(trace) = self.trace.get_new(ctx) {
                 ctx.widget_state.entry(&TRACE_ID).or_default().insert(trace);
             }
         }

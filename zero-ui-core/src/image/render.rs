@@ -38,7 +38,7 @@ impl Images {
             },
             &result,
         );
-        result.into_read_only()
+        result.read_only()
     }
 
     pub(super) fn render_img<N>(&mut self, render: N, result: &RcVar<Image>)
@@ -89,7 +89,7 @@ impl ImageManager {
             let mut retain = false;
 
             if let Some(img) = r.image.upgrade() {
-                if img.get(ctx.vars).is_loading() {
+                if img.with(Image::is_loading) {
                     retain = true;
                 } else if let Ok(s) = windows.subscriptions(r.window_id) {
                     retain = !s.is_none();

@@ -2127,7 +2127,7 @@ impl<T> FrameVarKey<T> {
         match self.view_key() {
             Some(key) => FrameValue::Bind {
                 key,
-                value: var.get(),
+                value: var.with(map),
                 animating: var.is_animating(),
             },
             None => FrameValue::Value(var.with(map)),

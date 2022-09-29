@@ -442,6 +442,10 @@ impl<T: VarValue> AnyWeakVar for WeakWhenVar<T> {
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.0.upgrade().map(|rc| Box::new(RcWhenVar(rc)) as _)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for RcWhenVar<T> {

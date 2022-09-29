@@ -127,7 +127,7 @@ impl WindowCommands {
     }
 
     pub fn update(&mut self, vars: &Vars, window_vars: &WindowVars) {
-        if let Some(state) = window_vars.state().copy_new(vars) {
+        if let Some(state) = window_vars.state().get_new(vars) {
             self.update_state(state);
         }
     }

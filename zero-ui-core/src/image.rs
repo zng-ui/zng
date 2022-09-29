@@ -17,7 +17,7 @@ use crate::{
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
     units::*,
-    var::{types::WeakRcVar, var, RcVar, Var, Vars, WeakVar},
+    var::{types::WeakRcVar, *},
 };
 
 mod types;
@@ -55,7 +55,7 @@ impl AppExtension for ImageManager {
                 .decoding
                 .iter()
                 .map(|(_, _, v)| v)
-                .find(|v| v.get(vars).view.get().unwrap() == &args.image)
+                .find(|v| v.with(|img| img.view.get().unwrap() == &args.image))
             {
                 var.touch(ctx.vars);
             }
@@ -70,12 +70,11 @@ impl AppExtension for ImageManager {
             if let Some(i) = images
                 .decoding
                 .iter()
-                .position(|(_, _, v)| v.get(vars).view.get().unwrap() == image)
+                .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
             {
                 let (_, _, var) = images.decoding.swap_remove(i);
                 var.touch(ctx.vars);
-                let img = var.get(ctx.vars);
-                img.done_signal.set();
+                var.with(|img| img.done_signal.set());
             }
         } else if let Some(args) = RAW_IMAGE_LOAD_ERROR_EVENT.on(update) {
             let image = &args.image;
@@ -88,19 +87,21 @@ impl AppExtension for ImageManager {
             if let Some(i) = images
                 .decoding
                 .iter()
-                .position(|(_, _, v)| v.get(vars).view.get().unwrap() == image)
+                .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
             {
                 let (_, _, var) = images.decoding.swap_remove(i);
                 var.touch(ctx.vars);
-                let img = var.get(ctx.vars);
-                img.done_signal.set();
-                if let Some(k) = &img.cache_key {
-                    if let Some(e) = images.cache.get(k) {
-                        e.error.set(true);
-                    }
-                }
+                var.with(|img| {
+                    img.done_signal.set();
 
-                tracing::error!("decode error: {:?}", img.error().unwrap());
+                    if let Some(k) = &img.cache_key {
+                        if let Some(e) = images.cache.get(k) {
+                            e.error.set(true);
+                        }
+                    }
+
+                    tracing::error!("decode error: {:?}", img.error().unwrap());
+                });
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if !args.is_respawn {
@@ -118,7 +119,7 @@ impl AppExtension for ImageManager {
                 .map(|e| (e.img.clone(), e.max_decoded_size))
                 .chain(images.not_cached.iter().filter_map(|(v, m)| v.upgrade().map(|v| (v, *m))))
             {
-                let img = img_var.get(ctx.vars);
+                let img = img_var.get();
 
                 let vars = ctx.vars;
                 if let Some(view) = img.view.get() {
@@ -129,7 +130,7 @@ impl AppExtension for ImageManager {
                         // respawned, but image was an error.
                         img_var.set(vars, Image::dummy(Some(e.to_owned())));
                     } else if let Some((img_format, data, _)) =
-                        decoding_interrupted.iter().find(|(_, _, v)| v.get(vars).view() == Some(view))
+                        decoding_interrupted.iter().find(|(_, _, v)| v.with(|img| img.view() == Some(view)))
                     {
                         // respawned, but image was decoding, need to restart decode.
 
@@ -188,7 +189,7 @@ impl AppExtension for ImageManager {
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
                                         var.modify(vars, move |mut v| {
-                                            v.view.set(img).unwrap();
+                                            v.get().view.set(img).unwrap();
                                             v.touch();
                                         });
                                     }
@@ -201,9 +202,9 @@ impl AppExtension for ImageManager {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
                                 var.modify(vars, move |mut v| {
-                                    v.view.set(img).unwrap();
+                                    v.get().view.set(img).unwrap();
                                     v.touch();
-                                    v.done_signal.set();
+                                    v.get().done_signal.set();
                                 });
                             }
                         }
@@ -212,13 +213,13 @@ impl AppExtension for ImageManager {
                             // load error.
                             let img = ViewImage::dummy(Some(e));
                             var.modify(vars, move |mut v| {
-                                v.view.set(img).unwrap();
+                                v.get().view.set(img).unwrap();
                                 v.touch();
-                                v.done_signal.set();
+                                v.get().done_signal.set();
                             });
 
                             // flag error for user retry
-                            if let Some(k) = &var.get(ctx.vars).cache_key {
+                            if let Some(k) = &var.with(|img| img.cache_key) {
                                 if let Some(e) = images.cache.get(k) {
                                     e.error.set(true)
                                 }
@@ -297,7 +298,7 @@ impl Images {
 
     /// Returns a dummy image that reports it is loaded or an error.
     pub fn dummy(&self, error: Option<String>) -> ImageVar {
-        var(Image::dummy(error)).into_read_only()
+        var(Image::dummy(error)).read_only()
     }
 
     /// Cache or load an image file from a file system `path`.
@@ -393,7 +394,7 @@ impl Images {
             img: var(Image::new(image)),
             max_decoded_size: limits.max_decoded_size,
         };
-        self.cache.insert(key, entry).map(|v| v.img.into_read_only())
+        self.cache.insert(key, entry).map(|v| v.img.read_only())
     }
 
     /// Remove the image from the cache, if it is only held by the cache.
@@ -436,8 +437,8 @@ impl Images {
     /// If the `image` is the only reference returns it and removes it from the cache. If there are other
     /// references a new [`ImageVar`] is generated from a clone of the image.
     pub fn detach(&mut self, image: ImageVar, vars: &Vars) -> ImageVar {
-        if let Some(key) = &image.get(vars).cache_key {
-            let decoded_size = image.get(vars).bgra8().map(|b| b.len()).unwrap_or(0).bytes();
+        if let Some(key) = &image.with(|i| i.cache_key) {
+            let decoded_size = image.with(|img| img.bgra8().map(|b| b.len()).unwrap_or(0).bytes());
             let mut max_decoded_size = self.limits.max_decoded_size.max(decoded_size);
 
             if let Some(e) = self.cache.get(key) {
@@ -450,11 +451,11 @@ impl Images {
             }
 
             // remove `cache_key` from image, this clones the `Image` only-if is still in cache.
-            let mut img = image.into_value(vars);
+            let mut img = image.into_value();
             img.cache_key = None;
             let img = var(img);
             self.not_cached.push((img.downgrade(), max_decoded_size));
-            img.into_read_only()
+            img.read_only()
         } else {
             // already not cached
             image
@@ -509,7 +510,7 @@ impl Images {
                 if !limits.allow_path.allows(&path) {
                     let error = format!("limits filter blocked `{}`", path.display());
                     tracing::error!("{error}");
-                    return var(Image::dummy(Some(error))).into_read_only();
+                    return var(Image::dummy(Some(error))).read_only();
                 }
                 ImageSource::Read(path)
             }
@@ -518,7 +519,7 @@ impl Images {
                 if !limits.allow_uri.allows(&uri) {
                     let error = format!("limits filter blocked `{uri}`");
                     tracing::error!("{error}");
-                    return var(Image::dummy(Some(error))).into_read_only();
+                    return var(Image::dummy(Some(error))).read_only();
                 }
                 ImageSource::Download(uri, accepts)
             }
@@ -566,7 +567,7 @@ impl Images {
                     max_decoded_size: limits.max_decoded_size,
                 },
             );
-            return dummy.into_read_only();
+            return dummy.read_only();
         }
 
         let max_encoded_size = limits.max_encoded_size;
@@ -684,7 +685,7 @@ impl Images {
             ImageSource::Render(rfn, args) => {
                 let img = self.new_cache_image(key, mode, limits.max_decoded_size);
                 self.render_img(clone_move!(rfn, |ctx| rfn(ctx, &args.unwrap_or_default())), &img);
-                img.into_read_only()
+                img.read_only()
             }
             ImageSource::Image(_) => unreachable!(),
         }
@@ -763,7 +764,7 @@ impl Images {
         let task = UiTask::new(&self.updates, fetch_bytes);
         self.loading.push((task, img.clone(), max_decoded_size));
 
-        img.into_read_only()
+        img.read_only()
     }
 }
 struct ImageData {

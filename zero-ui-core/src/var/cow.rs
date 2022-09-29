@@ -218,6 +218,10 @@ impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakCowVar<T, S> {
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.0.upgrade().map(|rc| Box::new(RcCowVar(rc)) as _)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T: VarValue, S: Var<T>> IntoVar<T> for RcCowVar<T, S> {

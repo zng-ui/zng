@@ -95,7 +95,7 @@ use crate::{
     render::FrameId,
     service::{Service, ServiceTuple},
     units::{Px, PxPoint, PxRect, TimeUnits},
-    var::{var, RcVar, ReadOnlyRcVar, AnyVar, Var, Vars},
+    var::{var, AnyVar, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOW_FOCUS_CHANGED_EVENT},
     WidgetId,
@@ -652,10 +652,7 @@ impl Focus {
     /// Current return focus of a scope.
     #[must_use]
     pub fn return_focused(&mut self, scope_id: WidgetId) -> ReadOnlyRcVar<Option<InteractionPath>> {
-        self.return_focused_var
-            .entry(scope_id)
-            .or_insert_with(|| var(None))
-            .read_only()
+        self.return_focused_var.entry(scope_id).or_insert_with(|| var(None)).read_only()
     }
 
     /// If the [`focused`] path is in the given `window_id`.

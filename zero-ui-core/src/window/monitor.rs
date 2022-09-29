@@ -281,12 +281,18 @@ impl MonitorInfo {
     /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
     /// returns if any value changed.
     fn update(&self, vars: &Vars, info: zero_ui_view_api::MonitorInfo) -> bool {
-        self.is_primary.set_ne(vars, info.is_primary)
-            | self.name.set_ne(vars, info.name.to_text())
-            | self.position.set_ne(vars, info.position)
-            | self.size.set_ne(vars, info.size)
-            | self.scale_factor.set_ne(vars, info.scale_factor.fct())
-            | self.video_modes.set_ne(vars, info.video_modes)
+        fn check_set<T: VarValue + PartialEq>(vars: &Vars, var: &impl Var<T>, value: T) -> bool {
+            let ne = var.with(|v| v != &value);
+            var.set_ne(vars, value).unwrap();
+            ne
+        }
+
+        check_set(vars, &self.is_primary, info.is_primary)
+        | check_set(vars, &self.name, info.name.to_text())
+        | check_set(vars, &self.position, info.position)
+        | check_set(vars, &self.size, info.size)
+        | check_set(vars, &self.scale_factor, info.scale_factor.fct())
+        | check_set(vars, &self.video_modes, info.video_modes)
     }
 
     /// Unique ID.

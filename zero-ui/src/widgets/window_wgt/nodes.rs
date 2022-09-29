@@ -49,7 +49,7 @@ impl WindowLayers {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if let Some(index) = self.layer.copy_new(ctx) {
+                if let Some(index) = self.layer.get_new(ctx) {
                     self.widget.state_mut().set(&LAYER_INDEX_ID, index);
                     ctx.window_state
                         .req(&WINDOW_LAYERS_ID)
@@ -172,17 +172,14 @@ impl WindowLayers {
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == ctx.path.window_id() {
-                        self.anchor_info = ctx
-                            .info_tree
-                            .get(self.anchor.get())
-                            .map(|w| (w.bounds_info(), w.border_info()));
+                        self.anchor_info = ctx.info_tree.get(self.anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
                     }
                 }
                 self.widget.event(ctx, update);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if let Some(anchor) = self.anchor.copy_new(ctx) {
+                if let Some(anchor) = self.anchor.get_new(ctx) {
                     self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.get(ctx).interaction {
                         ctx.updates.info();

@@ -98,6 +98,10 @@ impl<T: VarValue> AnyWeakVar for BoxedWeakVar<T> {
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         (**self).upgrade_any()
     }
+
+    fn as_any(&self) -> &dyn Any {
+        (**self).as_any()
+    }
 }
 impl<T: VarValue> WeakVar<T> for BoxedWeakVar<T> {
     type Upgrade = BoxedVar<T>;

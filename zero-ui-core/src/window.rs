@@ -26,7 +26,6 @@ use crate::{
     context::{AppContext, WidgetUpdates, WindowContext},
     event::EventUpdate,
     image::ImageVar,
-    var::WithVars,
 };
 
 /// Application extension that manages windows.
@@ -170,7 +169,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         let response = Windows::req(self).open(new_window);
         self.run_task(move |ctx| async move {
             response.wait_rsp(&ctx).await;
-            ctx.with_vars(|v| response.rsp(v).unwrap().window_id)
+            response.rsp().unwrap().window_id
         })
         .unwrap()
     }

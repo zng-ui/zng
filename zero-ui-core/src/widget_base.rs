@@ -13,8 +13,8 @@ use crate::{
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
     widget_info::{
-        Interactivity, LayoutPassId, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
-        WidgetLayout, WidgetSubscriptions,
+        Interactivity, LayoutPassId, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder, WidgetLayout,
+        WidgetSubscriptions,
     },
     window::WIDGET_INFO_CHANGED_EVENT,
     FillUiNode, UiNode, Widget, WidgetId,
@@ -226,12 +226,12 @@ pub mod implicit_base {
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for InnerNode<C> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                    subs.updates(&HitTestMode::update_mask(ctx));
+                    // subs.updates(&HitTestMode::update_mask(ctx));
                     self.child.subscriptions(ctx, subs);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                    if HitTestMode::is_new(ctx) {
+                    if HitTestMode::var().is_new(ctx) {
                         ctx.updates.layout();
                     }
                     self.child.update(ctx, updates);
@@ -243,7 +243,7 @@ pub mod implicit_base {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
-                    match HitTestMode::get(ctx.vars) {
+                    match HitTestMode::var().get() {
                         HitTestMode::RoundedBounds => {
                             let clip = (size, ctx.widget_info.border.corner_radius());
                             if self.hits_clip != clip {
@@ -264,7 +264,7 @@ pub mod implicit_base {
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     frame.push_inner(ctx, self.transform_key, true, |ctx, frame| {
-                        match HitTestMode::get(ctx.vars) {
+                        match HitTestMode::var().get() {
                             HitTestMode::RoundedBounds => {
                                 let rect = PxRect::from_size(self.hits_clip.0);
                                 frame.hit_test().push_rounded_rect(rect, self.hits_clip.1);
@@ -813,7 +813,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(vis) = self.visibility.copy_new(ctx) {
+            if let Some(vis) = self.visibility.get_new(ctx) {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
                     (Collapsed, Visible) | (Visible, Collapsed) => ctx.updates.layout_and_render(),
@@ -981,19 +981,19 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for HitTestModeNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.updates(&HitTestMode::update_mask(ctx));
+            // subs.updates(&HitTestMode::update_mask(ctx));
             self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if HitTestMode::get_new(ctx).is_some() {
+            if HitTestMode::var().is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            match HitTestMode::get(ctx.vars) {
+            match HitTestMode::var().get() {
                 HitTestMode::Disabled => {
                     frame.with_hit_tests_disabled(|frame| self.child.render(ctx, frame));
                 }
@@ -1003,7 +1003,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.with_auto_hit_test(matches!(HitTestMode::get(ctx.vars), HitTestMode::Visual), |update| {
+            update.with_auto_hit_test(matches!(HitTestMode::var().get(), HitTestMode::Visual), |update| {
                 self.child.render_update(ctx, update)
             });
         }
@@ -1078,7 +1078,7 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new) = self.enabled.copy_new(ctx) {
+            if let Some(new) = self.enabled.get_new(ctx) {
                 if ctx.widget_info.bounds.can_auto_hide() != new {
                     ctx.updates.layout_and_render();
                 }

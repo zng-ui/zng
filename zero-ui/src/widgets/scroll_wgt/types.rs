@@ -138,8 +138,8 @@ impl ScrollContext {
     /// Offset the vertical position by the given pixel `amount`.
     pub fn scroll_vertical<Vw: WithVars>(vars: &Vw, amount: Px) {
         vars.with_vars(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).height;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
             let max_scroll = content - viewport;
 
@@ -161,8 +161,8 @@ impl ScrollContext {
     /// Offset the horizontal position by the given pixel `amount`.
     pub fn scroll_horizontal<Vw: WithVars>(vars: &Vw, amount: Px) {
         vars.with_vars(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).width;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
             let max_scroll = content - viewport;
 
@@ -188,11 +188,11 @@ impl ScrollContext {
             let new_offset = new_offset.into().clamp_range();
 
             //smooth scrolling
-            let smooth = SMOOTH_SCROLLING_VAR.get(vars);
+            let smooth = SMOOTH_SCROLLING_VAR.get();
             if smooth.is_disabled() {
                 let _ = SCROLL_VERTICAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                let config = SCROLL_CONFIG_VAR.get(vars);
+                let config = SCROLL_CONFIG_VAR.get();
                 let mut config = config.borrow_mut();
 
                 match &config.vertical {
@@ -222,11 +222,11 @@ impl ScrollContext {
             let new_offset = new_offset.into().clamp_range();
 
             //smooth scrolling
-            let smooth = SMOOTH_SCROLLING_VAR.get(vars);
+            let smooth = SMOOTH_SCROLLING_VAR.get();
             if smooth.is_disabled() {
                 let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                let config = SCROLL_CONFIG_VAR.get(vars);
+                let config = SCROLL_CONFIG_VAR.get();
                 let mut config = config.borrow_mut();
 
                 match &config.horizontal {
@@ -252,8 +252,8 @@ impl ScrollContext {
     /// Returns `true` if the content height is greater then the viewport height.
     pub fn can_scroll_vertical<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).height;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
             content > viewport
         })
@@ -262,8 +262,8 @@ impl ScrollContext {
     /// Returns `true` if the content width is greater then the viewport with.
     pub fn can_scroll_horizontal<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).width;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
             content > viewport
         })
@@ -273,8 +273,8 @@ impl ScrollContext {
     /// is not at the maximum.
     pub fn can_scroll_down<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).height;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
             content > viewport && 1.fct() > SCROLL_VERTICAL_OFFSET_VAR.get()
         })
@@ -284,8 +284,8 @@ impl ScrollContext {
     /// is not at the minimum.
     pub fn can_scroll_up<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).height;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
             content > viewport && 0.fct() < SCROLL_VERTICAL_OFFSET_VAR.get()
         })
@@ -295,8 +295,8 @@ impl ScrollContext {
     /// is not at the minimum.
     pub fn can_scroll_left<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).width;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
             content > viewport && 0.fct() < SCROLL_HORIZONTAL_OFFSET_VAR.get()
         })
@@ -306,8 +306,8 @@ impl ScrollContext {
     /// is not at the maximum.
     pub fn can_scroll_right<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get(vars).width;
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
             content > viewport && 1.fct() > SCROLL_HORIZONTAL_OFFSET_VAR.get()
         })

@@ -75,7 +75,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new_mode) = self.mode.copy_new(ctx.vars) {
+            if let Some(new_mode) = self.mode.get_new(ctx) {
                 if ctx
                     .info_tree
                     .get(ctx.path.widget_id())

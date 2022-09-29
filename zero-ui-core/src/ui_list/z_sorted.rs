@@ -347,33 +347,33 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let z_ctx = Z_INDEX_VAR.get(ctx.vars);
-            if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
-                tracing::error!(
-                    "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
-                    ctx.path.widget_id()
-                );
-                self.valid = false;
-            } else {
-                self.valid = true;
+            Z_INDEX_VAR.with(|z_ctx| {
+                if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
+                    tracing::error!(
+                        "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
+                        ctx.path.widget_id()
+                    );
+                    self.valid = false;
+                } else {
+                    self.valid = true;
 
-                let index = self.index.get();
-                if index != ZIndex::DEFAULT {
-                    z_ctx.resort.set(true);
-                    ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
+                    let index = self.index.get();
+                    if index != ZIndex::DEFAULT {
+                        z_ctx.resort.set(true);
+                        ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
+                    }
                 }
-            }
+            });
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
-                if let Some(i) = self.index.copy_new(ctx) {
-                    let z_ctx = Z_INDEX_VAR.get(ctx.vars);
-
-                    debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
-
-                    z_ctx.resort.set(true);
+                if let Some(i) = self.index.get_new(ctx) {
+                    Z_INDEX_VAR.with(|z_ctx| {
+                        debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
+                        z_ctx.resort.set(true);
+                    });
                     ctx.widget_state.set(&Z_INDEX_ID, i);
                 }
             }
@@ -573,7 +573,7 @@ impl ZIndexContext {
             resort: Cell::new(false),
         };
         let (ctx, _) = Z_INDEX_VAR.with_context(ctx, action);
-        ctx.resort.get()
+        ctx.get().resort.get()
     }
 }
 context_var! {

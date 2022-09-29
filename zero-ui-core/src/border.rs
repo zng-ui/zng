@@ -955,13 +955,15 @@ impl ContextBorders {
         let mut data = BORDER_DATA_VAR.get();
         data.add_inner(&ctx.widget_info.border, ctx.path.widget_id(), ctx.metrics);
 
-        BORDER_DATA_VAR.with_context(data, || {
-            let corner_radius = ContextBorders::border_radius(ctx);
-            ctx.widget_info.border.set_corner_radius(corner_radius);
-            ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
+        BORDER_DATA_VAR
+            .with_context(data, || {
+                let corner_radius = ContextBorders::border_radius(ctx);
+                ctx.widget_info.border.set_corner_radius(corner_radius);
+                ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
 
-            f(ctx)
-        }).1
+                f(ctx)
+            })
+            .1
     }
 
     fn with_border(ctx: &mut LayoutContext, offsets: PxSideOffsets, f: impl FnOnce(&mut LayoutContext)) {

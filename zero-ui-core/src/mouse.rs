@@ -768,7 +768,7 @@ impl MouseManager {
                 mouse.start_window_capture(target.clone(), ctx.events);
             }
 
-            if !mouse.buttons.with(|b|b.contains(&button)) {
+            if !mouse.buttons.with(|b| b.contains(&button)) {
                 mouse.buttons.modify(ctx.vars, move |mut btns| btns.get_mut().push(button));
             }
 
@@ -780,7 +780,7 @@ impl MouseManager {
                 mouse.end_window_capture(ctx.events);
             }
 
-            if mouse.buttons.with(|b|b.contains(&button)) {
+            if mouse.buttons.with(|b| b.contains(&button)) {
                 mouse.buttons.modify(ctx.vars, move |mut btns| {
                     if let Some(i) = btns.get().iter().position(|k| *k == button) {
                         btns.get_mut().swap_remove(i);
@@ -1181,7 +1181,7 @@ impl AppExtension for MouseManager {
 
                 if let Some(window_id) = self.pos_window.take() {
                     if let Some(path) = self.hovered.take() {
-                        mouse.buttons.for_each(|btn|{
+                        mouse.buttons.for_each(|btn| {
                             let args = MouseInputArgs::now(
                                 window_id,
                                 None,

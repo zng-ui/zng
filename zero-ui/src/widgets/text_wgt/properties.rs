@@ -792,7 +792,7 @@ impl<'a> TextContext<'a> {
     }
     /// Gets [`color`](Self::color) if the property updated.
     pub fn color_update<Vw: WithVars>(vars: &Vw) -> Option<Rgba> {
-        TEXT_COLOR_VAR.copy_new(vars)
+        TEXT_COLOR_VAR.get_new(ctx)
     }
 
     /// Gets the properties that affects what font synthesis is used.

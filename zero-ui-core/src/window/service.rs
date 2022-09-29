@@ -328,15 +328,15 @@ impl Windows {
                         let img = Image::new(img);
                         let img = var(img);
                         self.frame_images.push(img.clone());
-                        img.into_read_only()
+                        img.read_only()
                     }
-                    Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only(),
+                    Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only(),
                 }
             } else {
-                var(Image::dummy(Some(format!("window `{window_id}` is headless without renderer")))).into_read_only()
+                var(Image::dummy(Some(format!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
-            var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only()
+            var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only()
         }
     }
 
@@ -473,7 +473,8 @@ impl Windows {
         if let Some(info) = self.windows_info.get_mut(&window_id) {
             info.is_loaded = info.loading_handle.try_load(timers);
 
-            if info.is_loaded && info.vars.0.is_loaded.set_ne(vars, true) {
+            if info.is_loaded && !info.vars.0.is_loaded.get() {
+                info.vars.0.is_loaded.set_ne(vars, true).unwrap();
                 WINDOW_LOAD_EVENT.notify(events, WindowOpenArgs::now(info.id));
             }
 
@@ -689,14 +690,14 @@ impl Windows {
                             .or_insert_with(Default::default)
                             .push(r.responder.clone());
 
-                        for &c in info.vars.0.children.get(ctx.vars) {
+                        info.vars.0.children.for_each(|&c| {
                             if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
                                 wns.close_responders
                                     .entry(c)
                                     .or_insert_with(Default::default)
                                     .push(r.responder.clone());
                             }
-                        }
+                        })
                     }
                 }
             }
@@ -804,7 +805,7 @@ impl AppWindow {
         loading: WindowLoading,
     ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = Monitors::req(ctx.services)
-            .primary_monitor(ctx.vars)
+            .primary_monitor()
             .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
 
@@ -816,7 +817,7 @@ impl AppWindow {
         if window.kiosk {
             vars.chrome().set_ne(ctx, WindowChrome::None);
             vars.visible().set_ne(ctx, true);
-            if !vars.state().get(ctx).is_fullscreen() {
+            if !vars.state().get().is_fullscreen() {
                 vars.state().set(ctx, WindowState::Exclusive);
             }
         }

@@ -122,6 +122,10 @@ impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRef<I, O, S>
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.upgrade().map(|m| Box::new(m) as _)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<I: VarValue, O: VarValue, S: Var<I>> IntoVar<O> for MapRef<I, O, S> {
@@ -316,6 +320,10 @@ impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRefBidi<I, O
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
         self.upgrade().map(|m| Box::new(m) as _)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

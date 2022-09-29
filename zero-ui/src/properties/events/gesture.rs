@@ -157,7 +157,7 @@ where
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         self.child.update(ctx, updates);
 
-        if let Some(s) = self.shortcuts.clone_new(ctx) {
+        if let Some(s) = self.shortcuts.get_new(ctx) {
             self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
         }
     }

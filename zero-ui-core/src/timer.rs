@@ -111,7 +111,7 @@ impl Timers {
     pub fn deadline(&mut self, deadline: impl Into<Deadline>) -> DeadlineVar {
         let timer = var(deadline.into());
         self.deadlines.push(timer.downgrade());
-        timer.into_read_only()
+        timer.read_only()
     }
 
     /// Returns a [`TimerVar`] that will update every time the `interval` elapses.
@@ -150,7 +150,7 @@ impl Timers {
             handle: owner,
             weak_var: timer.downgrade(),
         });
-        timer.into_read_only()
+        timer.read_only()
     }
 
     /// Register a `handler` that will be called once when the `deadline` is reached.
