@@ -38,6 +38,7 @@ pub trait VarBoxed<T: VarValue>: AnyVar {
     fn actual_var_boxed(&self) -> BoxedVar<T>;
     fn downgrade_boxed(&self) -> BoxedWeakVar<T>;
     fn read_only_boxed(&self) -> BoxedVar<T>;
+    fn boxed_any_boxed(self: Box<Self>) -> BoxedAnyVar;
 }
 impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     fn clone_boxed(&self) -> BoxedVar<T> {
@@ -62,6 +63,10 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
 
     fn read_only_boxed(&self) -> BoxedVar<T> {
         self.read_only().boxed()
+    }
+
+    fn boxed_any_boxed(self: Box<Self>) -> BoxedAnyVar {
+        self
     }
 }
 
@@ -128,7 +133,7 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         self
     }
 
-    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 
@@ -225,6 +230,14 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
 
     fn boxed(self) -> BoxedVar<T> {
         self
+    }
+
+    fn boxed_any(self) -> BoxedAnyVar
+    where
+        Self: Sized,
+    {
+        // fix after https://github.com/rust-lang/rust/issues/65991
+        self.clone_any()
     }
 
     fn actual_var(&self) -> BoxedVar<T> {

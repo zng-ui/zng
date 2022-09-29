@@ -7,13 +7,13 @@ mod any {
 
     #[test]
     fn downcast_ref_rc() {
-        let any_var = var(true).into_any();
+        let any_var = var(true).boxed_any();
         assert!(any_var.as_any().downcast_ref::<RcVar<bool>>().is_some())
     }
 
     #[test]
     fn downcast_ref_boxed() {
-        let any_var = var(true).boxed().into_any();
+        let any_var = var(true).boxed().boxed_any();
         assert!(any_var.as_any().downcast_ref::<BoxedVar<bool>>().is_some())
     }
 
@@ -22,42 +22,35 @@ mod any {
         context_var! {
             static FOO_VAR: bool = true;
         }
-        let any_var = FOO_VAR.into_any();
+        let any_var = FOO_VAR.boxed_any();
         assert!(any_var.as_any().downcast_ref::<ContextVar<bool>>().is_some());
     }
 
     #[test]
-    fn downcast_ref_any_boxed() {
-        let any_var = var(true).into_any().boxed_any();
-        assert!(any_var.as_any().downcast_ref::<BoxedVar<bool>>().is_some())
+    fn downcast_double_boxed() {
+        let any_var = var(true).boxed_any().double_boxed_any();
+        assert!(any_var.downcast_ref::<BoxedVar<bool>>().is_some())
     }
 
     #[test]
     fn downcast_rc() {
-        let any_var = var(true).into_any();
-        let any_box = any_var.as_box_any();
-        assert!(any_box.downcast::<RcVar<bool>>().is_ok());
+        let any_var = var(true).boxed_any();
+        let any_box = any_var.as_any();
+        assert!(any_box.downcast_ref::<RcVar<bool>>().is_some());
     }
 
     #[test]
     fn downcast_boxed() {
-        let any_var = var(true).boxed().into_any();
-        let any_box = any_var.as_box_any();
-        assert!(any_box.downcast::<BoxedVar<bool>>().is_ok());
-    }
-
-    #[test]
-    fn downcast_any_boxed() {
-        let any_var = var(true).into_any().boxed_any();
-        let any_box = any_var.as_box_any();
-        assert!(any_box.downcast::<BoxedVar<bool>>().is_ok());
+        let any_var = var(true).boxed().boxed_any();
+        let any_box = any_var.as_any();
+        assert!(any_box.downcast_ref::<BoxedVar<bool>>().is_some());
     }
 }
 
 mod bindings {
+    use super::*;
     use crate::app::App;
     use crate::text::ToText;
-    use crate::var::{var, Var};
 
     #[test]
     fn one_way_binding() {
@@ -66,7 +59,7 @@ mod bindings {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_map(&b, |_, a| a.to_text()).perm();
+        a.bind_map(&b, |a| a.to_text()).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -111,7 +104,7 @@ mod bindings {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_map_bidi(&b, |_, a| a.to_text(), |_, b| b.parse().unwrap()).perm();
+        a.bind_map_bidi(&b, |a| a.to_text(), |b| b.parse().unwrap()).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -156,8 +149,7 @@ mod bindings {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_filter(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
-            .perm();
+        a.bind_filter_map(&b, |a| if *a == 13 { None } else { Some(a.to_text()) }).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -203,8 +195,7 @@ mod bindings {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_filter_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
-            .perm();
+        a.bind_filter_map_bidi(&b, |a| Some(a.to_text()), |b| b.parse().ok()).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -265,9 +256,9 @@ mod bindings {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_map(&b, |_, a| *a + 1).perm();
-        b.bind_map(&c, |_, b| *b + 1).perm();
-        c.bind_map(&d, |_, c| *c + 1).perm();
+        a.bind_map(&b, |a| *a + 1).perm();
+        b.bind_map(&c, |b| *b + 1).perm();
+        c.bind_map(&d, |c| *c + 1).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -367,58 +358,13 @@ mod bindings {
     }
 
     #[test]
-    fn binding_drop_from_inside() {
+    fn binding_drop() {
         let a = var(1);
         let b = var(1);
 
         let mut app = App::blank().run_headless(false);
 
-        let _handle = a.bind_map(&b, |info, i| {
-            info.unbind();
-            *i + 1
-        });
-
-        a.set(app.ctx().vars, 10);
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(10), a.get_new(ctx));
-                assert_eq!(Some(11), b.get_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        assert_eq!(1, a.strong_count());
-        assert_eq!(1, b.strong_count());
-
-        a.set(app.ctx().vars, 100);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(100), a.get_new(ctx));
-                assert!(!b.is_new(ctx));
-                assert_eq!(11, b.get());
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn binding_drop_from_outside() {
-        let a = var(1);
-        let b = var(1);
-
-        let mut app = App::blank().run_headless(false);
-
-        let handle = a.bind_map(&b, |_, i| *i + 1);
+        let handle = a.bind_map(&b, |i| *i + 1);
 
         a.set(app.ctx().vars, 10);
 
@@ -683,7 +629,7 @@ mod context {
 
         TEST_VAR.with_context(backing_var.clone(), || {
             let t = TEST_VAR;
-            assert!(!t.is_read_only(ctx.vars));
+            assert!(!t.capabilities().contains(VarCapabilities::MODIFY));
             t.set(ctx.vars, "set!").unwrap();
         });
 
@@ -748,7 +694,6 @@ mod flat_map {
         let (_, ctx_updates) = ctx.apply_updates();
 
         assert!(ctx_updates.update);
-        assert!(ctx.updates.current().intersects(&test.update_mask(&ctx.vars)));
         assert!(test.is_new(&ctx));
         assert_eq!(42, test.get());
 
@@ -760,7 +705,6 @@ mod flat_map {
         let (_, ctx_updates) = ctx.apply_updates();
 
         assert!(ctx_updates.update);
-        assert!(ctx.updates.current().intersects(&test.update_mask(&ctx.vars)));
         assert!(test.is_new(&ctx));
         assert_eq!(192, test.get());
 
@@ -770,68 +714,7 @@ mod flat_map {
         old_var.set(&ctx, 220usize);
         let (_, ctx_updates) = ctx.apply_updates();
         assert!(ctx_updates.update);
-        assert!(!ctx.updates.current().intersects(&test.update_mask(&ctx.vars)));
         assert!(!test.is_new(&ctx));
         assert_eq!(192, test.get());
-    }
-}
-
-mod filter {
-    use crate::{context::TestWidgetContext, text::{Text, ToText}};
-
-    use super::*;
-
-    #[test]
-    fn filter_to_text_bidi() {
-        fn make(n: i32) -> (impl Var<i32>, impl Var<Text>) {
-            let input = var(n);
-            let output = input.filter_to_text_bidi();
-            (input, output)
-        }
-
-        let mut ctx = TestWidgetContext::new();
-
-        let (i, o) = make(42);
-
-        assert_eq!("42", o.get());
-
-        o.set(&ctx, "30").unwrap();
-
-        ctx.apply_updates();
-
-        assert_eq!(30, i.get());
-
-        i.set(&ctx, 10).unwrap();
-
-        ctx.apply_updates();
-
-        assert_eq!("10", o.get());
-    }
-
-    #[test]
-    fn filter_parse_bidi() {
-        fn make(s: &str) -> (impl Var<Text>, impl Var<i32>) {
-            let input = var(s.to_text());
-            let output = input.filter_parse_bidi(|s| s.len() as i32);
-            (input, output)
-        }
-
-        let mut ctx = TestWidgetContext::new();
-
-        let (i, o) = make("42");
-
-        assert_eq!(42, o.get());
-
-        o.set(&ctx, 30).unwrap();
-
-        ctx.apply_updates();
-
-        assert_eq!("30", i.get());
-
-        i.set(&ctx, "10").unwrap();
-
-        ctx.apply_updates();
-
-        assert_eq!(10, o.get());
     }
 }

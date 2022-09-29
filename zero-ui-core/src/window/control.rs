@@ -450,13 +450,15 @@ impl HeadedCtrl {
                 }
 
                 if let Some(pos) = args.position {
-                    if self.vars.0.actual_position.set_ne(ctx, pos) {
+                    if self.vars.0.actual_position.get() != pos {
+                        self.vars.0.actual_position.set_ne(ctx, pos).unwrap();
                         pos_change = Some(pos);
                     }
                 }
 
                 if let Some(size) = args.size {
-                    if self.vars.0.actual_size.set_ne(ctx, size) {
+                    if self.vars.0.actual_size.get() != size {
+                        self.vars.0.actual_size.set_ne(ctx, size).unwrap();
                         size_change = Some(size);
 
                         self.content.layout_requested = true;
@@ -951,7 +953,7 @@ struct HeadlessWithRendererCtrl {
 
     actual_parent: Option<WindowId>,
     /// actual_color_scheme and scale_factor binding.
-    var_bindings: VarHandle,
+    var_bindings: VarHandles,
 }
 impl HeadlessWithRendererCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -970,7 +972,7 @@ impl HeadlessWithRendererCtrl {
 
             actual_parent: None,
             size: DipSize::zero(),
-            var_bindings: VarHandle::dummy(),
+            var_bindings: VarHandles::dummy(),
         }
     }
 
@@ -1130,42 +1132,45 @@ impl HeadlessWithRendererCtrl {
     }
 }
 
-fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandle {
-    let mut parent_scale_factor = None;
-    let mut parent_color_scheme = None;
+fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
+    let mut handles = VarHandles::dummy();
+
     if let Some(parent_vars) = hvars.parent().get().and_then(|id| windows.vars(id).ok()) {
+        // bind parent factor
         if mfactor.is_none() {
-            parent_scale_factor = Some(parent_vars.scale_factor());
+            let h = hvars.0.scale_factor.bind(&parent_vars.0.scale_factor);
+            handles = handles.with(h);
         }
-        parent_color_scheme = Some(parent_vars.actual_color_scheme());
+
+        // merge bind color scheme.
+        let user = hvars.color_scheme().clone();
+        let parent = parent_vars.0.actual_color_scheme.clone();
+        let actual = hvars.0.actual_color_scheme.clone();
+        let merge = std::rc::Rc::new(move |vars| {
+            let scheme = user.get().unwrap_or_else(|| parent.get());
+            actual.set_ne(vars, scheme).unwrap();
+        });
+
+        let h = user.hook(Box::new(clone_move!(merge, |vars, _, _| {
+            merge(vars);
+            true
+        })));
+        handles = handles.with(h);
+
+        let h = parent.hook(Box::new(clone_move!(merge, |vars, _, _| {
+            merge(vars);
+            true
+        })));
+        handles = handles.with(h);
+    } else {
+        // bind color scheme
+        let h = hvars
+            .color_scheme()
+            .bind_map(&hvars.0.actual_color_scheme, |&s| s.unwrap_or_default());
+        handles = handles.with(h);
     }
 
-    let color_scheme = hvars.color_scheme().clone();
-    let actual_color_scheme = hvars.0.actual_color_scheme.clone();
-    let scale_factor = hvars.0.scale_factor.clone();
-
-    let update = move |vars: &Vars| {
-        let color_scheme = match color_scheme.get() {
-            Some(t) => t,
-            None => match &parent_color_scheme {
-                Some(pt) => pt.get(),
-                None => ColorScheme::default(),
-            },
-        };
-        actual_color_scheme.set_ne(vars, color_scheme);
-
-        if let Some(psf) = &parent_scale_factor {
-            let factor = psf.get();
-            scale_factor.set_ne(vars, factor);
-        }
-    };
-
-    update(vars);
-    if let Some(fct) = mfactor {
-        hvars.0.scale_factor.set_ne(vars, fct);
-    }
-
-    vars.bind(move |vars, _| update(vars))
+    handles
 }
 
 /// implementer of `App` only content management.
@@ -1178,7 +1183,7 @@ struct HeadlessCtrl {
 
     actual_parent: Option<WindowId>,
     /// actual_color_scheme and scale_factor binding.
-    var_bindings: VarHandle,
+    var_bindings: VarHandles,
 }
 impl HeadlessCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -1188,7 +1193,7 @@ impl HeadlessCtrl {
             content: ContentCtrl::new(window_id, vars.clone(), commands, content),
             headless_simulator: HeadlessSimulator::new(),
             actual_parent: None,
-            var_bindings: VarHandle::dummy(),
+            var_bindings: VarHandles::dummy(),
         }
     }
 

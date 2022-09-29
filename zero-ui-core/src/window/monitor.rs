@@ -288,11 +288,11 @@ impl MonitorInfo {
         }
 
         check_set(vars, &self.is_primary, info.is_primary)
-        | check_set(vars, &self.name, info.name.to_text())
-        | check_set(vars, &self.position, info.position)
-        | check_set(vars, &self.size, info.size)
-        | check_set(vars, &self.scale_factor, info.scale_factor.fct())
-        | check_set(vars, &self.video_modes, info.video_modes)
+            | check_set(vars, &self.name, info.name.to_text())
+            | check_set(vars, &self.position, info.position)
+            | check_set(vars, &self.size, info.size)
+            | check_set(vars, &self.scale_factor, info.scale_factor.fct())
+            | check_set(vars, &self.video_modes, info.video_modes)
     }
 
     /// Unique ID.

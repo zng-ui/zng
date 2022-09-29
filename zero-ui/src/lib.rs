@@ -365,7 +365,7 @@
 //! App::default().run_window(|ctx| {
 //!     let count = var(0u32);
 //!     let count_text = var_from("Click Me!");
-//!     let handle = count.bind_map(ctx, &count_text, |_, c| {
+//!     let handle = count.bind_map(&count_text, |c| {
 //!         match c {
 //!             1 => "Clicked 1 Time!".to_text(),
 //!             n => formatx!("Clicked {n} Times!")

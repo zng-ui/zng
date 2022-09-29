@@ -434,7 +434,7 @@ impl Config {
         key: K,
         default_value: D,
         target: &V,
-    ) -> [VarHandle; 2] {
+    ) -> VarHandles {
         let source = self.var_with_source(key.into(), default_value);
         let target = target.actual_var();
         let wk_target = target.downgrade();
@@ -467,9 +467,9 @@ impl Config {
                 }
             }));
 
-            [source_to_target, target_to_source]
+            [source_to_target, target_to_source].into_iter().collect()
         } else {
-            [VarHandle::dummy(), VarHandle::dummy()]
+            VarHandles::dummy()
         }
     }
 
@@ -613,7 +613,7 @@ impl ConfigAlt {
         key: K,
         default_value: D,
         target: &V,
-    ) -> [VarHandle; 2] {
+    ) -> VarHandles {
         Config::bind(&mut *self.0.borrow_mut(), vars, key, default_value, target)
     }
 }

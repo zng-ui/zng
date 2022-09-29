@@ -306,11 +306,62 @@ impl VarHandle {
 
     /// Drop the handle without stopping the behavior it represents.
     ///
-    /// Not that the behavior can still be stopped by dropping the involved variables.
+    /// Note that the behavior can still be stopped by dropping the involved variables.
     pub fn perm(self) {
         if let Some(s) = &self.0 {
             s.perm.set(true)
         }
+    }
+
+    /// Create a [`VarHandles`] collection with `self` and `other`.
+    pub fn with(self, other: Self) -> VarHandles {
+        [self, other].into()
+    }
+}
+
+/// Represents a collection of var handles.
+#[derive(Clone)]
+pub struct VarHandles(pub Vec<VarHandle>);
+impl VarHandles {
+    /// Empty collection.
+    pub fn dummy() -> Self {
+        VarHandles(vec![])
+    }
+
+    /// Returns `true` if empty or all handles are dummy.
+    pub fn is_dummy(&self) -> bool {
+        self.0.is_empty() || self.0.iter().all(VarHandle::is_dummy)
+    }
+
+    /// Drop all handles without stopping their behavior.
+    pub fn perm(self) {
+        for handle in self.0 {
+            handle.perm()
+        }
+    }
+
+    /// Add the `other` handle to the collection.
+    pub fn with(mut self, other: VarHandle) -> VarHandles {
+        if !other.is_dummy() {
+            self.0.push(other);
+        }
+        self
+    }
+
+    /// Add the `others` handles to the collection.
+    pub fn with_all(mut self, others: VarHandles) -> VarHandles {
+        self.0.extend(others.0);
+        self
+    }
+}
+impl FromIterator<VarHandle> for VarHandles {
+    fn from_iter<T: IntoIterator<Item = VarHandle>>(iter: T) -> Self {
+        VarHandles(iter.into_iter().filter(|h| !h.is_dummy()).collect())
+    }
+}
+impl<const N: usize> From<[VarHandle; N]> for VarHandles {
+    fn from(handles: [VarHandle; N]) -> Self {
+        handles.into_iter().collect()
     }
 }
 
@@ -329,7 +380,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Access to `Box<dyn Any>` methods, with the [`BoxedVar<T>`] type.
     ///
     /// This is a double-boxed to allow downcast to [`BoxedVar<T>`].
-    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any>;
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any>;
 
     /// Gets the [`TypeId`] of `T` in `Var<T>`.
     fn var_type_id(&self) -> TypeId;
@@ -629,8 +680,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V: WithVars,
         F: FnOnce(&mut VarModifyValue<T>) + 'static;
 
-    /// Gets the variable as [`BoxedVar<T>`], does not double box.
+    /// Gets the variable as a [`BoxedVar<T>`], does not double box.
     fn boxed(self) -> BoxedVar<T>
+    where
+        Self: Sized,
+    {
+        Box::new(self)
+    }
+
+    /// Gets the variable as a [`BoxedAnyVar`], does not double box.
+    fn boxed_any(self) -> BoxedAnyVar
     where
         Self: Sized,
     {
@@ -937,9 +996,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let other = var(me.with(&mut *map.borrow_mut()));
             let map = map.clone();
             let map_back = map_back.clone();
-            let [h1, h2] = me.bind_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o));
-            h1.perm();
-            h2.perm();
+            me.bind_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o))
+                .perm();
             other
         }))
     }
@@ -1049,9 +1107,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&fallback));
             let map = map.clone();
             let map_back = map_back.clone();
-            let [h1, h2] = me.bind_filter_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o));
-            h1.perm();
-            h2.perm();
+            me.bind_filter_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o))
+                .perm();
             other
         }))
     }
@@ -1122,7 +1179,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and `self` and then bind to fully sync the variables.
-    fn bind_map_bidi<T2, V2, M, B>(&self, other: &V2, mut map: M, mut map_back: B) -> [VarHandle; 2]
+    fn bind_map_bidi<T2, V2, M, B>(&self, other: &V2, mut map: M, mut map_back: B) -> VarHandles
     where
         T2: VarValue,
         V2: Var<T2>,
@@ -1145,7 +1202,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             }
         });
 
-        [self_to_other, other_to_self]
+        [self_to_other, other_to_self].into_iter().collect()
     }
 
     /// Bind `self` to `other` and back with the new values of `self` transformed by `map` and the new values of `other` transformed
@@ -1155,7 +1212,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and then bind to fully sync the variables.
-    fn bind_filter_map_bidi<T2, V2, M, B>(&self, other: &V2, mut map: M, mut map_back: B) -> [VarHandle; 2]
+    fn bind_filter_map_bidi<T2, V2, M, B>(&self, other: &V2, mut map: M, mut map_back: B) -> VarHandles
     where
         T2: VarValue,
         V2: Var<T2>,
@@ -1182,7 +1239,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             }
         });
 
-        [self_to_other, other_to_self]
+        [self_to_other, other_to_self].into_iter().collect()
     }
 
     /// Setup a hook that assigns `other` with the new values of `self`.
@@ -1204,7 +1261,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and then bind to fully sync the variables.
-    fn bind_bidi<V2>(&self, other: &V2) -> [VarHandle; 2]
+    fn bind_bidi<V2>(&self, other: &V2) -> VarHandles
     where
         V2: Var<T>,
     {

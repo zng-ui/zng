@@ -233,7 +233,7 @@ impl DynPropertyArgs {
             },
             Self::State(s) => {
                 if i == 0 && TypeId::of::<T>() == TypeId::of::<bool>() {
-                    let cast = s.clone().boxed().into_boxed_any().downcast::<BoxedVar<T>>().unwrap();
+                    let cast = s.clone().boxed().double_boxed_any().downcast::<BoxedVar<T>>().unwrap();
                     Ok(cast)
                 } else {
                     Err(DynPropError::ArgsMismatch)

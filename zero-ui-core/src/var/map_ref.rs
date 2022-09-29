@@ -47,7 +47,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self
     }
 
-    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
         let me: BoxedVar<O> = self;
         Box::new(me)
     }
@@ -248,7 +248,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self
     }
 
-    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
         let me: BoxedVar<O> = self;
         Box::new(me)
     }

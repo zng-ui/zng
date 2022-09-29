@@ -1351,11 +1351,9 @@ mod output {
                     let dyn_args_decl = arg_locals.iter().zip(arg_types.iter()).map(|(arg_local, arg_ty)| {
                         let span = arg_ty.span();
                         let mut r = quote_spanned! {span=>
-                            #crate_core::var::AnyVar::into_any(
-                                #crate_core::var::Var::boxed(
-                                    #crate_core::var::IntoVar::allowed_in_when_property_requires_IntoVar_members(
-                                        #arg_local
-                                    )
+                            #crate_core::var::Var::boxed_any(
+                                #crate_core::var::IntoVar::allowed_in_when_property_requires_IntoVar_members(
+                                    #arg_local
                                 )
                             ),
                         };

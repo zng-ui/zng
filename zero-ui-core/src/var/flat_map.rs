@@ -124,7 +124,7 @@ where
         self
     }
 
-    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
         let me: BoxedVar<T> = self;
         Box::new(me)
     }
