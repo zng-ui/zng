@@ -147,7 +147,7 @@ impl ScrollContext {
                 return;
             }
 
-            let curr_scroll_fct = SCROLL_VERTICAL_OFFSET_VAR.copy(vars);
+            let curr_scroll_fct = SCROLL_VERTICAL_OFFSET_VAR.get();
             let curr_scroll = max_scroll * curr_scroll_fct;
             let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
 
@@ -170,7 +170,7 @@ impl ScrollContext {
                 return;
             }
 
-            let curr_scroll_fct = SCROLL_HORIZONTAL_OFFSET_VAR.copy(vars);
+            let curr_scroll_fct = SCROLL_HORIZONTAL_OFFSET_VAR.get();
             let curr_scroll = max_scroll * curr_scroll_fct;
             let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
 
@@ -197,7 +197,7 @@ impl ScrollContext {
 
                 match &config.vertical {
                     Some(anim) if !anim.handle.is_stopped() => {
-                        anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.copy(vars));
+                        anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
                     }
                     _ => {
                         let ease = smooth.easing.clone();
@@ -231,7 +231,7 @@ impl ScrollContext {
 
                 match &config.horizontal {
                     Some(anim) if !anim.handle.is_stopped() => {
-                        anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.copy(vars));
+                        anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
                     }
                     _ => {
                         let ease = smooth.easing.clone();
@@ -276,7 +276,7 @@ impl ScrollContext {
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).height;
             let content = SCROLL_CONTENT_SIZE_VAR.get(vars).height;
 
-            content > viewport && 1.fct() > SCROLL_VERTICAL_OFFSET_VAR.copy(vars)
+            content > viewport && 1.fct() > SCROLL_VERTICAL_OFFSET_VAR.get()
         })
     }
 
@@ -287,7 +287,7 @@ impl ScrollContext {
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).height;
             let content = SCROLL_CONTENT_SIZE_VAR.get(vars).height;
 
-            content > viewport && 0.fct() < SCROLL_VERTICAL_OFFSET_VAR.copy(vars)
+            content > viewport && 0.fct() < SCROLL_VERTICAL_OFFSET_VAR.get()
         })
     }
 
@@ -298,7 +298,7 @@ impl ScrollContext {
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).width;
             let content = SCROLL_CONTENT_SIZE_VAR.get(vars).width;
 
-            content > viewport && 0.fct() < SCROLL_HORIZONTAL_OFFSET_VAR.copy(vars)
+            content > viewport && 0.fct() < SCROLL_HORIZONTAL_OFFSET_VAR.get()
         })
     }
 
@@ -309,7 +309,7 @@ impl ScrollContext {
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get(vars).width;
             let content = SCROLL_CONTENT_SIZE_VAR.get(vars).width;
 
-            content > viewport && 1.fct() > SCROLL_HORIZONTAL_OFFSET_VAR.copy(vars)
+            content > viewport && 1.fct() > SCROLL_HORIZONTAL_OFFSET_VAR.get()
         })
     }
 }

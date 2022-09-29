@@ -865,7 +865,6 @@ impl<E: AppExtension> RunningApp<E> {
         let ctx = &mut self.owned_ctx.borrow();
 
         self.extensions.event_preview(ctx, &mut update);
-        Vars::event_preview(ctx, &mut update);
         observer.event_preview(ctx, &mut update);
 
         Events::on_pre_events(ctx, &mut update);
@@ -1427,7 +1426,6 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.extensions.update_preview(ctx);
                 observer.update_preview(ctx);
-                Vars::on_pre_vars(ctx);
                 Updates::on_pre_updates(ctx);
 
                 let mut wgt_updates = u.update_widgets;
@@ -1436,10 +1434,9 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.extensions.update(ctx);
                 observer.update(ctx);
-                Vars::on_vars(ctx);
                 Updates::on_updates(ctx);
 
-                self.owned_ctx.applied_updates();
+                self.owned_ctx.apply_updates();
 
                 true
             });
@@ -1462,7 +1459,6 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.loop_monitor.maybe_trace(|| {
                     self.extensions.event_preview(ctx, &mut update);
-                    Vars::event_preview(ctx, &mut update);
                     observer.event_preview(ctx, &mut update);
                     Events::on_pre_events(ctx, &mut update);
 

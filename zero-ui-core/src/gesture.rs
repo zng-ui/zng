@@ -14,7 +14,7 @@ use crate::{
     service::Service,
     service::ServiceTuple,
     units::DipPoint,
-    var::{impl_from_and_into_var, Var, Vars, WithVarsRead},
+    var::{impl_from_and_into_var, Var, Vars},
     widget_info::{HitTestInfo, InteractionPath},
     window::{WindowId, Windows},
     WidgetId, WidgetPath,
@@ -1106,8 +1106,7 @@ impl ShortcutActions {
         //
         //    b. All enabled commands targeting the app.
 
-        let focused = focus.focused();
-        let focused = focused.get(vars);
+        let focused = focus.focused().get();
 
         let mut primary_click_focused = None;
         let mut primary_click_not_focused = None;
@@ -1158,7 +1157,7 @@ impl ShortcutActions {
 
         // commands
         for cmd in events.commands() {
-            if cmd.shortcut_matches(vars, shortcut) {
+            if cmd.shortcut_matches(shortcut) {
                 match cmd.scope() {
                     CommandScope::Window(w) => {
                         if let Some(f) = focused {
@@ -1765,7 +1764,7 @@ pub trait CommandShortcutExt {
     ///
     /// [`App`]: crate::event::CommandScope::App
     /// [`Custom`]: crate::event::CommandScope::Custom
-    fn shortcut_matches<Vr: WithVarsRead>(self, vars: &Vr, shortcut: Shortcut) -> bool;
+    fn shortcut_matches(self, shortcut: Shortcut) -> bool;
 }
 impl CommandShortcutExt for Command {
     fn shortcut(self) -> CommandMetaVar<Shortcuts> {
@@ -1777,8 +1776,8 @@ impl CommandShortcutExt for Command {
         self
     }
 
-    fn shortcut_matches<Vr: WithVarsRead>(self, vars: &Vr, shortcut: Shortcut) -> bool {
-        vars.with_vars_read(|vars| self.has_handlers().copy(vars) && self.shortcut().get(vars).contains(shortcut))
+    fn shortcut_matches(self, shortcut: Shortcut) -> bool {
+        self.has_handlers().get() && self.shortcut().with(|s| s.contains(shortcut))
     }
 }
 

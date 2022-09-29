@@ -85,7 +85,7 @@ pub mod h_stack {
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
-            let align = self.align.copy(ctx);
+            let align = self.align.get();
 
             let constrains = ctx.constrains();
             if let Some(known) = constrains.fill_or_exact() {
@@ -118,7 +118,7 @@ pub mod h_stack {
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
-            let align = self.align.copy(ctx);
+            let align = self.align.get();
             let align_baseline = align.is_baseline();
 
             let constrains = ctx.constrains();
@@ -331,7 +331,7 @@ pub mod v_stack {
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
-            let align = self.align.copy(ctx);
+            let align = self.align.get();
 
             let constrains = ctx.constrains();
             if let Some(known) = constrains.fill_or_exact() {
@@ -365,7 +365,7 @@ pub mod v_stack {
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
-            let align = self.align.copy(ctx);
+            let align = self.align.get();
             let align_baseline = align.is_baseline();
 
             let constrains = ctx.constrains();
@@ -623,7 +623,7 @@ pub mod z_stack {
                 return known;
             }
 
-            let align = self.align.copy(ctx);
+            let align = self.align.get();
             let mut size = PxSize::zero();
             ctx.with_constrains(
                 |c| align.child_constrains(c),
@@ -642,7 +642,7 @@ pub mod z_stack {
             constrains.fill_size_or(size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let align = self.align.copy(ctx);
+            let align = self.align.get();
 
             let constrains = ctx.constrains();
             let mut size = None;
@@ -800,7 +800,7 @@ pub fn stack_nodes_layout_by(
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let index = self.index.copy(ctx);
+            let index = self.index.get();
             let len = self.children.len();
             if index >= len {
                 tracing::error!(
@@ -829,7 +829,7 @@ pub fn stack_nodes_layout_by(
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let index = self.index.copy(ctx);
+            let index = self.index.get();
             let len = self.children.len();
             if index >= len {
                 tracing::error!(

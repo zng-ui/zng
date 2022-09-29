@@ -97,7 +97,7 @@ impl WindowCommands {
             });
         } else if let Some(args) = RESTORE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.restore_handle, |_| {
-                window_vars.state().set_ne(ctx.vars, window_vars.restore_state().copy(ctx.vars));
+                window_vars.state().set_ne(ctx.vars, window_vars.restore_state().get());
             });
         } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.close_handle, |_| {
@@ -105,16 +105,16 @@ impl WindowCommands {
             });
         } else if let Some(args) = FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.fullscreen_handle, |_| {
-                if let WindowState::Fullscreen = window_vars.state().copy(ctx) {
-                    window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));
+                if let WindowState::Fullscreen = window_vars.state().get() {
+                    window_vars.state().set(ctx.vars, window_vars.restore_state().get());
                 } else {
                     window_vars.state().set(ctx.vars, WindowState::Fullscreen);
                 }
             });
         } else if let Some(args) = EXCLUSIVE_FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.exclusive_handle, |_| {
-                if let WindowState::Exclusive = window_vars.state().copy(ctx) {
-                    window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));
+                if let WindowState::Exclusive = window_vars.state().get() {
+                    window_vars.state().set(ctx.vars, window_vars.restore_state().get());
                 } else {
                     window_vars.state().set(ctx, WindowState::Exclusive);
                 }
@@ -123,7 +123,7 @@ impl WindowCommands {
     }
 
     pub fn init(&mut self, vars: &Vars, window_vars: &WindowVars) {
-        self.update_state(window_vars.state().copy(vars));
+        self.update_state(window_vars.state().get());
     }
 
     pub fn update(&mut self, vars: &Vars, window_vars: &WindowVars) {

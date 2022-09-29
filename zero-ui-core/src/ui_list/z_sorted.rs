@@ -3,7 +3,7 @@ use std::{cell::Cell, fmt, ops};
 use crate::{
     context::StaticStateId,
     impl_from_and_into_var, impl_ui_node, property,
-    var::{context_var, ContextVarData, IntoVar, Var, Vars},
+    var::{context_var, IntoVar, Var, Vars},
 };
 
 use super::*;
@@ -357,10 +357,10 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
             } else {
                 self.valid = true;
 
-                let index = self.index.copy(ctx);
+                let index = self.index.get();
                 if index != ZIndex::DEFAULT {
                     z_ctx.resort.set(true);
-                    ctx.widget_state.set(&Z_INDEX_ID, self.index.copy(ctx));
+                    ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
                 }
             }
             self.child.init(ctx);
@@ -572,7 +572,7 @@ impl ZIndexContext {
             panel_id: Some(panel_id),
             resort: Cell::new(false),
         };
-        vars.with_context_var(Z_INDEX_VAR, ContextVarData::fixed(&ctx), action);
+        let (ctx, _) = Z_INDEX_VAR.with_context(ctx, action);
         ctx.resort.get()
     }
 }

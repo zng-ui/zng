@@ -72,7 +72,7 @@ impl<U: UiNode> View<U> {
 ///             }.boxed())
 ///         }
 ///         State::Counting => {
-///             if n.copy(ctx) > 0 {
+///             if n.get() > 0 {
 ///                 // text updates automatically when `n` updates
 ///                 // se we can continue using the same UI.
 ///

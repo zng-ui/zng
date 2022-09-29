@@ -23,7 +23,7 @@ use crate::{
         raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
-    context::{AppContext, WindowContext, WidgetUpdates},
+    context::{AppContext, WidgetUpdates, WindowContext},
     event::EventUpdate,
     image::ImageVar,
     var::WithVars,

@@ -628,13 +628,10 @@ impl UiNode for InspectPropertyNode {
                 args: self.args.clone(),
             });
         }
-        ctx.vars.with_context_var(
-            WIDGET_PARENT_VAR,
-            ContextVarData::fixed(&WidgetInstanceParent::Property(self.meta.property_name)),
-            || {
-                self.child.info(ctx, info);
-            },
-        );
+
+        WIDGET_PARENT_VAR.with_context(WidgetInstanceParent::Property(self.meta.property_name), || {
+            self.child.info(ctx, info);
+        });
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
@@ -708,7 +705,7 @@ impl UiNode for InspectWidgetNode {
                 properties: vec![],
                 whens: self.whens.clone(),
                 constructors: vec![],
-                parent_name: WIDGET_PARENT_VAR.copy(ctx),
+                parent_name: WIDGET_PARENT_VAR.get(),
             },
         );
         self.child.info(ctx, info);
@@ -785,13 +782,10 @@ impl UiNode for InspectConstructorNode {
                 captures: self.captures.clone(),
             });
         }
-        ctx.vars.with_context_var(
-            WIDGET_PARENT_VAR,
-            ContextVarData::fixed(&WidgetInstanceParent::Constructor(self.fn_name)),
-            || {
-                self.child.info(ctx, info);
-            },
-        );
+
+        WIDGET_PARENT_VAR.with_context(WidgetInstanceParent::Constructor(self.fn_name), || {
+            self.child.info(ctx, info);
+        });
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
@@ -1018,7 +1012,7 @@ pub mod debug_var_util {
 
             let ctx = TestWidgetContext::new();
 
-            assert_eq!("\"called into_var\"", format!("{:?}", r.get(&ctx.vars)))
+            assert_eq!("\"called into_var\"", format!("{:?}", r.get()))
         }
 
         #[test]
@@ -1032,7 +1026,7 @@ pub mod debug_var_util {
 
             let ctx = TestWidgetContext::new();
 
-            assert_eq!("true", format!("{:?}", r.get(&ctx.vars)))
+            assert_eq!("true", format!("{:?}", r.get()))
         }
 
         #[test]
@@ -1045,13 +1039,13 @@ pub mod debug_var_util {
 
             let mut ctx = TestWidgetContext::new();
 
-            assert_eq!("true", format!("{:?}", r.get(&ctx.vars)));
+            assert_eq!("true", format!("{:?}", r.get()));
 
             value.set(&ctx.vars, false);
 
             ctx.apply_updates();
 
-            assert_eq!("false", format!("{:?}", r.get(&ctx.vars)));
+            assert_eq!("false", format!("{:?}", r.get()));
         }
 
         #[test]
@@ -1062,7 +1056,7 @@ pub mod debug_var_util {
 
             let ctx = TestWidgetContext::new();
 
-            assert_eq!("true", format!("{:?}", r.get(&ctx.vars)))
+            assert_eq!("true", format!("{:?}", r.get()))
         }
 
         #[test]
@@ -1074,7 +1068,7 @@ pub mod debug_var_util {
 
             let ctx = TestWidgetContext::new();
 
-            assert!(format!("{:?}", r.get(&ctx.vars)).contains("Foo"));
+            assert!(format!("{:?}", r.get()).contains("Foo"));
         }
     }
 }

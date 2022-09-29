@@ -2102,7 +2102,7 @@ impl<T> FrameVarKey<T> {
     /// Generates a new unique ID if the `var` can update.
     pub fn new_unique<VT: var::VarValue>(var: &impl var::Var<VT>) -> Self {
         FrameVarKey {
-            key: if var.can_update() {
+            key: if !var.capabilities().is_always_static() {
                 Some(FrameValueKey::<T>::new_unique())
             } else {
                 None
@@ -2123,55 +2123,44 @@ impl<T> FrameVarKey<T> {
     /// Create a binding with this key and `var`.
     ///
     /// The `map` must produce a copy or clone of the frame value.
-    pub fn bind<VT: var::VarValue>(
-        self,
-        vars: &impl var::WithVarsRead,
-        var: &impl var::Var<VT>,
-        map: impl FnOnce(&VT) -> T,
-    ) -> FrameValue<T> {
+    pub fn bind<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
         match self.view_key() {
-            Some(key) => {
-                let (value, animating) = vars.with_vars_read(|vars| (map(var.get(vars)), var.is_animating(vars)));
-                FrameValue::Bind { key, value, animating }
-            }
-            None => FrameValue::Value(vars.with_vars_read(|vars| map(var.get(vars)))),
+            Some(key) => FrameValue::Bind {
+                key,
+                value: var.get(),
+                animating: var.is_animating(),
+            },
+            None => FrameValue::Value(var.with(map)),
         }
     }
 
     /// Create a binding with this key, `var` and already mapped `value`.
-    pub fn bind_mapped<VT: var::VarValue>(self, vars: &impl var::WithVarsRead, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
+    pub fn bind_mapped<VT: var::VarValue>(self, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
         match self.view_key() {
-            Some(key) => {
-                let animating = vars.with_vars_read(|vars| var.is_animating(vars));
-                FrameValue::Bind { key, value, animating }
-            }
+            Some(key) => FrameValue::Bind {
+                key,
+                value,
+                animating: var.is_animating(),
+            },
             None => FrameValue::Value(value),
         }
     }
 
     /// Create a value update with this key and `var`.
-    pub fn update<VT: var::VarValue>(
-        self,
-        vars: &impl var::WithVarsRead,
-        var: &impl var::Var<VT>,
-        map: impl FnOnce(&VT) -> T,
-    ) -> Option<FrameValueUpdate<T>> {
-        self.view_key().map(|key| {
-            let (value, animating) = vars.with_vars_read(|vars| (map(var.get(vars)), var.is_animating(vars)));
-            FrameValueUpdate { key, value, animating }
+    pub fn update<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
+        self.view_key().map(|key| FrameValueUpdate {
+            key,
+            value: var.with(map),
+            animating: var.is_animating(),
         })
     }
 
     /// Create a value update with this key, `var` and already mapped `value`.
-    pub fn update_mapped<VT: var::VarValue>(
-        self,
-        vars: &impl var::WithVarsRead,
-        var: &impl var::Var<VT>,
-        value: T,
-    ) -> Option<FrameValueUpdate<T>> {
-        self.view_key().map(|key| {
-            let animating = vars.with_vars_read(|vars| var.is_animating(vars));
-            FrameValueUpdate { key, value, animating }
+    pub fn update_mapped<VT: var::VarValue>(self, var: &impl var::Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
+        self.view_key().map(|key| FrameValueUpdate {
+            key,
+            value,
+            animating: var.is_animating(),
         })
     }
 }

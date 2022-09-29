@@ -54,7 +54,7 @@ struct HeadedCtrl {
     monitor: Option<MonitorInfo>,
     resize_wait_id: Option<FrameWaitId>,
     icon: Option<ImageVar>,
-    icon_binding: Option<VarBindingHandle>,
+    icon_binding: VarHandle,
     icon_deadline: Deadline,
     actual_state: Option<WindowState>, // for WindowChangedEvent
     system_color_scheme: Option<ColorScheme>,
@@ -83,7 +83,7 @@ impl HeadedCtrl {
             monitor: None,
             resize_wait_id: None,
             icon: None,
-            icon_binding: None,
+            icon_binding: VarHandle::dummy(),
             icon_deadline: Deadline::timeout(1.secs()),
             system_color_scheme: None,
             parent_color_scheme: None,
@@ -113,7 +113,7 @@ impl HeadedCtrl {
             if let Some(enforced_fullscreen) = self.kiosk {
                 // enforce kiosk in pre-init.
 
-                if !self.vars.state().get(ctx).is_fullscreen() {
+                if !self.vars.state().get().is_fullscreen() {
                     self.vars.state().set(ctx, enforced_fullscreen);
                 }
             }
@@ -156,14 +156,14 @@ impl HeadedCtrl {
                     let monitors = Monitors::req(ctx.services);
 
                     if self.monitor.is_none() {
-                        let monitor = query.select_fallback(ctx.vars, monitors);
-                        let scale_factor = monitor.scale_factor().copy(ctx);
+                        let monitor = query.select_fallback(monitors);
+                        let scale_factor = monitor.scale_factor().get();
                         self.vars.0.scale_factor.set_ne(ctx, scale_factor);
                         self.monitor = Some(monitor);
-                    } else if let Some(new) = query.select(ctx.vars, monitors) {
-                        let current = self.vars.0.actual_monitor.copy(ctx.vars);
+                    } else if let Some(new) = query.select(monitors) {
+                        let current = self.vars.0.actual_monitor.get();
                         if Some(new.id()) != current {
-                            let scale_factor = new.scale_factor().copy(ctx.vars);
+                            let scale_factor = new.scale_factor().get();
                             self.vars.0.scale_factor.set_ne(ctx.vars, scale_factor);
                             self.vars.0.actual_monitor.set_ne(ctx.vars, new.id());
                             self.monitor = Some(new.clone());
@@ -182,13 +182,13 @@ impl HeadedCtrl {
 
                 if self.vars.min_size().is_new(ctx) || self.vars.max_size().is_new(ctx) {
                     if let Some(m) = &self.monitor {
-                        let scale_factor = m.scale_factor().copy(ctx);
-                        let screen_ppi = m.ppi().copy(ctx);
-                        let screen_size = m.size().copy(ctx);
+                        let scale_factor = m.scale_factor().get();
+                        let screen_ppi = m.ppi().get();
+                        let screen_size = m.size().get();
                         let (min_size, max_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                            let min_size = self.vars.min_size().get(ctx.vars).layout(ctx, |_| default_min_size(scale_factor));
+                            let min_size = self.vars.min_size().get().layout(ctx, |_| default_min_size(scale_factor));
 
-                            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx, |_| screen_size);
+                            let max_size = self.vars.max_size().get().layout(ctx, |_| screen_size);
 
                             (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
                         });
@@ -209,17 +209,17 @@ impl HeadedCtrl {
                 }
 
                 if self.vars.size().is_new(ctx) {
-                    let auto_size = self.vars.auto_size().copy(ctx);
+                    let auto_size = self.vars.auto_size().get();
 
                     if auto_size != AutoSize::CONTENT {
                         if let Some(m) = &self.monitor {
-                            let scale_factor = m.scale_factor().copy(ctx);
-                            let screen_ppi = m.ppi().copy(ctx);
-                            let screen_size = m.size().copy(ctx);
+                            let scale_factor = m.scale_factor().get();
+                            let screen_ppi = m.ppi().get();
+                            let screen_size = m.size().get();
                             let size = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
                                 self.vars
                                     .size()
-                                    .get(ctx.vars)
+                                    .get()
                                     .layout(ctx, |_| default_size(scale_factor))
                                     .to_dip(scale_factor.0)
                             });
@@ -238,9 +238,9 @@ impl HeadedCtrl {
 
                 if let Some(pos) = self.vars.position().get_new(ctx.vars) {
                     if let Some(m) = &self.monitor {
-                        let scale_factor = m.scale_factor().copy(ctx);
-                        let screen_ppi = m.ppi().copy(ctx);
-                        let screen_size = m.size().copy(ctx);
+                        let scale_factor = m.scale_factor().get();
+                        let screen_ppi = m.ppi().get();
+                        let screen_size = m.size().get();
                         let pos = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
                             pos.layout(ctx, |_| PxPoint::new(Px(50), Px(50)))
                         });
@@ -290,11 +290,10 @@ impl HeadedCtrl {
                 };
 
                 if let Some(ico) = &self.icon {
-                    let b = ico.bind_map(ctx.vars, &self.vars.0.actual_icon, |_, img| Some(img.clone()));
-                    self.icon_binding = Some(b);
+                    self.icon_binding = ico.bind_map(&self.vars.0.actual_icon, |img| Some(img.clone()));
                 } else {
                     self.vars.0.actual_icon.set_ne(ctx.vars, None);
-                    self.icon_binding = None;
+                    self.icon_binding = VarHandle::dummy();
                 }
 
                 send_icon = true;
@@ -302,7 +301,7 @@ impl HeadedCtrl {
                 send_icon = true;
             }
             if send_icon {
-                let icon = self.icon.as_ref().and_then(|ico| ico.get(ctx).view().cloned());
+                let icon = self.icon.as_ref().and_then(|ico| ico.get().view().cloned());
                 self.update_view(move |view| {
                     let _: Ignore = view.set_icon(icon.as_ref());
                 });
@@ -380,8 +379,8 @@ impl HeadedCtrl {
                 let scheme = self
                     .vars
                     .color_scheme()
-                    .copy(ctx)
-                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.copy(ctx)))
+                    .get()
+                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
                     .or(self.system_color_scheme)
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
@@ -424,15 +423,15 @@ impl HeadedCtrl {
                         match (prev_state, new_state) {
                             (_, WindowState::Minimized) => {
                                 // minimized, minimize children.
-                                for &c in self.vars.0.children.get(ctx.vars) {
+                                self.vars.0.children.for_each(|&c| {
                                     MINIMIZE_CMD.scoped(c).notify(ctx.events);
-                                }
+                                });
                             }
                             (WindowState::Minimized, _) => {
                                 // restored, restore children.
-                                for &c in self.vars.0.children.get(ctx.vars) {
+                                self.vars.0.children.for_each(|&c| {
                                     RESTORE_CMD.scoped(c).notify(ctx.events);
-                                }
+                                });
 
                                 // we skip layout & render when minimized.
                                 if self.content.layout_requested {
@@ -521,8 +520,8 @@ impl HeadedCtrl {
                 let scheme = self
                     .vars
                     .color_scheme()
-                    .copy(ctx)
-                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.copy(ctx)))
+                    .get()
+                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
                     .or(self.system_color_scheme)
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
@@ -540,8 +539,8 @@ impl HeadedCtrl {
                 let scheme = self
                     .vars
                     .color_scheme()
-                    .copy(ctx)
-                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.copy(ctx)))
+                    .get()
+                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
                     .or(self.system_color_scheme)
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
@@ -607,43 +606,34 @@ impl HeadedCtrl {
 
     /// First layout, opens the window.
     fn layout_init(&mut self, ctx: &mut WindowContext) {
-        self.monitor = Some(
-            self.vars
-                .monitor()
-                .get(ctx.vars)
-                .select_fallback(ctx.vars, Monitors::req(ctx.services)),
-        );
+        self.monitor = Some(self.vars.monitor().get().select_fallback(Monitors::req(ctx.services)));
 
         let m = self.monitor.as_ref().unwrap();
-        let scale_factor = m.scale_factor().copy(ctx);
-        let screen_ppi = m.ppi().copy(ctx);
-        let screen_rect = m.px_rect(ctx);
+        let scale_factor = m.scale_factor().get();
+        let screen_ppi = m.ppi().get();
+        let screen_rect = m.px_rect();
 
         // Layout min, max and size in the monitor space.
         let (min_size, max_size, mut size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_rect.size, |ctx| {
-            let min_size = self
-                .vars
-                .min_size()
-                .get(ctx.vars)
-                .layout(ctx.metrics, |_| default_min_size(scale_factor));
+            let min_size = self.vars.min_size().get().layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_rect.size);
+            let max_size = self.vars.max_size().get().layout(ctx.metrics, |_| screen_rect.size);
 
-            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
+            let size = self.vars.size().get().layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
 
-        let state = self.vars.state().copy(ctx);
+        let state = self.vars.state().get();
 
-        if state == WindowState::Normal && self.vars.auto_size().copy(ctx) != AutoSize::DISABLED {
+        if state == WindowState::Normal && self.vars.auto_size().get() != AutoSize::DISABLED {
             // layout content to get auto-size size.
             size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
         }
 
         // await icon load for up to 1s.
         if let Some(icon) = &self.icon {
-            if !self.icon_deadline.has_elapsed() && icon.get(ctx.vars).is_loading() {
+            if !self.icon_deadline.has_elapsed() && icon.get().is_loading() {
                 // block on icon loading.
                 return;
             }
@@ -659,7 +649,7 @@ impl HeadedCtrl {
         let mut system_pos = false;
         let position = match self.start_position {
             StartPosition::Default => {
-                let pos = self.vars.position().get(ctx.vars);
+                let pos = self.vars.position().get();
                 if pos.x.is_default() || pos.y.is_default() {
                     system_pos = true;
                     PxPoint::zero()
@@ -679,11 +669,11 @@ impl HeadedCtrl {
                 // center monitor if no parent
                 let mut parent_rect = screen_rect;
 
-                if let Some(parent) = self.vars.parent().copy(ctx) {
+                if let Some(parent) = self.vars.parent().get() {
                     if let Ok(w) = Windows::req(ctx.services).vars(parent) {
-                        let factor = w.scale_factor().copy(ctx.vars);
-                        let pos = w.actual_position().get(ctx.vars).to_px(factor.0);
-                        let size = w.actual_size().get(ctx.vars).to_px(factor.0);
+                        let factor = w.scale_factor().get();
+                        let pos = w.actual_position().get().to_px(factor.0);
+                        let size = w.actual_size().get().to_px(factor.0);
 
                         parent_rect = PxRect::new(pos, size);
                     }
@@ -707,29 +697,29 @@ impl HeadedCtrl {
             restore_state: WindowState::Normal,
             min_size: min_size.to_dip(scale_factor.0),
             max_size: max_size.to_dip(scale_factor.0),
-            chrome_visible: self.vars.chrome().get(ctx).is_default(),
+            chrome_visible: self.vars.chrome().get().is_default(),
         };
 
         let request = WindowRequest {
             id: ctx.window_id.get(),
-            title: self.vars.title().get(ctx).to_string(),
+            title: self.vars.title().get().to_string(),
             state: state.clone(),
             kiosk: self.kiosk.is_some(),
             default_position: system_pos,
-            video_mode: self.vars.video_mode().copy(ctx),
-            visible: self.vars.visible().copy(ctx),
-            taskbar_visible: self.vars.taskbar_visible().copy(ctx),
-            always_on_top: self.vars.always_on_top().copy(ctx),
-            movable: self.vars.movable().copy(ctx),
-            resizable: self.vars.resizable().copy(ctx),
-            icon: self.icon.as_ref().and_then(|ico| ico.get(ctx).view()).map(|ico| ico.id()),
-            cursor: self.vars.cursor().copy(ctx),
+            video_mode: self.vars.video_mode().get(),
+            visible: self.vars.visible().get(),
+            taskbar_visible: self.vars.taskbar_visible().get(),
+            always_on_top: self.vars.always_on_top().get(),
+            movable: self.vars.movable().get(),
+            resizable: self.vars.resizable().get(),
+            icon: self.icon.as_ref().and_then(|ico| ico.get().view()).map(|ico| ico.id()),
+            cursor: self.vars.cursor().get(),
             transparent: self.transparent,
-            capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
+            capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode),
 
             focus: self.start_focused,
-            focus_indicator: self.vars.focus_indicator().copy(ctx),
+            focus_indicator: self.vars.focus_indicator().get(),
         };
 
         match ViewProcess::req(ctx.services).open_window(request) {
@@ -744,12 +734,12 @@ impl HeadedCtrl {
     /// Layout for already open window.
     fn layout_update(&mut self, ctx: &mut WindowContext) {
         let m = self.monitor.as_ref().unwrap();
-        let scale_factor = m.scale_factor().copy(ctx);
-        let screen_ppi = m.ppi().copy(ctx);
+        let scale_factor = m.scale_factor().get();
+        let screen_ppi = m.ppi().get();
 
         let mut state = self.state.clone().unwrap();
 
-        let current_size = self.vars.0.actual_size.copy(ctx).to_px(scale_factor.0);
+        let current_size = self.vars.0.actual_size.get().to_px(scale_factor.0);
         let mut size = current_size;
         let min_size = state.min_size.to_px(scale_factor.0);
         let max_size = state.max_size.to_px(scale_factor.0);
@@ -757,7 +747,7 @@ impl HeadedCtrl {
         let skip_auto_size = !matches!(state.state, WindowState::Normal);
 
         if !skip_auto_size {
-            let auto_size = self.vars.auto_size().copy(ctx);
+            let auto_size = self.vars.auto_size().get();
 
             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                 size.width = max_size.width;
@@ -774,7 +764,7 @@ impl HeadedCtrl {
         if size != current_size {
             assert!(!skip_auto_size);
 
-            let auto_size_origin = self.vars.auto_size_origin().get(ctx.vars);
+            let auto_size_origin = self.vars.auto_size_origin().get();
             let base_font_size = base_font_size(scale_factor);
             let mut auto_size_origin = |size| {
                 ctx.layout_context(
@@ -808,36 +798,31 @@ impl HeadedCtrl {
     /// First layout after respawn, opens the window but used previous sizes.
     fn layout_respawn(&mut self, ctx: &mut WindowContext) {
         if self.monitor.is_none() {
-            self.monitor = Some(
-                self.vars
-                    .monitor()
-                    .get(ctx.vars)
-                    .select_fallback(ctx.vars, Monitors::req(ctx.services)),
-            );
+            self.monitor = Some(self.vars.monitor().get().select_fallback(Monitors::req(ctx.services)));
         }
 
         self.layout_update(ctx);
 
         let request = WindowRequest {
             id: ctx.window_id.get(),
-            title: self.vars.title().get(ctx).to_string(),
+            title: self.vars.title().get_string(),
             state: self.state.clone().unwrap(),
             kiosk: self.kiosk.is_some(),
             default_position: false,
-            video_mode: self.vars.video_mode().copy(ctx),
-            visible: self.vars.visible().copy(ctx),
-            taskbar_visible: self.vars.taskbar_visible().copy(ctx),
-            always_on_top: self.vars.always_on_top().copy(ctx),
-            movable: self.vars.movable().copy(ctx),
-            resizable: self.vars.resizable().copy(ctx),
-            icon: self.icon.as_ref().and_then(|ico| ico.get(ctx).view()).map(|ico| ico.id()),
-            cursor: self.vars.cursor().copy(ctx),
+            video_mode: self.vars.video_mode().get(),
+            visible: self.vars.visible().get(),
+            taskbar_visible: self.vars.taskbar_visible().get(),
+            always_on_top: self.vars.always_on_top().get(),
+            movable: self.vars.movable().get(),
+            resizable: self.vars.resizable().get(),
+            icon: self.icon.as_ref().and_then(|ico| ico.get().view()).map(|ico| ico.id()),
+            cursor: self.vars.cursor().get(),
             transparent: self.transparent,
-            capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
+            capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode),
 
             focus: Windows::req(ctx.services).is_focused(self.window_id).unwrap_or(false),
-            focus_indicator: self.vars.focus_indicator().copy(ctx),
+            focus_indicator: self.vars.focus_indicator().get(),
         };
 
         match ViewProcess::req(ctx.services).open_window(request) {
@@ -856,7 +841,7 @@ impl HeadedCtrl {
                 return;
             }
 
-            let scale_factor = self.monitor.as_ref().unwrap().scale_factor().copy(ctx);
+            let scale_factor = self.monitor.as_ref().unwrap().scale_factor().get();
             self.content
                 .render(ctx, Some(view.renderer()), scale_factor, self.resize_wait_id.take());
         }
@@ -889,7 +874,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     parent_var.set(ctx.vars, *parent);
                     return false;
                 }
-                if !vars.0.children.get(ctx.vars).is_empty() {
+                if !vars.0.children.with(|c| c.is_empty()) {
                     tracing::error!("cannot set parent for `{:?}` because it already has children", *ctx.window_id);
                     parent_var.set(ctx.vars, *parent);
                     return false;
@@ -897,7 +882,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
 
                 let windows = Windows::req(ctx.services);
                 if let Ok(parent_vars) = windows.vars(parent_id) {
-                    if parent_vars.parent().get(ctx.vars).is_some() {
+                    if parent_vars.parent().with(Option::is_some) {
                         tracing::error!("cannot use `{:?}` as a parent because it already has a parent", parent_id);
                         parent_var.set(ctx.vars, *parent);
                         return false;
@@ -965,7 +950,7 @@ struct HeadlessWithRendererCtrl {
 
     actual_parent: Option<WindowId>,
     /// actual_color_scheme and scale_factor binding.
-    var_bindings: Option<VarBindingHandle>,
+    var_bindings: VarHandle,
 }
 impl HeadlessWithRendererCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -1075,20 +1060,16 @@ impl HeadlessWithRendererCtrl {
             return;
         }
 
-        let scale_factor = self.vars.0.scale_factor.copy(ctx);
+        let scale_factor = self.vars.0.scale_factor.get();
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-            let min_size = self
-                .vars
-                .min_size()
-                .get(ctx.vars)
-                .layout(ctx.metrics, |_| default_min_size(scale_factor));
+            let min_size = self.vars.min_size().get().layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
+            let max_size = self.vars.max_size().get().layout(ctx.metrics, |_| screen_size);
 
-            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
+            let size = self.vars.size().get().layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -1134,7 +1115,7 @@ impl HeadlessWithRendererCtrl {
         }
 
         if let Some(view) = &self.surface {
-            let fct = self.vars.0.scale_factor.copy(ctx.vars);
+            let fct = self.vars.0.scale_factor.get();
             self.content.render(ctx, Some(view.renderer()), fct, None);
         }
     }
@@ -1149,10 +1130,10 @@ impl HeadlessWithRendererCtrl {
     }
 }
 
-fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarBindingHandle {
+fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandle {
     let mut parent_scale_factor = None;
     let mut parent_color_scheme = None;
-    if let Some(parent_vars) = hvars.parent().copy(vars).and_then(|id| windows.vars(id).ok()) {
+    if let Some(parent_vars) = hvars.parent().get().and_then(|id| windows.vars(id).ok()) {
         if mfactor.is_none() {
             parent_scale_factor = Some(parent_vars.scale_factor());
         }
@@ -1164,17 +1145,17 @@ fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Fact
     let scale_factor = hvars.0.scale_factor.clone();
 
     let update = move |vars: &Vars| {
-        let color_scheme = match color_scheme.copy(vars) {
+        let color_scheme = match color_scheme.get() {
             Some(t) => t,
             None => match &parent_color_scheme {
-                Some(pt) => pt.copy(vars),
+                Some(pt) => pt.get(),
                 None => ColorScheme::default(),
             },
         };
         actual_color_scheme.set_ne(vars, color_scheme);
 
         if let Some(psf) = &parent_scale_factor {
-            let factor = psf.copy(vars);
+            let factor = psf.get();
             scale_factor.set_ne(vars, factor);
         }
     };
@@ -1197,7 +1178,7 @@ struct HeadlessCtrl {
 
     actual_parent: Option<WindowId>,
     /// actual_color_scheme and scale_factor binding.
-    var_bindings: Option<VarBindingHandle>,
+    var_bindings: VarHandle,
 }
 impl HeadlessCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -1259,20 +1240,16 @@ impl HeadlessCtrl {
             return;
         }
 
-        let scale_factor = self.vars.0.scale_factor.copy(ctx);
+        let scale_factor = self.vars.0.scale_factor.get();
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-            let min_size = self
-                .vars
-                .min_size()
-                .get(ctx.vars)
-                .layout(ctx.metrics, |_| default_min_size(scale_factor));
+            let min_size = self.vars.min_size().get().layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
+            let max_size = self.vars.max_size().get().layout(ctx.metrics, |_| screen_size);
 
-            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
+            let size = self.vars.size().get().layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -1286,7 +1263,7 @@ impl HeadlessCtrl {
         if self.content.render_requested.is_none() {
             return;
         }
-        let fct = self.vars.0.scale_factor.copy(ctx);
+        let fct = self.vars.0.scale_factor.get();
         self.content.render(ctx, None, fct, None);
     }
 
@@ -1433,7 +1410,7 @@ impl ContentCtrl {
                 self.root_id,
                 self.root_info.bounds.clone(),
                 self.root_info.border.clone(),
-                self.vars.0.scale_factor.copy(ctx),
+                self.vars.0.scale_factor.get(),
                 self.used_info_builder.take(),
             );
 
@@ -1546,7 +1523,7 @@ impl ContentCtrl {
 
         let base_font_size = base_font_size(scale_factor);
 
-        let auto_size = self.vars.auto_size().copy(ctx);
+        let auto_size = self.vars.auto_size().get();
 
         let mut viewport_size = size;
         if !skip_auto_size {
@@ -1612,11 +1589,7 @@ impl ContentCtrl {
 
                 self.frame_id = self.frame_id.next();
 
-                let default_text_aa = ctx
-                    .services
-                    .get::<Fonts>()
-                    .map(|f| f.system_font_aa().copy(ctx.vars))
-                    .unwrap_or_default();
+                let default_text_aa = ctx.services.get::<Fonts>().map(|f| f.system_font_aa().get()).unwrap_or_default();
 
                 let mut frame = FrameBuilder::new(
                     self.frame_id,
@@ -1707,7 +1680,7 @@ impl ContentCtrl {
         }
     }
     fn take_capture_image(&self, vars: &Vars) -> bool {
-        match self.vars.frame_capture_mode().copy(vars) {
+        match self.vars.frame_capture_mode().get() {
             FrameCaptureMode::Sporadic => false,
             FrameCaptureMode::Next => {
                 self.vars.frame_capture_mode().set(vars, FrameCaptureMode::Sporadic);

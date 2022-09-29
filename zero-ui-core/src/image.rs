@@ -541,13 +541,13 @@ impl Images {
         match mode {
             ImageCacheMode::Cache => {
                 if let Some(v) = self.cache.get(&key) {
-                    return v.img.clone().into_read_only();
+                    return v.img.read_only();
                 }
             }
             ImageCacheMode::Retry => {
                 if let Some(e) = self.cache.get(&key) {
                     if !e.error.get() {
-                        return e.img.clone().into_read_only();
+                        return e.img.read_only();
                     }
                 }
             }

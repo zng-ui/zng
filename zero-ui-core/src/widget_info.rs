@@ -19,7 +19,7 @@ use crate::{
     render::{FrameId, FrameValueUpdate},
     ui_list::ZIndex,
     units::*,
-    var::{Var, VarValue, VarsRead, WithVarsRead},
+    var::{Var, VarValue},
     window::WindowId,
     UiNode, Widget, WidgetId,
 };
@@ -1927,17 +1927,15 @@ impl WidgetSubscriptions {
     /// Register a variable subscription.
     pub fn var<Vr, T>(&mut self, vars: &Vr, var: &impl Var<T>) -> &mut Self
     where
-        Vr: WithVarsRead,
         T: VarValue,
     {
-        self.update.extend(&var.update_mask(vars));
+        // self.update.extend(&var.update_mask(vars));
         self
     }
 
     /// Start a [`WidgetVarSubscriptions`] to register multiple variables without needing to reference the [`VarsRead`] for every variable.
-    pub fn vars<'s, 'v>(&'s mut self, vars: &'v impl AsRef<VarsRead>) -> WidgetVarSubscriptions<'v, 's> {
+    pub fn vars<'s, I>(&'s mut self, vars: &I) -> WidgetVarSubscriptions<'s> {
         WidgetVarSubscriptions {
-            vars: vars.as_ref(),
             subs: self,
         }
     }
@@ -1972,17 +1970,15 @@ impl ops::BitOrAssign for WidgetSubscriptions {
 }
 
 /// Helper for registering multiple [`WidgetSubscriptions::var`] without needing to reference the [`VarsRead`] instance for every variable.
-pub struct WidgetVarSubscriptions<'v, 's> {
-    vars: &'v VarsRead,
+pub struct WidgetVarSubscriptions<'s> {
     /// The main [`WidgetSubscriptions`].
     pub subs: &'s mut WidgetSubscriptions,
 }
-impl<'v, 's> WidgetVarSubscriptions<'v, 's> {
+impl<'s> WidgetVarSubscriptions<'s> {
     /// Register a variable subscriptions.
     pub fn var<T: VarValue>(self, var: &impl Var<T>) -> Self {
         Self {
             subs: self.subs.var(self.vars, var),
-            vars: self.vars,
         }
     }
 }

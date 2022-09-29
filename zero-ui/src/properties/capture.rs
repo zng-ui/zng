@@ -60,7 +60,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     let mouse = Mouse::req(ctx.services);
                     let widget_id = ctx.path.widget_id();
 
-                    match self.mode.copy(ctx.vars) {
+                    match self.mode.get() {
                         CaptureMode::Widget => {
                             mouse.capture_widget(widget_id);
                         }
@@ -133,7 +133,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             let mws = ctx.window_state.get(&MODAL_WIDGETS).unwrap();
 
-            if self.enabled.copy(ctx) {
+            if self.enabled.get() {
                 let insert_filter = {
                     let mut mws = mws.borrow_mut();
                     if mws.widgets.insert(ctx.path.widget_id()) {

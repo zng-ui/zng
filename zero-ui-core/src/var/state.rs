@@ -1,4 +1,18 @@
-use crate::{context::*, event::*, var::*, *};
+use super::*;
+
+use crate::{context::*, event::*, *};
+
+/// New [`StateVar`].
+pub fn state_var() -> StateVar {
+    var(false)
+}
+
+/// Variable type of state properties (`is_*`).
+///
+/// State variables are `bool` probes that are set by the property.
+///
+/// Use [`state_var`] to init.
+pub type StateVar = RcVar<bool>;
 
 /// Helper for declaring state properties that depend on a single event.
 pub fn event_state<A: EventArgs>(
@@ -248,20 +262,18 @@ pub fn bind_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVa
         child: C,
         source: S,
         state: StateVar,
-        binding: Option<VarBindingHandle>,
+        binding: VarHandle,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<bool>> UiNode for BindStateNode<C, S> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx.vars, self.source.copy(ctx.vars));
-            if self.source.can_update() {
-                self.binding = Some(self.source.bind(ctx, &self.state));
-            }
+            self.state.set_ne(ctx, self.source.get());
+            self.binding = self.source.bind(&self.state);
             self.child.init(ctx);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.binding = None;
+            self.binding = VarHandle::dummy();
             self.child.deinit(ctx);
         }
     }
@@ -269,7 +281,7 @@ pub fn bind_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVa
         child: child.cfg_boxed(),
         source: source.into_var(),
         state,
-        binding: None,
+        binding: VarHandle::dummy(),
     }
     .cfg_boxed()
 }

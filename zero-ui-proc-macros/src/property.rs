@@ -1908,7 +1908,7 @@ mod output {
                         _ => $default_args:ident,
                     }) => {
                         {
-                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, rc_when_var as __when_var};
+                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, when_var as __when_var};
                             $(
                                 $cfg_macro! {
                                     $(#[$meta])*
@@ -2033,7 +2033,7 @@ mod output {
                     }
 
                     pub use #macro_ident as code_gen;
-                    pub use #crate_core::var::{when_var, types::rc_when_var, switch_var};
+                    pub use #crate_core::var::when_var;
                     #[doc(hidden)]
                     pub use #crate_core::{property_new as __property_new, core_cfg_inspector};
                 }

@@ -62,7 +62,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                                 // we are not already set, setup binding.
 
                                 let cursor = WindowVars::req(&ctx.window_state).cursor();
-                                cursor.set_ne(ctx.vars, self.cursor.copy(ctx.vars));
+                                cursor.set_ne(ctx.vars, self.cursor.get());
                                 self.hovered_binding = Some(self.cursor.bind(ctx.vars, cursor));
                             }
 

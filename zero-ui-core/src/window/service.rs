@@ -805,7 +805,7 @@ impl AppWindow {
     ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = Monitors::req(ctx.services)
             .primary_monitor(ctx.vars)
-            .map(|m| m.scale_factor().copy(ctx.vars))
+            .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
 
         let vars = WindowVars::new(Windows::req(ctx.services).default_render_mode, primary_scale_factor);

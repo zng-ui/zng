@@ -150,7 +150,7 @@ where
 
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        let s = self.shortcuts.get_clone(ctx);
+        let s = self.shortcuts.get();
         self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
     }
 

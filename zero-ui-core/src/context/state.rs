@@ -702,12 +702,12 @@ where
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.widget_state.set(self.id, self.var.get(ctx).clone());
+            ctx.widget_state.set(self.id, self.var.get());
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new) = self.var.clone_new(ctx) {
+            if let Some(new) = self.var.get_new(ctx) {
                 (self.on_update)(ctx, &new);
                 ctx.widget_state.set(self.id, new);
             }

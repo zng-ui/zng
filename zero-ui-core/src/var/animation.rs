@@ -1,147 +1,17 @@
-//! Animation types and functions.
+//! Var animation types and functions.
 
-use crate::{
-    crate_util::{Handle, HandleOwner, WeakHandle},
-    units::*,
-};
 use std::{
-    cell::{Cell, RefCell},
-    f32::consts::*,
-    fmt,
-    marker::PhantomData,
-    ops,
-    rc::{Rc, Weak},
+    mem, ops,
     time::{Duration, Instant},
 };
 
-use super::{any, AnyWeakVar, IntoVar, Var, VarValue, Vars, WeakVar};
+use crate::{app::LoopTimer, clone_move, crate_util};
 
-mod vars;
-pub(crate) use vars::*;
+use super::*;
 
 pub mod easing;
 
-/// Common easing modifier functions as an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EasingModifierFn {
-    /// [`easing::ease_in`].
-    EaseIn,
-    /// [`easing::ease_out`].
-    EaseOut,
-    /// [`easing::ease_in_out`].
-    EaseInOut,
-    /// [`easing::ease_out_in`].
-    EaseOutIn,
-}
-impl EasingModifierFn {
-    /// Calls the easing function with the modifier `self` represents.
-    pub fn modify(self, easing: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
-        match self {
-            EasingModifierFn::EaseIn => easing::ease_in(easing, time),
-            EasingModifierFn::EaseOut => easing::ease_out(easing, time),
-            EasingModifierFn::EaseInOut => easing::ease_in_out(easing, time),
-            EasingModifierFn::EaseOutIn => easing::ease_out_in(easing, time),
-        }
-    }
-
-    /// Create a closure that applies the `easing` with the modifier `self` represents.
-    pub fn modify_fn(self, easing: impl Fn(EasingTime) -> EasingStep) -> impl Fn(EasingTime) -> EasingStep {
-        move |t| self.modify(&easing, t)
-    }
-}
-impl fmt::Display for EasingModifierFn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EasingModifierFn::EaseIn => write!(f, "ease_in"),
-            EasingModifierFn::EaseOut => write!(f, "ease_out"),
-            EasingModifierFn::EaseInOut => write!(f, "ease_in_out"),
-            EasingModifierFn::EaseOutIn => write!(f, "ease_out_in"),
-        }
-    }
-}
-
-/// Common easing functions as an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EasingFn {
-    /// [`easing::linear`].
-    Linear,
-    /// [`easing::sine`].
-    Sine,
-    /// [`easing::quad`].
-    Quad,
-    /// [`easing::cubic`].
-    Cubic,
-    /// [`easing::quart`].
-    Quart,
-    /// [`easing::quint`].
-    Quint,
-    /// [`easing::expo`].
-    Expo,
-    /// [`easing::circ`].
-    Circ,
-    /// [`easing::back`].
-    Back,
-    /// [`easing::elastic`].
-    Elastic,
-    /// [`easing::bounce`].
-    Bounce,
-    /// [`easing::none`].
-    None,
-}
-impl EasingFn {
-    /// Calls the easing function that `self` represents.
-    pub fn ease_in(self, time: EasingTime) -> EasingStep {
-        (self.ease_fn())(time)
-    }
-
-    /// Calls the easing function that `self` represents and inverts the value using [`easing::ease_out`].
-    pub fn ease_out(self, time: EasingTime) -> EasingStep {
-        easing::ease_out(|t| self.ease_in(t), time)
-    }
-
-    /// Calls the easing function that `self` represents and transforms the value using [`easing::ease_in_out`].
-    pub fn ease_in_out(self, time: EasingTime) -> EasingStep {
-        easing::ease_in_out(|t| self.ease_in(t), time)
-    }
-
-    /// Gets the easing function that `self` represents.
-    pub fn ease_fn(self) -> fn(EasingTime) -> EasingStep {
-        match self {
-            EasingFn::Linear => easing::linear,
-            EasingFn::Sine => easing::sine,
-            EasingFn::Quad => easing::quad,
-            EasingFn::Cubic => easing::cubic,
-            EasingFn::Quart => easing::quad,
-            EasingFn::Quint => easing::quint,
-            EasingFn::Expo => easing::expo,
-            EasingFn::Circ => easing::circ,
-            EasingFn::Back => easing::back,
-            EasingFn::Elastic => easing::elastic,
-            EasingFn::Bounce => easing::bounce,
-            EasingFn::None => easing::none,
-        }
-    }
-}
-impl fmt::Display for EasingFn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EasingFn::Linear => write!(f, "linear"),
-            EasingFn::Sine => write!(f, "sine"),
-            EasingFn::Quad => write!(f, "quad"),
-            EasingFn::Cubic => write!(f, "cubic"),
-            EasingFn::Quart => write!(f, "quart"),
-            EasingFn::Quint => write!(f, "quint"),
-            EasingFn::Expo => write!(f, "expo"),
-            EasingFn::Circ => write!(f, "circ"),
-            EasingFn::Back => write!(f, "back"),
-            EasingFn::Elastic => write!(f, "elastic"),
-            EasingFn::Bounce => write!(f, "bounce"),
-            EasingFn::None => write!(f, "none"),
-        }
-    }
-}
-
-/// Represents a running animation created by [`Vars::animate`].
+/// Represents a running animation created by [`Animations.animate`].
 ///
 /// Drop all clones of this handle to stop the animation, or call [`perm`] to drop the handle
 /// but keep the animation alive until it is stopped from the inside.
@@ -150,10 +20,10 @@ impl fmt::Display for EasingFn {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 #[must_use = "the animation stops if the handle is dropped"]
-pub struct AnimationHandle(Handle<()>);
+pub struct AnimationHandle(crate_util::Handle<()>);
 impl AnimationHandle {
-    pub(super) fn new() -> (HandleOwner<()>, Self) {
-        let (owner, handle) = Handle::new(());
+    pub(super) fn new() -> (crate_util::HandleOwner<()>, Self) {
+        let (owner, handle) = crate_util::Handle::new(());
         (owner, AnimationHandle(handle))
     }
 
@@ -162,7 +32,7 @@ impl AnimationHandle {
     /// Note that `Option<AnimationHandle>` takes up the same space as `AnimationHandle` and avoids an allocation.
     pub fn dummy() -> Self {
         assert_non_null!(AnimationHandle);
-        AnimationHandle(Handle::dummy(()))
+        AnimationHandle(crate_util::Handle::dummy(()))
     }
 
     /// Drop the handle but does **not** stop.
@@ -198,11 +68,11 @@ impl AnimationHandle {
 
 /// Weak [`AnimationHandle`].
 #[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
-pub struct WeakAnimationHandle(pub(super) WeakHandle<()>);
+pub struct WeakAnimationHandle(pub(super) crate_util::WeakHandle<()>);
 impl WeakAnimationHandle {
     /// New weak handle that does not upgrade.
     pub fn new() -> Self {
-        Self(WeakHandle::new())
+        Self(crate_util::WeakHandle::new())
     }
 
     /// Get the animation handle if it is still animating.
@@ -211,41 +81,9 @@ impl WeakAnimationHandle {
     }
 }
 
-/// Represents a running chase animation created by [`Var::chase`] or other *chase* animation methods.
-#[derive(Clone, Debug)]
-pub struct ChaseAnimation<T> {
-    /// Underlying animation handle.
-    pub handle: AnimationHandle,
-    pub(super) next_target: Rc<RefCell<ChaseMsg<T>>>,
-}
-impl<T: VarValue> ChaseAnimation<T> {
-    /// Sets a new target value for the easing animation and restarts the time.
-    ///
-    /// The animation will update to lerp between the current variable value to the `new_target`.
-    pub fn reset(&self, new_target: T) {
-        *self.next_target.borrow_mut() = ChaseMsg::Replace(new_target);
-    }
-
-    /// Adds `increment` to the current target value for the easing animation and restarts the time.
-    pub fn add(&self, increment: T) {
-        *self.next_target.borrow_mut() = ChaseMsg::Add(increment);
-    }
-}
-#[derive(Debug)]
-pub(super) enum ChaseMsg<T> {
-    None,
-    Replace(T),
-    Add(T),
-}
-impl<T> Default for ChaseMsg<T> {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
 /// Represents an animation in its closure.
 ///
-/// See the [`Vars::animate`] method for more details.
+/// See the [`Vars.animate`] method for more details.
 pub struct AnimationArgs {
     start_time: Cell<Instant>,
     restart_count: Cell<usize>,
@@ -508,352 +346,608 @@ where
     }
 }
 
-struct EasingVarData<T, V, F> {
-    _t: PhantomData<T>,
-    var: V,
-    duration: Duration,
-    easing: Rc<F>,
+pub(super) struct Animations {
+    animations: RefCell<Vec<AnimationFn>>,
+    animation_id: Cell<usize>,
+    pub(super) current_animation: RefCell<AnimateModifyInfo>,
+    pub(super) animation_start_time: Cell<Option<Instant>>,
+    next_frame: Cell<Option<Deadline>>,
+    pub(super) animations_enabled: RcVar<bool>,
+    pub(super) frame_duration: RcVar<Duration>,
+    pub(super) animation_time_scale: RcVar<Factor>,
 }
-
-/// A weak reference to a [`EasingVar`].
-pub struct WeakEasingVar<T, V, F>(Weak<EasingVarData<T, V, F>>);
-impl<T, V, F> crate::private::Sealed for WeakEasingVar<T, V, F>
-where
-    T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-}
-impl<T, V, F> Clone for WeakEasingVar<T, V, F>
-where
-    T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-    fn clone(&self) -> Self {
-        WeakEasingVar(self.0.clone())
-    }
-}
-impl<T, V, F> AnyWeakVar for WeakEasingVar<T, V, F>
-where
-    T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-    any_var_impls!(WeakVar);
-}
-impl<T, V, F> WeakVar<T> for WeakEasingVar<T, V, F>
-where
-    T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-    type Strong = EasingVar<T, V, F>;
-
-    fn upgrade(&self) -> Option<Self::Strong> {
-        self.0.upgrade().map(EasingVar)
-    }
-
-    fn strong_count(&self) -> usize {
-        self.0.strong_count()
-    }
-
-    fn weak_count(&self) -> usize {
-        self.0.weak_count()
-    }
-
-    fn as_ptr(&self) -> *const () {
-        self.0.as_ptr() as *const ()
-    }
-}
-
-/// Wraps another variable and turns assigns into transition animations.
-///
-/// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`], calls to the
-/// methods that create animations by default are not affected by the var easing.
-///
-/// Use [`Var::easing`] to create.
-pub struct EasingVar<T, V, F>(Rc<EasingVarData<T, V, F>>);
-impl<T, V, F> EasingVar<T, V, F>
-where
-    T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-    /// New easing var.
-    pub fn new(var: V, duration: impl Into<Duration>, easing: F) -> Self {
-        EasingVar(Rc::new(EasingVarData {
-            _t: PhantomData,
-            var,
-            duration: duration.into(),
-            easing: Rc::new(easing),
-        }))
-    }
-
-    /// Create a weak reference to the var.
-    pub fn downgrade(&self) -> WeakEasingVar<T, V, F> {
-        WeakEasingVar(Rc::downgrade(&self.0))
-    }
-}
-impl<T, V, F> crate::private::Sealed for EasingVar<T, V, F> {}
-impl<T, V: Clone, F> Clone for EasingVar<T, V, F> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-impl<T, V, F> Var<T> for EasingVar<T, V, F>
-where
-    T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-    type AsReadOnly = V::AsReadOnly;
-
-    fn get<'a, Vr: AsRef<super::VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
-        self.0.var.get(vars)
-    }
-
-    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
-        self.0.var.get_new(vars)
-    }
-
-    fn is_new<Vw: super::WithVars>(&self, vars: &Vw) -> bool {
-        self.0.var.is_new(vars)
-    }
-
-    fn version<Vr: super::WithVarsRead>(&self, vars: &Vr) -> super::VarVersion {
-        self.0.var.version(vars)
-    }
-
-    fn is_read_only<Vw: super::WithVars>(&self, vars: &Vw) -> bool {
-        self.0.var.is_read_only(vars)
-    }
-
-    fn is_animating<Vr: super::WithVarsRead>(&self, vars: &Vr) -> bool {
-        self.0.var.is_animating(vars)
-    }
-
-    fn always_read_only(&self) -> bool {
-        self.0.var.always_read_only()
-    }
-
-    fn is_contextual(&self) -> bool {
-        self.0.var.is_contextual()
-    }
-
-    fn actual_var<Vw: super::WithVars>(&self, vars: &Vw) -> super::BoxedVar<T> {
-        if self.is_contextual() {
-            let var = EasingVar(Rc::new(EasingVarData {
-                _t: PhantomData,
-                var: self.0.var.actual_var(vars),
-                duration: self.0.duration,
-                easing: self.0.easing.clone(),
-            }));
-            var.boxed()
-        } else {
-            self.clone().boxed()
+impl Animations {
+    pub(crate) fn new() -> Self {
+        Self {
+            animations: RefCell::default(),
+            animation_id: Cell::new(1),
+            current_animation: RefCell::new(AnimateModifyInfo {
+                handle: None,
+                importance: 1,
+            }),
+            animation_start_time: Cell::new(None),
+            next_frame: Cell::new(None),
+            animations_enabled: var(true),
+            frame_duration: var((1.0 / 60.0).secs()),
+            animation_time_scale: var(1.fct()),
         }
     }
 
-    fn can_update(&self) -> bool {
-        self.0.var.can_update()
-    }
+    pub(super) fn update_animations(vars: &mut Vars, timer: &mut LoopTimer) {
+        if let Some(next_frame) = vars.ans.next_frame.get() {
+            if timer.elapsed(next_frame) {
+                let mut animations = mem::take(&mut *vars.ans.animations.borrow_mut());
+                debug_assert!(!animations.is_empty());
 
-    fn into_value<Vr: super::WithVarsRead>(self, vars: &Vr) -> T {
-        match Rc::try_unwrap(self.0) {
-            Ok(v) => v.var.into_value(vars),
-            Err(v) => v.var.get_clone(vars),
-        }
-    }
+                let info = AnimationUpdateInfo {
+                    animations_enabled: vars.ans.animations_enabled.get(),
+                    time_scale: vars.ans.animation_time_scale.get(),
+                    now: timer.now(),
+                    next_frame: next_frame + vars.ans.frame_duration.get(),
+                };
 
-    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), super::VarIsReadOnly>
-    where
-        Vw: super::WithVars,
-        M: FnOnce(super::VarModify<T>) + 'static,
-    {
-        self.0.var.modify(vars, modify)
-    }
+                let mut min_sleep = Deadline(info.now + Duration::from_secs(60 * 60));
 
-    fn into_read_only(self) -> Self::AsReadOnly {
-        match Rc::try_unwrap(self.0) {
-            Ok(v) => v.var.into_read_only(),
-            Err(v) => v.var.clone().into_read_only(),
-        }
-    }
+                animations.retain_mut(|animate| {
+                    if let Some(sleep) = animate(vars, info) {
+                        min_sleep = min_sleep.min(sleep);
+                        true
+                    } else {
+                        false
+                    }
+                });
 
-    fn update_mask<Vr: super::WithVarsRead>(&self, vars: &Vr) -> crate::widget_info::UpdateMask {
-        self.0.var.update_mask(vars)
-    }
+                let mut self_animations = vars.ans.animations.borrow_mut();
+                animations.extend(self_animations.drain(..));
+                *self_animations = animations;
 
-    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), super::VarIsReadOnly>
-    where
-        Vw: super::WithVars,
-        N: Into<T>,
-    {
-        vars.with_vars(|vars| {
-            if self.is_read_only(vars) {
-                Err(super::VarIsReadOnly)
-            } else {
-                let easing = self.0.easing.clone();
-                self.0.var.ease(vars, new_value, self.0.duration, move |t| easing(t)).perm();
-                Ok(())
-            }
-        })
-    }
-
-    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, super::VarIsReadOnly>
-    where
-        Vw: super::WithVars,
-        N: Into<T>,
-        T: PartialEq,
-    {
-        vars.with_vars(|vars| {
-            if self.is_read_only(vars) {
-                Err(super::VarIsReadOnly)
-            } else {
-                let new_value = new_value.into();
-                if self.0.var.get(vars) != &new_value {
-                    let easing = self.0.easing.clone();
-                    self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t)).perm();
-                    Ok(true)
+                if !self_animations.is_empty() {
+                    vars.ans.next_frame.set(Some(min_sleep));
+                    timer.register(min_sleep);
                 } else {
-                    Ok(false)
+                    vars.ans.next_frame.set(None);
                 }
             }
-        })
+        }
     }
 
-    fn ease<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> AnimationHandle
+    pub(super) fn next_deadline(vars: &mut Vars, timer: &mut LoopTimer) {
+        if let Some(next_frame) = vars.ans.next_frame.get() {
+            timer.register(next_frame);
+        }
+    }
+
+    pub(crate) fn animate<A>(vars: &Vars, mut animation: A) -> AnimationHandle
     where
-        Vw: super::WithVars,
-        N: Into<T>,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
+        A: FnMut(&Vars, &AnimationArgs) + 'static,
     {
-        self.0.var.ease(vars, new_value, duration, easing)
-    }
+        // # Animation ID
+        //
+        // Variables only accept modifications from an animation ID >= the previous animation ID that modified it.
+        //
+        // Direct modifications always overwrite previous animations, so we advance the ID for each call to
+        // this method **and then** advance the ID again for all subsequent direct modifications.
+        //
+        // Example sequence of events:
+        //
+        // |ID| Modification  | Accepted
+        // |--|---------------|----------
+        // | 1| Var::set      | YES
+        // | 2| Var::ease     | YES
+        // | 2| ease update   | YES
+        // | 3| Var::set      | YES
+        // | 3| Var::set      | YES
+        // | 2| ease update   | NO
+        // | 4| Var::ease     | YES
+        // | 2| ease update   | NO
+        // | 4| ease update   | YES
+        // | 5| Var::set      | YES
+        // | 2| ease update   | NO
+        // | 4| ease update   | NO
 
-    fn ease_ne<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        N: Into<T>,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
+        // ensure that all animations started in this update have the same exact time, we update then with the same `now`
+        // timestamp also, this ensures that synchronized animations match perfectly.
+        let start_time = if let Some(t) = vars.ans.animation_start_time.get() {
+            t
+        } else {
+            let t = Instant::now();
+            vars.ans.animation_start_time.set(Some(t));
+            t
+        };
 
-        T: PartialEq,
-    {
-        self.0.var.ease_ne(vars, new_value, duration, easing)
-    }
+        let mut id = vars.ans.animation_id.get().wrapping_add(1);
+        if id == 0 {
+            id = 1;
+        }
+        let mut next_set_id = id.wrapping_add(1);
+        if next_set_id == 0 {
+            next_set_id = 1;
+        }
+        vars.ans.animation_id.set(next_set_id);
+        vars.ans.current_animation.borrow_mut().importance = next_set_id;
 
-    fn ease_keyed<Vw, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
-    {
-        self.0.var.ease_keyed(vars, keys, duration, easing)
-    }
+        let handle_owner;
+        let handle;
+        let weak_handle;
 
-    fn set_ease<Vw, N, Th, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F2) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        N: Into<T>,
-        Th: Into<T>,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
-    {
-        self.0.var.set_ease(vars, new_value, then, duration, easing)
-    }
+        if let Some(parent_handle) = vars.ans.current_animation.borrow().handle.clone() {
+            // is `animate` request inside other animate closure,
+            // in this case we give it the same animation handle as the *parent*
+            // animation, that holds the actual handle owner.
+            handle_owner = None;
 
-    fn set_ease_ne<Vw, N, Th, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F2) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        N: Into<T>,
-        Th: Into<T>,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
+            if let Some(h) = parent_handle.upgrade() {
+                handle = h;
+            } else {
+                // attempt to create new animation from inside dropping animation, ignore
+                return AnimationHandle::dummy();
+            }
 
-        T: PartialEq,
-    {
-        self.0.var.set_ease_ne(vars, new_value, then, duration, easing)
-    }
+            weak_handle = parent_handle;
+        } else {
+            let (o, h) = AnimationHandle::new();
+            handle_owner = Some(o);
+            weak_handle = h.downgrade();
+            handle = h;
+        };
 
-    fn set_ease_keyed<Vw, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
-    {
-        self.0.var.set_ease_keyed(vars, keys, duration, easing)
-    }
+        let mut anim = AnimationArgs::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
+        vars.ans.animations.borrow_mut().push(Box::new(move |vars, info| {
+            let _handle_owner = &handle_owner; // capture and own the handle owner.
 
-    fn step<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        N: Into<T>,
-    {
-        self.0.var.step(vars, new_value, delay)
-    }
+            if weak_handle.upgrade().is_some() {
+                if let Some(sleep) = anim.sleep_deadline() {
+                    if sleep > info.next_frame {
+                        // retain sleep
+                        return Some(sleep);
+                    } else if sleep.0 > info.now {
+                        // sync-up to frame rate after sleep
+                        anim.reset_sleep();
+                        return Some(info.next_frame);
+                    }
+                }
 
-    fn step_ne<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        N: Into<T>,
-        T: PartialEq,
-    {
-        self.0.var.step_ne(vars, new_value, delay)
-    }
+                anim.reset_state(info.animations_enabled, info.now, info.time_scale);
 
-    fn steps<Vw, F2>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
-    {
-        self.0.var.steps(vars, steps, duration, easing)
-    }
+                let prev = mem::replace(
+                    &mut *vars.ans.current_animation.borrow_mut(),
+                    AnimateModifyInfo {
+                        handle: Some(weak_handle.clone()),
+                        importance: id,
+                    },
+                );
+                let _cleanup = crate_util::RunOnDrop::new(|| *vars.ans.current_animation.borrow_mut() = prev);
 
-    fn steps_ne<Vw, F2>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
-    where
-        Vw: super::WithVars,
-        F2: Fn(EasingTime) -> EasingStep + 'static,
-        T: PartialEq,
-    {
-        self.0.var.steps_ne(vars, steps, duration, easing)
-    }
+                animation(vars, &anim);
 
-    type Weak = WeakEasingVar<T, V, F>;
+                if anim.stop_requested() {
+                    // drop
+                    return None;
+                }
 
-    fn is_rc(&self) -> bool {
-        true
-    }
+                // retain
+                match anim.sleep_deadline() {
+                    Some(sleep) if sleep > info.next_frame => Some(sleep),
+                    _ => Some(info.next_frame),
+                }
+            } else {
+                // drop
+                None
+            }
+        }));
 
-    fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
+        if vars.ans.next_frame.get().is_none() {
+            vars.ans.next_frame.set(Some(Deadline(Instant::now())));
+        }
 
-    fn downgrade(&self) -> Option<Self::Weak> {
-        Some(self.downgrade())
-    }
-
-    fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
-    }
-
-    fn as_ptr(&self) -> *const () {
-        Rc::as_ptr(&self.0) as _
+        handle
     }
 }
-impl<T, V, F> IntoVar<T> for EasingVar<T, V, F>
+
+type AnimationFn = Box<dyn FnMut(&Vars, AnimationUpdateInfo) -> Option<Deadline>>;
+
+#[derive(Clone, Copy)]
+struct AnimationUpdateInfo {
+    animations_enabled: bool,
+    now: Instant,
+    time_scale: Factor,
+    next_frame: Deadline,
+}
+
+pub(super) fn var_animate<T: VarValue>(
+    vars: &Vars,
+    target: &impl Var<T>,
+    mut animate: impl FnMut(&animation::AnimationArgs, &mut VarModifyValue<T>) + 'static,
+) -> AnimationHandle {
+    if !target.capabilities().is_always_read_only() {
+        let target = target.actual_var();
+        if !target.capabilities().is_always_read_only() {
+            let wk_target = target.downgrade();
+            return vars.animate(move |vars, args| {
+                if let Some(target) = wk_target.upgrade() {
+                    // TODO refactor animation to allow using modify here.
+                    let mut value = target.get();
+                    let mut modify = VarModifyValue {
+                        update_id: vars.update_id(),
+                        value: &mut value,
+                        touched: false,
+                    };
+                    animate(args, &mut modify);
+
+                    if modify.touched {
+                        let r = target.set(vars, value);
+
+                        if let Err(VarIsReadOnlyError { .. }) = r {
+                            // var can maybe change to allow write again, but we wipe all animations anyway.
+                            args.stop();
+                        }
+                    }
+                } else {
+                    // target dropped.
+                    args.stop();
+                }
+            });
+        }
+    }
+    AnimationHandle::dummy()
+}
+
+pub(super) fn var_set_ease<T>(
+    start_value: T,
+    end_value: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
 where
     T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
 {
-    type Var = Self;
+    let transition = Transition::new(start_value, end_value);
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
 
-    fn into_var(self) -> Self::Var {
-        self
+        if prev_step != step {
+            *value.get_mut() = transition.sample(step);
+            prev_step = step;
+        }
     }
 }
-impl<T, V, F> any::AnyVar for EasingVar<T, V, F>
+
+pub(super) fn var_set_ease_ne<T>(
+    start_value: T,
+    end_value: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + Transitionable + PartialEq,
+{
+    let transition = Transition::new(start_value, end_value);
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+
+        if prev_step != step {
+            let val = transition.sample(step);
+            if value.get() != &val {
+                *value.get_mut() = val;
+            }
+            prev_step = step;
+        }
+    }
+}
+
+pub(super) fn var_set_ease_keyed<T>(
+    transition: TransitionKeyed<T>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
 where
     T: VarValue + Transitionable,
-    V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + 'static,
 {
-    any_var_impls!(Var);
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+
+        if prev_step != step {
+            *value.get_mut() = transition.sample(step);
+            prev_step = step;
+        }
+    }
+}
+
+pub(super) fn var_set_ease_keyed_ne<T>(
+    transition: TransitionKeyed<T>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    init_step: EasingStep,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + Transitionable + PartialEq,
+{
+    let mut prev_step = init_step;
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+
+        if prev_step != step {
+            let val = transition.sample(step);
+            if value.get() != &val {
+                *value.get_mut() = val;
+            }
+            prev_step = step;
+        }
+    }
+}
+
+pub(super) fn var_step<T>(new_value: T, delay: Duration) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue,
+{
+    let mut new_value = Some(new_value);
+    move |args, value| {
+        if !args.animations_enabled() || args.elapsed_dur() >= delay {
+            args.stop();
+            if let Some(nv) = new_value.take() {
+                *value.get_mut() = nv;
+            }
+        } else {
+            args.sleep(delay);
+        }
+    }
+}
+
+pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + PartialEq,
+{
+    let mut new_value = Some(new_value);
+    move |args, value| {
+        if !args.animations_enabled() || args.elapsed_dur() >= delay {
+            args.stop();
+            if let Some(nv) = new_value.take() {
+                if value.get() != &nv {
+                    *value.get_mut() = nv;
+                }
+            }
+        } else {
+            args.sleep(delay);
+        }
+    }
+}
+
+pub(super) fn var_steps<T: VarValue>(
+    steps: Vec<(Factor, T)>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) {
+    let mut prev_step = 999.fct();
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+        if step != prev_step {
+            prev_step = step;
+            if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
+                *value.get_mut() = val;
+            }
+        }
+    }
+}
+
+pub(super) fn var_steps_ne<T>(
+    steps: Vec<(Factor, T)>,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
+where
+    T: VarValue + PartialEq,
+{
+    let mut prev_step = 999.fct();
+    move |args, value| {
+        let step = easing(args.elapsed_stop(duration));
+        if step != prev_step {
+            prev_step = step;
+            if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
+                if value.get() != &val {
+                    *value.get_mut() = val;
+                }
+            }
+        }
+    }
+}
+
+/// Represents a running chase animation created by [`Var::chase`] or other *chase* animation methods.
+#[derive(Clone, Debug)]
+pub struct ChaseAnimation<T> {
+    /// Underlying animation handle.
+    pub handle: AnimationHandle,
+    pub(super) next_target: Rc<RefCell<ChaseMsg<T>>>,
+}
+impl<T: VarValue> ChaseAnimation<T> {
+    /// Sets a new target value for the easing animation and restarts the time.
+    ///
+    /// The animation will update to lerp between the current variable value to the `new_target`.
+    pub fn reset(&self, new_target: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Replace(new_target);
+    }
+
+    /// Adds `increment` to the current target value for the easing animation and restarts the time.
+    pub fn add(&self, increment: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Add(increment);
+    }
+}
+#[derive(Debug)]
+pub(super) enum ChaseMsg<T> {
+    None,
+    Replace(T),
+    Add(T),
+}
+impl<T> Default for ChaseMsg<T> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+pub(super) fn var_chase<T>(
+    from: T,
+    first_target: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+) -> (
+    impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    Rc<RefCell<ChaseMsg<T>>>,
+)
+where
+    T: VarValue + animation::Transitionable,
+{
+    let mut prev_step = 0.fct();
+    let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+    let mut transition = Transition::new(from, first_target);
+
+    let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut VarModifyValue<T>| {
+        let step = easing(args.elapsed_stop(duration));
+        match mem::take(&mut *next_target.borrow_mut()) {
+            ChaseMsg::Add(inc) => {
+                args.restart();
+                let from = transition.sample(step);
+                transition.start = from.clone();
+                transition.increment += inc;
+                if step != prev_step {
+                    prev_step = step;
+                    *value.get_mut() = from;
+                }
+            }
+            ChaseMsg::Replace(new_target) => {
+                args.restart();
+                let from = transition.sample(step);
+                transition = Transition::new(from.clone(), new_target);
+                if step != prev_step {
+                    prev_step = step;
+                    *value.get_mut() = from;
+                }
+            }
+            ChaseMsg::None => {
+                if step != prev_step {
+                    prev_step = step;
+                    *value.get_mut() = transition.sample(step);
+                }
+            }
+        }
+    });
+
+    (anim, next_target)
+}
+
+pub(super) fn var_chase_bounded<T>(
+    from: T,
+    first_target: T,
+    duration: Duration,
+    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    bounds: ops::RangeInclusive<T>,
+) -> (
+    impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    Rc<RefCell<ChaseMsg<T>>>,
+)
+where
+    T: VarValue + animation::Transitionable + std::cmp::PartialOrd<T>,
+{
+    let mut prev_step = 0.fct();
+    let mut check_linear = !bounds.contains(&first_target);
+    let mut transition = Transition::new(from, first_target);
+
+    let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+
+    let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut VarModifyValue<T>| {
+        let mut time = args.elapsed_stop(duration);
+        let mut step = easing(time);
+        match mem::take(&mut *next_target.borrow_mut()) {
+            // to > bounds
+            // stop animation when linear sampling > bounds
+            ChaseMsg::Add(inc) => {
+                args.restart();
+
+                let partial_inc = transition.increment.clone() * step;
+                let from = transition.start.clone() + partial_inc.clone();
+                let to = from.clone() + transition.increment.clone() - partial_inc + inc;
+
+                check_linear = !bounds.contains(&to);
+
+                transition = Transition::new(from, to);
+
+                step = 0.fct();
+                prev_step = 1.fct();
+                time = EasingTime::start();
+            }
+            ChaseMsg::Replace(new_target) => {
+                args.restart();
+                let from = transition.sample(step);
+
+                check_linear = !bounds.contains(&new_target);
+
+                transition = Transition::new(from, new_target);
+
+                step = 0.fct();
+                prev_step = 1.fct();
+                time = EasingTime::start();
+            }
+            ChaseMsg::None => {
+                // normal execution
+            }
+        }
+
+        if step != prev_step {
+            prev_step = step;
+
+            if check_linear {
+                let linear_sample = transition.sample(time.fct());
+                if &linear_sample > bounds.end() {
+                    args.stop();
+                    *value.get_mut() = bounds.end().clone();
+                    return;
+                } else if &linear_sample < bounds.start() {
+                    args.stop();
+                    *value.get_mut() = bounds.start().clone();
+                    return;
+                }
+            }
+            *value.get_mut() = transition.sample(step);
+        }
+    });
+
+    (anim, next_target)
+}
+
+/// Represents the current *modify* operation when it is applying.
+#[derive(Clone)]
+pub struct AnimateModifyInfo {
+    handle: Option<WeakAnimationHandle>,
+    importance: usize,
+}
+impl AnimateModifyInfo {
+    /// Initial value, is always of lowest importance.
+    pub fn never() -> Self {
+        AnimateModifyInfo {
+            handle: None,
+            importance: 0,
+        }
+    }
+
+    /// Indicates the *override* importance of the operation, when two animations target
+    /// a variable only the newer one must apply, and all running animations are *overridden* by
+    /// a later modify/set operation.
+    ///
+    /// Variables ignore modify requests from lower importance closures.
+    pub fn importance(&self) -> usize {
+        self.importance
+    }
+
+    /// Indicates if the *modify* request was made from inside an animation, if `true` the [`importance`]
+    /// is for that animation, even if the modify request is from the current frame.
+    ///
+    /// You can clone this info to track this animation, when it stops or is dropped this returns `false`. Note
+    /// that *paused* or sleeping animations still count as animating.
+    pub fn is_animating(&self) -> bool {
+        self.handle.as_ref().map(|h| h.upgrade().is_some()).unwrap_or(false)
+    }
 }

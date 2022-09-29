@@ -109,9 +109,9 @@ impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
     fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
         let mut info = FocusInfoBuilder::get(widget);
         if self.is_alt {
-            info.alt_scope(self.is_focus_scope.copy(ctx));
+            info.alt_scope(self.is_focus_scope.get());
         } else {
-            info.scope(self.is_focus_scope.copy(ctx));
+            info.scope(self.is_focus_scope.get());
         }
 
         self.child.info(ctx, widget);
@@ -141,7 +141,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
             let mut info = FocusInfoBuilder::get(widget);
-            info.on_focus(self.behavior.copy(ctx));
+            info.on_focus(self.behavior.get());
             self.child.info(ctx, widget);
         }
 
@@ -173,7 +173,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).tab_nav(self.tab_nav.copy(ctx));
+            FocusInfoBuilder::get(widget).tab_nav(self.tab_nav.get());
             self.child.info(ctx, widget);
         }
 
@@ -205,7 +205,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).directional_nav(self.directional_nav.copy(ctx));
+            FocusInfoBuilder::get(widget).directional_nav(self.directional_nav.get());
             self.child.info(ctx, widget);
         }
 
@@ -237,7 +237,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            let s = self.shortcuts.get_clone(ctx);
+            let s = self.shortcuts.get();
             self.handle = Some(Gestures::req(ctx.services).focus_shortcut(s, ctx.path.widget_id()));
         }
 
@@ -279,7 +279,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).skip_directional(self.enabled.copy(ctx));
+            FocusInfoBuilder::get(widget).skip_directional(self.enabled.get());
 
             self.child.info(ctx, widget);
         }
@@ -503,7 +503,7 @@ pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
-            if self.enabled.copy(ctx) {
+            if self.enabled.get() {
                 Focus::req(ctx.services).focus_widget_or_related(ctx.path.widget_id(), false);
             }
         }

@@ -1028,7 +1028,7 @@ pub fn focused_removed_by_deleting() {
     let buttons = widgets! {
         button! { content = text("Button 0") },
         view(exist.clone(), NilUiNode.boxed(), move |ctx, exist| {
-            if exist.copy(ctx) {
+            if exist.get() {
                 View::Update(button! { id = button1_id; content = text("Button 1") }.boxed())
             } else {
                 View::Update(NilUiNode.boxed())
@@ -1120,7 +1120,7 @@ pub fn focus_continued_after_widget_id_move() {
         do_move_id.clone(),
         blank! { focusable = true; id; }.boxed(),
         move |ctx, do_move_id| {
-            if do_move_id.copy(ctx) {
+            if do_move_id.get() {
                 View::Update({
                     container! {
                         id = "some_other_place";

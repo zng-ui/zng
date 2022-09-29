@@ -271,7 +271,7 @@ pub fn foreground_highlight(
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
-            frame.push_border(self.render_bounds, self.render_widths, self.sides.copy(ctx), self.render_radius);
+            frame.push_border(self.render_bounds, self.render_widths, self.sides.get(), self.render_radius);
         }
     }
     ForegroundHighlightNode {
@@ -399,7 +399,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let bounds = self.child.layout(ctx, wl);
 
-            if self.clip.copy(ctx) {
+            if self.clip.get() {
                 let corners = ContextBorders::border_radius(ctx);
                 if corners != self.corners {
                     self.corners = corners;
@@ -411,7 +411,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if self.clip.copy(ctx) {
+            if self.clip.get() {
                 let bounds = PxRect::from_size(ctx.widget_info.bounds.inner_size());
 
                 if self.corners != PxCornerRadius::zero() {

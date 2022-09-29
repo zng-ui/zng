@@ -1,9 +1,5 @@
 # Var/Update Rewrite
 
-* Implement delivery-list for update requests.
-    - Use it in new var API.
-    - Add the current updates list to `UiNode::update` ?
-
 * !! Remove old var, rename `var2`, rewrite everything.
     - Use contextualized constructors in proc-macros.
     - Remove "is_rc" stuff from proc-macros.
@@ -16,6 +12,8 @@
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.
 
+* `Var::display` like `Path::display`,  for easy formatting.
+* Review `VarCapabilities` variant names.
 * Review `unsafe`, only use when there is no alternative.
 
 * Implement event handlers using a callback in the event that queues the handlers to run once. 

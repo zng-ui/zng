@@ -159,7 +159,7 @@ impl Config {
                     ConfigSourceUpdate::RefreshAll => read_all = true,
                     ConfigSourceUpdate::InternalError(e) => {
                         self.status.modify(vars, move |mut s| {
-                            s.set_internal_error(e);
+                            s.get_mut().set_internal_error(e);
                         });
                     }
                 }
@@ -223,7 +223,7 @@ impl Config {
 
     /// Gets a variable that tracks the source write tasks.
     pub fn status(&self) -> ReadOnlyRcVar<ConfigStatus> {
-        self.status.clone().into_read_only()
+        self.status.read_only()
     }
 
     /// Remove any errors set in the [`status`].
@@ -232,7 +232,8 @@ impl Config {
     pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
         vars.with_vars(|vars| {
             self.status.modify(vars, |mut s| {
-                if s.has_errors() {
+                if s.get().has_errors() {
+                    let s = s.get_mut();
                     s.read_error = None;
                     s.write_error = None;
                     s.internal_error = None;
@@ -282,7 +283,7 @@ impl Config {
                         }
                         Err(e) => {
                             status.modify(vars, move |mut s| {
-                                s.set_read_error(e);
+                                s.get_mut().set_read_error(e);
                             });
 
                             let respond = respond.take().unwrap();
@@ -323,9 +324,9 @@ impl Config {
 
                     self.once_tasks.push(Box::new(move |vars, _| {
                         var.modify(vars, move |mut v| {
-                            if v.value != value {
-                                v.value = value;
-                                v.write.set(false);
+                            if v.get().value != value {
+                                v.get_mut().value = value;
+                                v.get().write.set(false);
                             }
                         });
                     }));
@@ -355,7 +356,7 @@ impl Config {
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
-                        status.modify(vars, move |mut s| s.set_write_error(ConfigError::new(e)));
+                        status.modify(vars, move |mut s| s.get_mut().set_write_error(ConfigError::new(e)));
                     }));
                     let _ = self.update.send_ext_update();
                 }
@@ -385,6 +386,7 @@ impl Config {
             if finished {
                 let r = task.take().unwrap().into_result().unwrap();
                 status.modify(vars, move |mut s| {
+                    let s = s.get_mut();
                     s.pending -= count;
                     if let Err(e) = r {
                         s.set_write_error(e);
@@ -393,7 +395,7 @@ impl Config {
             } else if count == 0 {
                 // first try, add pending.
                 count = 1;
-                status.modify(vars, |mut s| s.pending += 1);
+                status.modify(vars, |mut s| s.get_mut().pending += 1);
             }
 
             !finished
@@ -432,34 +434,43 @@ impl Config {
         key: K,
         default_value: D,
         target: &V,
-    ) -> VarBindingHandle {
+    ) -> [VarHandle; 2] {
         let source = self.var_with_source(key.into(), default_value);
-        vars.with_vars(|vars| {
-            if let Some(target) = target.actual_var(vars).downgrade() {
-                vars.bind(move |vars, binding| {
-                    if let Some(target) = target.upgrade() {
-                        if let Some(v) = source.get_new(vars) {
-                            // source updated, notify
-                            let _ = target.set_ne(vars, v.value.clone());
-                        }
-                        if let Some(value) = target.clone_new(vars) {
-                            // user updated, write
-                            source.modify(vars, move |mut v| {
-                                if v.value != value {
-                                    Cell::set(&v.write, true);
-                                    v.value = value;
+        let target = target.actual_var();
+        let wk_target = target.downgrade();
+        if target.strong_count() > 0 {
+            let source_to_target = source.hook(Box::new(move |vars, _, value| {
+                if let Some(target) = wk_target.upgrade() {
+                    let v = value.as_any().downcast_ref::<ValueWithSource<T>>().unwrap();
+                    target.set_ne(vars, v.value.clone()).is_ok()
+                } else {
+                    false
+                }
+            }));
+
+            let wk_source = source.downgrade();
+            let target_to_source = target.hook(Box::new(move |vars, _, value| {
+                if let Some(source) = wk_source.upgrade() {
+                    if let Some(value) = value.as_any().downcast_ref::<T>().cloned() {
+                        source
+                            .modify(vars, move |val| {
+                                if val.get().value != value {
+                                    val.get_mut().value = value;
+                                    val.get().write.set(true);
                                 }
-                            });
-                        }
-                    } else {
-                        // dropped target, drop binding
-                        binding.unbind();
+                            })
+                            .unwrap();
                     }
-                })
-            } else {
-                VarBindingHandle::dummy()
-            }
-        })
+                    true
+                } else {
+                    false
+                }
+            }));
+
+            [source_to_target, target_to_source]
+        } else {
+            [VarHandle::dummy(), VarHandle::dummy()]
+        }
     }
 
     fn var_with_source<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<ValueWithSource<T>> {
@@ -496,12 +507,12 @@ impl Config {
         let (key, var) = refresh;
         let value = self.read::<_, T>(key);
         self.tasks.push(Box::new(move |vars, _| {
-            if let Some(rsp) = value.rsp_clone(vars) {
+            if let Some(rsp) = value.rsp() {
                 if let Some(value) = rsp {
                     var.modify(vars, move |mut v| {
-                        if v.value != value {
-                            v.value = value;
-                            v.write.set(false);
+                        if v.get().value != value {
+                            v.get_mut().value = value;
+                            v.get().write.set(false);
                         }
                     });
                 }
@@ -602,7 +613,7 @@ impl ConfigAlt {
         key: K,
         default_value: D,
         target: &V,
-    ) -> VarBindingHandle {
+    ) -> [VarHandle; 2] {
         Config::bind(&mut *self.0.borrow_mut(), vars, key, default_value, target)
     }
 }
@@ -636,7 +647,7 @@ impl ConfigVar {
             write: write.clone(),
         });
         let r = ConfigVar {
-            var: var.downgrade().into_any(),
+            var: Box::new(var.downgrade()),
             write,
             run_task: Box::new(ConfigVar::run_task_impl::<T>),
         };
@@ -646,7 +657,7 @@ impl ConfigVar {
     /// Returns var and if it needs to write.
     fn upgrade(&mut self, vars: &Vars) -> Option<(Box<dyn AnyVar>, bool)> {
         self.var.upgrade_any().map(|v| {
-            let write = self.write.get() && v.is_new_any(vars);
+            let write = self.write.get() && v.last_update() == vars.update_id();
             (v, write)
         })
     }
@@ -671,9 +682,9 @@ impl ConfigVar {
                         config.read_raw::<T, _>(key, move |vars, value| {
                             if let Some(value) = value {
                                 var.modify(vars, move |mut v| {
-                                    if v.value != value {
-                                        v.value = value;
-                                        v.write.set(false);
+                                    if v.get().value != value {
+                                        v.get_mut().value = value;
+                                        v.get().write.set(false);
                                     }
                                 });
                             }
@@ -682,7 +693,7 @@ impl ConfigVar {
                 }
                 ConfigVarTask::Write => {
                     let key = args.key.clone();
-                    let value = var.get_clone(args.vars).value;
+                    let value = var.get().value;
                     Box::new(move |config| {
                         config.write_source(key, value);
                     })

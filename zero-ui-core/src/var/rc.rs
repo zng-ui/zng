@@ -1,266 +1,94 @@
-use std::{
-    cell::{Cell, RefCell, UnsafeCell},
-    rc::{Rc, Weak},
-};
+use std::rc::{Rc, Weak};
 
-use crate::crate_util::RunOnDrop;
-use crate::widget_info::UpdateSlot;
+use super::{animation::AnimateModifyInfo, *};
 
-use super::{animation::WeakAnimationHandle, *};
-
-/// A [`Var`] that is a [`Rc`] pointer to its value.
-pub struct RcVar<T: VarValue>(Rc<Data<T>>);
 struct Data<T> {
-    value: UnsafeCell<T>,
-    modifying: Cell<bool>,
-    animation: RefCell<(Option<WeakAnimationHandle>, u32)>,
-    last_update_id: Cell<u32>,
-    version: Cell<u32>,
-    update_slot: UpdateSlot,
-}
-impl<T: Clone> Clone for Data<T> {
-    fn clone(&self) -> Self {
-        if self.modifying.get() {
-            panic!("cannot `deep_clone`, value is mutable borrowed")
-        }
-        // SAFETY: we panic if `value` is exclusive borrowed.
-        let value = unsafe { (*self.value.get()).clone() };
-        Data {
-            value: UnsafeCell::new(value),
-            modifying: Cell::new(false),
-            animation: RefCell::new((None, 0)),
-            last_update_id: Cell::new(self.last_update_id.get()),
-            version: Cell::new(self.version.get()),
-            update_slot: self.update_slot,
-        }
-    }
-}
-impl<T: VarValue> RcVar<T> {
-    /// New [`RcVar`].
-    ///
-    /// You can also use the [`var`] function to initialize.
-    pub fn new(initial_value: T) -> Self {
-        RcVar(Rc::new(Data {
-            value: UnsafeCell::new(initial_value),
-            modifying: Cell::new(false),
-            animation: RefCell::new((None, 0)),
-            last_update_id: Cell::new(0),
-            version: Cell::new(0),
-            update_slot: UpdateSlot::next(),
-        }))
-    }
-
-    /// Schedule a value modification for this variable.
-    pub fn modify<Vw, M>(&self, vars: &Vw, modify: M)
-    where
-        Vw: WithVars,
-        M: FnOnce(VarModify<T>) + 'static,
-    {
-        vars.with_vars(|vars| {
-            let self_ = self.clone();
-            let (animation, started_in) = vars.current_animation();
-            vars.push_change(self_, move |self_, update_id| {
-                let mut prev_animation = self_.0.animation.borrow_mut();
-
-                if prev_animation.1 > started_in {
-                    // change caused by overwritten animation.
-                    return UpdateMask::none();
-                }
-
-                self_.0.modifying.set(true);
-                let _drop = RunOnDrop::new(|| self_.0.modifying.set(false));
-
-                // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-                // the `modifying` flag is only used for `deep_clone`.
-                let mut touched = false;
-                modify(VarModify::new(unsafe { &mut *self_.0.value.get() }, &mut touched));
-                if touched {
-                    self_.0.last_update_id.set(update_id);
-                    self_.0.version.set(self_.0.version.get().wrapping_add(1));
-
-                    *prev_animation = (animation, started_in);
-
-                    self_.0.update_slot.mask()
-                } else {
-                    UpdateMask::none()
-                }
-            });
-        })
-    }
-
-    /// Causes the variable to notify update without changing the value.
-    pub fn touch<Vw: WithVars>(&self, vars: &Vw) {
-        self.modify(vars, |mut v| v.touch());
-    }
-
-    /// Schedule a new value for this variable.
-    pub fn set<Vw, N>(&self, vars: &Vw, new_value: N)
-    where
-        Vw: WithVars,
-        N: Into<T>,
-    {
-        let new_value = new_value.into();
-        self.modify(vars, move |mut v| *v = new_value)
-    }
-
-    /// Schedule a new value for this variable, the variable will only be set if
-    /// the value is not equal to `new_value`.
-    pub fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> bool
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        T: PartialEq,
-    {
-        vars.with_vars(|vars| {
-            let new_value = new_value.into();
-            if self.get(vars) != &new_value {
-                self.set(vars, new_value);
-                true
-            } else {
-                false
-            }
-        })
-    }
-
-    /// Returns a weak reference to the variable.
-    pub fn downgrade(&self) -> WeakRcVar<T> {
-        WeakRcVar(Rc::downgrade(&self.0))
-    }
-
-    /// Create a detached var with a clone of the current value.
-    ///
-    /// # Panics
-    ///
-    /// Panics is called inside a [`modify`] callback.
-    ///
-    /// [`modify`]: Self::modify
-    pub fn deep_clone(&self) -> RcVar<T> {
-        let mut rc = Rc::clone(&self.0);
-        let _ = Rc::make_mut(&mut rc);
-        RcVar(rc)
-    }
-}
-impl<T: VarValue> Clone for RcVar<T> {
-    fn clone(&self) -> Self {
-        RcVar(Rc::clone(&self.0))
-    }
-}
-impl<T: VarValue + Default> Default for RcVar<T> {
-    fn default() -> Self {
-        var(T::default())
-    }
+    value: T,
+    last_update: VarUpdateId,
+    hooks: Vec<VarHook>,
+    animation: AnimateModifyInfo,
 }
 
-/// New [`RcVar`].
-pub fn var<T: VarValue>(value: T) -> RcVar<T> {
-    RcVar::new(value)
-}
-
-/// New [`RcVar`] from any value that converts to `T`.
-pub fn var_from<T: VarValue, I: Into<T>>(value: I) -> RcVar<T> {
-    RcVar::new(value.into())
-}
-
-/// New [`RcVar`] with [default] initial value.
+/// Reference counted read/write variable.
 ///
-/// [default]: Default
-pub fn var_default<T: VarValue + Default>() -> RcVar<T> {
-    RcVar::new(T::default())
+/// This is the primary variable type, it can be instantiated using the [`var`] and [`var_from`] functions.
+#[derive(Clone)]
+pub struct RcVar<T: VarValue>(Rc<RefCell<Data<T>>>);
+
+/// Weak reference to a [`RcVar<T>`].
+#[derive(Clone)]
+pub struct WeakRcVar<T: VarValue>(Weak<RefCell<Data<T>>>);
+
+/// New ref counted read/write variable with initial `value`.
+pub fn var<T: VarValue>(value: T) -> RcVar<T> {
+    RcVar(Rc::new(RefCell::new(Data {
+        value,
+        last_update: VarUpdateId::never(),
+        hooks: vec![],
+        animation: AnimateModifyInfo::never(),
+    })))
 }
 
-/// A weak reference to a [`RcVar`].
-pub struct WeakRcVar<T: VarValue>(Weak<Data<T>>);
-impl<T: VarValue> crate::private::Sealed for WeakRcVar<T> {}
-impl<T: VarValue> Clone for WeakRcVar<T> {
-    fn clone(&self) -> Self {
-        WeakRcVar(self.0.clone())
+/// New ref counted read/write variable with initial value converted from `source`.
+pub fn var_from<T: VarValue, U: Into<T>>(source: U) -> RcVar<T> {
+    var(source.into())
+}
+
+impl<T: VarValue> WeakRcVar<T> {
+    /// New reference to nothing.
+    pub fn new() -> Self {
+        Self(Weak::new())
     }
 }
-impl<T: VarValue> any::AnyWeakVar for WeakRcVar<T> {
-    any_var_impls!(WeakVar);
-}
-impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
-    type Strong = RcVar<T>;
 
-    fn upgrade(&self) -> Option<Self::Strong> {
-        self.0.upgrade().map(RcVar)
-    }
-
-    fn strong_count(&self) -> usize {
-        self.0.strong_count()
-    }
-
-    fn weak_count(&self) -> usize {
-        self.0.weak_count()
-    }
-
-    fn as_ptr(&self) -> *const () {
-        self.0.as_ptr() as *const ()
+impl<T: VarValue> Default for WeakRcVar<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl<T: VarValue> crate::private::Sealed for RcVar<T> {}
-impl<T: VarValue> Var<T> for RcVar<T> {
-    type AsReadOnly = types::ReadOnlyVar<T, Self>;
-    type Weak = WeakRcVar<T>;
 
-    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
-        let _vars = vars.as_ref();
-        // SAFETY: this is safe because we are tying the `Vars` lifetime to the value
-        // and we require `&mut Vars` to modify the value.
-        unsafe { &*self.0.value.get() }
+impl<T: VarValue> crate::private::Sealed for WeakRcVar<T> {}
+
+impl<T: VarValue> AnyVar for RcVar<T> {
+    fn clone_any(&self) -> BoxedAnyVar {
+        Box::new(self.clone())
     }
 
-    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
-        let vars = vars.as_ref();
-        if self.0.last_update_id.get() == vars.update_id() {
-            Some(self.get(vars))
-        } else {
-            None
-        }
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
-    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
-        match Rc::try_unwrap(self.0) {
-            Ok(v) => v.value.into_inner(),
-            Err(v) => RcVar(v).get_clone(vars),
-        }
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
     }
 
-    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.0.last_update_id.get() == vars.update_id())
+    fn var_type_id(&self) -> TypeId {
+        TypeId::of::<T>()
     }
 
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|_| VarVersion::normal(self.0.version.get()))
+    fn get_any(&self) -> Box<dyn AnyVarValue> {
+        Box::new(self.get())
     }
 
-    fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
-        false
+    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(vars, var_set_any(value))
     }
 
-    fn is_animating<Vr: WithVarsRead>(&self, _: &Vr) -> bool {
-        self.0.animation.borrow().0.as_ref().and_then(|w| w.upgrade()).is_some()
+    fn last_update(&self) -> VarUpdateId {
+        self.0.borrow().last_update
     }
 
-    fn always_read_only(&self) -> bool {
-        false
+    fn capabilities(&self) -> VarCapabilities {
+        VarCapabilities::MODIFY
     }
 
-    fn can_update(&self) -> bool {
-        true
-    }
-
-    fn is_contextual(&self) -> bool {
-        false
-    }
-
-    fn actual_var<Vw: WithVars>(&self, _: &Vw) -> BoxedVar<T> {
-        self.clone().boxed()
-    }
-
-    fn downgrade(&self) -> Option<Self::Weak> {
-        Some(self.downgrade())
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+        let (hook, weak) = VarHandle::new(pos_modify_action);
+        self.0.borrow_mut().hooks.push(weak);
+        hook
     }
 
     fn strong_count(&self) -> usize {
@@ -271,49 +99,37 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         Rc::weak_count(&self.0)
     }
 
-    fn as_ptr(&self) -> *const () {
-        Rc::as_ptr(&self.0) as _
+    fn actual_var_any(&self) -> BoxedAnyVar {
+        Box::new(self.clone())
     }
 
-    fn is_rc(&self) -> bool {
-        true
+    fn downgrade_any(&self) -> BoxedAnyWeakVar {
+        Box::new(WeakRcVar(Rc::downgrade(&self.0)))
     }
 
-    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        M: FnOnce(VarModify<T>) + 'static,
-    {
-        self.modify(vars, modify);
-        Ok(())
-    }
-
-    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-    {
-        self.set(vars, new_value);
-        Ok(())
-    }
-
-    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        T: PartialEq,
-    {
-        Ok(self.set_ne(vars, new_value))
-    }
-
-    fn into_read_only(self) -> Self::AsReadOnly {
-        types::ReadOnlyVar::new(self)
-    }
-
-    fn update_mask<Vr: WithVarsRead>(&self, _: &Vr) -> UpdateMask {
-        self.0.update_slot.mask()
+    fn is_animating(&self) -> bool {
+        self.0.borrow().animation.is_animating()
     }
 }
+
+impl<T: VarValue> AnyWeakVar for WeakRcVar<T> {
+    fn clone_any(&self) -> BoxedAnyWeakVar {
+        Box::new(self.clone())
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn upgrade_any(&self) -> Option<BoxedAnyVar> {
+        self.0.upgrade().map(|rc| Box::new(RcVar(rc)) as _)
+    }
+}
+
 impl<T: VarValue> IntoVar<T> for RcVar<T> {
     type Var = Self;
 
@@ -321,279 +137,82 @@ impl<T: VarValue> IntoVar<T> for RcVar<T> {
         self
     }
 }
-impl<T: VarValue> any::AnyVar for RcVar<T> {
-    any_var_impls!(Var);
-}
 
-/// New [`StateVar`].
-pub fn state_var() -> StateVar {
-    var(false)
-}
+impl<T: VarValue> RcVar<T> {
+    fn modify_impl(&self, vars: &Vars, modify: impl FnOnce(&mut VarModifyValue<T>) + 'static) -> Result<(), VarIsReadOnlyError> {
+        let me = self.clone();
+        vars.schedule_update(Box::new(move |vars, updates| {
+            let mut data = me.0.borrow_mut();
+            let data = &mut *data;
 
-/// Variable type of state properties (`is_*`).
-///
-/// State variables are `bool` probes that are set by the property.
-///
-/// Use [`state_var`] to init.
-pub type StateVar = RcVar<bool>;
-
-/// New paired [`ResponderVar`] and [`ResponseVar`] in the waiting state.
-pub fn response_var<T: VarValue>() -> (ResponderVar<T>, ResponseVar<T>) {
-    let responder = var(Response::Waiting::<T>);
-    let response = responder.clone().into_read_only();
-    (responder, response)
-}
-
-/// New [`ResponseVar`] in the done state.
-pub fn response_done_var<T: VarValue>(response: T) -> ResponseVar<T> {
-    var(Response::Done(response)).into_read_only()
-}
-
-/// Variable used to notify the completion of an UI operation.
-///
-/// Use [`response_var`] to init.
-pub type ResponderVar<T> = RcVar<Response<T>>;
-
-/// Variable used to listen to a one time signal that an UI operation has completed.
-///
-/// Use [`response_var`] or [`response_done_var`] to init.
-pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, RcVar<Response<T>>>;
-
-/// Raw value in a [`ResponseVar`] or [`ResponseSender`].
-#[derive(Clone, Copy)]
-pub enum Response<T: VarValue> {
-    /// Responder has not set the response yet.
-    Waiting,
-    /// Responder has set the response.
-    Done(T),
-}
-impl<T: VarValue> fmt::Debug for Response<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            match self {
-                Response::Waiting => {
-                    write!(f, "Response::Waiting")
-                }
-                Response::Done(v) => f.debug_tuple("Response::Done").field(v).finish(),
+            let curr_anim = vars.current_animation();
+            if curr_anim.importance() < data.animation.importance() {
+                return;
             }
-        } else {
-            match self {
-                Response::Waiting => {
-                    write!(f, "Waiting")
-                }
-                Response::Done(v) => fmt::Debug::fmt(v, f),
+
+            data.animation = curr_anim;
+
+            let mut value = VarModifyValue {
+                update_id: vars.update_id(),
+                value: &mut data.value,
+                touched: false,
+            };
+            modify(&mut value);
+            if value.touched {
+                data.last_update = value.update_id;
+                data.hooks.retain(|h| h.call(vars, updates, &data.value))
             }
-        }
+        }));
+        Ok(())
     }
 }
 
-impl<T: VarValue> ResponseVar<T> {
-    /// References the response value if a response was set.
-    pub fn rsp<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> Option<&'a T> {
-        match self.get(vars) {
-            Response::Waiting => None,
-            Response::Done(r) => Some(r),
+impl<T: VarValue> Var<T> for RcVar<T> {
+    type ReadOnly = types::ReadOnlyVar<T, Self>;
+
+    type ActualVar = Self;
+
+    type Downgrade = WeakRcVar<T>;
+
+    fn with<R, F>(&self, read: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        read(&self.0.borrow().value)
+    }
+
+    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    where
+        V: WithVars,
+        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+    {
+        vars.with_vars(move |vars| self.modify_impl(vars, modify))
+    }
+
+    fn actual_var(&self) -> Self {
+        self.clone()
+    }
+
+    fn downgrade(&self) -> WeakRcVar<T> {
+        WeakRcVar(Rc::downgrade(&self.0))
+    }
+
+    fn into_value(self) -> T {
+        match Rc::try_unwrap(self.0) {
+            Ok(data) => data.into_inner().value,
+            Err(rc) => Self(rc).get(),
         }
     }
 
-    /// Returns a future that awaits until a response is received.
-    ///
-    /// Note that you must call [`rsp`] after this to get the response.
-    ///
-    /// [`rsp`]: Self::rsp
-    pub async fn wait_rsp<Vr: WithVars>(&self, vars: &Vr) {
-        while vars.with_vars(|v| self.rsp(v).is_none()) {
-            self.wait_new(vars).await;
-        }
-    }
-
-    /// References the response value if a response was set for this update.
-    pub fn rsp_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
-        if let Some(new) = self.get_new(vars) {
-            match new {
-                Response::Waiting => None,
-                Response::Done(r) => Some(r),
-            }
-        } else {
-            None
-        }
-    }
-
-    /// If the variable contains a response.
-    pub fn responded<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| self.rsp(vars).is_some())
-    }
-
-    /// Copy the response value if a response was set.
-    pub fn rsp_copy<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T>
-    where
-        T: Copy,
-    {
-        vars.with_vars_read(|vars| self.rsp(vars).copied())
-    }
-
-    /// Returns a future that awaits until a response is received, returns a copy of the response.
-    pub async fn wait_rsp_copy<Vw: WithVars>(&self, vars: &Vw) -> T
-    where
-        T: Copy,
-    {
-        loop {
-            if let Some(v) = vars.with_vars(|v| self.rsp_copy(v)) {
-                return v;
-            }
-            self.wait_new(vars).await;
-        }
-    }
-
-    /// Add a `handler` that is called once when the response is received,
-    /// the handler is called before all other UI updates.
-    ///
-    /// If the variable is already [`responded`] it is [touched] to cause the handler to run on the next update.
-    ///
-    /// [touched]: Var::touch
-    /// [`responded`]: Self::responded
-    pub fn on_pre_rsp<Vw, H>(&self, vars: &Vw, mut handler: H) -> OnVarHandle
-    where
-        Vw: WithVars,
-        H: AppHandler<T> + crate::handler::marker::OnceHn,
-    {
-        vars.with_vars(move |vars| {
-            if self.responded(vars) {
-                let _ = self.touch(vars);
-            }
-            self.on_pre_new(
-                vars,
-                app_hn!(|ctx, args, handler_args| {
-                    if let Response::Done(value) = args {
-                        handler.event(
-                            ctx,
-                            value,
-                            &crate::handler::AppHandlerArgs {
-                                handle: handler_args,
-                                is_preview: true,
-                            },
-                        )
-                    }
-                }),
-            )
-        })
-    }
-
-    /// Add a `handler` that is called once when the response is received,
-    /// the handler is called after all other UI updates.
-    ///
-    /// If the variable is already [`responded`] it is [touched] to cause the handler to run on the next update.
-    ///
-    /// [touched]: Var::touch
-    /// [`responded`]: Self::responded
-    pub fn on_rsp<Vw, H>(&self, vars: &Vw, mut handler: H) -> OnVarHandle
-    where
-        Vw: WithVars,
-        H: AppHandler<T> + crate::handler::marker::OnceHn,
-    {
-        vars.with_vars(move |vars| {
-            if self.responded(vars) {
-                let _ = self.touch(vars);
-            }
-            self.on_new(
-                vars,
-                app_hn!(|ctx, args, handler_args| {
-                    if let Response::Done(value) = args {
-                        handler.event(
-                            ctx,
-                            value,
-                            &crate::handler::AppHandlerArgs {
-                                handle: handler_args,
-                                is_preview: false,
-                            },
-                        )
-                    }
-                }),
-            )
-        })
-    }
-
-    /// Clone the response value if a response was set.
-    pub fn rsp_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T> {
-        vars.with_vars_read(|vars| self.rsp(vars).cloned())
-    }
-
-    /// Returns a future that awaits until a response is received, returns a clone of the response.
-    pub async fn wait_rsp_clone<Vw: WithVars>(&self, vars: &Vw) -> T {
-        loop {
-            if let Some(v) = vars.with_vars(|v| self.rsp_clone(v)) {
-                return v;
-            }
-            self.wait_new(vars).await;
-        }
-    }
-
-    /// Copy the response value if a response was set for this update.
-    pub fn rsp_new_copy<Vw: WithVars>(self, vars: &Vw) -> Option<T>
-    where
-        T: Copy,
-    {
-        vars.with_vars(|vars| self.rsp_new(vars).copied())
-    }
-
-    /// Clone the response value if a response was set for this update.
-    pub fn rsp_new_clone<Vw: WithVars>(self, vars: &Vw) -> Option<T> {
-        vars.with_vars(|vars| self.rsp_new(vars).cloned())
-    }
-
-    /// If the variable has responded returns the response value or a clone of it if `self` is not the only reference to the response.
-    /// If the variable has **not** responded returns `self` in the error.
-    pub fn try_into_rsp<Vr: WithVarsRead>(self, vars: &Vr) -> Result<T, Self> {
-        vars.with_vars_read(|vars| {
-            if self.responded(vars) {
-                match self.into_value(vars) {
-                    Response::Done(r) => Ok(r),
-                    Response::Waiting => unreachable!(),
-                }
-            } else {
-                Err(self)
-            }
-        })
-    }
-
-    /// Map the response value using `map`, if the variable is awaiting a response uses the `waiting_value` first.
-    pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> impl Var<O>
-    where
-        O: VarValue,
-        I: FnOnce() -> O + 'static,
-        M: FnOnce(&T) -> O + 'static,
-    {
-        let mut map = Some(map);
-        self.filter_map(
-            move |_| waiting_value(),
-            move |r| match r {
-                Response::Waiting => None,
-                Response::Done(r) => map.take().map(|m| m(r)),
-            },
-        )
+    fn read_only(&self) -> Self::ReadOnly {
+        types::ReadOnlyVar::new(self.clone())
     }
 }
 
-impl<T: VarValue> ResponderVar<T> {
-    /// Sets the one time response.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the variable is already in the done state.
-    pub fn respond<'a, Vw: WithVars>(&'a self, vars: &'a Vw, response: T) {
-        vars.with_vars(|vars| {
-            if let Response::Done(_) = self.get(vars) {
-                panic!("already responded");
-            }
-            self.set(vars, Response::Done(response));
-        })
-    }
+impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
+    type Upgrade = RcVar<T>;
 
-    /// Creates a [`ResponseVar`] linked to this responder.
-    pub fn response_var(&self) -> ResponseVar<T> {
-        self.clone().into_read_only()
+    fn upgrade(&self) -> Option<RcVar<T>> {
+        self.0.upgrade().map(|rc| RcVar(rc))
     }
 }
-
-/// A [`ReadOnlyVar`](types::ReadOnlyVar) wrapping an [`RcVar`].
-pub type ReadOnlyRcVar<T> = types::ReadOnlyVar<T, RcVar<T>>;

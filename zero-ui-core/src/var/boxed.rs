@@ -3,310 +3,180 @@ use super::*;
 /// A dynamic [`Var<T>`] in a box.
 pub type BoxedVar<T> = Box<dyn VarBoxed<T>>;
 
-/// A dynamic [`WeakVar<T>`] in a box.
+/// Represents a weak reference to a [`Var<T>`].
 pub type BoxedWeakVar<T> = Box<dyn WeakVarBoxed<T>>;
 
-#[doc(hidden)]
-pub trait WeakVarBoxed<T: VarValue>: crate::private::Sealed {
-    fn upgrade_boxed(&self) -> Option<BoxedVar<T>>;
-    fn strong_count_boxed(&self) -> usize;
-    fn weak_count_boxed(&self) -> usize;
-    fn as_ptr_boxed(&self) -> *const ();
-    fn clone_boxed(&self) -> BoxedWeakVar<T>;
-}
-impl<T: VarValue, W: WeakVar<T>> WeakVarBoxed<T> for W {
-    fn upgrade_boxed(&self) -> Option<BoxedVar<T>> {
-        self.upgrade().map(|w| w.boxed())
-    }
+/// Represents a type erased [`Var<T>`].
+pub type BoxedAnyVar = Box<dyn AnyVar>;
 
-    fn strong_count_boxed(&self) -> usize {
-        self.strong_count()
-    }
+/// Represents a type erased weak reference to a [`Var<T>`].
+pub type BoxedAnyWeakVar = Box<dyn AnyWeakVar>;
 
-    fn weak_count_boxed(&self) -> usize {
-        self.weak_count()
-    }
-
-    fn as_ptr_boxed(&self) -> *const () {
-        self.as_ptr()
-    }
-
-    fn clone_boxed(&self) -> BoxedWeakVar<T> {
-        self.clone().boxed()
-    }
-}
 impl<T: VarValue> Clone for BoxedWeakVar<T> {
     fn clone(&self) -> Self {
-        self.as_ref().clone_boxed()
+        self.clone_boxed()
     }
 }
-impl<T: VarValue> crate::private::Sealed for BoxedWeakVar<T> {}
-impl<T: VarValue> WeakVar<T> for BoxedWeakVar<T> {
-    type Strong = BoxedVar<T>;
 
-    fn boxed(self) -> BoxedWeakVar<T>
-    where
-        Self: WeakVarBoxed<T> + Sized,
-    {
-        self
-    }
-
-    fn upgrade(&self) -> Option<Self::Strong> {
-        self.as_ref().upgrade_boxed()
-    }
-
-    fn strong_count(&self) -> usize {
-        self.as_ref().strong_count_boxed()
-    }
-
-    fn weak_count(&self) -> usize {
-        self.as_ref().weak_count_boxed()
-    }
-
-    fn as_ptr(&self) -> *const () {
-        self.as_ref().as_ptr_boxed()
+impl Clone for BoxedAnyVar {
+    fn clone(&self) -> Self {
+        self.clone_any()
     }
 }
-impl<T: VarValue> AnyWeakVar for BoxedWeakVar<T> {
-    any_var_impls!(WeakVar);
+
+impl Clone for BoxedAnyWeakVar {
+    fn clone(&self) -> Self {
+        self.clone_any()
+    }
 }
 
 #[doc(hidden)]
-pub trait VarBoxed<T: VarValue>: crate::private::Sealed {
-    fn get_boxed<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
-    fn get_new_boxed<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
-    fn is_new_boxed(&self, vars: &Vars) -> bool;
-    fn version_boxed<'a>(&'a self, vars: &'a VarsRead) -> VarVersion;
-    fn is_read_only_boxed(&self, vars: &Vars) -> bool;
-    fn is_animating_boxed(&self, vars: &VarsRead) -> bool;
-    fn into_value_boxed(self: Box<Self>, vars: &VarsRead) -> T;
-    fn always_read_only_boxed(&self) -> bool;
-    fn is_contextual_boxed(&self) -> bool;
-    fn actual_var_boxed(&self, vars: &Vars) -> BoxedVar<T>;
-    fn can_update_boxed(&self) -> bool;
-    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(VarModify<T>)>) -> Result<(), VarIsReadOnly>;
-    fn set_boxed(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
+pub trait VarBoxed<T: VarValue>: AnyVar {
     fn clone_boxed(&self) -> BoxedVar<T>;
-    fn strong_count_boxed(&self) -> usize;
-    fn update_mask_boxed(&self, vars: &VarsRead) -> UpdateMask;
-    fn is_rc_boxed(&self) -> bool;
-    fn downgrade_boxed(&self) -> Option<BoxedWeakVar<T>>;
-    fn weak_count_boxed(&self) -> usize;
-    fn as_ptr_boxed(&self) -> *const ();
+    fn with_boxed(&self, read: &mut dyn FnMut(&T));
+    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModifyValue<T>)>) -> Result<(), VarIsReadOnlyError>;
+    fn actual_var_boxed(&self) -> BoxedVar<T>;
+    fn downgrade_boxed(&self) -> BoxedWeakVar<T>;
+    fn read_only_boxed(&self) -> BoxedVar<T>;
 }
 impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
-    fn get_boxed<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
-        self.get(vars)
-    }
-
-    fn get_new_boxed<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
-        self.get_new(vars)
-    }
-
-    fn is_new_boxed(&self, vars: &Vars) -> bool {
-        self.is_new(vars)
-    }
-
-    fn into_value_boxed(self: Box<Self>, vars: &VarsRead) -> T {
-        self.into_value(vars)
-    }
-
-    fn version_boxed<'a>(&'a self, vars: &'a VarsRead) -> VarVersion {
-        self.version(vars)
-    }
-
-    fn is_read_only_boxed(&self, vars: &Vars) -> bool {
-        self.is_read_only(vars)
-    }
-
-    fn is_animating_boxed(&self, vars: &VarsRead) -> bool {
-        self.is_animating(vars)
-    }
-
-    fn always_read_only_boxed(&self) -> bool {
-        self.always_read_only()
-    }
-
-    fn is_contextual_boxed(&self) -> bool {
-        self.is_contextual()
-    }
-
-    fn actual_var_boxed(&self, vars: &Vars) -> BoxedVar<T> {
-        self.actual_var(vars)
-    }
-
-    fn can_update_boxed(&self) -> bool {
-        self.can_update()
-    }
-
-    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(VarModify<T>)>) -> Result<(), VarIsReadOnly> {
-        self.modify(vars, modify)
-    }
-
-    fn set_boxed(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly> {
-        self.set(vars, new_value)
-    }
-
     fn clone_boxed(&self) -> BoxedVar<T> {
         self.clone().boxed()
     }
 
-    fn strong_count_boxed(&self) -> usize {
-        self.strong_count()
+    fn with_boxed(&self, read: &mut dyn FnMut(&T)) {
+        self.with(read)
     }
 
-    fn update_mask_boxed(&self, vars: &VarsRead) -> UpdateMask {
-        self.update_mask(vars)
+    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModifyValue<T>)>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(vars, modify)
     }
 
-    fn is_rc_boxed(&self) -> bool {
-        self.is_rc()
+    fn actual_var_boxed(&self) -> BoxedVar<T> {
+        self.actual_var().boxed()
     }
 
-    fn downgrade_boxed(&self) -> Option<BoxedWeakVar<T>> {
-        self.downgrade().map(|w| w.boxed())
+    fn downgrade_boxed(&self) -> BoxedWeakVar<T> {
+        self.downgrade().boxed()
     }
 
-    fn weak_count_boxed(&self) -> usize {
-        self.weak_count()
-    }
-
-    fn as_ptr_boxed(&self) -> *const () {
-        self.as_ptr()
+    fn read_only_boxed(&self) -> BoxedVar<T> {
+        self.read_only().boxed()
     }
 }
-impl<T: VarValue> Clone for BoxedVar<T> {
-    fn clone(&self) -> Self {
-        self.as_ref().clone_boxed()
+
+#[doc(hidden)]
+pub trait WeakVarBoxed<T: VarValue>: AnyWeakVar {
+    fn clone_boxed(&self) -> BoxedWeakVar<T>;
+    fn upgrade_boxed(&self) -> Option<BoxedVar<T>>;
+}
+impl<T: VarValue, W: WeakVar<T>> WeakVarBoxed<T> for W {
+    fn clone_boxed(&self) -> BoxedWeakVar<T> {
+        self.clone().boxed()
+    }
+
+    fn upgrade_boxed(&self) -> Option<BoxedVar<T>> {
+        self.upgrade().map(Var::boxed)
     }
 }
-impl<T: VarValue> crate::private::Sealed for BoxedVar<T> {}
-impl<T: VarValue> Var<T> for BoxedVar<T> {
-    type AsReadOnly = BoxedVar<T>;
-    type Weak = BoxedWeakVar<T>;
 
-    fn boxed(self) -> BoxedVar<T>
-    where
-        Self: VarBoxed<T> + Sized,
-    {
-        self
-    }
+impl<T: VarValue> crate::private::Sealed for BoxedWeakVar<T> {}
 
-    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
-        self.as_ref().get_boxed(vars.as_ref())
-    }
-
-    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
-        self.as_ref().get_new_boxed(vars.as_ref())
-    }
-
-    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.as_ref().is_new_boxed(vars))
-    }
-
-    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
-        vars.with_vars_read(|vars| self.into_value_boxed(vars))
-    }
-
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|vars| self.as_ref().version_boxed(vars))
-    }
-
-    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.as_ref().is_read_only_boxed(vars))
-    }
-
-    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| self.as_ref().is_animating_boxed(vars))
-    }
-
-    fn always_read_only(&self) -> bool {
-        self.as_ref().always_read_only_boxed()
-    }
-
-    fn is_contextual(&self) -> bool {
-        self.as_ref().is_contextual_boxed()
-    }
-
-    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
-        vars.with_vars(|vars| self.as_ref().actual_var_boxed(vars))
-    }
-
-    fn can_update(&self) -> bool {
-        self.as_ref().can_update_boxed()
-    }
-
-    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        M: FnOnce(VarModify<T>) + 'static,
-    {
-        vars.with_vars(|vars| self.as_ref().modify_boxed(vars, Box::new(modify)))
-    }
-
-    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-    {
-        vars.with_vars(|vars| self.as_ref().set_boxed(vars, new_value.into()))
-    }
-
-    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        T: PartialEq,
-    {
-        vars.with_vars(|vars| {
-            if self.is_read_only(vars) {
-                Err(VarIsReadOnly)
-            } else {
-                let new_value = new_value.into();
-                vars.with_vars(|vars| {
-                    if self.get(vars) != &new_value {
-                        let _ = self.set(vars, new_value);
-                        Ok(true)
-                    } else {
-                        Ok(false)
-                    }
-                })
-            }
-        })
+impl<T: VarValue> AnyWeakVar for BoxedWeakVar<T> {
+    fn clone_any(&self) -> BoxedAnyWeakVar {
+        (**self).clone_any()
     }
 
     fn strong_count(&self) -> usize {
-        self.as_ref().strong_count_boxed()
-    }
-
-    fn into_read_only(self) -> Self::AsReadOnly {
-        if self.always_read_only() {
-            self
-        } else {
-            types::ReadOnlyVar::new(self).boxed()
-        }
-    }
-
-    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|vars| self.as_ref().update_mask_boxed(vars.as_ref()))
-    }
-
-    fn is_rc(&self) -> bool {
-        self.as_ref().is_rc_boxed()
-    }
-
-    fn downgrade(&self) -> Option<Self::Weak> {
-        self.as_ref().downgrade_boxed()
+        (**self).strong_count()
     }
 
     fn weak_count(&self) -> usize {
-        self.as_ref().weak_count_boxed()
+        (**self).weak_count()
     }
 
-    fn as_ptr(&self) -> *const () {
-        self.as_ref().as_ptr_boxed()
+    fn upgrade_any(&self) -> Option<BoxedAnyVar> {
+        (**self).upgrade_any()
     }
 }
+impl<T: VarValue> WeakVar<T> for BoxedWeakVar<T> {
+    type Upgrade = BoxedVar<T>;
+
+    fn upgrade(&self) -> Option<Self::Upgrade> {
+        (**self).upgrade_boxed()
+    }
+}
+
+impl<T: VarValue> crate::private::Sealed for BoxedVar<T> {}
+
+impl<T: VarValue> Clone for BoxedVar<T> {
+    fn clone(&self) -> Self {
+        (**self).clone_boxed()
+    }
+}
+
+impl<T: VarValue> AnyVar for BoxedVar<T> {
+    fn clone_any(&self) -> BoxedAnyVar {
+        (**self).clone_any()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn var_type_id(&self) -> TypeId {
+        (**self).var_type_id()
+    }
+
+    fn get_any(&self) -> Box<dyn AnyVarValue> {
+        (**self).get_any()
+    }
+
+    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        (**self).set_any(vars, value)
+    }
+
+    fn last_update(&self) -> VarUpdateId {
+        (**self).last_update()
+    }
+
+    fn capabilities(&self) -> VarCapabilities {
+        (**self).capabilities()
+    }
+
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+        (**self).hook(pos_modify_action)
+    }
+
+    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
+        (**self).subscribe(widget_id)
+    }
+
+    fn strong_count(&self) -> usize {
+        (**self).strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        (**self).weak_count()
+    }
+
+    fn actual_var_any(&self) -> BoxedAnyVar {
+        (**self).actual_var_any()
+    }
+
+    fn downgrade_any(&self) -> BoxedAnyWeakVar {
+        (**self).downgrade_any()
+    }
+
+    fn is_animating(&self) -> bool {
+        (**self).is_animating()
+    }
+}
+
 impl<T: VarValue> IntoVar<T> for BoxedVar<T> {
     type Var = Self;
 
@@ -314,6 +184,62 @@ impl<T: VarValue> IntoVar<T> for BoxedVar<T> {
         self
     }
 }
-impl<T: VarValue> any::AnyVar for BoxedVar<T> {
-    any_var_impls!(Var);
+
+impl<T: VarValue> Var<T> for BoxedVar<T> {
+    type ReadOnly = BoxedVar<T>;
+
+    type ActualVar = BoxedVar<T>;
+
+    type Downgrade = BoxedWeakVar<T>;
+
+    fn with<R, F>(&self, read: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        let mut read = Some(read);
+        let mut result = None;
+        (**self).with_boxed(&mut |var_value| match read.take() {
+            Some(read) => {
+                result = Some(read(var_value));
+            }
+            None => unreachable!(),
+        });
+
+        match result.take() {
+            Some(r) => r,
+            None => unreachable!(),
+        }
+    }
+
+    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    where
+        V: WithVars,
+        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+    {
+        vars.with_vars(|vars| (**self).modify_boxed(vars, Box::new(modify)))
+    }
+
+    fn boxed(self) -> BoxedVar<T> {
+        self
+    }
+
+    fn actual_var(&self) -> BoxedVar<T> {
+        (**self).actual_var_boxed()
+    }
+
+    fn downgrade(&self) -> BoxedWeakVar<T> {
+        (**self).downgrade_boxed()
+    }
+
+    fn into_value(self) -> T {
+        self.get()
+    }
+
+    fn read_only(&self) -> Self::ReadOnly {
+        if self.capabilities().is_always_read_only() {
+            self.clone()
+        } else {
+            (**self).read_only_boxed()
+        }
+    }
 }

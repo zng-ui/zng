@@ -19,7 +19,7 @@ mod any {
 
     #[test]
     fn downcast_ref_context_var() {
-        context_var2! {
+        context_var! {
             static FOO_VAR: bool = true;
         }
         let any_var = FOO_VAR.into_any();
@@ -57,7 +57,7 @@ mod any {
 mod bindings {
     use crate::app::App;
     use crate::text::ToText;
-    use crate::var2::{var, Var};
+    use crate::var::{var, Var};
 
     #[test]
     fn one_way_binding() {
@@ -188,7 +188,7 @@ mod bindings {
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some(13i32), a.copy_new(ctx));
-                assert_eq!("20".to_text(), b.get_clone(ctx));
+                assert_eq!("20".to_text(), b.get());
                 assert!(!b.is_new(ctx));
             },
             false,
@@ -248,7 +248,7 @@ mod bindings {
             |ctx| {
                 update_count += 1;
                 assert_eq!(Some("not a i32".to_text()), b.clone_new(ctx));
-                assert_eq!(55i32, a.copy(ctx));
+                assert_eq!(55i32, a.get());
                 assert!(!a.is_new(ctx));
             },
             false,
@@ -404,7 +404,7 @@ mod bindings {
 
                 assert_eq!(Some(100), a.copy_new(ctx));
                 assert!(!b.is_new(ctx));
-                assert_eq!(11, b.copy(ctx));
+                assert_eq!(11, b.get());
             },
             false,
         );
@@ -445,7 +445,7 @@ mod bindings {
 
                 assert_eq!(Some(100), a.copy_new(ctx));
                 assert!(!b.is_new(ctx));
-                assert_eq!(11, b.copy(ctx));
+                assert_eq!(11, b.get());
             },
             false,
         );
@@ -457,7 +457,7 @@ mod bindings {
 }
 
 mod context {
-    use crate::{app::*, context::*, text::*, var2::*, *};
+    use crate::{app::*, context::*, text::*, var::*, *};
 
     context_var! {
         static TEST_VAR: Text = "";
@@ -479,7 +479,7 @@ mod context {
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<Text>> UiNode for ProbeNode<C, V> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.app_state.set(&PROBE_ID, self.var.get_clone(ctx.vars));
+                ctx.app_state.set(&PROBE_ID, self.var.get());
                 self.child.init(ctx);
             }
         }
@@ -516,7 +516,7 @@ mod context {
         OnInitNode { child, handler }
     }
 
-    #[widget($crate::var2::tests::context::test_wgt)]
+    #[widget($crate::var::tests::context::test_wgt)]
     mod test_wgt {
         use super::*;
 
@@ -719,7 +719,7 @@ mod context {
 }
 
 mod flat_map {
-    use crate::{context::TestWidgetContext, var2::*};
+    use crate::{context::TestWidgetContext, var::*};
     use std::fmt;
 
     #[derive(Clone)]

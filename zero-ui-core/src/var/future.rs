@@ -1,208 +1,115 @@
-use std::{
-    cell::Cell,
-    future::Future,
-    marker::PhantomData,
-    pin::Pin,
-    task::{self, Poll},
-};
-
 use super::*;
 
-#[doc(hidden)]
-pub struct VarCopyNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue + Copy,
-    V: Var<T>,
-{
-    _t: PhantomData<T>,
-    ctx: &'a C,
+use std::{future::*, marker::PhantomData, pin::Pin, task::Poll};
+
+/// See [`Var::wait_new`].
+pub struct WaitNewFut<'a, C: WithVars, T: VarValue, V: Var<T>> {
+    vars: &'a C,
     var: &'a V,
-    update_id: Cell<u32>,
+    wakers: RefCell<Vec<VarHandle>>,
+    _value: PhantomData<T>,
 }
-impl<'a, C, T, V> VarCopyNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue + Copy,
-    V: Var<T>,
-{
-    #[allow(missing_docs)]
-    pub fn new(ctx: &'a C, var: &'a V) -> Self {
-        VarCopyNewFut {
-            _t: PhantomData,
-            update_id: Cell::new(ctx.with_vars(|vars| vars.update_id())),
-            ctx,
+impl<'a, C: WithVars, T: VarValue, V: Var<T>> WaitNewFut<'a, C, T, V> {
+    pub(super) fn new(vars: &'a C, var: &'a V) -> Self {
+        Self {
+            vars,
             var,
+            wakers: RefCell::new(vec![]),
+            _value: PhantomData,
         }
     }
 }
-impl<'a, C, T, V> Future for VarCopyNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue + Copy,
-    V: Var<T>,
-{
+impl<'a, C: WithVars, T: VarValue, V: Var<T>> Future for WaitNewFut<'a, C, T, V> {
     type Output = T;
 
-    fn poll(self: Pin<&mut Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let update_id = self.ctx.with_vars(|vars| vars.update_id());
-        if update_id != self.update_id.get() {
-            self.update_id.set(update_id);
-            if let Some(copy) = self.var.copy_new(self.ctx) {
-                return Poll::Ready(copy);
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<T> {
+        match self.var.get_new(self.vars) {
+            Some(value) => {
+                self.wakers.borrow_mut().clear();
+                Poll::Ready(value)
+            }
+            None => {
+                let waker = cx.waker().clone();
+                self.wakers.borrow_mut().push(self.var.hook(Box::new(move |_, _, _| {
+                    waker.wake_by_ref();
+                    false
+                })));
+                Poll::Pending
             }
         }
-        Poll::Pending
     }
 }
 
-#[doc(hidden)]
-pub struct VarCloneNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue,
-    V: Var<T>,
-{
-    _t: PhantomData<T>,
-    ctx: &'a C,
+/// See [`Var::wait_is_new`].
+pub struct WaitIsNewFut<'a, C: WithVars, T: VarValue, V: Var<T>> {
+    vars: &'a C,
     var: &'a V,
-    update_id: Cell<u32>,
+    wakers: RefCell<Vec<VarHandle>>,
+    _value: PhantomData<T>,
 }
-impl<'a, C, T, V> VarCloneNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue,
-    V: Var<T>,
-{
-    #[allow(missing_docs)]
-    pub fn new(ctx: &'a C, var: &'a V) -> Self {
-        VarCloneNewFut {
-            _t: PhantomData,
-            update_id: Cell::new(ctx.with_vars(|vars| vars.update_id())),
-            ctx,
+impl<'a, C: WithVars, T: VarValue, V: Var<T>> WaitIsNewFut<'a, C, T, V> {
+    pub(super) fn new(vars: &'a C, var: &'a V) -> Self {
+        Self {
+            vars,
             var,
+            wakers: RefCell::new(vec![]),
+            _value: PhantomData,
         }
     }
 }
-impl<'a, C, T, V> Future for VarCloneNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue,
-    V: Var<T>,
-{
-    type Output = T;
-
-    fn poll(self: Pin<&mut Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let update_id = self.ctx.with_vars(|vars| vars.update_id());
-        if update_id != self.update_id.get() {
-            self.update_id.set(update_id);
-            if let Some(copy) = self.var.clone_new(self.ctx) {
-                return Poll::Ready(copy);
-            }
-        }
-        Poll::Pending
-    }
-}
-
-#[doc(hidden)]
-pub struct VarIsNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue,
-    V: Var<T>,
-{
-    _t: PhantomData<T>,
-    ctx: &'a C,
-    var: &'a V,
-    update_id: Cell<u32>,
-}
-impl<'a, C, T, V> VarIsNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue,
-    V: Var<T>,
-{
-    #[allow(missing_docs)]
-    pub fn new(ctx: &'a C, var: &'a V) -> Self {
-        VarIsNewFut {
-            _t: PhantomData,
-            update_id: Cell::new(ctx.with_vars(|vars| vars.update_id())),
-            ctx,
-            var,
-        }
-    }
-}
-impl<'a, C, T, V> Future for VarIsNewFut<'a, C, T, V>
-where
-    C: WithVars,
-    T: VarValue,
-    V: Var<T>,
-{
+impl<'a, C: WithVars, T: VarValue, V: Var<T>> Future for WaitIsNewFut<'a, C, T, V> {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let update_id = self.ctx.with_vars(|vars| vars.update_id());
-        if update_id != self.update_id.get() {
-            self.update_id.set(update_id);
-            if self.var.is_new(self.ctx) {
-                return Poll::Ready(());
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
+        match self.var.is_new(self.vars) {
+            true => {
+                self.wakers.borrow_mut().clear();
+                Poll::Ready(())
+            }
+            false => {
+                let waker = cx.waker().clone();
+                self.wakers.borrow_mut().push(self.var.hook(Box::new(move |_, _, _| {
+                    waker.wake_by_ref();
+                    false
+                })));
+                Poll::Pending
             }
         }
-        Poll::Pending
     }
 }
 
-#[doc(hidden)]
-pub struct VarIsNotAnimatingFut<'a, C, T, V>
-where
-    C: WithVarsRead,
-    T: VarValue,
-    V: Var<T>,
-{
-    _t: PhantomData<T>,
-    ctx: &'a C,
+/// See [`Var::wait_animation`].
+pub struct WaitIsNotAnimatingFut<'a, T: VarValue, V: Var<T>> {
     var: &'a V,
-    update_id: Cell<u32>,
-    is_animating: Cell<bool>,
+    wakers: RefCell<Vec<VarHandle>>,
+    _value: PhantomData<T>,
 }
-impl<'a, C, T, V> VarIsNotAnimatingFut<'a, C, T, V>
-where
-    C: WithVarsRead,
-    T: VarValue,
-    V: Var<T>,
-{
-    #[allow(missing_docs)]
-    pub fn new(ctx: &'a C, var: &'a V) -> Self {
-        VarIsNotAnimatingFut {
-            _t: PhantomData,
-            update_id: Cell::new(ctx.with_vars_read(|vars| vars.update_id())),
-            is_animating: Cell::new(ctx.with_vars_read(|vars| var.is_animating(vars))),
-            ctx,
+impl<'a, T: VarValue, V: Var<T>> WaitIsNotAnimatingFut<'a, T, V> {
+    pub(super) fn new(var: &'a V) -> Self {
+        Self {
             var,
+            wakers: RefCell::new(vec![]),
+            _value: PhantomData,
         }
     }
 }
-impl<'a, C, T, V> Future for VarIsNotAnimatingFut<'a, C, T, V>
-where
-    C: WithVarsRead,
-    T: VarValue,
-    V: Var<T>,
-{
+impl<'a, T: VarValue, V: Var<T>> Future for WaitIsNotAnimatingFut<'a, T, V> {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
-        let mut r = Poll::Pending;
-
-        let update_id = self.ctx.with_vars_read(|vars| vars.update_id());
-        if update_id != self.update_id.get() {
-            self.update_id.set(update_id);
-            let is_animating = self.var.is_animating(self.ctx);
-            if !is_animating && self.is_animating.get() {
-                r = Poll::Ready(());
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
+        match self.var.is_animating() {
+            true => {
+                self.wakers.borrow_mut().clear();
+                Poll::Ready(())
             }
-            self.is_animating.set(is_animating);
+            false => {
+                let waker = cx.waker().clone();
+                self.wakers.borrow_mut().push(self.var.hook(Box::new(move |_, _, _| {
+                    waker.wake_by_ref();
+                    false
+                })));
+                Poll::Pending
+            }
         }
-
-        r
     }
 }

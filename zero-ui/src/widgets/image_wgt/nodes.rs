@@ -46,14 +46,14 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let mode = if IMAGE_CACHE_VAR.copy(ctx) {
+            let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache
             } else {
                 ImageCacheMode::Ignore
             };
-            let limits = IMAGE_LIMITS_VAR.get_clone(ctx);
+            let limits = IMAGE_LIMITS_VAR.get();
 
-            let mut source = self.source.get_clone(ctx.vars);
+            let mut source = self.source.get();
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs {
                     parent: Some(ctx.path.window_id()),
@@ -61,7 +61,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             }
             self.img = Images::req(ctx.services).image(source, mode, limits);
 
-            self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
+            self.ctx_img.set(ctx.vars, self.img.get());
             self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
 
             self.child.init(ctx);
@@ -84,16 +84,16 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     });
                 }
 
-                let mode = if IMAGE_CACHE_VAR.copy(ctx) {
+                let mode = if IMAGE_CACHE_VAR.get() {
                     ImageCacheMode::Cache
                 } else {
                     ImageCacheMode::Ignore
                 };
-                let limits = IMAGE_LIMITS_VAR.get_clone(ctx);
+                let limits = IMAGE_LIMITS_VAR.get();
 
                 self.img = Images::req(ctx.services).image(source, mode, limits);
 
-                self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
+                self.ctx_img.set(ctx.vars, self.img.get());
                 self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
             } else if let Some(enabled) = IMAGE_CACHE_VAR.clone_new(ctx) {
                 // cache-mode update:
@@ -108,12 +108,12 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     } else {
                         // must cache, but image is not cached, get source again.
 
-                        let source = self.source.get_clone(ctx);
-                        let limits = IMAGE_LIMITS_VAR.get_clone(ctx);
+                        let source = self.source.get();
+                        let limits = IMAGE_LIMITS_VAR.get();
                         Images::req(ctx.services).image(source, ImageCacheMode::Cache, limits)
                     };
 
-                    self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
+                    self.ctx_img.set(ctx.vars, self.img.get());
                     self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
                 }
             }
@@ -125,7 +125,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     let ctx_img = var(Image::dummy(None));
 
     ImageSourceNode {
-        child: with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.clone().into_read_only()),
+        child: with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only()),
         img: var(Image::dummy(None)).into_read_only(),
         ctx_img,
         ctx_binding: None,
@@ -153,12 +153,12 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
             subs.var(vars, &CONTEXT_IMAGE_VAR);
         },
         |ctx, is_new| {
-            if IN_ERROR_VIEW_VAR.copy(ctx) {
+            if IN_ERROR_VIEW_VAR.get() {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
                 // init or generator changed.
-                if let Some(e) = CONTEXT_IMAGE_VAR.get(ctx.vars).error() {
+                if let Some(e) = CONTEXT_IMAGE_VAR.with(Image::error) {
                     DataUpdate::Update(ImageErrorArgs {
                         error: e.to_owned().into(),
                     })
@@ -202,12 +202,12 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
             subs.var(vars, &CONTEXT_IMAGE_VAR);
         },
         |ctx, is_new| {
-            if IN_LOADING_VIEW_VAR.copy(ctx) {
+            if IN_LOADING_VIEW_VAR.get() {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
                 // init or generator changed.
-                if CONTEXT_IMAGE_VAR.get(ctx.vars).is_loading() {
+                if CONTEXT_IMAGE_VAR.with(Image::is_loading) {
                     DataUpdate::Update(ImageLoadingArgs {})
                 } else {
                     DataUpdate::None
@@ -314,14 +314,14 @@ pub fn image_presenter() -> impl UiNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             // Similar to `layout` Part 1.
 
-            let mut scale = IMAGE_SCALE_VAR.copy(ctx);
-            if IMAGE_SCALE_PPI_VAR.copy(ctx) {
+            let mut scale = IMAGE_SCALE_VAR.get();
+            if IMAGE_SCALE_PPI_VAR.get() {
                 let img = CONTEXT_IMAGE_VAR.get(ctx.vars);
                 let sppi = ctx.metrics.screen_ppi();
                 let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
-            if IMAGE_SCALE_FACTOR_VAR.copy(ctx) {
+            if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= ctx.scale_factor();
             }
 
@@ -339,14 +339,14 @@ pub fn image_presenter() -> impl UiNode {
             // Part 1 - Scale & Crop
             // - Starting from the image pixel size, apply scaling then crop.
 
-            let mut scale = IMAGE_SCALE_VAR.copy(ctx);
-            if IMAGE_SCALE_PPI_VAR.copy(ctx) {
+            let mut scale = IMAGE_SCALE_VAR.get();
+            if IMAGE_SCALE_PPI_VAR.get() {
                 let img = CONTEXT_IMAGE_VAR.get(ctx.vars);
                 let sppi = ctx.metrics.screen_ppi();
                 let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
-            if IMAGE_SCALE_FACTOR_VAR.copy(ctx) {
+            if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= ctx.scale_factor();
             }
 
@@ -365,7 +365,7 @@ pub fn image_presenter() -> impl UiNode {
             // Part 2 - Fit, Align & Clip
             // - Fit the cropped and scaled image to the constrains, add a bounds clip to the crop clip.
 
-            let mut align = IMAGE_ALIGN_VAR.copy(ctx);
+            let mut align = IMAGE_ALIGN_VAR.get();
             if align.is_baseline() {
                 align.y = 1.fct();
             }
@@ -373,7 +373,7 @@ pub fn image_presenter() -> impl UiNode {
             let min_size = ctx.constrains().clamp_size(render_clip.size);
             let wgt_size = ctx.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
 
-            let mut fit = IMAGE_FIT_VAR.copy(ctx);
+            let mut fit = IMAGE_FIT_VAR.get();
             if let ImageFit::ScaleDown = fit {
                 if render_clip.size.width < wgt_size.width && render_clip.size.height < wgt_size.height {
                     fit = ImageFit::None;
@@ -465,10 +465,10 @@ pub fn image_presenter() -> impl UiNode {
                 if self.render_offset != PxVector::zero() {
                     let transform = PxTransform::from(self.render_offset);
                     frame.push_reference_frame(self.spatial_id, FrameValue::Value(transform), true, false, |frame| {
-                        frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.copy(ctx.vars))
+                        frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.get())
                     });
                 } else {
-                    frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.copy(ctx.vars));
+                    frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.get());
                 }
             }
         }

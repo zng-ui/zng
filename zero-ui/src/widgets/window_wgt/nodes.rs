@@ -44,7 +44,7 @@ impl WindowLayers {
             )]
         impl<L: Var<LayerIndex>, W: Widget> UiNode for LayeredWidget<L, W> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.widget.state_mut().set(&LAYER_INDEX_ID, self.layer.copy(ctx.vars));
+                self.widget.state_mut().set(&LAYER_INDEX_ID, self.layer.get());
                 self.widget.init(ctx);
             }
 
@@ -130,7 +130,7 @@ impl WindowLayers {
         {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
-                    let anchor = self.anchor.copy(ctx);
+                    let anchor = self.anchor.get();
                     let widget = self.widget.id();
                     let querying = Cell::new(false);
                     info.push_interactivity_filter(move |args| {
@@ -153,7 +153,7 @@ impl WindowLayers {
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(w) = ctx.info_tree.get(self.anchor.copy(ctx.vars)) {
+                if let Some(w) = ctx.info_tree.get(self.anchor.get()) {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
 
@@ -174,7 +174,7 @@ impl WindowLayers {
                     if args.window_id == ctx.path.window_id() {
                         self.anchor_info = ctx
                             .info_tree
-                            .get(self.anchor.copy(ctx.vars))
+                            .get(self.anchor.get())
                             .map(|w| (w.bounds_info(), w.border_info()));
                     }
                 }

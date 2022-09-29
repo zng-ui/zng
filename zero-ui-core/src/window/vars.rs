@@ -183,7 +183,7 @@ impl WindowVars {
     ///
     /// [`icon`]: Self::icon
     pub fn actual_icon(&self) -> ReadOnlyRcVar<Option<Image>> {
-        self.0.actual_icon.clone().into_read_only()
+        self.0.actual_icon.read_only()
     }
 
     /// Window cursor icon and visibility.
@@ -246,12 +246,12 @@ impl WindowVars {
     /// This is `None` only if the window has not opened yet (before first render) or if
     /// no monitors where found in the operating system or if the window if headless without renderer.
     pub fn actual_monitor(&self) -> ReadOnlyRcVar<Option<MonitorId>> {
-        self.0.actual_monitor.clone().into_read_only()
+        self.0.actual_monitor.read_only()
     }
 
     /// Current scale factor of the current monitor hosting the window.
     pub fn scale_factor(&self) -> ReadOnlyRcVar<Factor> {
-        self.0.scale_factor.clone().into_read_only()
+        self.0.scale_factor.read_only()
     }
 
     /// Window actual position on the [monitor].
@@ -264,7 +264,7 @@ impl WindowVars {
     ///
     /// [monitor]: Self::actual_monitor
     pub fn actual_position(&self) -> ReadOnlyRcVar<DipPoint> {
-        self.0.actual_position.clone().into_read_only()
+        self.0.actual_position.read_only()
     }
 
     /// Window *restore* state.
@@ -282,7 +282,7 @@ impl WindowVars {
     /// [`Minimized`]: WindowState::Minimized
     /// [`restore_rect`]: Self::restore_rect
     pub fn restore_state(&self) -> ReadOnlyRcVar<WindowState> {
-        self.0.restore_state.clone().into_read_only()
+        self.0.restore_state.read_only()
     }
 
     /// Window *restore* position and size when restoring to [`Normal`].
@@ -310,7 +310,7 @@ impl WindowVars {
     /// [`state`]: Self::state
     /// [`restore_state`]: Self::restore_state
     pub fn restore_rect(&self) -> ReadOnlyRcVar<DipRect> {
-        self.0.restore_rect.clone().into_read_only()
+        self.0.restore_rect.read_only()
     }
 
     /// Window top-left offset on the [`monitor`] when the window is [`Normal`].
@@ -342,7 +342,7 @@ impl WindowVars {
     ///
     /// The initial value is `(0, 0)` but this is updated quickly to an actual value.
     pub fn actual_size(&self) -> ReadOnlyRcVar<DipSize> {
-        self.0.actual_size.clone().into_read_only()
+        self.0.actual_size.read_only()
     }
 
     /// Window width and height on the screen when the window is [`Normal`].
@@ -502,7 +502,7 @@ impl WindowVars {
     ///
     /// [`parent`]: Self::parent
     pub fn children(&self) -> ReadOnlyRcVar<LinearSet<WindowId>> {
-        self.0.children.clone().into_read_only()
+        self.0.children.read_only()
     }
 
     /// Override the preferred color scheme.
@@ -520,7 +520,7 @@ impl WindowVars {
     ///
     /// [`color_scheme`]: Self::color_scheme
     pub fn actual_color_scheme(&self) -> ReadOnlyRcVar<ColorScheme> {
-        self.0.actual_color_scheme.clone().into_read_only()
+        self.0.actual_color_scheme.read_only()
     }
 
     /// If the window is open.
@@ -532,7 +532,7 @@ impl WindowVars {
     ///
     /// [`is_loaded`]: Self::is_loaded
     pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
-        self.0.is_open.clone().into_read_only()
+        self.0.is_open.read_only()
     }
 
     /// If the window has finished loading.
@@ -544,7 +544,7 @@ impl WindowVars {
     ///
     /// [`Windows::loading_handle`]: crate::window::Windows::loading_handle
     pub fn is_loaded(&self) -> ReadOnlyRcVar<bool> {
-        self.0.is_loaded.clone().into_read_only()
+        self.0.is_loaded.read_only()
     }
 
     /// The active user attention required indicator.
@@ -580,7 +580,7 @@ impl WindowVars {
     ///
     /// [`default_render_mode`]: crate::window::Windows::default_render_mode
     pub fn render_mode(&self) -> ReadOnlyRcVar<RenderMode> {
-        self.0.render_mode.clone().into_read_only()
+        self.0.render_mode.read_only()
     }
 }
 

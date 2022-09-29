@@ -18,8 +18,8 @@ fn basic_gen() {
     let a = code_gen! { unnamed_new basic_context, __ArgsImpl 1 };
     let b = code_gen! { named_new basic_context, __ArgsImpl { arg: 2 } };
     let test = TestWidgetContext::new();
-    assert_eq!(1, a.unwrap().into_var().into_value(&test.vars));
-    assert_eq!(2, b.unwrap().into_var().into_value(&test.vars));
+    assert_eq!(1, a.unwrap().into_var().into_value());
+    assert_eq!(2, b.unwrap().into_var().into_value());
 }
 
 #[allow(dead_code)]

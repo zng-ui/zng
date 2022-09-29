@@ -1,58 +1,188 @@
 use std::{
-    cell::{Cell, RefCell, UnsafeCell},
     marker::PhantomData,
     rc::{Rc, Weak},
 };
 
-use crate::widget_info::UpdateSlot;
-
 use super::*;
 
-/// A weak reference to a [`RcFlatMapVar`].
-pub struct WeakRcFlatMapVar<A, B, V, M, S>(Weak<MapData<A, B, V, M, S>>);
-impl<A, B, V, M, S> crate::private::Sealed for WeakRcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
-{
+struct Data<T, V> {
+    _t: PhantomData<T>,
+    var: V,
+    source_handle: VarHandle,
+    last_update: VarUpdateId,
+    var_handle: VarHandle,
+    hooks: Vec<VarHook>,
 }
-impl<A, B, V, M, S> Clone for WeakRcFlatMapVar<A, B, V, M, S>
+
+/// See [`Var::flat_map`].
+pub struct RcFlatMapVar<T, V>(Rc<RefCell<Data<T, V>>>);
+
+/// Weak reference to a [`RcFlatMapVar<T, V>`].
+pub struct WeakFlatMapVar<T, V>(Weak<RefCell<Data<T, V>>>);
+
+impl<T, V> RcFlatMapVar<T, V>
 where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
+    T: VarValue,
+    V: Var<T>,
+{
+    /// New.
+    pub fn new<I: VarValue>(source: &impl Var<I>, mut map: impl FnMut(&I) -> V + 'static) -> Self {
+        let flat = Rc::new(RefCell::new(Data {
+            _t: PhantomData,
+            var: source.with(&mut map),
+            last_update: VarUpdateId::never(),
+            source_handle: VarHandle::dummy(),
+            var_handle: VarHandle::dummy(),
+            hooks: vec![],
+        }));
+
+        {
+            let mut data = flat.borrow_mut();
+            let weak_flat = Rc::downgrade(&flat);
+            let map = RefCell::new(map);
+            data.var_handle = data.var.hook(RcFlatMapVar::on_var_hook(weak_flat.clone()));
+            data.source_handle = source.hook(Box::new(move |vars, updates, value| {
+                if let Some(flat) = weak_flat.upgrade() {
+                    if let Some(value) = value.as_any().downcast_ref() {
+                        let mut data = flat.borrow_mut();
+                        let data = &mut *data;
+                        data.var = map.borrow_mut()(value);
+                        data.var_handle = data.var.hook(RcFlatMapVar::on_var_hook(weak_flat.clone()));
+                        data.last_update = vars.update_id();
+                        data.var.with(|value| {
+                            data.hooks.retain(|h| h.call(vars, updates, value));
+                        });
+                    }
+                    true
+                } else {
+                    false
+                }
+            }));
+        }
+
+        Self(flat)
+    }
+
+    fn on_var_hook(weak_flat: Weak<RefCell<Data<T, V>>>) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
+        Box::new(move |vars, updates, value| {
+            if let Some(flat) = weak_flat.upgrade() {
+                let mut data = flat.borrow_mut();
+                data.last_update = vars.update_id();
+                data.hooks.retain(|h| h.call(vars, updates, value));
+                true
+            } else {
+                false
+            }
+        })
+    }
+}
+
+impl<T, V> Clone for RcFlatMapVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
-impl<A, B, V, M, S> any::AnyWeakVar for WeakRcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
-{
-    any_var_impls!(WeakVar);
-}
-impl<A, B, V, M, S> WeakVar<B> for WeakRcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
-{
-    type Strong = RcFlatMapVar<A, B, V, M, S>;
 
-    fn upgrade(&self) -> Option<Self::Strong> {
-        self.0.upgrade().map(RcFlatMapVar)
+impl<T, V> Clone for WeakFlatMapVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T, V> crate::private::Sealed for RcFlatMapVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+}
+
+impl<T, V> crate::private::Sealed for WeakFlatMapVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+}
+
+impl<T, V> AnyVar for RcFlatMapVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+    fn clone_any(&self) -> BoxedAnyVar {
+        Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
+    }
+
+    fn var_type_id(&self) -> TypeId {
+        TypeId::of::<T>()
+    }
+
+    fn get_any(&self) -> Box<dyn AnyVarValue> {
+        Box::new(self.get())
+    }
+
+    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(vars, var_set_any(value))
+    }
+
+    fn last_update(&self) -> VarUpdateId {
+        self.0.borrow().last_update
+    }
+
+    fn capabilities(&self) -> VarCapabilities {
+        self.0.borrow().var.capabilities() | VarCapabilities::CAP_CHANGE
+    }
+
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+        let (handle, weak_handle) = VarHandle::new(pos_modify_action);
+        self.0.borrow_mut().hooks.push(weak_handle);
+        handle
+    }
+
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    fn actual_var_any(&self) -> BoxedAnyVar {
+        self.clone_any()
+    }
+
+    fn downgrade_any(&self) -> BoxedAnyWeakVar {
+        Box::new(self.downgrade())
+    }
+
+    fn is_animating(&self) -> bool {
+        self.0.borrow().var.is_animating()
+    }
+}
+
+impl<T, V> AnyWeakVar for WeakFlatMapVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+    fn clone_any(&self) -> BoxedAnyWeakVar {
+        Box::new(self.clone())
     }
 
     fn strong_count(&self) -> usize {
@@ -63,243 +193,15 @@ where
         self.0.weak_count()
     }
 
-    fn as_ptr(&self) -> *const () {
-        self.0.as_ptr() as _
+    fn upgrade_any(&self) -> Option<BoxedAnyVar> {
+        self.0.upgrade().map(|rc| Box::new(RcFlatMapVar(rc)) as _)
     }
 }
 
-/// A [`Var`] that maps from and to another var selected from a source var and is a [`Rc`] pointer to its value.
-pub struct RcFlatMapVar<A, B, V, M, S>(Rc<MapData<A, B, V, M, S>>)
+impl<T, V> IntoVar<T> for RcFlatMapVar<T, V>
 where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>;
-
-struct MapData<A, B, V, M, S> {
-    _a: PhantomData<(A, B)>,
-
-    source: S,
-    map: RefCell<M>,
-    var: UnsafeCell<Option<V>>,
-    var_is_contextual: Cell<bool>,
-
-    source_version: VarVersionCell,
-    var_version: VarVersionCell,
-
-    version: Cell<u32>,
-    update_slot: UpdateSlot,
-}
-
-impl<A, B, V, M, S> Clone for RcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
-{
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-impl<A, B, V, M, S> crate::private::Sealed for RcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
-{
-}
-
-impl<A, B, V, M, S> RcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
-{
-    /// New mapping var.
-    ///
-    /// Prefer using the [`Var::flat_map`] method.
-    pub fn new(source: S, map: M) -> Self {
-        RcFlatMapVar(Rc::new(MapData {
-            _a: PhantomData,
-            source,
-            map: RefCell::new(map),
-            var: UnsafeCell::new(None),
-            var_is_contextual: Cell::new(true),
-            source_version: VarVersionCell::new(0),
-            var_version: VarVersionCell::new(0),
-            version: Cell::new(0),
-            update_slot: UpdateSlot::next(),
-        }))
-    }
-
-    /// New weak reference to the variable.
-    pub fn downgrade(&self) -> WeakRcFlatMapVar<A, B, V, M, S> {
-        WeakRcFlatMapVar(Rc::downgrade(&self.0))
-    }
-
-    fn var(&self, vars: &VarsRead) -> &V {
-        let version = self.0.source.version(vars);
-        let var = unsafe { &mut *self.0.var.get() };
-
-        let first = var.is_none();
-        if self.0.source_version.get() != version || first {
-            let mut map = self.0.map.borrow_mut();
-            let v = map(self.0.source.get(vars));
-
-            self.0.version.set(self.0.version.get().wrapping_add(1));
-            self.0.source_version.set(version);
-            self.0.var_version.set(v.version(vars));
-
-            self.0.var_is_contextual.set(v.is_contextual());
-            *var = Some(v);
-        }
-
-        if first {
-            let slot = self.0.update_slot;
-            let self_ = Rc::downgrade(&self.0);
-            vars.link_updates(move |vars, updates| {
-                let mut retain = false;
-                if let Some(self_) = self_.upgrade() {
-                    retain = true;
-
-                    if Self(self_).var(vars).is_new(vars) {
-                        updates.insert(slot);
-                    }
-                }
-                retain
-            });
-        }
-
-        var.as_ref().unwrap()
-    }
-}
-
-impl<A, B, V, M, S> Var<B> for RcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
-{
-    type AsReadOnly = types::ReadOnlyVar<B, Self>;
-
-    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
-        let vars = vars.as_ref();
-        self.var(vars).get(vars)
-    }
-
-    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
-        let vars = vars.as_ref();
-        if self.0.source.is_new(vars) {
-            Some(self.var(vars).get(vars))
-        } else {
-            self.var(vars).get_new(vars)
-        }
-    }
-
-    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.0.source.is_new(vars) || self.var(vars).is_new(vars))
-    }
-
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        let _ = vars.with_vars_read(|vars| self.var(vars));
-        VarVersion::normal(self.0.version.get())
-    }
-
-    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.var(vars).is_read_only(vars))
-    }
-
-    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| self.var(vars).is_animating(vars))
-    }
-
-    fn always_read_only(&self) -> bool {
-        false
-    }
-
-    /// Returns `true` if the source is contextual, or it can update, or it maps to a contextual variable.
-    fn is_contextual(&self) -> bool {
-        self.0.source.is_contextual() || self.0.source.can_update() || self.0.var_is_contextual.get()
-    }
-
-    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
-        if self.is_contextual() {
-            vars.with_vars(|vars| self.var(vars).actual_var(vars))
-        } else {
-            self.clone().boxed()
-        }
-    }
-
-    fn can_update(&self) -> bool {
-        true
-    }
-
-    fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> B {
-        vars.with_vars_read(|vars| {
-            let _ = self.var(vars);
-            match Rc::try_unwrap(self.0) {
-                Ok(d) => d.var.into_inner().unwrap().into_value(vars),
-                Err(r) => (Self(r)).var(vars).get_clone(vars),
-            }
-        })
-    }
-
-    fn modify<Vw, M2>(&self, vars: &Vw, modify: M2) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        M2: FnOnce(VarModify<B>) + 'static,
-    {
-        vars.with_vars(|vars| self.var(vars).modify(vars, modify))
-    }
-
-    fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
-    fn into_read_only(self) -> Self::AsReadOnly {
-        types::ReadOnlyVar::new(self)
-    }
-
-    fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        let mut mask = self.0.source.update_mask(vars);
-        mask.insert(self.0.update_slot);
-        mask
-    }
-
-    type Weak = WeakRcFlatMapVar<A, B, V, M, S>;
-
-    fn is_rc(&self) -> bool {
-        true
-    }
-
-    fn downgrade(&self) -> Option<Self::Weak> {
-        Some(self.downgrade())
-    }
-
-    fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
-    }
-
-    fn as_ptr(&self) -> *const () {
-        Rc::as_ptr(&self.0) as _
-    }
-}
-impl<A, B, V, M, S> IntoVar<B> for RcFlatMapVar<A, B, V, M, S>
-where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
+    T: VarValue,
+    V: Var<T>,
 {
     type Var = Self;
 
@@ -307,72 +209,61 @@ where
         self
     }
 }
-impl<A, B, V, M, S> any::AnyVar for RcFlatMapVar<A, B, V, M, S>
+
+impl<T, V> Var<T> for RcFlatMapVar<T, V>
 where
-    A: VarValue,
-    B: VarValue,
-    V: Var<B>,
-    M: FnMut(&A) -> V + 'static,
-    S: Var<A>,
+    T: VarValue,
+    V: Var<T>,
 {
-    any_var_impls!(Var);
-}
+    type ReadOnly = types::ReadOnlyVar<T, Self>;
 
-#[cfg(test)]
-mod tests {
-    use crate::{context::TestWidgetContext, var::*};
-    use std::fmt;
+    type ActualVar = Self;
 
-    #[derive(Clone)]
-    pub struct Foo {
-        pub bar: bool,
-        pub var: RcVar<usize>,
+    type Downgrade = WeakFlatMapVar<T, V>;
+
+    fn with<R, F>(&self, read: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        self.0.borrow().var.with(read)
     }
-    impl fmt::Debug for Foo {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("Foo").field("bar", &self.bar).finish_non_exhaustive()
+
+    fn modify<V2, F>(&self, vars: &V2, modify: F) -> Result<(), VarIsReadOnlyError>
+    where
+        V2: WithVars,
+        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+    {
+        self.0.borrow().var.modify(vars, modify)
+    }
+
+    fn actual_var(&self) -> Self {
+        self.clone()
+    }
+
+    fn downgrade(&self) -> Self::Downgrade {
+        WeakFlatMapVar(Rc::downgrade(&self.0))
+    }
+
+    fn into_value(self) -> T {
+        match Rc::try_unwrap(self.0) {
+            Ok(state) => state.into_inner().var.into_value(),
+            Err(rc) => Self(rc).get(),
         }
     }
 
-    #[test]
-    pub fn flat_map() {
-        let source = var(Foo { bar: true, var: var(32) });
+    fn read_only(&self) -> Self::ReadOnly {
+        types::ReadOnlyVar::new(self.clone())
+    }
+}
 
-        let test = source.flat_map(|f| f.var.clone());
+impl<T, V> WeakVar<T> for WeakFlatMapVar<T, V>
+where
+    T: VarValue,
+    V: Var<T>,
+{
+    type Upgrade = RcFlatMapVar<T, V>;
 
-        let mut ctx = TestWidgetContext::new();
-
-        assert_eq!(32, test.copy(&ctx));
-
-        source.get(&ctx.vars).var.set(&ctx.vars, 42usize);
-
-        let (_, ctx_updates) = ctx.apply_updates();
-
-        assert!(ctx_updates.update);
-        assert!(ctx.updates.current().intersects(&test.update_mask(&ctx.vars)));
-        assert!(test.is_new(&ctx));
-        assert_eq!(42, test.copy(&ctx));
-
-        let (_, ctx_updates) = ctx.apply_updates();
-        assert!(!ctx_updates.update);
-
-        let old_var = source.get(&ctx).var.clone();
-        source.set(&ctx, Foo { bar: false, var: var(192) });
-        let (_, ctx_updates) = ctx.apply_updates();
-
-        assert!(ctx_updates.update);
-        assert!(ctx.updates.current().intersects(&test.update_mask(&ctx.vars)));
-        assert!(test.is_new(&ctx));
-        assert_eq!(192, test.copy(&ctx));
-
-        let (_, ctx_updates) = ctx.apply_updates();
-        assert!(!ctx_updates.update);
-
-        old_var.set(&ctx, 220usize);
-        let (_, ctx_updates) = ctx.apply_updates();
-        assert!(ctx_updates.update);
-        assert!(!ctx.updates.current().intersects(&test.update_mask(&ctx.vars)));
-        assert!(!test.is_new(&ctx));
-        assert_eq!(192, test.copy(&ctx));
+    fn upgrade(&self) -> Option<Self::Upgrade> {
+        self.0.upgrade().map(|rc| RcFlatMapVar(rc))
     }
 }

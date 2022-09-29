@@ -95,7 +95,7 @@ use crate::{
     render::FrameId,
     service::{Service, ServiceTuple},
     units::{Px, PxPoint, PxRect, TimeUnits},
-    var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
+    var::{var, RcVar, ReadOnlyRcVar, AnyVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOW_FOCUS_CHANGED_EVENT},
     WidgetId,
@@ -646,7 +646,7 @@ impl Focus {
     /// Current focused widget.
     #[must_use]
     pub fn focused(&self) -> ReadOnlyRcVar<Option<InteractionPath>> {
-        self.focused_var.clone().into_read_only()
+        self.focused_var.read_only()
     }
 
     /// Current return focus of a scope.
@@ -655,8 +655,7 @@ impl Focus {
         self.return_focused_var
             .entry(scope_id)
             .or_insert_with(|| var(None))
-            .clone()
-            .into_read_only()
+            .read_only()
     }
 
     /// If the [`focused`] path is in the given `window_id`.
@@ -669,7 +668,7 @@ impl Focus {
     /// Current ALT return focus.
     #[must_use]
     pub fn alt_return(&self) -> ReadOnlyRcVar<Option<InteractionPath>> {
-        self.alt_return_var.clone().into_read_only()
+        self.alt_return_var.read_only()
     }
 
     /// If focus is in an ALT scope.
@@ -681,7 +680,7 @@ impl Focus {
     /// If the current focused widget is visually indicated.
     #[must_use]
     pub fn is_highlighting(&self) -> ReadOnlyRcVar<bool> {
-        self.is_highlighting_var.clone().into_read_only()
+        self.is_highlighting_var.read_only()
     }
 
     /// Request a focus update.
@@ -1237,7 +1236,7 @@ impl Focus {
                             } else {
                                 self.return_focused.insert(scope.widget_id(), path.clone());
                                 match self.return_focused_var.entry(scope.widget_id()) {
-                                    hash_map::Entry::Occupied(e) => e.get().set(vars, Some(path.clone())),
+                                    hash_map::Entry::Occupied(e) => e.get().set(vars, Some(path.clone())).unwrap(),
                                     hash_map::Entry::Vacant(e) => {
                                         e.insert(var(Some(path.clone())));
                                     }
@@ -1260,7 +1259,7 @@ impl Focus {
 
         if self.return_focused_var.len() > 20 {
             self.return_focused_var
-                .retain(|_, var| var.strong_count() > 1 || var.get(vars).is_some())
+                .retain(|_, var| var.strong_count() > 1 || var.with(Option::is_some))
         }
 
         self.return_focused.retain(|&scope_id, widget_path| {
@@ -1376,7 +1375,7 @@ impl Focus {
                             Some(path.clone()),
                         ));
                         *widget_path = path.clone();
-                        self.alt_return_var.set(vars, path)
+                        self.alt_return_var.set(vars, path).unwrap();
                     }
                 }
             }

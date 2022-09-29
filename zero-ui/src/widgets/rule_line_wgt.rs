@@ -116,9 +116,9 @@ pub mod rule_line {
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let bounds = PxRect::from_size(self.bounds);
-            let orientation = self.orientation.copy(ctx);
-            let color = self.color.copy(ctx);
-            let style = self.style.copy(ctx);
+            let orientation = self.orientation.get();
+            let color = self.color.get();
+            let style = self.style.get();
             frame.push_line(bounds, orientation, color.into(), style);
         }
     }

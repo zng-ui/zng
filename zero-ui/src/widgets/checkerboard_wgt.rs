@@ -117,7 +117,7 @@ pub fn node() -> impl UiNode {
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let (c0, c1) = CHECKERBOARD_COLORS_VAR.copy(ctx);
+            let (c0, c1) = CHECKERBOARD_COLORS_VAR.get();
             self.colors = [c0.into(), c1.into()];
         }
 

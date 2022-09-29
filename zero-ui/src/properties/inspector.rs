@@ -103,7 +103,7 @@ fn show_widget_tree(
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.enabled.copy(ctx) {
+            if self.valid && self.enabled.get() {
                 frame.with_hit_tests_disabled(|frame| {
                     (self.render)(ctx.info_tree, frame);
                 });
@@ -145,7 +145,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
-            if self.enabled.copy(ctx.vars) {
+            if self.enabled.get() {
                 self.event_handles = Some([
                     MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
                     MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
@@ -167,8 +167,8 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                if self.valid && self.enabled.copy(ctx) {
-                    let factor = WindowVars::req(ctx).scale_factor().copy(ctx.vars);
+                if self.valid && self.enabled.get() {
+                    let factor = WindowVars::req(ctx).scale_factor().get();
                     let pt = args.position.to_px(factor.0);
 
                     let fails = Rc::new(RefCell::new(vec![]));
@@ -228,7 +228,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.enabled.copy(ctx) {
+            if self.valid && self.enabled.get() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
                 let fail_sides = BorderSides::solid(colors::RED);
                 let hits_sides = BorderSides::solid(colors::LIME_GREEN);
@@ -280,7 +280,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
-            if self.orientation.copy(ctx.vars).is_some() {
+            if self.orientation.get().is_some() {
                 self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
             }
 
@@ -300,7 +300,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                if let Some(orientation) = self.orientation.copy(ctx) {
+                if let Some(orientation) = self.orientation.get() {
                     let mut none = true;
                     if let Some(target) = &args.target {
                         for w_id in target.widgets_path().iter().rev() {
@@ -350,7 +350,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.orientation.copy(ctx).is_some() {
+            if self.valid && self.orientation.get().is_some() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
                 let quad_sides = BorderSides::solid(colors::YELLOW);
 

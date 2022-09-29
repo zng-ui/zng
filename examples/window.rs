@@ -140,7 +140,7 @@ fn screenshot() -> impl Widget {
 
                 let t = Instant::now();
                 let img = ctx.with(|ctx|{
-                    Windows::req(ctx.services).frame_image(ctx.path.window_id()).get_clone(ctx.vars)
+                    Windows::req(ctx.services).frame_image(ctx.path.window_id()).get()
                 });
                 img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
@@ -455,7 +455,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
 
     let state = var(CloseState::Ask);
     hn!(|ctx, args: &WindowCloseRequestedArgs| {
-        match state.copy(ctx) {
+        match state.get() {
             CloseState::Ask => {
                 args.propagation().stop();
                 state.set(ctx, CloseState::Asking);

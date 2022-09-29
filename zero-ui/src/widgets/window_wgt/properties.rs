@@ -43,7 +43,7 @@ where
             if self.user_var.can_update() {
                 self.binding = Some(self.user_var.bind_bidi(ctx.vars, &window_var));
             }
-            window_var.set_ne(ctx.vars, self.user_var.get_clone(ctx.vars)).unwrap();
+            window_var.set_ne(ctx.vars, self.user_var.get()).unwrap();
             self.child.init(ctx);
         }
 
@@ -155,11 +155,11 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
             self.child.update(ctx, updates);
         }
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.set_clear_color(self.clear_color.copy(ctx).into());
+            frame.set_clear_color(self.clear_color.get().into());
             self.child.render(ctx, frame);
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.set_clear_color(self.clear_color.copy(ctx).into());
+            update.set_clear_color(self.clear_color.get().into());
             self.child.render_update(ctx, update);
         }
     }
@@ -330,8 +330,8 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                                 // request write.
                                 let window_vars = WindowVars::req(&ctx.window_state);
                                 let cfg = WindowStateCfg {
-                                    state: window_vars.state().copy(ctx.vars),
-                                    restore_rect: window_vars.restore_rect().copy(ctx.vars).cast(),
+                                    state: window_vars.state().get(),
+                                    restore_rect: window_vars.restore_rect().get().cast(),
                                 };
 
                                 Config::req(ctx.services).write(key, cfg);

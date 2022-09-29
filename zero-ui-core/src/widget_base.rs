@@ -13,7 +13,7 @@ use crate::{
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
     widget_info::{
-        Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
+        Interactivity, LayoutPassId, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
         WidgetLayout, WidgetSubscriptions,
     },
     window::WIDGET_INFO_CHANGED_EVENT,
@@ -588,7 +588,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.local_enabled.copy(ctx) {
+            if !self.local_enabled.get() {
                 info.push_interactivity(Interactivity::DISABLED);
             }
             self.child.info(ctx, info);
@@ -641,7 +641,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
     #[impl_ui_node(child)]
     impl<C: UiNode, I: Var<bool>> UiNode for InteractiveNode<C, I> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.interactive.copy(ctx) {
+            if !self.interactive.get() {
                 info.push_interactivity(Interactivity::BLOCKED);
             }
             self.child.info(ctx, info);
@@ -682,7 +682,7 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
     #[impl_ui_node(child)]
     impl<C: UiNode, I: Var<bool>> UiNode for BlockInteractionNode<C, I> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if self.interactive.copy(ctx) {
+            if self.interactive.get() {
                 self.child.info(ctx, info);
             } else if let Some(id) = self.child.try_id() {
                 // child is a widget.
@@ -808,7 +808,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.prev_vis = self.visibility.copy(ctx);
+            self.prev_vis = self.visibility.get();
             self.child.init(ctx);
         }
 
@@ -827,14 +827,14 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            if Visibility::Collapsed != self.visibility.copy(ctx) {
+            if Visibility::Collapsed != self.visibility.get() {
                 self.child.measure(ctx)
             } else {
                 PxSize::zero()
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            if Visibility::Collapsed != self.visibility.copy(ctx) {
+            if Visibility::Collapsed != self.visibility.get() {
                 self.child.layout(ctx, wl)
             } else {
                 wl.collapse(ctx);
@@ -843,7 +843,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            match self.visibility.copy(ctx) {
+            match self.visibility.get() {
                 Visibility::Visible => self.child.render(ctx, frame),
                 Visibility::Hidden => frame.hide(|frame| self.child.render(ctx, frame)),
                 Visibility::Collapsed => frame.collapse(ctx.info_tree),
@@ -851,7 +851,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            match self.visibility.copy(ctx) {
+            match self.visibility.get() {
                 Visibility::Visible => self.child.render_update(ctx, update),
                 Visibility::Hidden => update.hidden(|update| self.child.render_update(ctx, update)),
                 Visibility::Collapsed => {}
@@ -924,26 +924,9 @@ impl HitTestMode {
         !matches!(self, Self::Disabled)
     }
 
-    /// Gets the hit-test mode of the current widget context.
-    pub fn get<Vr: WithVarsRead>(vars: &Vr) -> HitTestMode {
-        HIT_TEST_MODE_VAR.get_clone(vars)
-    }
-
-    /// Gets the new hit-test mode of the current widget context.
-    pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<HitTestMode> {
-        HIT_TEST_MODE_VAR.clone_new(vars)
-    }
-
-    /// Gets if the hit-test mode has changed.
-    pub fn is_new<Vw: WithVars>(vars: &Vw) -> bool {
-        HIT_TEST_MODE_VAR.is_new(vars)
-    }
-
-    /// Gets the update mask for [`WidgetSubscriptions`].
-    ///
-    /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-    pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|vars| HIT_TEST_MODE_VAR.update_mask(vars))
+    /// Read-only context var with the contextual mode.
+    pub fn var() -> impl Var<HitTestMode> {
+        HIT_TEST_MODE_VAR.read_only()
     }
 }
 impl fmt::Debug for HitTestMode {
@@ -1108,7 +1091,7 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.allow_auto_hide(self.enabled.copy(ctx));
+            wl.allow_auto_hide(self.enabled.get());
             self.child.layout(ctx, wl)
         }
     }

@@ -626,12 +626,12 @@ impl<'a> TextContext<'a> {
         TextContext {
             lang: LANG_VAR.get(vars),
             font_family: FONT_FAMILY_VAR.get(vars),
-            font_style: FONT_STYLE_VAR.copy(vars),
-            font_weight: FONT_WEIGHT_VAR.copy(vars),
-            font_stretch: FONT_STRETCH_VAR.copy(vars),
+            font_style: FONT_STYLE_VAR.get(),
+            font_weight: FONT_WEIGHT_VAR.get(),
+            font_stretch: FONT_STRETCH_VAR.get(),
 
-            text_transform: TEXT_TRANSFORM_VAR.get_clone(vars),
-            white_space: WHITE_SPACE_VAR.copy(vars),
+            text_transform: TEXT_TRANSFORM_VAR.get(),
+            white_space: WHITE_SPACE_VAR.get(),
 
             font_size: FONT_SIZE_VAR.get(vars),
             font_variations: FONT_VARIATIONS_VAR.get(vars),
@@ -640,30 +640,30 @@ impl<'a> TextContext<'a> {
             letter_spacing: LETTER_SPACING_VAR.get(vars),
             word_spacing: WORD_SPACING_VAR.get(vars),
             line_spacing: LINE_SPACING_VAR.get(vars),
-            word_break: WORD_BREAK_VAR.copy(vars),
-            line_break: LINE_BREAK_VAR.copy(vars),
+            word_break: WORD_BREAK_VAR.get(),
+            line_break: LINE_BREAK_VAR.get(),
             tab_length: TAB_LENGTH_VAR.get(vars),
             font_features: FONT_FEATURES_VAR.get(vars),
 
-            text_align: TEXT_ALIGN_VAR.copy(vars),
+            text_align: TEXT_ALIGN_VAR.get(),
 
-            text_color: TEXT_COLOR_VAR.copy(vars),
+            text_color: TEXT_COLOR_VAR.get(),
 
-            font_synthesis: FONT_SYNTHESIS_VAR.copy(vars),
-            font_aa: FONT_AA_VAR.copy(vars),
+            font_synthesis: FONT_SYNTHESIS_VAR.get(),
+            font_aa: FONT_AA_VAR.get(),
 
-            overline: (OVERLINE_THICKNESS_VAR.get(vars), OVERLINE_STYLE_VAR.copy(vars)),
-            overline_color: OVERLINE_COLOR_VAR.copy(vars),
+            overline: (OVERLINE_THICKNESS_VAR.get(vars), OVERLINE_STYLE_VAR.get()),
+            overline_color: OVERLINE_COLOR_VAR.get(),
 
-            strikethrough: (STRIKETHROUGH_THICKNESS_VAR.get(vars), STRIKETHROUGH_STYLE_VAR.copy(vars)),
-            strikethrough_color: STRIKETHROUGH_COLOR_VAR.copy(vars),
+            strikethrough: (STRIKETHROUGH_THICKNESS_VAR.get(vars), STRIKETHROUGH_STYLE_VAR.get()),
+            strikethrough_color: STRIKETHROUGH_COLOR_VAR.get(),
 
-            underline: (UNDERLINE_THICKNESS_VAR.get(vars), UNDERLINE_STYLE_VAR.copy(vars)),
-            underline_color: UNDERLINE_COLOR_VAR.copy(vars),
-            underline_skip: UNDERLINE_SKIP_VAR.copy(vars),
-            underline_position: UNDERLINE_POSITION_VAR.copy(vars),
+            underline: (UNDERLINE_THICKNESS_VAR.get(vars), UNDERLINE_STYLE_VAR.get()),
+            underline_color: UNDERLINE_COLOR_VAR.get(),
+            underline_skip: UNDERLINE_SKIP_VAR.get(),
+            underline_position: UNDERLINE_POSITION_VAR.get(),
 
-            caret_color: CARET_COLOR_VAR.copy(vars),
+            caret_color: CARET_COLOR_VAR.get(),
         }
     }
 
@@ -673,9 +673,9 @@ impl<'a> TextContext<'a> {
         (
             LANG_VAR.get(vars),
             FONT_FAMILY_VAR.get(vars),
-            FONT_STYLE_VAR.copy(vars),
-            FONT_WEIGHT_VAR.copy(vars),
-            FONT_STRETCH_VAR.copy(vars),
+            FONT_STYLE_VAR.get(),
+            FONT_WEIGHT_VAR.get(),
+            FONT_STRETCH_VAR.get(),
         )
     }
     /// Gets [`font_face`](Self::font_face) if any of the properties updated.
@@ -695,7 +695,7 @@ impl<'a> TextContext<'a> {
 
     /// Gets the properties that affect the text characters.
     pub fn text<Vr: WithVarsRead>(vars: &Vr) -> (TextTransformFn, WhiteSpace) {
-        vars.with_vars_read(|vars| (TEXT_TRANSFORM_VAR.get_clone(vars), WHITE_SPACE_VAR.copy(vars)))
+        vars.with_vars_read(|vars| (TEXT_TRANSFORM_VAR.get(), WHITE_SPACE_VAR.get()))
     }
     /// Gets [`text`](Self::text) if any of the properties updated.
     pub fn text_update<Vw: WithVars>(vars: &Vw) -> Option<(TextTransformFn, WhiteSpace)> {
@@ -772,14 +772,14 @@ impl<'a> TextContext<'a> {
 
     /// Gets the properties that affect text wrapping only.
     pub fn wrapping<Vr: WithVarsRead>(vars: &'a Vr) -> (WordBreak, LineBreak) {
-        vars.with_vars_read(|vars| (WORD_BREAK_VAR.copy(vars), LINE_BREAK_VAR.copy(vars)))
+        vars.with_vars_read(|vars| (WORD_BREAK_VAR.get(), LINE_BREAK_VAR.get()))
     }
 
     /// Gets [`wrapping`](Self::wrapping) if any of the properties updated.
     pub fn wrapping_update<Vw: WithVars>(vars: &'a Vw) -> Option<(WordBreak, LineBreak)> {
         vars.with_vars(|vars| {
             if WORD_BREAK_VAR.is_new(vars) || LINE_BREAK_VAR.is_new(vars) {
-                Some((WORD_BREAK_VAR.copy(vars), LINE_BREAK_VAR.copy(vars)))
+                Some((WORD_BREAK_VAR.get(), LINE_BREAK_VAR.get()))
             } else {
                 None
             }
@@ -788,7 +788,7 @@ impl<'a> TextContext<'a> {
 
     /// Gets the property that affect color.
     pub fn color<Vr: WithVarsRead>(vars: &Vr) -> Rgba {
-        TEXT_COLOR_VAR.copy(vars)
+        TEXT_COLOR_VAR.get()
     }
     /// Gets [`color`](Self::color) if the property updated.
     pub fn color_update<Vw: WithVars>(vars: &Vw) -> Option<Rgba> {
@@ -797,7 +797,7 @@ impl<'a> TextContext<'a> {
 
     /// Gets the properties that affects what font synthesis is used.
     pub fn font_synthesis<Vr: WithVarsRead>(vars: &Vr) -> (FontSynthesis, FontStyle, FontWeight) {
-        vars.with_vars_read(|vars| (FONT_SYNTHESIS_VAR.copy(vars), FONT_STYLE_VAR.copy(vars), FONT_WEIGHT_VAR.copy(vars)))
+        vars.with_vars_read(|vars| (FONT_SYNTHESIS_VAR.get(), FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get()))
     }
 
     /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.

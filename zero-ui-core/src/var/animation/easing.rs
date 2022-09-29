@@ -2,7 +2,129 @@
 //!
 //! See also: [`EasingFn`] and [`EasingModifierFn`].
 
+use std::f32::consts::{FRAC_PI_2, TAU};
+
 use super::*;
+
+/// Common easing modifier functions as an enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EasingModifierFn {
+    /// [`easing::ease_in`].
+    EaseIn,
+    /// [`easing::ease_out`].
+    EaseOut,
+    /// [`easing::ease_in_out`].
+    EaseInOut,
+    /// [`easing::ease_out_in`].
+    EaseOutIn,
+}
+impl EasingModifierFn {
+    /// Calls the easing function with the modifier `self` represents.
+    pub fn modify(self, easing: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+        match self {
+            EasingModifierFn::EaseIn => easing::ease_in(easing, time),
+            EasingModifierFn::EaseOut => easing::ease_out(easing, time),
+            EasingModifierFn::EaseInOut => easing::ease_in_out(easing, time),
+            EasingModifierFn::EaseOutIn => easing::ease_out_in(easing, time),
+        }
+    }
+
+    /// Create a closure that applies the `easing` with the modifier `self` represents.
+    pub fn modify_fn(self, easing: impl Fn(EasingTime) -> EasingStep) -> impl Fn(EasingTime) -> EasingStep {
+        move |t| self.modify(&easing, t)
+    }
+}
+impl fmt::Display for EasingModifierFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EasingModifierFn::EaseIn => write!(f, "ease_in"),
+            EasingModifierFn::EaseOut => write!(f, "ease_out"),
+            EasingModifierFn::EaseInOut => write!(f, "ease_in_out"),
+            EasingModifierFn::EaseOutIn => write!(f, "ease_out_in"),
+        }
+    }
+}
+
+/// Common easing functions as an enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EasingFn {
+    /// [`easing::linear`].
+    Linear,
+    /// [`easing::sine`].
+    Sine,
+    /// [`easing::quad`].
+    Quad,
+    /// [`easing::cubic`].
+    Cubic,
+    /// [`easing::quart`].
+    Quart,
+    /// [`easing::quint`].
+    Quint,
+    /// [`easing::expo`].
+    Expo,
+    /// [`easing::circ`].
+    Circ,
+    /// [`easing::back`].
+    Back,
+    /// [`easing::elastic`].
+    Elastic,
+    /// [`easing::bounce`].
+    Bounce,
+    /// [`easing::none`].
+    None,
+}
+impl EasingFn {
+    /// Calls the easing function that `self` represents.
+    pub fn ease_in(self, time: EasingTime) -> EasingStep {
+        (self.ease_fn())(time)
+    }
+
+    /// Calls the easing function that `self` represents and inverts the value using [`easing::ease_out`].
+    pub fn ease_out(self, time: EasingTime) -> EasingStep {
+        easing::ease_out(|t| self.ease_in(t), time)
+    }
+
+    /// Calls the easing function that `self` represents and transforms the value using [`easing::ease_in_out`].
+    pub fn ease_in_out(self, time: EasingTime) -> EasingStep {
+        easing::ease_in_out(|t| self.ease_in(t), time)
+    }
+
+    /// Gets the easing function that `self` represents.
+    pub fn ease_fn(self) -> fn(EasingTime) -> EasingStep {
+        match self {
+            EasingFn::Linear => easing::linear,
+            EasingFn::Sine => easing::sine,
+            EasingFn::Quad => easing::quad,
+            EasingFn::Cubic => easing::cubic,
+            EasingFn::Quart => easing::quad,
+            EasingFn::Quint => easing::quint,
+            EasingFn::Expo => easing::expo,
+            EasingFn::Circ => easing::circ,
+            EasingFn::Back => easing::back,
+            EasingFn::Elastic => easing::elastic,
+            EasingFn::Bounce => easing::bounce,
+            EasingFn::None => easing::none,
+        }
+    }
+}
+impl fmt::Display for EasingFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EasingFn::Linear => write!(f, "linear"),
+            EasingFn::Sine => write!(f, "sine"),
+            EasingFn::Quad => write!(f, "quad"),
+            EasingFn::Cubic => write!(f, "cubic"),
+            EasingFn::Quart => write!(f, "quart"),
+            EasingFn::Quint => write!(f, "quint"),
+            EasingFn::Expo => write!(f, "expo"),
+            EasingFn::Circ => write!(f, "circ"),
+            EasingFn::Back => write!(f, "back"),
+            EasingFn::Elastic => write!(f, "elastic"),
+            EasingFn::Bounce => write!(f, "bounce"),
+            EasingFn::None => write!(f, "none"),
+        }
+    }
+}
 
 /// Simple linear transition, no easing, no acceleration.
 pub fn linear(time: EasingTime) -> EasingStep {

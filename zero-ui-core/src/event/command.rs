@@ -12,7 +12,10 @@ use crate::{
     handler::WidgetHandler,
     impl_ui_node,
     text::Text,
-    var::{types::ReadOnlyVar, *},
+    var::{
+        types::{RcCowVar, ReadOnlyVar},
+        *,
+    },
     widget_info::{WidgetInfoBuilder, WidgetSubscriptions},
     window::WindowId,
     UiNode, WidgetId,
@@ -344,8 +347,8 @@ impl Command {
         self.local.with(|l| {
             let mut l = l.data.borrow_mut();
             match self.scope {
-                CommandScope::App => l.has_handlers.clone().into_read_only(),
-                scope => l.scopes.entry(scope).or_default().has_handlers.clone().into_read_only(),
+                CommandScope::App => l.has_handlers.read_only(),
+                scope => l.scopes.entry(scope).or_default().has_handlers.read_only(),
             }
         })
     }
@@ -355,8 +358,8 @@ impl Command {
         self.local.with(|l| {
             let mut l = l.data.borrow_mut();
             match self.scope {
-                CommandScope::App => l.is_enabled.clone().into_read_only(),
-                scope => l.scopes.entry(scope).or_default().is_enabled.clone().into_read_only(),
+                CommandScope::App => l.is_enabled.read_only(),
+                scope => l.scopes.entry(scope).or_default().is_enabled.read_only(),
             }
         })
     }
@@ -888,7 +891,7 @@ impl<'a> CommandMeta<'a> {
                 .entry(id.scope())
                 .or_insert_with(|| {
                     let var = meta.entry(id.app()).or_insert_with(|| var(init())).clone();
-                    RcCowVar::new(var)
+                    var.cow()
                 })
                 .clone()
                 .boxed()
@@ -986,7 +989,7 @@ impl CommandNameExt for Command {
     where
         Self: crate::gesture::CommandShortcutExt,
     {
-        crate::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
+        crate::var::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
             if shortcut.is_empty() {
                 name.clone()
             } else {
@@ -1160,7 +1163,7 @@ where
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
-            let is_enabled = enabled.copy(ctx);
+            let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
@@ -1181,7 +1184,7 @@ where
 
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").copy_new(ctx) {
+            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").get_new(ctx) {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
         }
@@ -1237,7 +1240,7 @@ where
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
-            let is_enabled = enabled.copy(ctx);
+            let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
@@ -1266,7 +1269,7 @@ where
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").copy_new(ctx) {
+            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").get_new(ctx) {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
 

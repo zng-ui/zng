@@ -768,8 +768,8 @@ impl MouseManager {
                 mouse.start_window_capture(target.clone(), ctx.events);
             }
 
-            if !mouse.buttons.get(ctx.vars).contains(&button) {
-                mouse.buttons.modify(ctx.vars, move |mut btns| btns.push(button));
+            if !mouse.buttons.with(|b|b.contains(&button)) {
+                mouse.buttons.modify(ctx.vars, move |mut btns| btns.get_mut().push(button));
             }
 
             prev_pressed = self.pressed.insert(button, target.clone());
@@ -780,10 +780,10 @@ impl MouseManager {
                 mouse.end_window_capture(ctx.events);
             }
 
-            if mouse.buttons.get(ctx.vars).contains(&button) {
+            if mouse.buttons.with(|b|b.contains(&button)) {
                 mouse.buttons.modify(ctx.vars, move |mut btns| {
-                    if let Some(i) = btns.iter().position(|k| *k == button) {
-                        btns.swap_remove(i);
+                    if let Some(i) = btns.get().iter().position(|k| *k == button) {
+                        btns.get_mut().swap_remove(i);
                     }
                 });
             }
@@ -838,7 +838,7 @@ impl MouseManager {
                     } => {
                         debug_assert!(*count >= 1);
 
-                        let cfg = self.multi_click_config.get(ctx.vars);
+                        let cfg = self.multi_click_config.get();
                         let now = Instant::now();
 
                         let is_multi_click =
@@ -1181,23 +1181,21 @@ impl AppExtension for MouseManager {
 
                 if let Some(window_id) = self.pos_window.take() {
                     if let Some(path) = self.hovered.take() {
-                        if mouse.buttons.set_ne(ctx.vars, vec![]) {
-                            for btn in mouse.buttons.get(ctx.vars) {
-                                let args = MouseInputArgs::now(
-                                    window_id,
-                                    None,
-                                    *btn,
-                                    DipPoint::new(Dip::new(-1), Dip::new(-1)),
-                                    ModifiersState::empty(),
-                                    ButtonState::Released,
-                                    HitTestInfo::no_hits(window_id),
-                                    path.clone(),
-                                    None,
-                                    None,
-                                );
-                                MOUSE_INPUT_EVENT.notify(ctx.events, args);
-                            }
-                        }
+                        mouse.buttons.for_each(|btn|{
+                            let args = MouseInputArgs::now(
+                                window_id,
+                                None,
+                                *btn,
+                                DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                                ModifiersState::empty(),
+                                ButtonState::Released,
+                                HitTestInfo::no_hits(window_id),
+                                path.clone(),
+                                None,
+                                None,
+                            );
+                            MOUSE_INPUT_EVENT.notify(ctx.events, args);
+                        });
                         let args = MouseHoverArgs::now(
                             window_id,
                             None,
@@ -1320,7 +1318,7 @@ impl Mouse {
     ///
     /// [buttons]: MouseButton
     pub fn buttons(&self) -> ReadOnlyRcVar<Vec<MouseButton>> {
-        self.buttons.clone().into_read_only()
+        self.buttons.read_only()
     }
 
     /// Read-only variable that tracks the system click-count increment time and area, a.k.a. the double-click config.
@@ -1337,7 +1335,7 @@ impl Mouse {
     /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable, so you can notify
     /// this event to set this variable, if you really must.
     pub fn multi_click_config(&self) -> ReadOnlyRcVar<MultiClickConfig> {
-        self.multi_click_config.clone().into_read_only()
+        self.multi_click_config.read_only()
     }
 
     /// The current capture target and mode.

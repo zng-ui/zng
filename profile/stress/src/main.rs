@@ -97,7 +97,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
         .select(ctx.vars, Monitors::req(ctx.services))
         .unwrap()
         .size()
-        .copy(ctx.vars);
+        .get();
     let window_size = PxSize::new(monitor_size.width / Px(5), monitor_size.height / Px(2));
 
     let mut window_pos = PxPoint::zero();

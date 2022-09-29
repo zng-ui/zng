@@ -121,9 +121,9 @@ pub mod uniform_grid {
     {
         /// (columns, rows, first_column)
         fn grid_len(&self, vars: &VarsRead, cells_count: usize) -> (i32, i32, i32) {
-            let mut columns = self.columns.copy(vars) as i32;
-            let mut rows = self.rows.copy(vars) as i32;
-            let mut first_column = self.first_column.copy(vars) as i32;
+            let mut columns = self.columns.get() as i32;
+            let mut rows = self.rows.get() as i32;
+            let mut first_column = self.first_column.get() as i32;
             let rows_is_bound = rows > 0;
 
             if columns == 0 {

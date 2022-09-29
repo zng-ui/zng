@@ -77,7 +77,7 @@ fn app_main() {
                         content = text("Open Another Instance");
                         on_click = hn!(|ctx, _| {
                             let offset= Dip::new(30);
-                            let pos = WindowVars::req(ctx).actual_position().copy(ctx) + DipVector::new(offset, offset);
+                            let pos = WindowVars::req(ctx).actual_position().get() + DipVector::new(offset, offset);
                             let pos = pos.to_i32();
                             let r: Result<(), Box<dyn std::error::Error>> = (|| {
                                 let exe = std::env::current_exe()?;

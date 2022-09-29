@@ -246,7 +246,7 @@ pub mod properties {
                     {
                         args.propagation().stop();
 
-                        if IS_TRISTATE_VAR.copy(ctx) {
+                        if IS_TRISTATE_VAR.get() {
                             let _ = self.checked.modify(ctx, |mut c| {
                                 *c = match *c {
                                     Some(true) => None,
@@ -351,14 +351,14 @@ pub mod properties {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 let value = self.value.get(ctx.vars);
 
-                let selected = if SELECT_ON_INIT_VAR.copy(ctx) {
+                let selected = if SELECT_ON_INIT_VAR.get() {
                     Self::select(ctx, value)
                 } else {
                     Self::is_selected(ctx, value)
                 };
                 self.checked.set_ne(ctx.vars, Some(selected));
 
-                if DESELECT_ON_DEINIT_VAR.copy(ctx) {
+                if DESELECT_ON_DEINIT_VAR.get() {
                     self.prev_value = Some(value.clone());
                 }
 
@@ -368,7 +368,7 @@ pub mod properties {
             }
 
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                if self.checked.copy(ctx.vars) == Some(true) && DESELECT_ON_DEINIT_VAR.copy(ctx) {
+                if self.checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
                     let value = self.value.get(ctx.vars);
                     if Self::deselect(ctx, value) {
                         self.checked.set_ne(ctx, Some(false));
@@ -394,7 +394,7 @@ pub mod properties {
                         args.propagation().stop();
 
                         let value = self.value.get(ctx.vars);
-                        let selected = self.checked.copy(ctx) == Some(true);
+                        let selected = self.checked.get() == Some(true);
                         let selected = if selected {
                             !Self::deselect(ctx, value)
                         } else {
@@ -408,7 +408,7 @@ pub mod properties {
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 let selected = if let Some(new) = self.value.get_new(ctx.vars) {
                     // auto select new.
-                    let selected = if self.checked.copy(ctx) == Some(true) && SELECT_ON_NEW_VAR.copy(ctx.vars) {
+                    let selected = if self.checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
                         Self::select(ctx, new)
                     } else {
                         Self::is_selected(ctx, new)
@@ -416,7 +416,7 @@ pub mod properties {
 
                     // auto deselect prev, need to be done after potential auto select new to avoid `CannotClear` error.
                     if let Some(prev) = self.prev_value.take() {
-                        if DESELECT_ON_NEW_VAR.copy(ctx.vars) {
+                        if DESELECT_ON_NEW_VAR.get() {
                             Self::deselect(ctx, &prev);
                             self.prev_value = Some(new.clone());
                         }
@@ -430,10 +430,10 @@ pub mod properties {
                 };
                 self.checked.set_ne(ctx.vars, selected);
 
-                if DESELECT_ON_NEW_VAR.copy(ctx) && selected {
+                if DESELECT_ON_NEW_VAR.get() && selected {
                     // save a clone of the value to reference it on deselection triggered by variable value changing.
                     if self.prev_value.is_none() {
-                        let value = self.value.get_clone(ctx);
+                        let value = self.value.get();
                         self.prev_value = Some(value);
                     }
                 } else {

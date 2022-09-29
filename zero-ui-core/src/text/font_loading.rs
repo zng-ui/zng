@@ -259,7 +259,7 @@ impl Fonts {
     ///
     /// The variable updates when the system config changes.
     pub fn system_font_aa(&self) -> impl Var<FontAntiAliasing> {
-        self.font_aa.clone().into_read_only()
+        self.font_aa.read_only()
     }
 }
 

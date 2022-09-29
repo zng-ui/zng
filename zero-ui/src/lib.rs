@@ -293,7 +293,7 @@
 //! let btn = button! {
 //!     content = text(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
-//!         flag.set(ctx.vars, !flag.copy(ctx.vars));
+//!         flag.set(ctx.vars, !flag.get());
 //!     });
 //! };
 //! ```
@@ -345,7 +345,7 @@
 //!         }
 //!     }));
 //!     on_click = hn!(|ctx, _| {
-//!         let next = count.copy(ctx) + 1;
+//!         let next = count.get() + 1;
 //!         count.set(ctx, next);
 //!     });
 //! };

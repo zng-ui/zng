@@ -38,7 +38,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let (rect, offsets) = ContextBorders::border_layout(ctx);
-            frame.push_border(rect, offsets, self.sides.copy(ctx), self.corners);
+            frame.push_border(rect, offsets, self.sides.get(), self.corners);
         }
     }
 

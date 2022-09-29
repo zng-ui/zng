@@ -197,7 +197,7 @@ where
             PxRect::from_size(self.g.final_size),
             self.g.render_line,
             &self.g.render_stops,
-            self.g.extend_mode.copy(ctx).into(),
+            self.g.extend_mode.get().into(),
             self.render_tile_size,
             self.render_tile_spacing,
         );

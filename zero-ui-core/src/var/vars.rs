@@ -1,311 +1,69 @@
+use std::{mem, time::Duration};
+
+use crate::{
+    app::AppEventSender,
+    context::{AppContext, Updates},
+    crate_util,
+    units::Factor,
+};
+
 use super::{
-    animation::{AnimationArgs, AnimationHandle, VarsAnimations, WeakAnimationHandle},
+    animation::{AnimateModifyInfo, Animations},
     *,
 };
-use crate::{
-    app::{
-        raw_events::RAW_ANIMATIONS_ENABLED_CHANGED_EVENT, view_process::VIEW_PROCESS_INITED_EVENT, AppDisconnected, AppEventSender,
-        LoopTimer, RecvFut, TimeoutOrAppDisconnected,
-    },
-    context::{AppContext, Updates, UpdatesTrace},
-    crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop, WeakHandle},
-    event::EventUpdate,
-    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
-};
-use std::{
-    any::type_name,
-    cell::{Cell, RefCell},
-    fmt,
-    ops::Deref,
-    time::{Duration, Instant},
-};
+
+/// Represents the last time a variable was mutated or the current update cycle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VarUpdateId(u32);
+impl VarUpdateId {
+    /// ID that is never new.
+    pub const fn never() -> Self {
+        VarUpdateId(0)
+    }
+
+    fn next(&mut self) {
+        if self.0 == u32::MAX {
+            self.0 = 1;
+        } else {
+            self.0 += 1;
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct VarApplyUpdateId(u32);
+impl VarApplyUpdateId {
+    /// ID that is never returned in `Vars`.
+    pub(super) const fn initial() -> Self {
+        VarApplyUpdateId(0)
+    }
+
+    fn next(&mut self) {
+        if self.0 == u32::MAX {
+            self.0 = 1;
+        } else {
+            self.0 += 1;
+        }
+    }
+}
+
+pub(super) type VarUpdateFn = Box<dyn FnOnce(&Vars, &mut Updates)>;
 
 thread_singleton!(SingletonVars);
 
-type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
-type Retain = bool;
-type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
-type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
-
-/// Read-only access to variables.
-///
-/// In some contexts variables can be set, so a full [`Vars`] reference is given, in other contexts
-/// variables can only be read, so a [`VarsRead`] reference is given.
-///
-/// [`Vars`] dereferences to to this type and a reference to it is available in [`InfoContext`] and [`RenderContext`].
-/// Methods that expect the [`VarsRead`] reference usually abstract using the [`WithVarsRead`] trait, that allows passing in
-/// the full context reference or references to async contexts.
-///
-/// # Examples
-///
-/// You can [`get`] a variable value using the [`VarsRead`] reference:
-///
-/// ```
-/// # use zero_ui_core::var::{Var, VarsRead};
-/// fn get(var: &impl Var<bool>, vars: &VarsRead) -> bool {
-///     *var.get(vars)
-/// }
-/// ```
-///
-/// And because of auto-dereference you can can use the same method using a full [`Vars`] reference:
-///
-/// ```
-/// # use zero_ui_core::var::{Var, Vars};
-/// fn get(var: &impl Var<bool>, vars: &Vars) -> bool {
-///     *var.get(vars)
-/// }
-/// ```
-///
-/// But [`get`] actually receives any [`WithVarsRead`] implementer so you can just use the full context reference, if you are
-/// not borrowing another part of it:
-///
-/// ```
-/// # use zero_ui_core::{var::{Var, VarsRead}, context::LayoutContext};
-/// fn get(var: &impl Var<bool>, ctx: &LayoutContext) -> bool {
-///     *var.get(ctx)
-/// }
-/// ```
-///
-/// # Context Vars
-///
-/// Context variables can be changed in a context using the [`VarsRead`] instance, the `with_context_var` method calls
-/// a closure while a context variable is set to a [`ContextVarData`] value.
-///
-/// ```
-/// # use zero_ui_core::{*, context::*, var::*};
-/// # context_var! { pub static FOO_VAR: bool = false; }
-/// # struct FooNode<C, V> { child: C, var: V }
-/// # #[impl_ui_node(child)]
-/// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
-///     fn update(&mut self, ctx: &mut WidgetContext) {
-///         ctx.vars.with_context_var(FOO_VAR, ContextVarData::in_vars(ctx.vars, &self.var, false), || self.child.update(ctx));
-///     }
-/// }
-/// ```
-///
-/// The example binds a `FOO_VAR` to another `var` for the duration of the [`update`] call. The `var` value and version
-/// are accessible in inner widgets using only the `FOO_VAR`.
-///
-/// Note that the example is incomplete, [`init`], [`deinit`] and the other methods should also be implemented. You can use
-/// the [`with_context_var`] helper function to declare a node that binds a context var in all [`UiNode`] methods.
-///
-/// [new]: Var::is_new
-/// [`deinit`]: crate::UiNode::deinit
-/// [`init`]: crate::UiNode::init
-/// [`render`]: crate::UiNode::render
-/// [`update`]: crate::UiNode::update
-/// [`UiNode`]: crate::UiNode
-/// [`render_update`]: crate::UiNode::render_update
-/// [`get`]: Var::get
-/// [`InfoContext`]: crate::context::InfoContext
-/// [`RenderContext`]: crate::context::RenderContext
-pub struct VarsRead {
-    _singleton: SingletonVars,
-    context_id: Cell<Option<WidgetId>>,
-    contextless_count: Cell<u32>,
-    update_id: u32,
-
-    app_event_sender: AppEventSender,
-    senders: RefCell<Vec<SyncEntry>>,
-    receivers: RefCell<Vec<SyncEntry>>,
-
-    pub(crate) ans: VarsAnimations,
-
-    update_links: RefCell<Vec<UpdateLinkFn>>,
-}
-impl fmt::Debug for VarsRead {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "VarsRead {{ .. }}")
-    }
-}
-impl VarsRead {
-    /// Id of the current update cycle, can be used to determinate if a variable value is new.
-    pub(super) fn update_id(&self) -> u32 {
-        self.update_id
-    }
-
-    pub(super) fn link_updates(&self, check: impl Fn(&Vars, &mut UpdateMask) -> Retain + 'static) {
-        self.update_links.borrow_mut().push(Box::new(check))
-    }
-
-    /// Calls `f` with the context var set to `source`.
-    ///
-    /// # Source Update
-    ///
-    /// Nodes within `f` expect the same source [`update_mask`] from the previous call, if you are swapping the
-    /// entire `source` value for a new one you must request an [`info`] update.
-    ///
-    /// [`update_mask`]: ContextVarData::update_mask
-    /// [`info`]: crate::context::Updates::info
-    pub fn with_context_var<T, R, F>(&self, context_var: ContextVar<T>, data: ContextVarData<T>, f: F) -> R
-    where
-        T: VarValue,
-        F: FnOnce() -> R,
-    {
-        #[cfg(dyn_closure)]
-        let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        self.with_context_var_impl(context_var, data, f)
-    }
-    fn with_context_var_impl<T, R, F>(&self, context_var: ContextVar<T>, mut data: ContextVarData<T>, f: F) -> R
-    where
-        T: VarValue,
-        F: FnOnce() -> R,
-    {
-        #[cfg(dyn_closure)]
-        let f: Box<dyn FnOnce() -> R> = Box::new(f);
-
-        // SAFETY: `ContextVar` makes safety assumptions about this code
-        // don't change before studying it.
-
-        if let Some(context_id) = self.context_id.get() {
-            let prev_version = context_var.current_version();
-            data.version.set_widget_context(&prev_version, context_id);
-        } else {
-            let count = self.contextless_count.get().wrapping_add(1);
-            self.contextless_count.set(count);
-            data.version.set_app_context(count);
-        }
-
-        let prev = context_var.enter_context(data.into_raw());
-        let _restore = RunOnDrop::new(move || {
-            context_var.exit_context(prev);
-        });
-
-        f()
-
-        // _prev restores the parent reference here on drop
-    }
-
-    /// Clears widget only context var values, calls `f` and restores widget only context var values.
-    ///
-    /// This is called by the layout and render contexts.
-    pub(crate) fn with_widget<R, F: FnOnce() -> R>(&self, widget_id: WidgetId, f: F) -> R {
-        #[cfg(dyn_closure)]
-        let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        self.with_widget_impl(widget_id, f)
-    }
-    fn with_widget_impl<R, F: FnOnce() -> R>(&self, widget_id: WidgetId, f: F) -> R {
-        let parent_wgt = self.context_id.get();
-        self.context_id.set(Some(widget_id));
-
-        let _restore = RunOnDrop::new(move || {
-            self.context_id.set(parent_wgt);
-        });
-
-        f()
-    }
-
-    /// Creates a channel that can receive `var` updates from another thread.
-    ///
-    /// Every time the variable updates a clone of the value is sent to the receiver. The current value is sent immediately.
-    ///
-    /// This is called by [`Var::receiver`].
-    pub(super) fn receiver<T, V>(&self, var: &V) -> VarReceiver<T>
-    where
-        T: VarValue + Send,
-        V: Var<T>,
-    {
-        let (sender, receiver) = flume::unbounded();
-        let _ = sender.send(var.get(self).clone());
-
-        if var.always_read_only() {
-            self.senders.borrow_mut().push(Box::new(move |_| {
-                // retain if not disconnected.
-                !sender.is_disconnected()
-            }));
-        } else {
-            let var = var.clone();
-            self.senders.borrow_mut().push(Box::new(move |vars| {
-                if let Some(new) = var.get_new(vars) {
-                    sender.send(new.clone()).is_ok()
-                } else {
-                    !sender.is_disconnected()
-                }
-            }));
-        }
-
-        VarReceiver { receiver }
-    }
-}
-
-/// Applies pending update and returns the var update mask if it updated, otherwise returns `UpdateMask::none`.
-///
-/// The closure must to hold a strong reference to the variable, the closure it self will be held for the next update
-/// in case the variable was dropped after assign, gives one last chance for weak listeners to receive an update.
-type PendingUpdate = Box<dyn FnMut(u32) -> UpdateMask>;
-
-/// Read-write access to variables.
-///
-/// Only a single instance of this struct exists per-app and a reference to it is available in
-/// [`AppContext`], [`WindowContext`] and [`WidgetContext`].
-///
-/// This struct dereferences to [`VarsRead`] and implements [`WithVarsRead`] so you can use it
-/// in any context that requests read-only access to variables, but it also allows setting or modifying
-/// variables and checking if a variable value [`is_new`].
-///
-/// # Examples
-///
-/// You can [`get`] and [`set`] variables using the [`Vars`] reference:
-///
-/// ```
-/// # use zero_ui_core::var::*;
-/// fn get_set(var: &impl Var<bool>, vars: &Vars) {
-///     let flag = *var.get(vars);
-///     var.set(vars, !flag).ok();
-/// }
-/// ```
-///
-/// But most methods actually receives any [`WithVars`] implementer so you can just use the full context reference, if you are
-/// not borrowing another part of it:
-///
-/// ```
-/// # use zero_ui_core::{var::*, context::WidgetContext};
-/// fn get_set(var: &impl Var<bool>, ctx: &mut WidgetContext) {
-///     let flag = *var.get(ctx);
-///     var.set(ctx, !flag).ok();
-/// }
-/// ```
-///
-/// Variable values are stored in the variable not in the [`Vars`] and yet methods like [`get`] tie-in the [`Vars`] lifetime
-/// with the variable lifetime when you borrow the value, this is a compile time validation that no variable values are borrowed
-/// when they are replaced. Internally a runtime validation verifies that [`Vars`] is the only instance in the thread and it
-/// must be exclusively borrowed to apply the variable changes, this let variables be implemented very cheaply without needing
-/// to use a mechanism like `RefCell`.
-///
-/// # Binding
-///
-/// Variables can be *bound* to one another using the `bind_*` methods of [`Var<T>`]. Those methods are implemented using [`bind`]
-/// which creates an special update handler that can modify any captured variables *once* before the rest of the app sees the update.
-/// You can use [`bind`] to create more exotic bindings that don't have the same shape as a mapping.
-///
-/// [`AppContext`]: crate::context::AppContext
-/// [`WindowContext`]: crate::context::WindowContext
-/// [`WidgetContext`]: crate::context::WidgetContext
-/// [`is_new`]: crate::var::Var::is_new
-/// [new]: crate::var::Var::is_new
-/// [`get`]: crate::var::Var::is_new
-/// [`set`]: crate::var::Var::is_new
-/// [`bind`]: crate::var::Vars::bind
-/// [`init`]: crate::UiNode::init
-/// [`update`]: crate::UiNode::init
-/// [`deinit`]: crate::UiNode::deinit
-/// [`UiNode`]: crate::UiNode
+/// Enables write access for [`Var<T>`].
 pub struct Vars {
-    read: VarsRead,
+    _singleton: SingletonVars,
+    app_event_sender: AppEventSender,
+    pub(super) ans: Animations,
 
-    binding_update_id: u32,
-    bindings: RefCell<Vec<VarBindingFn>>,
+    update_id: VarUpdateId,
+    apply_update_id: VarApplyUpdateId,
 
-    pending: RefCell<Vec<PendingUpdate>>,
-    updating: Vec<PendingUpdate>,
+    updates: RefCell<Vec<(AnimateModifyInfo, VarUpdateFn)>>,
+    spare_updates: Vec<(AnimateModifyInfo, VarUpdateFn)>,
 
-    pre_handlers: RefCell<Vec<OnVarHandler>>,
-    pos_handlers: RefCell<Vec<OnVarHandler>>,
-}
-impl fmt::Debug for Vars {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Vars {{ .. }}")
-    }
+    modify_receivers: RefCell<Vec<Box<dyn Fn(&Vars) -> bool>>>,
 }
 impl Vars {
     /// If an instance of `Vars` already exists in the  current thread.
@@ -313,279 +71,39 @@ impl Vars {
         SingletonVars::in_use()
     }
 
-    /// Produces the instance of `Vars`. Only a single
-    /// instance can exist in a thread at a time, panics if called
-    /// again before dropping the previous instance.
-    pub(crate) fn instance(app_event_sender: AppEventSender) -> Self {
-        Vars {
-            read: VarsRead {
-                _singleton: SingletonVars::assert_new("Vars"),
-                context_id: Cell::new(None),
-                contextless_count: Cell::new(0),
-                update_id: 1u32,
-                app_event_sender,
-                senders: RefCell::default(),
-                receivers: RefCell::default(),
-                update_links: RefCell::default(),
-                ans: VarsAnimations::new(),
-            },
-            binding_update_id: 0u32.wrapping_sub(13),
-            bindings: RefCell::default(),
-
-            pending: Default::default(),
-            updating: vec![],
-            pre_handlers: RefCell::default(),
-            pos_handlers: RefCell::default(),
-        }
+    /// Id of the current vars update in the app scope.
+    ///
+    /// Variable with [`AnyVar::update_id`] equal to this are *new*.
+    pub fn update_id(&self) -> VarUpdateId {
+        self.update_id
     }
 
-    /// Animation weak handle + animation counter.
-    pub(super) fn current_animation(&self) -> (Option<WeakAnimationHandle>, u32) {
+    /// Returns a read-only variable that tracks if animations are enabled in the operating system.
+    ///
+    /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
+    pub fn animations_enabled(&self) -> ReadOnlyRcVar<bool> {
+        self.ans.animations_enabled.read_only()
+    }
+
+    /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
+    pub fn frame_duration(&self) -> &RcVar<Duration> {
+        &self.ans.frame_duration
+    }
+
+    /// Variable that defines a global scale for the elapsed time of animations.
+    pub fn animation_time_scale(&self) -> &RcVar<Factor> {
+        &self.ans.animation_time_scale
+    }
+
+    /// Gets info about the [`Vars::animate`] closure that is currently running or that generated the var modify closure
+    /// that is currently running.
+    pub fn current_animation(&self) -> AnimateModifyInfo {
         self.ans.current_animation.borrow().clone()
-    }
-
-    /// Schedule set/modify.
-    pub(super) fn push_change<T: VarValue, V: Var<T>>(&self, var: V, apply: impl FnOnce(&V, u32) -> UpdateMask + 'static) {
-        UpdatesTrace::log_var::<T>();
-        let mut apply = Some(apply);
-        self.pending.borrow_mut().push(Box::new(move |id| {
-            let apply = apply.take().unwrap();
-            apply(&var, id)
-        }));
-    }
-
-    pub(crate) fn has_pending_updates(&mut self) -> bool {
-        !self.pending.get_mut().is_empty()
-    }
-
-    /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.
-    pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
-        VarsAnimations::update_animations(self, timer)
-    }
-
-    /// Returns the next animation frame, if there are any active animations.
-    pub(crate) fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        VarsAnimations::next_deadline(self, timer)
-    }
-
-    /// Apply scheduled set/modify.
-    ///
-    /// Returns new app wake time if there are active animations.
-    pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
-        let _s = tracing::trace_span!("Vars").entered();
-
-        self.read.update_id = self.update_id.wrapping_add(1);
-        self.ans.animation_start_time.set(None);
-
-        self.updating.clear();
-
-        let pending = self.pending.get_mut();
-        if !pending.is_empty() {
-            let mut mask = UpdateMask::none();
-            for mut f in pending.drain(..) {
-                mask |= f(self.read.update_id);
-                self.updating.push(f); // hold var alive for one update.
-            }
-
-            if !mask.is_none() {
-                // update bindings
-                if !self.bindings.get_mut().is_empty() {
-                    self.binding_update_id = self.binding_update_id.wrapping_add(1);
-
-                    loop {
-                        self.bindings.borrow_mut().retain_mut(|f| f(self));
-
-                        let pending = self.pending.get_mut();
-                        if pending.is_empty() {
-                            break;
-                        }
-                        for mut f in pending.drain(..) {
-                            mask |= f(self.read.update_id);
-                            self.updating.push(f);
-                        }
-                    }
-                }
-
-                // add extra update flags
-                self.read.update_links.borrow_mut().retain(|f| f(self, &mut mask));
-
-                // send values.
-                self.senders.borrow_mut().retain(|f| f(self));
-
-                // does an app update because some vars have new values.
-                updates.update_internal(mask);
-            }
-        }
-    }
-
-    /// Receive and apply set/modify from [`VarSender`] and [`VarModifySender`] instances.
-    pub(crate) fn receive_sended_modify(&self) {
-        self.receivers.borrow_mut().retain(|f| f(self));
-    }
-
-    pub(crate) fn event_preview(ctx: &mut AppContext, update: &mut EventUpdate) {
-        if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
-        } else if let Some(args) = RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.on(update) {
-            ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.enabled);
-        }
-    }
-
-    /// Creates a channel that can set `var` from other threads.
-    ///
-    /// The channel wakes the app and causes a variable update.
-    ///
-    /// This is called by [`Var::receiver`].
-    pub(super) fn sender<T, V>(&self, var: &V) -> VarSender<T>
-    where
-        T: VarValue + Send,
-        V: Var<T>,
-    {
-        let (sender, receiver) = flume::unbounded();
-
-        if var.always_read_only() {
-            self.receivers.borrow_mut().push(Box::new(move |_| {
-                receiver.drain();
-                !receiver.is_disconnected()
-            }));
-        } else {
-            let var = var.clone();
-            self.receivers.borrow_mut().push(Box::new(move |vars| {
-                if let Some(new_value) = receiver.try_iter().last() {
-                    let _ = var.set(vars, new_value);
-                }
-                !receiver.is_disconnected()
-            }));
-        };
-
-        VarSender {
-            wake: self.app_event_sender.clone(),
-            sender,
-        }
-    }
-
-    /// Creates a channel that can modify `var` from other threads.
-    ///
-    /// If the variable is read-only when a modification is received it is silently dropped.
-    ///
-    /// This is called by [`Var::modify_sender`].
-    pub(super) fn modify_sender<T, V>(&self, var: &V) -> VarModifySender<T>
-    where
-        T: VarValue,
-        V: Var<T>,
-    {
-        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(VarModify<T>) + Send>>();
-
-        if var.always_read_only() {
-            self.receivers.borrow_mut().push(Box::new(move |_| {
-                receiver.drain();
-                !receiver.is_disconnected()
-            }));
-        } else {
-            let var = var.clone();
-            self.receivers.borrow_mut().push(Box::new(move |vars| {
-                for modify in receiver.try_iter() {
-                    let _ = var.modify(vars, modify);
-                }
-                !receiver.is_disconnected()
-            }));
-        }
-
-        VarModifySender {
-            wake: self.app_event_sender.clone(),
-            sender,
-        }
-    }
-
-    /// Adds a handler to all var updates that can modify captured variables **without** causing a second update.
-    ///
-    /// This is used by the [`Var`] map binding methods, it enables the effect of bound variables getting a new
-    /// value in the same update as the variables that caused the new value.
-    ///
-    /// Returns a [`VarBindingHandle`] that can be used to monitor the binding status and to [`unbind`] or to
-    /// make the binding [`perm`].
-    ///
-    /// # Examples
-    ///
-    /// The example updates `squared_var` and `count_var` *at the same time* as `source_var`:
-    ///
-    /// ```
-    /// # use zero_ui_core::{var::*, *};
-    /// fn bind_square(
-    ///     vars: &Vars,
-    ///     source_var: &impl Var<u64>,
-    ///     squared_var: &impl Var<u64>,
-    ///     count_var: &impl Var<u32>
-    /// ) {
-    ///     count_var.set(vars, 0u32).ok();
-    ///     vars.bind(clone_move!(source_var, squared_var, count_var, |vars, binding| {
-    ///         if let Some(i) = source_var.copy_new(vars) {
-    ///             if let Some(squared) = i.checked_mul(i) {
-    ///                 squared_var.set(vars, squared).ok();
-    ///                 count_var.modify(vars, |mut c| *c += 1).ok();
-    ///             } else {
-    ///                 binding.unbind();
-    ///             }
-    ///         }
-    ///     })).perm();
-    /// }
-    /// ```
-    ///
-    /// Note that the binding can be undone from the inside, the closure second parameter is a [`VarBinding`]. In
-    /// the example this is the only way to stop the binding, because we called [`perm`]. Bindings hold a clone
-    /// of the variables and exist for the duration of the app if not unbound.
-    ///
-    /// In the example all three variables will update *at the same time* until the binding finishes. They will
-    /// **not** update just from creating the binding, the `squared_var` will have its old value until `source_var` updates, you
-    /// can cause an update immediately after creating a binding by calling [`Var::touch`].
-    ///
-    /// You can *chain* bindings, if you have two bindings `VarA -> VarB` and `VarB -> VarC`, `VarC` will update
-    /// when `VarA` updates. It is not possible to create an infinite loop however, because `binding` is not called again in an
-    /// app update if it modifies any variable, so if you add an extra binding `VarC -> VarA` it will run, but it will not cause
-    /// the first binding to run again.
-    ///
-    /// The `binding` runs in the app context, just after the variable modifications are applied. This means that context variables
-    /// will only be their default value in bindings.
-    ///
-    /// [`unbind`]: VarBindingHandle::unbind
-    /// [`perm`]: VarBindingHandle::perm
-    pub fn bind<B>(&self, mut binding: B) -> VarBindingHandle
-    where
-        B: FnMut(&Vars, &VarBinding) + 'static,
-    {
-        let (handle_owner, handle) = VarBindingHandle::new();
-
-        let mut last_update_id = self.binding_update_id;
-
-        self.bindings.borrow_mut().push(Box::new(move |vars| {
-            let mut retain = !handle_owner.is_dropped();
-
-            if vars.binding_update_id == last_update_id {
-                return retain;
-            }
-
-            let changes_count = vars.pending.borrow().len();
-
-            if retain {
-                let info = VarBinding::new();
-                binding(vars, &info);
-                retain = !info.unbind_requested();
-            }
-
-            if retain && vars.pending.borrow().len() > changes_count {
-                // binding caused change, stop it from running this app update.
-                last_update_id = vars.binding_update_id;
-            }
-
-            retain
-        }));
-
-        handle
     }
 
     /// Adds an animation handler that is called every frame to update captured variables.
     ///
-    /// This is used by the [`Var`] ease methods default implementation, it enables any kind of variable animation,
+    /// This is used by the [`Var<T>`] ease methods default implementation, it enables any kind of variable animation,
     /// including multiple variables.
     ///
     /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
@@ -651,310 +169,81 @@ impl Vars {
     /// # }
     /// ```
     ///
-    /// [`stop`]: AnimationHandle::stop
-    /// [`perm`]: AnimationHandle::perm
-    pub fn animate<A>(&self, animation: A) -> AnimationHandle
+    /// [`AnimationHandle`]: animation::AnimationHandle
+    /// [`stop`]: animation::AnimationHandle::stop
+    /// [`perm`]: animation::AnimationHandle::perm
+    pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
     where
-        A: FnMut(&Vars, &AnimationArgs) + 'static,
+        A: FnMut(&Vars, &animation::AnimationArgs) + 'static,
     {
-        VarsAnimations::animate(self, animation)
+        Animations::animate(self, animation)
     }
 
-    /// Returns a read-only variable that tracks if animations are enabled in the operating system.
-    ///
-    /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
-    pub fn animations_enabled(&self) -> ReadOnlyRcVar<bool> {
-        self.ans.animations_enabled.clone().into_read_only()
-    }
-
-    /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
-    pub fn frame_duration(&self) -> &RcVar<Duration> {
-        &self.ans.frame_duration
-    }
-
-    /// Variable that defines a global scale for the elapsed time of animations.
-    pub fn animation_time_scale(&self) -> &RcVar<Factor> {
-        &self.ans.animation_time_scale
-    }
-
-    /// If one or more variables have pending updates.
-    pub fn update_requested(&self) -> bool {
-        !self.pending.borrow().is_empty()
-    }
-
-    /// Create a variable update preview handler.
-    ///
-    /// The `handler` is called every time the `var` value is set, modified or touched. The handler is called before
-    /// the UI update that notified the variable update, and after all other previous registered handlers.
-    ///
-    /// Returns a [`OnVarHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
-    ///
-    /// The handler does not hold a strong reference to the `var`, if the variable is dropped the handler auto-unsubscribes.
-    /// If [`can_update`] is `false` the `handler` is immediately dropped and the [`dummy`] handle is returned.
-    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`] and the handler is still dropped if `var` is dropped.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::handler::app_hn;
-    /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
-    ///     let mut prev_value = format!("{:?}", var.get(vars));
-    ///     vars.on_pre_var(var, app_hn!(|_ctx, new_value, _subscription| {
-    ///         let new_value = format!("{new_value:?}");
-    ///         println!("{prev_value} -> {new_value}");
-    ///         prev_value = new_value;
-    ///     })).perm();
-    /// }
-    /// ```
-    ///
-    /// The example traces the value changes of a variable.
-    ///
-    /// # Handlers
-    ///
-    /// the handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
-    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
-    /// [`app_hn_once!`] and [`async_app_hn_once!`].
-    ///
-    /// [`dummy`]: OnVarHandle::dummy
-    /// [`app_hn!`]: crate::handler::app_hn!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn!
-    /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
-    /// [`can_update`]: Var::can_update
-    /// [`is_contextual`]: Var::is_contextual
-    /// [`actual_var`]: Var::actual_var
-    pub fn on_pre_var<T, V, H>(&self, var: &V, handler: H) -> OnVarHandle
-    where
-        T: VarValue,
-        V: Var<T>,
-        H: AppHandler<T>,
-    {
-        self.push_var_handler(&self.pre_handlers, true, var, handler)
-    }
-
-    /// Create a variable update handler.
-    ///
-    /// The `handler` is called every time the `var` value is set, modified or touched, the call happens after
-    /// all other app components where notified.
-    ///
-    /// Returns a [`OnVarHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
-    ///
-    /// The handler does not hold a strong reference to the `var`, if the variable is dropped the handler auto-unsubscribes.
-    /// If [`can_update`] is `false` the `handler` is immediately dropped and the [`dummy`] handle is returned.
-    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`] and the handler is still dropped if `var` is dropped.
-    ///
-    /// # Handlers
-    ///
-    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
-    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
-    /// [`app_hn_once!`] and [`async_app_hn_once!`].
-    ///
-    /// [`dummy`]: OnVarHandle::dummy
-    /// [`app_hn!`]: crate::handler::app_hn!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn!
-    /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
-    /// [`can_update`]: Var::can_update
-    /// [`is_contextual`]: Var::is_contextual
-    /// [`actual_var`]: Var::actual_var
-    pub fn on_var<T, V, H>(&self, var: &V, handler: H) -> OnVarHandle
-    where
-        T: VarValue,
-        V: Var<T>,
-        H: AppHandler<T>,
-    {
-        self.push_var_handler(&self.pos_handlers, false, var, handler)
-    }
-
-    fn push_var_handler<T, V, H>(&self, handlers: &RefCell<Vec<OnVarHandler>>, is_preview: bool, var: &V, mut handler: H) -> OnVarHandle
-    where
-        T: VarValue,
-        V: Var<T>,
-        H: AppHandler<T>,
-    {
-        if !var.can_update() {
-            return OnVarHandle::dummy();
+    pub(crate) fn instance(app_event_sender: AppEventSender) -> Vars {
+        Vars {
+            _singleton: SingletonVars::assert_new("Vars"),
+            app_event_sender,
+            ans: Animations::new(),
+            update_id: VarUpdateId(1),
+            apply_update_id: VarApplyUpdateId(1),
+            updates: RefCell::new(Vec::with_capacity(128)),
+            spare_updates: Vec::with_capacity(128),
+            modify_receivers: RefCell::new(vec![]),
         }
-
-        let (handle_owner, handle) = OnVarHandle::new();
-
-        let handler: Box<dyn FnMut(&mut AppContext, &dyn AppWeakHandle)> = if var.is_contextual() {
-            let actual_var = var.actual_var(self);
-            debug_assert!(var.is_rc());
-
-            let wk_var = BindActualWeak::new(var, actual_var);
-
-            Box::new(move |ctx: &mut AppContext, handle: &dyn AppWeakHandle| {
-                if let Some(var) = wk_var.upgrade() {
-                    if let Some(new_value) = var.get_new(ctx.vars) {
-                        handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
-                    }
-                } else {
-                    handle.unsubscribe();
-                }
-            })
-        } else {
-            debug_assert!(var.is_rc());
-            let wk_var = var.downgrade().unwrap();
-            Box::new(move |ctx: &mut AppContext, handle: &dyn AppWeakHandle| {
-                if let Some(var) = wk_var.upgrade() {
-                    if let Some(new_value) = var.get_new(ctx.vars) {
-                        handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
-                    }
-                } else {
-                    handle.unsubscribe();
-                }
-            })
-        };
-
-        handlers.borrow_mut().push(OnVarHandler {
-            handle: handle_owner,
-            handler,
-        });
-
-        handle
     }
 
-    pub(crate) fn on_pre_vars(ctx: &mut AppContext) {
-        Self::on_vars_impl(&ctx.vars.pre_handlers, ctx)
+    pub(super) fn schedule_update(&self, update: VarUpdateFn) {
+        let curr_anim = self.current_animation();
+        self.updates.borrow_mut().push((curr_anim, update));
     }
 
-    pub(crate) fn on_vars(ctx: &mut AppContext) {
-        Self::on_vars_impl(&ctx.vars.pos_handlers, ctx)
+    /// Id of each `schedule_update` cycle during `apply_updates`
+    pub(super) fn apply_update_id(&self) -> VarApplyUpdateId {
+        self.apply_update_id
     }
 
-    fn on_vars_impl(handlers: &RefCell<Vec<OnVarHandler>>, ctx: &mut AppContext) {
-        let mut current = std::mem::take(&mut *handlers.borrow_mut());
+    pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
+        debug_assert!(self.spare_updates.is_empty());
 
-        current.retain_mut(|e| {
-            !e.handle.is_dropped() && {
-                (e.handler)(ctx, &e.handle.weak_handle());
-                !e.handle.is_dropped()
+        self.update_id.next();
+
+        while !self.updates.get_mut().is_empty() {
+            let mut var_updates = mem::replace(self.updates.get_mut(), mem::take(&mut self.spare_updates));
+            for (animation_info, update) in var_updates.drain(..) {
+                let prev_info = mem::replace(&mut *self.ans.current_animation.borrow_mut(), animation_info);
+                let _cleanup = crate_util::RunOnDrop::new(|| *self.ans.current_animation.borrow_mut() = prev_info);
+                update(self, updates);
             }
-        });
+            self.spare_updates = var_updates;
 
-        let mut new = handlers.borrow_mut();
-        current.extend(std::mem::take(&mut *new));
-        *new = current;
+            self.apply_update_id.next();
+        }
     }
 
-    pub(crate) fn applied_updates(&mut self) {
-        self.updating.clear();
-    }
-}
-impl Deref for Vars {
-    type Target = VarsRead;
-
-    fn deref(&self) -> &Self::Target {
-        &self.read
-    }
-}
-
-struct OnVarHandler {
-    handle: HandleOwner<()>,
-    handler: Box<dyn FnMut(&mut AppContext, &dyn AppWeakHandle)>,
-}
-
-/// Represents an app context handler created by [`Vars::on_var`] or [`Vars::on_pre_var`].
-///
-/// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
-/// without dropping the handler.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[repr(transparent)]
-#[must_use = "the handler unsubscribes if the handle is dropped"]
-pub struct OnVarHandle(Handle<()>);
-impl OnVarHandle {
-    fn new() -> (HandleOwner<()>, OnVarHandle) {
-        let (owner, handle) = Handle::new(());
-        (owner, OnVarHandle(handle))
+    pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn(&Vars) -> bool>) {
+        self.modify_receivers.borrow_mut().push(recv_modify);
     }
 
-    /// Create a handle to nothing, the handle always in the *unsubscribed* state.
-    ///
-    /// Note that `Option<OnVarHandle>` takes up the same space as `OnVarHandle` and avoids an allocation.
-    pub fn dummy() -> Self {
-        assert_non_null!(OnVarHandle);
-        OnVarHandle(Handle::dummy(()))
+    pub(crate) fn app_event_sender(&self) -> AppEventSender {
+        self.app_event_sender.clone()
     }
 
-    /// Drop the handle but does **not** unsubscribe.
-    ///
-    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
-    pub fn perm(self) {
-        self.0.perm();
-    }
+    pub(crate) fn receive_sended_modify(&self) {
+        let mut rcvs = mem::take(&mut *self.modify_receivers.borrow_mut());
+        rcvs.retain(|rcv| rcv(self));
 
-    /// If another handle has called [`perm`](Self::perm).
-    /// If `true` the var binding will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
-    pub fn is_permanent(&self) -> bool {
-        self.0.is_permanent()
-    }
-
-    /// Drops the handle and forces the handler to drop.
-    pub fn unsubscribe(self) {
-        self.0.force_drop()
-    }
-
-    /// If another handle has called [`unsubscribe`](Self::unsubscribe).
-    ///
-    /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
-    pub fn is_unsubscribed(&self) -> bool {
-        self.0.is_dropped()
-    }
-
-    /// Create a weak handle.
-    pub fn downgrade(&self) -> WeakOnVarHandle {
-        WeakOnVarHandle(self.0.downgrade())
+        let mut rcvs_mut = self.modify_receivers.borrow_mut();
+        rcvs.extend(rcvs_mut.drain(..));
+        *rcvs_mut = rcvs;
     }
 }
 
-/// Weak [`OnVarHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
-pub struct WeakOnVarHandle(WeakHandle<()>);
-impl WeakOnVarHandle {
-    /// New weak handle that does not upgrade.
-    pub fn new() -> Self {
-        Self(WeakHandle::new())
-    }
-
-    /// Get the strong handle if it is still subscribed.
-    pub fn upgrade(&self) -> Option<OnVarHandle> {
-        self.0.upgrade().map(OnVarHandle)
-    }
-}
-
-/// Represents a type that can provide access to a [`Vars`] inside the window of function call.
+/// Represents temporary access to [`Vars`].
 ///
-/// This is used to make vars assign less cumbersome to use, it is implemented to all sync and async context types and [`Vars`] it-self.
-///
-/// # Examples
-///
-/// The example demonstrate how this `trait` simplifies calls to [`Var::set`]. The same applies to [`Var::modify`] and [`Var::set_ne`].
-///
-/// ```
-/// # use zero_ui_core::{var::*, context::*};
-/// # struct Foo { foo_var: RcVar<&'static str> } impl Foo {
-/// fn update(&mut self, ctx: &mut WidgetContext) {
-///     self.foo_var.set(ctx, "we are not borrowing `ctx` so can use it directly");
-///
-///    // ..
-///    let services = &mut ctx.services;
-///    self.foo_var.set(ctx.vars, "we are partially borrowing `ctx` but not `ctx.vars` so we use that");
-/// }
-///
-/// async fn handler(&mut self, ctx: WidgetContextMut) {
-///     self.foo_var.set(&ctx, "async contexts can also be used");
-/// }
-/// # }
-/// ```
+/// All contexts that provide [`Vars`] implement this trait to facilitate access to it.
 pub trait WithVars {
-    /// Calls `action` with the [`Vars`] reference.
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R;
+    /// Visit the [`Vars`] reference.
+    fn with_vars<R, F: FnOnce(&Vars) -> R>(&self, visit: F) -> R;
 }
 impl WithVars for Vars {
     fn with_vars<R, A>(&self, action: A) -> R
@@ -964,6 +253,7 @@ impl WithVars for Vars {
         action(self)
     }
 }
+
 impl<'a> WithVars for crate::context::AppContext<'a> {
     fn with_vars<R, A>(&self, action: A) -> R
     where
@@ -1027,646 +317,5 @@ impl WithVars for crate::app::HeadlessApp {
         A: FnOnce(&Vars) -> R,
     {
         action(self.vars())
-    }
-}
-
-/// Represents a type that can provide access to a [`VarsRead`] inside the window of function call.
-///
-/// This is used to make vars value-read less cumbersome to use, it is implemented to all sync and async context
-/// types and [`Vars`] it-self.
-pub trait WithVarsRead {
-    /// Calls `action` with the [`Vars`] reference.
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R;
-}
-impl WithVarsRead for Vars {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self)
-    }
-}
-impl WithVarsRead for VarsRead {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self)
-    }
-}
-impl<'a> WithVarsRead for crate::context::AppContext<'a> {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVarsRead for crate::context::WindowContext<'a> {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVarsRead for crate::context::WidgetContext<'a> {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl WithVarsRead for crate::context::AppContextMut {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        self.with(move |ctx| action(ctx.vars))
-    }
-}
-impl WithVarsRead for crate::context::WidgetContextMut {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        self.with(move |ctx| action(ctx.vars))
-    }
-}
-impl<'a> WithVarsRead for crate::context::MeasureContext<'a> {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVarsRead for crate::context::LayoutContext<'a> {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVarsRead for crate::context::RenderContext<'a> {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVarsRead for crate::context::InfoContext<'a> {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars)
-    }
-}
-#[cfg(any(test, doc, feature = "test_util"))]
-impl WithVarsRead for crate::context::TestWidgetContext {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(&self.vars)
-    }
-}
-impl WithVarsRead for crate::app::HeadlessApp {
-    fn with_vars_read<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&VarsRead) -> R,
-    {
-        action(self.vars())
-    }
-}
-
-impl AsRef<VarsRead> for VarsRead {
-    fn as_ref(&self) -> &VarsRead {
-        self
-    }
-}
-impl AsRef<VarsRead> for Vars {
-    fn as_ref(&self) -> &VarsRead {
-        self
-    }
-}
-impl<'a> AsRef<VarsRead> for crate::context::AppContext<'a> {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars
-    }
-}
-impl<'a> AsRef<VarsRead> for crate::context::WindowContext<'a> {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars
-    }
-}
-impl<'a> AsRef<VarsRead> for crate::context::WidgetContext<'a> {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars
-    }
-}
-impl<'a> AsRef<VarsRead> for crate::context::MeasureContext<'a> {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars
-    }
-}
-impl<'a> AsRef<VarsRead> for crate::context::LayoutContext<'a> {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars
-    }
-}
-impl<'a> AsRef<VarsRead> for crate::context::RenderContext<'a> {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars
-    }
-}
-impl<'a> AsRef<VarsRead> for crate::context::InfoContext<'a> {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars
-    }
-}
-#[cfg(any(test, doc, feature = "test_util"))]
-impl AsRef<VarsRead> for crate::context::TestWidgetContext {
-    fn as_ref(&self) -> &VarsRead {
-        &self.vars
-    }
-}
-impl AsRef<VarsRead> for crate::app::HeadlessApp {
-    fn as_ref(&self) -> &VarsRead {
-        self.vars()
-    }
-}
-impl AsRef<Vars> for Vars {
-    fn as_ref(&self) -> &Vars {
-        self
-    }
-}
-impl<'a> AsRef<Vars> for crate::context::AppContext<'a> {
-    fn as_ref(&self) -> &Vars {
-        self.vars
-    }
-}
-impl<'a> AsRef<Vars> for crate::context::WindowContext<'a> {
-    fn as_ref(&self) -> &Vars {
-        self.vars
-    }
-}
-impl<'a> AsRef<Vars> for crate::context::WidgetContext<'a> {
-    fn as_ref(&self) -> &Vars {
-        self.vars
-    }
-}
-#[cfg(any(test, doc, feature = "test_util"))]
-impl AsRef<Vars> for crate::context::TestWidgetContext {
-    fn as_ref(&self) -> &Vars {
-        &self.vars
-    }
-}
-impl AsRef<Vars> for crate::app::HeadlessApp {
-    fn as_ref(&self) -> &Vars {
-        self.vars()
-    }
-}
-
-/// A variable update receiver that can be used from any thread and without access to [`Vars`].
-///
-/// Use [`Var::receiver`] to create a receiver, drop to stop listening.
-pub struct VarReceiver<T: VarValue + Send> {
-    receiver: flume::Receiver<T>,
-}
-impl<T: VarValue + Send> Clone for VarReceiver<T> {
-    fn clone(&self) -> Self {
-        VarReceiver {
-            receiver: self.receiver.clone(),
-        }
-    }
-}
-impl<T: VarValue + Send> fmt::Debug for VarReceiver<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "VarReceiver<{}>", type_name::<T>())
-    }
-}
-impl<T: VarValue + Send> VarReceiver<T> {
-    /// Receives the oldest sent update not received, blocks until the variable updates.
-    pub fn recv(&self) -> Result<T, AppDisconnected<()>> {
-        self.receiver.recv().map_err(|_| AppDisconnected(()))
-    }
-
-    /// Tries to receive the oldest sent update, returns `Ok(args)` if there was at least
-    /// one update, or returns `Err(None)` if there was no update or returns `Err(AppDisconnected)` if the connected
-    /// app has exited.
-    pub fn try_recv(&self) -> Result<T, Option<AppDisconnected<()>>> {
-        self.receiver.try_recv().map_err(|e| match e {
-            flume::TryRecvError::Empty => None,
-            flume::TryRecvError::Disconnected => Some(AppDisconnected(())),
-        })
-    }
-
-    /// Receives the oldest sent update, blocks until the event updates or until the `deadline` is reached.
-    pub fn recv_deadline(&self, deadline: Instant) -> Result<T, TimeoutOrAppDisconnected> {
-        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppDisconnected::from)
-    }
-
-    /// Receives the oldest sent update, blocks until the event updates or until timeout.
-    pub fn recv_timeout(&self, dur: Duration) -> Result<T, TimeoutOrAppDisconnected> {
-        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppDisconnected::from)
-    }
-
-    /// Returns a future that receives the oldest sent update, awaits until an event update occurs.
-    pub fn recv_async(&self) -> RecvFut<T> {
-        self.receiver.recv_async().into()
-    }
-
-    /// Turns into a future that receives the oldest sent update, awaits until an event update occurs.
-    pub fn into_recv_async(self) -> RecvFut<'static, T> {
-        self.receiver.into_recv_async().into()
-    }
-
-    /// Creates a blocking iterator over event updates, if there are no updates in the buffer the iterator blocks,
-    /// the iterator only finishes when the app shuts-down.
-    pub fn iter(&self) -> flume::Iter<T> {
-        self.receiver.iter()
-    }
-
-    /// Create a non-blocking iterator over event updates, the iterator finishes if
-    /// there are no more updates in the buffer.
-    pub fn try_iter(&self) -> flume::TryIter<T> {
-        self.receiver.try_iter()
-    }
-}
-impl<T: VarValue + Send> From<VarReceiver<T>> for flume::Receiver<T> {
-    fn from(e: VarReceiver<T>) -> Self {
-        e.receiver
-    }
-}
-impl<'a, T: VarValue + Send> IntoIterator for &'a VarReceiver<T> {
-    type Item = T;
-
-    type IntoIter = flume::Iter<'a, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.receiver.iter()
-    }
-}
-impl<T: VarValue + Send> IntoIterator for VarReceiver<T> {
-    type Item = T;
-
-    type IntoIter = flume::IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.receiver.into_iter()
-    }
-}
-
-/// A variable update sender that can set a variable from any thread and without access to [`Vars`].
-///
-/// Use [`Var::sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
-pub struct VarSender<T>
-where
-    T: VarValue + Send,
-{
-    wake: AppEventSender,
-    sender: flume::Sender<T>,
-}
-impl<T: VarValue + Send> Clone for VarSender<T> {
-    fn clone(&self) -> Self {
-        VarSender {
-            wake: self.wake.clone(),
-            sender: self.sender.clone(),
-        }
-    }
-}
-impl<T: VarValue + Send> fmt::Debug for VarSender<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "VarSender<{}>", type_name::<T>())
-    }
-}
-impl<T> VarSender<T>
-where
-    T: VarValue + Send,
-{
-    /// Sends a new value for the variable, unless the connected app has exited.
-    ///
-    /// If the variable is read-only when the `new_value` is received it is silently dropped, if more then one
-    /// value is sent before the app can process then, only the last value shows as an update in the UI thread.
-    pub fn send(&self, new_value: T) -> Result<(), AppDisconnected<T>> {
-        UpdatesTrace::log_var::<T>();
-        self.sender.send(new_value).map_err(AppDisconnected::from)?;
-        let _ = self.wake.send_var();
-        Ok(())
-    }
-
-    /// Resume a panic in the app thread.
-    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppDisconnected<PanicPayload>> {
-        self.wake.send_resume_unwind(payload)
-    }
-}
-
-/// A variable modification sender that can be used to modify a variable from any thread and without access to [`Vars`].
-///
-/// Use [`Var::modify_sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
-pub struct VarModifySender<T>
-where
-    T: VarValue,
-{
-    wake: AppEventSender,
-    sender: flume::Sender<Box<dyn FnOnce(VarModify<T>) + Send>>,
-}
-impl<T: VarValue> Clone for VarModifySender<T> {
-    fn clone(&self) -> Self {
-        VarModifySender {
-            wake: self.wake.clone(),
-            sender: self.sender.clone(),
-        }
-    }
-}
-impl<T: VarValue> fmt::Debug for VarModifySender<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "VarModifySender<{}>", type_name::<T>())
-    }
-}
-impl<T> VarModifySender<T>
-where
-    T: VarValue,
-{
-    /// Sends a modification for the variable, unless the connected app has exited.
-    ///
-    /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one
-    /// modification is sent before the app can process then, they all are applied in order sent.
-    pub fn send<F>(&self, modify: F) -> Result<(), AppDisconnected<()>>
-    where
-        F: FnOnce(VarModify<T>) + Send + 'static,
-    {
-        self.sender.send(Box::new(modify)).map_err(|_| AppDisconnected(()))?;
-        let _ = self.wake.send_var();
-        Ok(())
-    }
-
-    /// Resume a panic in the app thread.
-    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppDisconnected<PanicPayload>> {
-        self.wake.send_resume_unwind(payload)
-    }
-}
-
-/// Variable sender used to notify the completion of an operation from any thread.
-///
-/// Use [`response_channel`] to init.
-pub type ResponseSender<T> = VarSender<Response<T>>;
-impl<T: VarValue + Send> ResponseSender<T> {
-    /// Send the one time response.
-    pub fn send_response(&self, response: T) -> Result<(), AppDisconnected<T>> {
-        self.send(Response::Done(response)).map_err(|e| {
-            if let Response::Done(r) = e.0 {
-                AppDisconnected(r)
-            } else {
-                unreachable!()
-            }
-        })
-    }
-}
-
-/// New paired [`ResponseSender`] and [`ResponseVar`] in the waiting state.
-pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (ResponseSender<T>, ResponseVar<T>) {
-    let (responder, response) = response_var();
-    vars.with_vars(|vars| (responder.sender(vars), response))
-}
-
-/// Links the lifetime of an [`actual_var`] with its source if it is a "remapped" actual.
-pub(super) struct BindActualWeak<T: VarValue> {
-    weak: BoxedWeakVar<T>,
-    actual: Option<BoxedVar<T>>,
-}
-impl<T: VarValue> BindActualWeak<T> {
-    pub fn new(source: &impl Var<T>, actual: BoxedVar<T>) -> Self {
-        if actual.strong_count() == 1 && source.is_rc() {
-            BindActualWeak {
-                weak: source.downgrade().unwrap().boxed(),
-                actual: Some(actual),
-            }
-        } else {
-            BindActualWeak {
-                weak: actual.downgrade().unwrap(),
-                actual: None,
-            }
-        }
-    }
-
-    pub fn upgrade(&self) -> Option<BoxedVar<T>> {
-        if let Some(held) = &self.actual {
-            if self.weak.strong_count() > 0 {
-                Some(held.clone())
-            } else {
-                None
-            }
-        } else {
-            self.weak.upgrade()
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{cell::RefCell, rc::Rc, time::Instant};
-
-    use crate::{
-        app::{App, HeadlessApp},
-        context::TestWidgetContext,
-        task::with_deadline,
-        units::*,
-        var::*,
-    };
-
-    #[test]
-    fn context_var_default() {
-        let ctx = TestWidgetContext::new();
-        let value = *TEST_VAR.get(&ctx.vars);
-        assert_eq!("default value", value);
-    }
-
-    #[test]
-    fn context_var_with() {
-        let ctx = TestWidgetContext::new();
-        let value = ctx
-            .vars
-            .with_context_var(TEST_VAR, ContextVarData::fixed(&"with value"), || *TEST_VAR.get(&ctx.vars));
-
-        assert_eq!("with value", value);
-
-        let value = *TEST_VAR.get(&ctx.vars);
-        assert_eq!("default value", value);
-    }
-
-    #[test]
-    fn context_var_with_other() {
-        let ctx = TestWidgetContext::new();
-
-        let value = ctx
-            .vars
-            .with_context_var(TEST_VAR, ContextVarData::in_vars(&ctx.vars, &TEST_VAR2, false), || {
-                *TEST_VAR.get(&ctx.vars)
-            });
-
-        assert_eq!("default value 2", value);
-    }
-
-    #[test]
-    fn context_var_recursion1() {
-        let ctx = TestWidgetContext::new();
-
-        let value = ctx
-            .vars
-            .with_context_var(TEST_VAR, ContextVarData::in_vars(&ctx.vars, &TEST_VAR, false), || {
-                *TEST_VAR.get(&ctx.vars)
-            });
-
-        assert_eq!("default value", value);
-    }
-
-    #[test]
-    fn context_var_recursion2() {
-        let ctx = TestWidgetContext::new();
-
-        let value = ctx
-            .vars
-            .with_context_var(TEST_VAR, ContextVarData::in_vars(&ctx.vars, &TEST_VAR2, false), || {
-                // set to "default value 2"
-                ctx.vars
-                    .with_context_var(TEST_VAR2, ContextVarData::in_vars(&ctx.vars, &TEST_VAR, false), || {
-                        // set to "default value 2"
-                        *TEST_VAR.get(&ctx.vars)
-                    })
-            });
-
-        assert_eq!("default value 2", value);
-    }
-
-    #[test]
-    fn animation_tick() {
-        let fps20 = (1.0 / 20.0).secs();
-
-        let mut app = App::blank().run_headless(false);
-        {
-            let ctx = app.ctx();
-            ctx.vars.frame_duration().set(ctx.vars, fps20);
-        }
-
-        let test = var(0i32);
-        let updates = Rc::new(RefCell::new(vec![]));
-        let trace_handle = test.trace_value(app.ctx().vars, clone_move!(updates, |value| updates.borrow_mut().push(*value)));
-
-        test.ease(app.ctx().vars, 20, 1.secs(), easing::linear).perm();
-
-        app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_deadline(test.wait_animation(&ctx), 2.secs()).await.unwrap();
-        }));
-
-        assert_eq!(20, test.copy(app.ctx().vars));
-
-        drop(trace_handle);
-        app.ctx().updates.update_ext();
-        app.update(false).assert_wait();
-
-        let updates = Rc::try_unwrap(updates).unwrap().into_inner();
-
-        assert_eq!(22, updates.len(), "expected trace_start + animation_start + 20_frames");
-
-        let mut value = updates[3] - 1; // ignore animation start interpolation.
-        for v in &updates[3..] {
-            assert_eq!(1, *v - value, "expected 1 = {v} - {value}");
-            value = *v;
-        }
-    }
-
-    #[test]
-    fn animation_sleep() {
-        let mut app = App::blank().run_headless(false);
-
-        let test = var(false);
-        start_sleep_1s(&mut app, &test);
-
-        app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_deadline(test.wait_animation(&ctx), 2.secs()).await.unwrap();
-        }));
-
-        assert!(test.copy(&app.ctx()));
-    }
-
-    #[test]
-    fn animation_sleep_and_not() {
-        let mut app = App::blank().run_headless(false);
-
-        let test = var(false);
-        let other_anim = var(0u32);
-
-        start_sleep_1s(&mut app, &test);
-        other_anim.ease(&app.ctx(), 100u32, 1.secs(), easing::linear).perm();
-
-        app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_deadline(test.wait_animation(&ctx), 2.secs()).await.unwrap();
-        }));
-
-        assert!(test.copy(&app.ctx()));
-    }
-
-    fn start_sleep_1s(app: &mut HeadlessApp, test: &RcVar<bool>) {
-        let start = Instant::now();
-        let mut stage = 0;
-        app.ctx()
-            .vars
-            .animate(clone_move!(test, |vars, args| {
-                if stage == 0 {
-                    stage = 1;
-                    args.sleep(1.secs());
-                    test.touch(vars);
-                } else if stage == 1 {
-                    stage = 2;
-                    args.stop();
-                    test.set(vars, true);
-
-                    let elapsed = start.elapsed();
-
-                    assert!(elapsed >= 1.secs() && elapsed < 1.5.secs(), "elapsed: {elapsed:?}, expected: 1s");
-                } else {
-                    panic!("animation called after stop");
-                }
-            }))
-            .perm();
-    }
-
-    #[test]
-    fn nested_animation() {
-        let mut app = App::blank().run_headless(false);
-
-        let test = var(0u32);
-
-        let inner_handle = Rc::new(RefCell::new(None));
-
-        let mut start_nested = true;
-        let outer_handle = app.ctx().vars.animate(clone_move!(test, inner_handle, |vars, args| {
-            if start_nested {
-                let hn = test.ease(vars, 100u32, 1.secs(), easing::linear);
-                *inner_handle.borrow_mut() = Some(hn);
-                start_nested = false;
-            }
-            args.elapsed_stop(1.5.secs());
-        }));
-
-        app.run_task(async_clone_move_fn!(test, |ctx| {
-            with_deadline(test.wait_animation(&ctx), 2.secs()).await
-        }));
-        assert_eq!(100, test.copy(&app));
-        let inner_handle = Rc::try_unwrap(inner_handle).unwrap().into_inner().unwrap();
-        assert_eq!(outer_handle, inner_handle);
-    }
-
-    context_var! {
-        static TEST_VAR: &'static str = "default value";
-        static TEST_VAR2: &'static str = "default value 2";
     }
 }

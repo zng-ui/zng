@@ -16,7 +16,7 @@ pub struct WriteTreeState {
 }
 struct WriteWidgetState {
     /// [(property_name, arg_name) => (value_version, value)]
-    properties: LinearMap<(&'static str, &'static str), (VarVersion, String)>,
+    properties: LinearMap<(&'static str, &'static str), (VarUpdateId, Text)>,
 }
 impl WriteTreeState {
     /// No property update.
@@ -32,7 +32,7 @@ impl WriteTreeState {
     }
 
     /// State from `tree` that can be compared to future trees.
-    pub fn new(vars: &VarsRead, tree: &WidgetInfoTree) -> Self {
+    pub fn new(vars: &Vars, tree: &WidgetInfoTree) -> Self {
         let mut widgets = IdMap::default();
 
         for w in tree.all_widgets() {
@@ -41,15 +41,13 @@ impl WriteTreeState {
                 for ctor in &info.constructors {
                     for p in ctor.captures.iter() {
                         for arg in p.args.iter() {
-                            let value = format!("{:?}", arg.value.get(vars));
-                            properties.insert((p.property_name, arg.name), (arg.value.version(vars), value));
+                            properties.insert((p.property_name, arg.name), (arg.value.last_update(), arg.value.get_debug()));
                         }
                     }
                 }
                 for p in info.properties.iter() {
                     for arg in p.args.iter() {
-                        let value = format!("{:?}", arg.value.get(vars));
-                        properties.insert((p.meta.property_name, arg.name), (arg.value.version(vars), value));
+                        properties.insert((p.meta.property_name, arg.name), (arg.value.last_update(), arg.value.get_debug()));
                     }
                 }
 
@@ -61,7 +59,7 @@ impl WriteTreeState {
     }
 
     /// Gets property argument and if it changed.
-    pub fn arg_diff(&self, vars: &VarsRead, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArg) -> WriteArgDiff {
+    pub fn arg_diff(&self, vars: &Vars, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArg) -> WriteArgDiff {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
                 if let Some((value_version, value)) = wgt_state.properties.get(&(property_name, arg.name)) {
@@ -71,12 +69,12 @@ impl WriteTreeState {
                         changed_value: false,
                     };
 
-                    let arg_version = arg.value.version(vars);
+                    let arg_version = arg.value.last_update();
                     if *value_version != arg_version {
                         r.changed_version = true;
-                        let arg_value = format!("{:?}", arg.value.get(vars));
+                        let arg_value = arg.value.get_debug();
                         if &arg_value != value {
-                            r.value = Cow::Owned(arg_value);
+                            r.value = Cow::Owned(arg_value.into());
                             r.changed_value = true;
                         }
                     }
@@ -87,7 +85,7 @@ impl WriteTreeState {
         }
 
         WriteArgDiff {
-            value: Cow::Owned(format!("{:?}", arg.value.get(vars))),
+            value: Cow::Owned(arg.value.get_debug().into()),
             changed_value: false,
             changed_version: false,
         }
@@ -118,12 +116,12 @@ impl<'a> WriteArgDiff<'a> {
 /// When writing to a terminal the text is color coded and a legend is printed. The coloring
 /// can be configured using environment variables, see [colored](https://github.com/mackwic/colored#features)
 /// for details.
-pub fn write_tree<W: std::io::Write>(vars: &VarsRead, tree: &WidgetInfoTree, updates_from: &WriteTreeState, out: &mut W) {
+pub fn write_tree<W: std::io::Write>(vars: &Vars, tree: &WidgetInfoTree, updates_from: &WriteTreeState, out: &mut W) {
     let mut fmt = print_fmt::Fmt::new(out);
     write_impl(vars, updates_from, tree.root(), "", &mut fmt);
     fmt.write_legend();
 }
-fn write_impl(vars: &VarsRead, updates_from: &WriteTreeState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt) {
+fn write_impl(vars: &Vars, updates_from: &WriteTreeState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt) {
     if let Some(info) = widget.instance() {
         fmt.open_widget(info.meta.widget_name, parent_name, info.parent_name.as_str());
 
@@ -133,7 +131,13 @@ fn write_impl(vars: &VarsRead, updates_from: &WriteTreeState, widget: WidgetInfo
 
             if args.len() == 1 {
                 let value = updates_from.arg_diff(vars, info.meta.instance_id, property_name, &args[0]);
-                fmt.write_property(group, property_name, prop.user_assigned(), args[0].value.can_update(), value);
+                fmt.write_property(
+                    group,
+                    property_name,
+                    prop.user_assigned(),
+                    args[0].value.capabilities().contains(VarCapabilities::CHANGE),
+                    value,
+                );
             } else {
                 let user_assigned = prop.user_assigned();
                 fmt.open_property(group, property_name, user_assigned);
@@ -141,7 +145,7 @@ fn write_impl(vars: &VarsRead, updates_from: &WriteTreeState, widget: WidgetInfo
                     fmt.write_property_arg(
                         arg.name,
                         user_assigned,
-                        arg.value.can_update(),
+                        arg.value.capabilities().contains(VarCapabilities::CHANGE),
                         updates_from.arg_diff(vars, info.meta.instance_id, property_name, arg),
                     );
                 }

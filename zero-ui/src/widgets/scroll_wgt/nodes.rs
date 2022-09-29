@@ -60,10 +60,10 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 return constrains.fill_size();
             }
 
-            let mode = self.mode.copy(ctx);
+            let mode = self.mode.get();
 
             let viewport_unit = constrains.fill_size();
-            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.copy(ctx) // requested
+            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
                 && viewport_unit.width > Px(0) // and has fill-size
                 && viewport_unit.height > Px(0)
                 && constrains.max_size() == Some(viewport_unit); // that is not just min size.
@@ -91,11 +91,11 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             constrains.fill_size_or(ct_size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let mode = self.mode.copy(ctx);
+            let mode = self.mode.get();
 
             let constrains = ctx.constrains();
             let viewport_unit = constrains.fill_size();
-            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.copy(ctx) // requested
+            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
                 && viewport_unit.width > Px(0) // and has fill-size
                 && viewport_unit.height > Px(0)
                 && constrains.max_size() == Some(viewport_unit); // that is not just min size.
@@ -141,9 +141,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             }
 
             let mut content_offset = PxVector::zero();
-            let v_offset = SCROLL_VERTICAL_OFFSET_VAR.copy(ctx.vars);
+            let v_offset = SCROLL_VERTICAL_OFFSET_VAR.get();
             content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
-            let h_offset = SCROLL_HORIZONTAL_OFFSET_VAR.copy(ctx.vars);
+            let h_offset = SCROLL_HORIZONTAL_OFFSET_VAR.get();
             content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
 
             if content_offset != self.content_offset {
@@ -311,7 +311,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -319,7 +319,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -327,7 +327,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -335,7 +335,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -348,7 +348,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.copy(ctx);
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
@@ -439,7 +439,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -447,7 +447,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -455,7 +455,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -463,7 +463,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -476,7 +476,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.copy(ctx);
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
@@ -621,7 +621,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                     // we are a scroll.
 
                                     let bounds = target.bounds_info();
-                                    let mode = SCROLL_TO_FOCUSED_MODE_VAR.get_clone(ctx.vars);
+                                    let mode = SCROLL_TO_FOCUSED_MODE_VAR.get();
 
                                     self.scroll_to = Some((bounds, mode));
                                     ctx.updates.layout();
@@ -772,12 +772,12 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
-                if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.copy(ctx)) {
+                if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.get()) {
                     args.handle(|_| {
                         match delta {
                             MouseScrollDelta::LineDelta(x, y) => {
-                                self.offset.x -= HORIZONTAL_LINE_UNIT_VAR.get_clone(ctx) * x.fct();
-                                self.offset.y -= VERTICAL_LINE_UNIT_VAR.get_clone(ctx) * y.fct();
+                                self.offset.x -= HORIZONTAL_LINE_UNIT_VAR.get() * x.fct();
+                                self.offset.y -= VERTICAL_LINE_UNIT_VAR.get() * y.fct();
                             }
                             MouseScrollDelta::PixelDelta(x, y) => {
                                 self.offset.x -= x.px();
