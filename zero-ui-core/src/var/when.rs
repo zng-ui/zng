@@ -424,6 +424,10 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
     fn is_animating(&self) -> bool {
         self.active().is_animating()
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_rc(&self.0)
+    }
 }
 
 impl<T: VarValue> AnyWeakVar for WeakWhenVar<T> {

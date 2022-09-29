@@ -200,6 +200,10 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
             Data::Value { animation, .. } => animation.is_animating(),
         }
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_rc(&self.0)
+    }
 }
 
 impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakCowVar<T, S> {

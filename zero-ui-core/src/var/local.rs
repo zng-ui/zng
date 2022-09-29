@@ -71,6 +71,10 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
     fn is_animating(&self) -> bool {
         false
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_never_eq(self)
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for LocalVar<T> {

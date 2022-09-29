@@ -149,6 +149,10 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
     fn is_animating(&self) -> bool {
         self.borrow_init().is_animating()
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        self.borrow_init().var_ptr()
+    }
 }
 impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {
     fn clone_any(&self) -> BoxedAnyWeakVar {

@@ -454,6 +454,63 @@ pub trait AnyVar: Any + crate::private::Sealed {
     ///
     /// [`actual_var`]: Var::actual_var
     fn downgrade_any(&self) -> BoxedAnyWeakVar;
+
+    /// Var *pointer*, that can be used to identify if two variables point to the same *rc* or *context*.
+    ///
+    /// If two of these values are equal, both variables point to the same *rc* or *context* at the moment of comparison.
+    /// Note that you can't store this or actually get unsafe access to the var internals, this is only for comparison.
+    fn var_ptr(&self) -> VarPtr;
+}
+
+/// Represents an [`AnyVar`] *pointer* that can be used for comparison.
+///
+/// If two of these values are equal, both variables point to the same *rc* or *context* at the moment of comparison.
+pub struct VarPtr<'a> {
+    _lt: std::marker::PhantomData<&'a ()>,
+    eq: VarPtrData,
+}
+impl<'a> VarPtr<'a> {
+    fn new_rc<T>(rc: &'a Rc<T>) -> Self {
+        Self {
+            _lt: std::marker::PhantomData,
+            eq: VarPtrData::Rc(Rc::as_ptr(rc) as _),
+        }
+    }    
+
+    fn new_thread_local<T>(tl: &'static std::thread::LocalKey<T>) -> Self {
+        Self {
+            _lt: std::marker::PhantomData,
+            eq: VarPtrData::Static((tl as *const std::thread::LocalKey<T>) as _),
+        }
+    }
+
+    fn new_never_eq(lt: &'a impl Any) -> Self {
+        Self {
+            _lt: std::marker::PhantomData,
+            eq: VarPtrData::NeverEq,
+        }
+    }
+}
+impl<'a> PartialEq for VarPtr<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.eq == other.eq
+    }
+}
+
+enum VarPtrData {
+    Static(*const ()),
+    Rc(*const ()),
+    NeverEq,
+}
+
+impl PartialEq for VarPtrData {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Static(l0), Self::Static(r0)) => l0 == r0,
+            (Self::Rc(l0), Self::Rc(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
 }
 
 /// Represents a weak reference to a boxed [`AnyVar`].

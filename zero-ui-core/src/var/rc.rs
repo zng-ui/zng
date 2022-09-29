@@ -110,6 +110,10 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     fn is_animating(&self) -> bool {
         self.0.borrow().animation.is_animating()
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_rc(&self.0)
+    }
 }
 
 impl<T: VarValue> AnyWeakVar for WeakRcVar<T> {

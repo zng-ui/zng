@@ -172,6 +172,10 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
     fn is_animating(&self) -> bool {
         self.local.with(|l| l.var.borrow().is_animating())
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_thread_local(self.local)
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for ContextVar<T> {

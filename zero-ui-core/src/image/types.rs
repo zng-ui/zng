@@ -648,7 +648,7 @@ impl PartialEq for ImageSource {
             #[cfg(http)]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
             (Self::Render(lf, la), Self::Render(rf, ra)) => Rc::ptr_eq(lf, rf) && la == ra,
-            (Self::Image(l), Self::Image(r)) => l.ptr_eq(r),
+            (Self::Image(l), Self::Image(r)) => l.var_ptr() == r.var_ptr(),
             (l, r) => {
                 let l_hash = match l {
                     ImageSource::Static(h, _, _) => h,

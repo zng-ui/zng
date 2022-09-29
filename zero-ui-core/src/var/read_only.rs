@@ -92,6 +92,10 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
     fn is_animating(&self) -> bool {
         self.1.is_animating()
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        self.1.var_ptr()
+    }
 }
 
 impl<T: VarValue, V: WeakVar<T>> AnyWeakVar for WeakReadOnlyVar<T, V> {

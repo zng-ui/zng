@@ -184,6 +184,10 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
     fn is_animating(&self) -> bool {
         (**self).is_animating()
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        (**self).var_ptr()
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for BoxedVar<T> {

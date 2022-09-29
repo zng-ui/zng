@@ -105,6 +105,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
     fn is_animating(&self) -> bool {
         self.source.is_animating()
     }
+
+    fn var_ptr(&self) -> VarPtr {
+        self.source.var_ptr()
+    }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRef<I, O, S> {
     fn clone_any(&self) -> BoxedAnyWeakVar {
@@ -303,6 +307,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
 
     fn is_animating(&self) -> bool {
         self.source.is_animating()
+    }
+
+    fn var_ptr(&self) -> VarPtr {
+        self.source.var_ptr()
     }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRefBidi<I, O, S> {
