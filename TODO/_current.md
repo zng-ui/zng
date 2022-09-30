@@ -10,13 +10,3 @@
     - Bug already existed in previous implementation.
     - Have an AppId?
 * Implement all `todo!` code.
-
-# Light Color Scheme
-
-* Review light color scheme in all examples.
-
-- example    - description
-- text       - colored text is hard to see in light mode
-             - font size widget background is not changed
-
-- transform  - red

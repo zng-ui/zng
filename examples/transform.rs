@@ -53,7 +53,7 @@ fn transformed(label: impl Into<Text>, transform: Transform) -> impl Widget {
         content = container! {
             transform;
             content = text(label.into());
-            background_color = colors::BROWN.with_alpha(80.pct());
+            background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
         };
         border = 2, (colors::GRAY, BorderStyle::Dashed);
@@ -65,7 +65,7 @@ fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Int
             transform;
             transform_origin = origin.into();
             content = text(label.into());
-            background_color = colors::BROWN.with_alpha(80.pct());
+            background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
         };
         border = 2, (colors::GRAY, BorderStyle::Dashed);
@@ -87,7 +87,7 @@ fn transform_stack() -> impl Widget {
                 id = "in-stack";
                 transform = rotate(45.deg());
                 content = text("Rotated 45º");
-                background_color = colors::BROWN.with_alpha(80.pct());
+                background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 padding = 10;
 
                 when self.is_hovered {

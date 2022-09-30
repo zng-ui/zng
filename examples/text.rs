@@ -77,7 +77,7 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         });
         spacing = 5;
         corner_radius = 4;
-        background_color = rgba(0, 0, 0, 40.pct());
+        background_color = color_scheme_map(rgba(0, 0, 0, 40.pct()), rgba(1., 1., 1., 40.pct()));
         padding = 4;
         items = widgets![
             button! {
@@ -113,11 +113,11 @@ fn basic() -> impl Widget {
             strong("Strong Text"),
             em("Emphasis Text"),
             text! {
-                color = colors::LIGHT_GREEN;
+                color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
                 text = "Colored Text";
 
                 when self.is_hovered {
-                    color = colors::YELLOW;
+                    color = color_scheme_map(colors::YELLOW, colors::BROWN);
                 }
             },
         ],
