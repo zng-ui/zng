@@ -122,7 +122,7 @@ impl WindowCommands {
         }
     }
 
-    pub fn init(&mut self, vars: &Vars, window_vars: &WindowVars) {
+    pub fn init(&mut self, window_vars: &WindowVars) {
         self.update_state(window_vars.state().get());
     }
 

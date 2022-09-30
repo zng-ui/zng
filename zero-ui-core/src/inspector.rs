@@ -1010,8 +1010,6 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::new();
-
             assert_eq!("\"called into_var\"", format!("{:?}", r.get()))
         }
 
@@ -1023,8 +1021,6 @@ pub mod debug_var_util {
             let value = value();
 
             let r = debug_var_util_trick!(&value);
-
-            let ctx = TestWidgetContext::new();
 
             assert_eq!("true", format!("{:?}", r.get()))
         }
@@ -1054,8 +1050,6 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::new();
-
             assert_eq!("true", format!("{:?}", r.get()))
         }
 
@@ -1065,8 +1059,6 @@ pub mod debug_var_util {
             let value = Foo;
 
             let r = debug_var_util_trick!(&value);
-
-            let ctx = TestWidgetContext::new();
 
             assert!(format!("{:?}", r.get()).contains("Foo"));
         }

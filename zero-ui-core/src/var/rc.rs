@@ -34,6 +34,11 @@ pub fn var_from<T: VarValue, U: Into<T>>(source: U) -> RcVar<T> {
     var(source.into())
 }
 
+/// New ref counted read/write variable with default initial value.
+pub fn var_default<T: VarValue + Default>() -> RcVar<T> {
+    var(T::default())
+}
+
 impl<T: VarValue> WeakRcVar<T> {
     /// New reference to nothing.
     pub fn new() -> Self {

@@ -32,7 +32,7 @@ impl WriteTreeState {
     }
 
     /// State from `tree` that can be compared to future trees.
-    pub fn new(vars: &Vars, tree: &WidgetInfoTree) -> Self {
+    pub fn new(tree: &WidgetInfoTree) -> Self {
         let mut widgets = IdMap::default();
 
         for w in tree.all_widgets() {
@@ -59,7 +59,7 @@ impl WriteTreeState {
     }
 
     /// Gets property argument and if it changed.
-    pub fn arg_diff(&self, vars: &Vars, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArg) -> WriteArgDiff {
+    pub fn arg_diff(&self, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArg) -> WriteArgDiff {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
                 if let Some((value_version, value)) = wgt_state.properties.get(&(property_name, arg.name)) {
@@ -130,7 +130,7 @@ fn write_impl(vars: &Vars, updates_from: &WriteTreeState, widget: WidgetInfo, pa
             let args = prop.args();
 
             if args.len() == 1 {
-                let value = updates_from.arg_diff(vars, info.meta.instance_id, property_name, &args[0]);
+                let value = updates_from.arg_diff(info.meta.instance_id, property_name, &args[0]);
                 fmt.write_property(
                     group,
                     property_name,
@@ -146,7 +146,7 @@ fn write_impl(vars: &Vars, updates_from: &WriteTreeState, widget: WidgetInfo, pa
                         arg.name,
                         user_assigned,
                         arg.value.capabilities().contains(VarCapabilities::CHANGE),
-                        updates_from.arg_diff(vars, info.meta.instance_id, property_name, arg),
+                        updates_from.arg_diff(info.meta.instance_id, property_name, arg),
                     );
                 }
                 fmt.close_property(user_assigned);

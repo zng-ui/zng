@@ -1925,7 +1925,7 @@ impl WidgetSubscriptions {
     }
 
     /// Register a variable subscription.
-    pub fn var<Vr, T>(&mut self, vars: &Vr, var: &impl Var<T>) -> &mut Self
+    pub fn var<Vr, T>(&mut self, _vars: &Vr, _var: &impl Var<T>) -> &mut Self
     where
         T: VarValue,
     {
@@ -1934,7 +1934,7 @@ impl WidgetSubscriptions {
     }
 
     /// Start a [`WidgetVarSubscriptions`] to register multiple variables without needing to reference the [`VarsRead`] for every variable.
-    pub fn vars<'s, I>(&'s mut self, vars: &I) -> WidgetVarSubscriptions<'s> {
+    pub fn vars<'s, I>(&'s mut self, _vars: &I) -> WidgetVarSubscriptions<'s> {
         WidgetVarSubscriptions { subs: self }
     }
 
@@ -1974,7 +1974,7 @@ pub struct WidgetVarSubscriptions<'s> {
 }
 impl<'s> WidgetVarSubscriptions<'s> {
     /// Register a variable subscriptions.
-    pub fn var<T: VarValue>(self, var: &impl Var<T>) -> Self {
+    pub fn var<T: VarValue>(self, _var: &impl Var<T>) -> Self {
         self
     }
 }

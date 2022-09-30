@@ -50,7 +50,7 @@ impl AppExtension for ImageManager {
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
             let images = Images::req(ctx.services);
-            let vars = ctx.vars;
+
             if let Some(var) = images
                 .decoding
                 .iter()
@@ -65,7 +65,6 @@ impl AppExtension for ImageManager {
             // image finished decoding, remove from `decoding`
             // and notify image var value update.
             let images = Images::req(ctx.services);
-            let vars = ctx.vars;
 
             if let Some(i) = images
                 .decoding
@@ -82,7 +81,6 @@ impl AppExtension for ImageManager {
             // image failed to decode, remove from `decoding`
             // and notify image var value update.
             let images = Images::req(ctx.services);
-            let vars = ctx.vars;
 
             if let Some(i) = images
                 .decoding
@@ -188,7 +186,7 @@ impl AppExtension for ImageManager {
                                         // request sent, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
-                                        var.modify(vars, move |mut v| {
+                                        var.modify(vars, move |v| {
                                             v.get().view.set(img).unwrap();
                                             v.touch();
                                         });
@@ -201,7 +199,7 @@ impl AppExtension for ImageManager {
                             } else {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
-                                var.modify(vars, move |mut v| {
+                                var.modify(vars, move |v| {
                                     v.get().view.set(img).unwrap();
                                     v.touch();
                                     v.get().done_signal.set();
@@ -212,7 +210,7 @@ impl AppExtension for ImageManager {
                             tracing::error!("load error: {e:?}");
                             // load error.
                             let img = ViewImage::dummy(Some(e));
-                            var.modify(vars, move |mut v| {
+                            var.modify(vars, move |v| {
                                 v.get().view.set(img).unwrap();
                                 v.touch();
                                 v.get().done_signal.set();
@@ -436,7 +434,7 @@ impl Images {
     ///
     /// If the `image` is the only reference returns it and removes it from the cache. If there are other
     /// references a new [`ImageVar`] is generated from a clone of the image.
-    pub fn detach(&mut self, image: ImageVar, vars: &Vars) -> ImageVar {
+    pub fn detach(&mut self, image: ImageVar) -> ImageVar {
         if let Some(key) = &image.with(|i| i.cache_key) {
             let decoded_size = image.with(|img| img.bgra8().map(|b| b.len()).unwrap_or(0).bytes());
             let mut max_decoded_size = self.limits.max_decoded_size.max(decoded_size);

@@ -769,7 +769,7 @@ impl MouseManager {
             }
 
             if !mouse.buttons.with(|b| b.contains(&button)) {
-                mouse.buttons.modify(ctx.vars, move |mut btns| btns.get_mut().push(button));
+                mouse.buttons.modify(ctx.vars, move |btns| btns.get_mut().push(button));
             }
 
             prev_pressed = self.pressed.insert(button, target.clone());
@@ -781,7 +781,7 @@ impl MouseManager {
             }
 
             if mouse.buttons.with(|b| b.contains(&button)) {
-                mouse.buttons.modify(ctx.vars, move |mut btns| {
+                mouse.buttons.modify(ctx.vars, move |btns| {
                     if let Some(i) = btns.get().iter().position(|k| *k == button) {
                         btns.get_mut().swap_remove(i);
                     }

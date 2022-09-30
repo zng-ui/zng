@@ -281,14 +281,14 @@ impl Keyboard {
 
                 let scan_code = args.scan_code;
                 if !self.codes.with(|c| c.contains(&scan_code)) {
-                    self.codes.modify(vars, move |mut cs| {
+                    self.codes.modify(vars, move |cs| {
                         cs.get_mut().push(scan_code);
                     });
                 }
 
                 if let Some(key) = args.key {
                     if !self.keys.with(|c| c.contains(&key)) {
-                        self.keys.modify(vars, move |mut ks| {
+                        self.keys.modify(vars, move |ks| {
                             ks.get_mut().push(key);
                         });
                     }

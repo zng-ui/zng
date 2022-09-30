@@ -158,7 +158,7 @@ impl Config {
                     }
                     ConfigSourceUpdate::RefreshAll => read_all = true,
                     ConfigSourceUpdate::InternalError(e) => {
-                        self.status.modify(vars, move |mut s| {
+                        self.status.modify(vars, move |s| {
                             s.get_mut().set_internal_error(e);
                         });
                     }
@@ -231,7 +231,7 @@ impl Config {
     /// [`status`]: Self::status
     pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
         vars.with_vars(|vars| {
-            self.status.modify(vars, |mut s| {
+            self.status.modify(vars, |s| {
                 if s.get().has_errors() {
                     let s = s.get_mut();
                     s.read_error = None;
@@ -282,7 +282,7 @@ impl Config {
                             respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
                         }
                         Err(e) => {
-                            status.modify(vars, move |mut s| {
+                            status.modify(vars, move |s| {
                                 s.get_mut().set_read_error(e);
                             });
 
@@ -323,7 +323,7 @@ impl Config {
                     let value = value.clone();
 
                     self.once_tasks.push(Box::new(move |vars, _| {
-                        var.modify(vars, move |mut v| {
+                        var.modify(vars, move |v| {
                             if v.get().value != value {
                                 v.get_mut().value = value;
                                 v.get().write.set(false);
@@ -356,7 +356,7 @@ impl Config {
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
-                        status.modify(vars, move |mut s| s.get_mut().set_write_error(ConfigError::new(e)));
+                        status.modify(vars, move |s| s.get_mut().set_write_error(ConfigError::new(e)));
                     }));
                     let _ = self.update.send_ext_update();
                 }
@@ -385,7 +385,7 @@ impl Config {
             let finished = task.as_mut().unwrap().update().is_some();
             if finished {
                 let r = task.take().unwrap().into_result().unwrap();
-                status.modify(vars, move |mut s| {
+                status.modify(vars, move |s| {
                     let s = s.get_mut();
                     s.pending -= count;
                     if let Err(e) = r {
@@ -395,7 +395,7 @@ impl Config {
             } else if count == 0 {
                 // first try, add pending.
                 count = 1;
-                status.modify(vars, |mut s| s.get_mut().pending += 1);
+                status.modify(vars, |s| s.get_mut().pending += 1);
             }
 
             !finished
@@ -428,13 +428,13 @@ impl Config {
     ///
     /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
     /// after it is read.
-    pub fn bind<Vw: WithVars, K: Into<ConfigKey>, T: ConfigValue, D: FnOnce() -> T, V: Var<T>>(
-        &mut self,
-        vars: &Vw,
-        key: K,
-        default_value: D,
-        target: &V,
-    ) -> VarHandles {
+    pub fn bind<K, T, D, V>(&mut self, key: K, default_value: D, target: &V) -> VarHandles
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+        D: FnOnce() -> T,
+        V: Var<T>,
+    {
         let source = self.var_with_source(key.into(), default_value);
         let target = target.actual_var();
         let wk_target = target.downgrade();
@@ -509,7 +509,7 @@ impl Config {
         self.tasks.push(Box::new(move |vars, _| {
             if let Some(rsp) = value.rsp() {
                 if let Some(value) = rsp {
-                    var.modify(vars, move |mut v| {
+                    var.modify(vars, move |v| {
                         if v.get().value != value {
                             v.get_mut().value = value;
                             v.get().write.set(false);
@@ -607,14 +607,14 @@ impl ConfigAlt {
     ///
     /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
     /// after it is read.
-    pub fn bind<Vw: WithVars, K: Into<ConfigKey>, T: ConfigValue, D: FnOnce() -> T, V: Var<T>>(
-        &mut self,
-        vars: &Vw,
-        key: K,
-        default_value: D,
-        target: &V,
-    ) -> VarHandles {
-        Config::bind(&mut *self.0.borrow_mut(), vars, key, default_value, target)
+    pub fn bind<K, T, D, V>(&mut self, key: K, default_value: D, target: &V) -> VarHandles
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+        D: FnOnce() -> T,
+        V: Var<T>,
+    {
+        Config::bind(&mut *self.0.borrow_mut(), key, default_value, target)
     }
 }
 impl Drop for ConfigAlt {
@@ -681,7 +681,7 @@ impl ConfigVar {
                     Box::new(move |config| {
                         config.read_raw::<T, _>(key, move |vars, value| {
                             if let Some(value) = value {
-                                var.modify(vars, move |mut v| {
+                                var.modify(vars, move |v| {
                                     if v.get().value != value {
                                         v.get_mut().value = value;
                                         v.get().write.set(false);

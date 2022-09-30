@@ -930,8 +930,8 @@ pub mod prelude {
             PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
         var::{
-            animation, easing, expr_var, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver,
-            VarSender, VarValue, Vars, VarsRead,
+            animation::{self, easing},
+            expr_var, merge_var, state_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, VarValue, Vars,
         },
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility},

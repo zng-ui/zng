@@ -2,7 +2,6 @@
 //!
 //! Note: Compile error tests are in the integration tests folder: `tests/build/property`
 
-use crate::context::TestWidgetContext;
 use crate::var::*;
 use crate::{property, NilUiNode, UiNode};
 
@@ -17,7 +16,7 @@ fn basic_gen() {
     use basic_context::{code_gen, Args};
     let a = code_gen! { unnamed_new basic_context, __ArgsImpl 1 };
     let b = code_gen! { named_new basic_context, __ArgsImpl { arg: 2 } };
-    let test = TestWidgetContext::new();
+
     assert_eq!(1, a.unwrap().into_var().into_value());
     assert_eq!(2, b.unwrap().into_var().into_value());
 }

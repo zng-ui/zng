@@ -44,7 +44,7 @@ pub use context::{context_var, with_context_var, with_context_var_init, ContextV
 pub use expr::expr_var;
 pub use local::LocalVar;
 pub use merge::merge_var;
-pub use rc::{var, var_from, RcVar};
+pub use rc::{var, var_default, var_from, RcVar};
 pub use read_only::ReadOnlyRcVar;
 pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use state::*;
@@ -850,12 +850,19 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 
     /// Visit each item of the current value.
-    fn for_each<'a, F, I>(&self, f: F)
+    ///
+    /// Note that this only works if `&T` implements [`IntoIterator`], you can access all iterator methods for
+    /// types that only iterate with a `.iter()` method using [`with`].
+    ///
+    /// [`with`]: Var::with
+    fn for_each<'t, F, I>(&self, f: F)
     where
-        &'a T: IntoIterator<Item = I>,
+        &'t T: IntoIterator<Item = I>,
         F: FnMut(I),
     {
-        self.with(|t| t.into_iter().for_each(f))
+        self.with(move |v| {
+            IntoIterator::into_iter(v).for_each(f);
+        })
     }
 
     /// Get a clone of the current value into `value`.

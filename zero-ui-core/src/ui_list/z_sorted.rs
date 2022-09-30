@@ -3,7 +3,7 @@ use std::{cell::Cell, fmt, ops};
 use crate::{
     context::StaticStateId,
     impl_from_and_into_var, impl_ui_node, property,
-    var::{context_var, IntoVar, Var, Vars},
+    var::{context_var, IntoVar, Var},
 };
 
 use super::*;
@@ -543,7 +543,7 @@ impl<L: WidgetList> WidgetListZIndexExt for L {
     }
 
     fn init_all_z(&mut self, ctx: &mut WidgetContext, sort_z: &mut bool) {
-        *sort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.init_all(ctx));
+        *sort_z = ZIndexContext::with(ctx.path.widget_id(), || self.init_all(ctx));
     }
 
     fn update_all_z<O: UiListObserver>(
@@ -553,7 +553,7 @@ impl<L: WidgetList> WidgetListZIndexExt for L {
         observer: &mut O,
         resort_z: &mut bool,
     ) {
-        *resort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.update_all(ctx, updates, observer));
+        *resort_z = ZIndexContext::with(ctx.path.widget_id(), || self.update_all(ctx, updates, observer));
     }
 }
 
@@ -567,7 +567,7 @@ struct ZIndexContext {
     resort: Cell<bool>,
 }
 impl ZIndexContext {
-    fn with(vars: &Vars, panel_id: WidgetId, action: impl FnOnce()) -> bool {
+    fn with(panel_id: WidgetId, action: impl FnOnce()) -> bool {
         let ctx = ZIndexContext {
             panel_id: Some(panel_id),
             resort: Cell::new(false),

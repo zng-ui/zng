@@ -592,9 +592,6 @@ mod context {
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
 
-        let mut app = test_app(NilUiNode);
-        let ctx = app.ctx();
-
         let (_, a) = TEST_VAR.with_context("A", || mapped.get());
         let (_, b) = TEST_VAR.with_context("B", || mapped.get());
 
@@ -634,7 +631,6 @@ mod context {
         });
 
         let _ = app.update(false);
-        let ctx = app.ctx();
         assert_eq!(backing_var.get(), "set!");
     }
 
@@ -645,7 +641,7 @@ mod context {
 
         let mut test = test_app(test_wgt! {
             test_prop = input_var.clone();
-            on_init = hn_once!(other_var, |ctx, _| {
+            on_init = hn_once!(other_var, |_, _| {
                 TEST_VAR.bind(&other_var).perm();
             });
             child = NilUiNode;

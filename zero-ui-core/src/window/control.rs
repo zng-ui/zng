@@ -895,7 +895,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     if let Some(parent_id) = parent.take() {
                         if let Ok(parent_vars) = windows.vars(parent_id) {
                             let id = *ctx.window_id;
-                            parent_vars.0.children.modify(ctx.vars, move |mut c| {
+                            parent_vars.0.children.modify(ctx.vars, move |c| {
                                 c.get_mut().remove(&id);
                             });
                         }
@@ -904,7 +904,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     // insert new
                     *parent = Some(parent_id);
                     let id = *ctx.window_id;
-                    parent_vars.0.children.modify(ctx.vars, move |mut c| {
+                    parent_vars.0.children.modify(ctx.vars, move |c| {
                         c.get_mut().insert(id);
                     });
 
@@ -919,7 +919,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                 if let Some(parent_id) = parent.take() {
                     if let Ok(parent_vars) = Windows::req(ctx.services).vars(parent_id) {
                         let id = *ctx.window_id;
-                        parent_vars.0.children.modify(ctx.vars, move |mut c| {
+                        parent_vars.0.children.modify(ctx.vars, move |c| {
                             c.get_mut().remove(&id);
                         });
                     }
@@ -992,7 +992,7 @@ impl HeadlessWithRendererCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1132,7 +1132,7 @@ impl HeadlessWithRendererCtrl {
     }
 }
 
-fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
+fn update_headless_vars(windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
     let mut handles = VarHandles::dummy();
 
     if let Some(parent_vars) = hvars.parent().get().and_then(|id| windows.vars(id).ok()) {
@@ -1214,7 +1214,7 @@ impl HeadlessCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1381,7 +1381,7 @@ impl ContentCtrl {
 
     pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if !self.inited {
-            self.commands.init(ctx.vars, &self.vars);
+            self.commands.init(&self.vars);
             ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
                 self.root.init(ctx);
 
