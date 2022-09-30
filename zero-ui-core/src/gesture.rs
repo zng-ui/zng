@@ -1160,7 +1160,7 @@ impl ShortcutActions {
             if cmd.shortcut_matches(shortcut) {
                 match cmd.scope() {
                     CommandScope::Window(w) => {
-                        if let Some(f) = focused {
+                        if let Some(f) = &focused {
                             if f.window_id() == w {
                                 cmd_window.push(cmd);
                             }

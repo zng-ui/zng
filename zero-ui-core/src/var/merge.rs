@@ -51,8 +51,8 @@ impl<T: VarValue, V: Var<T>> RcMergeVarInput<T, V> {
     }
 
     #[allow(clippy::borrowed_box)]
-    pub fn get(&self, var: &Box<dyn AnyVar>) -> T {
-        var.as_any().downcast_ref::<V>().unwrap().get()
+    pub fn get<'t, 'v>(&'t self, value: &'v Box<dyn AnyVarValue>) -> &'v T {
+        value.as_any().downcast_ref::<T>().unwrap()
     }
 }
 

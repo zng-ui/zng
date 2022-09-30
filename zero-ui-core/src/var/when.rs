@@ -164,12 +164,12 @@ impl AnyWhenVarBuilder {
 
     /// Create a builder from the parts of a formed [`when_var!`].
     pub fn from_var<O: VarValue>(var: &types::ContextualizedVar<O, RcWhenVar<O>>) -> Self {
-        // let data = var.0.borrow();
-        // Self {
-        //     default: data.default.clone_any(),
-        //     conditions: data.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
-        // }
-        todo!("!!: refactor when_var to contextualize inputs?")
+        let data = var.borrow_init();
+        let data = data.0.borrow();
+        Self {
+            default: data.default.clone_any(),
+            conditions: data.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
+        }
     }
 
     /// Returns the number of conditions set.

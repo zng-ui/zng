@@ -1,9 +1,6 @@
 # Var/Update Rewrite
 
 * Fix all build errors.
-* AnyWhenVarBuilder::from_var has a problem with new contextualized var.
-    - Maybe a custom contextualizing var that keeps the builder?
-    - Or contextualize each input.
 * Remove `UiNode::subscriptions`, should be mostly removed already.
     - Refactor WidgetHandle, some other context-var wrappers also.
 * Docs.

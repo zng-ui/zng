@@ -470,7 +470,7 @@ pub struct VarPtr<'a> {
     eq: VarPtrData,
 }
 impl<'a> VarPtr<'a> {
-    fn new_rc<T>(rc: &'a Rc<T>) -> Self {
+    fn new_rc<T: ?Sized>(rc: &'a Rc<T>) -> Self {
         Self {
             _lt: std::marker::PhantomData,
             eq: VarPtrData::Rc(Rc::as_ptr(rc) as _),
@@ -484,7 +484,7 @@ impl<'a> VarPtr<'a> {
         }
     }
 
-    fn new_never_eq(lt: &'a impl Any) -> Self {
+    fn new_never_eq(_: &'a impl Any) -> Self {
         Self {
             _lt: std::marker::PhantomData,
             eq: VarPtrData::NeverEq,

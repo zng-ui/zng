@@ -151,7 +151,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
     }
 
     fn var_ptr(&self) -> VarPtr {
-        self.borrow_init().var_ptr()
+        VarPtr::new_rc(&self.init)
     }
 }
 impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {

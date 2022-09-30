@@ -79,7 +79,7 @@ pub struct ContextVar<T: VarValue> {
 
 impl<T: VarValue> ContextVar<T> {
     #[doc(hidden)]
-    pub fn new(local: &'static LocalKey<ContextData<T>>) -> Self {
+    pub const fn new(local: &'static LocalKey<ContextData<T>>) -> Self {
         ContextVar { local }
     }
 
