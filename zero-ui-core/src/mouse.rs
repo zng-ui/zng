@@ -1184,20 +1184,22 @@ impl AppExtension for MouseManager {
 
                 if let Some(window_id) = self.pos_window.take() {
                     if let Some(path) = self.hovered.take() {
-                        mouse.buttons.for_each(|btn| {
-                            let args = MouseInputArgs::now(
-                                window_id,
-                                None,
-                                *btn,
-                                DipPoint::new(Dip::new(-1), Dip::new(-1)),
-                                ModifiersState::empty(),
-                                ButtonState::Released,
-                                HitTestInfo::no_hits(window_id),
-                                path.clone(),
-                                None,
-                                None,
-                            );
-                            MOUSE_INPUT_EVENT.notify(ctx.events, args);
+                        mouse.buttons.with(|b| {
+                            for btn in b {
+                                let args = MouseInputArgs::now(
+                                    window_id,
+                                    None,
+                                    *btn,
+                                    DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                                    ModifiersState::empty(),
+                                    ButtonState::Released,
+                                    HitTestInfo::no_hits(window_id),
+                                    path.clone(),
+                                    None,
+                                    None,
+                                );
+                                MOUSE_INPUT_EVENT.notify(ctx.events, args);
+                            }
                         });
                         let args = MouseHoverArgs::now(
                             window_id,

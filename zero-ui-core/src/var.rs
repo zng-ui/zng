@@ -849,23 +849,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.with(ToString::to_string)
     }
 
-    /// Visit each item of the current value.
-    ///
-    /// Note that this only works if `&T` implements [`IntoIterator`], you can access all iterator methods for
-    /// types that only iterate with a `.iter()` method using [`with`].
-    ///
-    /// [`with`]: Var::with
-    fn for_each<'t, F, I>(&self, f: F)
-    where
-        &'t T: IntoIterator<Item = I>,
-        F: FnMut(I),
-    {
-        self.with(move |v| {
-            // TODO !!:
-            // IntoIterator::into_iter(v).for_each(f);
-        })
-    }
-
     /// Get a clone of the current value into `value`.
     fn get_into(&self, value: &mut T) {
         self.with(var_get_into(value))

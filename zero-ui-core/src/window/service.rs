@@ -690,14 +690,16 @@ impl Windows {
                             .or_insert_with(Default::default)
                             .push(r.responder.clone());
 
-                        info.vars.0.children.for_each(|&c| {
-                            if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
-                                wns.close_responders
-                                    .entry(c)
-                                    .or_insert_with(Default::default)
-                                    .push(r.responder.clone());
+                        info.vars.0.children.with(|c| {
+                            for &c in c {
+                                if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
+                                    wns.close_responders
+                                        .entry(c)
+                                        .or_insert_with(Default::default)
+                                        .push(r.responder.clone());
+                                }
                             }
-                        })
+                        });
                     }
                 }
             }

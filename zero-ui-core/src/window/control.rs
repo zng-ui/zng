@@ -424,14 +424,18 @@ impl HeadedCtrl {
                         match (prev_state, new_state) {
                             (_, WindowState::Minimized) => {
                                 // minimized, minimize children.
-                                self.vars.0.children.for_each(|&c| {
-                                    MINIMIZE_CMD.scoped(c).notify(ctx.events);
+                                self.vars.0.children.with(|c| {
+                                    for &c in c {
+                                        MINIMIZE_CMD.scoped(c).notify(ctx.events);
+                                    }
                                 });
                             }
                             (WindowState::Minimized, _) => {
                                 // restored, restore children.
-                                self.vars.0.children.for_each(|&c| {
-                                    RESTORE_CMD.scoped(c).notify(ctx.events);
+                                self.vars.0.children.with(|c| {
+                                    for &c in c {
+                                        RESTORE_CMD.scoped(c).notify(ctx.events);
+                                    }
                                 });
 
                                 // we skip layout & render when minimized.
