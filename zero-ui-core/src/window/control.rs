@@ -715,7 +715,7 @@ impl HeadedCtrl {
             always_on_top: self.vars.always_on_top().get(),
             movable: self.vars.movable().get(),
             resizable: self.vars.resizable().get(),
-            icon: self.icon.as_ref().and_then(|ico| ico.get().view()).map(|ico| ico.id()),
+            icon: self.icon.as_ref().and_then(|ico| ico.get().view().map(|ico| ico.id())),
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
@@ -818,7 +818,7 @@ impl HeadedCtrl {
             always_on_top: self.vars.always_on_top().get(),
             movable: self.vars.movable().get(),
             resizable: self.vars.resizable().get(),
-            icon: self.icon.as_ref().and_then(|ico| ico.get().view()).map(|ico| ico.id()),
+            icon: self.icon.as_ref().and_then(|ico| ico.get().view().map(|ico| ico.id())),
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
@@ -1143,22 +1143,20 @@ fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Fact
         }
 
         // merge bind color scheme.
-        let user = hvars.color_scheme().clone();
-        let parent = parent_vars.0.actual_color_scheme.clone();
-        let actual = hvars.0.actual_color_scheme.clone();
-        let merge = std::rc::Rc::new(move |vars| {
+        let user = hvars.color_scheme();
+        let parent = &parent_vars.0.actual_color_scheme;
+        let actual = &hvars.0.actual_color_scheme;
+
+        let h = user.hook(Box::new(clone_move!(user, parent, actual, |vars, _, _| {
             let scheme = user.get().unwrap_or_else(|| parent.get());
             actual.set_ne(vars, scheme).unwrap();
-        });
-
-        let h = user.hook(Box::new(clone_move!(merge, |vars, _, _| {
-            merge(vars);
             true
         })));
         handles = handles.with(h);
 
-        let h = parent.hook(Box::new(clone_move!(merge, |vars, _, _| {
-            merge(vars);
+        let h = parent.hook(Box::new(clone_move!(user, parent, actual, |vars, _, _| {
+            let scheme = user.get().unwrap_or_else(|| parent.get());
+            actual.set_ne(vars, scheme).unwrap();
             true
         })));
         handles = handles.with(h);
