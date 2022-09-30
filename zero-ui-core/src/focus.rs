@@ -531,7 +531,7 @@ impl FocusManager {
                     if args.timestamp.duration_since(self.last_keyboard_event) <= dur {
                         args.highlight = true;
                         focus.is_highlighting = true;
-                        focus.is_highlighting_var.set_ne(vars, true);
+                        focus.is_highlighting_var.set_ne(vars, true).unwrap();
                     }
                 }
             }
@@ -974,11 +974,11 @@ impl Focus {
         if let Some(mut args) = self.continue_focus(vars, windows) {
             args.highlight = highlight;
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(vars, highlight);
+            self.is_highlighting_var.set_ne(vars, highlight).unwrap();
             Some(args)
         } else if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(vars, highlight);
+            self.is_highlighting_var.set_ne(vars, highlight).unwrap();
             let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
                 focused.clone(),
@@ -1034,7 +1034,8 @@ impl Focus {
                         .vars(target.path.window_id())
                         .unwrap()
                         .focus_indicator()
-                        .set(vars, request.window_indicator);
+                        .set(vars, request.window_indicator)
+                        .unwrap();
                 }
 
                 // will focus when the window is focused
@@ -1053,7 +1054,7 @@ impl Focus {
     fn change_highlight(&mut self, vars: &Vars, highlight: bool, request: FocusRequest) -> Option<FocusChangedArgs> {
         if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(vars, highlight);
+            self.is_highlighting_var.set_ne(vars, highlight).unwrap();
             let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
                 focused.clone(),
@@ -1096,7 +1097,7 @@ impl Focus {
         cause: FocusChangedCause,
     ) -> Option<FocusChangedArgs> {
         let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
-        self.is_highlighting_var.set_ne(vars, highlight);
+        self.is_highlighting_var.set_ne(vars, highlight).unwrap();
 
         let r = if self.focused.as_ref().map(|p| &p.path) != new_focus.as_ref().map(|p| &p.path) {
             let new_focus = new_focus.as_ref().map(|p| p.path.clone());
@@ -1107,7 +1108,7 @@ impl Focus {
                 cause,
                 self.enabled_nav.nav,
             );
-            self.focused_var.set(vars, new_focus); // this can happen more than once per update, so we can't use set_ne.
+            self.focused_var.set(vars, new_focus).unwrap(); // this can happen more than once per update, so we can't use set_ne.
             Some(args)
         } else if prev_highlight != highlight {
             let new_focus = new_focus.as_ref().map(|p| p.path.clone());
@@ -1169,7 +1170,7 @@ impl Focus {
 
             if !retain_alt {
                 let (scope, widget_path) = self.alt_return.take().unwrap();
-                self.alt_return_var.set_ne(vars, None);
+                self.alt_return_var.set_ne(vars, None).unwrap();
                 r.push(ReturnFocusChangedArgs::now(scope, Some(widget_path), None));
             }
         } else if let Some(new_focus) = &self.focused {
@@ -1193,13 +1194,13 @@ impl Focus {
                             // previous focus is the return.
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(prev.clone())));
                             self.alt_return = Some((scope, prev.clone()));
-                            self.alt_return_var.set(vars, prev.clone());
+                            self.alt_return_var.set(vars, prev.clone()).unwrap();
                         } else if let Some(parent) = alt_scope.parent() {
                             // no previous focus, ALT parent is the return.
                             let parent_path = parent.info.interaction_path();
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(parent_path.clone())));
                             self.alt_return = Some((scope, parent_path.clone()));
-                            self.alt_return_var.set(vars, parent_path);
+                            self.alt_return_var.set(vars, parent_path).unwrap();
                         }
                     }
                 }
@@ -1227,7 +1228,11 @@ impl Focus {
                             if let Some(current) = self.return_focused.get_mut(&scope.widget_id()) {
                                 if current != &path {
                                     let prev = std::mem::replace(current, path);
-                                    self.return_focused_var.get(&scope.widget_id()).unwrap().set(vars, current.clone());
+                                    self.return_focused_var
+                                        .get(&scope.widget_id())
+                                        .unwrap()
+                                        .set(vars, current.clone())
+                                        .unwrap();
                                     r.push(ReturnFocusChangedArgs::now(scope, Some(prev), Some(current.clone())));
                                 }
                             } else {
@@ -1326,14 +1331,14 @@ impl Focus {
                             if e.get().strong_count() == 1 {
                                 e.remove();
                             } else {
-                                e.get().set(vars, None);
+                                e.get().set(vars, None).unwrap();
                             }
                         }
                         hash_map::Entry::Vacant(_) => {}
                     }
                 } else if let Some(var) = self.return_focused_var.remove(&scope_id) {
                     if var.strong_count() > 1 {
-                        var.set(vars, None);
+                        var.set(vars, None).unwrap();
                     }
                 }
 
@@ -1379,7 +1384,7 @@ impl Focus {
         }
         if !retain_alt {
             let (scope_id, widget_path) = self.alt_return.take().unwrap();
-            self.alt_return_var.set(vars, None);
+            self.alt_return_var.set(vars, None).unwrap();
             r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
         }
 
@@ -1398,7 +1403,7 @@ impl Focus {
             .unwrap_or_default()
         {
             let (_, widget_path) = self.alt_return.take().unwrap();
-            self.alt_return_var.set_ne(vars, None);
+            self.alt_return_var.set_ne(vars, None).unwrap();
             r.push(ReturnFocusChangedArgs::now(None, Some(widget_path), None));
         }
 
@@ -1407,7 +1412,7 @@ impl Focus {
 
             if !retain {
                 let var = self.return_focused_var.remove(&scope_id).unwrap();
-                var.set(vars, None);
+                var.set(vars, None).unwrap();
 
                 r.push(ReturnFocusChangedArgs::now(None, Some(widget_path.clone()), None));
             }

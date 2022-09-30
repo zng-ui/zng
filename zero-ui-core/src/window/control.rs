@@ -114,7 +114,7 @@ impl HeadedCtrl {
                 // enforce kiosk in pre-init.
 
                 if !self.vars.state().get().is_fullscreen() {
-                    self.vars.state().set(ctx, enforced_fullscreen);
+                    self.vars.state().set(ctx, enforced_fullscreen).unwrap();
                 }
             }
         }
@@ -126,7 +126,7 @@ impl HeadedCtrl {
                 if !state.is_fullscreen() {
                     tracing::error!("window in `kiosk` mode can only be fullscreen");
 
-                    self.vars.state().set(ctx, *enforced_fullscreen);
+                    self.vars.state().set(ctx, *enforced_fullscreen).unwrap();
                 } else {
                     *enforced_fullscreen = state;
                 }
@@ -135,13 +135,13 @@ impl HeadedCtrl {
             if let Some(false) = self.vars.visible().get_new(ctx) {
                 tracing::error!("window in `kiosk` mode can not be hidden");
 
-                self.vars.visible().set(ctx, true);
+                self.vars.visible().set(ctx, true).unwrap();
             }
 
             if let Some(mode) = self.vars.chrome().get_new(ctx) {
                 if !mode.is_none() {
                     tracing::error!("window in `kiosk` mode can not show chrome");
-                    self.vars.chrome().set(ctx, WindowChrome::None);
+                    self.vars.chrome().set(ctx, WindowChrome::None).unwrap();
                 }
             }
         } else {
@@ -158,14 +158,14 @@ impl HeadedCtrl {
                     if self.monitor.is_none() {
                         let monitor = query.select_fallback(monitors);
                         let scale_factor = monitor.scale_factor().get();
-                        self.vars.0.scale_factor.set_ne(ctx, scale_factor);
+                        self.vars.0.scale_factor.set_ne(ctx, scale_factor).unwrap();
                         self.monitor = Some(monitor);
                     } else if let Some(new) = query.select(monitors) {
                         let current = self.vars.0.actual_monitor.get();
                         if Some(new.id()) != current {
                             let scale_factor = new.scale_factor().get();
-                            self.vars.0.scale_factor.set_ne(ctx.vars, scale_factor);
-                            self.vars.0.actual_monitor.set_ne(ctx.vars, new.id());
+                            self.vars.0.scale_factor.set_ne(ctx.vars, scale_factor).unwrap();
+                            self.vars.0.actual_monitor.set_ne(ctx.vars, new.id()).unwrap();
                             self.monitor = Some(new.clone());
                         }
                     }
@@ -177,7 +177,7 @@ impl HeadedCtrl {
 
                 if let Some(req_state) = self.vars.state().get_new(ctx) {
                     new_state.set_state(req_state);
-                    self.vars.0.restore_state.set_ne(ctx, new_state.restore_state);
+                    self.vars.0.restore_state.set_ne(ctx, new_state.restore_state).unwrap();
                 }
 
                 if self.vars.min_size().is_new(ctx) || self.vars.max_size().is_new(ctx) {
@@ -286,13 +286,13 @@ impl HeadedCtrl {
                             parent: Some(*ctx.window_id),
                         }),
                     ))),
-                    WindowIcon::Image(source) => Some(Images::req(ctx.services).cache(source.clone())),
+                    WindowIcon::Image(source) => Some(Images::req(ctx.services).cache(source)),
                 };
 
                 if let Some(ico) = &self.icon {
                     self.icon_binding = ico.bind_map(&self.vars.0.actual_icon, |img| Some(img.clone()));
                 } else {
-                    self.vars.0.actual_icon.set_ne(ctx.vars, None);
+                    self.vars.0.actual_icon.set_ne(ctx.vars, None).unwrap();
                     self.icon_binding = VarHandle::dummy();
                 }
 
@@ -345,7 +345,7 @@ impl HeadedCtrl {
 
             if let Some(m) = &self.monitor {
                 if let Some(fct) = m.scale_factor().get_new(ctx) {
-                    self.vars.0.scale_factor.set_ne(ctx, fct);
+                    self.vars.0.scale_factor.set_ne(ctx, fct).unwrap();
                 }
                 if m.scale_factor().is_new(ctx) || m.size().is_new(ctx) || m.ppi().is_new(ctx) {
                     self.content.layout_requested = true;
@@ -355,7 +355,7 @@ impl HeadedCtrl {
 
             if let Some(indicator) = self.vars.focus_indicator().get_new(ctx) {
                 if Windows::req(ctx.services).is_focused(*ctx.window_id).unwrap_or(false) {
-                    self.vars.focus_indicator().set_ne(ctx, None);
+                    self.vars.focus_indicator().set_ne(ctx, None).unwrap();
                 } else if let Some(view) = &self.window {
                     let _ = view.set_focus_indicator(indicator);
                     // will be set to `None` once the window is focused.
@@ -383,7 +383,7 @@ impl HeadedCtrl {
                     .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
                     .or(self.system_color_scheme)
                     .unwrap_or_default();
-                self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
+                self.vars.0.actual_color_scheme.set_ne(ctx, scheme).unwrap();
             }
         }
 
@@ -411,9 +411,9 @@ impl HeadedCtrl {
                 }
 
                 if let Some(state) = args.state.clone() {
-                    self.vars.state().set_ne(ctx, state.state);
-                    self.vars.0.restore_rect.set_ne(ctx, state.restore_rect);
-                    self.vars.0.restore_state.set_ne(ctx, state.restore_state);
+                    self.vars.state().set_ne(ctx, state.state).unwrap();
+                    self.vars.0.restore_rect.set_ne(ctx, state.restore_rect).unwrap();
+                    self.vars.0.restore_state.set_ne(ctx, state.restore_state).unwrap();
 
                     let new_state = state.state;
                     if self.actual_state != Some(new_state) {
@@ -466,7 +466,7 @@ impl HeadedCtrl {
 
                         if args.cause == EventCause::System {
                             // resize by system (user)
-                            self.vars.auto_size().set_ne(ctx, AutoSize::DISABLED);
+                            self.vars.auto_size().set_ne(ctx, AutoSize::DISABLED).unwrap();
                         }
                     }
                 }
@@ -496,10 +496,10 @@ impl HeadedCtrl {
             if let Some(m) = &self.monitor {
                 if args.removed.contains(&m.id()) {
                     self.monitor = None;
-                    self.vars.0.actual_monitor.set_ne(ctx, None);
+                    self.vars.0.actual_monitor.set_ne(ctx, None).unwrap();
                 }
             }
-            self.vars.monitor().touch(ctx);
+            self.vars.monitor().touch(ctx).unwrap();
         } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
             if args.window_id == self.window_id {
                 self.waiting_view = false;
@@ -507,15 +507,15 @@ impl HeadedCtrl {
                 Windows::req(ctx.services).set_renderer(*ctx.window_id, args.window.renderer());
 
                 self.window = Some(args.window.clone());
-                self.vars.0.render_mode.set_ne(ctx, args.data.render_mode);
-                self.vars.state().set_ne(ctx, args.data.state.state);
+                self.vars.0.render_mode.set_ne(ctx, args.data.render_mode).unwrap();
+                self.vars.state().set_ne(ctx, args.data.state.state).unwrap();
                 self.actual_state = Some(args.data.state.state);
-                self.vars.0.restore_state.set_ne(ctx, args.data.state.restore_state);
-                self.vars.0.restore_rect.set_ne(ctx, args.data.state.restore_rect);
-                self.vars.0.actual_position.set_ne(ctx, args.data.position);
-                self.vars.0.actual_size.set_ne(ctx, args.data.size);
-                self.vars.0.actual_monitor.set_ne(ctx, args.data.monitor);
-                self.vars.0.scale_factor.set_ne(ctx, args.data.scale_factor);
+                self.vars.0.restore_state.set_ne(ctx, args.data.state.restore_state).unwrap();
+                self.vars.0.restore_rect.set_ne(ctx, args.data.state.restore_rect).unwrap();
+                self.vars.0.actual_position.set_ne(ctx, args.data.position).unwrap();
+                self.vars.0.actual_size.set_ne(ctx, args.data.size).unwrap();
+                self.vars.0.actual_monitor.set_ne(ctx, args.data.monitor).unwrap();
+                self.vars.0.scale_factor.set_ne(ctx, args.data.scale_factor).unwrap();
 
                 self.state = Some(args.data.state.clone());
                 self.system_color_scheme = Some(args.data.color_scheme);
@@ -527,7 +527,7 @@ impl HeadedCtrl {
                     .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
                     .or(self.system_color_scheme)
                     .unwrap_or_default();
-                self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
+                self.vars.0.actual_color_scheme.set_ne(ctx, scheme).unwrap();
 
                 ctx.updates.layout_and_render();
 
@@ -546,7 +546,7 @@ impl HeadedCtrl {
                     .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
                     .or(self.system_color_scheme)
                     .unwrap_or_default();
-                self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
+                self.vars.0.actual_color_scheme.set_ne(ctx, scheme).unwrap();
             }
         } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
             if args.window_id == self.window_id && self.window.is_none() && self.waiting_view {
@@ -874,12 +874,12 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
             Some(parent_id) => {
                 if parent_id == *ctx.window_id {
                     tracing::error!("cannot set `{:?}` as it's own parent", parent_id);
-                    parent_var.set(ctx.vars, *parent);
+                    parent_var.set(ctx.vars, *parent).unwrap();
                     return false;
                 }
                 if !vars.0.children.with(|c| c.is_empty()) {
                     tracing::error!("cannot set parent for `{:?}` because it already has children", *ctx.window_id);
-                    parent_var.set(ctx.vars, *parent);
+                    parent_var.set(ctx.vars, *parent).unwrap();
                     return false;
                 }
 
@@ -887,7 +887,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                 if let Ok(parent_vars) = windows.vars(parent_id) {
                     if parent_vars.parent().with(Option::is_some) {
                         tracing::error!("cannot use `{:?}` as a parent because it already has a parent", parent_id);
-                        parent_var.set(ctx.vars, *parent);
+                        parent_var.set(ctx.vars, *parent).unwrap();
                         return false;
                     }
 
@@ -895,23 +895,31 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     if let Some(parent_id) = parent.take() {
                         if let Ok(parent_vars) = windows.vars(parent_id) {
                             let id = *ctx.window_id;
-                            parent_vars.0.children.modify(ctx.vars, move |c| {
-                                c.get_mut().remove(&id);
-                            });
+                            parent_vars
+                                .0
+                                .children
+                                .modify(ctx.vars, move |c| {
+                                    c.get_mut().remove(&id);
+                                })
+                                .unwrap();
                         }
                     }
 
                     // insert new
                     *parent = Some(parent_id);
                     let id = *ctx.window_id;
-                    parent_vars.0.children.modify(ctx.vars, move |c| {
-                        c.get_mut().insert(id);
-                    });
+                    parent_vars
+                        .0
+                        .children
+                        .modify(ctx.vars, move |c| {
+                            c.get_mut().insert(id);
+                        })
+                        .unwrap();
 
                     true
                 } else {
                     tracing::error!("cannot use `{:?}` as a parent because it does not exist", parent_id);
-                    parent_var.set(ctx.vars, *parent);
+                    parent_var.set(ctx.vars, *parent).unwrap();
                     false
                 }
             }
@@ -919,9 +927,13 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                 if let Some(parent_id) = parent.take() {
                     if let Ok(parent_vars) = Windows::req(ctx.services).vars(parent_id) {
                         let id = *ctx.window_id;
-                        parent_vars.0.children.modify(ctx.vars, move |c| {
-                            c.get_mut().remove(&id);
-                        });
+                        parent_vars
+                            .0
+                            .children
+                            .modify(ctx.vars, move |c| {
+                                c.get_mut().remove(&id);
+                            })
+                            .unwrap();
                     }
                     true
                 } else {
@@ -1010,7 +1022,7 @@ impl HeadlessWithRendererCtrl {
                 Windows::req(ctx.services).set_renderer(args.window_id, args.surface.renderer());
 
                 self.surface = Some(args.surface.clone());
-                self.vars.0.render_mode.set_ne(ctx.vars, args.data.render_mode);
+                self.vars.0.render_mode.set_ne(ctx.vars, args.data.render_mode).unwrap();
 
                 ctx.updates.render();
 
@@ -1480,7 +1492,7 @@ impl ContentCtrl {
             self.root.deinit(ctx);
         });
 
-        self.vars.0.is_open.set(ctx, false);
+        self.vars.0.is_open.set(ctx, false).unwrap();
     }
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.
@@ -1685,7 +1697,7 @@ impl ContentCtrl {
         match self.vars.frame_capture_mode().get() {
             FrameCaptureMode::Sporadic => false,
             FrameCaptureMode::Next => {
-                self.vars.frame_capture_mode().set(vars, FrameCaptureMode::Sporadic);
+                self.vars.frame_capture_mode().set(vars, FrameCaptureMode::Sporadic).unwrap();
                 true
             }
             FrameCaptureMode::All => true,

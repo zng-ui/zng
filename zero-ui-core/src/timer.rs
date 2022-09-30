@@ -279,7 +279,7 @@ impl Timers {
                     return true; // retain
                 }
 
-                var.touch(vars);
+                var.touch(vars).unwrap();
             }
             false // don't retain
         });
@@ -294,7 +294,7 @@ impl Timers {
 
                             if timer.elapsed(deadline.current_deadline()) {
                                 t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
-                                var.touch(vars);
+                                var.touch(vars).unwrap();
 
                                 deadline.last = now;
                                 timer.register(deadline.current_deadline());

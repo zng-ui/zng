@@ -1252,9 +1252,9 @@ impl ShortcutActions {
         if click.is_none() && focus.is_none() {
             if let Some(p) = focused {
                 click = if gestures.click_focused.contains(shortcut) {
-                    Some((p.clone(), ShortcutClick::Primary))
+                    Some((p, ShortcutClick::Primary))
                 } else if gestures.context_click_focused.contains(shortcut) {
-                    Some((p.clone(), ShortcutClick::Context))
+                    Some((p, ShortcutClick::Context))
                 } else {
                     None
                 };

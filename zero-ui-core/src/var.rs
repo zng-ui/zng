@@ -861,7 +861,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         F: FnMut(I),
     {
         self.with(move |v| {
-            IntoIterator::into_iter(v).for_each(f);
+            // TODO !!:
+            // IntoIterator::into_iter(v).for_each(f);
         })
     }
 

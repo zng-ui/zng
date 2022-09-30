@@ -38,19 +38,19 @@ pub fn event_state<A: EventArgs>(
         S: FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, self.default);
+            self.state.set_ne(ctx, self.default).unwrap();
             self.handle = Some(self.event.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, self.default);
+            self.state.set_ne(ctx, self.default).unwrap();
             self.handle = None;
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
                 if let Some(state) = (self.on_event)(ctx, args) {
-                    self.state.set_ne(ctx, state);
+                    self.state.set_ne(ctx, state).unwrap();
                 }
             }
             self.child.event(ctx, update);
@@ -104,13 +104,13 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.partial = self.partial_default;
-            self.state.set_ne(ctx, self.default);
+            self.state.set_ne(ctx, self.default).unwrap();
             let w = ctx.path.widget_id();
             self.handle = Some([self.events.0.subscribe(w), self.events.1.subscribe(w)]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, self.default);
+            self.state.set_ne(ctx, self.default).unwrap();
             self.handle = None;
             self.child.deinit(ctx);
         }
@@ -135,7 +135,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
 
             if updated {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1) {
-                    self.state.set_ne(ctx, value);
+                    self.state.set_ne(ctx, value).unwrap();
                 }
             }
         }
@@ -196,13 +196,13 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.partial = self.partial_default;
-            self.state.set_ne(ctx, self.default);
+            self.state.set_ne(ctx, self.default).unwrap();
             let w = ctx.path.widget_id();
             self.handle = Some([self.events.0.subscribe(w), self.events.1.subscribe(w), self.events.2.subscribe(w)]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, self.default);
+            self.state.set_ne(ctx, self.default).unwrap();
             self.handle = None;
             self.child.deinit(ctx);
         }
@@ -234,7 +234,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
 
             if updated {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1, self.partial.2) {
-                    self.state.set_ne(ctx, value);
+                    self.state.set_ne(ctx, value).unwrap();
                 }
             }
         }
@@ -267,7 +267,7 @@ pub fn bind_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVa
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<bool>> UiNode for BindStateNode<C, S> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, self.source.get());
+            self.state.set_ne(ctx, self.source.get()).unwrap();
             self.binding = self.source.bind(&self.state);
             self.child.init(ctx);
         }

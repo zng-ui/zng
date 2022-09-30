@@ -70,7 +70,7 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(app.ctx().vars, 20).unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -83,7 +83,7 @@ mod bindings {
         );
         assert_eq!(1, update_count);
 
-        a.set(app.ctx().vars, 13);
+        a.set(app.ctx().vars, 13).unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -115,7 +115,7 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(app.ctx().vars, 20).unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -128,7 +128,7 @@ mod bindings {
         );
         assert_eq!(1, update_count);
 
-        b.set(app.ctx().vars, "55");
+        b.set(app.ctx().vars, "55").unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -160,7 +160,7 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(app.ctx().vars, 20).unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -173,7 +173,7 @@ mod bindings {
         );
         assert_eq!(1, update_count);
 
-        a.set(app.ctx().vars, 13);
+        a.set(app.ctx().vars, 13).unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -206,7 +206,7 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(app.ctx().vars, 20).unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -219,7 +219,7 @@ mod bindings {
         );
         assert_eq!(1, update_count);
 
-        b.set(app.ctx().vars, "55");
+        b.set(app.ctx().vars, "55").unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -232,7 +232,7 @@ mod bindings {
         );
         assert_eq!(1, update_count);
 
-        b.set(app.ctx().vars, "not a i32");
+        b.set(app.ctx().vars, "not a i32").unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -269,7 +269,7 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(app.ctx().vars, 20).unwrap();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -285,7 +285,7 @@ mod bindings {
         );
         assert_eq!(1, update_count);
 
-        a.set(app.ctx().vars, 30);
+        a.set(app.ctx().vars, 30).unwrap();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -324,7 +324,7 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(app.ctx().vars, 20).unwrap();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -340,7 +340,7 @@ mod bindings {
         );
         assert_eq!(1, update_count);
 
-        d.set(app.ctx().vars, 30);
+        d.set(app.ctx().vars, 30).unwrap();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -366,7 +366,7 @@ mod bindings {
 
         let handle = a.bind_map(&b, |i| *i + 1);
 
-        a.set(app.ctx().vars, 10);
+        a.set(app.ctx().vars, 10).unwrap();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -382,7 +382,7 @@ mod bindings {
 
         drop(handle);
 
-        a.set(app.ctx().vars, 100);
+        a.set(app.ctx().vars, 100).unwrap();
 
         update_count = 0;
         let _ = app.update_observe(
@@ -425,7 +425,7 @@ mod context {
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<Text>> UiNode for ProbeNode<C, V> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.app_state.set(&PROBE_ID, self.var.get());
+                ctx.app_state.set(&PROBE_ID, self.var.get()).unwrap();
                 self.child.init(ctx);
             }
         }
@@ -651,7 +651,7 @@ mod context {
 
         assert_eq!(".", other_var.get());
 
-        input_var.set(test.ctx().vars, "Update!");
+        input_var.set(test.ctx().vars, "Update!").unwrap();
 
         test.update(false).assert_wait();
 
@@ -685,7 +685,7 @@ mod flat_map {
 
         assert_eq!(32, test.get());
 
-        source.get().var.set(&ctx.vars, 42usize);
+        source.get().var.set(&ctx.vars, 42usize).unwrap();
 
         let (_, ctx_updates) = ctx.apply_updates();
 
@@ -696,8 +696,8 @@ mod flat_map {
         let (_, ctx_updates) = ctx.apply_updates();
         assert!(!ctx_updates.update);
 
-        let old_var = source.get().var.clone();
-        source.set(&ctx, Foo { bar: false, var: var(192) });
+        let old_var = source.get().var;
+        source.set(&ctx, Foo { bar: false, var: var(192) }).unwrap();
         let (_, ctx_updates) = ctx.apply_updates();
 
         assert!(ctx_updates.update);
@@ -707,7 +707,7 @@ mod flat_map {
         let (_, ctx_updates) = ctx.apply_updates();
         assert!(!ctx_updates.update);
 
-        old_var.set(&ctx, 220usize);
+        old_var.set(&ctx, 220usize).unwrap();
         let (_, ctx_updates) = ctx.apply_updates();
         assert!(ctx_updates.update);
         assert!(!test.is_new(&ctx));

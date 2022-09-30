@@ -153,7 +153,7 @@ impl Monitors {
     pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = Monitors::req(ctx.services).monitor(args.monitor_id) {
-                m.scale_factor.set_ne(ctx.vars, args.scale_factor);
+                m.scale_factor.set_ne(ctx.vars, args.scale_factor).unwrap();
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
             Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, args);

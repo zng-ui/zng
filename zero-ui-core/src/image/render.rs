@@ -33,7 +33,8 @@ impl Images {
                 let r = render(ctx);
                 WindowVars::req(&ctx.window_state)
                     .frame_capture_mode()
-                    .set_ne(ctx.vars, FrameCaptureMode::All);
+                    .set_ne(ctx.vars, FrameCaptureMode::All)
+                    .unwrap();
                 r
             },
             &result,
@@ -108,13 +109,13 @@ impl ImageManager {
                 windows.open_headless(
                     move |ctx| {
                         let vars = WindowVars::req(&ctx.window_state);
-                        vars.auto_size().set(ctx.vars, true);
-                        vars.min_size().set(ctx.vars, (1.px(), 1.px()));
+                        vars.auto_size().set(ctx.vars, true).unwrap();
+                        vars.min_size().set(ctx.vars, (1.px(), 1.px())).unwrap();
 
                         let w = (req.render)(ctx);
 
                         let vars = WindowVars::req(&ctx.window_state);
-                        vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All);
+                        vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All).unwrap();
 
                         let a = ActiveRenderer {
                             window_id: *ctx.window_id,
@@ -137,7 +138,7 @@ impl ImageManager {
                 let imgs = Images::req(ctx.services);
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {
                     if let Some(img_var) = a.image.upgrade() {
-                        img_var.set(ctx.vars, img.clone());
+                        img_var.set(ctx.vars, img.clone()).unwrap();
                     }
                     args.propagation().stop();
                 }

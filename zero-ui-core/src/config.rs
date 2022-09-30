@@ -158,9 +158,11 @@ impl Config {
                     }
                     ConfigSourceUpdate::RefreshAll => read_all = true,
                     ConfigSourceUpdate::InternalError(e) => {
-                        self.status.modify(vars, move |s| {
-                            s.get_mut().set_internal_error(e);
-                        });
+                        self.status
+                            .modify(vars, move |s| {
+                                s.get_mut().set_internal_error(e);
+                            })
+                            .unwrap();
                     }
                 }
             }
@@ -178,10 +180,10 @@ impl Config {
             Some((any_var, write)) => {
                 if write {
                     // var was set by the user, start a write task.
-                    var_tasks.push(var.write(ConfigVarTaskArgs { vars, key, var: any_var }));
+                    var_tasks.push(var.write(ConfigVarTaskArgs { key, var: any_var }));
                 } else if read_all || read.contains(key) {
                     // source notified a potential change, start a read task.
-                    var_tasks.push(var.read(ConfigVarTaskArgs { vars, key, var: any_var }));
+                    var_tasks.push(var.read(ConfigVarTaskArgs { key, var: any_var }));
                 }
                 true // retain var
             }
@@ -231,14 +233,16 @@ impl Config {
     /// [`status`]: Self::status
     pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
         vars.with_vars(|vars| {
-            self.status.modify(vars, |s| {
-                if s.get().has_errors() {
-                    let s = s.get_mut();
-                    s.read_error = None;
-                    s.write_error = None;
-                    s.internal_error = None;
-                }
-            });
+            self.status
+                .modify(vars, |s| {
+                    if s.get().has_errors() {
+                        let s = s.get_mut();
+                        s.read_error = None;
+                        s.write_error = None;
+                        s.internal_error = None;
+                    }
+                })
+                .unwrap();
         })
     }
 
@@ -282,9 +286,11 @@ impl Config {
                             respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
                         }
                         Err(e) => {
-                            status.modify(vars, move |s| {
-                                s.get_mut().set_read_error(e);
-                            });
+                            status
+                                .modify(vars, move |s| {
+                                    s.get_mut().set_read_error(e);
+                                })
+                                .unwrap();
 
                             let respond = respond.take().unwrap();
                             respond(vars, None);
@@ -328,7 +334,8 @@ impl Config {
                                 v.get_mut().value = value;
                                 v.get().write.set(false);
                             }
-                        });
+                        })
+                        .unwrap();
                     }));
 
                     let _ = self.update.send_ext_update();
@@ -356,7 +363,9 @@ impl Config {
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
-                        status.modify(vars, move |s| s.get_mut().set_write_error(ConfigError::new(e)));
+                        status
+                            .modify(vars, move |s| s.get_mut().set_write_error(ConfigError::new(e)))
+                            .unwrap();
                     }));
                     let _ = self.update.send_ext_update();
                 }
@@ -385,17 +394,19 @@ impl Config {
             let finished = task.as_mut().unwrap().update().is_some();
             if finished {
                 let r = task.take().unwrap().into_result().unwrap();
-                status.modify(vars, move |s| {
-                    let s = s.get_mut();
-                    s.pending -= count;
-                    if let Err(e) = r {
-                        s.set_write_error(e);
-                    }
-                });
+                status
+                    .modify(vars, move |s| {
+                        let s = s.get_mut();
+                        s.pending -= count;
+                        if let Err(e) = r {
+                            s.set_write_error(e);
+                        }
+                    })
+                    .unwrap();
             } else if count == 0 {
                 // first try, add pending.
                 count = 1;
-                status.modify(vars, |s| s.get_mut().pending += 1);
+                status.modify(vars, |s| s.get_mut().pending += 1).unwrap();
             }
 
             !finished
@@ -514,7 +525,8 @@ impl Config {
                             v.get_mut().value = value;
                             v.get().write.set(false);
                         }
-                    });
+                    })
+                    .unwrap();
                 }
                 false // task finished
             } else {
@@ -686,7 +698,8 @@ impl ConfigVar {
                                         v.get_mut().value = value;
                                         v.get().write.set(false);
                                     }
-                                });
+                                })
+                                .unwrap();
                             }
                         });
                     })
@@ -706,7 +719,6 @@ impl ConfigVar {
 }
 
 struct ConfigVarTaskArgs<'a> {
-    vars: &'a Vars,
     key: &'a ConfigKey,
     var: Box<dyn AnyVar>,
 }

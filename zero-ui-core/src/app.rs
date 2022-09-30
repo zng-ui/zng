@@ -1436,8 +1436,6 @@ impl<E: AppExtension> RunningApp<E> {
                 observer.update(ctx);
                 Updates::on_updates(ctx);
 
-                self.owned_ctx.apply_updates();
-
                 true
             });
         }

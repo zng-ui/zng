@@ -530,11 +530,12 @@ impl ImageSource {
     {
         Self::Render(
             Rc::new(Box::new(move |ctx, args| {
-                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent).unwrap();
                 let r = new_img(ctx, args);
                 WindowVars::req(&ctx.window_state)
                     .frame_capture_mode()
-                    .set_ne(ctx.vars, FrameCaptureMode::All);
+                    .set_ne(ctx.vars, FrameCaptureMode::All)
+                    .unwrap();
                 r
             })),
             None,
@@ -572,7 +573,7 @@ impl ImageSource {
         N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + 'static,
     {
         Self::render(move |ctx, args| {
-            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent).unwrap();
             let node = render(ctx, args);
             Window::new_container(
                 crate::WidgetId::new_unique(),
