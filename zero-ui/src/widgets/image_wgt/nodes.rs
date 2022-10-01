@@ -35,7 +35,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
         img: ImageVar,
         ctx_img: RcVar<Image>,
-        ctx_binding: Option<VarBindingHandle>,
+        ctx_binding: Option<VarHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {

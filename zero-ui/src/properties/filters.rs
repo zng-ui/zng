@@ -27,7 +27,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<Filter>> UiNode for FilterNode<C, F> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.render_filter = self.filter.get(ctx).try_render();
+            self.render_filter = self.filter.with(Filter::try_render);
             self.child.init(ctx);
         }
 
@@ -37,7 +37,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(f) = self.filter.get_new(ctx.vars) {
+            self.filter.with_new(ctx.vars, |f| {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
                     ctx.updates.render();
@@ -45,7 +45,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
                     self.render_filter = None;
                     ctx.updates.layout();
                 }
-            }
+            });
             self.child.update(ctx, updates)
         }
 
@@ -54,7 +54,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.get(ctx.vars).layout(ctx.metrics));
+                self.render_filter = Some(self.filter.get().layout(ctx.metrics));
                 ctx.updates.render();
             }
             self.child.layout(ctx, wl)
@@ -92,7 +92,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<Filter>> UiNode for ChildFilterNode<C, F> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.render_filter = self.filter.get(ctx).try_render();
+            self.render_filter = self.filter.with(Filter::try_render);
             self.child.init(ctx);
         }
 
@@ -102,7 +102,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(f) = self.filter.get_new(ctx.vars) {
+            self.filter.with_new(ctx.vars, |f| {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
                     ctx.updates.render();
@@ -110,7 +110,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
                     self.render_filter = None;
                     ctx.updates.layout();
                 }
-            }
+            });
             self.child.update(ctx, updates)
         }
 
@@ -119,7 +119,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.get(ctx.vars).layout(ctx.metrics));
+                self.render_filter = Some(self.filter.get().layout(ctx.metrics));
                 ctx.updates.render();
             }
             self.child.layout(ctx, wl)
@@ -291,7 +291,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind(ctx, &self.alpha, |f| f.0);
+            let opacity = self.frame_key.bind(&self.alpha, |f| f.0);
             frame.push_inner_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
@@ -337,12 +337,12 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind(ctx, &self.alpha, |f| f.0);
+            let opacity = self.frame_key.bind(&self.alpha, |f| f.0);
             frame.push_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update(ctx, &self.alpha, |f| f.0));
+            update.update_f32_opt(self.frame_key.update(&self.alpha, |f| f.0));
             self.child.render_update(ctx, update);
         }
     }

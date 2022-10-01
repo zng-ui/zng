@@ -619,8 +619,8 @@ pub mod properties {
             }
         }
     }
-    impl From<VarIsReadOnly> for SelectorError {
-        fn from(_: VarIsReadOnly) -> Self {
+    impl From<VarIsReadOnlyError> for SelectorError {
+        fn from(_: VarIsReadOnlyError) -> Self {
             SelectorError::ReadOnly
         }
     }
@@ -699,7 +699,7 @@ pub mod properties {
 
         fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
             match value.downcast_ref::<T>() {
-                Some(value) => self.target.get(ctx) == value,
+                Some(value) => self.target.with(|t| t == value),
                 None => false,
             }
         }
@@ -755,7 +755,7 @@ pub mod properties {
         fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
             match value.downcast_ref::<T>() {
                 Some(value) => {
-                    if self.target.get(ctx).as_ref() == Some(value) {
+                    if self.target.with(|t| t.as_ref() == Some(value)) {
                         match self.target.set(ctx, None) {
                             Ok(_) => Ok(()),
                             Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
@@ -766,7 +766,7 @@ pub mod properties {
                 }
                 None => match value.downcast_ref::<Option<T>>() {
                     Some(value) => {
-                        if self.target.get(ctx) == value {
+                        if self.target.with(|t| t == value) {
                             if value.is_none() {
                                 Ok(())
                             } else {
@@ -786,9 +786,9 @@ pub mod properties {
 
         fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
             match value.downcast_ref::<T>() {
-                Some(value) => self.target.get(ctx).as_ref() == Some(value),
+                Some(value) => self.target.with(|t| t.as_ref() == Some(value)),
                 None => match value.downcast_ref::<Option<T>>() {
-                    Some(value) => self.target.get(ctx) == value,
+                    Some(value) => self.target.with(|t| t == value),
                     None => false,
                 },
             }

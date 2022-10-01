@@ -253,7 +253,7 @@ impl WindowLayers {
                                     if let AnchorSize::InnerBorder = mode.size {
                                         cr = cr.deflate(border.offsets());
                                     }
-                                    ctx.vars.with_context_var(CORNER_RADIUS_VAR, ContextVarData::fixed(&cr.into()), || {
+                                    ctx.vars.with_context_var(CORNER_RADIUS_VAR, cr, || {
                                         ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl))
                                     })
                                 } else {

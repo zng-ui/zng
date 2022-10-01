@@ -26,7 +26,7 @@ where
         child: C,
         user_var: V,
         select: S,
-        binding: Option<VarBindingHandle>,
+        binding: VarHandles,
     }
 
     #[impl_ui_node(child)]
@@ -48,7 +48,7 @@ where
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.binding = None;
+            self.binding.0.clear();
             self.child.deinit(ctx);
         }
     }

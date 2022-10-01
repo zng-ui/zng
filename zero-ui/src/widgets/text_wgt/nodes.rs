@@ -2,6 +2,8 @@
 
 use std::cell::{Cell, RefCell};
 
+use font_features::FontVariations;
+
 use super::properties::*;
 use crate::core::{focus::FocusInfoBuilder, keyboard::CHAR_INPUT_EVENT, text::*};
 use crate::prelude::new_widget::*;
@@ -24,10 +26,19 @@ pub struct ResolvedText {
     baseline: Cell<Px>,
 }
 impl ResolvedText {
-    /// Gets the contextual [`ResolvedText`], returns `Some(_)` for any property with priority `event` or up
-    /// set directly on a `text!` widget or any widget that uses the [`resolve_text`] node.
-    pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> Option<&ResolvedText> {
-        RESOLVED_TEXT_VAR.get().as_ref()
+    /// If any [`ResolvedText`] is set in the current context.
+    ///
+    /// This is `true` for any property with priority `event` or up set in a `text!` widget or
+    /// any widget that uses the [`resolve_text`] node.
+    pub fn is_some() -> bool {
+        RESOLVED_TEXT_VAR.with(Option::is_some)
+    }
+
+    /// Calls `f` if [`is_some`], returns the result of `f`.
+    ///
+    /// [`is_some`]: Self::is_some
+    pub fn with<R>(f: impl FnOnce(&Self) -> R) -> Option<R> {
+        RESOLVED_TEXT_VAR.with(|opt| opt.as_ref().map(f))
     }
 }
 
@@ -76,10 +87,19 @@ pub struct LayoutText {
     pub underline_thickness: Px,
 }
 impl LayoutText {
-    /// Gets t he contextual [`LayoutText`], returns `Some(_)` in the node layout and render methods for any property
-    /// with priority `border` or `fill` set directly on a `text!` widget or any widget that uses the [`layout_text`] node.
-    pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> Option<&LayoutText> {
-        LAYOUT_TEXT_VAR.get().as_ref()
+    /// If any [`ResolvedText`] is set in the current context.
+    ///
+    /// This is `true` only during layout & render, in properties with priority `border` or `fill` set in a `text!` widget or
+    /// any widget that uses the [`layout_text`] node.
+    pub fn is_some() -> bool {
+        LAYOUT_TEXT_VAR.with(Option::is_some)
+    }
+
+    /// Calls `f` if [`is_some`], returns the result of `f`.
+    ///
+    /// [`is_some`]: Self::is_some
+    pub fn with<R>(f: impl FnOnce(&Self) -> R) -> Option<R> {
+        LAYOUT_TEXT_VAR.with(|opt| opt.as_ref().map(f))
     }
 }
 
@@ -100,15 +120,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     struct ResolveTextNode<C, T> {
         child: C,
         text: T,
-        resolved: Option<ResolvedText>,
+        resolved: RefCell<Option<ResolvedText>>,
         char_input_handle: Option<EventWidgetHandle>,
     }
     impl<C: UiNode, T> ResolveTextNode<C, T> {
-        fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-            vars.with_context_var(RESOLVED_TEXT_VAR, ContextVarData::fixed(&self.resolved), || f(&mut self.child))
+        fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
+            // !! TODO, review this, we alloc a new box for every call, in previous API there was not alloc.
+            let (resolved, r) = RESOLVED_TEXT_VAR.with_context(self.resolved.get_mut().take(), || f(&mut self.child));
+            self.resolved = resolved.into_value();
+            r
         }
-        fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&C) -> R) -> R {
-            vars.with_context_var(RESOLVED_TEXT_VAR, ContextVarData::fixed(&self.resolved), || f(&self.child))
+        fn with<R>(&self, f: impl FnOnce(&C) -> R) -> R {
+            let (resolved, r) = RESOLVED_TEXT_VAR.with_context(self.resolved.borrow_mut().take(), || f(&mut self.child));
+            self.resolved = resolved.into_value();
+            r
         }
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
@@ -299,23 +324,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             ctx.constrains().fill_or_exact()
         }
 
-        fn layout(&mut self, vars: &VarsRead, metrics: &LayoutMetrics, t: &ResolvedText, pending: &mut Layout) -> PxSize {
+        fn layout(&mut self, metrics: &LayoutMetrics, t: &ResolvedText, pending: &mut Layout) -> PxSize {
             if t.reshape {
                 pending.insert(Layout::RESHAPE);
             }
 
-            let padding = TEXT_PADDING_VAR.get(vars).layout(metrics, |_| PxSideOffsets::zero());
-
-            let (font_size, variations) = TextContext::font(vars);
+            let padding = TEXT_PADDING_VAR.get().layout(metrics, |_| PxSideOffsets::zero());
 
             let font_size = {
                 let m = metrics.clone().with_constrains(|c| c.with_less_y(padding.vertical()));
-                font_size.layout(m.for_y(), |m| m.metrics.root_font_size())
+                FONT_SIZE_VAR.get().layout(m.for_y(), |m| m.metrics.root_font_size())
             };
 
             if self.layout.is_none() {
-                let fonts = t.faces.sized(font_size, variations.finalize());
-                self.layout = Some(LayoutText {
+                let fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
+                *self.layout.get_mut() = Some(LayoutText {
                     shaped_text: ShapedText::new(fonts.best()),
                     shaped_text_version: 0,
                     fonts,
@@ -332,7 +355,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let r = self.layout.as_mut().unwrap();
 
             if font_size != r.fonts.requested_size() || !r.fonts.is_sized_from(&t.faces) {
-                r.fonts = t.faces.sized(font_size, variations.finalize());
+                r.fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
                 pending.insert(Layout::RESHAPE);
             }
 
@@ -342,16 +365,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let font = r.fonts.best();
 
-            let (letter_spacing, word_spacing, line_spacing, line_height, tab_length, _) = TextContext::shaping(vars);
             let space_len = font.space_x_advance();
             let dft_tab_len = space_len * 3;
 
             let (letter_spacing, word_spacing, tab_length) = {
                 let m = metrics.clone().with_constrains(|_| PxConstrains2d::new_exact(space_len, space_len));
                 (
-                    letter_spacing.layout(m.for_x(), |_| Px(0)),
-                    word_spacing.layout(m.for_x(), |_| Px(0)),
-                    tab_length.layout(m.for_x(), |_| dft_tab_len),
+                    LETTER_SPACING_VAR.get().layout(m.for_x(), |_| Px(0)),
+                    WORD_SPACING_VAR.get().layout(m.for_x(), |_| Px(0)),
+                    TAB_LENGTH_VAR.layout(m.for_x(), |_| dft_tab_len),
                 )
             };
 
@@ -366,7 +388,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let m = metrics
                     .clone()
                     .with_constrains(|_| PxConstrains2d::new_exact(line_height, line_height));
-                line_spacing.layout(m.for_y(), |_| Px(0))
+                LINE_SPACING_VAR.get().layout(m.for_y(), |_| Px(0))
             };
 
             if !pending.contains(Layout::RESHAPE)
@@ -394,9 +416,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     .clone()
                     .with_constrains(|_| PxConstrains2d::new_exact(line_height, line_height));
                 (
-                    OVERLINE_THICKNESS_VAR.get(vars).layout(m.for_y(), |_| dft_thickness),
-                    STRIKETHROUGH_THICKNESS_VAR.get(vars).layout(m.for_y(), |_| dft_thickness),
-                    UNDERLINE_THICKNESS_VAR.get(vars).layout(m.for_y(), |_| dft_thickness),
+                    OVERLINE_THICKNESS_VAR.get().layout(m.for_y(), |_| dft_thickness),
+                    STRIKETHROUGH_THICKNESS_VAR.get().layout(m.for_y(), |_| dft_thickness),
+                    UNDERLINE_THICKNESS_VAR.get().layout(m.for_y(), |_| dft_thickness),
                 )
             };
 
@@ -504,13 +526,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         pending: Layout,
     }
     impl<C: UiNode> LayoutTextNode<C> {
-        fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-            let txt = self.txt.borrow();
-            vars.with_context_var(LAYOUT_TEXT_VAR, ContextVarData::fixed(&txt.layout), || f(&mut self.child))
+        fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
+            let txt = self.txt.get_mut();
+            let (layout, r) = LAYOUT_TEXT_VAR.with_context(txt.layout.take(), || f(&mut self.child));
+            txt.layout = layout.into_value();
+            r
         }
-        fn with(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
-            let txt = self.txt.borrow();
-            vars.with_context_var(LAYOUT_TEXT_VAR, ContextVarData::fixed(&txt.layout), || f(&self.child))
+        fn with(&self, f: impl FnOnce(&C)) {
+            let mut txt = self.txt.borrow_mut();
+            let (layout, ()) = LAYOUT_TEXT_VAR.with_context(txt.layout.take(), || f(&mut self.child));
+            txt.layout = layout.into_value();
         }
     }
     #[impl_ui_node(child)]

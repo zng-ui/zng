@@ -225,6 +225,9 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     }
 }
 
+/// Context var that is always read-only, even if it is representing a read-write var.
+pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
+
 pub use helpers::*;
 mod helpers {
     use std::cell::RefCell;

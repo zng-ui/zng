@@ -8,7 +8,7 @@ use std::{
 use crate::core::{
     context::StaticStateId,
     units::*,
-    var::{animation::EasingFn, *},
+    var::{animation::*, *},
     widget_info::WidgetInfo,
     UiNode,
 };
@@ -250,67 +250,55 @@ impl ScrollContext {
     }
 
     /// Returns `true` if the content height is greater then the viewport height.
-    pub fn can_scroll_vertical<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+    pub fn can_scroll_vertical() -> bool {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
-            content > viewport
-        })
+        content > viewport
     }
 
     /// Returns `true` if the content width is greater then the viewport with.
-    pub fn can_scroll_horizontal<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+    pub fn can_scroll_horizontal() -> bool {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
-            content > viewport
-        })
+        content > viewport
     }
 
     /// Returns `true` if the content height is greater then the viewport height and the vertical offset
     /// is not at the maximum.
-    pub fn can_scroll_down<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+    pub fn can_scroll_down() -> bool {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
-            content > viewport && 1.fct() > SCROLL_VERTICAL_OFFSET_VAR.get()
-        })
+        content > viewport && 1.fct() > SCROLL_VERTICAL_OFFSET_VAR.get()
     }
 
     /// Returns `true` if the content height is greater then the viewport height and the vertical offset
     /// is not at the minimum.
-    pub fn can_scroll_up<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+    pub fn can_scroll_up() -> bool {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
-            content > viewport && 0.fct() < SCROLL_VERTICAL_OFFSET_VAR.get()
-        })
+        content > viewport && 0.fct() < SCROLL_VERTICAL_OFFSET_VAR.get()
     }
 
     /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
     /// is not at the minimum.
-    pub fn can_scroll_left<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+    pub fn can_scroll_left() -> bool {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
-            content > viewport && 0.fct() < SCROLL_HORIZONTAL_OFFSET_VAR.get()
-        })
+        content > viewport && 0.fct() < SCROLL_HORIZONTAL_OFFSET_VAR.get()
     }
 
     /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
     /// is not at the maximum.
-    pub fn can_scroll_right<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+    pub fn can_scroll_right() -> bool {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
-            content > viewport && 1.fct() > SCROLL_HORIZONTAL_OFFSET_VAR.get()
-        })
+        content > viewport && 1.fct() > SCROLL_HORIZONTAL_OFFSET_VAR.get()
     }
 }
 
@@ -454,7 +442,7 @@ impl_from_and_into_var! {
         SmoothScrolling::new(duration, easing)
     }
 
-    fn from((duration, easing): (Duration, EasingFn)) -> SmoothScrolling {
+    fn from((duration, easing): (Duration, easing::EasingFn)) -> SmoothScrolling {
         SmoothScrolling::new(duration, easing.ease_fn())
     }
 }

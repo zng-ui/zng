@@ -40,7 +40,7 @@ mod tests;
 
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
-pub use context::{context_var, with_context_var, with_context_var_init, ContextVar};
+pub use context::{context_var, with_context_var, with_context_var_init, ContextVar, ReadOnlyContextVar};
 pub use expr::expr_var;
 pub use local::LocalVar;
 pub use merge::merge_var;

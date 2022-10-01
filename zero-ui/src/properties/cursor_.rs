@@ -24,7 +24,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         cursor: C,
         child: T,
         mouse_hovered_handle: Option<EventWidgetHandle>,
-        hovered_binding: Option<VarBindingHandle>,
+        hovered_binding: Option<VarHandle>,
     }
     #[impl_ui_node(child)]
     impl<T, C> UiNode for CursorNode<T, C>
@@ -63,7 +63,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
 
                                 let cursor = WindowVars::req(&ctx.window_state).cursor();
                                 cursor.set_ne(ctx.vars, self.cursor.get());
-                                self.hovered_binding = Some(self.cursor.bind(ctx.vars, cursor));
+                                self.hovered_binding = Some(self.cursor.bind(cursor));
                             }
 
                             // flag parent
