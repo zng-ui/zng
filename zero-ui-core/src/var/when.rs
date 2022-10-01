@@ -53,9 +53,10 @@ use super::*;
 /// In the example above only one of the conditions will be compiled, the generated variable is the same
 /// type as if you had written a single condition.
 ///
-/// # Return Type
+/// # Contextualized
 ///
-/// The return type is [`RcWhenVar<T>`] where `T` is the condition values and default type.
+/// The when var is contextualized, meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
+/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, RcWhenVar<T>>`.
 #[macro_export]
 macro_rules! when_var {
     ($($tt:tt)*) => {

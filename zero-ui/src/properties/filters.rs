@@ -296,7 +296,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update(ctx, &self.alpha, |f| f.0));
+            update.update_f32_opt(self.frame_key.update(&self.alpha, |f| f.0));
             self.child.render_update(ctx, update);
         }
     }

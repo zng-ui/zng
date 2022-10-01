@@ -14,7 +14,7 @@ use super::{animation::AnimateModifyInfo, *};
 ///
 /// # Contextualized
 ///
-/// The merge var is [contextualized], meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
+/// The merge var is contextualized, meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
 /// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, RcMergeVar<T>>`.
 ///
 /// # Examples
