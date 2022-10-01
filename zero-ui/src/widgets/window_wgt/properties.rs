@@ -40,8 +40,8 @@ where
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let window_var = (self.select)(WindowVars::req(ctx));
-            if self.user_var.can_update() {
-                self.binding = Some(self.user_var.bind_bidi(ctx.vars, &window_var));
+            if !self.user_var.capabilities().is_always_static() {
+                self.binding = self.user_var.bind_bidi(&window_var);
             }
             window_var.set_ne(ctx.vars, self.user_var.get()).unwrap();
             self.child.init(ctx);
@@ -57,7 +57,7 @@ where
         child,
         user_var: user_var.into_var(),
         select,
-        binding: None,
+        binding: VarHandles::dummy(),
     }
 }
 
@@ -309,12 +309,12 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            match &self.task {
-                Task::Read { rsp, .. } => {
-                    subs.var(ctx.vars, rsp);
-                }
-                Task::None => {}
-            }
+            // match &self.task {
+            //     Task::Read { rsp, .. } => {
+            //         subs.var(ctx.vars, rsp);
+            //     }
+            //     Task::None => {}
+            // }
             self.child.subscriptions(ctx, subs);
         }
 
@@ -347,7 +347,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Task::Read { rsp, .. } = &mut self.task {
-                if let Some(rsp) = rsp.rsp(ctx.vars) {
+                if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {
                         let window_vars = WindowVars::req(&ctx.window_state);
                         window_vars.state().set_ne(ctx.vars, s.state);
@@ -355,7 +355,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 
                         let visible = Monitors::req(ctx.services)
                             .available_monitors()
-                            .any(|m| m.dip_rect(ctx.vars).intersects(&restore_rect));
+                            .any(|m| m.dip_rect().intersects(&restore_rect));
                         if visible {
                             window_vars.position().set_ne(ctx.vars, restore_rect.origin);
                         }

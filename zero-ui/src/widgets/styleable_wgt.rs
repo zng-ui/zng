@@ -112,7 +112,7 @@ pub mod styleable {
         #[impl_ui_node(child)]
         impl<T: Var<StyleGenerator>> UiNode for StyleableNode<T> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(style) = self.style.get(ctx.vars).generate(ctx, &StyleArgs {}) {
+                if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
                     self.snapshot = Some(self.child.snapshot());
                     self.child.extend(style.into_node());
                 }

@@ -92,6 +92,30 @@ impl<T: VarValue> IntoVar<T> for T {
     }
 }
 
+macro_rules! impl_into_var_option {
+    (
+        $($T:ty),* $(,)? 
+    ) => {
+        $(
+            impl IntoVar<Option<$T>> for $T {
+                type Var = LocalVar<Option<$T>>;
+            
+                fn into_var(self) -> Self::Var {
+                    LocalVar(Some(self))
+                }
+            }
+
+            impl IntoValue<Option<$T>> for $T { }
+        )*
+    }
+}
+impl_into_var_option! {
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize,
+    f32, f64,
+    char, bool,
+}
+
 impl<T: VarValue> Var<T> for LocalVar<T> {
     type ReadOnly = Self;
 

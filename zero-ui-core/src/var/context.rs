@@ -390,7 +390,7 @@ mod helpers {
     /// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
     ///
     /// Apart from the value initialization this behaves just like [`with_context_var`].
-    pub fn with_context_var_init<T: VarValue, V: Var<T>>(
+    pub fn with_context_var_init<T: VarValue>(
         child: impl UiNode,
         var: ContextVar<T>,
         init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,

@@ -202,7 +202,7 @@ mod tests {
     fn error_view_recursion() {
         crate::core::test_log();
 
-        let img = var(crate::core::image::Image::dummy(Some("test error".to_string()))).into_read_only();
+        let img = var(crate::core::image::Image::dummy(Some("test error".to_string()))).read_only();
 
         let mut app = App::default().run_headless(false);
         Images::req(&mut app).load_in_headless = true;

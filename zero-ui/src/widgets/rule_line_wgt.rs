@@ -81,28 +81,28 @@ pub mod rule_line {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
-            match *self.orientation.get(ctx) {
+            match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get(ctx).layout(ctx.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get(ctx).layout(ctx.for_y(), |_| default_stroke),
+                    self.length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get(ctx).layout(ctx.for_x(), |_| default_stroke),
-                    self.length.get(ctx).layout(ctx.for_y(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
+                    self.length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
                 ),
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
-            let bounds = match *self.orientation.get(ctx) {
+            let bounds = match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get(ctx).layout(ctx.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get(ctx).layout(ctx.for_y(), |_| default_stroke),
+                    self.length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get(ctx).layout(ctx.for_x(), |_| default_stroke),
-                    self.length.get(ctx).layout(ctx.for_y(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
+                    self.length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
                 ),
             };
 

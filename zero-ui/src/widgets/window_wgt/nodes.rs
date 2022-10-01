@@ -198,7 +198,7 @@ impl WindowLayers {
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
-                    let mode = self.mode.get(ctx.vars);
+                    let mode = self.mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         return ctx.with_constrains(
@@ -218,7 +218,7 @@ impl WindowLayers {
             }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
-                    let mode = self.mode.get(ctx.vars);
+                    let mode = self.mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         // if we don't link visibility or anchor is not collapsed.
@@ -270,9 +270,9 @@ impl WindowLayers {
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
-                    let mode = &self.mode.get(ctx.vars);
-                    if !self.mode.get(ctx).visibility || bounds_info.rendered().is_some() {
-                        match &mode.transform {
+                    let mode = self.mode.get();
+                    if !mode.visibility || bounds_info.rendered().is_some() {
+                        match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let point_in_window = bounds_info.inner_transform().transform_point(self.offset_point).unwrap_or_default();
 
@@ -339,9 +339,9 @@ impl WindowLayers {
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
-                    let mode = &self.mode.get(ctx.vars);
+                    let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
-                        match &mode.transform {
+                        match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let point_in_window = bounds_info.inner_transform().transform_point(self.offset_point).unwrap_or_default();
                                 update.with_transform(

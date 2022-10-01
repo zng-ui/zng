@@ -100,16 +100,16 @@ where
             self.do_layout = false;
 
             self.final_size = final_size;
-            self.render_line = self.axis.get(ctx).layout(ctx);
+            self.render_line = self.axis.get().layout(ctx);
 
             let length = self.render_line.length();
 
             ctx.with_constrains(
                 |c| c.with_new_exact_x(length),
                 |ctx| {
-                    self.stops.get(ctx).layout_linear(
+                    self.stops.get().layout_linear(
                         ctx.for_x(),
-                        *self.extend_mode.get(ctx),
+                        self.extend_mode.get(),
                         &mut self.render_line,
                         &mut self.render_stops,
                     )
@@ -126,7 +126,7 @@ where
             PxRect::from_size(self.final_size),
             self.render_line,
             &self.render_stops,
-            (*self.extend_mode.get(ctx)).into(),
+            self.extend_mode.get().into(),
             self.final_size,
             PxSize::zero(),
         );
