@@ -31,10 +31,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_color(
-                PxRect::from_size(self.final_size),
-                self.frame_key.bind( &self.color, |&c| c.into()),
-            );
+            frame.push_color(PxRect::from_size(self.final_size), self.frame_key.bind(&self.color, |&c| c.into()));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {

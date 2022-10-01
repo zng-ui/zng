@@ -205,7 +205,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
                 // font query may return a different result.
 
-
                 let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
                 let faces = Fonts::req(ctx).list(font_family, font_style, font_weight, font_stretch, lang);
 

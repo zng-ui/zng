@@ -228,17 +228,13 @@ pub fn h_scrollbar_presenter() -> impl UiNode {
 }
 
 fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
-    ViewGenerator::presenter(
-        var,
-        |_, _| {},
-        move |_, is_new| {
-            if is_new {
-                DataUpdate::Update(ScrollBarArgs::new(orientation))
-            } else {
-                DataUpdate::Same
-            }
-        },
-    )
+    ViewGenerator::presenter(var, move |_, is_new| {
+        if is_new {
+            DataUpdate::Update(ScrollBarArgs::new(orientation))
+        } else {
+            DataUpdate::Same
+        }
+    })
 }
 
 /// Create a node that generates and presents the [scrollbar joiner].
@@ -292,10 +288,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
 
-            self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
-            self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
-            self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
-            self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
+            self.up.set_enabled(ScrollContext::can_scroll_up());
+            self.down.set_enabled(ScrollContext::can_scroll_down());
+            self.left.set_enabled(ScrollContext::can_scroll_left());
+            self.right.set_enabled(ScrollContext::can_scroll_right());
 
             if VERTICAL_LINE_UNIT_VAR.is_new(ctx) || HORIZONTAL_LINE_UNIT_VAR.is_new(ctx) {
                 ctx.updates.layout();
@@ -520,9 +516,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             let scope = ctx.path.widget_id();
 
             self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
-            self.bottom = SCROLL_TO_BOTTOM_CMD
-                .scoped(scope)
-                .subscribe(ctx, ScrollContext::can_scroll_down());
+            self.bottom = SCROLL_TO_BOTTOM_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down());
             self.leftmost = SCROLL_TO_LEFTMOST_CMD
                 .scoped(scope)
                 .subscribe(ctx, ScrollContext::can_scroll_left());
@@ -798,7 +792,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            let viewport = *SCROLL_VIEWPORT_SIZE_VAR.get(ctx);
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
 
             ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),

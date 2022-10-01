@@ -94,12 +94,12 @@ impl<T: VarValue> IntoVar<T> for T {
 
 macro_rules! impl_into_var_option {
     (
-        $($T:ty),* $(,)? 
+        $($T:ty),* $(,)?
     ) => {
         $(
             impl IntoVar<Option<$T>> for $T {
                 type Var = LocalVar<Option<$T>>;
-            
+
                 fn into_var(self) -> Self::Var {
                     LocalVar(Some(self))
                 }

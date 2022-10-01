@@ -106,33 +106,33 @@ impl ScrollContext {
     ///
     /// The value is `viewport.height / content.height`.
     pub fn vertical_ratio() -> ReadOnlyContextVar<Factor> {
-        SCROLL_VERTICAL_RATIO_VAR.into_read_only()
+        SCROLL_VERTICAL_RATIO_VAR.read_only()
     }
     /// Ratio of the scroll parent viewport width to its content.
     ///
     /// The value is `viewport.width / content.width`.
     pub fn horizontal_ratio() -> ReadOnlyContextVar<Factor> {
-        SCROLL_HORIZONTAL_RATIO_VAR.into_read_only()
+        SCROLL_HORIZONTAL_RATIO_VAR.read_only()
     }
 
     /// If the vertical scrollbar should be visible.
     pub fn vertical_content_overflows() -> ReadOnlyContextVar<bool> {
-        SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.into_read_only()
+        SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.read_only()
     }
 
     /// If the horizontal scrollbar should be visible.
     pub fn horizontal_content_overflows() -> ReadOnlyContextVar<bool> {
-        SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.into_read_only()
+        SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.read_only()
     }
 
     /// Latest computed viewport size of the parent scroll.
     pub fn viewport_size() -> ReadOnlyContextVar<PxSize> {
-        SCROLL_VIEWPORT_SIZE_VAR.into_read_only()
+        SCROLL_VIEWPORT_SIZE_VAR.read_only()
     }
 
     /// Latest computed content size of the parent scroll.
     pub fn content_size() -> ReadOnlyContextVar<PxSize> {
-        SCROLL_CONTENT_SIZE_VAR.into_read_only()
+        SCROLL_CONTENT_SIZE_VAR.read_only()
     }
 
     /// Offset the vertical position by the given pixel `amount`.

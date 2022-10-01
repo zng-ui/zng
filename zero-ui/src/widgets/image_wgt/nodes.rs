@@ -150,18 +150,22 @@ context_var! {
 ///
 /// The image widget adds this node around the [`image_presenter`] node.
 pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
+    let mut image_handle = None;
+
     let view = ViewGenerator::presenter_map(
         IMAGE_ERROR_VIEW_VAR,
-        |vars, subs| {
-            subs.var(vars, &CONTEXT_IMAGE_VAR);
-        },
-        |ctx, is_new| {
+        move |ctx, is_new| {
+            if image_handle.is_none() || is_new {
+                // TODO !!: if the view gets (de)inited and moved this breaks.
+                image_handle = Some(CONTEXT_IMAGE_VAR.subscribe(ctx.path.widget_id()));
+            }
+
             if IN_ERROR_VIEW_VAR.get() {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
                 // init or generator changed.
-                if let Some(e) = CONTEXT_IMAGE_VAR.with(Image::error) {
+                if let Some(e) = CONTEXT_IMAGE_VAR.get().error() {
                     DataUpdate::Update(ImageErrorArgs {
                         error: e.to_owned().into(),
                     })
@@ -199,12 +203,16 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 ///
 /// The image widget adds this node around the [`image_error_presenter`] node.
 pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
+    let mut image_handle = None;
+
     let view = ViewGenerator::presenter_map(
         IMAGE_LOADING_VIEW_VAR,
-        |vars, subs| {
-            subs.var(vars, &CONTEXT_IMAGE_VAR);
-        },
-        |ctx, is_new| {
+        move |ctx, is_new| {
+            if image_handle.is_none() || is_new {
+                // TODO !!: if the view gets (de)inited and moved this breaks.
+                image_handle = Some(CONTEXT_IMAGE_VAR.subscribe(ctx.path.widget_id()));
+            }
+
             if IN_LOADING_VIEW_VAR.get() {
                 // avoid recursion.
                 DataUpdate::None
@@ -280,8 +288,7 @@ pub fn image_presenter() -> impl UiNode {
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let img = CONTEXT_IMAGE_VAR.get(ctx.vars);
-            self.img_size = img.size();
+            self.img_size = CONTEXT_IMAGE_VAR.with(Image::size);
             self.requested_layout = true;
         }
 
@@ -319,9 +326,8 @@ pub fn image_presenter() -> impl UiNode {
 
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
-                let img = CONTEXT_IMAGE_VAR.get(ctx.vars);
                 let sppi = ctx.metrics.screen_ppi();
-                let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
+                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Image::ppi).unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
@@ -344,9 +350,8 @@ pub fn image_presenter() -> impl UiNode {
 
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
-                let img = CONTEXT_IMAGE_VAR.get(ctx.vars);
                 let sppi = ctx.metrics.screen_ppi();
-                let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
+                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Image::ppi).unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
@@ -463,17 +468,18 @@ pub fn image_presenter() -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let img = CONTEXT_IMAGE_VAR.get(ctx.vars);
-            if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip.is_empty() {
-                if self.render_offset != PxVector::zero() {
-                    let transform = PxTransform::from(self.render_offset);
-                    frame.push_reference_frame(self.spatial_id, FrameValue::Value(transform), true, false, |frame| {
-                        frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.get())
-                    });
-                } else {
-                    frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.get());
+            CONTEXT_IMAGE_VAR.with(|img| {
+                if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip.is_empty() {
+                    if self.render_offset != PxVector::zero() {
+                        let transform = PxTransform::from(self.render_offset);
+                        frame.push_reference_frame(self.spatial_id, FrameValue::Value(transform), true, false, |frame| {
+                            frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.get())
+                        });
+                    } else {
+                        frame.push_image(self.render_clip, self.render_img_size, img, IMAGE_RENDERING_VAR.get());
+                    }
                 }
-            }
+            })
         }
     }
     ImagePresenterNode {
