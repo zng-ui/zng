@@ -94,7 +94,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
     });
 
     let monitor_size = MonitorQuery::Primary
-        .select(ctx.vars, Monitors::req(ctx.services))
+        .select(Monitors::req(ctx.services))
         .unwrap()
         .size()
         .get();
@@ -120,7 +120,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
             position = window_pos;
             size = window_size;
             on_close = hn!(|ctx, _| {
-                if Keyboard::req(ctx.services).modifiers().get(ctx).is_empty() {
+                if Keyboard::req(ctx.services).modifiers().get().is_empty() {
                     Windows::req(ctx.services).close_all();
                 }
             });

@@ -94,7 +94,7 @@ fn commands() -> impl Widget {
                 content = text(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
                 margin = show.map(|s| if !s { 0.into() } else { (3, 0, 0, 0).into() });
                 on_click = hn!(|ctx, _| {
-                    show.modify(ctx, |mut s| *s = !*s);
+                    show.modify(ctx, |mut s| *s.get_mut() = !*s.get()).unwrap();
                 });
 
                 corner_radius = (0, 0, 4, 4);

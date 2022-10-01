@@ -326,8 +326,8 @@ fn trace_focus(events: &mut Events) {
                 } else {
                     println!(
                         "{} -> {}",
-                        inspect::focus(ctx.vars, ctx.services, &args.prev_focus),
-                        inspect::focus(ctx.vars, ctx.services, &args.new_focus)
+                        inspect::focus(ctx.services, &args.prev_focus),
+                        inspect::focus(ctx.services, &args.new_focus)
                     );
                 }
             }),
@@ -407,7 +407,7 @@ mod inspect {
     use zero_ui::core::focus::WidgetInfoFocusExt;
     use zero_ui::core::inspector::WidgetInfoInspectorExt;
 
-    pub fn focus(vars: &VarsRead, services: &mut Services, path: &Option<InteractionPath>) -> String {
+    pub fn focus(services: &mut Services, path: &Option<InteractionPath>) -> String {
         path.as_ref()
             .map(|p| {
                 let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
@@ -434,14 +434,14 @@ mod inspect {
                             .expect("expected text property")
                             .arg(0)
                             .value
-                            .get(vars)
+                            .get()
                     )
                 } else if info.meta.widget_name == "window" {
                     let title = info
                         .properties
                         .iter()
                         .find(|p| p.meta.property_name == "title")
-                        .map(|p| format!("{:?}", p.args[0].value.get(vars)))
+                        .map(|p| format!("{:?}", p.args[0].value.get()))
                         .unwrap_or_default();
                     format!("window({title})")
                 } else {

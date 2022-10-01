@@ -35,8 +35,8 @@ fn app_main() {
                         if args.is_repeat {
                             return;
                         }
-                        shortcut_text.set(ctx, args.shortcut.to_text());
-                        shortcut_error.set(ctx, false);
+                        shortcut_text.set(ctx, args.shortcut.to_text()).unwrap();
+                        shortcut_error.set(ctx, false).unwrap();
                     }
                 ),
             )
@@ -53,13 +53,13 @@ fn app_main() {
                         if key.is_modifier() {
                             new_shortcut_text = "";
                         }
-                        keypress_text.set(ctx, formatx! {"{key:?}"})
+                        keypress_text.set(ctx, formatx! {"{key:?}"}).unwrap()
                     } else {
-                        keypress_text.set(ctx, formatx! {"Scan Code: {:?}", args.scan_code})
+                        keypress_text.set(ctx, formatx! {"Scan Code: {:?}", args.scan_code}).unwrap()
                     }
 
-                    shortcut_text.set(ctx, new_shortcut_text);
-                    shortcut_error.set(ctx, true);
+                    shortcut_text.set(ctx, new_shortcut_text).unwrap();
+                    shortcut_error.set(ctx, true).unwrap();
                 }),
             )
             .perm();

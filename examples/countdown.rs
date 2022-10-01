@@ -31,7 +31,7 @@ fn app_main() {
         });
 
         let window_background = var(background_color.get()).easing(150.ms(), easing::linear);
-        background_color.bind(ctx, &window_background).perm();
+        background_color.bind(&window_background).perm();
 
         let icon_label = count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() });
 

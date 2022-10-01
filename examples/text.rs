@@ -20,12 +20,9 @@ fn app_main() {
     App::default().run_window(|ctx| {
         let fs = var(Length::Pt(11.0));
 
-        let actual_fs = fs.deep_clone().easing(150.ms(), easing::linear);
-        fs.bind(ctx, &actual_fs).perm();
-
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
-            font_size = actual_fs;
+            font_size = fs.easing(150.ms(), easing::linear);
             content = z_stack(widgets![
                 h_stack! {
                     align = Align::CENTER;
@@ -67,9 +64,9 @@ fn app_main() {
 
 fn font_size(font_size: RcVar<Length>) -> impl Widget {
     fn change_size(font_size: &RcVar<Length>, change: f32, ctx: &mut WidgetContext) {
-        font_size.modify(ctx, move |mut s| {
-            *s += Length::Pt(change);
-        });
+        font_size.modify(ctx, move |s| {
+            *s.get_mut() += Length::Pt(change);
+        }).unwrap();
     }
     h_stack! {
         button::vis::extend_style = style_generator!(|_, _| style! {

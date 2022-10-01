@@ -985,21 +985,21 @@ pub fn window_blur_focus() {
 pub fn focused_removed_by_interacivity() {
     let interactive = var(true);
     focused_removed_test(button! { content = text("Button 1"); interactive = interactive.clone() }, |vars| {
-        interactive.set(vars, false)
+        interactive.set(vars, false).unwrap()
     })
 }
 #[test]
 pub fn focused_removed_by_collapsing() {
     let visibility = var(Visibility::Visible);
     focused_removed_test(button! { content = text("Button 1"); visibility = visibility.clone() }, |vars| {
-        visibility.set(vars, Visibility::Collapsed)
+        visibility.set(vars, Visibility::Collapsed).unwrap()
     })
 }
 #[test]
 pub fn focused_removed_by_making_not_focusable() {
     let focusable = var(true);
     focused_removed_test(button! { content = text("Button 1"); focusable = focusable.clone() }, |vars| {
-        focusable.set(vars, false)
+        focusable.set(vars, false).unwrap()
     })
 }
 fn focused_removed_test(button1: impl Widget, set_var: impl FnOnce(&Vars)) {
@@ -1136,7 +1136,7 @@ pub fn focus_continued_after_widget_id_move() {
 
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();
-    app.set_vars(|vars| do_move_id.set(vars, true));
+    app.set_vars(|vars| do_move_id.set(vars, true).unwrap());
 
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
@@ -1165,7 +1165,7 @@ pub fn focus_continued_after_widget_move_same_window() {
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();
 
-    app.set_vars(|vars| do_move.set(vars, true));
+    app.set_vars(|vars| do_move.set(vars, true).unwrap());
 
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
@@ -1594,14 +1594,14 @@ impl TestApp {
 
     pub fn focused(&mut self) -> Option<WidgetId> {
         let ctx = self.app.ctx();
-        Focus::req(ctx.services).focused().get(ctx.vars).as_ref().map(|w| w.widget_id())
+        Focus::req(ctx.services).focused().get().as_ref().map(|w| w.widget_id())
     }
 
     pub fn can_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FOCUS_NEXT_CMD.is_enabled().copy(self.app.vars())
+        zero_ui::core::focus::commands::FOCUS_NEXT_CMD.is_enabled().get()
     }
     pub fn can_shift_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FOCUS_PREV_CMD.is_enabled().copy(self.app.vars())
+        zero_ui::core::focus::commands::FOCUS_PREV_CMD.is_enabled().get()
     }
 
     pub fn press_tab(&mut self) {

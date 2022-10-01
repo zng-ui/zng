@@ -32,7 +32,7 @@ const FPS: u32 = 60;
 
 fn example(vars: &Vars) -> impl Widget {
     // vars.animation_time_scale().set(vars, 0.5.fct());
-    vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
+    vars.frame_duration().set(vars, (1.0 / FPS as f32).secs()).unwrap();
 
     let x = var(0.dip());
     let color = var(FROM_COLOR);
@@ -42,7 +42,7 @@ fn example(vars: &Vars) -> impl Widget {
     // })
     // .perm();
 
-    use animation::EasingModifierFn::*;
+    use easing::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
 
     v_stack! {
@@ -73,7 +73,7 @@ fn example(vars: &Vars) -> impl Widget {
                 spacing = 2;
                 toggle::selection = toggle::SingleSel::new(easing_mod.clone());
                 items = {
-                    let mode = |m: animation::EasingModifierFn| toggle! {
+                    let mode = |m: easing::EasingModifierFn| toggle! {
                         content = text(m.to_text());
                         value = m;
                     };
@@ -118,8 +118,8 @@ fn example(vars: &Vars) -> impl Widget {
                 };
                 click_shortcut = shortcut![Escape];
                 on_click = hn!(x, color, |ctx, _| {
-                    x.set(ctx, 0);
-                    color.set(ctx, FROM_COLOR);
+                    x.set(ctx, 0).unwrap();
+                    color.set(ctx, FROM_COLOR).unwrap();
                 });
             },
         ]
@@ -131,14 +131,14 @@ fn ease_btn(
     color: &RcVar<Rgba>,
     name: impl Into<Text>,
     easing: impl Fn(EasingTime) -> EasingStep + Copy + 'static,
-    easing_mod: &RcVar<animation::EasingModifierFn>,
+    easing_mod: &RcVar<easing::EasingModifierFn>,
 ) -> impl Widget {
     let in_plot = plot(easing);
     let out_plot = plot(move |t| easing::ease_out(easing, t));
     let in_out_plot = plot(move |t| easing::ease_in_out(easing, t));
     let out_in_plot = plot(move |t| easing::ease_out_in(easing, t));
 
-    use animation::EasingModifierFn::*;
+    use easing::EasingModifierFn::*;
 
     button! {
         content = v_stack! {
@@ -162,8 +162,8 @@ fn ease_btn(
             ]
         };
         on_click = hn!(l, color, easing_mod, |ctx, _| {
-            l.set_ease(ctx, 0, 300, 1.secs(), easing_mod.get(ctx).modify_fn(easing)).perm();
-            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get(ctx).modify_fn(easing)).perm();
+            l.set_ease(ctx, 0, 300, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
+            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
         });
     }
 }

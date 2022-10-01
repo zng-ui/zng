@@ -56,7 +56,7 @@ fn app_main() {
                     button! {
                         content = text(count.map(|c| formatx!("Count: {c:?}")));
                         on_click = hn!(count, |ctx, _| {
-                            count.modify(ctx, |mut c| *c += 1).unwrap();
+                            count.modify(ctx, |c| *c.get_mut() += 1).unwrap();
                         })
                     },
                     separator(),
@@ -120,7 +120,7 @@ fn trace_status(vars: &Vars, status: &impl Var<ConfigStatus>) {
     let mut write_errs = 0;
     let mut internal_errs = 0;
     status
-        .trace_value(vars, move |s: &ConfigStatus| {
+        .trace_value(move |s: &ConfigStatus| {
             if let Some(e) = &s.internal_error {
                 if s.internal_errors != internal_errs {
                     internal_errs = s.internal_errors;
