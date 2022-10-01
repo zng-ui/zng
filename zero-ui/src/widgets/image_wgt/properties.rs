@@ -279,10 +279,12 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<ImageErrorArgs>> UiNode for OnErrorNode<C, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(error) = CONTEXT_IMAGE_VAR.with(|i| i.error().to_owned()) {
-                self.error = error.into();
-                self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
-            }
+            CONTEXT_IMAGE_VAR.with(|i| {
+                if let Some(error) = i.error() {
+                    self.error = error.to_owned().into();
+                    self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
+                }
+            });
             self.child.init(ctx);
         }
 
