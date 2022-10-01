@@ -127,26 +127,28 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
             // !! TODO, review this, we alloc a new box for every call, in previous API there was not alloc.
             let (resolved, r) = RESOLVED_TEXT_VAR.with_context(self.resolved.get_mut().take(), || f(&mut self.child));
-            self.resolved = resolved.into_value();
+            *self.resolved.get_mut() = resolved.into_value();
             r
         }
         fn with<R>(&self, f: impl FnOnce(&C) -> R) -> R {
             let (resolved, r) = RESOLVED_TEXT_VAR.with_context(self.resolved.borrow_mut().take(), || f(&mut self.child));
-            self.resolved = resolved.into_value();
+            *self.resolved.borrow_mut() = resolved.into_value();
             r
         }
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let (lang, family, style, weight, stretch) = TextContext::font_face(ctx.vars);
+            let style = FONT_STYLE_VAR.get();
+            let weight = FONT_WEIGHT_VAR.get();
 
-            let faces = Fonts::req(ctx.services).list(family, style, weight, stretch, lang);
+            let faces = FONT_FAMILY_VAR
+                .with(|family| Fonts::req(ctx.services).list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
 
             let text = self.text.get();
-            let text = TEXT_TRANSFORM_VAR.get(ctx).transform(text);
-            let text = WHITE_SPACE_VAR.get(ctx).transform(text);
+            let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
+            let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
 
-            self.resolved = Some(ResolvedText {
+            *self.resolved.get_mut() = Some(ResolvedText {
                 synthesis: FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight),
                 faces,
                 text: SegmentedText::new(text),
@@ -158,47 +160,51 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
             }
 
-            self.with_mut(ctx.vars, |c| c.init(ctx))
+            self.with_mut(|c| c.init(ctx))
         }
 
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if TEXT_EDITABLE_VAR.get() {
                 FocusInfoBuilder::get(info).focusable(true);
             }
-            self.with(ctx.vars, |c| c.info(ctx, info))
+            self.with(|c| c.info(ctx, info))
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
-            self.with(ctx.vars, |c| c.subscriptions(ctx, subs))
+            // TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
+            self.with(|c| c.subscriptions(ctx, subs))
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.char_input_handle = None;
-            self.with_mut(ctx.vars, |c| c.deinit(ctx));
-            self.resolved = None;
+            self.with_mut(|c| c.deinit(ctx));
+            *self.resolved.get_mut() = None;
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
-                if !args.propagation().is_stopped() && !self.text.is_read_only(ctx.vars) && args.is_enabled(ctx.path.widget_id()) {
+                if !args.propagation().is_stopped()
+                    && self.text.capabilities().contains(VarCapabilities::MODIFY)
+                    && args.is_enabled(ctx.path.widget_id())
+                {
                     args.propagation().stop();
 
                     if args.is_backspace() {
-                        let _ = self.text.modify(ctx.vars, move |mut t| {
-                            if !t.is_empty() {
-                                t.to_mut().pop();
+                        let _ = self.text.modify(ctx.vars, move |t| {
+                            if !t.get().is_empty() {
+                                t.get_mut().pop();
                             }
                         });
                     } else {
                         let c = args.character;
-                        let _ = self.text.modify(ctx.vars, move |mut t| {
-                            t.to_mut().push(c);
+                        let _ = self.text.modify(ctx.vars, move |t| {
+                            t.get_mut().push(c);
                         });
                     }
                 }
             } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
                 // font query may return a different result.
+
 
                 let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
                 let faces = Fonts::req(ctx).list(font_family, font_style, font_weight, font_stretch, lang);
@@ -213,7 +219,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     ctx.updates.layout();
                 }
             }
-            self.with_mut(ctx.vars, |c| c.event(ctx, update))
+            self.with_mut(|c| c.event(ctx, update))
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -272,24 +278,24 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             }
 
-            self.with_mut(ctx.vars, |c| c.update(ctx, updates))
+            self.with_mut(|c| c.update(ctx, updates))
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.with(ctx.vars, |c| c.measure(ctx))
+            self.with(|c| c.measure(ctx))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
+            let size = self.with_mut(|c| c.layout(ctx, wl));
             self.resolved.as_mut().unwrap().reshape = false;
             size
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.with(ctx.vars, |c| c.render(ctx, frame))
+            self.with(|c| c.render(ctx, frame))
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.with(ctx.vars, |c| c.render_update(ctx, update))
+            self.with(|c| c.render_update(ctx, update))
         }
     }
     ResolveTextNode {
@@ -606,7 +612,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(size),
                 |ctx| {
-                    self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
+                    self.with_mut(|c| c.layout(ctx, wl));
                 },
             );
 
@@ -614,10 +620,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.with(ctx.vars, |c| c.render(ctx, frame))
+            self.with(|c| c.render(ctx, frame))
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.with(ctx.vars, |c| c.render_update(ctx, update))
+            self.with(|c| c.render_update(ctx, update))
         }
     }
     LayoutTextNode {

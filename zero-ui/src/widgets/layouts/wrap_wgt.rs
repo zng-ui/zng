@@ -43,7 +43,7 @@ pub mod wrap {
             }
 
             let mut panel_size = PxSize::zero();
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
             let max_width = constrains.x.max().unwrap_or(Px::MAX);
             let mut row_size = PxSize::zero();
 
@@ -91,7 +91,7 @@ pub mod wrap {
             let constrains = ctx.constrains();
 
             let mut panel_size = PxSize::zero();
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
             let max_width = constrains.x.max().unwrap_or(Px::MAX);
             let mut row_size = PxSize::zero();
 

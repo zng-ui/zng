@@ -166,11 +166,11 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let font_size = FONT_SIZE_VAR.get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
+            let font_size = FONT_SIZE_VAR.get().layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
             ctx.with_font_size(font_size, |ctx| self.child.measure(ctx))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let font_size = FONT_SIZE_VAR.get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
+            let font_size = FONT_SIZE_VAR.get().layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
             ctx.with_font_size(font_size, |ctx| self.child.layout(ctx, wl))
         }
     }

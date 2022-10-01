@@ -84,7 +84,7 @@ pub mod h_stack {
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
+            let spacing = self.spacing.get().layout(ctx.for_x(), |_| Px(0));
             let align = self.align.get();
 
             let constrains = ctx.constrains();
@@ -117,7 +117,7 @@ pub mod h_stack {
             constrains.fill_size_or(size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
+            let spacing = self.spacing.get().layout(ctx.for_x(), |_| Px(0));
             let align = self.align.get();
             let align_baseline = align.is_baseline();
 
@@ -330,7 +330,7 @@ pub mod v_stack {
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
+            let spacing = self.spacing.get().layout(ctx.for_y(), |_| Px(0));
             let align = self.align.get();
 
             let constrains = ctx.constrains();
@@ -364,7 +364,7 @@ pub mod v_stack {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
+            let spacing = self.spacing.get().layout(ctx.for_y(), |_| Px(0));
             let align = self.align.get();
             let align_baseline = align.is_baseline();
 

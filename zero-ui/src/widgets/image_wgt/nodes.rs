@@ -15,7 +15,10 @@ context_var! {
     /// Image acquired by [`image_source`], or `"no image source in context"` error by default.
     ///
     /// [`image_source`]: fn@image_source
-    pub static CONTEXT_IMAGE_VAR: Image = Image::dummy(Some("no image source in context".to_owned()));
+    pub static CONTEXT_IMAGE_VAR: Image = no_context_image();
+}
+fn no_context_image() -> Image {
+    Image::dummy(Some("no image source in context".to_owned()))
 }
 
 /// Requests an image from [`Images`] and sets [`CONTEXT_IMAGE_VAR`].
@@ -62,15 +65,15 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             self.img = Images::req(ctx.services).image(source, mode, limits);
 
             self.ctx_img.set(ctx.vars, self.img.get());
-            self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
+            self.ctx_binding = Some(self.img.bind(&self.ctx_img));
 
             self.child.init(ctx);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
-            self.ctx_img.set(ctx, CONTEXT_IMAGE_VAR.default_value());
-            self.img = var(CONTEXT_IMAGE_VAR.default_value()).into_read_only();
+            self.ctx_img.set(ctx, no_context_image());
+            self.img = var(no_context_image()).read_only();
             self.ctx_binding = None;
         }
 
@@ -94,17 +97,17 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 self.img = Images::req(ctx.services).image(source, mode, limits);
 
                 self.ctx_img.set(ctx.vars, self.img.get());
-                self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
+                self.ctx_binding = Some(self.img.bind(&self.ctx_img));
             } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new(ctx) {
                 // cache-mode update:
                 let images = Images::req(ctx.services);
-                let is_cached = images.is_cached(self.ctx_img.get(ctx.vars));
+                let is_cached = self.ctx_img.with(|img| images.is_cached(img));
                 if enabled != is_cached {
                     self.img = if is_cached {
                         // must not cache, but is cached, detach from cache.
 
-                        let img = mem::replace(&mut self.img, var(Image::dummy(None)).into_read_only());
-                        images.detach(img, ctx.vars)
+                        let img = mem::replace(&mut self.img, var(Image::dummy(None)).read_only());
+                        images.detach(img)
                     } else {
                         // must cache, but image is not cached, get source again.
 
@@ -114,7 +117,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     };
 
                     self.ctx_img.set(ctx.vars, self.img.get());
-                    self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
+                    self.ctx_binding = Some(self.img.bind(&self.ctx_img));
                 }
             }
 
@@ -126,7 +129,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
     ImageSourceNode {
         child: with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only()),
-        img: var(Image::dummy(None)).into_read_only(),
+        img: var(Image::dummy(None)).read_only(),
         ctx_img,
         ctx_binding: None,
         source: source.into_var(),
@@ -328,7 +331,7 @@ pub fn image_presenter() -> impl UiNode {
             let img_rect = PxRect::from_size(self.img_size);
             let crop = ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(self.img_size),
-                |ctx| IMAGE_CROP_VAR.get(ctx.vars).layout(ctx.metrics, |_| img_rect),
+                |ctx| IMAGE_CROP_VAR.get().layout(ctx.metrics, |_| img_rect),
             );
             let render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
 
@@ -357,7 +360,7 @@ pub fn image_presenter() -> impl UiNode {
             let img_rect = PxRect::from_size(self.img_size);
             let crop = ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(self.img_size),
-                |ctx| IMAGE_CROP_VAR.get(ctx.vars).layout(ctx.metrics, |_| img_rect),
+                |ctx| IMAGE_CROP_VAR.get().layout(ctx.metrics, |_| img_rect),
             );
             let mut render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
             let mut render_offset = -render_clip.origin.to_vector();
@@ -439,7 +442,7 @@ pub fn image_presenter() -> impl UiNode {
             // Part 3 - Custom Offset and Update
             let offset = ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(wgt_size),
-                |ctx| IMAGE_OFFSET_VAR.get(ctx.vars).layout(ctx.metrics, |_| PxVector::zero()),
+                |ctx| IMAGE_OFFSET_VAR.get().layout(ctx.metrics, |_| PxVector::zero()),
             );
             if offset != PxVector::zero() {
                 render_offset += offset;

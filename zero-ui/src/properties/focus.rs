@@ -21,7 +21,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(info).focusable(*self.is_focusable.get(ctx));
+            FocusInfoBuilder::get(info).focusable(self.is_focusable.get());
             self.child.info(ctx, info);
         }
 
@@ -57,7 +57,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).tab_index(*self.tab_index.get(ctx));
+            FocusInfoBuilder::get(widget).tab_index(self.tab_index.get());
             self.child.info(ctx, widget);
         }
 

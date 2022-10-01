@@ -335,35 +335,35 @@ impl<D> ViewGenerator<D> {
                 self.child.deinit(ctx);
             }
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                let gen = self.gen.get(ctx.vars);
-
-                if gen.is_nil() {
-                    if let Some(mut old) = self.child.take() {
-                        old.deinit(ctx);
-                        ctx.updates.info_layout_and_render();
-                    }
-
-                    return;
-                }
-
-                match (self.update)(ctx, self.gen.is_new(ctx.vars)) {
-                    DataUpdate::Update(data) => {
-                        if let Some(mut old) = self.child.take() {
-                            old.deinit(ctx);
-                        }
-                        let mut child = (self.map)(gen.generate(ctx, data));
-                        child.init(ctx);
-                        self.child = Some(child);
-                        ctx.updates.info_layout_and_render();
-                    }
-                    DataUpdate::Same => self.child.update(ctx, updates),
-                    DataUpdate::None => {
+                self.gen.with(|gen| {
+                    if gen.is_nil() {
                         if let Some(mut old) = self.child.take() {
                             old.deinit(ctx);
                             ctx.updates.info_layout_and_render();
                         }
+    
+                        return;
                     }
-                }
+    
+                    match (self.update)(ctx, self.gen.is_new(ctx.vars)) {
+                        DataUpdate::Update(data) => {
+                            if let Some(mut old) = self.child.take() {
+                                old.deinit(ctx);
+                            }
+                            let mut child = (self.map)(gen.generate(ctx, data));
+                            child.init(ctx);
+                            self.child = Some(child);
+                            ctx.updates.info_layout_and_render();
+                        }
+                        DataUpdate::Same => self.child.update(ctx, updates),
+                        DataUpdate::None => {
+                            if let Some(mut old) = self.child.take() {
+                                old.deinit(ctx);
+                                ctx.updates.info_layout_and_render();
+                            }
+                        }
+                    }
+                });
             }
         }
         ViewGenVarPresenter {

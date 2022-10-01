@@ -266,10 +266,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.up = SCROLL_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = SCROLL_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = SCROLL_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = SCROLL_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
+            self.down = SCROLL_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down());
+            self.left = SCROLL_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left());
+            self.right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right());
 
             self.child.init(ctx);
         }
@@ -353,8 +353,8 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
                     self.layout_line = PxVector::new(
-                        HORIZONTAL_LINE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
-                        VERTICAL_LINE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(20)),
+                        HORIZONTAL_LINE_UNIT_VAR.get().layout(ctx.metrics.for_x(), |_| Px(20)),
+                        VERTICAL_LINE_UNIT_VAR.get().layout(ctx.metrics.for_y(), |_| Px(20)),
                     );
                 },
             );
@@ -394,10 +394,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.up = PAGE_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = PAGE_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = PAGE_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = PAGE_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = PAGE_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
+            self.down = PAGE_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down());
+            self.left = PAGE_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left());
+            self.right = PAGE_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right());
 
             self.child.init(ctx);
         }
@@ -420,10 +420,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
 
-            self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
-            self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
-            self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
-            self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
+            self.up.set_enabled(ScrollContext::can_scroll_up());
+            self.down.set_enabled(ScrollContext::can_scroll_down());
+            self.left.set_enabled(ScrollContext::can_scroll_left());
+            self.right.set_enabled(ScrollContext::can_scroll_right());
 
             if VERTICAL_PAGE_UNIT_VAR.is_new(ctx) || HORIZONTAL_PAGE_UNIT_VAR.is_new(ctx) {
                 ctx.updates.layout();
@@ -481,8 +481,8 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
                     self.layout_page = PxVector::new(
-                        HORIZONTAL_PAGE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
-                        VERTICAL_PAGE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(20)),
+                        HORIZONTAL_PAGE_UNIT_VAR.get().layout(ctx.metrics.for_x(), |_| Px(20)),
+                        VERTICAL_PAGE_UNIT_VAR.get().layout(ctx.metrics.for_y(), |_| Px(20)),
                     );
                 },
             );
@@ -519,16 +519,16 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
+            self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
             self.bottom = SCROLL_TO_BOTTOM_CMD
                 .scoped(scope)
-                .subscribe(ctx, ScrollContext::can_scroll_down(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_down());
             self.leftmost = SCROLL_TO_LEFTMOST_CMD
                 .scoped(scope)
-                .subscribe(ctx, ScrollContext::can_scroll_left(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_left());
             self.rightmost = SCROLL_TO_RIGHTMOST_CMD
                 .scoped(scope)
-                .subscribe(ctx, ScrollContext::can_scroll_right(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_right());
 
             self.child.init(ctx);
         }
@@ -545,10 +545,10 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
 
-            self.top.set_enabled(ScrollContext::can_scroll_up(ctx));
-            self.bottom.set_enabled(ScrollContext::can_scroll_down(ctx));
-            self.leftmost.set_enabled(ScrollContext::can_scroll_left(ctx));
-            self.rightmost.set_enabled(ScrollContext::can_scroll_right(ctx));
+            self.top.set_enabled(ScrollContext::can_scroll_up());
+            self.bottom.set_enabled(ScrollContext::can_scroll_down());
+            self.leftmost.set_enabled(ScrollContext::can_scroll_left());
+            self.rightmost.set_enabled(ScrollContext::can_scroll_right());
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {

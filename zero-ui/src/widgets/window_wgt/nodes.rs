@@ -157,7 +157,7 @@ impl WindowLayers {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
 
-                self.interaction = self.mode.get(ctx).interaction;
+                self.interaction = self.mode.with(|m| m.interaction);
                 self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
                 self.widget.init(ctx);
@@ -181,7 +181,7 @@ impl WindowLayers {
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(anchor) = self.anchor.get_new(ctx) {
                     self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
-                    if self.mode.get(ctx).interaction {
+                    if self.mode.with(|m| m.interaction) {
                         ctx.updates.info();
                     }
                     ctx.updates.layout_and_render();
@@ -253,9 +253,9 @@ impl WindowLayers {
                                     if let AnchorSize::InnerBorder = mode.size {
                                         cr = cr.deflate(border.offsets());
                                     }
-                                    ctx.vars.with_context_var(CORNER_RADIUS_VAR, cr, || {
-                                        ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl))
-                                    })
+                                    CORNER_RADIUS_VAR
+                                        .with_context(cr, || ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl)))
+                                        .1
                                 } else {
                                     self.widget.layout(ctx, wl)
                                 }
@@ -834,7 +834,7 @@ impl_from_and_into_var! {
 
 /// Node that binds the [`COLOR_SCHEME_VAR`] to the [`WindowVars::actual_color_scheme`].
 pub fn color_scheme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req(ctx).actual_color_scheme())
+    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req(ctx).actual_color_scheme().boxed())
 }
 
 #[cfg(test)]

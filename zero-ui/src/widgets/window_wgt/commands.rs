@@ -36,7 +36,7 @@ pub(super) fn inspect_node(child: impl crate::core::UiNode, can_inspect: impl cr
             let mut buffer = vec![];
             write_tree(ctx.vars, ctx.info_tree, &state, &mut buffer);
 
-            state = WriteTreeState::new(ctx.vars, ctx.info_tree);
+            state = WriteTreeState::new(ctx.info_tree);
 
             task::spawn_wait(move || {
                 use std::io::*;

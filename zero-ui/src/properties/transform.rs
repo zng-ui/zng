@@ -42,12 +42,12 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
 
-            let transform = self.transform.get(ctx.vars).layout(ctx.metrics);
+            let transform = self.transform.get().layout(ctx.metrics);
             let av_size = ctx.widget_info.bounds.inner_size();
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
             let origin = ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(av_size),
-                |ctx| TRANSFORM_ORIGIN_VAR.get(ctx.vars).layout(ctx.metrics, |_| default_origin),
+                |ctx| TRANSFORM_ORIGIN_VAR.get().layout(ctx.metrics, |_| default_origin),
             );
 
             let x = origin.x.0 as f32;
@@ -68,7 +68,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             } else {
                 frame.push_reference_frame(
                     self.spatial_id,
-                    self.binding_key.bind_mapped(ctx, &self.transform, self.render_transform),
+                    self.binding_key.bind_mapped(&self.transform, self.render_transform),
                     false,
                     false,
                     |frame| self.child.render(ctx, frame),
@@ -81,7 +81,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
             } else {
                 update.with_transform_opt(
-                    self.binding_key.update_mapped(ctx, &self.transform, self.render_transform),
+                    self.binding_key.update_mapped(&self.transform, self.render_transform),
                     false,
                     |update| self.child.render_update(ctx, update),
                 )

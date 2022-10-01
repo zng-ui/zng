@@ -245,9 +245,9 @@ pub fn foreground_highlight(
             let size = self.child.layout(ctx, wl);
 
             let radius = ContextBorders::inner_radius(ctx);
-            let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let offsets = self.offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             let radius = radius.deflate(offsets);
-            let border_offsets = ContextBorders::inner_offsets(ctx.path.widget_id(), ctx.vars);
+            let border_offsets = ContextBorders::inner_offsets(ctx.path.widget_id());
 
             let bounds = PxRect::new(
                 PxPoint::new(offsets.left + border_offsets.left, offsets.top + border_offsets.top),
@@ -256,7 +256,7 @@ pub fn foreground_highlight(
 
             let widths = ctx.with_constrains(
                 |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
-                |ctx| self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero()),
+                |ctx| self.widths.get().layout(ctx.metrics, |_| PxSideOffsets::zero()),
             );
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {

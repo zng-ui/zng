@@ -205,7 +205,7 @@ pub mod uniform_grid {
 
             let (columns, rows, _) = self.grid_len(count);
 
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
 
             let panel_size = PxSize::new(
                 (cell_size.width + spacing.column) * Px(columns) - spacing.column,
@@ -218,7 +218,7 @@ pub mod uniform_grid {
         #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let constrains = ctx.constrains();
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
 
             let final_panel_size;
             let final_cell_size;

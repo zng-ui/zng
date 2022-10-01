@@ -177,8 +177,8 @@ where
 
         self.g.final_size = self.render_tile_size;
 
-        self.render_tile_size = self.tile_size.get(ctx.vars).layout(ctx.metrics, |_| final_size);
-        self.render_tile_spacing = self.tile_spacing.get(ctx.vars).layout(ctx.metrics, |_| final_size);
+        self.render_tile_size = self.tile_size.get().layout(ctx.metrics, |_| final_size);
+        self.render_tile_spacing = self.tile_spacing.get().layout(ctx.metrics, |_| final_size);
 
         ctx.with_constrains(
             |c| c.with_max_size(self.render_tile_size).with_fill(true, true),

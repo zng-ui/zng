@@ -137,9 +137,9 @@ pub fn node() -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             self.final_size = ctx.constrains().fill_size();
 
-            let tile_size = CHECKERBOARD_SIZE_VAR.get(ctx.vars).layout(ctx, |_| PxSize::splat(Px(4)));
+            let tile_size = CHECKERBOARD_SIZE_VAR.get().layout(ctx, |_| PxSize::splat(Px(4)));
 
-            let mut offset = CHECKERBOARD_OFFSET_VAR.get(ctx.vars).layout(ctx, |_| PxVector::zero());
+            let mut offset = CHECKERBOARD_OFFSET_VAR.get().layout(ctx, |_| PxVector::zero());
             if offset.x > self.tile_size.width {
                 offset.x /= self.tile_size.width;
             }
