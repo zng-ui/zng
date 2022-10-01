@@ -180,12 +180,12 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsShortcutPressedNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, false);
+            self.state.set_ne(ctx, false).unwrap();
             self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, false);
+            self.state.set_ne(ctx, false).unwrap();
             self.click_handle = None;
             self.child.deinit(ctx);
         }
@@ -205,11 +205,11 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         let duration = Gestures::req(ctx.services).shortcut_pressed_duration;
                         if duration != Duration::default() {
                             self.shortcut_press = Some(ctx.timers.deadline(duration));
-                            self.state.set_ne(ctx, true);
+                            self.state.set_ne(ctx, true).unwrap();
                             ctx.updates.subscriptions();
                         }
                     } else {
-                        self.state.set_ne(ctx, false);
+                        self.state.set_ne(ctx, false).unwrap();
                         ctx.updates.subscriptions();
                     }
                 }
@@ -223,7 +223,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 if timer.is_new(ctx) {
                     self.shortcut_press = None;
                     ctx.updates.subscriptions();
-                    self.state.set_ne(ctx.vars, false);
+                    self.state.set_ne(ctx.vars, false).unwrap();
                 }
             }
         }

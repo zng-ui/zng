@@ -1027,7 +1027,7 @@ pub fn focused_removed_by_deleting() {
 
     let buttons = widgets! {
         button! { content = text("Button 0") },
-        view(exist.clone(), NilUiNode.boxed(), move |ctx, exist| {
+        view(exist.clone(), NilUiNode.boxed(), move |_, exist| {
             if exist.get() {
                 View::Update(button! { id = button1_id; content = text("Button 1") }.boxed())
             } else {
@@ -1043,7 +1043,7 @@ pub fn focused_removed_by_deleting() {
     assert_eq!(Some(button1_id), app.focused());
 
     app.set_vars(|vars| {
-        exist.set(vars, false);
+        exist.set(vars, false).unwrap();
     });
 
     assert_ne!(Some(button1_id), app.focused());
@@ -1119,7 +1119,7 @@ pub fn focus_continued_after_widget_id_move() {
     let mut app = TestApp::new(view(
         do_move_id.clone(),
         blank! { focusable = true; id; }.boxed(),
-        move |ctx, do_move_id| {
+        move |_, do_move_id| {
             if do_move_id.get() {
                 View::Update({
                     container! {
@@ -1221,7 +1221,7 @@ pub fn focus_goes_to_parent_after_remove() {
     app.take_focus_changed();
 
     app.set_vars(|vars| {
-        interactive.set(vars, false);
+        interactive.set(vars, false).unwrap();
     });
     assert_eq!(Some(parent_id), app.focused());
     let evs = app.take_focus_changed();

@@ -362,7 +362,7 @@ pub mod properties {
                     } else {
                         Self::is_selected(ctx, value)
                     };
-                    self.checked.set_ne(ctx.vars, Some(selected));
+                    self.checked.set_ne(ctx.vars, Some(selected)).unwrap();
 
                     if DESELECT_ON_DEINIT_VAR.get() {
                         self.prev_value = Some(value.clone());
@@ -378,7 +378,7 @@ pub mod properties {
                 if self.checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
                     self.value.with(|value| {
                         if Self::deselect(ctx, value) {
-                            self.checked.set_ne(ctx, Some(false));
+                            self.checked.set_ne(ctx, Some(false)).unwrap();
                         }
                     });
                 }
@@ -437,7 +437,7 @@ pub mod properties {
                     // contextual selection can change in any update.
                     self.value.with(|val| Self::is_selected(ctx, val))
                 });
-                self.checked.set_ne(ctx.vars, selected);
+                self.checked.set_ne(ctx.vars, selected).unwrap();
 
                 if DESELECT_ON_NEW_VAR.get() && selected {
                     // save a clone of the value to reference it on deselection triggered by variable value changing.
@@ -691,7 +691,7 @@ pub mod properties {
             match value.downcast::<T>() {
                 Ok(value) => match self.target.set_ne(ctx, *value) {
                     Ok(_) => Ok(()),
-                    Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                 },
                 Err(_) => Err(SelectorError::WrongType),
             }
@@ -705,7 +705,7 @@ pub mod properties {
             }
         }
 
-        fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
+        fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
             match value.downcast_ref::<T>() {
                 Some(value) => self.target.with(|t| t == value),
                 None => false,
@@ -748,12 +748,12 @@ pub mod properties {
             match value.downcast::<T>() {
                 Ok(value) => match self.target.set_ne(ctx, Some(*value)) {
                     Ok(_) => Ok(()),
-                    Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                 },
                 Err(value) => match value.downcast::<Option<T>>() {
                     Ok(value) => match self.target.set_ne(ctx, *value) {
                         Ok(_) => Ok(()),
-                        Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                        Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                     },
                     Err(_) => Err(SelectorError::WrongType),
                 },
@@ -766,7 +766,7 @@ pub mod properties {
                     if self.target.with(|t| t.as_ref() == Some(value)) {
                         match self.target.set(ctx, None) {
                             Ok(_) => Ok(()),
-                            Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                            Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         }
                     } else {
                         Ok(())
@@ -780,7 +780,7 @@ pub mod properties {
                             } else {
                                 match self.target.set(ctx, None) {
                                     Ok(_) => Ok(()),
-                                    Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                                 }
                             }
                         } else {
@@ -792,7 +792,7 @@ pub mod properties {
             }
         }
 
-        fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
+        fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
             match value.downcast_ref::<T>() {
                 Some(value) => self.target.with(|t| t.as_ref() == Some(value)),
                 None => match value.downcast_ref::<Option<T>>() {

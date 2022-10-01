@@ -114,7 +114,7 @@ pub mod rule_line {
             bounds
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
             let bounds = PxRect::from_size(self.bounds);
             let orientation = self.orientation.get();
             let color = self.color.get();

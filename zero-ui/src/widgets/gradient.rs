@@ -118,7 +118,7 @@ where
         final_size
     }
     #[UiNode]
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
             PxRect::from_size(self.final_size),
             self.render_line,
@@ -189,7 +189,7 @@ where
         final_size
     }
 
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
             PxRect::from_size(self.g.final_size),
             self.g.render_line,

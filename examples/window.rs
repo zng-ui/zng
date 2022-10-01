@@ -134,7 +134,7 @@ fn screenshot() -> impl Widget {
             }));
             on_click = async_hn!(enabled, |ctx, _| {
                 // disable button until screenshot is saved.
-                enabled.set(&ctx, false);
+                enabled.set(&ctx, false).unwrap();
 
                 println!("taking `screenshot.png`..");
 
@@ -157,7 +157,7 @@ fn screenshot() -> impl Widget {
                 }
 
 
-                enabled.set(&ctx, true);
+                enabled.set(&ctx, true).unwrap();
             });
             enabled;
         }
@@ -177,7 +177,7 @@ fn screenshot() -> impl Widget {
             }));
             enabled = enabled.clone();
             on_click = hn!(|ctx, _| {
-                enabled.set(ctx.vars, false);
+                enabled.set(ctx.vars, false).unwrap();
 
                 println!("taking `screenshot.png` using a new headless window ..");
                 Windows::req(ctx.services).open_headless(clone_move!(enabled, |_| window! {
@@ -198,7 +198,7 @@ fn screenshot() -> impl Widget {
                             let window_id = args.window_id;
                             ctx.with(|ctx| Windows::req(ctx.services).close(window_id).unwrap());
 
-                            enabled.set(&ctx, true);
+                            enabled.set(&ctx, true).unwrap();
                         });
                     }),
                     true
@@ -297,13 +297,13 @@ fn focus_control() -> impl Widget {
         enabled = enabled.clone();
         content = text("Focus in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(&ctx, false).unwrap();
             task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
                 Windows::req(ctx.services).focus(ctx.path.window_id()).unwrap();
             });
-            enabled.set(&ctx, true);
+            enabled.set(&ctx, true).unwrap();
         });
     };
 
@@ -312,13 +312,13 @@ fn focus_control() -> impl Widget {
         enabled = enabled.clone();
         content = text("Critical Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(&ctx, false).unwrap();
             task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Critical));
+                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Critical)).unwrap();
             });
-            enabled.set(&ctx, true);
+            enabled.set(&ctx, true).unwrap();
         });
     };
 
@@ -327,13 +327,13 @@ fn focus_control() -> impl Widget {
         enabled = enabled.clone();
         content = text("Info Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(&ctx, false).unwrap();
             task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Info));
+                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Info)).unwrap();
             });
-            enabled.set(&ctx, true);
+            enabled.set(&ctx, true).unwrap();
         });
     };
 
@@ -370,10 +370,10 @@ fn visibility(window_vars: &WindowVars) -> impl Widget {
         enabled = visible.clone();
         content = text("Hide for 1s");
         on_click = async_hn!(visible, |ctx, _| {
-            visible.set(&ctx, false);
+            visible.set(&ctx, false).unwrap();
             println!("visible=false");
             task::deadline(1.secs()).await;
-            visible.set(&ctx, true);
+            visible.set(&ctx, true).unwrap();
             println!("visible=true");
         });
     };
@@ -458,7 +458,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
         match state.get() {
             CloseState::Ask => {
                 args.propagation().stop();
-                state.set(ctx, CloseState::Asking);
+                state.set(ctx, CloseState::Asking).unwrap();
 
                 WindowLayers::insert(ctx, LayerIndex::TOP_MOST, close_dialog(args.windows.clone().into(), state.clone()))
             }
@@ -505,14 +505,14 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
                             button! {
                                 content = strong("Close");
                                 on_click = hn_once!(state, |ctx, _| {
-                                    state.set(ctx, CloseState::Close);
+                                    state.set(ctx, CloseState::Close).unwrap();
                                     Windows::req(ctx.services).close_together(windows).unwrap();
                                 })
                             },
                             button! {
                                 content = text("Cancel");
                                 on_click = hn!(state, |ctx, _| {
-                                    state.set(ctx, CloseState::Ask);
+                                    state.set(ctx, CloseState::Ask).unwrap();
                                     WindowLayers::remove(ctx, "close-dialog");
                                 });
                             },

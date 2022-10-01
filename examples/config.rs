@@ -29,7 +29,7 @@ fn app_main() {
         let txt = cfg.var("main.txt", || "Save this".to_text());
         let status = cfg.status();
 
-        trace_status(ctx.vars, &status);
+        trace_status(&status);
 
         window! {
             title = "Config Example";
@@ -97,7 +97,7 @@ fn app_main() {
                     if let Some((x, y)) = pos.split_once(',') {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                             let pos = DipPoint::new(Dip::new(x), Dip::new(y));
-                            WindowVars::req(&ctx.window_state).position().set(ctx.vars, pos);
+                            WindowVars::req(&ctx.window_state).position().set(ctx.vars, pos).unwrap();
                             Windows::req(ctx.services).focus(ctx.path.window_id()).unwrap();
                         }
                     }
@@ -115,7 +115,7 @@ fn separator() -> impl Widget {
     }
 }
 
-fn trace_status(vars: &Vars, status: &impl Var<ConfigStatus>) {
+fn trace_status(status: &impl Var<ConfigStatus>) {
     let mut read_errs = 0;
     let mut write_errs = 0;
     let mut internal_errs = 0;
