@@ -10,7 +10,7 @@ use super::*;
 /// This variable use used in the [`Var::map`] and other mapping methods to support mapping from [`ContextVar<T>`].
 ///
 /// ```
-/// # fake!{($($tt:tt)*) => {}}
+/// # macro_rules! fake{($($tt:tt)*) => {}}
 /// # fake! {
 /// let wgt = my_wgt! {
 ///     my_property = MY_CTX_VAR.map(|&b| !b);

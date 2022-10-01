@@ -26,7 +26,7 @@ use super::{animation::AnimateModifyInfo, *};
 /// let var0: RcVar<Text> = var_from("Hello");
 /// let var1: RcVar<Text> = var_from("World");
 ///
-/// let greeting_text = text(merge_var!(&var0, &var1, |a, b| formatx!("{a} {b}!")));
+/// let greeting_text = text(merge_var!(var0, var1, |a, b| formatx!("{a} {b}!")));
 /// ```
 #[macro_export]
 macro_rules! merge_var {

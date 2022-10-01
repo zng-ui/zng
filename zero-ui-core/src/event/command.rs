@@ -13,7 +13,7 @@ use crate::{
     impl_ui_node,
     text::Text,
     var::{
-        types::{RcCowVar, ReadOnlyVar},
+        types::RcCowVar,
         *,
     },
     widget_info::{WidgetInfoBuilder, WidgetSubscriptions},
@@ -789,7 +789,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///     }
 ///
 ///     fn bar(self) -> ReadOnlyCommandMetaVar<bool> {
-///         self.with_meta(|m| m.get_var_or_insert(&COMMAND_BAR_ID, ||true)).into_read_only()
+///         self.with_meta(|m| m.get_var_or_insert(&COMMAND_BAR_ID, ||true)).read_only()
 ///     }
 ///
 ///     fn foo_and_bar(self) -> BoxedVar<bool> {
@@ -932,10 +932,10 @@ pub type CommandMetaVar<T> = BoxedVar<T>;
 
 /// Read-only command metadata variable.
 ///
-/// To convert a [`CommandMetaVar<T>`] into this var call [`into_read_only`].
+/// To convert a [`CommandMetaVar<T>`] into this var call [`read_only`].
 ///
-/// [`into_read_only`]: Var::into_read_only
-pub type ReadOnlyCommandMetaVar<T> = ReadOnlyVar<T, CommandMetaVar<T>>;
+/// [`read_only`]: Var::read_only
+pub type ReadOnlyCommandMetaVar<T> = BoxedVar<T>; // !!: TODO, BoxedVar<T>::ReadOnly=BoxedVar<T>, so how to we signal read-only on the type?
 
 /// Adds the [`name`](CommandNameExt) metadata.
 pub trait CommandNameExt {

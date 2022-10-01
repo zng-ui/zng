@@ -205,7 +205,7 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// methods must be tagged with the `#[UiNode]` pseudo-attribute.
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode, BoxedUiNode, context::WidgetContext};
+/// # use zero_ui_core::{impl_ui_node, UiNode, BoxedUiNode, context::*};
 /// # struct MyNode { child: BoxedUiNode }
 /// #[impl_ui_node(child)]
 /// impl MyNode {
@@ -220,8 +220,8 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 ///     }
 ///
 ///     #[UiNode]
-///     fn update(&mut self, ctx: &mut WidgetContext) {
-///         self.child.update(ctx);
+///     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+///         self.child.update(ctx, updates);
 ///         self.do_the_thing(ctx);
 ///     }
 /// }
@@ -287,7 +287,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// impl<C: UiNode, V: Var<&'static str>> UiNode for MyNode<C, V> {
 ///     fn init(&mut self, ctx: &mut WidgetContext) {
 ///         self.child.init(ctx);
-///         println!("{}", self.value.get(ctx));
+///         println!("{}", self.value.get());
 ///     }
 /// }
 ///

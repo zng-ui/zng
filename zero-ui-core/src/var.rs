@@ -50,6 +50,7 @@ pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use state::*;
 pub use vars::*;
 pub use when::when_var;
+pub use animation::easing;
 
 use crate::{context::Updates, WidgetId};
 
@@ -642,11 +643,11 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     impl<C: UiNode, V: Var<u32>> UiNode for FooNode<C, V> {
 ///         fn init(&mut self, ctx: &mut WidgetContext) {
 ///             self.child.init(ctx);
-///             println!("init: {}", self.bar.get(ctx));
+///             println!("init: {}", self.bar.get());
 ///         }
 ///         
-///         fn update(&mut self, ctx: &mut WidgetContext) {
-///             self.child.update(ctx);
+///         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+///             self.child.update(ctx, updates);
 ///             if let Some(new) = self.bar.get_new(ctx) {
 ///                 println!("update: {new}");
 ///             }

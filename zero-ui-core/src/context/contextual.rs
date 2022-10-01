@@ -131,16 +131,16 @@ impl AppContextMut {
     ///     ctx.yield_one().await;// wait next update.
     ///
     ///     // we are in the next update now, the variable value is new.
-    ///     assert_eq!(Some(true), foo_var.copy_new(&ctx));
+    ///     assert_eq!(Some(true), foo_var.get_new(&ctx));
     ///
     ///     ctx.update().await;// force next update and wait.
     ///
     ///     // we are in the requested update, variable value is no longer new.
-    ///     assert_eq!(None, foo_var.copy_new(&ctx));
+    ///     assert_eq!(None, foo_var.get_new(&ctx));
     /// })
     /// # ).perm();
     /// # app.update(false);
-    /// # assert!(foo_var.copy(&app.ctx()));
+    /// # assert!(foo_var.get());
     /// ```
     ///
     /// In the example above, the variable assign causes an app update so `yield_one` processes it immediately,
@@ -196,12 +196,12 @@ impl WidgetContextMut {
     ///     ctx.yield_one().await;// wait next update.
     ///
     ///     // we are in the next update now, the variable value is new.
-    ///     assert_eq!(Some(true), foo_var.copy_new(&ctx));
+    ///     assert_eq!(Some(true), foo_var.get_new(&ctx));
     ///
     ///     ctx.update().await;// force next update and wait.
     ///
     ///     // we are in the requested update, variable value is no longer new.
-    ///     assert_eq!(None, foo_var.copy_new(&ctx));
+    ///     assert_eq!(None, foo_var.get_new(&ctx));
     /// })
     /// # );
     /// ```

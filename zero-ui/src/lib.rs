@@ -271,7 +271,7 @@
 //! let moving_btn = button! {
 //!     margin = offset.clone();
 //!     on_click = hn!(|ctx, _| {
-//!         offset.modify(ctx, |mut m|m.left += 50.0);
+//!         offset.modify(ctx, |m|m.get_mut().left += 50.0);
 //!     });
 //!     content = text("Click to Move!")
 //! };
@@ -317,11 +317,11 @@
 //! let btn = button! {
 //!     content = text(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
-//!         let new_value = !*flag.get(ctx.vars);
+//!         let new_value = !flag.get();
 //!         // 3 methods doing the same thing.
 //!         flag.set(ctx.vars, new_value);
 //!         flag.set_ne(ctx.vars, new_value);
-//!         flag.modify(ctx.vars, move |mut f| *f = new_value);
+//!         flag.modify(ctx.vars, move |f| *f.get_mut() = new_value);
 //!     });
 //! };
 //! ```
@@ -376,7 +376,7 @@
 //!         content = button! {
 //!             content = text(count_text);
 //!             on_click = hn!(|ctx, _| {
-//!                 count.modify(ctx, |mut c| *c += 1);
+//!                 count.modify(ctx, |c| *c.get_mut() += 1);
 //!             });
 //!         }
 //!     }
@@ -514,7 +514,7 @@
 //!
 //! button! {
 //!     on_click = hn!(count, |ctx, _| {
-//!         count.modify(ctx, |mut c| *c += 1);
+//!         count.modify(ctx, |c| *c.get_mut() += 1);
 //!     });
 //!     content = text(count.map_to_text());
 //! }
@@ -535,11 +535,11 @@
 //!         status.set(&ctx, "Loading..");
 //!         match task::wait(|| std::fs::read("some/data")).await {
 //!             Ok(data) => {
-//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len()));
+//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len())).unwrap();
 //!                 task::wait(move || std::fs::write("data.bin", data)).await;
-//!                 status.set(&ctx, "Done.");
+//!                 status.set(&ctx, "Done.").unwrap();
 //!             },
-//!             Err(e) => status.set(&ctx, e.to_text()),
+//!             Err(e) => status.set(&ctx, e.to_text()).unwrap(),
 //!         }
 //!     });
 //!#    content = text("Save");
@@ -696,7 +696,7 @@
 //! # let foo_var = var(true);
 //! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
 //! hn!(|ctx, _| {
-//!     let value_ref = foo_var.get(ctx.vars);
+//!     let value_ref = foo_var.get();
 //!     let service_ref = Windows::req(ctx.services);
 //!     let state_ref = ctx.widget_state.get(&FOO_ID);
 //! })
@@ -999,8 +999,8 @@ pub mod prelude {
     /// }
     /// #[impl_ui_node(child)]
     /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> {
-    ///     fn update(&mut self, ctx: &mut WidgetContext) {
-    ///         self.child.update(ctx);
+    ///     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    ///         self.child.update(ctx, updates);
     ///         if let Some(new_value) = self.value.get_new(ctx) {
     ///             // ..
     ///         }
