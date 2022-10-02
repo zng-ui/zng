@@ -64,9 +64,11 @@ fn app_main() {
 
 fn font_size(font_size: RcVar<Length>) -> impl Widget {
     fn change_size(font_size: &RcVar<Length>, change: f32, ctx: &mut WidgetContext) {
-        font_size.modify(ctx, move |s| {
-            *s.get_mut() += Length::Pt(change);
-        }).unwrap();
+        font_size
+            .modify(ctx, move |s| {
+                *s.get_mut() += Length::Pt(change);
+            })
+            .unwrap();
     }
     h_stack! {
         button::vis::extend_style = style_generator!(|_, _| style! {

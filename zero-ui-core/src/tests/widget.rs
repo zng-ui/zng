@@ -1705,7 +1705,7 @@ mod util {
     use crate::{
         context::{InfoContext, StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
         impl_ui_node, property,
-        var::{IntoVar, StateVar, Var},
+        var::{IntoVar, StateVar, Var, VarHandle},
         widget_info::{UpdateMask, WidgetSubscriptions},
         UiNode, Widget,
     };
@@ -1874,6 +1874,7 @@ mod util {
     pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl Widget, state: bool) {
         ctx.set_current_update(UpdateMask::all());
         ctx.updates.update(UpdateMask::all());
+        ctx.updates.update2(wgt.id());
         *wgt.state_mut().entry(&IS_STATE_ID).or_default() = state;
     }
     struct IsStateNode<C: UiNode> {
@@ -1914,6 +1915,7 @@ mod util {
         LiveTraceNode {
             child,
             trace: trace.into_var(),
+            handle: VarHandle::dummy(),
         }
     }
     /// A [trace] that can update and has a default value of `"default-trace"`.
@@ -1922,17 +1924,20 @@ mod util {
         LiveTraceNode {
             child,
             trace: trace.into_var(),
+            handle: VarHandle::dummy(),
         }
     }
     struct LiveTraceNode<C: UiNode, T: Var<&'static str>> {
         child: C,
         trace: T,
+        handle: VarHandle,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, T: Var<&'static str>> UiNode for LiveTraceNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
             ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace.get());
+            self.handle = self.trace.subscribe(ctx.path.widget_id());
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {

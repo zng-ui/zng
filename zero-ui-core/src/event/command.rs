@@ -12,10 +12,7 @@ use crate::{
     handler::WidgetHandler,
     impl_ui_node,
     text::Text,
-    var::{
-        types::RcCowVar,
-        *,
-    },
+    var::{types::RcCowVar, *},
     widget_info::{WidgetInfoBuilder, WidgetSubscriptions},
     window::WindowId,
     UiNode, WidgetId,

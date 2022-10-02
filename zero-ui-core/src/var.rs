@@ -38,6 +38,7 @@ pub use util::impl_from_and_into_var;
 
 mod tests;
 
+pub use animation::easing;
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
 pub use context::{context_var, with_context_var, with_context_var_init, ContextVar, ReadOnlyContextVar};
@@ -50,7 +51,6 @@ pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use state::*;
 pub use vars::*;
 pub use when::when_var;
-pub use animation::easing;
 
 use crate::{context::Updates, WidgetId};
 

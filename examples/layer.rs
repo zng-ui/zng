@@ -183,10 +183,12 @@ fn anchor_example() -> impl Widget {
     });
 
     let next_point = hn!(|ctx, _| {
-        point_index.modify(ctx, move |i| {
-            let next = *i.get() + 1;
-            *i.get_mut() = if next == points_len { 0 } else { next };
-        }).unwrap()
+        point_index
+            .modify(ctx, move |i| {
+                let next = *i.get() + 1;
+                *i.get_mut() = if next == points_len { 0 } else { next };
+            })
+            .unwrap()
     });
 
     button! {

@@ -1,4 +1,7 @@
-use zero_ui::core::{context::{WidgetContext, WidgetUpdates}, impl_ui_node, NilUiNode, UiNode};
+use zero_ui::core::{
+    context::{WidgetContext, WidgetUpdates},
+    impl_ui_node, NilUiNode, UiNode,
+};
 
 struct Node1<C> {
     child: C,

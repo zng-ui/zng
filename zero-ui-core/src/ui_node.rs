@@ -788,17 +788,15 @@ pub trait Widget: UiNode {
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_update(&mut self, ctx: &mut TestWidgetContext, updates: Option<&mut WidgetUpdates>) {
-        ctx.widget_context(|ctx| {
-            if let Some(updates) = updates {
-                updates.fulfill_search([ctx.info_tree].into_iter());
-                self.update(ctx, updates)
-            } else {
-                let mut list = UpdateDeliveryList::new_any();
-                list.search_widget(self.id());
-                list.fulfill_search([ctx.info_tree].into_iter());
-                self.update(ctx, &mut WidgetUpdates::new(list))
-            }
-        });
+        if let Some(updates) = updates {
+            updates.fulfill_search([&ctx.info_tree].into_iter());
+            ctx.widget_context(|ctx| self.update(ctx, updates));
+        } else {
+            let mut list = UpdateDeliveryList::new_any();
+            list.insert_path(&crate::WidgetPath::new(ctx.window_id, [self.id()]));
+            list.enter_window(ctx.window_id);
+            ctx.widget_context(|ctx| self.update(ctx, &mut WidgetUpdates::new(list)));
+        }
     }
 
     /// Run [`UiNode::layout`] using the [`TestWidgetContext`].
