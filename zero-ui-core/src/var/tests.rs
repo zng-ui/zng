@@ -425,7 +425,7 @@ mod context {
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<Text>> UiNode for ProbeNode<C, V> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.app_state.set(&PROBE_ID, self.var.get()).unwrap();
+                ctx.app_state.set(&PROBE_ID, self.var.get());
                 self.child.init(ctx);
             }
         }

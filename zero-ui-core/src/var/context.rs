@@ -372,8 +372,8 @@ mod helpers {
                 self.with(|c| c.render_update(ctx, update))
             }
 
-            fn subscriptions(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
-                todo!()
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                self.with(|c| c.subscriptions(ctx, subs));
             }
         }
 
@@ -466,8 +466,8 @@ mod helpers {
                 self.with(|c| c.render_update(ctx, update));
             }
 
-            fn subscriptions(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
-                todo!()
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                self.with(|c| c.subscriptions(ctx, subs));
             }
         }
         WithContextVarInitNode {

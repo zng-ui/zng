@@ -813,7 +813,7 @@ impl AppWindow {
 
         let vars = WindowVars::new(Windows::req(ctx.services).default_render_mode, primary_scale_factor);
         let mut state = OwnedStateMap::new();
-        state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone()).unwrap();
+        state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
 
         if window.kiosk {
