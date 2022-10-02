@@ -352,6 +352,7 @@ impl<T: VarValue> RcWhenVar<T> {
             active.with(|value| {
                 data.hooks.retain(|h| h.call(vars, updates, value));
             });
+            updates.update_ext();
         })
     }
 }

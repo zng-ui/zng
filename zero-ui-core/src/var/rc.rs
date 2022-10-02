@@ -173,7 +173,8 @@ impl<T: VarValue> RcVar<T> {
             modify(&mut value);
             if value.touched {
                 data.last_update = value.update_id;
-                data.hooks.retain(|h| h.call(vars, updates, &data.value))
+                data.hooks.retain(|h| h.call(vars, updates, &data.value));
+                updates.update_ext();
             }
         }));
         Ok(())

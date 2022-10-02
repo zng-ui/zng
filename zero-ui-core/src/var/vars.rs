@@ -207,11 +207,19 @@ impl Vars {
 
         self.update_id.next();
 
+
+        // if has pending updates, apply all, 
+        // var updates can generate other updates (bindings), these are applied in the same
+        // app update, hence the loop and "spare" vec alloc.
         while !self.updates.get_mut().is_empty() {
             let mut var_updates = mem::replace(self.updates.get_mut(), mem::take(&mut self.spare_updates));
+
             for (animation_info, update) in var_updates.drain(..) {
+                // load animation priority that was current when the update was requested.
                 let prev_info = mem::replace(&mut *self.ans.current_animation.borrow_mut(), animation_info);
                 let _cleanup = crate_util::RunOnDrop::new(|| *self.ans.current_animation.borrow_mut() = prev_info);
+                
+                // apply.
                 update(self, updates);
             }
             self.spare_updates = var_updates;

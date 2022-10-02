@@ -151,6 +151,7 @@ impl<T: VarValue> RcMergeVar<T> {
             data.animation = vars.current_animation();
 
             data.hooks.retain(|h| h.call(vars, updates, &data.value));
+            updates.update_ext();
         })
     }
 }

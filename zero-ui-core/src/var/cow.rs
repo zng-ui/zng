@@ -100,7 +100,8 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
 
                     if value.touched {
                         *last_update = value.update_id;
-                        hooks.retain(|h| h.call(vars, updates, value.value))
+                        hooks.retain(|h| h.call(vars, updates, value.value));
+                        updates.update_ext();
                     }
                 }
             }
