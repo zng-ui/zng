@@ -14,7 +14,7 @@ mod any {
     #[test]
     fn downcast_ref_boxed() {
         let any_var = var(true).boxed().boxed_any();
-        assert!(any_var.as_any().downcast_ref::<BoxedVar<bool>>().is_some())
+        assert!(any_var.as_any().downcast_ref::<RcVar<bool>>().is_some())
     }
 
     #[test]
@@ -43,7 +43,7 @@ mod any {
     fn downcast_boxed() {
         let any_var = var(true).boxed().boxed_any();
         let any_box = any_var.as_any();
-        assert!(any_box.downcast_ref::<BoxedVar<bool>>().is_some());
+        assert!(any_box.downcast_ref::<RcVar<bool>>().is_some());
     }
 }
 
