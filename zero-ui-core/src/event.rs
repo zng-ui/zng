@@ -440,3 +440,33 @@ impl Drop for EventWidgetHandle {
         self.event.unsubscribe_widget(self.widget_id);
     }
 }
+
+/// Represents a collection of var handles.
+#[derive(Clone, Default)] // !!: TODO unify event handles, see general TODO, declaring this early to implement `ui_node!`.
+pub struct EventHandles(pub Vec<EventWidgetHandle>);
+impl EventHandles {
+    /// Add `other` handle to the collection.
+    pub fn push(&mut self, other: EventWidgetHandle) -> &mut Self {
+        // TODO, filter out dummies.
+        self.0.push(other);
+        self
+    }
+}
+impl FromIterator<EventWidgetHandle> for EventHandles {
+    fn from_iter<T: IntoIterator<Item = EventWidgetHandle>>(iter: T) -> Self {
+        // TODO, filter out dummies.
+        EventHandles(iter.into_iter().collect())
+    }
+}
+impl<const N: usize> From<[EventWidgetHandle; N]> for EventHandles {
+    fn from(handles: [EventWidgetHandle; N]) -> Self {
+        handles.into_iter().collect()
+    }
+}
+impl Extend<EventWidgetHandle> for EventHandles {
+    fn extend<T: IntoIterator<Item = EventWidgetHandle>>(&mut self, iter: T) {
+        for handle in iter {
+            self.push(handle);
+        }
+    }
+}

@@ -19,6 +19,7 @@ mod static_list;
 mod when_var;
 
 mod impl_ui_node;
+mod ui_node;
 pub(crate) mod property;
 
 mod widget_0_attr;
@@ -41,6 +42,16 @@ mod rust_analyzer;
 #[proc_macro_attribute]
 pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui_node::gen_impl_ui_node(args, input)
+}
+
+/// Expands to an instance of a new `UiNode` type. 
+/// 
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui_core::ui_node`](../zero_ui_core/macro.ui_node.html) page.
+#[proc_macro]
+pub fn ui_node(input: TokenStream) -> TokenStream {
+    ui_node::expand(input)
 }
 
 /// Expands a function to a widget property.

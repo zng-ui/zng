@@ -243,6 +243,10 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 #[doc(inline)]
 pub use zero_ui_proc_macros::impl_ui_node;
 
+/// !!: TODO docs.
+#[doc(inline)]
+pub use zero_ui_proc_macros::ui_node;
+
 /// Expands a function to a widget property module.
 ///
 /// # Arguments

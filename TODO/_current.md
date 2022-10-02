@@ -18,6 +18,7 @@
 
 * Implement event handlers using a callback in the event that queues the handlers to run once. 
     - This avoids the linear event update search.
+    - This causes lets us unify all event handles to a single `EventHandle` like the `VarHandle`.
 * Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
     - Bug already existed in previous implementation.
     - Have an AppId?
@@ -40,10 +41,9 @@ fn foo(child: impl UiNode, foo: impl IntoVar<bool>, bar: impl IntoVar<bool>) -> 
         // declar event fields, events auto-subscribe.
         self.event.foo: Event<FooArgs> = FOO_EVENT;
 
-        // declare only handle field, auto-sub code is generated, but no field for the event/var is generated.
-        // fields above expand to a handle field here too.
-        self.event_handle.bar = &BAR_EVENT; // !!: figure this one out.
-        self.var_handle.zap = &ZAP_VAR;
+        // the init `ctx: &mut WidgetContext` and handles collections are available for custom subscriptions.
+        self.event.handles.push(BAR_EVENT.subscribe(ctx); // could make a .
+        self.var.handles.push(ZAP_VAR.subscribe(ctx));
 
         // custom field
         self.custom: Vec<bool> = vec![];
@@ -93,5 +93,94 @@ fn foo(child: impl UiNode, foo: impl IntoVar<bool>, bar: impl IntoVar<bool>) -> 
             self.child.render(ctx, frame);
         }
     }
+}
+
+// expands to:
+
+struct NodeVars<V_foo, V_bar> {
+    foo: V_foo,
+    bar: V_bar,
+    handles: VarHandles,
+}
+struct NodeEvents {
+    foo: Event<FooArgs>, // can be E_foo for generics.
+    handles: EventHandles,
+}
+struct Node<C, V_foo, V_bar /* , E_foo, T_custom */> {
+    child: C,
+    var: NodeVars<V_foo, V_bar>,
+    event: NodeEvents<E_foo>,
+    custom: Vec<bool> // can be T_custom for generics.
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, V_foo: Var<bool>, V_bar: Var<bool>> Node<C, V_foo, V_bar> {
+    fn auto_init(&mut self, ctx: &mut WidgetContext) {
+        let id = ctx.path.widget_id();
+        self.var.handles.push(self.var.foo.subscribe(id));
+        self.var.handles.push(self.var.bar.subscribe(id));
+        self.event.handles.push(self.event.foo.subscribe(id));
+    }
+
+    fn auto_deinit(&mut self) {
+        self.var.handles.clear();
+        self.event.handles.clear();
+    }
+
+    // custom methods.
+    fn custom(&mut self) {
+        println!("{}", self.var.foo.get());
+    }
+
+    // UiNode methods, tag already implemented in `#[impl_ui_node]`, only snag is the init/deinit.
+    #[UiNode]
+    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.child.event(ctx, update);
+
+        if self.event.foo.on(update) {
+            todo!()
+        }
+
+        if BAR_EVENT.on(update) {
+            todo!()
+        }
+    }
+
+    #[UiNode]
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+    
+        if let Some(foo) = self.var.foo.get_new() {
+            self.custom();
+        }
+    
+        if let Some(bar) = self.var.bar.get_new() {
+                
+        }
+    
+        if let Some(zap) = ZAP_VAR.get_new() {
+                
+        }
+    }
+    
+    #[UiNode]
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        if self.var.foo.get() {
+            frame.push_color(..);
+        }
+        self.child.render(ctx, frame);
+    }
+}
+
+struct Node {
+    var: NodeVars {
+        foo: foo.into_var(),
+        bar: bar.into_var(),
+        handles: VarHandles::default(),
+    },
+    event: NodeEvents {
+        foo: FOO_EVENT,
+        handles: EventHandles::default(),
+    },
+    custom: vec![]
 }
 ```

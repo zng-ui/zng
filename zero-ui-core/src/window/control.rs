@@ -1155,7 +1155,7 @@ fn update_headless_vars(windows: &mut Windows, mfactor: Option<Factor>, hvars: &
         // bind parent factor
         if mfactor.is_none() {
             let h = hvars.0.scale_factor.bind(&parent_vars.0.scale_factor);
-            handles = handles.with(h);
+            handles.push(h);
         }
 
         // merge bind color scheme.
@@ -1168,20 +1168,20 @@ fn update_headless_vars(windows: &mut Windows, mfactor: Option<Factor>, hvars: &
             actual.set_ne(vars, scheme).unwrap();
             true
         })));
-        handles = handles.with(h);
+        handles.push(h);
 
         let h = parent.hook(Box::new(clone_move!(user, parent, actual, |vars, _, _| {
             let scheme = user.get().unwrap_or_else(|| parent.get());
             actual.set_ne(vars, scheme).unwrap();
             true
         })));
-        handles = handles.with(h);
+        handles.push(h);
     } else {
         // bind color scheme
         let h = hvars
             .color_scheme()
             .bind_map(&hvars.0.actual_color_scheme, |&s| s.unwrap_or_default());
-        handles = handles.with(h);
+        handles.push(h);
     }
 
     handles

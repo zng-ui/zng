@@ -321,7 +321,7 @@ impl VarHandle {
 }
 
 /// Represents a collection of var handles.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct VarHandles(pub Vec<VarHandle>);
 impl VarHandles {
     /// Empty collection.
@@ -341,17 +341,11 @@ impl VarHandles {
         }
     }
 
-    /// Add the `other` handle to the collection.
-    pub fn with(mut self, other: VarHandle) -> VarHandles {
+    /// Add the `other` handle to the collection, if it is not dummy.
+    pub fn push(&mut self, other: VarHandle) -> &mut Self {
         if !other.is_dummy() {
             self.0.push(other);
         }
-        self
-    }
-
-    /// Add the `others` handles to the collection.
-    pub fn with_all(mut self, others: VarHandles) -> VarHandles {
-        self.0.extend(others.0);
         self
     }
 }
@@ -363,6 +357,13 @@ impl FromIterator<VarHandle> for VarHandles {
 impl<const N: usize> From<[VarHandle; N]> for VarHandles {
     fn from(handles: [VarHandle; N]) -> Self {
         handles.into_iter().collect()
+    }
+}
+impl Extend<VarHandle> for VarHandles {
+    fn extend<T: IntoIterator<Item = VarHandle>>(&mut self, iter: T) {
+        for handle in iter {
+            self.push(handle);
+        }
     }
 }
 
