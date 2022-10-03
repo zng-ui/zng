@@ -1040,9 +1040,9 @@ pub mod prelude {
         pub use crate::core::window::{WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, node_vec, nodes, property, ui_node,
+            impl_ui_node, node_vec, nodes, property,
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
-            widget,
+            ui_node, widget,
             widget_base::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
@@ -1098,12 +1098,12 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, node_vec, nodes, property, ui_node,
+            impl_ui_node, node_vec, nodes, property,
             ui_list::{
                 z_index, SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef, ZIndex,
                 ZSortedWidgetList,
             },
-            widget,
+            ui_node, widget,
             widget_base::{implicit_base, HitTestMode},
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
