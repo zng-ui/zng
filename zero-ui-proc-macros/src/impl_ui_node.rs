@@ -192,9 +192,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         .unwrap_or_else(|| quote! { #crate_::UiNode });
 
     // modify impl header for new_node and collect
-    let (impl_generics, self_ty, decl, inst) = if let Some(new_node) = new_node {
-        errors.extend(new_node.errors);
-
+    let (impl_generics, self_ty, decl) = if let Some(new_node) = new_node {
         let gen = new_node.impl_generics;
         let custom_gen = &generics.params;
         let sep = if custom_gen.trailing_punct() || custom_gen.is_empty() {
@@ -226,14 +224,37 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
         let node_gen = new_node.node_generics;
 
+        let impl_generics =  quote! { <#custom_gen #sep #gen> };
+        let self_ty = quote! { #node_ident<#node_custom_gen #node_sep #node_gen> };
+
+        let mut decl = new_node.decl;
+
+        if !new_node.handle_init.is_empty() {
+            let init = new_node.handle_init;
+            let deinit = new_node.handle_deinit;
+
+            decl.extend(quote! {
+                impl #impl_generics #self_ty #where_clause {
+                    /// Init auto-generated event and var subscriptions.
+                    fn init_handles(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+                        #init
+                    }
+
+                    /// Deinit auto-generated event and var subscriptions.
+                    fn deinit_handles(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+                        #deinit
+                    }
+                }
+            });
+        }
+
         (
-            quote! { <#custom_gen #sep #gen> },
-            quote! { #node_ident<#node_custom_gen #node_sep #node_gen> },
-            new_node.decl,
-            new_node.inst,
+           impl_generics,
+            self_ty,
+            decl,
         )
     } else {
-        (impl_generics.to_token_stream(), self_ty.to_token_stream(), quote!(), quote!())
+        (impl_generics.to_token_stream(), self_ty.to_token_stream(), quote!())
     };
 
     let result = if in_node_impl {
@@ -247,8 +268,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 #(#default_ui_items)*
                 #(#other_items)*
             }
-
-            #inst
         }
     } else {
         let input_attrs = input.attrs;
@@ -266,8 +285,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 #(#node_items)*
                 #(#default_ui_items)*
             }
-
-            #inst
         }
     };
 
@@ -714,7 +731,7 @@ fn take_missing_deletate_level(
 
 struct ArgsNewNode {
     ident: Ident,
-    members: Punctuated<ArgsNewNodeMember, Token![,]>,
+    fields: Punctuated<ArgsNewNodeField, Token![,]>,
 }
 impl Parse for ArgsNewNode {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -722,31 +739,46 @@ impl Parse for ArgsNewNode {
         let ident: Ident = input.parse()?;
         let inner;
         braced!(inner in input);
-        let members = Punctuated::parse_terminated(&inner)?;
-        Ok(ArgsNewNode { ident, members })
+        let fields = Punctuated::parse_terminated(&inner)?;
+        Ok(ArgsNewNode { ident, fields })
     }
 }
 
-struct ArgsNewNodeMember {
+struct ArgsNewNodeField {
     attrs: Vec<Attribute>,
-    path: Punctuated<Ident, Token![.]>,
+    kind: ArgsNewNodeFieldKind,
+    ident: Ident,
     ty: ArgsNewNodeType,
-    instantiate: Expr,
 }
-impl Parse for ArgsNewNodeMember {
+impl Parse for ArgsNewNodeField {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = Attribute::parse_outer(input)?;
-        let path = Punctuated::parse_separated_nonempty(input)?;
+        let ident = input.parse()?;
+        let kind = ArgsNewNodeFieldKind::from_ident(&ident);
         let _: Token![:] = input.parse()?;
         let ty = input.parse()?;
-        let _: Token![=] = input.parse()?;
-        let instantiate = input.parse()?;
-        Ok(ArgsNewNodeMember {
-            attrs,
-            path,
-            ty,
-            instantiate,
-        })
+        Ok(ArgsNewNodeField { attrs, kind, ident, ty })
+    }
+}
+
+enum ArgsNewNodeFieldKind {
+    Var,
+    Event,
+    Custom,
+}
+impl ArgsNewNodeFieldKind {
+    fn from_ident(ident: &Ident) -> Self {
+        let s = ident.to_string();
+        if ["event_", "ev_", "e_", "command_", "cmd_", "c_"]
+            .into_iter()
+            .any(|p| s.starts_with(p))
+        {
+            ArgsNewNodeFieldKind::Event
+        } else if ["var_", "v_"].into_iter().any(|p| s.starts_with(p)) {
+            ArgsNewNodeFieldKind::Var
+        } else {
+            ArgsNewNodeFieldKind::Custom
+        }
     }
 }
 
@@ -769,209 +801,109 @@ fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
     let mut impl_generics = TokenStream::new();
     let mut node_generics = TokenStream::new();
     let mut node_fields = TokenStream::new();
-    let mut node_inst = TokenStream::new();
+    let mut handle_init = TokenStream::new();
+    let mut has_var = false;
+    let mut has_event = false;
 
-    let mut var_generics = TokenStream::new();
-    let mut var_fields = TokenStream::new();
-    let mut var_inst = TokenStream::new();
-
-    let mut event_generics = TokenStream::new();
-    let mut event_fields = TokenStream::new();
-    let mut event_inst = TokenStream::new();
-
-    let mut errors = util::Errors::default();
-
-    for ArgsNewNodeMember {
-        attrs,
-        path,
-        ty,
-        instantiate,
-        ..
-    } in args.members
+    for ArgsNewNodeField {
+        attrs, kind, ident, ty, ..
+    } in args.fields
     {
         let attrs = util::Attributes::new(attrs);
         let cfg = attrs.cfg;
-        let docs = attrs.docs;
-        let mut inst_attrs = attrs.lints;
-        inst_attrs.extend(attrs.others);
+        let mut member_attrs = attrs.docs;
+        member_attrs.extend(attrs.lints);
+        member_attrs.extend(attrs.others);
 
-        match path.len() {
-            2 => {
-                let kind = &path[0];
-                let name = &path[1];
+        if ident == ident!("child") || ident == ident!("children") {
+            delegate = ident.clone();
+        }
 
-                let (kind_generics, kind_fields, kind_inst, kind_t) = if kind == &ident!("var") {
-                    (&mut var_generics, &mut var_fields, &mut var_inst, "V")
-                } else if kind == &ident!("event") {
-                    (&mut event_generics, &mut event_fields, &mut event_inst, "E")
-                } else {
-                    errors.push("expected `var` or `event`", kind.span());
-                    continue;
-                };
-
-                match ty {
-                    ArgsNewNodeType::Generic(t) => {
-                        let t_ident = ident!("{kind_t}_{name}");
-
-                        kind_fields.extend(quote! {
-                            #cfg
-                            #name: #t_ident,
-                        });
-
-                        let bounds = t.bounds;
-                        impl_generics.extend(quote! {
-                            #cfg
-                            #t_ident: #bounds,
-                        });
-                        node_generics.extend(quote! {
-                            #cfg
-                            #t_ident,
-                        });
-                        kind_generics.extend(quote! {
-                            #cfg
-                            #t_ident,
-                        });
-                    }
-                    ArgsNewNodeType::Path(t) => {
-                        kind_fields.extend(quote! {
-                            #cfg
-                            #(#docs)*
-                            #name: #t,
-                        });
-                    }
-                }
-
-                kind_inst.extend(quote! {
+        match ty {
+            ArgsNewNodeType::Generic(t) => {
+                let t_ident = ident!("T_{ident}");
+                node_fields.extend(quote! {
                     #cfg
-                    #(#inst_attrs)*
-                    #name: #instantiate,
+                    #(#member_attrs)*
+                    #ident: #t_ident,
+                });
+
+                let bounds = t.bounds;
+                impl_generics.extend(quote! {
+                    #cfg
+                    #t_ident: #bounds,
+                });
+
+                node_generics.extend(quote! {
+                    #cfg
+                    #t_ident,
                 });
             }
-            1 => {
-                let custom = &path[0];
-
-                if custom == &ident!("child") || custom == &ident!("children") {
-                    delegate = custom.clone();
-                }
-
-                match ty {
-                    ArgsNewNodeType::Generic(t) => {
-                        let t_ident = ident!("T_{custom}");
-                        node_fields.extend(quote! {
-                            #cfg
-                            #custom: #t_ident,
-                        });
-
-                        let bounds = t.bounds;
-                        impl_generics.extend(quote! {
-                            #cfg
-                            #t_ident: #bounds,
-                        });
-
-                        node_generics.extend(quote! {
-                            #cfg
-                            #t_ident,
-                        });
-                    }
-                    ArgsNewNodeType::Path(t) => {
-                        node_fields.extend(quote! {
-                            #cfg
-                            #(#docs)*
-                            #custom: #t,
-                        });
-                    }
-                }
-
-                node_inst.extend(quote! {
+            ArgsNewNodeType::Path(t) => {
+                node_fields.extend(quote! {
                     #cfg
-                    #(#inst_attrs)*
-                    #custom: #instantiate,
+                    #(#member_attrs)*
+                    #ident: #t,
                 });
-            }
-            _ => {
-                errors.push("expected `var.ident`, `event.ident` or `ident: ty`", path.span());
             }
         }
+
+        match kind {
+            ArgsNewNodeFieldKind::Var => {
+                has_var = true;
+                handle_init.extend(quote! {
+                    #cfg
+                    self.var_handles.push(self.#ident.subscribe(ctx.path.widget_id()));
+                });
+            },
+            ArgsNewNodeFieldKind::Event => {
+                has_event = true;
+                handle_init.extend(quote! {
+                    #cfg
+                    self.event_handles.push(self.#ident.subscribe(ctx.path.widget_id()));
+                });
+            },
+            ArgsNewNodeFieldKind::Custom => {},
+        }
     }
-
-    let (var_struct, var_field, var_inst) = if !var_fields.is_empty() {
-        (
-            quote! {
-                struct NodeVars<#var_generics> {
-                    #var_fields
-                }
-            },
-            quote! {
-                var: NodeVars<#var_generics>,
-            },
-            quote! {
-                var: NodeVars {
-                    #var_inst
-                },
-            },
-        )
-    } else {
-        (TokenStream::new(), TokenStream::new(), TokenStream::new())
-    };
-
-    let (event_struct, event_field, event_inst) = if !event_fields.is_empty() {
-        (
-            quote! {
-                struct NodeEvents<#event_generics> {
-                    #event_fields
-                }
-            },
-            quote! {
-                event: NodeEvents<#event_generics>,
-            },
-            quote! {
-                event: NodeEvents {
-                    #event_inst
-                },
-            },
-        )
-    } else {
-        (TokenStream::new(), TokenStream::new(), TokenStream::new())
-    };
+   
 
     let ident = args.ident;
     let decl = quote! {
-        #var_struct
-
-        #event_struct
-
         struct #ident<#node_generics> {
             #node_fields
-            #var_field
-            #event_field
         }
     };
 
-    let inst = quote! {
-        #ident {
-            #node_inst
-            #var_inst
-            #event_inst
-        }
-    };
+    let mut handle_deinit = TokenStream::new();
+    if has_var {
+        handle_deinit.extend(quote! {
+            self.var_handles.clear();
+        });
+    }
+    if has_event {
+        handle_deinit.extend(quote! {
+            self.event_handles.clear();
+        });
+    }
 
     ExpandedNewNode {
-        errors,
         delegate,
         ident,
         decl,
         impl_generics,
         node_generics,
-        inst,
+        handle_init,
+        handle_deinit,
     }
 }
 
 struct ExpandedNewNode {
-    errors: util::Errors,
     delegate: Ident,
     ident: Ident,
     decl: TokenStream,
     impl_generics: TokenStream,
     node_generics: TokenStream,
-    inst: TokenStream,
+    handle_init: TokenStream,
+    handle_deinit: TokenStream,
 }
