@@ -231,9 +231,9 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// the [`UiNode`] implementation.
 ///
 /// This is particularly useful for nodes that have a large amount of generic constrains, you just type then once.
-/// 
+///
 /// # New Node
-/// 
+///
 /// !!: TODO doc
 ///
 /// [`UiNode`]: crate::UiNode

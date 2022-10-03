@@ -348,6 +348,11 @@ impl VarHandles {
         }
         self
     }
+
+    /// Drop all handles.
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
 }
 impl FromIterator<VarHandle> for VarHandles {
     fn from_iter<T: IntoIterator<Item = VarHandle>>(iter: T) -> Self {

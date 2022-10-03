@@ -451,6 +451,11 @@ impl EventHandles {
         self.0.push(other);
         self
     }
+
+    /// Drop all handles.
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
 }
 impl FromIterator<EventWidgetHandle> for EventHandles {
     fn from_iter<T: IntoIterator<Item = EventWidgetHandle>>(iter: T) -> Self {

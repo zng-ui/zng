@@ -123,17 +123,32 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         a => (None, a),
     };
 
+    let (auto_init, auto_deinit) = if new_node.is_some() {
+        (quote!(self.init_handles(ctx);), quote!(self.deinit_handles(ctx);))
+    } else {
+        (quote!(), quote!())
+    };
+
     // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
             validate_manual_delegate = false;
-            no_delegate_absents(crate_.clone(), node_item_names)
+            no_delegate_absents(crate_.clone(), node_item_names, auto_init, auto_deinit)
         }
-        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut),
+        Args::Delegate { delegate, delegate_mut } => {
+            delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut, auto_init, auto_deinit)
+        }
         Args::DelegateList {
             delegate_list,
             delegate_list_mut,
-        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut),
+        } => delegate_list_absents(
+            crate_.clone(),
+            node_item_names,
+            delegate_list,
+            delegate_list_mut,
+            auto_init,
+            auto_deinit,
+        ),
         Args::DelegateIter {
             delegate_iter,
             delegate_iter_mut,
@@ -224,7 +239,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
         let node_gen = new_node.node_generics;
 
-        let impl_generics =  quote! { <#custom_gen #sep #gen> };
+        let impl_generics = quote! { <#custom_gen #sep #gen> };
         let self_ty = quote! { #node_ident<#node_custom_gen #node_sep #node_gen> };
 
         let mut decl = new_node.decl;
@@ -237,6 +252,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 impl #impl_generics #self_ty #where_clause {
                     /// Init auto-generated event and var subscriptions.
                     fn init_handles(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+                        let widget_id = ctx.path.widget_id();
                         #init
                     }
 
@@ -248,11 +264,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
             });
         }
 
-        (
-           impl_generics,
-            self_ty,
-            decl,
-        )
+        (impl_generics, self_ty, decl)
     } else {
         (impl_generics.to_token_stream(), self_ty.to_token_stream(), quote!())
     };
@@ -313,15 +325,15 @@ macro_rules! make_absents {
     }};
 }
 
-fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
+fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init: TokenStream, auto_deinit: TokenStream) -> Vec<ImplItem> {
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
 
         [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) { }]
 
-        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
+        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { #auto_init }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
+        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { #auto_deinit }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) { }]
 
@@ -340,7 +352,14 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
     }
 }
 
-fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+fn delegate_absents(
+    crate_: TokenStream,
+    user_mtds: HashSet<Ident>,
+    borrow: Expr,
+    borrow_mut: Expr,
+    auto_init: TokenStream,
+    auto_deinit: TokenStream,
+) -> Vec<ImplItem> {
     let child = ident_spanned!(borrow.span()=> "child");
     let child_mut = ident_spanned!(borrow_mut.span()=> "child");
 
@@ -363,11 +382,13 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+            #auto_init
             let mut #child_mut = {#borrow_mut};
             #crate_::UiNode::init(#deref_mut, ctx);
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+            #auto_deinit
             let mut #child_mut = {#borrow_mut};
             #crate_::UiNode::deinit(#deref_mut, ctx);
         }]
@@ -404,7 +425,14 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
     }
 }
 
-fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+fn delegate_list_absents(
+    crate_: TokenStream,
+    user_mtds: HashSet<Ident>,
+    borrow: Expr,
+    borrow_mut: Expr,
+    auto_init: TokenStream,
+    auto_deinit: TokenStream,
+) -> Vec<ImplItem> {
     let children = ident_spanned!(borrow.span()=> "children");
     let children_mut = ident_spanned!(borrow_mut.span()=> "children");
     let deref = quote_spanned! {borrow.span()=>
@@ -425,11 +453,13 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+            #auto_init
             let #children_mut = {#borrow_mut};
             #crate_::UiNodeList::init_all(#deref_mut, ctx)
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+            #auto_deinit
             let #children_mut = {#borrow_mut};
             #crate_::UiNodeList::deinit_all(#deref_mut, ctx)
         }]
@@ -797,6 +827,8 @@ impl Parse for ArgsNewNodeType {
 }
 
 fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
+    let crate_ = util::crate_core();
+
     let mut delegate = ident!("none");
     let mut impl_generics = TokenStream::new();
     let mut node_generics = TokenStream::new();
@@ -853,37 +885,52 @@ fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
                 has_var = true;
                 handle_init.extend(quote! {
                     #cfg
-                    self.var_handles.push(self.#ident.subscribe(ctx.path.widget_id()));
+                    self.handles.0.push(self.#ident.subscribe(widget_id));
                 });
-            },
+            }
             ArgsNewNodeFieldKind::Event => {
                 has_event = true;
                 handle_init.extend(quote! {
                     #cfg
-                    self.event_handles.push(self.#ident.subscribe(ctx.path.widget_id()));
+                    self.handles.1.push(self.#ident.subscribe(widget_id));
                 });
-            },
-            ArgsNewNodeFieldKind::Custom => {},
+            }
+            ArgsNewNodeFieldKind::Custom => {}
         }
     }
-   
+
+    let mut handle_members = TokenStream::new();
+    if has_var && has_event {
+        handle_members.extend(quote! {
+            handles: (#crate_::var::VarHandles, #crate_::event::EventHandles),
+        });
+    }else if has_var {
+        handle_members.extend(quote! {
+            handles: (#crate_::var::VarHandles, ()),
+        });
+    } else if has_event {
+        handle_members.extend(quote! {
+            handles: ((), #crate_::event::EventHandles),
+        });
+    }
 
     let ident = args.ident;
     let decl = quote! {
         struct #ident<#node_generics> {
             #node_fields
+            #handle_members
         }
     };
 
     let mut handle_deinit = TokenStream::new();
     if has_var {
         handle_deinit.extend(quote! {
-            self.var_handles.clear();
+            self.handles.0.clear();
         });
     }
     if has_event {
         handle_deinit.extend(quote! {
-            self.event_handles.clear();
+            self.handles.1.clear();
         });
     }
 
