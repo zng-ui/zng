@@ -178,6 +178,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         (TokenStream::new(), TokenStream::new(), TokenStream::new())
     };
 
+    let expanded_impl: TokenStream = crate::impl_ui_node::gen_impl_ui_node(
+        quote! { #delegate }.into(),
+        quote! {
+            impl<#impl_generics> Node<#node_generics> {
+                #(#items)*
+            }
+        }
+        .into(),
+    )
+    .into();
+
     let r = quote! {
         #errors
 
@@ -191,11 +202,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #event_field
         }
 
-
-        #[#crate_::impl_ui_node(#delegate)]
-        impl<#impl_generics> Node<#node_generics> {
-            #(#items)*
-        }
+        #expanded_impl
 
         Node {
             #node_inst

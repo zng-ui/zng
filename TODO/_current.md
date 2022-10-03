@@ -72,7 +72,60 @@ pub fn foo(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> 
 ```
 
 * Problems:
-    - no auto-complete.
     - no format?
+        - rustfmt does not format braced macros, see https://github.com/rust-lang/rustfmt/pull/5538
+    - no auto-complete.
     - no type help on hover for method inputs.
     - no mut underline highlight.
+
+```rust
+// alt syntax
+#[property(context)]
+pub fn foo(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> impl UiNode {
+    #[impl_ui_node(struct FooNode {
+        self.child: impl UiNode = child;
+
+        self.var.a: impl Var<bool> = a.into_var();
+        self.var.b: impl Var<bool> = b.into_var();
+
+        self.event.click: Event<ClickArgs> = CLICK_EVENT;
+
+        self.custom: Vec<bool> = vec![];
+
+        // self.event.handles.push(CHAR_INPUT_EVENT.subscribe(ctx));
+        // self.var.handles.push(TEXT_COLOR_VAR.subscribe(ctx));
+    })]
+    impl FooNode {
+        fn custom(&self, arg: bool) -> bool {
+            println!("custom fn");
+            !arg
+        }
+
+        #[UiNode]
+        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+            self.child.event(ctx, update);
+
+            if let Some(args) = self.event.click.on(update) {
+                args.propagation().stop();
+            }
+        }
+
+        #[UiNode]
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
+
+            if let Some(v) = self.var.a.get_new(ctx) {
+                self.custom.push(v);
+                self.custom(v);
+            }
+        }
+    }
+}
+```
+
+* Advantages:
+    - Format in the impl block.
+    - Full rust-analyzer support in the impl block (auto-complete, semantic highlight).
+        - Need to test if the generated struct is found by RA, the `ui_node!` macro did not expand this either.
+* Disadvantages:
+    - More weird syntax?
