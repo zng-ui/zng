@@ -24,163 +24,55 @@
     - Have an AppId?
 * Implement all `todo!` code.
 
-# Better Node Macro
+# ui_node! Macro
 
-* We really need a better way to declare nodes, some property nodes have have 20 lines of generics metadata.
-    - And now they all have init/deinit to event and var handles.
 ```rust
+// current
+
 #[property(context)]
-fn foo(child: impl UiNode, foo: impl IntoVar<bool>, bar: impl IntoVar<bool>) -> impl UiNode {
+pub fn foo(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> impl UiNode {
     ui_node! {
-        // delegate, can only be child or children.
         self.child: impl UiNode = child;
 
-        // declare var fields, vars auto-subscribe.
-        self.var.foo: impl Var<bool> = foo.into_var();
-        self.var.bar: impl Var<bool> = bar.into_var();
-        // declar event fields, events auto-subscribe.
-        self.event.foo: Event<FooArgs> = FOO_EVENT;
+        self.var.a: impl Var<bool> = a.into_var();
+        self.var.b: impl Var<bool> = b.into_var();
 
-        // the init `ctx: &mut WidgetContext` and handles collections are available for custom subscriptions.
-        self.event.handles.push(BAR_EVENT.subscribe(ctx); // could make a .
-        self.var.handles.push(ZAP_VAR.subscribe(ctx));
+        self.event.click: Event<ClickArgs> = CLICK_EVENT;
 
-        // custom field
         self.custom: Vec<bool> = vec![];
-        // self.not.this = vec![]; // compile error, no nested custom fields.
 
-        // custom methods.
-        fn custom(&mut self) {
-            println!("{}", self.var.foo.get());
+        // self.event.handles.push(CHAR_INPUT_EVENT.subscribe(ctx));
+        // self.var.handles.push(TEXT_COLOR_VAR.subscribe(ctx));
+
+        fn custom(&self, arg: bool) -> bool {
+            println!("custom fn");
+            !arg
         }
 
-        // UiNode methods, tag already implemented in `#[impl_ui_node]`, only snag is the init/deinit.
         #[UiNode]
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
 
-            if self.event.foo.on(update) {
-                todo!()
-            }
-
-            if BAR_EVENT.on(update) {
-                todo!()
+            if let Some(args) = self.event.click.on(update) {
+                args.propagation().stop();
             }
         }
 
         #[UiNode]
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
-            if let Some(foo) = self.var.foo.get_new() {
-                self.custom();
-            }
-
-            if let Some(bar) = self.var.bar.get_new() {
-
-            }
-
-            if let Some(zap) = ZAP_VAR.get_new() {
-
+            if let Some(v) = self.var.a.get_new(ctx) {
+                self.custom.push(v);
+                self.custom(v);
             }
         }
-
-        #[UiNode]
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if self.var.foo.get() {
-                frame.push_color(..);
-            }
-            self.child.render(ctx, frame);
-        }
     }
-}
-
-// expands to:
-
-struct NodeVars<V_foo, V_bar> {
-    foo: V_foo,
-    bar: V_bar,
-    handles: VarHandles,
-}
-struct NodeEvents {
-    foo: Event<FooArgs>, // can be E_foo for generics.
-    handles: EventHandles,
-}
-struct Node<C, V_foo, V_bar /* , E_foo, T_custom */> {
-    child: C,
-    var: NodeVars<V_foo, V_bar>,
-    event: NodeEvents<E_foo>,
-    custom: Vec<bool> // can be T_custom for generics.
-}
-#[impl_ui_node(child)]
-impl<C: UiNode, V_foo: Var<bool>, V_bar: Var<bool>> Node<C, V_foo, V_bar> {
-    fn auto_init(&mut self, ctx: &mut WidgetContext) {
-        let id = ctx.path.widget_id();
-        self.var.handles.push(self.var.foo.subscribe(id));
-        self.var.handles.push(self.var.bar.subscribe(id));
-        self.event.handles.push(self.event.foo.subscribe(id));
-    }
-
-    fn auto_deinit(&mut self) {
-        self.var.handles.clear();
-        self.event.handles.clear();
-    }
-
-    // custom methods.
-    fn custom(&mut self) {
-        println!("{}", self.var.foo.get());
-    }
-
-    // UiNode methods, tag already implemented in `#[impl_ui_node]`, only snag is the init/deinit.
-    #[UiNode]
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.child.event(ctx, update);
-
-        if self.event.foo.on(update) {
-            todo!()
-        }
-
-        if BAR_EVENT.on(update) {
-            todo!()
-        }
-    }
-
-    #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-    
-        if let Some(foo) = self.var.foo.get_new() {
-            self.custom();
-        }
-    
-        if let Some(bar) = self.var.bar.get_new() {
-                
-        }
-    
-        if let Some(zap) = ZAP_VAR.get_new() {
-                
-        }
-    }
-    
-    #[UiNode]
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        if self.var.foo.get() {
-            frame.push_color(..);
-        }
-        self.child.render(ctx, frame);
-    }
-}
-
-struct Node {
-    var: NodeVars {
-        foo: foo.into_var(),
-        bar: bar.into_var(),
-        handles: VarHandles::default(),
-    },
-    event: NodeEvents {
-        foo: FOO_EVENT,
-        handles: EventHandles::default(),
-    },
-    custom: vec![]
 }
 ```
+
+* Problems:
+    - no auto-complete.
+    - no format?
+    - no type help on hover for method inputs.
+    - no mut underline highlight.
