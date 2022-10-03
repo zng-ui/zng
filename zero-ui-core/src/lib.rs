@@ -231,6 +231,10 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// the [`UiNode`] implementation.
 ///
 /// This is particularly useful for nodes that have a large amount of generic constrains, you just type then once.
+/// 
+/// # New Node
+/// 
+/// !!: TODO doc
 ///
 /// [`UiNode`]: crate::UiNode
 /// [`UiNodeList`]: crate::UiNodeList
@@ -242,10 +246,6 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::impl_ui_node;
-
-/// !!: TODO docs.
-#[doc(inline)]
-pub use zero_ui_proc_macros::ui_node;
 
 /// Expands a function to a widget property module.
 ///
