@@ -83,17 +83,18 @@ pub fn foo(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> 
 #[property(context)]
 pub fn foo(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct FooNode {
-        self.child: impl UiNode = child;
+        child: impl UiNode = child,
 
-        self.var.a: impl Var<bool> = a.into_var();
-        self.var.b: impl Var<bool> = b.into_var();
+        var.a: impl Var<bool> = a.into_var(),
+        var.b: impl Var<bool> = b.into_var(),
 
-        self.event.click: Event<ClickArgs> = CLICK_EVENT;
+        event.click: Event<ClickArgs> = CLICK_EVENT,
 
-        self.custom: Vec<bool> = vec![];
+        custom: Vec<bool> = vec![],
 
-        // self.event.handles.push(CHAR_INPUT_EVENT.subscribe(ctx));
-        // self.var.handles.push(TEXT_COLOR_VAR.subscribe(ctx));
+        // allow this in custom fn init, only generate handles fields if the user tries to access then?
+        // event.handles.push(CHAR_INPUT_EVENT.subscribe(ctx));
+        // var.handles.push(TEXT_COLOR_VAR.subscribe(ctx));
     })]
     impl FooNode {
         fn custom(&self, arg: bool) -> bool {
@@ -129,3 +130,5 @@ pub fn foo(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> 
         - Need to test if the generated struct is found by RA, the `ui_node!` macro did not expand this either.
 * Disadvantages:
     - More weird syntax?
+        - Actually we can have a `macro_rules! ui_node` that expands to this syntax (using the ".." separator trick from `event_args!`), 
+          will this break fmt and RA as well?
