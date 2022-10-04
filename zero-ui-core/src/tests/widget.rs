@@ -1874,7 +1874,7 @@ mod util {
     pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl Widget, state: bool) {
         ctx.set_current_update(UpdateMask::all());
         ctx.updates.update(UpdateMask::all());
-        ctx.updates.update2(wgt.id());
+        ctx.updates.update(wgt.id());
         *wgt.state_mut().entry(&IS_STATE_ID).or_default() = state;
     }
     struct IsStateNode<C: UiNode> {

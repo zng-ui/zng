@@ -7,7 +7,7 @@ use crate::{
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation},
     WidgetId,
 };
 #[allow(unused)] // used in docs.
@@ -53,9 +53,6 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-
-    /// Calls [`UiNode::subscriptions`] in all widgets in the list, sequentially.
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
 
     /// Calls [`UiNode::init`] in all widgets in the list, sequentially.
     fn init_all(&mut self, ctx: &mut WidgetContext);

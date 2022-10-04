@@ -769,7 +769,7 @@ enum ArgsNewNodeFieldKind {
 impl ArgsNewNodeFieldKind {
     fn from_ident(ident: &Ident) -> Self {
         let s = ident.to_string();
-        if ["event_", "ev_", "e_", "command_", "cmd_", "c_"]
+        if ["event_", "ev_", "e_"]
             .into_iter()
             .any(|p| s.starts_with(p))
         {

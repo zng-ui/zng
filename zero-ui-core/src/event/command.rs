@@ -13,7 +13,6 @@ use crate::{
     impl_ui_node,
     text::Text,
     var::{types::RcCowVar, *},
-    widget_info::{WidgetInfoBuilder, WidgetSubscriptions},
     window::WindowId,
     UiNode, WidgetId,
 };
@@ -1128,45 +1127,34 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnCommandNode<U, CB, E, EB, H> {
-        child: U,
+    #[impl_ui_node(struct OnCommandNode<E: Var<bool>> {
+        child: impl UiNode,
         command: Option<Command>,
-        command_builder: CB,
+        command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,
         enabled: Option<E>,
-        enabled_builder: EB,
-        handler: H,
+        enabled_builder: impl FnMut(&mut WidgetContext) -> E + 'static,
+        handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<U, CB, E, EB, H> UiNode for OnCommandNode<U, CB, E, EB, H>
-    where
-        U: UiNode,
-        CB: FnMut(&mut WidgetContext) -> Command + 'static,
-        E: Var<bool>,
-        EB: FnMut(&mut WidgetContext) -> E + 'static,
-        H: WidgetHandler<CommandArgs>,
-    {
-        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget_builder);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, self.enabled.as_ref().unwrap()).handler(&self.handler);
-
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for OnCommandNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
+            ctx.handles.push_var(enabled.subscribe(ctx.path.widget_id()));
             let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
-            self.command = Some(command);
-
             self.handle = Some(command.subscribe(ctx, is_enabled));
+            self.command = Some(command);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            self.command = None;
+            self.enabled = None;
+            self.handle = None;
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -1185,15 +1173,7 @@ where
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
         }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            self.handle = None;
-            self.command = None;
-            self.enabled = None;
-        }
     }
-
     OnCommandNode {
         child: child.cfg_boxed(),
         command: None,
@@ -1215,45 +1195,27 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnPreCommandNode<U, CB, E, EB, H> {
-        child: U,
+    #[impl_ui_node(struct OnPreCommandNode<E: Var<bool>> {
+        child: impl UiNode,
         command: Option<Command>,
-        command_builder: CB,
+        command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,
         enabled: Option<E>,
-        enabled_builder: EB,
-        handler: H,
+        enabled_builder: impl FnMut(&mut WidgetContext) -> E + 'static,
+        handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<U, CB, E, EB, H> UiNode for OnPreCommandNode<U, CB, E, EB, H>
-    where
-        U: UiNode,
-        CB: FnMut(&mut WidgetContext) -> Command + 'static,
-        E: Var<bool>,
-        EB: FnMut(&mut WidgetContext) -> E + 'static,
-        H: WidgetHandler<CommandArgs>,
-    {
+    })]
+    impl UiNode for OnPreCommandNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
+            ctx.handles.push_var(enabled.subscribe(ctx.path.widget_id()));
             let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
-            self.command = Some(command);
-
             self.handle = Some(command.subscribe(ctx, is_enabled));
-        }
-
-        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget_builder);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, self.enabled.as_ref().unwrap()).handler(&self.handler);
-
-            self.child.subscriptions(ctx, subs);
+            self.command = Some(command);
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {

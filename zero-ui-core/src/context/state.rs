@@ -3,10 +3,9 @@ use std::{fmt, marker::PhantomData};
 use unsafe_any::UnsafeAny;
 
 use crate::{
-    context::{InfoContext, WidgetContext, WidgetUpdates},
+    context::{WidgetContext, WidgetUpdates},
     impl_ui_node,
     var::{IntoVar, Var, VarValue},
-    widget_info::WidgetSubscriptions,
     UiNode,
 };
 
@@ -682,42 +681,31 @@ where
     T: StateValue + VarValue,
     H: FnMut(&mut WidgetContext, &T) + 'static,
 {
-    struct SetWidgetStateNode<U, T: 'static, V, H> {
-        child: U,
+    #[impl_ui_node(struct SetWidgetStateNode<T: StateValue + VarValue> {
+        child: impl UiNode,
         id: StateId<T>,
-        var: V,
-        on_update: H,
-    }
-    #[impl_ui_node(child)]
-    impl<U, T, V, H> UiNode for SetWidgetStateNode<U, T, V, H>
-    where
-        U: UiNode,
-        T: StateValue + VarValue,
-        V: Var<T>,
-        H: FnMut(&mut WidgetContext, &T) + 'static,
-    {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.var);
-            self.child.subscriptions(ctx, subs);
-        }
-
+        var_value: impl Var<T>,
+        on_update: impl FnMut(&mut WidgetContext, &T) + 'static,
+    })]
+    impl UiNode for SetWidgetStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.widget_state.set(self.id, self.var.get());
+            self.init_handles(ctx);
+            ctx.widget_state.set(self.id, self.var_value.get());
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new) = self.var.get_new(ctx) {
+            if let Some(new) = self.var_value.get_new(ctx) {
                 (self.on_update)(ctx, &new);
                 ctx.widget_state.set(self.id, new);
             }
             self.child.update(ctx, updates);
         }
-    }
+    }    
     SetWidgetStateNode {
         child: child.cfg_boxed(),
         id: id.into(),
-        var: value.into_var(),
+        var_value: value.into_var(),
         on_update,
     }
     .cfg_boxed()

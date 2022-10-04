@@ -1841,7 +1841,7 @@ where
 
 fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
     Box::new(move |_, updates, _| {
-        updates.update2(widget_id);
+        updates.update(widget_id);
         true
     })
 }

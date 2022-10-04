@@ -8,7 +8,7 @@ pub mod view_process;
 pub use intrinsic::*;
 
 use crate::config::ConfigManager;
-use crate::context::*;
+use crate::{context::*, WidgetId};
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, Events};
 use crate::image::ImageManager;
@@ -16,7 +16,6 @@ use crate::service::Services;
 use crate::timer::Timers;
 use crate::units::Deadline;
 use crate::var::Vars;
-use crate::widget_info::{UpdateMask, UpdateSlot};
 use crate::window::WindowMode;
 use crate::{
     focus::FocusManager,
@@ -2136,7 +2135,7 @@ pub(crate) enum AppEvent {
     /// Notify [`Vars`](crate::var::Vars).
     Var,
     /// Do an update cycle.
-    Update(UpdateMask),
+    Update(Vec<WidgetId>),
     /// Resume a panic in the app thread.
     ResumeUnwind(PanicPayload),
 }
@@ -2165,9 +2164,9 @@ impl AppEventSender {
     }
 
     /// Causes an update cycle to happen in the app.
-    pub fn send_update(&self, mask: UpdateMask) -> Result<(), AppDisconnected<()>> {
+    pub fn send_update(&self, targets: Vec<WidgetId>) -> Result<(), AppDisconnected<()>> {
         UpdatesTrace::log_update();
-        self.send_app_event(AppEvent::Update(mask)).map_err(|_| AppDisconnected(()))
+        self.send_app_event(AppEvent::Update(targets)).map_err(|_| AppDisconnected(()))
     }
 
     /// Causes an update cycle that only affects app extensions to happen in the app.
@@ -2177,7 +2176,7 @@ impl AppEventSender {
     /// [`send_update`]: Self::send_update
     pub fn send_ext_update(&self) -> Result<(), AppDisconnected<()>> {
         UpdatesTrace::log_update();
-        self.send_update(UpdateMask::none())
+        self.send_update(vec![])
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
@@ -2202,8 +2201,8 @@ impl AppEventSender {
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
-    pub fn waker(&self, update_slot: UpdateSlot) -> Waker {
-        Arc::new(AppWaker(self.0.clone(), update_slot)).into()
+    pub fn waker(&self, targets: Vec<WidgetId>) -> Waker {
+        Arc::new(AppWaker(self.0.clone(), targets)).into()
     }
 
     /// Create an unbound channel that causes an extension update for each message received.
@@ -2239,10 +2238,10 @@ impl AppEventSender {
     }
 }
 
-struct AppWaker(flume::Sender<AppEvent>, UpdateSlot);
+struct AppWaker(flume::Sender<AppEvent>, Vec<WidgetId>);
 impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
-        let _ = self.0.send(AppEvent::Update(self.1.mask()));
+        let _ = self.0.send(AppEvent::Update(self.1));
     }
 }
 

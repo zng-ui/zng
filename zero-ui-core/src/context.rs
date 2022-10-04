@@ -417,7 +417,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder, WidgetSubscriptions};
+use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -502,13 +502,6 @@ impl TestWidgetContext {
         (t, r)
     }
 
-    /// Aggregate subscriptions.
-    pub fn subscriptions<R>(&mut self, action: impl FnOnce(&mut InfoContext, &mut WidgetSubscriptions) -> R) -> (WidgetSubscriptions, R) {
-        let mut subs = WidgetSubscriptions::new();
-        let r = self.info_context(|ctx| action(ctx, &mut subs));
-        (subs, r)
-    }
-
     /// Calls `action` in a fake layout context.
     #[allow(clippy::too_many_arguments)]
     pub fn layout_context<R>(
@@ -562,7 +555,12 @@ impl TestWidgetContext {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
                 crate::app::AppEvent::Event(ev) => self.events.notify(ev.get()),
                 crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
-                crate::app::AppEvent::Update(mask) => self.updates.update_internal(mask),
+                crate::app::AppEvent::Update(targets) => {
+                    self.updates.update_ext_internal();
+                    for t in targets {
+                        self.updates.update_internal(t);
+                    }
+                },
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
@@ -590,11 +588,6 @@ impl TestWidgetContext {
         self.vars.update_animations(&mut self.loop_timer);
 
         self.loop_timer.poll()
-    }
-
-    /// Force set the current update mask.
-    pub fn set_current_update(&mut self, current: crate::widget_info::UpdateMask) {
-        self.updates.current = current;
     }
 }
 

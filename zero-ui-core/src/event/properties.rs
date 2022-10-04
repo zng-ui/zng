@@ -3,7 +3,7 @@ use crate::{
     context::{InfoContext, WidgetUpdates},
     handler::WidgetHandler,
     impl_ui_node,
-    widget_info::{WidgetInfoBuilder, WidgetSubscriptions},
+    widget_info::{WidgetInfoBuilder},
     UiNode,
 };
 
