@@ -7,7 +7,7 @@ use crate::{
         state_map, InfoContext, InfoLayoutRenderUpdates, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMapMut,
         StateMapRef, WidgetContext, WidgetUpdates,
     },
-    event::EventUpdate,
+    event::{EventHandles, EventUpdate},
     impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
@@ -304,6 +304,9 @@ pub mod implicit_base {
                 info: WidgetContextInfo,
                 subscriptions: RefCell<WidgetSubscriptions>,
 
+                var_handles: VarHandles,
+                event_handles: crate::event::EventHandles,
+
                 #[cfg(debug_assertions)]
                 inited: bool,
                 pending_updates: RefCell<InfoLayoutRenderUpdates>,
@@ -318,7 +321,14 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
                     }
 
-                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.init(ctx));
+                    ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| self.child.init(ctx),
+                    );
                     *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::all();
 
                     #[cfg(debug_assertions)]
@@ -333,8 +343,17 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
                     }
 
-                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.deinit(ctx));
+                    ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| self.child.deinit(ctx),
+                    );
                     *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::none();
+                    self.var_handles.clear();
+                    self.var_handles.clear();
 
                     #[cfg(debug_assertions)]
                     {
@@ -385,11 +404,18 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event_name(), self.id);
                     }
 
-                    let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
-                        update.with_widget(ctx, |ctx, update| {
-                            self.child.event(ctx, update);
-                        });
-                    });
+                    let (_, updates) = ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| {
+                            update.with_widget(ctx, |ctx, update| {
+                                self.child.event(ctx, update);
+                            });
+                        },
+                    );
                     *self.pending_updates.get_mut() |= updates;
                 }
 
@@ -401,11 +427,18 @@ pub mod implicit_base {
 
                     if self.subscriptions.borrow().update_intersects(ctx.updates) {}
 
-                    let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
-                        updates.with_widget(ctx, |ctx, updates| {
-                            self.child.update(ctx, updates);
-                        });
-                    });
+                    let (_, updates) = ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| {
+                            updates.with_widget(ctx, |ctx, updates| {
+                                self.child.update(ctx, updates);
+                            });
+                        },
+                    );
                     *self.pending_updates.get_mut() |= updates;
                 }
 
@@ -533,6 +566,8 @@ pub mod implicit_base {
                 child: child.cfg_boxed(),
                 info: WidgetContextInfo::default(),
                 subscriptions: RefCell::default(),
+                var_handles: VarHandles::default(),
+                event_handles: EventHandles::default(),
                 #[cfg(debug_assertions)]
                 inited: false,
                 pending_updates: RefCell::default(),

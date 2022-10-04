@@ -123,32 +123,23 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         a => (None, a),
     };
 
-    let (auto_init, auto_deinit) = if new_node.is_some() {
-        (quote!(self.init_handles(ctx);), quote!(self.deinit_handles(ctx);))
+    let auto_init = if new_node.is_some() {
+        quote!(self.init_handles(ctx);)
     } else {
-        (quote!(), quote!())
+        quote!()
     };
 
     // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
             validate_manual_delegate = false;
-            no_delegate_absents(crate_.clone(), node_item_names, auto_init, auto_deinit)
+            no_delegate_absents(crate_.clone(), node_item_names, auto_init)
         }
-        Args::Delegate { delegate, delegate_mut } => {
-            delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut, auto_init, auto_deinit)
-        }
+        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut, auto_init),
         Args::DelegateList {
             delegate_list,
             delegate_list_mut,
-        } => delegate_list_absents(
-            crate_.clone(),
-            node_item_names,
-            delegate_list,
-            delegate_list_mut,
-            auto_init,
-            auto_deinit,
-        ),
+        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut, auto_init),
         Args::DelegateIter {
             delegate_iter,
             delegate_iter_mut,
@@ -246,7 +237,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
         if !new_node.handle_init.is_empty() {
             let init = new_node.handle_init;
-            let deinit = new_node.handle_deinit;
 
             decl.extend(quote! {
                 impl #impl_generics #self_ty #where_clause {
@@ -254,11 +244,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                     fn init_handles(&mut self, ctx: &mut #crate_::context::WidgetContext) {
                         let widget_id = ctx.path.widget_id();
                         #init
-                    }
-
-                    /// Deinit auto-generated event and var subscriptions.
-                    fn deinit_handles(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-                        #deinit
                     }
                 }
             });
@@ -325,7 +310,7 @@ macro_rules! make_absents {
     }};
 }
 
-fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init: TokenStream, auto_deinit: TokenStream) -> Vec<ImplItem> {
+fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init: TokenStream) -> Vec<ImplItem> {
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
 
@@ -333,7 +318,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { #auto_init }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { #auto_deinit }]
+        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) { }]
 
@@ -358,7 +343,6 @@ fn delegate_absents(
     borrow: Expr,
     borrow_mut: Expr,
     auto_init: TokenStream,
-    auto_deinit: TokenStream,
 ) -> Vec<ImplItem> {
     let child = ident_spanned!(borrow.span()=> "child");
     let child_mut = ident_spanned!(borrow_mut.span()=> "child");
@@ -388,7 +372,6 @@ fn delegate_absents(
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            #auto_deinit
             let mut #child_mut = {#borrow_mut};
             #crate_::UiNode::deinit(#deref_mut, ctx);
         }]
@@ -431,7 +414,6 @@ fn delegate_list_absents(
     borrow: Expr,
     borrow_mut: Expr,
     auto_init: TokenStream,
-    auto_deinit: TokenStream,
 ) -> Vec<ImplItem> {
     let children = ident_spanned!(borrow.span()=> "children");
     let children_mut = ident_spanned!(borrow_mut.span()=> "children");
@@ -459,7 +441,6 @@ fn delegate_list_absents(
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            #auto_deinit
             let #children_mut = {#borrow_mut};
             #crate_::UiNodeList::deinit_all(#deref_mut, ctx)
         }]
@@ -827,15 +808,11 @@ impl Parse for ArgsNewNodeType {
 }
 
 fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
-    let crate_ = util::crate_core();
-
     let mut delegate = ident!("none");
     let mut impl_generics = TokenStream::new();
     let mut node_generics = TokenStream::new();
     let mut node_fields = TokenStream::new();
     let mut handle_init = TokenStream::new();
-    let mut has_var = false;
-    let mut has_event = false;
 
     for ArgsNewNodeField {
         attrs, kind, ident, ty, ..
@@ -882,57 +859,27 @@ fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
 
         match kind {
             ArgsNewNodeFieldKind::Var => {
-                has_var = true;
                 handle_init.extend(quote! {
                     #cfg
-                    self.handles.0.push(self.#ident.subscribe(widget_id));
+                    ctx.handles.push_var(self.#ident.subscribe(widget_id));
                 });
             }
             ArgsNewNodeFieldKind::Event => {
-                has_event = true;
                 handle_init.extend(quote! {
                     #cfg
-                    self.handles.1.push(self.#ident.subscribe(widget_id));
+                    ctx.handles.push_event(self.#ident.subscribe(widget_id));
                 });
             }
             ArgsNewNodeFieldKind::Custom => {}
         }
     }
 
-    let mut handle_members = TokenStream::new();
-    if has_var && has_event {
-        handle_members.extend(quote! {
-            handles: (#crate_::var::VarHandles, #crate_::event::EventHandles),
-        });
-    }else if has_var {
-        handle_members.extend(quote! {
-            handles: (#crate_::var::VarHandles, ()),
-        });
-    } else if has_event {
-        handle_members.extend(quote! {
-            handles: ((), #crate_::event::EventHandles),
-        });
-    }
-
     let ident = args.ident;
     let decl = quote! {
         struct #ident<#node_generics> {
             #node_fields
-            #handle_members
         }
     };
-
-    let mut handle_deinit = TokenStream::new();
-    if has_var {
-        handle_deinit.extend(quote! {
-            self.handles.0.clear();
-        });
-    }
-    if has_event {
-        handle_deinit.extend(quote! {
-            self.handles.1.clear();
-        });
-    }
 
     ExpandedNewNode {
         delegate,
@@ -941,7 +888,6 @@ fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
         impl_generics,
         node_generics,
         handle_init,
-        handle_deinit,
     }
 }
 
@@ -952,5 +898,4 @@ struct ExpandedNewNode {
     impl_generics: TokenStream,
     node_generics: TokenStream,
     handle_init: TokenStream,
-    handle_deinit: TokenStream,
 }

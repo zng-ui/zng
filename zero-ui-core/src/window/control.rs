@@ -12,7 +12,7 @@ use crate::{
     },
     color::{ColorScheme, RenderColor},
     context::{state_map, InfoLayoutRenderUpdates, LayoutContext, OwnedStateMap, WidgetUpdates, WindowContext, WindowRenderUpdate},
-    event::{EventArgs, EventUpdate},
+    event::{EventArgs, EventHandles, EventUpdate},
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::Fonts,
@@ -1348,6 +1348,8 @@ struct ContentCtrl {
     info_tree: WidgetInfoTree,
     root_info: WidgetContextInfo,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
+    root_var_handles: VarHandles,
+    root_event_handles: EventHandles,
     layout_pass: LayoutPassId,
 
     used_frame_builder: Option<UsedFrameBuilder>,
@@ -1377,6 +1379,8 @@ impl ContentCtrl {
             info_tree: WidgetInfoTree::blank(window_id, window.id),
             root_info: WidgetContextInfo::new(),
             used_info_builder: None,
+            root_var_handles: VarHandles::default(),
+            root_event_handles: EventHandles::default(),
             layout_pass: 0,
 
             used_frame_builder: None,
@@ -1398,22 +1402,36 @@ impl ContentCtrl {
     pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if !self.inited {
             self.commands.init(&self.vars);
-            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                self.root.init(ctx);
+            ctx.widget_context(
+                &self.info_tree,
+                &self.root_info,
+                &mut self.root_state,
+                &mut self.root_var_handles,
+                &mut self.root_event_handles,
+                |ctx| {
+                    self.root.init(ctx);
 
-                ctx.updates.info();
-                ctx.updates.subscriptions();
-            });
+                    ctx.updates.info();
+                    ctx.updates.subscriptions();
+                },
+            );
             self.inited = true;
         } else {
             self.commands.update(ctx.vars, &self.vars);
 
             updates.with_window(ctx, |ctx, updates| {
-                ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                    updates.with_widget(ctx, |ctx, updates| {
-                        self.root.update(ctx, updates);
-                    });
-                });
+                ctx.widget_context(
+                    &self.info_tree,
+                    &self.root_info,
+                    &mut self.root_state,
+                    &mut self.root_var_handles,
+                    &mut self.root_event_handles,
+                    |ctx| {
+                        updates.with_widget(ctx, |ctx, updates| {
+                            self.root.update(ctx, updates);
+                        });
+                    },
+                );
             });
         }
     }
@@ -1483,20 +1501,36 @@ impl ContentCtrl {
         debug_assert!(self.inited);
 
         update.with_window(ctx, |ctx, update| {
-            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                update.with_widget(ctx, |ctx, update| {
-                    self.root.event(ctx, update);
-                });
-            });
+            ctx.widget_context(
+                &self.info_tree,
+                &self.root_info,
+                &mut self.root_state,
+                &mut self.root_var_handles,
+                &mut self.root_event_handles,
+                |ctx| {
+                    update.with_widget(ctx, |ctx, update| {
+                        self.root.event(ctx, update);
+                    });
+                },
+            );
         });
     }
 
     pub fn close(&mut self, ctx: &mut WindowContext) {
-        ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-            self.root.deinit(ctx);
-        });
+        ctx.widget_context(
+            &self.info_tree,
+            &self.root_info,
+            &mut self.root_state,
+            &mut self.root_var_handles,
+            &mut self.root_event_handles,
+            |ctx| {
+                self.root.deinit(ctx);
+            },
+        );
 
         self.vars.0.is_open.set(ctx, false).unwrap();
+        self.root_var_handles.clear();
+        self.root_event_handles.clear();
     }
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.

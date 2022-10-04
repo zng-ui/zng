@@ -1,5 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
+use crate::event::{EventHandles, EventWidgetHandle};
+use crate::var::{VarHandle, VarHandles};
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId, WidgetPath};
 use std::cell::Cell;
 use std::rc::Rc;
@@ -216,6 +218,8 @@ impl<'a> WindowContext<'a> {
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
         root_widget_state: &mut OwnedStateMap<state_map::Widget>,
+        var_handles: &mut VarHandles,
+        event_handles: &mut EventHandles,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         let widget_id = info_tree.root().widget_id();
@@ -229,6 +233,11 @@ impl<'a> WindowContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: root_widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
+
+            handles: WidgetHandles {
+                var_handles,
+                event_handles,
+            },
 
             vars: self.vars,
             events: self.events,
@@ -364,6 +373,9 @@ pub struct TestWidgetContext {
     /// [`clear`]: OwnedStateMap::clear
     pub update_state: OwnedStateMap<state_map::Update>,
 
+    pub var_handles: VarHandles,
+    pub event_handles: EventHandles,
+
     /// The [`services`] repository. Empty by default.
     ///
     /// [`services`]: WidgetContext::services
@@ -425,6 +437,8 @@ impl TestWidgetContext {
             window_state: OwnedStateMap::new(),
             widget_state: OwnedStateMap::new(),
             update_state: OwnedStateMap::new(),
+            var_handles: Default::default(),
+            event_handles: Default::default(),
             services: Services::default(),
             events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
@@ -447,6 +461,10 @@ impl TestWidgetContext {
             window_state: self.window_state.borrow_mut(),
             widget_state: self.widget_state.borrow_mut(),
             update_state: self.update_state.borrow_mut(),
+            handles: WidgetHandles {
+                var_handles: &mut self.var_handles,
+                event_handles: &mut self.event_handles,
+            },
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
@@ -578,6 +596,20 @@ impl TestWidgetContext {
     }
 }
 
+pub struct WidgetHandles<'a> {
+    var_handles: &'a mut VarHandles,
+    event_handles: &'a mut EventHandles,
+}
+impl<'a> WidgetHandles<'a> {
+    fn push_var(&mut self, other: VarHandle) {
+        self.var_handles.push(other);
+    }
+
+    fn push_event(&mut self, other: EventWidgetHandle) {
+        self.event_handles.push(other);
+    }
+}
+
 /// A widget context.
 pub struct WidgetContext<'a> {
     /// Current widget path.
@@ -607,6 +639,9 @@ pub struct WidgetContext<'a> {
     /// [`UiNode`]: crate::UiNode
     pub update_state: StateMapMut<'a, state_map::Update>,
 
+    /// !!: TODO doc
+    pub handles: WidgetHandles<'a>,
+
     /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
@@ -628,6 +663,8 @@ impl<'a> WidgetContext<'a> {
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap<state_map::Widget>,
+        var_handles: &mut VarHandles,
+        event_handles: &mut EventHandles,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> (R, InfoLayoutRenderUpdates) {
         self.path.push(widget_id);
@@ -643,6 +680,11 @@ impl<'a> WidgetContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
+
+            handles: WidgetHandles {
+                var_handles,
+                event_handles,
+            },
 
             vars: self.vars,
             events: self.events,
