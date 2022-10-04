@@ -9,7 +9,7 @@ use crate::{
     event::{Event, EventArgs, EventUpdate},
     render::{FrameBuilder, FrameUpdate},
     units::PxSize,
-    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetInfoBuilder, WidgetLayout},
     UiNode,
 };
 
@@ -47,7 +47,6 @@ impl<U: UiNode> RcNode<U> {
     /// signaled by `take_signal`.
     pub fn slot<S: RcNodeTakeSignal>(&self, take_signal: S) -> impl UiNode {
         SlotNode {
-            update_slot: self.0.update_slot,
             slot_id: self.0.next_id(),
             take_signal,
             event_signal: false,
@@ -95,13 +94,9 @@ pub trait RcNodeTakeSignal: 'static {
     /// If slot node must take the node when it is created.
     const TAKE_ON_INIT: bool = false;
 
-    /// Signal subscriptions, [`event_take`] and  [`update_take`] are only called if
-    /// their update and event sources are registered here.
-    ///
-    /// [`update_take`]: Self::update_take
-    /// [`event_take`]: Self::event_take
-    fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _ = (ctx, subs);
+    /// Init the signal, widget handles may be added here.
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        let _ = ctx;
     }
 
     /// Returns `true` when the slot must take the node as its child.
@@ -120,8 +115,8 @@ impl<V> RcNodeTakeSignal for V
 where
     V: crate::var::Var<bool>,
 {
-    fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.var(ctx, self);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        ctx.handles.push_var(self.subscribe(ctx.path.widget_id()));
     }
 
     /// Takes the widget when the var value is `true`.
@@ -141,6 +136,10 @@ where
         A: EventArgs,
         F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
     {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.handles.push_event(self.0.subscribe(ctx.path.widget_id()));
+        }
+
         fn event_take(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) -> bool {
             self.0.on(update).map(|a| (self.1)(ctx, a)).unwrap_or_default()
         }
@@ -163,7 +162,6 @@ struct RcNodeData<U: UiNode> {
     inited: Cell<bool>,
     node: RefCell<U>,
     new_node: RefCell<Option<U>>,
-    update_slot: UpdateSlot,
 }
 impl<U: UiNode> RcNodeData<U> {
     pub fn new(node: U) -> Self {
@@ -174,7 +172,6 @@ impl<U: UiNode> RcNodeData<U> {
             inited: Cell::new(false),
             node: RefCell::new(node),
             new_node: RefCell::new(None),
-            update_slot: UpdateSlot::next(),
         }
     }
 
@@ -217,7 +214,6 @@ struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
     slot_id: u32,
     take_signal: S,
     event_signal: bool,
-    update_slot: UpdateSlot,
     state: SlotNodeState<U>,
 }
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
@@ -227,16 +223,9 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.update(self.update_slot);
-        self.take_signal.subscribe(ctx, subs);
-
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().subscriptions(ctx, subs);
-        }
-    }
-
     fn init(&mut self, ctx: &mut WidgetContext) {
+        self.take_signal.init(ctx);
+
         match &self.state {
             SlotNodeState::TakeOnInit(rc) => {
                 if rc.inited.get() {

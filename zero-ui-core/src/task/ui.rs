@@ -7,11 +7,7 @@ use std::{
     task::{Poll, Waker},
 };
 
-use crate::{
-    app::AppEventSender,
-    context::*,
-    widget_info::{UpdateSlot, WidgetSubscriptions},
-};
+use crate::{app::AppEventSender, context::*, WidgetId};
 
 impl<'a> AppContext<'a> {
     /// Create an app thread bound future executor that executes in the app context.
@@ -48,7 +44,6 @@ enum UiTaskState<R> {
     Pending {
         future: Pin<Box<dyn Future<Output = R>>>,
         event_loop_waker: Waker,
-        update_slot: UpdateSlot,
     },
     Ready(R),
 }
@@ -76,26 +71,17 @@ impl<R> UiTask<R> {
     /// Create a app thread bound future executor.
     ///
     /// The `task` is inert and must be polled using [`update`] to start, and it must be polled every
-    /// [`UiNode::update`] after that, in widgets [`subscribe`] must be called every [`UiNode::info`] as well.
+    /// [`UiNode::update`] after that, in widgets the `target` can be set so that the update requests are received.
     ///
     /// [`update`]: UiTask::update
     /// [`UiNode::update`]: crate::UiNode::update
     /// [`UiNode::info`]: crate::UiNode::info
     /// [`subscribe`]: Self::subscribe
-    pub fn new<F: Future<Output = R> + 'static>(updates: &AppEventSender, task: F) -> Self {
-        let update_slot = UpdateSlot::next();
+    pub fn new<F: Future<Output = R> + 'static>(updates: &AppEventSender, target: Option<WidgetId>, task: F) -> Self {
         UiTask(UiTaskState::Pending {
             future: Box::pin(task),
-            event_loop_waker: updates.waker(update_slot),
-            update_slot,
+            event_loop_waker: updates.waker(target.into_iter().collect()),
         })
-    }
-
-    /// Register the waker update slot in the widget update mask if the task is pending.
-    pub fn subscribe(&self, subs: &mut WidgetSubscriptions) {
-        if let UiTaskState::Pending { update_slot, .. } = &self.0 {
-            subs.update(*update_slot);
-        }
     }
 
     /// Polls the future if needed, returns a reference to the result if the task is done.
@@ -142,8 +128,7 @@ impl<R> UiTask<R> {
 /// Represents a [`Future`] running in the UI thread in a widget context.
 ///
 /// The future [`Waker`], wakes the app event loop and causes an update, the widget that is running this task
-/// calls [`update`] and if this task waked the app the future is polled once, the widget also must call [`subscribe`]
-/// in the [`UiNode::info`] to register the future waker.
+/// calls [`update`] and if this task waked the app the future is polled once.
 ///
 /// [`Waker`]: std::task::Waker
 /// [`update`]: Self::update
@@ -170,14 +155,9 @@ impl<R> WidgetTask<R> {
         let task = scope.with(ctx, move || task(mut_));
 
         WidgetTask {
-            task: UiTask::new(&ctx.updates.sender(), task),
+            task: UiTask::new(&ctx.updates.sender(), Some(ctx.path.widget_id()), task),
             scope,
         }
-    }
-
-    /// Register the waker update slot in the widget update mask if the task is pending.
-    pub fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
-        self.task.subscribe(widget_subs);
     }
 
     /// Polls the future if needed, returns a reference to the result if the task is done.
@@ -237,7 +217,7 @@ impl<R> AppTask<R> {
         let task = scope.with(ctx, move || task(mut_));
 
         AppTask {
-            task: UiTask::new(&ctx.updates.sender(), task),
+            task: UiTask::new(&ctx.updates.sender(), None, task),
             scope,
         }
     }

@@ -14,12 +14,10 @@ use crate::{
     border::ContextBorders,
     context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMapRef},
     crate_util::IdMap,
-    handler::WidgetHandler,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
     ui_list::ZIndex,
     units::*,
-    var::Var,
     window::WindowId,
     UiNode, Widget, WidgetId,
 };

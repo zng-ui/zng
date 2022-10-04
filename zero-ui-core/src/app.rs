@@ -8,7 +8,6 @@ pub mod view_process;
 pub use intrinsic::*;
 
 use crate::config::ConfigManager;
-use crate::{context::*, WidgetId};
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, Events};
 use crate::image::ImageManager;
@@ -17,6 +16,7 @@ use crate::timer::Timers;
 use crate::units::Deadline;
 use crate::var::Vars;
 use crate::window::WindowMode;
+use crate::{context::*, WidgetId};
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,
@@ -1269,7 +1269,7 @@ impl<E: AppExtension> RunningApp<E> {
             },
             AppEvent::Event(ev) => self.ctx().events.notify(ev.get()),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
-            AppEvent::Update(mask) => self.ctx().updates.update_internal(mask),
+            AppEvent::Update(targets) => self.ctx().updates.recv_update_internal(targets),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
     }
@@ -2241,7 +2241,10 @@ impl AppEventSender {
 struct AppWaker(flume::Sender<AppEvent>, Vec<WidgetId>);
 impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
-        let _ = self.0.send(AppEvent::Update(self.1));
+        let _ = match std::sync::Arc::try_unwrap(self) {
+            Ok(w) => w.0.send(AppEvent::Update(w.1)),
+            Err(arc) => arc.0.send(AppEvent::Update(arc.1.clone())),
+        };
     }
 }
 

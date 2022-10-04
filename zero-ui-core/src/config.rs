@@ -275,7 +275,7 @@ impl Config {
         R: FnOnce(&Vars, Option<T>) + 'static,
     {
         if let Some((source, _)) = &mut self.source {
-            let mut task = Some(UiTask::new(&self.update, source.read(key)));
+            let mut task = Some(UiTask::new(&self.update, None, source.read(key)));
             let mut respond = Some(respond);
             self.tasks.push(Box::new(move |vars, status| {
                 let finished = task.as_mut().unwrap().update().is_some();
@@ -358,7 +358,7 @@ impl Config {
         if let Some((source, _)) = &mut self.source {
             match serde_json::value::to_value(value) {
                 Ok(json) => {
-                    let task = UiTask::new(&self.update, source.write(key, json));
+                    let task = UiTask::new(&self.update, None, source.write(key, json));
                     self.track_write_task(task);
                 }
                 Err(e) => {
@@ -382,7 +382,7 @@ impl Config {
     }
     fn remove_impl(&mut self, key: ConfigKey) {
         if let Some((source, _)) = &mut self.source {
-            let task = UiTask::new(&self.update, source.remove(key));
+            let task = UiTask::new(&self.update, None, source.remove(key));
             self.track_write_task(task);
         }
     }

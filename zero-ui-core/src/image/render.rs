@@ -5,7 +5,6 @@ use crate::{
     service::ServiceTuple,
     units::*,
     var::{types::WeakRcVar, *},
-    widget_info::UpdateMask,
     window::*,
     UiNode, WidgetId,
 };
@@ -50,7 +49,7 @@ impl Images {
             render: Box::new(render),
             image: result.downgrade(),
         });
-        let _ = self.updates.send_update(UpdateMask::none());
+        let _ = self.updates.send_ext_update();
     }
 
     /// Render an [`UiNode`] to an image.
@@ -92,8 +91,6 @@ impl ImageManager {
             if let Some(img) = r.image.upgrade() {
                 if img.with(Image::is_loading) {
                     retain = true;
-                } else if let Ok(s) = windows.subscriptions(r.window_id) {
-                    retain = !s.is_none();
                 }
             }
 

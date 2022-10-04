@@ -15,7 +15,7 @@ use crate::render::RenderMode;
 use crate::service::Service;
 use crate::timer::{DeadlineHandle, Timers};
 use crate::var::*;
-use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};
+use crate::widget_info::WidgetInfoTree;
 use crate::{
     app::{
         raw_events::{RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT},
@@ -287,17 +287,6 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))
     }
 
-    /// Reference the current window's subscriptions.
-    ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
-    pub fn subscriptions(&self, window_id: impl Into<WindowId>) -> Result<&WidgetSubscriptions, WindowNotFound> {
-        let window_id = window_id.into();
-        self.windows_info
-            .get(&window_id)
-            .map(|w| &w.subscriptions)
-            .ok_or(WindowNotFound(window_id))
-    }
-
     /// Generate an image from the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
@@ -456,13 +445,6 @@ impl Windows {
 
             let args = WidgetInfoChangedArgs::now(info_tree.window_id(), prev_tree, info_tree, pending_layout, pending_render);
             WIDGET_INFO_CHANGED_EVENT.notify(events, args);
-        }
-    }
-
-    /// Update window info subscriptions copy.
-    pub(super) fn set_subscriptions(&mut self, window_id: WindowId, subscriptions: WidgetSubscriptions) {
-        if let Some(info) = self.windows_info.get_mut(&window_id) {
-            info.subscriptions = subscriptions;
         }
     }
 
@@ -756,7 +738,6 @@ struct AppWindowInfo {
     vars: WindowVars,
 
     widget_tree: WidgetInfoTree,
-    subscriptions: WidgetSubscriptions,
     // focus tracked by the raw focus events.
     is_focused: bool,
 
@@ -771,7 +752,6 @@ impl AppWindowInfo {
             renderer: None,
             vars,
             widget_tree: WidgetInfoTree::blank(id, root_id),
-            subscriptions: WidgetSubscriptions::new(),
             is_focused: false,
             loading_handle,
             is_loaded: false,

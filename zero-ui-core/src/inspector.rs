@@ -22,7 +22,7 @@ use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, 
 use crate::event::EventUpdate;
 use crate::render::FrameUpdate;
 use crate::text::Text;
-use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions};
+use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout};
 use crate::{units::*, var::*, *};
 
 /// Represents an inspected property var value.
@@ -634,11 +634,6 @@ impl UiNode for InspectPropertyNode {
         });
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = UpdatesTrace::property_span(self.meta.property_name, "subscriptions");
-        self.child.subscriptions(ctx, subs);
-    }
-
     fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
         let _span = UpdatesTrace::property_span(self.meta.property_name, "event");
         self.child.event(ctx, update);
@@ -711,11 +706,6 @@ impl UiNode for InspectWidgetNode {
         self.child.info(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "subscriptions");
-        self.child.subscriptions(ctx, subs);
-    }
-
     fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "event");
         self.child.event(ctx, update);
@@ -786,11 +776,6 @@ impl UiNode for InspectConstructorNode {
         WIDGET_PARENT_VAR.with_context(WidgetInstanceParent::Constructor(self.fn_name), || {
             self.child.info(ctx, info);
         });
-    }
-
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = UpdatesTrace::constructor_span(self.fn_name, "subscriptions");
-        self.child.subscriptions(ctx, subs);
     }
 
     fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {

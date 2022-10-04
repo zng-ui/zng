@@ -22,29 +22,21 @@ pub fn event_state<A: EventArgs>(
     event: Event<A>,
     on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    struct EventStateNode<C, A: EventArgs, S> {
-        child: C,
+    #[impl_ui_node(struct EventStateNode<A: EventArgs> {
+        child: impl UiNode,
         event: Event<A>,
         default: bool,
         state: StateVar,
-        on_event: S,
-        handle: Option<EventWidgetHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<C, A, S> UiNode for EventStateNode<C, A, S>
-    where
-        C: UiNode,
-        A: EventArgs,
-        S: FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
-    {
+        on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
+    })]
+    impl UiNode for EventStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.init_handles(ctx);
             self.state.set_ne(ctx, self.default).unwrap();
-            self.handle = Some(self.event.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default).unwrap();
-            self.handle = None;
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -62,7 +54,6 @@ pub fn event_state<A: EventArgs>(
         default,
         state,
         on_event,
-        handle: None,
     }
     .cfg_boxed()
 }

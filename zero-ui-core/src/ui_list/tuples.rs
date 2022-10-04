@@ -10,7 +10,7 @@ use crate::{
         WidgetFilterArgs, WidgetList, WidgetVec,
     },
     units::PxSize,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation},
     widget_vec, UiNode, Widget, WidgetId,
 };
 
@@ -257,12 +257,6 @@ macro_rules! impl_tuples {
                 )+
             }
 
-            fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                $(
-                    self.items.$n.subscriptions(ctx, subs);
-                )+
-            }
-
             fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 $(
                     self.items.$n.render(ctx, frame);
@@ -478,8 +472,6 @@ macro_rules! empty_node_list {
 
             fn info_all(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             }
-
-            fn subscriptions_all(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
 
             fn render_all(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
             }

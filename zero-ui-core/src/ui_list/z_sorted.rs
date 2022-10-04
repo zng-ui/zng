@@ -110,10 +110,6 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.info_all(ctx, info)
     }
 
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.list.subscriptions_all(ctx, subs)
-    }
-
     fn init_all(&mut self, ctx: &mut WidgetContext) {
         let mut sort = false;
         self.list.init_all_z(ctx, &mut sort);
@@ -333,19 +329,12 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
 /// see [`ZSortedWidgetList`] for more details.
 #[property(context, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
-    struct ZIndexNode<C, I> {
-        child: C,
-        index: I,
+    #[impl_ui_node(struct ZIndexNode {
+        child: impl UiNode,
+        var_index: impl Var<ZIndex>,
         valid: bool,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, I: Var<ZIndex>> UiNode for ZIndexNode<C, I> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.index);
-
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for ZIndexNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             Z_INDEX_VAR.with(|z_ctx| {
                 if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
@@ -356,11 +345,12 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                     self.valid = false;
                 } else {
                     self.valid = true;
+                    self.init_handles(ctx);
 
-                    let index = self.index.get();
+                    let index = self.var_index.get();
                     if index != ZIndex::DEFAULT {
                         z_ctx.resort.set(true);
-                        ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
+                        ctx.widget_state.set(&Z_INDEX_ID, self.var_index.get());
                     }
                 }
             });
@@ -369,7 +359,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
-                if let Some(i) = self.index.get_new(ctx) {
+                if let Some(i) = self.var_index.get_new(ctx) {
                     Z_INDEX_VAR.with(|z_ctx| {
                         debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
                         z_ctx.resort.set(true);
@@ -383,7 +373,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     }
     ZIndexNode {
         child,
-        index: index.into_var(),
+        var_index: index.into_var(),
         valid: false,
     }
 }

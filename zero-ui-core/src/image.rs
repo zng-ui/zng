@@ -762,7 +762,7 @@ impl Images {
     ) -> ImageVar {
         let img = self.new_cache_image(key, mode, max_decoded_size);
 
-        let task = UiTask::new(&self.updates, fetch_bytes);
+        let task = UiTask::new(&self.updates, None, fetch_bytes);
         self.loading.push((task, img.clone(), max_decoded_size));
 
         img.read_only()

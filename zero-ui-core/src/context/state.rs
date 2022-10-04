@@ -701,7 +701,7 @@ where
             }
             self.child.update(ctx, updates);
         }
-    }    
+    }
     SetWidgetStateNode {
         child: child.cfg_boxed(),
         id: id.into(),

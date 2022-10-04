@@ -3,7 +3,7 @@ use crate::{
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetInfoBuilder, WidgetLayout},
     UiNode,
 };
 
@@ -39,11 +39,6 @@ where
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let _span = (self.enter_mtd)(ctx, "info");
         self.node.info(ctx, info);
-    }
-
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = (self.enter_mtd)(ctx, "subscriptions");
-        self.node.subscriptions(ctx, subs);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {

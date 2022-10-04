@@ -732,15 +732,15 @@ impl Parse for ArgsNewNode {
     fn parse(input: ParseStream) -> Result<Self> {
         let _: Token![struct] = input.parse()?;
         let ident: Ident = input.parse()?;
-        let explicit_generics = if input.peek(Token![<]) {
-            Some(input.parse()?)
-        } else {
-            None
-        };
+        let explicit_generics = if input.peek(Token![<]) { Some(input.parse()?) } else { None };
         let inner;
         braced!(inner in input);
         let fields = Punctuated::parse_terminated(&inner)?;
-        Ok(ArgsNewNode { ident, explicit_generics, fields })
+        Ok(ArgsNewNode {
+            ident,
+            explicit_generics,
+            fields,
+        })
     }
 }
 
@@ -748,7 +748,7 @@ struct ArgsNewNodeField {
     attrs: Vec<Attribute>,
     kind: ArgsNewNodeFieldKind,
     ident: Ident,
-    ty: ArgsNewNodeType,
+    ty: Type,
 }
 impl Parse for ArgsNewNodeField {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -769,10 +769,7 @@ enum ArgsNewNodeFieldKind {
 impl ArgsNewNodeFieldKind {
     fn from_ident(ident: &Ident) -> Self {
         let s = ident.to_string();
-        if ["event_", "ev_", "e_"]
-            .into_iter()
-            .any(|p| s.starts_with(p))
-        {
+        if ["event_", "ev_", "e_"].into_iter().any(|p| s.starts_with(p)) {
             ArgsNewNodeFieldKind::Event
         } else if ["var_", "v_"].into_iter().any(|p| s.starts_with(p)) {
             ArgsNewNodeFieldKind::Var
@@ -782,20 +779,6 @@ impl ArgsNewNodeFieldKind {
             ArgsNewNodeFieldKind::Var
         } else {
             ArgsNewNodeFieldKind::Custom
-        }
-    }
-}
-
-enum ArgsNewNodeType {
-    Generic(TypeImplTrait),
-    Path(TypePath),
-}
-impl Parse for ArgsNewNodeType {
-    fn parse(input: ParseStream) -> Result<Self> {
-        if input.peek(Token![impl]) {
-            input.parse().map(ArgsNewNodeType::Generic)
-        } else {
-            input.parse().map(ArgsNewNodeType::Path)
         }
     }
 }
@@ -812,7 +795,7 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
             if let GenericParam::Type(t) = p {
                 t.to_tokens(&mut impl_generics);
                 impl_generics.extend(quote!( , ));
-                
+
                 let cfg = util::Attributes::new(t.attrs).cfg;
                 let ident = t.ident;
                 node_generics.extend(quote! {
@@ -839,7 +822,7 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
         }
 
         match ty {
-            ArgsNewNodeType::Generic(t) => {
+            Type::ImplTrait(t) => {
                 let t_ident = ident!("T_{ident}");
                 node_fields.extend(quote! {
                     #cfg
@@ -858,7 +841,7 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
                     #t_ident,
                 });
             }
-            ArgsNewNodeType::Path(t) => {
+            t => {
                 node_fields.extend(quote! {
                     #cfg
                     #(#member_attrs)*

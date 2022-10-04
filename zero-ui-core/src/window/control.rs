@@ -18,9 +18,7 @@ use crate::{
     text::Fonts,
     units::*,
     var::*,
-    widget_info::{
-        LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions,
-    },
+    widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
@@ -1356,7 +1354,6 @@ struct ContentCtrl {
     used_frame_update: Option<UsedFrameUpdate>,
 
     inited: bool,
-    subs: WidgetSubscriptions,
     frame_id: FrameId,
     clear_color: RenderColor,
 
@@ -1387,7 +1384,6 @@ impl ContentCtrl {
             used_frame_update: None,
 
             inited: false,
-            subs: WidgetSubscriptions::new(),
             frame_id: FrameId::INVALID,
             clear_color: RenderColor::BLACK,
 
@@ -1412,7 +1408,6 @@ impl ContentCtrl {
                     self.root.init(ctx);
 
                     ctx.updates.info();
-                    ctx.updates.subscriptions();
                 },
             );
             self.inited = true;
@@ -1459,15 +1454,6 @@ impl ContentCtrl {
             self.used_info_builder = Some(used);
 
             Windows::req(ctx.services).set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
-        }
-
-        if updates.subscriptions {
-            self.subs = ctx.info_context(&self.info_tree, &self.root_info, &self.root_state, |ctx| {
-                let mut subscriptions = WidgetSubscriptions::new();
-                self.root.subscriptions(ctx, &mut subscriptions);
-                subscriptions
-            });
-            Windows::req(ctx).set_subscriptions(self.info_tree.window_id(), self.subs.clone());
         }
     }
 

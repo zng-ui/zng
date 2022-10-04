@@ -10,12 +10,12 @@ use crate::{nodes, UiNodeList, WidgetId};
 use crate::{
     color::*,
     context::LayoutMetrics,
-    context::{InfoContext, LayoutContext, WidgetContext},
+    context::{LayoutContext, WidgetContext},
     impl_ui_node, property,
     units::*,
     var::impl_from_and_into_var,
     var::*,
-    widget_info::{WidgetLayout, WidgetSubscriptions},
+    widget_info::WidgetLayout,
     UiNode,
 };
 
@@ -693,30 +693,26 @@ context_var! {
 /// [`corner_radius`]: fn@corner_radius
 /// [`border_align`]: fn@border_align
 pub fn fill_node(content: impl UiNode) -> impl UiNode {
-    struct FillNodeNode<C> {
-        content: C,
+    #[impl_ui_node(struct FillNodeNode {
+        child: impl UiNode,
 
         clip_bounds: PxSize,
         clip_corners: PxCornerRadius,
 
         offset: PxVector,
         offset_id: SpatialFrameId,
-    }
-    #[impl_ui_node(
-        delegate = &self.content,
-        delegate_mut = &mut self.content,
-    )]
-    impl<C: UiNode> UiNode for FillNodeNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &BORDER_ALIGN_VAR);
-            self.content.subscriptions(ctx, subs);
+    })]
+    impl UiNode for FillNodeNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&BORDER_ALIGN_VAR);
+            self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if BORDER_ALIGN_VAR.is_new(ctx) {
                 ctx.updates.layout();
             }
-            self.content.update(ctx, updates);
+            self.child.update(ctx, updates);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -752,9 +748,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 ctx.updates.render();
             }
 
-            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.content.layout(ctx, wl));
+            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
 
-            wl.try_with_outer(&mut self.content, true, |t, _| {
+            wl.try_with_outer(&mut self.child, true, |t, _| {
                 t.translate(self.offset);
             });
 
@@ -765,13 +761,13 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let mut render_clipped = |frame: &mut FrameBuilder| {
                 let bounds = PxRect::from_size(self.clip_bounds);
                 if self.clip_corners != PxCornerRadius::zero() {
-                    frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.content.render(ctx, f))
+                    frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.child.render(ctx, f))
                 } else {
-                    frame.push_clip_rect(bounds, false, false, |f| self.content.render(ctx, f))
+                    frame.push_clip_rect(bounds, false, false, |f| self.child.render(ctx, f))
                 }
             };
 
-            if self.content.try_id().is_some() {
+            if self.child.try_id().is_some() {
                 // content is a full widget, offset already applied to outer transform.
                 render_clipped(frame);
             } else {
@@ -784,7 +780,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
     }
 
     FillNodeNode {
-        content: content.cfg_boxed(),
+        child: content.cfg_boxed(),
         clip_bounds: PxSize::zero(),
         clip_corners: PxCornerRadius::zero(),
         offset: PxVector::zero(),

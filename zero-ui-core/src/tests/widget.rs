@@ -3,7 +3,7 @@
 //! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
 
 use self::util::Position;
-use crate::{context::TestWidgetContext, var::Var, widget, widget_mixin, UiNode, Widget, WidgetId};
+use crate::{context::TestWidgetContext, var::Var, widget, widget_mixin, Widget, WidgetId};
 
 // Used in multiple tests.
 #[widget($crate::tests::widget::empty_wgt)]
@@ -427,7 +427,6 @@ pub fn wgt_when() {
     let mut wgt = when_wgt!();
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "boo!"));
 
@@ -456,7 +455,6 @@ pub fn widget_user_when() {
     };
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "A"));
 
@@ -496,7 +494,6 @@ pub fn wgt_multi_when() {
     let mut wgt = multi_when_wgt!();
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "default"));
 
@@ -606,7 +603,6 @@ pub fn wgt_cfg_when() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "trace"));
 
@@ -648,7 +644,6 @@ pub fn user_cfg_when() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
 
     assert!(util::traced(&wgt, "trace"));
 
@@ -1276,7 +1271,6 @@ pub fn allowed_in_when_without_wgt_assign1() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     assert!(util::traced(&wgt, "default-trace"));
     assert!(!util::traced(&wgt, "when-trace"));
 
@@ -1306,7 +1300,6 @@ pub fn allowed_in_when_without_wgt_assign2() {
 
     let mut ctx = TestWidgetContext::new();
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     assert!(util::traced(&wgt, "default-trace"));
     assert!(!util::traced(&wgt, "when-trace"));
 
@@ -1354,7 +1347,6 @@ pub fn generated_name_collision_in_when() {
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
@@ -1378,7 +1370,6 @@ pub fn generated_name_collision_in_when_assign() {
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
@@ -1409,7 +1400,6 @@ pub fn name_collision_wgt_when() {
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
-    ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
     util::set_state(&mut ctx, &mut wgt, true);
     wgt.test_update(&mut ctx, None);
     ctx.apply_updates();
@@ -1703,10 +1693,9 @@ mod util {
     };
 
     use crate::{
-        context::{InfoContext, StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
+        context::{StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
         impl_ui_node, property,
-        var::{IntoVar, StateVar, Var, VarHandle},
-        widget_info::{UpdateMask, WidgetSubscriptions},
+        var::{IntoVar, StateVar, Var},
         UiNode, Widget,
     };
 
@@ -1872,35 +1861,29 @@ mod util {
     ///
     /// Note only applies after update.
     pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl Widget, state: bool) {
-        ctx.set_current_update(UpdateMask::all());
-        ctx.updates.update(UpdateMask::all());
         ctx.updates.update(wgt.id());
         *wgt.state_mut().entry(&IS_STATE_ID).or_default() = state;
     }
-    struct IsStateNode<C: UiNode> {
-        child: C,
+
+    #[impl_ui_node(struct IsStateNode {
+        child: impl UiNode,
         state: StateVar,
-    }
-    impl<C: UiNode> IsStateNode<C> {
+    })]
+    impl IsStateNode {
         fn update_state(&mut self, ctx: &mut WidgetContext) {
             let wgt_state = ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default();
             if wgt_state != self.state.get() {
                 self.state.set(ctx.vars, wgt_state).unwrap();
             }
         }
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsStateNode<C> {
+
+        #[UiNode]
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
             self.update_state(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subs);
-            subs.updates(&UpdateMask::all());
-        }
-
+        #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             self.update_state(ctx);
@@ -1914,8 +1897,7 @@ mod util {
     pub fn live_trace(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
         LiveTraceNode {
             child,
-            trace: trace.into_var(),
-            handle: VarHandle::dummy(),
+            var_trace: trace.into_var(),
         }
     }
     /// A [trace] that can update and has a default value of `"default-trace"`.
@@ -1923,31 +1905,24 @@ mod util {
     pub fn live_trace_default(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
         LiveTraceNode {
             child,
-            trace: trace.into_var(),
-            handle: VarHandle::dummy(),
+            var_trace: trace.into_var(),
         }
     }
-    struct LiveTraceNode<C: UiNode, T: Var<&'static str>> {
-        child: C,
-        trace: T,
-        handle: VarHandle,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, T: Var<&'static str>> UiNode for LiveTraceNode<C, T> {
+
+    #[impl_ui_node(struct LiveTraceNode {
+        child: impl UiNode,
+        var_trace: impl Var<&'static str>,
+    })]
+    impl UiNode for LiveTraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace.get());
-            self.handle = self.trace.subscribe(ctx.path.widget_id());
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subs);
-            subs.var(ctx, &self.trace);
+            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.var_trace.get());
+            self.init_handles(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if let Some(trace) = self.trace.get_new(ctx) {
+            if let Some(trace) = self.var_trace.get_new(ctx) {
                 ctx.widget_state.entry(&TRACE_ID).or_default().insert(trace);
             }
         }

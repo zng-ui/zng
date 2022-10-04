@@ -10,7 +10,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::EventUpdate,
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
-    widget_info::{WidgetInfoTree},
+    widget_info::WidgetInfoTree,
     window::WindowId,
     WidgetId, WidgetPath,
 };
@@ -134,14 +134,23 @@ impl Updates {
     }
 
     /// Schedules an update.
-    pub fn update(&mut self, target: WidgetId) {
+    pub fn update(&mut self, target: impl Into<Option<WidgetId>>) {
         UpdatesTrace::log_update();
-
+        self.update_internal(target.into());
     }
 
-    pub(crate) fn update_internal(&mut self, target: WidgetId) {
+    pub(crate) fn update_internal(&mut self, target: Option<WidgetId>) {
         self.update = true;
-        self.update_widgets.search_widget(target);
+        if let Some(id) = target {
+            self.update_widgets.search_widget(id);
+        }
+    }
+
+    pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {
+        self.update = true;
+        for id in targets {
+            self.update_widgets.search_widget(id);
+        }
     }
 
     /// Schedules an update that only affects the app extensions.

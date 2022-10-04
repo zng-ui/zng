@@ -555,12 +555,7 @@ impl TestWidgetContext {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
                 crate::app::AppEvent::Event(ev) => self.events.notify(ev.get()),
                 crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
-                crate::app::AppEvent::Update(targets) => {
-                    self.updates.update_ext_internal();
-                    for t in targets {
-                        self.updates.update_internal(t);
-                    }
-                },
+                crate::app::AppEvent::Update(targets) => self.updates.recv_update_internal(targets),
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
@@ -715,6 +710,24 @@ impl<'a> WidgetContext<'a> {
             widget_state: self.widget_state.as_ref(),
             update_state: self.update_state.reborrow(),
         }
+    }
+
+    /// Subscribe the widget to receive `var` updates, register the handle in [`handles`].
+    ///
+    /// [`handles`]: Self::handles
+    pub fn sub_var(&mut self, var: &impl crate::var::AnyVar) -> &mut Self {
+        let handle = var.subscribe(self.path.widget_id());
+        self.handles.push_var(handle);
+        self
+    }
+
+    /// Subscribe the widget to receive `event` updates, register the handle in [`handles`].
+    ///
+    /// [`handles`]: Self::handles
+    pub fn sub_event<A: crate::event::EventArgs>(&mut self, event: &crate::event::Event<A>) -> &mut Self {
+        let handle = event.subscribe(self.path.widget_id());
+        self.handles.push_event(handle);
+        self
     }
 }
 

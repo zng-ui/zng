@@ -2,8 +2,12 @@
 
 * Remove `UiNode::subscriptions`, should be mostly removed already.
     - Use `impl_ui_node(struct Node { ..})` syntax everywhere.
-    - Refactor `WidgetTask`, `UiTask` to track the widget subscribers.
-        - `WidgetHandler` may need to be patched depending on if we allow more than one subscriber per task.
+    - Refactor RcNode, removed a shared update-mask that was used to signal all slots.
+        - Probably needs re-implementation, current API very confusing.
+        - Need to (de)init in different widget contexts.
+        - Need the "take" stuff to be associated with a RcNode instance, right now the public API is split.
+    - Refactor render image "retain", can't see if windows subscribe now (previous impl was iffy).
+        - Make it explicit, only if requested.
 * Review "!!:".
 * Docs.
 * Test.
@@ -17,6 +21,7 @@
 * `RcVar::set` and other infallible overrides.
 * Review `VarCapabilities` variant names.
 * Review `unsafe`, only use when there is no alternative.
+* Review nodes that call `(de)init(ctx)`, are they causing a widget handle collection to grow uncontrolledly?
 
 * Implement event handlers using a callback in the event that queues the handlers to run once. 
     - This avoids the linear event update search.

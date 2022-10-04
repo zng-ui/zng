@@ -11,7 +11,7 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate},
     ui_list::UiNodeVec,
     units::*,
-    widget_info::{UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder},
     window::WindowId,
     UiNode, UiNodeList, Widget,
 };
@@ -110,10 +110,6 @@ fn test_trace(node: impl UiNode) {
     ctx.info_tree = info.finalize().0;
     assert_only_traced!(wgt.state(), "info");
 
-    wgt.test_subscriptions(&mut ctx, &mut WidgetSubscriptions::new());
-    assert_only_traced!(wgt.state(), "subscriptions");
-
-    ctx.set_current_update(UpdateMask::all());
     wgt.test_update(&mut ctx, None);
     assert_only_traced!(wgt.state(), "update");
 
@@ -210,7 +206,6 @@ pub fn default_no_child() {
 
     // we expect `test_init` to just be an init call, no extra flagging.
     assert!(!wu.info);
-    assert!(!wu.subscriptions);
 
     // we expect defaults to make no requests.
     assert!(!wu.layout);
@@ -251,10 +246,6 @@ pub fn default_no_child() {
     let wgt_info = build_info.get(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
-
-    let mut subs = WidgetSubscriptions::new();
-    wgt.test_subscriptions(&mut ctx, &mut subs);
-    assert!(subs.update_mask().is_none());
 
     let mut frame = FrameBuilder::new_renderless(
         FrameId::INVALID,
@@ -298,7 +289,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         units::*,
         widget_base::implicit_base,
-        widget_info::{UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+        widget_info::{WidgetInfoBuilder, WidgetLayout},
         UiNode, Widget, WidgetId,
     };
 
@@ -375,11 +366,6 @@ mod util {
 
         fn info(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             self.test_trace("info");
-        }
-
-        fn subscriptions(&self, _: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.updates(&UpdateMask::all());
-            self.test_trace("subscriptions");
         }
 
         fn deinit(&mut self, _: &mut WidgetContext) {

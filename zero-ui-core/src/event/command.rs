@@ -1141,7 +1141,7 @@ where
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
-            ctx.handles.push_var(enabled.subscribe(ctx.path.widget_id()));
+            ctx.sub_var(&enabled);
             let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
@@ -1209,7 +1209,7 @@ where
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
-            ctx.handles.push_var(enabled.subscribe(ctx.path.widget_id()));
+            ctx.sub_var(&enabled);
             let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 

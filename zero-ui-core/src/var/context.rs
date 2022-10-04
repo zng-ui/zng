@@ -371,10 +371,6 @@ mod helpers {
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(ctx, update))
             }
-
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                self.with(|c| c.subscriptions(ctx, subs));
-            }
         }
 
         WithContextVarNode {
@@ -464,10 +460,6 @@ mod helpers {
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(ctx, update));
-            }
-
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                self.with(|c| c.subscriptions(ctx, subs));
             }
         }
         WithContextVarInitNode {

@@ -14,7 +14,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTranslation, WidgetList},
     units::PxSize,
-    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout},
     BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
 };
 
@@ -314,12 +314,14 @@ impl UiNodeList for WidgetVec {
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.ctrl.0.borrow_mut().target = Some(ctx.path.widget_id());
         for widget in &mut self.vec {
             widget.init(ctx);
         }
     }
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.ctrl.0.borrow_mut().target = None;
         for widget in &mut self.vec {
             widget.deinit(ctx);
         }
@@ -377,13 +379,6 @@ impl UiNodeList for WidgetVec {
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         for widget in &self.vec {
             widget.info(ctx, info);
-        }
-    }
-
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.update(self.ctrl.update_slot());
-        for widget in &self.vec {
-            widget.subscriptions(ctx, subs);
         }
     }
 
@@ -566,7 +561,7 @@ type WidgetMoveToFn = fn(usize, usize) -> usize;
 #[derive(Clone)]
 pub struct WidgetVecRef(Rc<RefCell<WidgetVecRequests>>);
 struct WidgetVecRequests {
-    update_slot: UpdateSlot,
+    target: Option<WidgetId>,
     insert: Vec<(usize, BoxedWidget)>,
     push: Vec<BoxedWidget>,
     remove: Vec<WidgetId>,
@@ -579,7 +574,7 @@ struct WidgetVecRequests {
 impl WidgetVecRef {
     pub(super) fn new() -> Self {
         Self(Rc::new(RefCell::new(WidgetVecRequests {
-            update_slot: UpdateSlot::next(),
+            target: None,
             insert: vec![],
             push: vec![],
             remove: vec![],
@@ -599,14 +594,14 @@ impl WidgetVecRef {
     ///
     /// The `index` is resolved after all [`remove`] requests, if it is out-of-bounds the widget is pushed.
     ///
-    /// The `widget` will be initialized, inserted and the info tree and subscriptions updated.
+    /// The `widget` will be initialized, inserted and the info tree updated.
     ///
     /// [`remove`]: Self::remove
     pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl Widget) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.insert.push((index, widget.boxed_wgt()));
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
     }
 
@@ -614,26 +609,26 @@ impl WidgetVecRef {
     ///
     /// The widget will be pushed after all [`insert`] requests.
     ///
-    /// The `widget` will be initialized, inserted and the info tree and subscriptions updated.
+    /// The `widget` will be initialized, inserted and the info tree updated.
     ///
     /// [`insert`]: Self::insert
     pub fn push(&self, updates: &mut impl WithUpdates, widget: impl Widget) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.push.push(widget.boxed_wgt());
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
     }
 
     /// Request an update for the removal of the widget identified by `id`.
     ///
-    /// The widget will be deinitialized, dropped and the info tree and subscriptions will update, nothing happens
+    /// The widget will be deinitialized, dropped and the info tree will update, nothing happens
     /// if the widget is not found.
     pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.remove.push(id.into());
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
     }
 
@@ -648,7 +643,7 @@ impl WidgetVecRef {
             updates.with_updates(|u| {
                 let mut s = self.0.borrow_mut();
                 s.move_index.push((remove_index, insert_index));
-                u.update(s.update_slot.mask());
+                u.update(s.target);
             })
         }
     }
@@ -696,7 +691,7 @@ impl WidgetVecRef {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.move_id.push((id.into(), get_move_to));
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
     }
 
@@ -707,12 +702,8 @@ impl WidgetVecRef {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.clear = true;
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
-    }
-
-    fn update_slot(&self) -> UpdateSlot {
-        self.0.borrow().update_slot
     }
 
     fn take_requests(&self) -> Option<WidgetVecRequests> {
@@ -726,7 +717,7 @@ impl WidgetVecRef {
             || !s.move_id.is_empty()
         {
             let empty = WidgetVecRequests {
-                update_slot: s.update_slot,
+                target: s.target,
                 alive: s.alive,
 
                 insert: vec![],
@@ -901,12 +892,6 @@ impl UiNodeList for UiNodeVec {
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         for w in &self.vec {
             w.info(ctx, info);
-        }
-    }
-
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        for w in &self.vec {
-            w.subscriptions(ctx, subs);
         }
     }
 
