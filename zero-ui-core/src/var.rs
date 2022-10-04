@@ -319,6 +319,34 @@ impl VarHandle {
         [self, other].into()
     }
 }
+impl PartialEq for VarHandle {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (None, None) => true,
+            (None, Some(_)) | (Some(_), None) => false,
+            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+        }
+    }
+}
+impl Eq for VarHandle {}
+impl std::hash::Hash for VarHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let i = match &self.0 {
+            Some(rc) => Rc::as_ptr(rc) as usize,
+            None => 0,
+        };
+        state.write_usize(i);
+    }
+}
+impl fmt::Debug for VarHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let i = match &self.0 {
+            Some(rc) => Rc::as_ptr(rc) as usize,
+            None => 0,
+        };
+        f.debug_tuple("VarHandle").field(&i).finish()
+    }
+}
 
 /// Represents a collection of var handles.
 #[derive(Clone, Default)]
