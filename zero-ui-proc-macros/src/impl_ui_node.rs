@@ -776,6 +776,10 @@ impl ArgsNewNodeFieldKind {
             ArgsNewNodeFieldKind::Event
         } else if ["var_", "v_"].into_iter().any(|p| s.starts_with(p)) {
             ArgsNewNodeFieldKind::Var
+        } else if s == "event" {
+            ArgsNewNodeFieldKind::Event
+        } else if s == "var" {
+            ArgsNewNodeFieldKind::Var
         } else {
             ArgsNewNodeFieldKind::Custom
         }

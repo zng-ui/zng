@@ -1,11 +1,5 @@
 use super::*;
-use crate::{
-    context::{InfoContext, WidgetUpdates},
-    handler::WidgetHandler,
-    impl_ui_node,
-    widget_info::{WidgetInfoBuilder},
-    UiNode,
-};
+use crate::{context::WidgetUpdates, handler::WidgetHandler, impl_ui_node, UiNode};
 
 #[doc(hidden)]
 #[macro_export]
@@ -179,40 +173,13 @@ where
     F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
     H: WidgetHandler<A>,
 {
-    struct OnEventNode<C, A: EventArgs, F, H> {
-        child: C,
+    #[impl_ui_node(struct OnEventNode<A: EventArgs> {
+        child: impl UiNode,
         event: Event<A>,
-        filter: F,
-        handler: H,
-        handle: Option<EventWidgetHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<C, A, F, H> UiNode for OnEventNode<C, A, F, H>
-    where
-        C: UiNode,
-        A: EventArgs,
-        F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
-        H: WidgetHandler<A>,
-    {
-        fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget_info);
-        }
-
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = Some(self.event.subscribe(ctx.path.widget_id()));
-            self.child.init(ctx);
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.handle = None;
-            self.child.deinit(ctx);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
-        }
-
+        filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,
+        handler: impl WidgetHandler<A>,
+    })]
+    impl UiNode for OnEventNode {
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
             if let Some(args) = self.event.on(update) {
@@ -236,7 +203,6 @@ where
         event,
         filter,
         handler: handler.cfg_boxed(),
-        handle: None,
     }
     .cfg_boxed()
 }
@@ -273,40 +239,13 @@ where
     F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
     H: WidgetHandler<A>,
 {
-    struct OnPreviewEventNode<C, A: EventArgs, F, H> {
-        child: C,
+    #[impl_ui_node(struct OnPreviewEventNode<A: EventArgs> {
+        child: impl UiNode,
         event: Event<A>,
-        filter: F,
-        handler: H,
-        handle: Option<EventWidgetHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<C, A, F, H> UiNode for OnPreviewEventNode<C, A, F, H>
-    where
-        C: UiNode,
-        A: EventArgs,
-        F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
-        H: WidgetHandler<A>,
-    {
-        fn info(&self, ctx: &mut InfoContext, widget_info: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget_info);
-        }
-
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = Some(self.event.subscribe(ctx.path.widget_id()));
-            self.child.init(ctx);
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.handle = None;
-            self.child.deinit(ctx);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
-        }
-
+        filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,
+        handler: impl WidgetHandler<A>,
+    })]
+    impl UiNode for OnPreviewEventNode {
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
                 if !args.propagation().is_stopped() && (self.filter)(ctx, args) {
@@ -330,7 +269,6 @@ where
         event,
         filter,
         handler: handler.cfg_boxed(),
-        handle: None,
     }
     .cfg_boxed()
 }
