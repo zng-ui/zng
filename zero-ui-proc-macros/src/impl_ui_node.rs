@@ -116,7 +116,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     let (new_node, args) = match args {
         Args::NewNode(args) => {
-            let new_node = expand_new_node(args);
+            let new_node = expand_new_node(args, &mut errors);
             let args = syn::parse2::<Args>(new_node.delegate.to_token_stream()).unwrap();
             (Some(new_node), args)
         }
@@ -314,8 +314,6 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) { }]
-
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { #auto_init }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
@@ -358,11 +356,6 @@ fn delegate_absents(
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #child = {#borrow};
             #crate_::UiNode::info(#deref, ctx, info);
-        }]
-
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
-            let #child = {#borrow};
-            #crate_::UiNode::subscriptions(#deref, ctx, subs);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
@@ -427,11 +420,6 @@ fn delegate_list_absents(
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #children = {#borrow};
             #crate_::UiNodeList::info_all(#deref, ctx, info);
-        }]
-
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
-            let #children = {#borrow};
-            #crate_::UiNodeList::subscriptions_all(#deref, ctx, subs);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
@@ -504,11 +492,6 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #children = {#iter};
             #crate_::impl_ui_node_util::IterImpl::info_all(#children, ctx, info);
-        }]
-
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
-            let #children = {#iter};
-            #crate_::impl_ui_node_util::IterImpl::subscriptions_all(#children, ctx, subs);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
@@ -742,16 +725,22 @@ fn take_missing_deletate_level(
 
 struct ArgsNewNode {
     ident: Ident,
+    explicit_generics: Option<Generics>,
     fields: Punctuated<ArgsNewNodeField, Token![,]>,
 }
 impl Parse for ArgsNewNode {
     fn parse(input: ParseStream) -> Result<Self> {
         let _: Token![struct] = input.parse()?;
         let ident: Ident = input.parse()?;
+        let explicit_generics = if input.peek(Token![<]) {
+            Some(input.parse()?)
+        } else {
+            None
+        };
         let inner;
         braced!(inner in input);
         let fields = Punctuated::parse_terminated(&inner)?;
-        Ok(ArgsNewNode { ident, fields })
+        Ok(ArgsNewNode { ident, explicit_generics, fields })
     }
 }
 
@@ -807,12 +796,29 @@ impl Parse for ArgsNewNodeType {
     }
 }
 
-fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
+fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewNode {
     let mut delegate = ident!("none");
     let mut impl_generics = TokenStream::new();
     let mut node_generics = TokenStream::new();
     let mut node_fields = TokenStream::new();
     let mut handle_init = TokenStream::new();
+
+    if let Some(g) = args.explicit_generics {
+        for p in g.params.into_iter() {
+            if let GenericParam::Type(t) = p {
+                t.to_tokens(&mut impl_generics);
+                impl_generics.extend(quote!( , ));
+                
+                let cfg = util::Attributes::new(t.attrs).cfg;
+                let ident = t.ident;
+                node_generics.extend(quote! {
+                    #cfg #ident ,
+                });
+            } else {
+                errors.push("only type params are supported", p.span());
+            }
+        }
+    }
 
     for ArgsNewNodeField {
         attrs, kind, ident, ty, ..
@@ -876,7 +882,7 @@ fn expand_new_node(args: ArgsNewNode) -> ExpandedNewNode {
 
     let ident = args.ident;
     let decl = quote! {
-        struct #ident<#node_generics> {
+        struct #ident<#impl_generics> {
             #node_fields
         }
     };

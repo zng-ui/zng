@@ -1,8 +1,9 @@
 # Var/Update Rewrite
 
 * Remove `UiNode::subscriptions`, should be mostly removed already.
-    - Refactor WidgetHandle, some other context-var wrappers also.
     - Use `impl_ui_node(struct Node { ..})` syntax everywhere.
+    - Refactor `WidgetTask`, `UiTask` to track the widget subscribers.
+        - `WidgetHandler` may need to be patched depending on if we allow more than one subscriber per task.
 * Review "!!:".
 * Docs.
 * Test.
