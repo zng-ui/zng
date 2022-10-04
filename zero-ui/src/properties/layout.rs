@@ -38,32 +38,26 @@ use zero_ui::prelude::new_property::*;
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
 #[property(layout, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
-    struct MarginNode<T, M> {
-        child: T,
-        margin: M,
+    #[impl_ui_node(struct MarginNode {
+        child: impl UiNode,
+        var_margin: impl Var<SideOffsets>,
         size_increment: PxSize,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, M: Var<SideOffsets>> UiNode for MarginNode<T, M> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.margin);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for MarginNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.margin.is_new(ctx) {
+            if self.var_margin.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.child.update(ctx, updates);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let margin = self.var_margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
             ctx.with_sub_size(size_increment, |ctx| self.child.measure(ctx))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let margin = self.var_margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             self.size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
             wl.translate(PxVector::new(margin.left, margin.top));
@@ -73,7 +67,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
     }
     MarginNode {
         child,
-        margin: margin.into_var(),
+        var_margin: margin.into_var(),
         size_increment: PxSize::zero(),
     }
 }
@@ -106,19 +100,13 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 /// more details.
 #[property(layout, default(Align::FILL))]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
-    struct AlignNode<T, A> {
-        child: T,
-        alignment: A,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, A: Var<Align>> UiNode for AlignNode<T, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.alignment);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct AlignNode {
+        child: impl UiNode,
+        var_alignment: impl Var<Align>,
+    })]
+    impl UiNode for AlignNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.alignment.is_new(ctx) {
+            if self.var_alignment.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -126,20 +114,19 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let align = self.alignment.get();
+            let align = self.var_alignment.get();
             let child_size = ctx.with_constrains(|c| align.child_constrains(c), |ctx| self.child.measure(ctx));
             align.measure(child_size, ctx.constrains())
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let align = self.alignment.get();
+            let align = self.var_alignment.get();
             let child_size = ctx.with_constrains(|c| align.child_constrains(c), |ctx| self.child.layout(ctx, wl));
             align.layout(child_size, ctx.constrains(), wl)
         }
     }
-
     AlignNode {
         child,
-        alignment: alignment.into_var(),
+        var_alignment: alignment.into_var(),
     }
 }
 
@@ -174,19 +161,13 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
 #[property(layout, default((0, 0)))]
 pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
-    struct OffsetNode<T: UiNode, O: Var<Vector>> {
-        child: T,
-        offset: O,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, O: Var<Vector>> UiNode for OffsetNode<T, O> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.offset);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct OffsetNode {
+        child: impl UiNode,
+        var_offset: impl Var<Vector>,
+    })]
+    impl UiNode for OffsetNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.offset.is_new(ctx) {
+            if self.var_offset.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.child.update(ctx, updates);
@@ -202,7 +183,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
                     let size = c.fill_size().max(size);
                     PxConstrains2d::new_exact_size(size)
                 },
-                |ctx| self.offset.get().layout(ctx.metrics, |_| PxVector::zero()),
+                |ctx| self.var_offset.get().layout(ctx.metrics, |_| PxVector::zero()),
             );
             wl.translate(offset);
             size
@@ -210,7 +191,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     }
     OffsetNode {
         child,
-        offset: offset.into_var(),
+        var_offset: offset.into_var(),
     }
 }
 
@@ -237,19 +218,13 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
 #[property(layout, default(0))]
 pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
-    struct XNode<T: UiNode, X: Var<Length>> {
-        child: T,
-        x: X,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, X: Var<Length>> UiNode for XNode<T, X> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.x);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct XNode {
+        child: impl UiNode,
+        var_x: impl Var<Length>,
+    })]
+    impl UiNode for XNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.x.is_new(ctx) {
+            if self.var_x.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.child.update(ctx, updates);
@@ -265,13 +240,16 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
                     let size = c.fill_size().max(size);
                     PxConstrains2d::new_exact_size(size)
                 },
-                |ctx| self.x.get().layout(ctx.metrics.for_x(), |_| Px(0)),
+                |ctx| self.var_x.get().layout(ctx.metrics.for_x(), |_| Px(0)),
             );
             wl.translate(PxVector::new(x, Px(0)));
             size
         }
     }
-    XNode { child, x: x.into_var() }
+    XNode {
+        child,
+        var_x: x.into_var(),
+    }
 }
 
 /// Offset on the ***y*** axis.
@@ -297,19 +275,13 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
 #[property(layout, default(0))]
 pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
-    struct YNode<T: UiNode, Y: Var<Length>> {
-        child: T,
-        y: Y,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, Y: Var<Length>> UiNode for YNode<T, Y> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.y);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct YNode {
+        child: impl UiNode,
+        var_y: impl Var<Length>,
+    })]
+    impl UiNode for YNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.y.is_new(ctx) {
+            if self.var_y.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.child.update(ctx, updates);
@@ -325,13 +297,16 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
                     let size = c.fill_size().max(size);
                     PxConstrains2d::new_exact_size(size)
                 },
-                |ctx| self.y.get().layout(ctx.metrics.for_y(), |_| Px(0)),
+                |ctx| self.var_y.get().layout(ctx.metrics.for_y(), |_| Px(0)),
             );
             wl.translate(PxVector::new(Px(0), y));
             size
         }
     }
-    YNode { child, y: y.into_var() }
+    YNode {
+        child,
+        var_y: y.into_var(),
+    }
 }
 
 /// Minimum size of the widget.
@@ -364,19 +339,13 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// set the minimum size of one dimension.
 #[property(size, default((0, 0)))]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
-    struct MinSizeNode<T: UiNode, S: Var<Size>> {
-        child: T,
-        min_size: S,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, S: Var<Size>> UiNode for MinSizeNode<T, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.min_size);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct MinSizeNode {
+        child: impl UiNode,
+        var_min_size: impl Var<Size>,
+    })]
+    impl UiNode for MinSizeNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.min_size.is_new(ctx) {
+            if self.var_min_size.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -386,7 +355,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.min_size.get().layout(ctx.metrics, |_| PxSize::zero()),
+                |ctx| self.var_min_size.get().layout(ctx.metrics, |_| PxSize::zero()),
             );
             let size = ctx.with_constrains(|c| c.with_min_size(min), |ctx| self.child.measure(ctx));
             size.max(min)
@@ -394,7 +363,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.min_size.get().layout(ctx.metrics, |_| PxSize::zero()),
+                |ctx| self.var_min_size.get().layout(ctx.metrics, |_| PxSize::zero()),
             );
             let size = ctx.with_constrains(|c| c.with_min_size(min), |ctx| self.child.layout(ctx, wl));
             size.max(min)
@@ -402,7 +371,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
     }
     MinSizeNode {
         child,
-        min_size: min_size.into_var(),
+        var_min_size: min_size.into_var(),
     }
 }
 
@@ -435,19 +404,13 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(size, default(0))]
 pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
-    struct MinWidthNode<T: UiNode, W: Var<Length>> {
-        child: T,
-        min_width: W,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, W: Var<Length>> UiNode for MinWidthNode<T, W> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.min_width);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct MinWidthNode {
+        child: impl UiNode,
+        var_min_width: impl Var<Length>,
+    })]
+    impl UiNode for MinWidthNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.min_width.is_new(ctx) {
+            if self.var_min_width.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -457,7 +420,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.min_width.get().layout(ctx.metrics.for_x(), |_| Px(0)),
+                |ctx| self.var_min_width.get().layout(ctx.metrics.for_x(), |_| Px(0)),
             );
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.measure(ctx));
             size.width = size.width.max(min);
@@ -466,7 +429,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.min_width.get().layout(ctx.metrics.for_x(), |_| Px(0)),
+                |ctx| self.var_min_width.get().layout(ctx.metrics.for_x(), |_| Px(0)),
             );
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.layout(ctx, wl));
             size.width = size.width.max(min);
@@ -475,7 +438,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
     }
     MinWidthNode {
         child,
-        min_width: min_width.into_var(),
+        var_min_width: min_width.into_var(),
     }
 }
 
@@ -508,19 +471,13 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(size, default(0))]
 pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
-    struct MinHeightNode<T: UiNode, H: Var<Length>> {
-        child: T,
-        min_height: H,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, H: Var<Length>> UiNode for MinHeightNode<T, H> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.min_height);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct MinHeightNode {
+        child: impl UiNode,
+        var_min_height: impl Var<Length>,
+    })]
+    impl UiNode for MinHeightNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.min_height.is_new(ctx) {
+            if self.var_min_height.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -530,7 +487,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.min_height.get().layout(ctx.metrics.for_y(), |_| Px(0)),
+                |ctx| self.var_min_height.get().layout(ctx.metrics.for_y(), |_| Px(0)),
             );
             let mut size = ctx.with_constrains(|c| c.with_min_y(min), |ctx| self.child.measure(ctx));
             size.height = size.height.max(min);
@@ -539,7 +496,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.min_height.get().layout(ctx.metrics.for_y(), |_| Px(0)),
+                |ctx| self.var_min_height.get().layout(ctx.metrics.for_y(), |_| Px(0)),
             );
             let mut size = ctx.with_constrains(|c| c.with_min_y(min), |ctx| self.child.layout(ctx, wl));
             size.height = size.height.max(min);
@@ -548,7 +505,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
     }
     MinHeightNode {
         child,
-        min_height: min_height.into_var(),
+        var_min_height: min_height.into_var(),
     }
 }
 
@@ -582,19 +539,13 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 /// set the maximum size of one dimension.
 #[property(size)]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
-    struct MaxSizeNode<T: UiNode, S: Var<Size>> {
-        child: T,
-        max_size: S,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, S: Var<Size>> UiNode for MaxSizeNode<T, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.max_size);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct MaxSizeNode {
+        child: impl UiNode,
+        var_max_size: impl Var<Size>,
+    })]
+    impl UiNode for MaxSizeNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.max_size.is_new(ctx) {
+            if self.var_max_size.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -604,7 +555,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.max_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
+                |ctx| self.var_max_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             );
             let size = ctx.with_constrains(|c| c.with_max_size(max), |ctx| self.child.measure(ctx));
             size.min(max)
@@ -612,7 +563,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.max_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
+                |ctx| self.var_max_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             );
             let size = ctx.with_constrains(|c| c.with_max_size(max), |ctx| self.child.layout(ctx, wl));
             size.min(max)
@@ -620,7 +571,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
     }
     MaxSizeNode {
         child,
-        max_size: max_size.into_var(),
+        var_max_size: max_size.into_var(),
     }
 }
 
@@ -653,19 +604,13 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(size)]
 pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
-    struct MaxWidthNode<T: UiNode, W: Var<Length>> {
-        child: T,
-        max_width: W,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, W: Var<Length>> UiNode for MaxWidthNode<T, W> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.max_width);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct MaxWidthNode {
+        child: impl UiNode,
+        var_max_width: impl Var<Length>,
+    })]
+    impl UiNode for MaxWidthNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.max_width.is_new(ctx) {
+            if self.var_max_width.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -675,7 +620,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.max_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_max_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
 
             let mut size = ctx.with_constrains(|c| c.with_max_x(max), |ctx| self.child.measure(ctx));
@@ -685,7 +630,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.max_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_max_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
 
             let mut size = ctx.with_constrains(|c| c.with_max_x(max), |ctx| self.child.layout(ctx, wl));
@@ -695,7 +640,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
     }
     MaxWidthNode {
         child,
-        max_width: max_width.into_var(),
+        var_max_width: max_width.into_var(),
     }
 }
 
@@ -728,19 +673,13 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(size)]
 pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
-    struct MaxHeightNode<T: UiNode, H: Var<Length>> {
-        child: T,
-        max_height: H,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, H: Var<Length>> UiNode for MaxHeightNode<T, H> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.max_height);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct MaxHeightNode {
+        child: impl UiNode,
+        var_max_height: impl Var<Length>,
+    })]
+    impl UiNode for MaxHeightNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.max_height.is_new(ctx) {
+            if self.var_max_height.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -750,7 +689,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.max_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_max_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
 
             let mut size = ctx.with_constrains(|c| c.with_max_y(max), |ctx| self.child.measure(ctx));
@@ -760,7 +699,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.max_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_max_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
 
             let mut size = ctx.with_constrains(|c| c.with_max_y(max), |ctx| self.child.layout(ctx, wl));
@@ -770,7 +709,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     }
     MaxHeightNode {
         child,
-        max_height: max_height.into_var(),
+        var_max_height: max_height.into_var(),
     }
 }
 
@@ -805,19 +744,13 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`height`]: fn@height
 #[property(size)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
-    struct SizeNode<T: UiNode, S: Var<Size>> {
-        child: T,
-        size: S,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, S: Var<Size>> UiNode for SizeNode<T, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.size);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct SizeNode {
+        child: impl UiNode,
+        var_size: impl Var<Size>,
+    })]
+    impl UiNode for SizeNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.size.is_new(ctx) {
+            if self.var_size.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -827,13 +760,13 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
+                |ctx| self.var_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             )
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
+                |ctx| self.var_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             );
             ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.layout(ctx, wl));
             size
@@ -841,7 +774,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     }
     SizeNode {
         child,
-        size: size.into_var(),
+        var_size: size.into_var(),
     }
 }
 
@@ -874,19 +807,13 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// [`max_width`]: fn@max_width
 #[property(size)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
-    struct WidthNode<T: UiNode, W: Var<Length>> {
-        child: T,
-        width: W,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, W: Var<Length>> UiNode for WidthNode<T, W> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.width);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct WidthNode {
+        child: impl UiNode,
+        var_width: impl Var<Length>,
+    })]
+    impl UiNode for WidthNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.width.is_new(ctx) {
+            if self.var_width.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -896,7 +823,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let width = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
 
             let mut size = ctx.with_constrains(|c| c.with_new_exact_x(width), |ctx| self.child.measure(ctx));
@@ -906,7 +833,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let width = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
 
             let mut size = ctx.with_constrains(|c| c.with_new_exact_x(width), |ctx| self.child.layout(ctx, wl));
@@ -916,7 +843,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     }
     WidthNode {
         child,
-        width: width.into_var(),
+        var_width: width.into_var(),
     }
 }
 
@@ -949,19 +876,13 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// [`max_height`]: fn@max_height
 #[property(size)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
-    struct HeightNode<T: UiNode, H: Var<Length>> {
-        child: T,
-        height: H,
-    }
-    #[impl_ui_node(child)]
-    impl<T: UiNode, H: Var<Length>> UiNode for HeightNode<T, H> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.height);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct HeightNode {
+        child: impl UiNode,
+        var_height: impl Var<Length>,
+    })]
+    impl UiNode for HeightNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.height.is_new(ctx) {
+            if self.var_height.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -971,7 +892,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let height = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
             let mut size = ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.measure(ctx));
             size.height = height;
@@ -980,7 +901,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let height = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
-                |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
+                |ctx| self.var_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
             let mut size = ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.layout(ctx, wl));
             size.height = height;
@@ -989,7 +910,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     }
     HeightNode {
         child,
-        height: height.into_var(),
+        var_height: height.into_var(),
     }
 }
 
@@ -1003,19 +924,13 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
 /// [`text!`]: mod@crate::widgets::text
 #[property(border, default(Length::Default))]
 pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
-    struct BaselineNode<C, B> {
-        child: C,
-        baseline: B,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, B: Var<Length>> UiNode for BaselineNode<C, B> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.baseline);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct BaselineNode {
+        child: impl UiNode,
+        var_baseline: impl Var<Length>,
+    })]
+    impl UiNode for BaselineNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.baseline.is_new(ctx) {
+            if self.var_baseline.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.child.update(ctx, updates);
@@ -1032,7 +947,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
 
             let baseline = ctx.with_constrains(
                 |c| c.with_max_size(inner_size).with_fill(true, true),
-                |ctx| self.baseline.get().layout(ctx.metrics.for_y(), |_| default),
+                |ctx| self.var_baseline.get().layout(ctx.metrics.for_y(), |_| default),
             );
             wl.set_baseline(baseline);
 
@@ -1041,7 +956,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
     }
     BaselineNode {
         child: child.cfg_boxed(),
-        baseline: baseline.into_var(),
+        var_baseline: baseline.into_var(),
     }
     .cfg_boxed()
 }

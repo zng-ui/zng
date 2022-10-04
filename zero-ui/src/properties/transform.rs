@@ -10,28 +10,18 @@ use crate::prelude::new_property::*;
 /// [`transform_origin`]: fn@transform_origin
 #[property(layout, default(Transform::identity()))]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
-    struct TransformNode<C, T> {
-        child: C,
-        transform: T,
+    #[impl_ui_node(struct TransformNode {
+        child: impl UiNode,
+        var_transform: impl Var<Transform>,
 
         render_transform: PxTransform,
         spatial_id: SpatialFrameId,
         binding_key: FrameVarKey<PxTransform>,
-    }
-    #[impl_ui_node(child)]
-    impl<C, T> UiNode for TransformNode<C, T>
-    where
-        C: UiNode,
-        T: Var<Transform>,
-    {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.transform);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    })]
+    impl UiNode for TransformNode {
+         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if self.transform.is_new(ctx.vars) {
+            if self.var_transform.is_new(ctx.vars) {
                 ctx.updates.layout();
             }
         }
@@ -42,7 +32,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
 
-            let transform = self.transform.get().layout(ctx.metrics);
+            let transform = self.var_transform.get().layout(ctx.metrics);
             let av_size = ctx.widget_info.bounds.inner_size();
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
             let origin = ctx.with_constrains(
@@ -68,7 +58,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             } else {
                 frame.push_reference_frame(
                     self.spatial_id,
-                    self.binding_key.bind_mapped(&self.transform, self.render_transform),
+                    self.binding_key.bind_mapped(&self.var_transform, self.render_transform),
                     false,
                     false,
                     |frame| self.child.render(ctx, frame),
@@ -81,7 +71,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
             } else {
                 update.with_transform_opt(
-                    self.binding_key.update_mapped(&self.transform, self.render_transform),
+                    self.binding_key.update_mapped(&self.var_transform, self.render_transform),
                     false,
                     |update| self.child.render_update(ctx, update),
                 )
@@ -93,7 +83,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     TransformNode {
         child: child.cfg_boxed(),
         binding_key: FrameVarKey::new_unique(&transform),
-        transform,
+        var_transform: transform,
 
         render_transform: PxTransform::identity(),
         spatial_id: SpatialFrameId::new_unique(),

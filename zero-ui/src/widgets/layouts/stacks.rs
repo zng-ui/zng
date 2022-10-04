@@ -55,37 +55,31 @@ pub mod h_stack {
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         let node = HStackNode {
             children: ZSortedWidgetList::new(items),
-            spacing: spacing.into_var(),
-            align: items_align.into_var(),
+            var_spacing: spacing.into_var(),
+            var_align: items_align.into_var(),
         };
         implicit_base::nodes::children_layout(node)
     }
+    
+    #[impl_ui_node(struct HStackNode {
+        children: impl WidgetList,
 
-    struct HStackNode<C, S, A> {
-        children: C,
-
-        spacing: S,
-        align: A,
-    }
-    #[impl_ui_node(children)]
-    impl<C: WidgetList, S: Var<Length>, A: Var<Align>> UiNode for HStackNode<C, S, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            self.children.subscriptions_all(ctx, subs);
-            subs.vars(ctx).var(&self.spacing).var(&self.align);
-        }
-
+        var_spacing: impl Var<Length>,
+        var_align: impl Var<Align>,
+    })]
+    impl UiNode for HStackNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
             self.children.update_all(ctx, updates, &mut changed);
 
-            if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
+            if changed || self.var_spacing.is_new(ctx) || self.var_align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let spacing = self.spacing.get().layout(ctx.for_x(), |_| Px(0));
-            let align = self.align.get();
+            let spacing = self.var_spacing.get().layout(ctx.for_x(), |_| Px(0));
+            let align = self.var_align.get();
 
             let constrains = ctx.constrains();
             if let Some(known) = constrains.fill_or_exact() {
@@ -117,8 +111,8 @@ pub mod h_stack {
             constrains.fill_size_or(size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let spacing = self.spacing.get().layout(ctx.for_x(), |_| Px(0));
-            let align = self.align.get();
+            let spacing = self.var_spacing.get().layout(ctx.for_x(), |_| Px(0));
+            let align = self.var_align.get();
             let align_baseline = align.is_baseline();
 
             let constrains = ctx.constrains();
@@ -301,37 +295,31 @@ pub mod v_stack {
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         let node = VStackNode {
             children: ZSortedWidgetList::new(items),
-            spacing: spacing.into_var(),
-            align: items_align.into_var(),
+            var_spacing: spacing.into_var(),
+            var_align: items_align.into_var(),
         };
         implicit_base::nodes::children_layout(node)
     }
+    
+    #[impl_ui_node(struct VStackNode {
+        children: impl WidgetList,
 
-    struct VStackNode<C, S, A> {
-        children: C,
-
-        spacing: S,
-        align: A,
-    }
-    #[impl_ui_node(children)]
-    impl<C: WidgetList, S: Var<Length>, A: Var<Align>> UiNode for VStackNode<C, S, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx).var(&self.spacing).var(&self.align);
-            self.children.subscriptions_all(ctx, subs);
-        }
-
+        var_spacing: impl Var<Length>,
+        var_align: impl Var<Align>,
+    })]
+    impl UiNode for VStackNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
             self.children.update_all(ctx, updates, &mut changed);
 
-            if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
+            if changed || self.var_spacing.is_new(ctx) || self.var_align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let spacing = self.spacing.get().layout(ctx.for_y(), |_| Px(0));
-            let align = self.align.get();
+            let spacing = self.var_spacing.get().layout(ctx.for_y(), |_| Px(0));
+            let align = self.var_align.get();
 
             let constrains = ctx.constrains();
             if let Some(known) = constrains.fill_or_exact() {
@@ -364,8 +352,8 @@ pub mod v_stack {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let spacing = self.spacing.get().layout(ctx.for_y(), |_| Px(0));
-            let align = self.align.get();
+            let spacing = self.var_spacing.get().layout(ctx.for_y(), |_| Px(0));
+            let align = self.var_align.get();
             let align_baseline = align.is_baseline();
 
             let constrains = ctx.constrains();
@@ -593,26 +581,21 @@ pub mod z_stack {
     fn new_child(items: impl WidgetList, items_align: impl IntoVar<Align>) -> impl UiNode {
         let node = ZStackNode {
             children: ZSortedWidgetList::new(items),
-            align: items_align.into_var(),
+            var_align: items_align.into_var(),
         };
         implicit_base::nodes::children_layout(node)
     }
-    struct ZStackNode<C, A> {
-        children: C,
-        align: A,
-    }
-    #[impl_ui_node(children)]
-    impl<I: WidgetList, A: Var<Align>> UiNode for ZStackNode<I, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.align);
-            self.children.subscriptions_all(ctx, subs);
-        }
-
+    
+    #[impl_ui_node(struct ZStackNode {
+        children: impl WidgetList,
+        var_align: impl Var<Align>,
+    })]
+    impl UiNode for ZStackNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
             self.children.update_all(ctx, updates, &mut changed);
 
-            if changed || self.align.is_new(ctx) {
+            if changed || self.var_align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
@@ -623,7 +606,7 @@ pub mod z_stack {
                 return known;
             }
 
-            let align = self.align.get();
+            let align = self.var_align.get();
             let mut size = PxSize::zero();
             ctx.with_constrains(
                 |c| align.child_constrains(c),
@@ -642,7 +625,7 @@ pub mod z_stack {
             constrains.fill_size_or(size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let align = self.align.get();
+            let align = self.var_align.get();
 
             let constrains = ctx.constrains();
             let mut size = None;
@@ -774,33 +757,22 @@ pub fn stack_nodes_layout_by(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
     constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
-) -> impl UiNode {
-    struct StackNodesFillNode<C, I, P> {
-        children: C,
-        index: I,
-        constrains: P,
-    }
-    #[impl_ui_node(children)]
-    impl<C, I, P> UiNode for StackNodesFillNode<C, I, P>
-    where
-        C: UiNodeList,
-        I: Var<usize>,
-        P: Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
-    {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.index);
-            self.children.subscriptions_all(ctx, subs);
-        }
-
+) -> impl UiNode {    
+    #[impl_ui_node(struct StackNodesFillNode {
+        children: impl UiNodeList,
+        var_index: impl Var<usize>,
+        constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+    })]
+    impl UiNode for StackNodesFillNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.index.is_new(ctx) {
+            if self.var_index.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.children.update_all(ctx, updates, &mut ());
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let index = self.index.get();
+            let index = self.var_index.get();
             let len = self.children.len();
             if index >= len {
                 tracing::error!(
@@ -829,7 +801,7 @@ pub fn stack_nodes_layout_by(
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let index = self.index.get();
+            let index = self.var_index.get();
             let len = self.children.len();
             if index >= len {
                 tracing::error!(
@@ -861,7 +833,7 @@ pub fn stack_nodes_layout_by(
     }
     StackNodesFillNode {
         children: nodes,
-        index: index.into_var(),
+        var_index: index.into_var(),
         constrains,
     }
     .cfg_boxed()

@@ -32,22 +32,15 @@ fn no_context_image() -> Image {
 /// [`Images`]: crate::core::image::Images
 /// [`image_cache`]: mod@crate::widgets::image::properties::image_cache
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
-    struct ImageSourceNode<C, S: Var<ImageSource>> {
-        child: C,
-        source: S,
+    #[impl_ui_node(struct ImageSourceNode {
+        child: impl UiNode,
+        var_source: impl Var<ImageSource>,
 
         img: ImageVar,
         ctx_img: RcVar<Image>,
         ctx_binding: Option<VarHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.source);
-
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for ImageSourceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache
@@ -56,7 +49,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             };
             let limits = IMAGE_LIMITS_VAR.get();
 
-            let mut source = self.source.get();
+            let mut source = self.var_source.get();
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs {
                     parent: Some(ctx.path.window_id()),
@@ -78,7 +71,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(mut source) = self.source.get_new(ctx) {
+            if let Some(mut source) = self.var_source.get_new(ctx) {
                 // source update:
 
                 if let ImageSource::Render(_, args) = &mut source {
@@ -111,7 +104,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     } else {
                         // must cache, but image is not cached, get source again.
 
-                        let source = self.source.get();
+                        let source = self.var_source.get();
                         let limits = IMAGE_LIMITS_VAR.get();
                         Images::req(ctx.services).image(source, ImageCacheMode::Cache, limits)
                     };
@@ -132,7 +125,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         img: var(Image::dummy(None)).read_only(),
         ctx_img,
         ctx_binding: None,
-        source: source.into_var(),
+        var_source: source.into_var(),
     }
     .cfg_boxed()
 }
@@ -260,7 +253,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
 /// * [`IMAGE_RENDERING_VAR`]: Defines the image resize algorithm used in the GPU.
 /// * [`IMAGE_OFFSET_VAR`]: Defines an offset applied to the image after all measure and arrange.
 pub fn image_presenter() -> impl UiNode {
-    struct ImagePresenterNode {
+    #[impl_ui_node(struct ImagePresenterNode {
         requested_layout: bool,
 
         // pixel size of the context image.
@@ -271,23 +264,19 @@ pub fn image_presenter() -> impl UiNode {
         render_offset: PxVector,
 
         spatial_id: SpatialFrameId,
-    }
-    #[impl_ui_node(none)]
+    })]
     impl UiNode for ImagePresenterNode {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx)
-                .var(&CONTEXT_IMAGE_VAR)
-                .var(&IMAGE_CROP_VAR)
-                .var(&IMAGE_SCALE_PPI_VAR)
-                .var(&IMAGE_SCALE_FACTOR_VAR)
-                .var(&IMAGE_SCALE_VAR)
-                .var(&IMAGE_FIT_VAR)
-                .var(&IMAGE_ALIGN_VAR)
-                .var(&IMAGE_RENDERING_VAR)
-                .var(&IMAGE_OFFSET_VAR);
-        }
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&CONTEXT_IMAGE_VAR)
+                .sub_var(&IMAGE_CROP_VAR)
+                .sub_var(&IMAGE_SCALE_PPI_VAR)
+                .sub_var(&IMAGE_SCALE_FACTOR_VAR)
+                .sub_var(&IMAGE_SCALE_VAR)
+                .sub_var(&IMAGE_FIT_VAR)
+                .sub_var(&IMAGE_ALIGN_VAR)
+                .sub_var(&IMAGE_RENDERING_VAR)
+                .sub_var(&IMAGE_OFFSET_VAR);
 
-        fn init(&mut self, _: &mut WidgetContext) {
             self.img_size = CONTEXT_IMAGE_VAR.with(Image::size);
             self.requested_layout = true;
         }

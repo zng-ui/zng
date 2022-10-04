@@ -171,29 +171,20 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
 /// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration
 #[property(context)]
 pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsShortcutPressedNode<C> {
-        child: C,
+    #[impl_ui_node(struct IsShortcutPressedNode {
+        child: impl UiNode,
         state: StateVar,
         shortcut_press: Option<DeadlineVar>,
-        click_handle: Option<EventWidgetHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsShortcutPressedNode<C> {
+    })]
+    impl UiNode for IsShortcutPressedNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, false).unwrap();
-            self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
+            ctx.sub_event(&CLICK_EVENT);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, false).unwrap();
-            self.click_handle = None;
             self.child.deinit(ctx);
-        }
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            if let Some(timer) = &self.shortcut_press {
-                subs.var(ctx, timer);
-            }
-            self.child.subscriptions(ctx, subs);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = CLICK_EVENT.on(update) {
@@ -204,9 +195,10 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     if self.shortcut_press.take().is_none() {
                         let duration = Gestures::req(ctx.services).shortcut_pressed_duration;
                         if duration != Duration::default() {
-                            self.shortcut_press = Some(ctx.timers.deadline(duration));
-                            self.state.set_ne(ctx, true).unwrap();
-                            ctx.updates.subscriptions();
+                            let dl = ctx.timers.deadline(duration);
+                            dl.subscribe(ctx.path.widget_id()).perm();
+                            self.shortcut_press = Some(dl);
+                            self.state.set_ne(ctx, true).unwrap();                            
                         }
                     } else {
                         self.state.set_ne(ctx, false).unwrap();
@@ -222,7 +214,6 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(timer) = &self.shortcut_press {
                 if timer.is_new(ctx) {
                     self.shortcut_press = None;
-                    ctx.updates.subscriptions();
                     self.state.set_ne(ctx.vars, false).unwrap();
                 }
             }
@@ -232,7 +223,6 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         child: child.cfg_boxed(),
         state,
         shortcut_press: None,
-        click_handle: None,
     }
     .cfg_boxed()
 }

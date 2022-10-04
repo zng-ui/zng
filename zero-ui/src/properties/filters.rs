@@ -21,23 +21,18 @@ use crate::core::color::filters::{
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     struct FilterNode<C, F> {
         child: C,
-        filter: F,
+        var_filter: F,
         render_filter: Option<RenderFilter>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<Filter>> UiNode for FilterNode<C, F> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.render_filter = self.filter.with(Filter::try_render);
+            self.render_filter = self.var_filter.with(Filter::try_render);
             self.child.init(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.filter);
-            self.child.subscriptions(ctx, subs);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.filter.with_new(ctx.vars, |f| {
+            self.var_filter.with_new(ctx.vars, |f| {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
                     ctx.updates.render();
@@ -54,7 +49,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.get().layout(ctx.metrics));
+                self.render_filter = Some(self.var_filter.get().layout(ctx.metrics));
                 ctx.updates.render();
             }
             self.child.layout(ctx, wl)
@@ -66,7 +61,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     }
     FilterNode {
         child,
-        filter: filter.into_var(),
+        var_filter: filter.into_var(),
         render_filter: None,
     }
 }
@@ -84,25 +79,20 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 /// [`child_opacity`]: fn@child_opacity
 #[property(child_context, default(Filter::default()))]
 pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    struct ChildFilterNode<C, F> {
-        child: C,
-        filter: F,
+    #[impl_ui_node(struct ChildFilterNode {
+        child: impl UiNode,
+        var_filter: impl Var<Filter>,
         render_filter: Option<RenderFilter>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Var<Filter>> UiNode for ChildFilterNode<C, F> {
+    })]
+    impl UiNode for ChildFilterNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.render_filter = self.filter.with(Filter::try_render);
+            self.render_filter = self.var_filter.with(Filter::try_render);
+            self.init_handles();
             self.child.init(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.filter);
-            self.child.subscriptions(ctx, subs);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.filter.with_new(ctx.vars, |f| {
+            self.var_filter.with_new(ctx.vars, |f| {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
                     ctx.updates.render();
@@ -119,7 +109,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.get().layout(ctx.metrics));
+                self.render_filter = Some(self.var_filter.get().layout(ctx.metrics));
                 ctx.updates.render();
             }
             self.child.layout(ctx, wl)
@@ -133,7 +123,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
     }
     ChildFilterNode {
         child,
-        filter: filter.into_var(),
+        var_filter: filter.into_var(),
         render_filter: None,
     }
 }
@@ -271,32 +261,26 @@ pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -
 /// [`filter`]: fn@filter
 #[property(context, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
-    struct OpacityNode<C, A> {
-        child: C,
-        alpha: A,
+    #[impl_ui_node(struct OpacityNode {
+        child: impl UiNode,
+        var_alpha: impl Var<Factor>,
         frame_key: FrameVarKey<f32>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, A: Var<Factor>> UiNode for OpacityNode<C, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.alpha);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for OpacityNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.alpha.is_new(ctx) {
+            if self.var_alpha.is_new(ctx) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind(&self.alpha, |f| f.0);
+            let opacity = self.frame_key.bind(&self.var_alpha, |f| f.0);
             frame.push_inner_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update(&self.alpha, |f| f.0));
+            update.update_f32_opt(self.frame_key.update(&self.var_alpha, |f| f.0));
             self.child.render_update(ctx, update);
         }
     }
@@ -305,7 +289,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     OpacityNode {
         child,
         frame_key: FrameVarKey::new_unique(&alpha),
-        alpha,
+        var_alpha: alpha,
     }
 }
 
@@ -317,32 +301,26 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 /// [`child_filter`]: fn@child_filter
 #[property(child_context, default(1.0))]
 pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
-    struct ChildOpacityNode<C, A> {
-        child: C,
-        alpha: A,
+    #[impl_ui_node(struct ChildOpacityNode {
+        child: impl UiNode,
+        var_alpha: impl Var<Factor>,
         frame_key: FrameVarKey<f32>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, A: Var<Factor>> UiNode for ChildOpacityNode<C, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.alpha);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for ChildOpacityNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.alpha.is_new(ctx) {
+            if self.var_alpha.is_new(ctx) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind(&self.alpha, |f| f.0);
+            let opacity = self.frame_key.bind(&self.var_alpha, |f| f.0);
             frame.push_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update(&self.alpha, |f| f.0));
+            update.update_f32_opt(self.frame_key.update(&self.var_alpha, |f| f.0));
             self.child.render_update(ctx, update);
         }
     }
@@ -351,6 +329,6 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
     ChildOpacityNode {
         child,
         frame_key: FrameVarKey::new_unique(&alpha),
-        alpha,
+        var_alpha: alpha,
     }
 }

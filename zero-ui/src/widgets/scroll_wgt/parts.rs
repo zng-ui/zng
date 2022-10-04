@@ -122,35 +122,20 @@ pub mod thumb {
         )
     }
 
-    fn new_layout(child: impl UiNode) -> impl UiNode {
-        struct DragNode<C> {
-            child: C,
+    fn new_layout(child: impl UiNode) -> impl UiNode {        
+        #[impl_ui_node(struct DragNode {
+            child: impl UiNode,
             content_length: Px,
             viewport_length: Px,
             thumb_length: Px,
             scale_factor: Factor,
-            event_handles: Option<[EventWidgetHandle; 2]>,
 
             mouse_down: Option<(Px, Factor)>,
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode> UiNode for DragNode<C> {
+        })]
+        impl UiNode for DragNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.event_handles = Some([
-                    MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
-                    MOUSE_INPUT_EVENT.subscribe(ctx.path.widget_id()),
-                ]);
+                ctx.sub_event(&MOUSE_MOVE_EVENT).sub_event(&MOUSE_INPUT_EVENT).sub_var(&THUMB_OFFSET_VAR);
                 self.child.init(ctx);
-            }
-
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.event_handles = None;
-                self.child.deinit(ctx);
-            }
-
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.var(ctx, &THUMB_OFFSET_VAR);
-                self.child.subscriptions(ctx, subs);
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -234,7 +219,6 @@ pub mod thumb {
             viewport_length: Px(0),
             thumb_length: Px(0),
             scale_factor: 1.fct(),
-            event_handles: None,
 
             mouse_down: None,
         }

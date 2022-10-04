@@ -72,11 +72,11 @@ fn show_widget_tree(
 ) -> impl UiNode {
     #[impl_ui_node(struct RenderWidgetTreeNode {
         child: impl UiNode,
-        render: Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
+        render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
         var_enabled: impl Var<bool>,
         valid: bool,
     })]
-    impl<C: UiNode, R: Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static, E: Var<bool>> UiNode for RenderWidgetTreeNode<C, R, E> {
+    impl UiNode for RenderWidgetTreeNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.valid = ctx.path.is_root();
             if self.valid {
@@ -142,14 +142,14 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     self.handles = [
                         MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
                         MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
-                    ].into();
+                    ]
+                    .into();
                 } else {
                     self.handles.clear();
                 }
-            }
-            else {
+            } else {
                 tracing::error!("properties that render widget info are only valid in a window");
-            }           
+            }
 
             self.child.init(ctx);
         }
@@ -158,7 +158,6 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.handles.clear();
             self.child.deinit(ctx);
         }
-
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
@@ -211,7 +210,8 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     self.handles = [
                         MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
                         MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
-                    ].into();
+                    ]
+                    .into();
                 } else {
                     self.handles.clear();
                 }
@@ -272,10 +272,9 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                 if self.orientation.get().is_some() {
                     self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
                 }
-            }
-           else {
+            } else {
                 tracing::error!("properties that render widget info are only valid in a window");
-            }           
+            }
 
             self.child.init(ctx);
         }
@@ -298,26 +297,26 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                                             .search_bounds(w.info.center(), Px::MAX, ctx.info_tree.spatial_bounds().to_box2d())
                                             .map(|q| q.to_rect())
                                             .collect();
-    
+
                                         if self.search_quads != search_quads {
                                             self.search_quads = search_quads;
                                             ctx.updates.render();
                                         }
-    
+
                                         none = false;
                                         break;
                                     }
                                 }
                             }
                         }
-    
+
                         if none && !self.search_quads.is_empty() {
                             self.search_quads.clear();
                             ctx.updates.render();
                         }
                     }
                 }
-            }            
+            }
 
             self.child.event(ctx, update);
         }
@@ -326,13 +325,13 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             if self.valid {
                 if let Some(ori) = self.var_orientation.get_new(ctx) {
                     self.search_quads.clear();
-    
+
                     if ori.is_some() {
                         self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
                     } else {
                         self.mouse_hovered_handle = None;
                     }
-    
+
                     ctx.updates.render();
                 }
             }

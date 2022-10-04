@@ -51,6 +51,55 @@ pub mod foo {
 // We can't reuse the the `when` code for handlers because they are not allowed in `when`.
 ```
 
+# Auto Node
+
+Improvements to `#[impl_ui_node(struct Node { .. } )]`.
+
+* Rename to `#[ui_node(..)]`.
+
+## Refactor auto-handles to a pseudo attribute
+
+* Allows any member name.
+* Is building block for other "auto" stuff.
+    - Like `#[var(layout)]` to automatically generate a layout request on update.
+
+```rust
+#[impl_ui_node(struct BarNode {
+    child: impl UiNode,
+
+    #[var] a: impl Var<bool>,    
+    #[var] b: impl Var<bool>,
+
+    #[event] click: Event<ClickArgs>,
+
+    custom: Vec<bool>,
+})]
+impl UiNode for BarNode { }
+```
+
+## Custom delegate in auto node
+
+* Allows auto-node and nonstandard delegation.
+
+```rust
+#[impl_ui_node(struct FooNode {
+    #[delegate(
+        delegate: self.foo.borrow(),
+        delegate_mut: self.foo.borrow_mut(),
+    )]
+    foo: RefCell<BoxedUiNode>,
+})]
+impl UiNode for FooNode { }
+
+// OR
+
+#[impl_ui_node(struct BarNode {
+    #[delegate(child)]
+    foo: impl UiNode,
+})]
+impl UiNode for BarNode { }
+```
+
 # Difficult
 
 * Improve `cfg` to support declaring multiple properties with the same name, but different cfg.

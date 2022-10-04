@@ -16,9 +16,9 @@ use super::types::*;
 
 /// The actual content presenter.
 pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
-    struct ViewportNode<C, M> {
-        child: C,
-        mode: M,
+    #[impl_ui_node(struct ViewportNode {
+        child: impl UiNode,
+        mode: impl Var<ScrollMode>,
 
         viewport_unit: PxSize,
         viewport_size: PxSize,
@@ -30,20 +30,18 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         binding_key: FrameValueKey<PxTransform>,
 
         info: ScrollInfo,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
+    })]
+    impl UiNode for ViewportNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&self.mode)
+                .sub_var(&SCROLL_VERTICAL_OFFSET_VAR)
+                .sub_var(&SCROLL_HORIZONTAL_OFFSET_VAR);
+            self.child.init(ctx);
+        }
+
         fn info(&self, ctx: &mut InfoContext, builder: &mut WidgetInfoBuilder) {
             builder.meta().set(&SCROLL_INFO_ID, self.info.clone());
             self.child.info(ctx, builder);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx)
-                .var(&self.mode)
-                .var(&SCROLL_VERTICAL_OFFSET_VAR)
-                .var(&SCROLL_HORIZONTAL_OFFSET_VAR);
-            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -246,9 +244,9 @@ pub fn scrollbar_joiner_presenter() -> impl UiNode {
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
 /// [`SCROLL_LEFT_CMD`] and [`SCROLL_RIGHT_CMD`] scoped on the widget.
-pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
-    struct ScrollCommandsNode<C> {
-        child: C,
+pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {    
+    #[impl_ui_node(struct ScrollCommandsNode {
+        child: impl UiNode,
 
         up: CommandHandle,
         down: CommandHandle,
@@ -256,10 +254,11 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         right: CommandHandle,
 
         layout_line: PxVector,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ScrollCommandsNode<C> {
+    })]
+    impl UiNode for ScrollCommandsNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&VERTICAL_LINE_UNIT_VAR).sub_var(&HORIZONTAL_LINE_UNIT_VAR);
+
             let scope = ctx.path.widget_id();
 
             self.up = SCROLL_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
@@ -277,12 +276,6 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             self.down = CommandHandle::dummy();
             self.left = CommandHandle::dummy();
             self.right = CommandHandle::dummy();
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx).var(&VERTICAL_LINE_UNIT_VAR).var(&HORIZONTAL_LINE_UNIT_VAR);
-
-            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -358,7 +351,6 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             r
         }
     }
-
     ScrollCommandsNode {
         child: child.cfg_boxed(),
 
@@ -375,8 +367,8 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that implements [`PAGE_UP_CMD`], [`PAGE_DOWN_CMD`],
 /// [`PAGE_LEFT_CMD`] and [`PAGE_RIGHT_CMD`] scoped on the widget.
 pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
-    struct PageCommandsNode<C> {
-        child: C,
+    #[impl_ui_node(struct PageCommandsNode {
+        child: impl UiNode,
 
         up: CommandHandle,
         down: CommandHandle,
@@ -384,10 +376,11 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         right: CommandHandle,
 
         layout_page: PxVector,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for PageCommandsNode<C> {
+    })]
+    impl UiNode for PageCommandsNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&VERTICAL_PAGE_UNIT_VAR).sub_var(&HORIZONTAL_PAGE_UNIT_VAR);
+
             let scope = ctx.path.widget_id();
 
             self.up = PAGE_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
@@ -405,12 +398,6 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             self.down = CommandHandle::dummy();
             self.left = CommandHandle::dummy();
             self.right = CommandHandle::dummy();
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx).var(&VERTICAL_PAGE_UNIT_VAR).var(&HORIZONTAL_PAGE_UNIT_VAR);
-
-            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -486,7 +473,6 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             r
         }
     }
-
     PageCommandsNode {
         child,
 
@@ -502,16 +488,15 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that implements [`SCROLL_TO_TOP_CMD`], [`SCROLL_TO_BOTTOM_CMD`],
 /// [`SCROLL_TO_LEFTMOST_CMD`] and [`SCROLL_TO_RIGHTMOST_CMD`] scoped on the widget.
 pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
-    struct ScrollToEdgeCommandsNode<C> {
-        child: C,
+    #[impl_ui_node(struct ScrollToEdgeCommandsNode {
+        child: impl UiNode,
 
         top: CommandHandle,
         bottom: CommandHandle,
         leftmost: CommandHandle,
         rightmost: CommandHandle,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ScrollToEdgeCommandsNode<C> {
+    })]
+    impl UiNode for ScrollToEdgeCommandsNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
@@ -583,14 +568,13 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements [`SCROLL_TO_CMD`] scoped on the widget and scroll to focused.
 pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
-    struct ScrollToCommandNode<C> {
-        child: C,
+    #[impl_ui_node(struct ScrollToCommandNode {
+        child: impl UiNode,
 
         handle: CommandHandle,
         scroll_to: Option<(WidgetBoundsInfo, ScrollToMode)>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
+    })]
+    impl UiNode for ScrollToCommandNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.handle = SCROLL_TO_CMD.scoped(ctx.path.widget_id()).subscribe(ctx, true);
             self.child.init(ctx);

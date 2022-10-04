@@ -138,6 +138,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            // !!: TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
+
             let style = FONT_STYLE_VAR.get();
             let weight = FONT_WEIGHT_VAR.get();
 
@@ -168,11 +170,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 FocusInfoBuilder::get(info).focusable(true);
             }
             self.with(|c| c.info(ctx, info))
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            // TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
-            self.with(|c| c.subscriptions(ctx, subs))
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -546,11 +543,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for LayoutTextNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &TEXT_PADDING_VAR);
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&TEXT_PADDING_VAR);
             // other subscriptions are handled by the `resolve_text` node.
 
-            self.child.subscriptions(ctx, subs)
+            self.child.init(ctx);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
