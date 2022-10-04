@@ -373,7 +373,9 @@ pub struct TestWidgetContext {
     /// [`clear`]: OwnedStateMap::clear
     pub update_state: OwnedStateMap<state_map::Update>,
 
+    /// Var subscriptions storage used in [`WidgetHandles`].
     pub var_handles: VarHandles,
+    /// Event subscriptions storage used in [`WidgetHandles`].
     pub event_handles: EventHandles,
 
     /// The [`services`] repository. Empty by default.
@@ -596,16 +598,23 @@ impl TestWidgetContext {
     }
 }
 
+/// Var and event subscription handles managed by the widget.
+///
+/// These handles are kept in the widget instance and are dropped on deinit.
+///
+/// You can access the widget handles for a widget in [`WidgetContext::handles`].
 pub struct WidgetHandles<'a> {
     var_handles: &'a mut VarHandles,
     event_handles: &'a mut EventHandles,
 }
 impl<'a> WidgetHandles<'a> {
-    fn push_var(&mut self, other: VarHandle) {
+    /// Keep var subscription handle.
+    pub fn push_var(&mut self, other: VarHandle) {
         self.var_handles.push(other);
     }
 
-    fn push_event(&mut self, other: EventWidgetHandle) {
+    /// Keep event subscription handle.
+    pub fn push_event(&mut self, other: EventWidgetHandle) {
         self.event_handles.push(other);
     }
 }
@@ -639,7 +648,9 @@ pub struct WidgetContext<'a> {
     /// [`UiNode`]: crate::UiNode
     pub update_state: StateMapMut<'a, state_map::Update>,
 
-    /// !!: TODO doc
+    /// Var and event subscription handles managed by the widget.
+    ///
+    /// These handles are kept in the widget instance and are dropped on deinit.
     pub handles: WidgetHandles<'a>,
 
     /// Access to variables.

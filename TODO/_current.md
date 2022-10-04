@@ -13,6 +13,7 @@
     - Using clone for now, after merge refactor this.
 
 * `Var::display` like `Path::display`,  for easy formatting.
+* `RcVar::set` and other infallible overrides.
 * Review `VarCapabilities` variant names.
 * Review `unsafe`, only use when there is no alternative.
 
