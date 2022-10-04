@@ -3,12 +3,12 @@
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
 //! and the event does not consider the widget's [`interactivity`](crate::core::widget_info::WidgetInfo::interactivity).
 
-use zero_ui_core::widget_info::UpdateSlot;
+use std::mem;
 
 use crate::core::handler::*;
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
-use crate::core::widget_info::{WidgetLayout, WidgetSubscriptions};
+use crate::core::widget_info::WidgetLayout;
 use crate::core::*;
 use crate::core::{context::*, render::FrameUpdate};
 
@@ -44,18 +44,12 @@ pub struct OnInitArgs {
 /// [`on_info_init`]: fn@on_info_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    struct OnInitNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnInitNode {
+        child: impl UiNode,
+        handler: impl  WidgetHandler<OnInitArgs>,
         count: usize,
-    }
-
-    #[impl_ui_node(child)]
-    impl<C, H> UiNode for OnInitNode<C, H>
-    where
-        C: UiNode,
-        H: WidgetHandler<OnInitArgs>,
-    {
+    })]
+    impl UiNode for OnInitNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
@@ -63,17 +57,11 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
             self.handler.event(ctx, &OnInitArgs { count: self.count });
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             self.handler.update(ctx);
         }
     }
-
     OnInitNode { child, handler, count: 0 }
 }
 
@@ -95,14 +83,12 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
 /// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    struct OnPreviewInitNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnPreviewInitNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<OnInitArgs>,
         count: usize,
-    }
-
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<OnInitArgs>> UiNode for OnPreviewInitNode<C, H> {
+    })]
+    impl UiNode for OnPreviewInitNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.count = self.count.wrapping_add(1);
             self.handler.event(ctx, &OnInitArgs { count: self.count });
@@ -110,17 +96,11 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
             self.child.init(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.handler.update(ctx);
             self.child.update(ctx, updates);
         }
     }
-
     OnPreviewInitNode { child, handler, count: 0 }
 }
 
@@ -140,35 +120,24 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    struct OnInfoInitNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnInfoInitNode {
+        child: impl UiNode,
+        handler: impl  WidgetHandler<OnInitArgs>,
         count: usize,
-        pending: Option<UpdateSlot>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<OnInitArgs>> UiNode for OnInfoInitNode<C, H> {
+        pending: bool,
+    })]
+    impl UiNode for OnInfoInitNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
-            let slot = UpdateSlot::next();
-            ctx.updates.update(slot.mask());
-            self.pending = Some(slot);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            if let Some(s) = self.pending {
-                subs.update(s);
-            }
-            subs.handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
+            self.pending = true;
+            ctx.updates.update(ctx.path.widget_id());
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
 
-            if self.pending.take().is_some() {
-                ctx.updates.subscriptions();
+            if mem::take(&mut self.pending) {
                 self.count = self.count.wrapping_add(1);
                 self.handler.event(ctx, &OnInitArgs { count: self.count });
             }
@@ -180,7 +149,7 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>)
         child,
         handler,
         count: 0,
-        pending: None,
+        pending: true,
     }
 }
 
@@ -209,19 +178,12 @@ pub struct OnUpdateArgs {
 /// UI update every time they awake, so it is very easy to lock the app in a constant sequence of updates.
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> + marker::NotAsyncHn) -> impl UiNode {
-    struct OnUpdateNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnUpdateNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<OnUpdateArgs>,
         count: usize,
-    }
-
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnUpdateNode<C, H> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subs);
-            subs.handler(&self.handler);
-        }
-
+    })]
+    impl UiNode for OnUpdateNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
 
@@ -229,7 +191,6 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> +
             self.handler.event(ctx, &OnUpdateArgs { count: self.count });
         }
     }
-
     OnUpdateNode { child, handler, count: 0 }
 }
 
@@ -252,19 +213,12 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> +
 /// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> + marker::NotAsyncHn) -> impl UiNode {
-    struct OnPreviewUpdateNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnPreviewUpdateNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<OnUpdateArgs>,
         count: usize,
-    }
-
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnPreviewUpdateNode<C, H> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for OnPreviewUpdateNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.count = self.count.wrapping_add(1);
             self.handler.event(ctx, &OnUpdateArgs { count: self.count });
@@ -272,7 +226,6 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArg
             self.child.update(ctx, updates);
         }
     }
-
     OnPreviewUpdateNode { child, handler, count: 0 }
 }
 
@@ -305,14 +258,12 @@ pub struct OnDeinitArgs {
 /// in a worker thread.
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
-    struct OnDeinitNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnDeinitNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<OnDeinitArgs>,
         count: usize,
-    }
-
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<OnDeinitArgs>> UiNode for OnDeinitNode<C, H> {
+    })]
+    impl UiNode for OnDeinitNode {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
 
@@ -320,17 +271,11 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> +
             self.handler.event(ctx, &OnDeinitArgs { count: self.count });
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subs);
-            subs.handler(&self.handler);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             self.handler.update(ctx);
         }
     }
-
     OnDeinitNode { child, handler, count: 0 }
 }
 
@@ -355,14 +300,12 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> +
 /// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
-    struct OnPreviewDeinitNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnPreviewDeinitNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<OnDeinitArgs>,
         count: usize,
-    }
-
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<OnDeinitArgs>> UiNode for OnPreviewDeinitNode<C, H> {
+    })]
+    impl UiNode for OnPreviewDeinitNode {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.count = self.count.wrapping_add(1);
             self.handler.event(ctx, &OnDeinitArgs { count: self.count });
@@ -370,17 +313,11 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
             self.child.deinit(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subs);
-            subs.handler(&self.handler);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.handler.update(ctx);
             self.child.update(ctx, updates);
         }
     }
-
     OnPreviewDeinitNode { child, handler, count: 0 }
 }
 
@@ -398,12 +335,11 @@ pub struct OnMeasureArgs {
 /// The `handler` is called even if the widget has [`Interactivity::BLOCK`].
 #[property(event, default(|_, _|{}))]
 pub fn on_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext, OnMeasureArgs) + 'static) -> impl UiNode {
-    struct OnMeasureNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut MeasureContext, OnMeasureArgs) + 'static> UiNode for OnMeasureNode<C, F> {
+    #[impl_ui_node(struct OnMeasureNode {
+        child: impl UiNode,
+        handler: impl Fn(&mut MeasureContext, OnMeasureArgs) + 'static,
+    })]
+    impl UiNode for OnMeasureNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let size = self.child.measure(ctx);
             (self.handler)(ctx, OnMeasureArgs { size });
@@ -426,12 +362,11 @@ pub fn on_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext, OnMe
 /// [`on_layout`]: fn@on_layout
 #[property(event, default(|_|{}))]
 pub fn on_pre_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext) + 'static) -> impl UiNode {
-    struct OnMeasureNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut MeasureContext) + 'static> UiNode for OnMeasureNode<C, F> {
+    #[impl_ui_node(struct OnMeasureNode {
+        child: impl UiNode,
+        handler: impl Fn(&mut MeasureContext) + 'static,
+    })]
+    impl UiNode for OnMeasureNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             (self.handler)(ctx);
             self.child.measure(ctx)
@@ -460,12 +395,11 @@ pub struct OnLayoutArgs<'a> {
 /// The `handler` is called even if the widget has [`Interactivity::BLOCK`].
 #[property(event, default(|_, _|{}))]
 pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnLayoutArgs) + 'static) -> impl UiNode {
-    struct OnLayoutNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, OnLayoutArgs) + 'static> UiNode for OnLayoutNode<C, F> {
+    #[impl_ui_node(struct OnLayoutNode {
+        child: impl UiNode,
+        handler: impl FnMut(&mut LayoutContext, OnLayoutArgs) + 'static,
+    })]
+    impl UiNode for OnLayoutNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             self.child.measure(ctx)
         }
@@ -489,12 +423,11 @@ pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnL
 /// [`on_layout`]: fn@on_layout
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static) -> impl UiNode {
-    struct OnPreviewLayoutNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static> UiNode for OnPreviewLayoutNode<C, F> {
+    #[impl_ui_node(struct OnPreviewLayoutNode {
+        child: impl UiNode,
+        handler: impl FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static,
+    })]
+    impl UiNode for OnPreviewLayoutNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             self.child.measure(ctx)
         }
@@ -516,12 +449,11 @@ pub fn on_pre_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext,
 /// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
-    struct OnRenderNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameBuilder) + 'static> UiNode for OnRenderNode<C, F> {
+    #[impl_ui_node(struct OnRenderNode {
+        child: impl UiNode,
+        handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static,
+    })]
+    impl UiNode for OnRenderNode {
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
             (self.handler)(ctx, frame);
@@ -540,12 +472,11 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut F
 /// [`on_render`]: fn@on_render
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
-    struct OnPreviewRenderNode<C: UiNode, F: Fn(&mut RenderContext, &mut FrameBuilder)> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameBuilder) + 'static> UiNode for OnPreviewRenderNode<C, F> {
+    #[impl_ui_node(struct OnPreviewRenderNode<C: UiNode, F: > {
+        child: impl UiNode,
+        handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static,
+    })]
+    impl UiNode for OnPreviewRenderNode {
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             (self.handler)(ctx, frame);
             self.child.render(ctx, frame);
@@ -563,12 +494,11 @@ pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &m
 /// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
-    struct OnRenderUpdateNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameUpdate) + 'static> UiNode for OnRenderUpdateNode<C, F> {
+    #[impl_ui_node(struct OnRenderUpdateNode {
+        child: impl UiNode,
+        handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static,
+    })]
+    impl UiNode for OnRenderUpdateNode {
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             self.child.render_update(ctx, update);
             (self.handler)(ctx, update);
@@ -586,12 +516,11 @@ pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext,
 /// [`on_render_update`]: fn@on_render_update
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
-    struct OnPreviewRenderUpdateNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Fn(&mut RenderContext, &mut FrameUpdate) + 'static> UiNode for OnPreviewRenderUpdateNode<C, F> {
+    #[impl_ui_node(struct OnPreviewRenderUpdateNode {
+        child: impl UiNode,
+        handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static,
+    })]
+    impl UiNode for OnPreviewRenderUpdateNode {
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             (self.handler)(ctx, update);
             self.child.render_update(ctx, update);

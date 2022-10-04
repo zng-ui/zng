@@ -1046,7 +1046,6 @@ pub mod prelude {
             widget_base::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
-                WidgetSubscriptions,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

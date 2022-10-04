@@ -12,18 +12,13 @@ use crate::core::border::{border_node, ContextBorders};
 /// [`corner_radius`]: fn@corner_radius
 #[property(border, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-    struct BorderNode<S> {
-        sides: S,
+    #[impl_ui_node(struct BorderNode {
+        var_sides: impl Var<BorderSides>,
         corners: PxCornerRadius,
-    }
-    #[impl_ui_node(none)]
-    impl<S: Var<BorderSides>> UiNode for BorderNode<S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.sides);
-        }
-
+    })]
+    impl UiNode for BorderNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.sides.is_new(ctx) {
+            if self.var_sides.is_new(ctx) {
                 ctx.updates.render();
             }
         }
@@ -38,7 +33,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
 
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
             let (rect, offsets) = ContextBorders::border_layout();
-            frame.push_border(rect, offsets, self.sides.get(), self.corners);
+            frame.push_border(rect, offsets, self.var_sides.get(), self.corners);
         }
     }
 
@@ -46,7 +41,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
         child,
         widths,
         BorderNode {
-            sides: sides.into_var(),
+            var_sides: sides.into_var(),
             corners: PxCornerRadius::zero(),
         },
     )
