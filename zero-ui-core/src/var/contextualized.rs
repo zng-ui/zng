@@ -57,6 +57,14 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
             None => (self.init)(),
         }
     }
+
+    /// Clone the variable initialization, but not the inited actual var, the clone can than
+    /// be inited in a different context.
+    #[allow(clippy::should_implement_trait)]
+    pub fn clone(&self) -> Self {
+        // highlight docs and removes "redundant" clone warnings.
+        Clone::clone(self)
+    }
 }
 
 /// Weak var that upgrades to an uninitialized [`ContextualizedVar<T, S>`].

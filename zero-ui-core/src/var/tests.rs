@@ -588,12 +588,11 @@ mod context {
 
     #[test]
     fn context_var_map_moved_app_ctx() {
-        // need to support different value using the same variable instance too.
-
-        let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-
-        let (_, a) = TEST_VAR.with_context("A", || mapped.get());
-        let (_, b) = TEST_VAR.with_context("B", || mapped.get());
+        let mapped_a = TEST_VAR.map(|t| formatx!("map {t}"));
+        let (_, a) = TEST_VAR.with_context("A", || mapped_a.get());
+        
+        let mapped_b = mapped_a.clone();
+        let (_, b) = TEST_VAR.with_context("B", || mapped_b.get());
 
         assert_ne!(a, b);
     }
@@ -626,7 +625,7 @@ mod context {
 
         TEST_VAR.with_context(backing_var.clone(), || {
             let t = TEST_VAR;
-            assert!(!t.capabilities().contains(VarCapabilities::MODIFY));
+            assert!(t.capabilities().contains(VarCapabilities::MODIFY));
             t.set(ctx.vars, "set!").unwrap();
         });
 
