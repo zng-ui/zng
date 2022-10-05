@@ -5,6 +5,9 @@
     - Refactor render image "retain", can't see if windows subscribe now (previous impl was iffy).
         - Make it explicit, only if requested.
 * Review "!!:".
+* Review context vars usage, we abused the previous API to pass "service like" references to a context, now these values get cloned.
+    - Maybe we can make an official API for these?
+        - A `ContextValue<T>` that is a boxed `RcVar<T>` internally, but allows immediate modification?
 * Docs.
 * Test.
 

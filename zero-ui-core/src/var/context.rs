@@ -92,7 +92,7 @@ impl<T: VarValue> ContextVar<T> {
     ///
     /// [contextualized]: types::ContextualizedVar
     pub fn with_context<R, F: FnOnce() -> R>(self, var: impl IntoVar<T>, action: F) -> (BoxedVar<T>, R) {
-        let var = var.into_var().boxed();
+        let var = var.into_var().actual_var().boxed();
         self.local.with(move |local| {
             let prev = local.var.replace(var);
             let r = action();
