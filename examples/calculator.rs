@@ -36,7 +36,7 @@ fn app_main() {
                         align = Align::RIGHT;
                         font_size = 32.pt();
 
-                        when *#{calc.map(|c| c.error())} {
+                        when #{calc.clone()}.error() {
                             color = colors::RED;
                         }
                     },

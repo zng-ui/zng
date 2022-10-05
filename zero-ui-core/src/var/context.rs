@@ -85,20 +85,21 @@ impl<T: VarValue> ContextVar<T> {
 
     /// Runs `action` with this context var representing the other `var` in the current thread.
     ///
-    /// Returns the `var` and the result of `action`.
+    /// Returns the actual var that was used and the result of `action`.
     ///
     /// Note that the `var` must be the same for subsequent calls in the same *context*, otherwise [contextualized]
     /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
     ///
     /// [contextualized]: types::ContextualizedVar
-    pub fn with_context<R, F: FnOnce() -> R>(self, var: impl IntoVar<T>, action: F) -> (BoxedVar<T>, R) {
-        let var = var.into_var().actual_var().boxed();
-        self.local.with(move |local| {
-            let prev = local.var.replace(var);
-            let r = action();
-            let var = local.var.replace(prev);
-            (var, r)
-        })
+    pub fn with_context<R>(self, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
+        let prev = self.replace_context(var.into_var().actual_var().boxed());
+        let r = action();
+        let var = self.replace_context(prev);
+        (var, r)
+    }
+
+    fn replace_context(self, var: BoxedVar<T>) -> BoxedVar<T> {
+        self.local.with(move |l| l.var.replace(var))
     }
 }
 
