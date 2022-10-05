@@ -138,7 +138,38 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            // !!: TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
+            ctx.sub_var(&LANG_VAR)
+                .sub_var(&FONT_FAMILY_VAR)
+                .sub_var(&FONT_STYLE_VAR)
+                .sub_var(&FONT_WEIGHT_VAR)
+                .sub_var(&FONT_STRETCH_VAR)
+                .sub_var(&TEXT_TRANSFORM_VAR)
+                .sub_var(&WHITE_SPACE_VAR)
+                .sub_var(&FONT_SIZE_VAR)
+                .sub_var(&FONT_VARIATIONS_VAR)
+                .sub_var(&LINE_HEIGHT_VAR)
+                .sub_var(&LETTER_SPACING_VAR)
+                .sub_var(&WORD_SPACING_VAR)
+                .sub_var(&LINE_SPACING_VAR)
+                .sub_var(&WORD_BREAK_VAR)
+                .sub_var(&LINE_BREAK_VAR)
+                .sub_var(&TAB_LENGTH_VAR)
+                .sub_var(&FONT_FEATURES_VAR)
+                .sub_var(&TEXT_ALIGN_VAR)
+                .sub_var(&TEXT_COLOR_VAR)
+                .sub_var(&FONT_SYNTHESIS_VAR)
+                .sub_var(&FONT_AA_VAR)
+                .sub_var(&OVERLINE_THICKNESS_VAR)
+                .sub_var(&OVERLINE_STYLE_VAR)
+                .sub_var(&OVERLINE_COLOR_VAR)
+                .sub_var(&STRIKETHROUGH_THICKNESS_VAR)
+                .sub_var(&STRIKETHROUGH_STYLE_VAR)
+                .sub_var(&STRIKETHROUGH_COLOR_VAR)
+                .sub_var(&UNDERLINE_THICKNESS_VAR)
+                .sub_var(&UNDERLINE_COLOR_VAR)
+                .sub_var(&UNDERLINE_SKIP_VAR)
+                .sub_var(&UNDERLINE_POSITION_VAR)
+                .sub_var(&CARET_COLOR_VAR);
 
             let style = FONT_STYLE_VAR.get();
             let weight = FONT_WEIGHT_VAR.get();
@@ -649,12 +680,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
 pub fn render_underlines(child: impl UiNode) -> impl UiNode {
-    struct RenderUnderlineNode<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for RenderUnderlineNode<C> {
+    #[impl_ui_node(struct RenderUnderlineNode {
+        child: impl UiNode,
+    })]
+    impl UiNode for RenderUnderlineNode {
         // subscriptions are handled by the `resolve_text` node.
+
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if UNDERLINE_STYLE_VAR.is_new(ctx) || UNDERLINE_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
@@ -694,11 +725,10 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
 pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
-    struct RenderStrikethroughsNode<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for RenderStrikethroughsNode<C> {
+    #[impl_ui_node(struct RenderStrikethroughsNode {
+        child: impl UiNode,
+    })]
+    impl UiNode for RenderStrikethroughsNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if STRIKETHROUGH_STYLE_VAR.is_new(ctx) || STRIKETHROUGH_COLOR_VAR.is_new(ctx) {

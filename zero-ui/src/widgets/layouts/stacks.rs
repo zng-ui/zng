@@ -60,7 +60,7 @@ pub mod h_stack {
         };
         implicit_base::nodes::children_layout(node)
     }
-    
+
     #[impl_ui_node(struct HStackNode {
         children: impl WidgetList,
 
@@ -300,7 +300,7 @@ pub mod v_stack {
         };
         implicit_base::nodes::children_layout(node)
     }
-    
+
     #[impl_ui_node(struct VStackNode {
         children: impl WidgetList,
 
@@ -585,7 +585,7 @@ pub mod z_stack {
         };
         implicit_base::nodes::children_layout(node)
     }
-    
+
     #[impl_ui_node(struct ZStackNode {
         children: impl WidgetList,
         var_align: impl Var<Align>,
@@ -757,7 +757,7 @@ pub fn stack_nodes_layout_by(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
     constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
-) -> impl UiNode {    
+) -> impl UiNode {
     #[impl_ui_node(struct StackNodesFillNode {
         children: impl UiNodeList,
         var_index: impl Var<usize>,

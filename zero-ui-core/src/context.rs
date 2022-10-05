@@ -601,9 +601,19 @@ impl<'a> WidgetHandles<'a> {
         self.var_handles.push(other);
     }
 
+    /// Keep var subscription handles.
+    pub fn push_vars(&mut self, others: VarHandles) {
+        self.var_handles.extend(others);
+    }
+
     /// Keep event subscription handle.
     pub fn push_event(&mut self, other: EventWidgetHandle) {
         self.event_handles.push(other);
+    }
+
+    /// Keep event subscription handles.
+    pub fn push_events(&mut self, others: EventHandles) {
+        self.event_handles.extend(others);
     }
 }
 

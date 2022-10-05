@@ -475,3 +475,12 @@ impl Extend<EventWidgetHandle> for EventHandles {
         }
     }
 }
+impl IntoIterator for EventHandles {
+    type Item = EventWidgetHandle;
+
+    type IntoIter = std::vec::IntoIter<EventWidgetHandle>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}

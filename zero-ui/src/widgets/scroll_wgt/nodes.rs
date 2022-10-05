@@ -244,7 +244,7 @@ pub fn scrollbar_joiner_presenter() -> impl UiNode {
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
 /// [`SCROLL_LEFT_CMD`] and [`SCROLL_RIGHT_CMD`] scoped on the widget.
-pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {    
+pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
     #[impl_ui_node(struct ScrollCommandsNode {
         child: impl UiNode,
 

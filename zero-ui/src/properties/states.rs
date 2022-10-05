@@ -198,7 +198,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                             let dl = ctx.timers.deadline(duration);
                             dl.subscribe(ctx.path.widget_id()).perm();
                             self.shortcut_press = Some(dl);
-                            self.state.set_ne(ctx, true).unwrap();                            
+                            self.state.set_ne(ctx, true).unwrap();
                         }
                     } else {
                         self.state.set_ne(ctx, false).unwrap();

@@ -124,7 +124,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
     #[impl_ui_node(struct ShowHitTestNode {
         child: impl UiNode,
         var_enabled: impl Var<bool>,
-        
+
         valid: bool,
 
         fails: Vec<PxRect>,

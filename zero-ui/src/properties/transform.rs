@@ -19,7 +19,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         binding_key: FrameVarKey<PxTransform>,
     })]
     impl UiNode for TransformNode {
-         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             if self.var_transform.is_new(ctx.vars) {
                 ctx.updates.layout();

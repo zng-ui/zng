@@ -154,7 +154,12 @@ pub mod uniform_grid {
             let mut changed = false;
             self.children.update_all(ctx, updates, &mut changed);
 
-            if changed || self.var_columns.is_new(ctx) || self.var_rows.is_new(ctx) || self.var_first_column.is_new(ctx) || self.var_spacing.is_new(ctx) {
+            if changed
+                || self.var_columns.is_new(ctx)
+                || self.var_rows.is_new(ctx)
+                || self.var_first_column.is_new(ctx)
+                || self.var_spacing.is_new(ctx)
+            {
                 ctx.updates.layout_and_render();
             }
         }

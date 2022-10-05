@@ -211,7 +211,7 @@ pub fn foreground_highlight(
     offsets: impl IntoVar<SideOffsets>,
     widths: impl IntoVar<SideOffsets>,
     sides: impl IntoVar<BorderSides>,
-) -> impl UiNode {    
+) -> impl UiNode {
     #[impl_ui_node(struct ForegroundHighlightNode {
         child: impl UiNode,
         var_offsets: impl Var<SideOffsets>,

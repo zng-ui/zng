@@ -1105,8 +1105,7 @@ pub mod prelude {
             widget,
             widget_base::{implicit_base, HitTestMode},
             widget_info::{
-                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
-                WidgetLayout,
+                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

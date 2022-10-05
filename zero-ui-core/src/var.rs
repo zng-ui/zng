@@ -399,6 +399,15 @@ impl Extend<VarHandle> for VarHandles {
         }
     }
 }
+impl IntoIterator for VarHandles {
+    type Item = VarHandle;
+
+    type IntoIter = std::vec::IntoIter<VarHandle>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 /// Methods of [`Var<T>`] that don't depend on the value type.
 ///

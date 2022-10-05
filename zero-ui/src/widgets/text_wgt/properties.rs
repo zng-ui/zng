@@ -144,18 +144,13 @@ pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl U
 /// Sets the [`FONT_SIZE_VAR`] context var and the [`LayoutMetrics::font_size`].
 #[property(context, default(FONT_SIZE_VAR))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
-    struct FontSizeNode<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for FontSizeNode<C> {
+    #[impl_ui_node(struct FontSizeNode {
+        child: impl UiNode,
+    })]
+    impl UiNode for FontSizeNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&FONT_SIZE_VAR);
             self.child.init(ctx);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &FONT_SIZE_VAR);
-            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {

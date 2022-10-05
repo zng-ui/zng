@@ -298,14 +298,14 @@ pub mod properties {
     /// the contextual [`Selector`] is used to implement the behavior.
     #[property(context, allowed_in_when = false)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-        struct ValueNode<C, T, V> {
-            child: C,
-            value: V,
+        #[impl_ui_node(struct ValueNode<T: VarValue + PartialEq> {
+            child: impl UiNode,
+            value: impl Var<T>,
             checked: RcVar<Option<bool>>,
             prev_value: Option<T>,
             click_handle: Option<EventWidgetHandle>,
-        }
-        impl<C, T: VarValue + PartialEq, V> ValueNode<C, T, V> {
+        })]
+        impl ValueNode {
             // Returns `true` if selected.
             fn select(ctx: &mut WidgetContext, value: &T) -> bool {
                 SELECTOR_VAR.with(|selector| {
@@ -352,10 +352,12 @@ pub mod properties {
             fn is_selected(ctx: &mut WidgetContext, value: &T) -> bool {
                 SELECTOR_VAR.with(|sel| sel.instance.borrow().is_selected(&mut ctx.as_info(), value))
             }
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode, T: VarValue + PartialEq, V: Var<T>> UiNode for ValueNode<C, T, V> {
+
+            #[UiNode]
             fn init(&mut self, ctx: &mut WidgetContext) {
+                ctx.sub_var(&self.value).sub_var(&SELECTOR_VAR).sub_var(&DESELECT_ON_NEW_VAR);
+                SELECTOR_VAR.with(|s| s.instance.borrow().subscribe(&mut ctx.handles));
+
                 self.value.with(|value| {
                     let selected = if SELECT_ON_INIT_VAR.get() {
                         Self::select(ctx, value)
@@ -374,6 +376,7 @@ pub mod properties {
                 self.child.init(ctx);
             }
 
+            #[UiNode]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 if self.checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
                     self.value.with(|value| {
@@ -389,12 +392,7 @@ pub mod properties {
                 self.child.deinit(ctx);
             }
 
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                // SELECTOR_VAR.get(ctx.vars).instance.borrow().subscribe(ctx, subs);
-                subs.vars(ctx).var(&self.value).var(&SELECTOR_VAR).var(&DESELECT_ON_NEW_VAR);
-                self.child.subscriptions(ctx, subs);
-            }
-
+            #[UiNode]
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
@@ -414,7 +412,12 @@ pub mod properties {
                 }
             }
 
+            #[UiNode]
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if SELECTOR_VAR.is_new(ctx) {
+                    todo!("reload widget?")
+                }
+
                 let selected = self.value.with_new(ctx.vars, |new| {
                     // auto select new.
                     let selected = if self.checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
@@ -568,13 +571,8 @@ pub mod properties {
     /// [`value`]: fn@value
     /// [`selection`]: fn@selection
     pub trait Selector: 'static {
-        /// Subscribe the selector in a [`value`] widget to receive selection updates.
-        ///
-        /// The [`value`] property checks [`is_selected`] every update.
-        ///
-        /// [`value`]: fn@value
-        /// [`is_selected`]: Selector::is_selected
-        fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
+        /// Add the selector subscriptions for a widget.
+        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles);
 
         /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
         fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError>;
@@ -641,7 +639,7 @@ pub mod properties {
     pub struct NilSel;
 
     impl Selector for NilSel {
-        fn subscribe(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
+        fn subscribe(&self, _: WidgetId, _: &mut WidgetHandles) {}
 
         fn select(&mut self, _: &mut WidgetContext, _: Box<dyn Any>) -> Result<(), SelectorError> {
             Err(SelectorError::custom_str("no contextual `selection`"))
@@ -683,8 +681,8 @@ pub mod properties {
         T: VarValue + PartialEq,
         S: Var<T>,
     {
-        fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.target);
+        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
+            handles.push_var(self.target.subscribe(widget_id));
         }
 
         fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
@@ -740,8 +738,8 @@ pub mod properties {
         T: VarValue + PartialEq,
         S: Var<Option<T>>,
     {
-        fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.target);
+        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
+            handles.push_var(self.target.subscribe(widget_id));
         }
 
         fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {

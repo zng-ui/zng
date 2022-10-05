@@ -23,13 +23,12 @@ pub mod wrap {
         implicit_base::nodes::children_layout(node)
     }
 
-    
     #[impl_ui_node(struct WrapNode {
         children: impl WidgetList,
         var_spacing: impl Var<GridSpacing>,
     })]
     impl UiNode for WrapNode {
-         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let constrains = ctx.constrains();
 
             if let Some(size) = constrains.fill_or_exact() {

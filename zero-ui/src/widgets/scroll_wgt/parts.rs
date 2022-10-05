@@ -122,7 +122,7 @@ pub mod thumb {
         )
     }
 
-    fn new_layout(child: impl UiNode) -> impl UiNode {        
+    fn new_layout(child: impl UiNode) -> impl UiNode {
         #[impl_ui_node(struct DragNode {
             child: impl UiNode,
             content_length: Px,
@@ -134,7 +134,9 @@ pub mod thumb {
         })]
         impl UiNode for DragNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.sub_event(&MOUSE_MOVE_EVENT).sub_event(&MOUSE_INPUT_EVENT).sub_var(&THUMB_OFFSET_VAR);
+                ctx.sub_event(&MOUSE_MOVE_EVENT)
+                    .sub_event(&MOUSE_INPUT_EVENT)
+                    .sub_var(&THUMB_OFFSET_VAR);
                 self.child.init(ctx);
             }
 

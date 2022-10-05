@@ -104,15 +104,14 @@ pub mod styleable {
 
     /// Styleable `new`, captures the `id` and `style` properties.
     pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl Widget {
-        struct StyleableNode<T> {
+        #[impl_ui_node(struct StyleableNode {
             child: DynWidgetNode,
             snapshot: Option<DynWidgetSnapshot>,
-            style: T,
-        }
-        #[impl_ui_node(child)]
-        impl<T: Var<StyleGenerator>> UiNode for StyleableNode<T> {
+            var_style: impl Var<StyleGenerator>,
+        })]
+        impl UiNode for StyleableNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
+                if let Some(style) = self.var_style.get().generate(ctx, &StyleArgs {}) {
                     self.snapshot = Some(self.child.snapshot());
                     self.child.extend(style.into_node());
                 }
@@ -126,13 +125,8 @@ pub mod styleable {
                 }
             }
 
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.var(ctx, &self.style);
-                self.child.subscriptions(ctx, subs);
-            }
-
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if self.style.is_new(ctx.vars) {
+                if self.var_style.is_new(ctx.vars) {
                     self.deinit(ctx);
                     self.init(ctx);
                     ctx.updates.info_layout_and_render();
@@ -144,7 +138,7 @@ pub mod styleable {
         let child = StyleableNode {
             child: widget.into_node(true),
             snapshot: None,
-            style: style.into_var(),
+            var_style: style.into_var(),
         };
         implicit_base::new(child, id)
     }

@@ -35,45 +35,29 @@ pub mod rule_line {
     ) -> impl UiNode {
         LineNode {
             bounds: PxSize::zero(),
-            orientation: orientation.into_var(),
-            length: length.into_var(),
-            stroke_thickness: stroke_thickness.into_var(),
-            color: color.into_var(),
-            style: style.into_var(),
+            var_orientation: orientation.into_var(),
+            var_length: length.into_var(),
+            var_stroke_thickness: stroke_thickness.into_var(),
+            var_color: color.into_var(),
+            var_style: style.into_var(),
         }
     }
-    struct LineNode<W, L, O, C, S> {
-        stroke_thickness: W,
-        length: L,
-        orientation: O,
-        color: C,
-        style: S,
+
+    #[impl_ui_node(struct LineNode {
+        var_stroke_thickness: impl Var<Length>,
+        var_length: impl Var<Length>,
+        var_orientation: impl Var<LineOrientation>,
+        var_color: impl Var<Rgba>,
+        var_style: impl Var<LineStyle>,
 
         bounds: PxSize,
-    }
-    #[impl_ui_node(none)]
-    impl<W, L, O, C, S> UiNode for LineNode<W, L, O, C, S>
-    where
-        W: Var<Length>,
-        L: Var<Length>,
-        O: Var<LineOrientation>,
-        C: Var<Rgba>,
-        S: Var<LineStyle>,
-    {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx)
-                .var(&self.stroke_thickness)
-                .var(&self.length)
-                .var(&self.orientation)
-                .var(&self.color)
-                .var(&self.style);
-        }
-
+    })]
+    impl UiNode for LineNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.stroke_thickness.is_new(ctx) || self.length.is_new(ctx) || self.orientation.is_new(ctx) {
+            if self.var_stroke_thickness.is_new(ctx) || self.var_length.is_new(ctx) || self.var_orientation.is_new(ctx) {
                 ctx.updates.layout();
             }
-            if self.color.is_new(ctx) || self.style.is_new(ctx) {
+            if self.var_color.is_new(ctx) || self.var_style.is_new(ctx) {
                 ctx.updates.render();
             }
         }
@@ -81,28 +65,28 @@ pub mod rule_line {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
-            match self.orientation.get() {
+            match self.var_orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
+                    self.var_length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
+                    self.var_stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
-                    self.length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
+                    self.var_stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
+                    self.var_length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
                 ),
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
-            let bounds = match self.orientation.get() {
+            let bounds = match self.var_orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
+                    self.var_length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
+                    self.var_stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
-                    self.length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
+                    self.var_stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
+                    self.var_length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
                 ),
             };
 
@@ -116,9 +100,9 @@ pub mod rule_line {
 
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
             let bounds = PxRect::from_size(self.bounds);
-            let orientation = self.orientation.get();
-            let color = self.color.get();
-            let style = self.style.get();
+            let orientation = self.var_orientation.get();
+            let color = self.var_color.get();
+            let style = self.var_style.get();
             frame.push_line(bounds, orientation, color.into(), style);
         }
     }

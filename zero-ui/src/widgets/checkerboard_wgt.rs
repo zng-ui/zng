@@ -101,22 +101,18 @@ pub fn node() -> impl UiNode {
     use crate::core::gradient::RenderExtendMode;
     use properties::*;
 
-    struct CheckerboardNode {
+    #[impl_ui_node(struct CheckerboardNode {
         final_size: PxSize,
         tile_size: PxSize,
         center: PxPoint,
         colors: [RenderColor; 2],
-    }
-    #[impl_ui_node(none)]
+    })]
     impl UiNode for CheckerboardNode {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx)
-                .var(&CHECKERBOARD_COLORS_VAR)
-                .var(&CHECKERBOARD_SIZE_VAR)
-                .var(&CHECKERBOARD_OFFSET_VAR);
-        }
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&CHECKERBOARD_COLORS_VAR)
+                .sub_var(&CHECKERBOARD_SIZE_VAR)
+                .sub_var(&CHECKERBOARD_OFFSET_VAR);
 
-        fn init(&mut self, _: &mut WidgetContext) {
             let (c0, c1) = CHECKERBOARD_COLORS_VAR.get();
             self.colors = [c0.into(), c1.into()];
         }

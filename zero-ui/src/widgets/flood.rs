@@ -2,19 +2,14 @@ use crate::prelude::new_widget::*;
 
 /// Node that fills the widget area with a color.
 pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
-    struct FloodNode<C> {
-        color: C,
+    #[impl_ui_node(struct FloodNode {
+        var_color: impl Var<Rgba>,
         frame_key: FrameVarKey<RenderColor>,
         final_size: PxSize,
-    }
-    #[impl_ui_node(none)]
-    impl<C: Var<Rgba>> UiNode for FloodNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.color);
-        }
-
+    })]
+    impl UiNode for FloodNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.color.is_new(ctx) {
+            if self.var_color.is_new(ctx) {
                 ctx.updates.render_update();
             }
         }
@@ -31,18 +26,21 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
         }
 
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_color(PxRect::from_size(self.final_size), self.frame_key.bind(&self.color, |&c| c.into()));
+            frame.push_color(
+                PxRect::from_size(self.final_size),
+                self.frame_key.bind(&self.var_color, |&c| c.into()),
+            );
         }
 
         fn render_update(&self, _: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_color_opt(self.frame_key.update(&self.color, |&c| c.into()));
+            update.update_color_opt(self.frame_key.update(&self.var_color, |&c| c.into()));
         }
     }
 
     let color = color.into_var();
     FloodNode {
         frame_key: FrameVarKey::new_unique(&color),
-        color,
+        var_color: color,
         final_size: PxSize::zero(),
     }
     .cfg_boxed()

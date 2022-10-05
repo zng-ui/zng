@@ -3,7 +3,6 @@
 //! These properties are already included in the [`window!`](mod@crate::widgets::window) definition,
 //! but you can also use then stand-alone. They configure the window from any widget inside the window.
 
-use std::marker::PhantomData;
 use std::time::Duration;
 
 use crate::core::color::ColorScheme;
@@ -21,43 +20,26 @@ where
     T: VarValue + PartialEq,
     V: Var<T>,
 {
-    struct BindWindowVarNode<C, V, S, T> {
-        _p: PhantomData<T>,
-        child: C,
-        user_var: V,
-        select: S,
-        binding: VarHandles,
-    }
-
-    #[impl_ui_node(child)]
-    impl<T, C, V, SV, S> UiNode for BindWindowVarNode<C, V, S, T>
-    where
-        T: VarValue + PartialEq,
-        C: UiNode,
-        V: Var<T>,
-        SV: Var<T>,
-        S: Fn(&WindowVars) -> SV + 'static,
-    {
+    #[impl_ui_node(struct BindWindowVarNode<T: VarValue + PartialEq, SV: Var<T>> {
+        child: impl UiNode,
+        user_var: impl Var<T>,
+        select: impl Fn(&WindowVars) -> SV + 'static,
+    })]
+    impl UiNode for BindWindowVarNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let window_var = (self.select)(WindowVars::req(ctx));
             if !self.user_var.capabilities().is_always_static() {
-                self.binding = self.user_var.bind_bidi(&window_var);
+                let binding = self.user_var.bind_bidi(&window_var);
+                ctx.handles.push_var(binding);
             }
             window_var.set_ne(ctx.vars, self.user_var.get()).unwrap();
             self.child.init(ctx);
         }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.binding.0.clear();
-            self.child.deinit(ctx);
-        }
     }
     BindWindowVarNode {
-        _p: PhantomData,
         child,
         user_var: user_var.into_var(),
         select,
-        binding: VarHandles::dummy(),
     }
 }
 
@@ -137,35 +119,29 @@ map_properties! {
 /// Sets the frame clear color.
 #[property(context, default(colors::WHITE))]
 pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    struct ClearColorNode<U, C> {
-        child: U,
-        clear_color: C,
-    }
-    #[impl_ui_node(child)]
-    impl<U: UiNode, C: Var<Rgba>> UiNode for ClearColorNode<U, C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.clear_color);
-            self.child.subscriptions(ctx, subs);
-        }
-
+    #[impl_ui_node(struct ClearColorNode {
+        child: impl UiNode,
+        var_clear_color: impl Var<Rgba>,
+    })]
+    impl UiNode for ClearColorNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.clear_color.is_new(ctx) {
+            if self.var_clear_color.is_new(ctx) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx, updates);
         }
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.set_clear_color(self.clear_color.get().into());
+            frame.set_clear_color(self.var_clear_color.get().into());
             self.child.render(ctx, frame);
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.set_clear_color(self.clear_color.get().into());
+            update.set_clear_color(self.var_clear_color.get().into());
             self.child.render_update(ctx, update);
         }
     }
     ClearColorNode {
         child,
-        clear_color: color.into_var(),
+        var_clear_color: color.into_var(),
     }
 }
 
@@ -266,13 +242,6 @@ impl_from_and_into_var! {
 /// the app can open more than one window.
 #[property(context, allowed_in_when = false, default(SaveState::Disabled))]
 pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
-    struct SaveStateNode<C> {
-        child: C,
-        enabled: SaveState,
-        event_handles: Option<[EventWidgetHandle; 2]>,
-
-        task: Task,
-    }
     enum Task {
         None,
         Read {
@@ -281,8 +250,15 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
             loading: Option<WindowLoadingHandle>,
         },
     }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for SaveStateNode<C> {
+
+    #[impl_ui_node(struct SaveStateNode {
+        child: impl UiNode,
+        enabled: SaveState,
+        event_handles: Option<[EventWidgetHandle; 2]>,
+
+        task: Task,
+    })]
+    impl UiNode for SaveStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
                 let rsp = Config::req(ctx.services).read(key);
@@ -290,6 +266,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                     .enabled
                     .loading_timeout()
                     .and_then(|t| Windows::req(ctx.services).loading_handle(ctx.path.window_id(), t));
+                rsp.subscribe(ctx.path.widget_id()).perm();
                 self.task = Task::Read { rsp, loading };
             }
 
@@ -306,16 +283,6 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.event_handles = None;
             self.child.deinit(ctx);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            // match &self.task {
-            //     Task::Read { rsp, .. } => {
-            //         subs.var(ctx.vars, rsp);
-            //     }
-            //     Task::None => {}
-            // }
-            self.child.subscriptions(ctx, subs);
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -363,7 +330,6 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                         window_vars.size().set_ne(ctx.vars, restore_rect.size).unwrap();
                     }
                     self.task = Task::None;
-                    ctx.updates.subscriptions();
                 }
             }
             self.child.update(ctx, updates);
