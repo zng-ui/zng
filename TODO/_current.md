@@ -2,10 +2,6 @@
 
 * Remove `UiNode::subscriptions`, should be mostly removed already.
     - Use `impl_ui_node(struct Node { ..})` syntax everywhere.
-    - Refactor RcNode, removed a shared update-mask that was used to signal all slots.
-        - Probably needs re-implementation, current API very confusing.
-        - Need to (de)init in different widget contexts.
-        - Need the "take" stuff to be associated with a RcNode instance, right now the public API is split.
     - Refactor render image "retain", can't see if windows subscribe now (previous impl was iffy).
         - Make it explicit, only if requested.
 * Review "!!:".
