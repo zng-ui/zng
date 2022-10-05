@@ -1705,7 +1705,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 
     /// Starts an easing animation that *chases* a target value that can be changed using the [`ChaseAnimation<T>`] handle.
-    /// 
+    ///
     /// [`ChaseAnimation<T>`]: animation::ChaseAnimation
     fn chase<V, N, F>(&self, vars: &V, first_target: N, duration: Duration, easing: F) -> animation::ChaseAnimation<T>
     where

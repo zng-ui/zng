@@ -590,7 +590,7 @@ mod context {
     fn context_var_map_moved_app_ctx() {
         let mapped_a = TEST_VAR.map(|t| formatx!("map {t}"));
         let (_, a) = TEST_VAR.with_context("A", || mapped_a.get());
-        
+
         let mapped_b = mapped_a.clone();
         let (_, b) = TEST_VAR.with_context("B", || mapped_b.get());
 

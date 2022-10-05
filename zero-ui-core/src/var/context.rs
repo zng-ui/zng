@@ -55,14 +55,22 @@ macro_rules! context_var {
 #[doc(inline)]
 pub use crate::context_var;
 
+struct ContextEntry<T> {
+    var: BoxedVar<T>,
+    busy: Cell<bool>,
+}
+
 #[doc(hidden)]
 pub struct ContextData<T: VarValue> {
-    var: RefCell<BoxedVar<T>>,
+    stack: RefCell<Vec<ContextEntry<T>>>,
 }
 impl<T: VarValue> ContextData<T> {
     pub fn init(default: impl IntoVar<T>) -> Self {
         Self {
-            var: RefCell::new(default.into_var().boxed()),
+            stack: RefCell::new(vec![ContextEntry {
+                var: default.into_var().boxed(),
+                busy: Cell::new(false),
+            }]),
         }
     }
 }
@@ -92,14 +100,42 @@ impl<T: VarValue> ContextVar<T> {
     ///
     /// [contextualized]: types::ContextualizedVar
     pub fn with_context<R>(self, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
-        let prev = self.replace_context(var.into_var().actual_var().boxed());
+        self.push_context(var.into_var().actual_var().boxed());
         let r = action();
-        let var = self.replace_context(prev);
+        let var = self.pop_context();
         (var, r)
     }
 
-    fn replace_context(self, var: BoxedVar<T>) -> BoxedVar<T> {
-        self.local.with(move |l| l.var.replace(var))
+    fn push_context(self, var: BoxedVar<T>) {
+        self.local.with(move |l| {
+            l.stack.borrow_mut().push(ContextEntry {
+                var,
+                busy: Cell::new(false),
+            })
+        })
+    }
+
+    fn pop_context(self) -> BoxedVar<T> {
+        self.local.with(move |l| l.stack.borrow_mut().pop()).unwrap().var
+    }
+
+    fn with_var<R>(self, f: impl FnOnce(&BoxedVar<T>) -> R) -> R {
+        let i = self.lock_idx();
+        let r = self.local.with(move |l| f(&l.stack.borrow()[i].var));
+        self.free_idx(i);
+        r
+    }
+
+    fn lock_idx(self) -> usize {
+        let i = self.local.with(|l| {
+            let stack = l.stack.borrow();
+            stack.iter().rposition(|f| !f.busy.replace(true))
+        });
+        i.expect("context var recursion in default value")
+    }
+
+    fn free_idx(self, i: usize) {
+        self.local.with(|l| l.stack.borrow()[i].busy.set(false));
     }
 }
 
@@ -139,39 +175,39 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
     }
 
     fn last_update(&self) -> VarUpdateId {
-        self.local.with(|l| l.var.borrow().last_update())
+        self.with_var(AnyVar::last_update)
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        self.local.with(|l| l.var.borrow().capabilities()) | VarCapabilities::CAP_CHANGE
+        self.with_var(AnyVar::capabilities) | VarCapabilities::CAP_CHANGE
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
-        self.local.with(|l| l.var.borrow().hook(pos_modify_action))
+        self.with_var(|v| v.hook(pos_modify_action))
     }
 
     fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        self.local.with(|l| l.var.borrow().subscribe(widget_id))
+        self.with_var(|v| v.subscribe(widget_id))
     }
 
     fn strong_count(&self) -> usize {
-        self.local.with(|l| l.var.borrow().strong_count())
+        self.with_var(AnyVar::strong_count)
     }
 
     fn weak_count(&self) -> usize {
-        self.local.with(|l| l.var.borrow().weak_count())
+        self.with_var(AnyVar::weak_count)
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
-        self.local.with(|l| l.var.borrow().clone_any())
+        self.with_var(AnyVar::actual_var_any)
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        self.local.with(|l| l.var.borrow().downgrade_any())
+        self.with_var(AnyVar::downgrade_any)
     }
 
     fn is_animating(&self) -> bool {
-        self.local.with(|l| l.var.borrow().is_animating())
+        self.with_var(AnyVar::is_animating)
     }
 
     fn var_ptr(&self) -> VarPtr {
@@ -198,7 +234,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        self.local.with(move |l| l.var.borrow().with(read))
+        self.with_var(move |v| v.with(read))
     }
 
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
@@ -206,15 +242,15 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
         V: WithVars,
         F: FnOnce(&mut VarModifyValue<T>) + 'static,
     {
-        self.local.with(|l| l.var.borrow().modify(vars, modify))
+        self.with_var(move |v| v.modify(vars, modify))
     }
 
     fn actual_var(&self) -> BoxedVar<T> {
-        self.local.with(|l| l.var.borrow().actual_var())
+        self.with_var(Var::actual_var)
     }
 
     fn downgrade(&self) -> BoxedWeakVar<T> {
-        self.local.with(|l| l.var.borrow().downgrade())
+        self.with_var(Var::downgrade)
     }
 
     fn into_value(self) -> T {

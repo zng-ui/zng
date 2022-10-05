@@ -1,9 +1,8 @@
 # Var/Update Rewrite
 
-* Remove `UiNode::subscriptions`, should be mostly removed already.
-    - Use `impl_ui_node(struct Node { ..})` syntax everywhere.
-    - Refactor render image "retain", can't see if windows subscribe now (previous impl was iffy).
-        - Make it explicit, only if requested.
+* Use `impl_ui_node(struct Node { ..})` syntax everywhere.
+* Refactor render image "retain", can't see if windows subscribe now (previous impl was iffy).
+    - Make it explicit, only if requested.
 * Review "!!:".
 * Review context vars usage, we abused the previous API to pass "service like" references to a context, now these values get cloned.
     - Maybe we can make an official API for these?
