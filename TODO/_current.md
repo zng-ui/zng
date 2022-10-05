@@ -8,6 +8,7 @@
 * Review context vars usage, we abused the previous API to pass "service like" references to a context, now these values get cloned.
     - Maybe we can make an official API for these?
         - A `ContextValue<T>` that is a boxed `RcVar<T>` internally, but allows immediate modification?
+
 * Docs.
 * Test.
 
@@ -19,6 +20,8 @@
 * `Var::display` like `Path::display`,  for easy formatting.
 * `RcVar::set` and other infallible overrides.
 * Review `VarCapabilities` variant names.
+* Review `Var::actual_var`, can we make it `actual_var(self)` instead of a ref?
+    - We use this method in context-vars, so values get cloned a lot.
 * Review `unsafe`, only use when there is no alternative.
 * Review nodes that call `(de)init(ctx)`, are they causing a widget handle collection to grow uncontrolledly?
 

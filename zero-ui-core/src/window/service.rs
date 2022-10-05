@@ -872,7 +872,7 @@ impl WindowLoading {
                 if h.deadline.has_elapsed() {
                     false
                 } else {
-                    deadline = deadline.max(h.deadline);
+                    deadline = deadline.min(h.deadline);
                     true
                 }
             }
