@@ -73,7 +73,7 @@ impl Vars {
 
     /// Id of the current vars update in the app scope.
     ///
-    /// Variable with [`AnyVar::update_id`] equal to this are *new*.
+    /// Variable with [`AnyVar::last_update`] equal to this are *new*.
     pub fn update_id(&self) -> VarUpdateId {
         self.update_id
     }
@@ -112,7 +112,7 @@ impl Vars {
     /// # Variable Control
     ///
     /// Animations assume *control* of a variable on the first time they cause its value to be new, after this
-    /// moment the [`Var::is_animating`] value is `true` until the animation stops. Only one animation can control a
+    /// moment the [`AnyVar::is_animating`] value is `true` until the animation stops. Only one animation can control a
     /// variable at a time, if an animation loses control of a variable all attempts to modify it from inside the animation are ignored.
     ///
     /// Later started animations steal control from previous animations, direct touch, modify or set calls also remove the variable
@@ -170,6 +170,7 @@ impl Vars {
     /// ```
     ///
     /// [`AnimationHandle`]: animation::AnimationHandle
+    /// [`AnimationArgs`]: animation::AnimationArgs
     /// [`stop`]: animation::AnimationHandle::stop
     /// [`perm`]: animation::AnimationHandle::perm
     pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle

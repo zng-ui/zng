@@ -947,6 +947,8 @@ impl AnimateModifyInfo {
     ///
     /// You can clone this info to track this animation, when it stops or is dropped this returns `false`. Note
     /// that *paused* or sleeping animations still count as animating.
+    /// 
+    /// [`importance`]: Self::importance
     pub fn is_animating(&self) -> bool {
         self.handle.as_ref().map(|h| h.upgrade().is_some()).unwrap_or(false)
     }

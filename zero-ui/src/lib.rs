@@ -11,14 +11,8 @@
 
 //! Zero-Ui is the pure Rust GUI framework with batteries included.
 //!
-//! It provides all that you need to create a beautiful, fast and responsive multi-platform GUI apps, it includes many features
-//! that allow you to get started quickly, without sacrificing customization or performance. With features like gesture events,
-//! common widgets, layouts, data binding, async tasks, accessibility and localization
-//! you can focus on what makes your app unique, not the boilerplate required to get modern apps up to standard.
-//!
-//! When you do need to customize, Zero-Ui is rightly flexible, you can create new widgets or customize existing ones, not just
-//! new looks but new behavior, at a lower level you can introduce new event types or new event sources, making custom hardware seamless
-//! integrate into the framework.
+//! It provides all that you need to create a beautiful, fast and responsive multi-platform apps, it includes many features
+//! that allow you to get started quickly, without sacrificing customization or performance.
 //!
 //! # Usage
 //!
@@ -385,7 +379,7 @@
 //!
 //! Notice the differences between mapping and binding, first we need a context to access the [`Vars`] reference, second the
 //! text variable already has a value and it is only overwritten when the count variable updates, and
-//! finally the bind method returned a [`VarBindingHandle`] that must be dealt with.
+//! finally the bind method returned a binding handle.
 //!
 //! ### Variable Send/Receive
 //!
@@ -822,7 +816,6 @@
 //! [`var_from()`]: crate::core::var::var_from
 //! [`Text`]: crate::core::text::Text
 //! [`Vars`]: crate::core::var::Vars
-//! [`VarBindingHandle`]: crate::core::var::VarBindingHandle
 //! [`SideOffsets`]: crate::core::units::SideOffsets
 //! [`RcVar<T>`]: crate::core::var::RcVar
 //! [#widget]: macro@crate::core::widget

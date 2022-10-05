@@ -872,9 +872,9 @@ impl<'a> CommandMeta<'a> {
     /// Clone a meta variable identified by a [`CommandMetaVarId`].
     ///
     /// The variable is read-write and is clone-on-write if the command is scoped,
-    /// call [`into_read_only`] to make it read-only.
+    /// call [`read_only`] to make it read-only.
     ///
-    /// [`into_read_only`]: Var::into_read_only
+    /// [`read_only`]: Var::read_only
     pub fn get_var_or_insert<T, F>(&mut self, id: impl Into<CommandMetaVarId<T>>, init: F) -> CommandMetaVar<T>
     where
         T: StateValue + VarValue,

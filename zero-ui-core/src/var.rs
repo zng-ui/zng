@@ -300,7 +300,7 @@ impl VarHandle {
 
     /// Returns `true` if the handle is a [`dummy`].
     ///
-    /// [`dummy`]: VarWidgetHandle::dummy
+    /// [`dummy`]: VarHandle::dummy
     pub fn is_dummy(&self) -> bool {
         self.0.is_none()
     }
@@ -441,7 +441,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// [`var_type_id`]: AnyVar::var_type_id
     fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError>;
 
-    /// Last update ID a variable was modified, if the ID is equal to [`VarsRead::update_id`] the variable is *new*.
+    /// Last update ID a variable was modified, if the ID is equal to [`Vars::update_id`] the variable is *new*.
     fn last_update(&self) -> VarUpdateId;
 
     /// Flags that indicate what operations the variable is capable of.
@@ -494,7 +494,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Create a weak reference to this *Rc* variable.
     ///
     /// The weak reference is made to the [`actual_var`], if the actual var is a [`LocalVar<T>`]
-    /// a [`types::weak_var<T>`] is returned, for *Rc* vars an actual weak reference is made.
+    /// a [`types::WeakRcVar<T>`] is returned, for *Rc* vars an actual weak reference is made.
     ///
     /// [`actual_var`]: Var::actual_var
     fn downgrade_any(&self) -> BoxedAnyWeakVar;
@@ -758,12 +758,12 @@ pub trait IntoVar<T: VarValue>: Clone {
 pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Output of [`Var::read_only`].
     ///
-    /// This is `Self` for vars that are always read-only, or [`ReadOnlyVar<T, Self>`] for others.
+    /// This is `Self` for vars that are always read-only, or [`types::ReadOnlyVar<T, Self>`] for others.
     type ReadOnly: Var<T>;
 
     /// Output of [`Var::actual_var`].
     ///
-    /// This is [`BoxedVar<T>`] for [`ContextVar<T>`], `V` for [`types::FlatMapVar<T, V>`] and `Self` for others.
+    /// This is [`BoxedVar<T>`] for [`ContextVar<T>`], `V` for [`types::RcFlatMapVar<T, V>`] and `Self` for others.
     type ActualVar: Var<T>;
 
     /// Output of [`Var::downgrade`].
@@ -798,7 +798,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 
     /// Gets a clone of the current *inner* var represented by this var. This is the same var, except for [`ContextVar<T>`]
-    /// and [`types::FlatMapVar<T, V>`].
+    /// and [`types::RcFlatMapVar<T, V>`].
     fn actual_var(&self) -> Self::ActualVar;
 
     /// Create a weak reference to this *Rc* variable.
@@ -843,7 +843,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The future can only be used in app bound async code, it can be reused.
     ///
-    /// [`is_animating`]: Var::is_animating
+    /// [`is_animating`]: AnyVar::is_animating
     fn wait_animation(&self) -> types::WaitIsNotAnimatingFut<T, Self> {
         types::WaitIsNotAnimatingFut::new(self)
     }
@@ -1011,7 +1011,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// inside it will only read the default value.
     ///
     /// [`map_bidi`]: Var::map_bidi
-    /// [contextualized]: Types::ContextualizedVar
+    /// [contextualized]: types::ContextualizedVar
     fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
     where
         O: VarValue,
@@ -1063,6 +1063,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Create a [`map`] that converts from `T` to a [`Text`] debug print.
     ///
     /// [`map`]: Var::map
+    /// [`Text`]: crate::text::Text
     fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyRcVar<crate::text::Text>> {
         self.map(|v| crate::text::formatx!("{v:?}"))
     }
@@ -1074,7 +1075,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
-    /// [contextualized]: Types::ContextualizedVar
+    /// [contextualized]: types::ContextualizedVar
     fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> types::ContextualizedVar<O, RcVar<O>>
     where
         O: VarValue,
@@ -1103,7 +1104,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
-    /// [contextualized]: Types::ContextualizedVar
+    /// [contextualized]: types::ContextualizedVar
     fn flat_map<O, V, M>(&self, map: M) -> types::ContextualizedVar<O, types::RcFlatMapVar<O, V>>
     where
         O: VarValue,
@@ -1129,8 +1130,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
-    /// [contextualized]: Types::ContextualizedVar
+    /// [contextualized]: types::ContextualizedVar
     /// [`map_bidi`]: Var::map_bidi
+    /// [`filter_map_bidi`]: Var::filter_map_bidi
     fn filter_map<O, M, I>(&self, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
     where
         O: VarValue,
@@ -1184,7 +1186,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
-    /// [contextualized]: Types::ContextualizedVar
+    /// [contextualized]: types::ContextualizedVar
     fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, RcVar<O>>
     where
         O: VarValue,
@@ -1419,10 +1421,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// The `enter_value` is also called immediately when this method is called to start tracking the first value.
     ///
-    /// Returns a [`OnVarHandle`] that can be used to stop tracing. Making the handle permanent means that the tracing will happen
+    /// Returns a [`VarHandle`] that can be used to stop tracing. Making the handle permanent means that the tracing will happen
     /// for the variable or app, the tracing handler only holds a weak reference to the variable.
     ///
-    /// If this variable can never update the span is immediately dropped and a dummy handle is returned. If the variable [`is_contextual`]
+    /// If this variable can never update the span is immediately dropped and a dummy handle is returned. Note that
     /// the trace is set on the [`actual_var`].
     ///
     /// # Examples
@@ -1453,7 +1455,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// ```
     ///
     /// [`tracing`]: https://docs.rs/tracing/
-    /// [`is_contextual`]: Var::is_contextual
     /// [`actual_var`]: Var::actual_var
     fn trace_value<E, S>(&self, mut enter_value: E) -> VarHandle
     where
@@ -1635,7 +1636,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// See [`Var::animate`] for details about animations.
     ///
-    /// [`is_animating`]: Var::is_animating
+    /// [`is_animating`]: AnyVar::is_animating
     fn step<V, N>(&self, vars: &V, new_value: N, delay: Duration) -> animation::AnimationHandle
     where
         V: WithVars,
@@ -1681,7 +1682,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Returns an [`AnimationHandle`]. See [`Var::animate`] for details about animations.
     ///
-    /// [`is_animating`]: Var::is_animating
+    /// [`is_animating`]: AnyVar::is_animating
+    /// [`AnimationHandle`]: animation::AnimationHandle
     fn steps<V, F>(&self, vars: &V, steps: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         V: WithVars,
@@ -1702,7 +1704,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.animate(vars, animation::var_steps_ne(steps, duration, easing))
     }
 
-    /// Starts an easing animation that *chases* a target value that can be changed using the [`ChaseAnimation`] handle.
+    /// Starts an easing animation that *chases* a target value that can be changed using the [`ChaseAnimation<T>`] handle.
+    /// 
+    /// [`ChaseAnimation<T>`]: animation::ChaseAnimation
     fn chase<V, N, F>(&self, vars: &V, first_target: N, duration: Duration, easing: F) -> animation::ChaseAnimation<T>
     where
         V: WithVars,
@@ -1743,7 +1747,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// the creation context, so `property = CONTEXT_VAR.easing(500.ms(), easing::linear);` will bind with the `CONTEXT_VAR` in the `property` context,
     /// not the property instantiation.
     ///
-    /// [contextualized]: Types::ContextualizedVar
+    /// [contextualized]: types::ContextualizedVar
     /// [`ease`]: Var::ease
     fn easing<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
     where

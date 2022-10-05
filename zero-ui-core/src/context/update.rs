@@ -155,7 +155,7 @@ impl Updates {
 
     /// Schedules an update that only affects the app extensions.
     ///
-    /// This is the equivalent of calling [`update`] with [`UpdateMask::none`].
+    /// This is the equivalent of calling [`update`] with an empty vec.
     ///
     /// [`update`]: Self::update
     pub fn update_ext(&mut self) {

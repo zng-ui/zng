@@ -2171,7 +2171,7 @@ impl AppEventSender {
 
     /// Causes an update cycle that only affects app extensions to happen in the app.
     ///
-    /// This is the equivalent of calling [`send_update`] with [`UpdateMask::none`].
+    /// This is the equivalent of calling [`send_update`] with an empty vec.
     ///
     /// [`send_update`]: Self::send_update
     pub fn send_ext_update(&self) -> Result<(), AppDisconnected<()>> {

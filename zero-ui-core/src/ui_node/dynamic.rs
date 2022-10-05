@@ -214,10 +214,10 @@ pub enum DynPropertyArgs {
     /// must match a [`BoxedVar<T>`] for each [`IntoVar<T>`] exactly.
     ///
     /// Note that widget `when` conditions are evaluated in *reverse*, the last `true` condition *overrides* the
-    /// previous ones, the [`rc_when_var!`] on the other hand evaluates to the first `true` condition, to implement this,
+    /// previous ones, the [`when_var!`] on the other hand evaluates to the first `true` condition, to implement this,
     /// the widget macro builds the variable in reverse, the last `when` is the first in this builder.
     ///
-    /// [`rc_when_var!`]: crate::var::types::rc_when_var
+    /// [`when_var!`]: crate::var::when_var
     When(Vec<AnyWhenVarBuilder>),
     /// Similar to `When`, but the user did not explicitly set a default value or marked it with `#[dyn_when_default]`, the default
     /// value is only used when merging over other `WhenDefault` otherwise it is replaced independent of the importance.

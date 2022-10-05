@@ -237,10 +237,10 @@ mod helpers {
     /// Helper for declaring properties that sets a context var.
     ///
     /// The method presents the `value` as the [`ContextVar<T>`] in the widget and widget descendants.
-    /// The context var [`is_new`] and [`is_read_only`] status are always equal to the `value` var status. Users
+    /// The context var [`is_new`] and [`read_only`] status are always equal to the `value` var status. Users
     /// of the context var can also retrieve the `value` var using [`actual_var`].
     ///
-    /// The generated [`UiNode`] delegates each method to `child` inside a call to [`VarsRead::with_context_var`].
+    /// The generated [`UiNode`] delegates each method to `child` inside a call to [`ContextVar::with_context`].
     ///
     /// # Examples
     ///
@@ -261,7 +261,7 @@ mod helpers {
     /// ```
     ///
     /// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FOO_VAR.get`, and if `value` is set to a
-    /// variable the `FOO_VAR` will also reflect its [`is_new`] and [`is_read_only`]. If the `value` var is not read-only inner nodes
+    /// variable the `FOO_VAR` will also reflect its [`is_new`] and [`read_only`]. If the `value` var is not read-only inner nodes
     /// can modify it using `FOO_VAR.set` or `FOO_VAR.modify`.
     ///
     /// Also note that the property [`default`] is set to the same `FOO_VAR`, this causes the property to *pass-through* the outer context
@@ -309,7 +309,7 @@ mod helpers {
     /// the final consumer of the composed value only need to monitor to a single context variable.
     ///
     /// [`is_new`]: Var::is_new
-    /// [`is_read_only`]: Var::is_read_only
+    /// [`read_only`]: Var::read_only
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
     pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {

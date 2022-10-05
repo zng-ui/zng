@@ -12,6 +12,8 @@
 /// with multiple generic types and constrains, but not `where` constrains. You can also destruct the input
 /// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in
 /// the input is supported.
+/// 
+/// [`LocalVar<U>`]: crate::var::LocalVar
 ///
 /// # Examples
 ///

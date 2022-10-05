@@ -110,12 +110,12 @@ context_var! {
     static LAYOUT_TEXT_VAR: Option<LayoutText> = None;
 }
 
-/// An UI node that resolves the [`TextContext`], applies the text transform and white space correction and segments the `text`.
+/// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///
 /// This node setups the [`ResolvedText`] for all inner nodes, the `text!` widget introduces this node at the `new_event` constructor,
-/// so all properties except priority *context* have access using the [`ResolvedText::get`] function.
+/// so all properties except priority *context* have access using the [`ResolvedText::with`] function.
 ///
-/// This node also subscribes to the entire [`TextContext`] so other `text!` properties don't need to.
+/// This node also subscribes to all the text context vars so other `text!` properties don't need to.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
     struct ResolveTextNode<C, T> {
         child: C,
@@ -335,10 +335,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     .cfg_boxed()
 }
 
-/// An UI node that layouts the parent [`ResolvedText`] according with the [`TextContext`].
+/// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
 ///
 /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
-/// node at the `new_fill` constructor, so all properties with priority `fill` have access to the [`LayoutText::get`] function.
+/// node at the `new_fill` constructor, so all properties with priority `fill` have access to the [`LayoutText::with`] function.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
     bitflags::bitflags! {
         struct Layout: u8 {

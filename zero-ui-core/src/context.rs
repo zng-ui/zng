@@ -545,7 +545,7 @@ impl TestWidgetContext {
 
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
-    /// Returns the [`WindowUpdates`] and [`ContextUpdates`] a full app and window would
+    /// Returns the [`InfoLayoutRenderUpdates`] and [`ContextUpdates`] a full app and window would
     /// use to update the application.
     pub fn apply_updates(&mut self) -> (InfoLayoutRenderUpdates, ContextUpdates) {
         let win_updt = self.updates.exit_window_ctx();
@@ -1301,8 +1301,7 @@ pub struct InfoContext<'a> {
 
     /// State that lives for the duration of the node tree rebuild or subscriptions aggregation call in the window.
     ///
-    /// This state lives only for the call to [`UiNode::info`](crate::UiNode::info) or
-    /// [`UiNode::subscriptions`](crate::UiNode::subscriptions) method call in all nodes of the window.
+    /// This state lives only for the call to the [`UiNode::info`](crate::UiNode::info) method in all nodes of the window.
     /// You can use this to signal nodes that have not added info yet.
     pub update_state: StateMapMut<'a, state_map::Update>,
 }
