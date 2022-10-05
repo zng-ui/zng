@@ -1156,10 +1156,10 @@ pub fn focus_continued_after_widget_move_same_window() {
 
     let mut app = TestApp::new(v_stack(widgets![
         container! {
-            content = button.slot(slot::take_on_init())
+            content = button.take_when(true)
         },
         container! {
-            content = button.slot(do_move.clone())
+            content = button.take_when(do_move.clone())
         }
     ]));
     assert_eq!(Some(id), app.focused());

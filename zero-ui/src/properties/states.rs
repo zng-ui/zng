@@ -202,7 +202,6 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                         }
                     } else {
                         self.state.set_ne(ctx, false).unwrap();
-                        ctx.updates.subscriptions();
                     }
                 }
             }

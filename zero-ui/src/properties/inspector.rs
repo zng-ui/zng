@@ -138,7 +138,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             if self.valid {
                 self.init_handles(ctx);
 
-                if self.enabled.get() {
+                if self.var_enabled.get() {
                     self.handles = [
                         MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
                         MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
@@ -161,7 +161,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                if self.valid && self.enabled.get() {
+                if self.valid && self.var_enabled.get() {
                     let factor = WindowVars::req(ctx).scale_factor().get();
                     let pt = args.position.to_px(factor.0);
 
@@ -223,7 +223,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.enabled.get() {
+            if self.valid && self.var_enabled.get() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
                 let fail_sides = BorderSides::solid(colors::RED);
                 let hits_sides = BorderSides::solid(colors::LIME_GREEN);
@@ -243,7 +243,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
     ShowHitTestNode {
         child,
         var_enabled: enabled.into_var(),
-        handles: EventHandles::dummy(),
+        handles: EventHandles::default(),
         valid: false,
         fails: vec![],
         hits: vec![],
@@ -269,7 +269,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             self.valid = ctx.path.is_root();
             if self.valid {
                 self.init_handles(ctx);
-                if self.orientation.get().is_some() {
+                if self.var_orientation.get().is_some() {
                     self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
                 }
             } else {
@@ -341,7 +341,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.orientation.get().is_some() {
+            if self.valid && self.var_orientation.get().is_some() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
                 let quad_sides = BorderSides::solid(colors::YELLOW);
 

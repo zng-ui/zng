@@ -123,7 +123,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         a => (None, a),
     };
 
-    let auto_init = if new_node.is_some() {
+    let auto_init = if new_node.as_ref().map(|n| !n.handle_init.is_empty()).unwrap_or(false) {
         quote!(self.init_handles(ctx);)
     } else {
         quote!()

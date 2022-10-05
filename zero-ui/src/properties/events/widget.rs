@@ -472,7 +472,7 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut F
 /// [`on_render`]: fn@on_render
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnPreviewRenderNode<C: UiNode, F: > {
+    #[impl_ui_node(struct OnPreviewRenderNode {
         child: impl UiNode,
         handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static,
     })]

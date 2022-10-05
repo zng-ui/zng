@@ -378,7 +378,6 @@ pub fn image_block_window_load(child: impl UiNode, enabled: impl IntoValue<Block
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.block.is_some() && !CONTEXT_IMAGE_VAR.with(Image::is_loading) {
                 self.block = None;
-                ctx.updates.subscriptions();
             }
             self.child.update(ctx, updates);
         }

@@ -75,6 +75,19 @@ impl<U: UiNode> RcNode<U> {
         }))
     }
 
+    /// New rc node that contains a weak reference to itself.
+    ///
+    /// **Note** the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
+    pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
+        Self(Rc::new_cyclic(|wk| {
+            let node = node(WeakNode(wk.clone()));
+            NodeData {
+                node: RefCell::new(node),
+                slots: RefCell::default(),
+            }
+        }))
+    }
+
     /// Creates a [`WeakNode<U>`] reference to this node.
     pub fn downgrade(&self) -> WeakNode<U> {
         WeakNode(Rc::downgrade(&self.0))

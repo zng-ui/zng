@@ -22,7 +22,7 @@ use crate::prelude::new_property::*;
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
     #[impl_ui_node(struct CursorNode {
         child: impl UiNode,
-        var_cursor: impl Var<CursorIcon>,
+        var_cursor: impl Var<Option<CursorIcon>>,
         hovered_binding: Option<VarHandle>,
     })]
     impl UiNode for CursorNode {

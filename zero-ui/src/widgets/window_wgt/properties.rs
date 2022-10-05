@@ -3,6 +3,7 @@
 //! These properties are already included in the [`window!`](mod@crate::widgets::window) definition,
 //! but you can also use then stand-alone. They configure the window from any widget inside the window.
 
+use std::marker::PhantomData;
 use std::time::Duration;
 
 use crate::core::color::ColorScheme;
@@ -21,6 +22,7 @@ where
     V: Var<T>,
 {
     #[impl_ui_node(struct BindWindowVarNode<T: VarValue + PartialEq, SV: Var<T>> {
+        _t: PhantomData<T>,
         child: impl UiNode,
         user_var: impl Var<T>,
         select: impl Fn(&WindowVars) -> SV + 'static,
@@ -30,13 +32,14 @@ where
             let window_var = (self.select)(WindowVars::req(ctx));
             if !self.user_var.capabilities().is_always_static() {
                 let binding = self.user_var.bind_bidi(&window_var);
-                ctx.handles.push_var(binding);
+                ctx.handles.push_vars(binding);
             }
             window_var.set_ne(ctx.vars, self.user_var.get()).unwrap();
             self.child.init(ctx);
         }
     }
     BindWindowVarNode {
+        _t: PhantomData,
         child,
         user_var: user_var.into_var(),
         select,
@@ -254,7 +257,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
     #[impl_ui_node(struct SaveStateNode {
         child: impl UiNode,
         enabled: SaveState,
-        event_handles: Option<[EventWidgetHandle; 2]>,
+        handles: Option<[EventWidgetHandle; 2]>,
 
         task: Task,
     })]
@@ -271,7 +274,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
             }
 
             if self.enabled.is_enabled() {
-                self.event_handles = Some([
+                self.handles = Some([
                     WINDOW_CLOSE_REQUESTED_EVENT.subscribe(ctx.path.widget_id()),
                     WINDOW_LOAD_EVENT.subscribe(ctx.path.widget_id()),
                 ]);
@@ -281,7 +284,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.event_handles = None;
+            self.handles = None;
             self.child.deinit(ctx);
         }
 
@@ -338,7 +341,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
     SaveStateNode {
         child,
         enabled,
-        event_handles: None,
+        handles: None,
         task: Task::None,
     }
 }

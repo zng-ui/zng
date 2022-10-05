@@ -87,7 +87,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
     impl UiNode for ChildFilterNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.render_filter = self.var_filter.with(Filter::try_render);
-            self.init_handles();
+            self.init_handles(ctx);
             self.child.init(ctx);
         }
 

@@ -130,13 +130,13 @@ pub fn linear_gradient_full(
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             ctx.constrains().fill_size()
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             self.final_size = ctx.constrains().fill_size();
 
-            self.final_tile_size = self.var_tile_size.get(ctx.vars).layout(ctx.metrics, |_| self.final_size);
-            self.final_tile_spacing = self.var_tile_spacing.get(ctx.vars).layout(ctx.metrics, |_| self.final_size);
+            self.final_tile_size = self.var_tile_size.get().layout(ctx.metrics, |_| self.final_size);
+            self.final_tile_spacing = self.var_tile_spacing.get().layout(ctx.metrics, |_| self.final_size);
 
-            self.final_line = ctx.with_constrains(|c| c.with_fill_size(self.final_tile_size), |ctx| self.var_axis.get().layout(ctx));
+            self.final_line = ctx.with_constrains(|c| c.with_exact_size(self.final_tile_size), |ctx| self.var_axis.get().layout(ctx));
 
             let length = self.final_line.length();
             ctx.with_constrains(

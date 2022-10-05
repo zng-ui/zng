@@ -356,7 +356,7 @@ pub mod properties {
             #[UiNode]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.sub_var(&self.value).sub_var(&SELECTOR_VAR).sub_var(&DESELECT_ON_NEW_VAR);
-                SELECTOR_VAR.with(|s| s.instance.borrow().subscribe(&mut ctx.handles));
+                SELECTOR_VAR.with(|s| s.instance.borrow().subscribe(ctx.path.widget_id(), &mut ctx.handles));
 
                 self.value.with(|value| {
                     let selected = if SELECT_ON_INIT_VAR.get() {
