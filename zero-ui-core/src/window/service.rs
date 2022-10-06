@@ -605,6 +605,10 @@ impl Windows {
     pub(super) fn on_ui_update(ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         Self::fullfill_requests(ctx);
 
+        if updates.delivery_list().has_pending_search() {
+            updates.fulfill_search(Windows::req(ctx).windows_info.values().map(|w| &w.widget_tree));
+        }
+
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
                 window.update(ctx, updates);

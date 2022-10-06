@@ -350,13 +350,13 @@ mod helpers {
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
     pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
-        struct WithContextVarNode<C, T: VarValue> {
-            child: C,
+        #[impl_ui_node(struct WithContextVarNode<T: VarValue> {
+            child: impl UiNode,
             context_var: ContextVar<T>,
             value: RefCell<Option<BoxedVar<T>>>,
-        }
-        impl<C: UiNode, T: VarValue> WithContextVarNode<C, T> {
-            fn with<R>(&self, mtd: impl FnOnce(&C) -> R) -> R {
+        })]
+        impl WithContextVarNode {
+            fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
                 let mut value = self.value.borrow_mut();
                 let var = value.take().unwrap();
                 let (var, r) = self.context_var.with_context(var, move || mtd(&self.child));
@@ -364,52 +364,58 @@ mod helpers {
                 r
             }
 
-            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut C) -> R) -> R {
+            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
                 let var = self.value.get_mut().take().unwrap();
                 let (var, r) = self.context_var.with_context(var, || mtd(&mut self.child));
                 *self.value.get_mut() = Some(var);
                 r
             }
-        }
 
-        impl<C: UiNode, T: VarValue> UiNode for WithContextVarNode<C, T> {
+            #[UiNode]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.with_mut(|c| c.init(ctx))
             }
 
+            #[UiNode]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 self.with_mut(|c| c.deinit(ctx))
             }
 
+            #[UiNode]
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 self.with(|c| c.info(ctx, info))
             }
 
+            #[UiNode]
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut crate::event::EventUpdate) {
                 self.with_mut(|c| c.event(ctx, update))
             }
 
+            #[UiNode]
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 self.with_mut(|c| c.update(ctx, updates))
             }
 
+            #[UiNode]
             fn measure(&self, ctx: &mut MeasureContext) -> units::PxSize {
                 self.with(|c| c.measure(ctx))
             }
 
+            #[UiNode]
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> units::PxSize {
                 self.with_mut(|c| c.layout(ctx, wl))
             }
 
+            #[UiNode]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 self.with(|c| c.render(ctx, frame))
             }
 
+            #[UiNode]
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(ctx, update))
             }
         }
-
         WithContextVarNode {
             child,
             context_var,
@@ -428,19 +434,14 @@ mod helpers {
         var: ContextVar<T>,
         init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
     ) -> impl UiNode {
-        struct WithContextVarInitNode<C, T: VarValue, I> {
-            child: C,
+        #[impl_ui_node(struct WithContextVarInitNode<T: VarValue> {
+            child: impl UiNode,
             context_var: ContextVar<T>,
-            init_value: I,
+            init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
             value: RefCell<Option<BoxedVar<T>>>,
-        }
-        impl<C, T, I> WithContextVarInitNode<C, T, I>
-        where
-            C: UiNode,
-            T: VarValue,
-            I: FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
-        {
-            fn with<R>(&self, mtd: impl FnOnce(&C) -> R) -> R {
+        })]
+        impl WithContextVarInitNode {
+            fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
                 let mut value = self.value.borrow_mut();
                 let var = value.take().unwrap();
                 let (var, r) = self.context_var.with_context(var, move || mtd(&self.child));
@@ -448,53 +449,56 @@ mod helpers {
                 r
             }
 
-            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut C) -> R) -> R {
+            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
                 let var = self.value.get_mut().take().unwrap();
                 let (var, r) = self.context_var.with_context(var, || mtd(&mut self.child));
                 *self.value.get_mut() = Some(var);
                 r
             }
-        }
-        impl<U, T, I> UiNode for WithContextVarInitNode<U, T, I>
-        where
-            U: UiNode,
-            T: VarValue,
-            I: FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
-        {
+
+            #[UiNode]
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 self.with(|c| c.info(ctx, info));
             }
 
+            #[UiNode]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 *self.value.get_mut() = Some((self.init_value)(ctx));
                 self.with_mut(|c| c.init(ctx));
             }
 
+            #[UiNode]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 self.with_mut(|c| c.deinit(ctx));
                 *self.value.get_mut() = None;
             }
 
+            #[UiNode]
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 self.with_mut(|c| c.update(ctx, updates));
             }
 
+            #[UiNode]
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.with_mut(|c| c.event(ctx, update));
             }
 
+            #[UiNode]
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
                 self.with(|c| c.measure(ctx))
             }
 
+            #[UiNode]
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 self.with_mut(|c| c.layout(ctx, wl))
             }
 
+            #[UiNode]
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 self.with(|c| c.render(ctx, frame));
             }
 
+            #[UiNode]
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(ctx, update));
             }
