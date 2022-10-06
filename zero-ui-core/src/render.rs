@@ -14,7 +14,7 @@ use crate::{
     WidgetId,
 };
 
-use std::{marker::PhantomData, mem};
+use std::{marker::PhantomData, mem, cell::Cell};
 
 use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
@@ -2090,41 +2090,43 @@ assert_non_null!(FrameValueKey<RenderColor>);
 /// it only generates a key if the variable can update, and after, it helps track the `animating` flag.
 #[derive(Debug, PartialEq, Eq)]
 pub struct FrameVarKey<T> {
-    key: Option<FrameValueKey<T>>,
+    key: Cell<Option<FrameValueKey<T>>>,
 }
-impl<T> Clone for FrameVarKey<T> {
-    fn clone(&self) -> Self {
-        Self { key: self.key }
+impl<T> Default for FrameVarKey<T> {
+    fn default() -> Self {
+        Self { key: Default::default() }
     }
 }
-impl<T> Copy for FrameVarKey<T> {}
 impl<T> FrameVarKey<T> {
-    /// Generates a new unique ID if the `var` can update.
-    pub fn new_unique<VT: var::VarValue>(var: &impl var::Var<VT>) -> Self {
-        FrameVarKey {
-            key: if !var.capabilities().is_always_static() {
-                Some(FrameValueKey::<T>::new_unique())
-            } else {
-                None
-            },
-        }
+    /// New lazy key.
+    ///
+    /// An unique key will only be generated on first render with variable that has `CHANGE` capability.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// The value key.
-    pub fn key(self) -> Option<FrameValueKey<T>> {
-        self.key
+    /// 
+    /// Returns `None` if the is not generated and `var` does not have the `CHANGE` capability.
+    pub fn key(&self, var: &impl var::AnyVar) -> Option<FrameValueKey<T>> {
+        let mut r = self.key.get();
+        if r.is_none() && var.capabilities().contains(var::VarCapabilities::CHANGE) {
+            r = Some(FrameValueKey::new_unique());
+            self.key.set(r);
+        }
+        r
     }
 
     /// The value key converted to view-process key.
-    pub fn view_key(self) -> Option<zero_ui_view_api::FrameValueKey<T>> {
-        self.key.map(FrameValueKey::view_key)
+    pub fn view_key(&self, var: &impl var::AnyVar) -> Option<zero_ui_view_api::FrameValueKey<T>> {
+        self.key(var).map(FrameValueKey::view_key)
     }
 
     /// Create a binding with this key and `var`.
     ///
     /// The `map` must produce a copy or clone of the frame value.
-    pub fn bind<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
-        match self.view_key() {
+    pub fn bind<VT: var::VarValue>(&self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
+        match self.view_key(var) {
             Some(key) => FrameValue::Bind {
                 key,
                 value: var.with(map),
@@ -2135,8 +2137,8 @@ impl<T> FrameVarKey<T> {
     }
 
     /// Create a binding with this key, `var` and already mapped `value`.
-    pub fn bind_mapped<VT: var::VarValue>(self, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
-        match self.view_key() {
+    pub fn bind_mapped<VT: var::VarValue>(&self, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
+        match self.view_key(var) {
             Some(key) => FrameValue::Bind {
                 key,
                 value,
@@ -2147,8 +2149,8 @@ impl<T> FrameVarKey<T> {
     }
 
     /// Create a value update with this key and `var`.
-    pub fn update<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
-        self.view_key().map(|key| FrameValueUpdate {
+    pub fn update<VT: var::VarValue>(&self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
+        self.view_key(var).map(|key| FrameValueUpdate {
             key,
             value: var.with(map),
             animating: var.is_animating(),
@@ -2156,8 +2158,8 @@ impl<T> FrameVarKey<T> {
     }
 
     /// Create a value update with this key, `var` and already mapped `value`.
-    pub fn update_mapped<VT: var::VarValue>(self, var: &impl var::Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
-        self.view_key().map(|key| FrameValueUpdate {
+    pub fn update_mapped<VT: var::VarValue>(&self, var: &impl var::Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
+        self.view_key(var).map(|key| FrameValueUpdate {
             key,
             value,
             animating: var.is_animating(),

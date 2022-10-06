@@ -79,11 +79,10 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         }
     }
 
-    let transform = transform.into_var();
     TransformNode {
         child: child.cfg_boxed(),
-        binding_key: FrameVarKey::new_unique(&transform),
-        var_transform: transform,
+        binding_key: FrameVarKey::new(),
+        var_transform: transform.into_var(),
 
         render_transform: PxTransform::identity(),
         spatial_id: SpatialFrameId::new_unique(),

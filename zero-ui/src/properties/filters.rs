@@ -285,11 +285,10 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
         }
     }
 
-    let alpha = alpha.into_var();
     OpacityNode {
         child,
-        frame_key: FrameVarKey::new_unique(&alpha),
-        var_alpha: alpha,
+        frame_key: FrameVarKey::new(),
+        var_alpha: alpha.into_var(),
     }
 }
 
@@ -325,10 +324,9 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
         }
     }
 
-    let alpha = alpha.into_var();
     ChildOpacityNode {
         child,
-        frame_key: FrameVarKey::new_unique(&alpha),
-        var_alpha: alpha,
+        frame_key: FrameVarKey::new(),
+        var_alpha: alpha.into_var(),
     }
 }

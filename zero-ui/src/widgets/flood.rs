@@ -37,10 +37,9 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
         }
     }
 
-    let color = color.into_var();
     FloodNode {
-        frame_key: FrameVarKey::new_unique(&color),
-        var_color: color,
+        frame_key: FrameVarKey::new(),
+        var_color: color.into_var(),
         final_size: PxSize::zero(),
     }
     .cfg_boxed()
