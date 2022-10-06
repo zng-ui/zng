@@ -1,5 +1,14 @@
 # Var/Update Rewrite
 
+* Button example: toggle text does not update.
+    - Other toggles never update.
+* Calculator example: text does not update.
+* Countdown example: animation and text don't update. 
+* Gradient example: resize causes white flashes.
+    - Scrollbars don't highlight, scroll commands don't work.
+* Window example: background is black (not initial selection).
+* Inspector command does not work.
+
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
 * Refactor render image "retain", can't see if windows subscribe now (previous impl was iffy).
     - Make it explicit, only if requested.

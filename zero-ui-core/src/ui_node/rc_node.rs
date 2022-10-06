@@ -152,6 +152,7 @@ impl<U: UiNode> RcNode<U> {
 
                     if is_owner {
                         self.rc.node.borrow_mut().init(ctx);
+                        ctx.updates.info_layout_and_render();
                     }
                 }
             }
@@ -203,6 +204,7 @@ impl<U: UiNode> RcNode<U> {
 
                         let mut node = self.rc.node.borrow_mut();
                         node.deinit(ctx);
+                        ctx.updates.info_layout_and_render();
 
                         if let Some(new) = replacement {
                             *node = new;
@@ -218,6 +220,8 @@ impl<U: UiNode> RcNode<U> {
                         node.deinit(ctx);
                         new.init(ctx);
                         *node = new;
+
+                        ctx.updates.info_layout_and_render();
                     } else {
                         drop(slots);
 
@@ -228,9 +232,10 @@ impl<U: UiNode> RcNode<U> {
                     // request ownership.
                     self.init(ctx);
                 } else {
-                    let slots = self.rc.slots.borrow();
+                    let mut slots = self.rc.slots.borrow_mut();
                     if let Some((slot, _)) = &slots.move_request {
                         if *slot == self.slot && slots.owner.is_none() {
+                            slots.move_request = None;
                             // requested move in prev update, now can take ownership.
                             drop(slots);
                             self.init(ctx);
@@ -323,6 +328,7 @@ impl<U: UiNode> RcNode<U> {
 
                     if is_owner {
                         self.rc.node.borrow_mut().init(ctx);
+                        ctx.updates.info_layout_and_render();
                     }
                 }
             }
@@ -381,6 +387,7 @@ impl<U: UiNode> RcNode<U> {
 
                         let mut node = self.rc.node.borrow_mut();
                         node.deinit(ctx);
+                        ctx.updates.info_layout_and_render();
 
                         if let Some(new) = replacement {
                             *node = new;
@@ -396,6 +403,8 @@ impl<U: UiNode> RcNode<U> {
                         node.deinit(ctx);
                         new.init(ctx);
                         *node = new;
+
+                        ctx.updates.info_layout_and_render();
                     } else {
                         drop(slots);
 
@@ -403,9 +412,10 @@ impl<U: UiNode> RcNode<U> {
                         self.rc.node.borrow_mut().update(ctx, updates);
                     }
                 } else {
-                    let slots = self.rc.slots.borrow();
+                    let mut slots = self.rc.slots.borrow_mut();
                     if let Some((slot, _)) = &slots.move_request {
                         if *slot == self.slot && slots.owner.is_none() {
+                            slots.move_request = None;
                             // requested move in prev update, now can take ownership.
                             drop(slots);
 
