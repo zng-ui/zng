@@ -1,7 +1,6 @@
 # Var/Update Rewrite
 
 * Animation example: panic.
-* Countdown example: animation, background does not update.
 * Gradient example: resize causes white flashes.
     - Scrollbars don't highlight, scroll commands don't work.
 * Window example: background is black (not initial selection).

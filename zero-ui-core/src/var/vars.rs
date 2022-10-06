@@ -207,6 +207,7 @@ impl Vars {
         debug_assert!(self.spare_updates.is_empty());
 
         self.update_id.next();
+        self.ans.animation_start_time.set(None);
 
         // if has pending updates, apply all,
         // var updates can generate other updates (bindings), these are applied in the same
