@@ -557,7 +557,7 @@ struct AnimationUpdateInfo {
 pub(super) fn var_animate<T: VarValue>(
     vars: &Vars,
     target: &impl Var<T>,
-    mut animate: impl FnMut(&animation::AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    mut animate: impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
 ) -> AnimationHandle {
     if !target.capabilities().is_always_read_only() {
         let target = target.actual_var();
@@ -596,7 +596,7 @@ pub(super) fn var_set_ease<T>(
     start_value: T,
     end_value: T,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
 ) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
 where
@@ -618,7 +618,7 @@ pub(super) fn var_set_ease_ne<T>(
     start_value: T,
     end_value: T,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
 ) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
 where
@@ -642,7 +642,7 @@ where
 pub(super) fn var_set_ease_keyed<T>(
     transition: TransitionKeyed<T>,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep,
 ) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
 where
@@ -662,7 +662,7 @@ where
 pub(super) fn var_set_ease_keyed_ne<T>(
     transition: TransitionKeyed<T>,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep,
 ) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
 where
@@ -721,7 +721,7 @@ where
 pub(super) fn var_steps<T: VarValue>(
     steps: Vec<(Factor, T)>,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
 ) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) {
     let mut prev_step = 999.fct();
     move |args, value| {
@@ -738,7 +738,7 @@ pub(super) fn var_steps<T: VarValue>(
 pub(super) fn var_steps_ne<T>(
     steps: Vec<(Factor, T)>,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
 ) -> impl FnMut(&AnimationArgs, &mut VarModifyValue<T>)
 where
     T: VarValue + PartialEq,
@@ -793,7 +793,7 @@ pub(super) fn var_chase<T>(
     from: T,
     first_target: T,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
 ) -> (
     impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
     Rc<RefCell<ChaseMsg<T>>>,
@@ -843,7 +843,7 @@ pub(super) fn var_chase_bounded<T>(
     from: T,
     first_target: T,
     duration: Duration,
-    mut easing: impl FnMut(EasingTime) -> EasingStep + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
     bounds: ops::RangeInclusive<T>,
 ) -> (
     impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,

@@ -1501,7 +1501,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V: WithVars,
         S: Into<T>,
         E: Into<T>,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         self.animate(
             vars,
@@ -1523,7 +1523,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         T: animation::Transitionable,
         V: WithVars,
         E: Into<T>,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         self.animate(
             vars,
@@ -1540,7 +1540,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V: WithVars,
         S: Into<T>,
         E: Into<T>,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         self.animate(
             vars,
@@ -1556,7 +1556,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         T: animation::Transitionable + PartialEq,
         V: WithVars,
         E: Into<T>,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         self.animate(
             vars,
@@ -1573,7 +1573,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T: animation::Transitionable,
         V: WithVars,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         if let Some(transition) = animation::TransitionKeyed::new(keys) {
             self.animate(vars, animation::var_set_ease_keyed(transition, duration, easing, 999.fct()))
@@ -1591,7 +1591,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T: animation::Transitionable,
         V: WithVars,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         keys.insert(0, (0.fct(), self.get()));
 
@@ -1606,7 +1606,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T: animation::Transitionable + PartialEq,
         V: WithVars,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         if let Some(transition) = animation::TransitionKeyed::new(keys) {
             self.animate(vars, animation::var_set_ease_keyed_ne(transition, duration, easing, 999.fct()))
@@ -1622,7 +1622,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T: animation::Transitionable + PartialEq,
         V: WithVars,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         keys.insert(0, (0.fct(), self.get()));
 
@@ -1687,7 +1687,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn steps<V, F>(&self, vars: &V, steps: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         V: WithVars,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         self.animate(vars, animation::var_steps(steps, duration, easing))
     }
@@ -1699,7 +1699,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T: PartialEq,
         V: WithVars,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
         self.animate(vars, animation::var_steps_ne(steps, duration, easing))
     }
@@ -1711,7 +1711,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         V: WithVars,
         N: Into<T>,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
         T: animation::Transitionable,
     {
         let (anim, next_target) = animation::var_chase(self.get(), first_target.into(), duration, easing);
@@ -1733,7 +1733,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         V: WithVars,
         N: Into<T>,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
         T: animation::Transitionable + std::cmp::PartialOrd<T>,
     {
         let (anim, next_target) = animation::var_chase_bounded(self.get(), first_target.into(), duration, easing, bounds);
@@ -1752,21 +1752,21 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn easing<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
     where
         T: animation::Transitionable,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
-        let me = self.clone();
-        let easing = Rc::new(RefCell::new(easing));
+        let source = self.clone();
+        let easing_fn = Rc::new(easing);
         types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.get());
+            let easing_var = var(source.get());
 
-            let easing = easing.clone();
+            let easing_fn = easing_fn.clone();
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&me, &other, move |vars, _, value, other| {
-                let easing = easing.clone();
-                _anim_handle = other.ease(vars, value.clone(), duration, move |t| easing.borrow_mut()(t));
+            var_bind(&source, &easing_var, move |vars, _, value, easing_var| {
+                let easing_fn = easing_fn.clone();
+                _anim_handle = easing_var.ease(vars, value.clone(), duration, move |t| easing_fn(t));
             })
             .perm();
-            other.read_only()
+            easing_var.read_only()
         }))
     }
 
@@ -1777,22 +1777,22 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn easing_ne<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
     where
         T: animation::Transitionable + PartialEq,
-        F: FnMut(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
     {
-        let me = self.clone();
-        let easing = Rc::new(RefCell::new(easing));
+        let source = self.clone();
+        let easing_fn = Rc::new(easing);
         types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.get());
+            let easing_var = var(source.get());
 
-            let easing = easing.clone();
+            let easing_fn = easing_fn.clone();
 
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&me, &other, move |vars, _, value, other| {
-                let easing = easing.clone();
-                _anim_handle = other.ease_ne(vars, value.clone(), duration, move |t| easing.borrow_mut()(t));
+            var_bind(&source, &easing_var, move |vars, _, value, easing_var| {
+                let easing_fn = easing_fn.clone();
+                _anim_handle = easing_var.ease_ne(vars, value.clone(), duration, move |t| easing_fn(t));
             })
             .perm();
-            other.read_only()
+            easing_var.read_only()
         }))
     }
 }
