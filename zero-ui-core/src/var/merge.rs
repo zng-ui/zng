@@ -110,10 +110,9 @@ impl<T: VarValue> RcMergeVar<T> {
             .iter()
             .enumerate()
             .filter_map(|(i, var)| {
-                let caps = var.capabilities();
-                if caps.contains(VarCapabilities::CHANGE) || caps.contains(VarCapabilities::CAP_CHANGE) {
+                if var.capabilities().contains(VarCapabilities::CHANGE) {
                     let wk_merge = wk_merge.clone();
-                    Some(var.hook(Box::new(move |vars, _, value| {
+                    let handle = var.hook(Box::new(move |vars, _, value| {
                         if let Some(rc_merge) = wk_merge.upgrade() {
                             let mut data = rc_merge.borrow_mut();
                             let data_mut = &mut *data;
@@ -130,7 +129,11 @@ impl<T: VarValue> RcMergeVar<T> {
                         } else {
                             false
                         }
-                    })))
+                    }));
+                    
+                    debug_assert!(!handle.is_dummy());
+
+                    Some(handle)
                 } else {
                     None
                 }
