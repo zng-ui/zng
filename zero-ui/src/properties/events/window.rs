@@ -18,6 +18,7 @@ event_property! {
     pub fn window_open {
         event: WINDOW_OPEN_EVENT,
         args: WindowOpenArgs,
+        filter: |ctx, args| args.window_id == ctx.path.window_id(),
     }
 
     /// On window loaded.
@@ -30,26 +31,28 @@ event_property! {
     pub fn window_load {
         event: WINDOW_LOAD_EVENT,
         args: WindowOpenArgs,
+        filter: |ctx, args| args.window_id == ctx.path.window_id(),
     }
 
     /// On window moved, resized or state change.
     pub fn window_changed {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
+        filter: |ctx, args| args.window_id == ctx.path.window_id(),
     }
 
     /// On window position changed.
     pub fn window_moved {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.is_moved(),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.is_moved(),
     }
 
     /// On window size changed.
     pub fn window_resized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.is_resized(),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.is_resized(),
     }
 
     /// On window close requested.
@@ -58,7 +61,8 @@ event_property! {
     /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
     pub fn window_close_requested {
         event: WINDOW_CLOSE_REQUESTED_EVENT,
-        args: WindowCloseRequestedArgs
+        args: WindowCloseRequestedArgs,
+        filter: |ctx, args| args.windows.contains(&ctx.path.window_id()),
     }
 
     /// On window state changed.
@@ -67,42 +71,42 @@ event_property! {
     pub fn window_state_changed {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.is_state_changed(),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.is_state_changed(),
     }
 
     /// On window state changed to [`WindowState::Maximized`].
     pub fn window_maximized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.entered_state(WindowState::Maximized),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.entered_state(WindowState::Maximized),
     }
 
     /// On window state changed from [`WindowState::Maximized`].
     pub fn window_unmaximized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.exited_state(WindowState::Maximized),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.exited_state(WindowState::Maximized),
     }
 
     /// On window state changed to [`WindowState::Minimized`].
     pub fn window_minimized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.entered_state(WindowState::Minimized),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.entered_state(WindowState::Minimized),
     }
 
     /// On window state changed from [`WindowState::Minimized`].
     pub fn window_unminimized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.exited_state(WindowState::Minimized),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.exited_state(WindowState::Minimized),
     }
 
     /// On window state changed to [`WindowState::Normal`].
     pub fn window_restored {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.entered_state(WindowState::Normal),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.entered_state(WindowState::Normal),
     }
 
     /// On window state changed to [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a previous not
@@ -110,7 +114,7 @@ event_property! {
     pub fn window_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.entered_fullscreen(),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.entered_fullscreen(),
     }
 
     /// On window state changed from [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a new not
@@ -118,7 +122,7 @@ event_property! {
     pub fn window_exited_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
-        filter: |_, args| args.exited_fullscreen(),
+        filter: |ctx, args| args.window_id == ctx.path.window_id() && args.exited_fullscreen(),
     }
 
     /// On window frame rendered. The window can also be configured so that the frame pixels are
@@ -126,5 +130,6 @@ event_property! {
     pub fn frame_image_ready {
         event: FRAME_IMAGE_READY_EVENT,
         args: FrameImageReadyArgs,
+        filter: |ctx, args| args.window_id == ctx.path.window_id(),
     }
 }

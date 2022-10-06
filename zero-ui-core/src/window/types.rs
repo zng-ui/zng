@@ -734,7 +734,7 @@ event_args! {
         /// Windows closing.
         ///
         /// This is at least one window, is multiple if the close operation was requested as group, cancelling the request
-        /// cancels close for all windows .
+        /// cancels close for all windows.
         pub windows: LinearSet<WindowId>,
 
         ..

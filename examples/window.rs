@@ -34,11 +34,10 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         move |p: &DipPoint, s: &DipSize| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}") }
     );
 
-    let default_background = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
-    let background = var(colors::BLACK).easing(150.ms(), easing::linear);
+    let background = var(colors::BLACK);
 
     window! {
-        background_color = background.clone();
+        background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
         title;
         on_state_changed = hn!(|_, args: &WindowChangedArgs| {
@@ -68,7 +67,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                     spacing = 20;
                     items = widgets![
                         icon(window_vars),
-                        background_color(background, default_background),
+                        background_color(background),
                     ];
                 },
                 v_stack! {
@@ -83,7 +82,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     }
 }
 
-fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widget {
+fn background_color(color: impl Var<Rgba>) -> impl Widget {
     fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl Widget {
         toggle! {
             value<Rgba> = c.clone();
@@ -111,7 +110,7 @@ fn background_color(color: impl Var<Rgba>, default: impl Var<Rgba>) -> impl Widg
         "Background Color",
         color,
         widgets![
-            color_btn(default, true),
+            color_btn(color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9)), true),
             primary_color(rgb(1.0, 0.0, 0.0)),
             primary_color(rgb(0.0, 0.8, 0.0)),
             primary_color(rgb(0.0, 0.0, 1.0)),

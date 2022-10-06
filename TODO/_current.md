@@ -3,9 +3,6 @@
 * Animation example: panic.
 * Gradient example: resize causes white flashes.
     - Scrollbars don't highlight, scroll commands don't work.
-* Window example: background is black (not initial selection).
-    - Changing icon to render causes a close request?
-        - Icon render is not retained anymore (so headless window is closing?)
 * Inspector command does not work.
 
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
