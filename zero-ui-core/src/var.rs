@@ -179,7 +179,7 @@ bitflags! {
 impl VarCapabilities {
     /// Remove only the `MODIFY` flag without removing `CHANGE`.
     pub fn as_read_only(mut self) -> Self {
-        self.bits &= 0b1111_1101;
+        self.bits &= 0b1111_1110;
         self
     }
 

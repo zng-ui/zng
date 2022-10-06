@@ -115,7 +115,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
             let data = &mut *data;
 
             let mut input_handles = vec![];
-            if !data.default.capabilities().is_always_static() {
+            if data.default.capabilities().contains(VarCapabilities::CHANGE) {
                 input_handles.push(data.default.hook(RcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
             }
             for (i, (c, v)) in data.conditions.iter().enumerate() {
@@ -123,11 +123,11 @@ impl<T: VarValue> WhenVarBuilder<T> {
                     data.active = i;
                 }
 
-                if !c.capabilities().is_always_static() {
+                if c.capabilities().contains(VarCapabilities::CHANGE) {
                     input_handles.push(c.hook(RcWhenVar::handle_condition(wk_when.clone(), i)));
                 }
 
-                if !v.capabilities().is_always_static() {
+                if v.capabilities().contains(VarCapabilities::CHANGE) {
                     input_handles.push(v.hook(RcWhenVar::handle_value(wk_when.clone(), i)));
                 }
             }
