@@ -1,6 +1,7 @@
 use crate::{
-    context::{AppContext, WindowContext},
+    context::{state_map, AppContext, BorrowStateMap, StaticStateId, WindowContext},
     event::{EventArgs, EventUpdate},
+    impl_ui_node, property,
     render::RenderMode,
     service::ServiceTuple,
     units::*,
@@ -14,10 +15,8 @@ use super::{Image, ImageManager, ImageVar, Images};
 impl Images {
     /// Render the *window* to an image.
     ///
-    /// The *window* is created as a headless surface and rendered to the returned image. If the *window*
-    /// subscribes to any variable or event it is kept alive and updating, the returned image variable then updates
-    /// for every new render of the node. If the *window* does not subscribe to anything, or the returned image is dropped the
-    /// is is closed and dropped.
+    /// The *window* is created as a headless surface and rendered to the returned image. You can use the
+    /// [`ImageRenderVars::retain`] var create an image that updates with new frames, or by default only render once.
     ///
     /// The closure input is the [`WindowContext`] of the headless window.
     ///
@@ -94,6 +93,8 @@ impl ImageManager {
                 }
             }
 
+            retain |= r.retain.get();
+
             if !retain {
                 let _ = windows.close(r.window_id);
             }
@@ -105,6 +106,9 @@ impl ImageManager {
             if let Some(img) = req.image.upgrade() {
                 windows.open_headless(
                     move |ctx| {
+                        let vars = ImageRenderVars::new();
+                        let retain = vars.retain.clone();
+                        ctx.window_state.set(&IMAGE_RENDER_VARS_ID, vars);
                         let vars = WindowVars::req(&ctx.window_state);
                         vars.auto_size().set(ctx.vars, true).unwrap();
                         vars.min_size().set(ctx.vars, (1.px(), 1.px())).unwrap();
@@ -117,6 +121,7 @@ impl ImageManager {
                         let a = ActiveRenderer {
                             window_id: *ctx.window_id,
                             image: img.downgrade(),
+                            retain,
                         };
                         Images::req(ctx.services).render.active.push(a);
 
@@ -154,9 +159,80 @@ pub(super) struct ImagesRender {
 struct ActiveRenderer {
     window_id: WindowId,
     image: WeakRcVar<Image>,
+    retain: RcVar<bool>,
 }
 
 struct RenderRequest {
     render: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     image: WeakRcVar<Image>,
+}
+
+/// Controls properties of the render window used by [`ImagesRender`].
+///
+/// You can get the controller inside the closure using [`req`] or [`get`] and the `window_state`
+/// in [`WindowContext`] and [`WidgetContext`].
+///
+/// [`WindowContext`]: crate::context::WindowContext::window_state
+/// [`WidgetContext`]: crate::context::WidgetContext::window_state
+/// [`Windows::vars`]: crate::window::Windows::vars
+pub struct ImageRenderVars {
+    retain: RcVar<bool>,
+}
+impl ImageRenderVars {
+    fn new() -> Self {
+        Self { retain: var(false) }
+    }
+
+    /// Require the vars from the window state.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not called inside a render closure or widget.
+    pub fn req(window_state: &impl BorrowStateMap<state_map::Window>) -> &Self {
+        window_state.borrow().req(&IMAGE_RENDER_VARS_ID)
+    }
+
+    /// Tries to get the window vars from the window state.
+    pub fn get(window_state: &impl BorrowStateMap<state_map::Window>) -> Option<&Self> {
+        window_state.borrow().get(&IMAGE_RENDER_VARS_ID)
+    }
+
+    /// If the render task is kept alive after a frame is produced, this is `false` by default
+    /// meaning the image only renders once, if set to `true` the image will automatically update
+    /// when the render widget requests a new frame.
+    pub fn retain(&self) -> &RcVar<bool> {
+        &self.retain
+    }
+}
+
+pub(super) static IMAGE_RENDER_VARS_ID: StaticStateId<ImageRenderVars> = StaticStateId::new_unique();
+
+/// If the render task is kept alive after a frame is produced, this is `false` by default
+/// meaning the image only renders once, if set to `true` the image will automatically update
+/// when the render widget requests a new frame.
+///
+/// This property sets and binds `retain` to [`ImageRenderVars::retain`].
+#[property(context)]
+pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiNode {
+    #[impl_ui_node(struct RenderRetainNode {
+        child: impl UiNode,
+        retain: impl Var<bool>,
+    })]
+    impl UiNode for RenderRetainNode {
+        fn init(&mut self, ctx: &mut crate::context::WidgetContext) {
+            if let Some(vars) = ImageRenderVars::get(ctx) {
+                vars.retain.set_ne(ctx, self.retain.get()).unwrap();
+                let handle = self.retain.bind(vars.retain());
+                ctx.handles.push_var(handle);
+            } else {
+                tracing::error!("can only set `render_retain` in render widgets");
+            }
+
+            self.child.init(ctx);
+        }
+    }
+    RenderRetainNode {
+        child,
+        retain: retain.into_var(),
+    }
 }

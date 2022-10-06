@@ -144,7 +144,7 @@ impl WindowVars {
     ///
     /// # Panics
     ///
-    /// Panics if not called using the window state or called in a custom window context that did not setup the variables.
+    /// Panics if called in a custom window context that did not setup the variables.
     pub fn req(window_state: &impl BorrowStateMap<state_map::Window>) -> &Self {
         window_state.borrow().req(&WINDOW_VARS_ID)
     }

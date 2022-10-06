@@ -14,7 +14,7 @@ use crate::{
     WidgetId,
 };
 
-use std::{marker::PhantomData, mem, cell::Cell};
+use std::{cell::Cell, marker::PhantomData, mem};
 
 use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
@@ -2106,7 +2106,7 @@ impl<T> FrameVarKey<T> {
     }
 
     /// The value key.
-    /// 
+    ///
     /// Returns `None` if the is not generated and `var` does not have the `CHANGE` capability.
     pub fn key(&self, var: &impl var::AnyVar) -> Option<FrameValueKey<T>> {
         let mut r = self.key.get();

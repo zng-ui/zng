@@ -240,7 +240,7 @@ pub mod properties {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
-                        && !self.checked.capabilities().contains(VarCapabilities::MODIFY)
+                        && self.checked.capabilities().contains(VarCapabilities::MODIFY)
                         && !args.propagation().is_stopped()
                         && args.is_enabled(ctx.path.widget_id())
                     {

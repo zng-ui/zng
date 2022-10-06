@@ -24,6 +24,7 @@ mod types;
 pub use types::*;
 
 mod render;
+pub use render::{render_retain, ImageRenderVars};
 
 /// Application extension that provides an image cache.
 ///

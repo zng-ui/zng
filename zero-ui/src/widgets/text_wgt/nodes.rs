@@ -138,7 +138,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&LANG_VAR)
+            ctx.sub_var(&self.text)
+                .sub_var(&LANG_VAR)
                 .sub_var(&FONT_FAMILY_VAR)
                 .sub_var(&FONT_STYLE_VAR)
                 .sub_var(&FONT_WEIGHT_VAR)

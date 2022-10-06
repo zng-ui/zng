@@ -130,7 +130,7 @@ impl<T: VarValue> RcMergeVar<T> {
                             false
                         }
                     }));
-                    
+
                     debug_assert!(!handle.is_dummy());
 
                     Some(handle)

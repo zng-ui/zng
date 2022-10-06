@@ -1,17 +1,15 @@
 # Var/Update Rewrite
 
-* Button example: toggle text does not update.
-    - Other toggles never update.
-* Calculator example: text does not update.
-* Countdown example: animation and text don't update. 
+* Animation example: panic.
+* Countdown example: animation, background does not update.
 * Gradient example: resize causes white flashes.
     - Scrollbars don't highlight, scroll commands don't work.
 * Window example: background is black (not initial selection).
+    - Changing icon to render causes a close request?
+        - Icon render is not retained anymore (so headless window is closing?)
 * Inspector command does not work.
 
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
-* Refactor render image "retain", can't see if windows subscribe now (previous impl was iffy).
-    - Make it explicit, only if requested.
 * Review "!!:".
 * Review context vars usage, we abused the previous API to pass "service like" references to a context, now these values get cloned.
     - Maybe we can make an official API for these?
