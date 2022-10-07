@@ -1,6 +1,3 @@
-* Opening the image example flashes white.
-    - Resizing gradient also flashes.
-* Profile.
 * Merge.
 
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
@@ -33,3 +30,6 @@
     - Bug already existed in previous implementation.
     - Have an AppId?
 * Implement all `todo!` code.
+
+* Opening the image example flashes white.
+    - Resizing gradient also flashes.
