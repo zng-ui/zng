@@ -1006,7 +1006,7 @@ impl HeadlessWithRendererCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1146,7 +1146,7 @@ impl HeadlessWithRendererCtrl {
     }
 }
 
-fn update_headless_vars(windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
+fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
     let mut handles = VarHandles::dummy();
 
     if let Some(parent_vars) = hvars.parent().get().and_then(|id| windows.vars(id).ok()) {
@@ -1175,12 +1175,24 @@ fn update_headless_vars(windows: &mut Windows, mfactor: Option<Factor>, hvars: &
             true
         })));
         handles.push(h);
+
+        hvars
+            .0
+            .actual_color_scheme
+            .set_ne(vars, user.get().unwrap_or_else(|| parent.get()))
+            .unwrap();
     } else {
         // bind color scheme
         let h = hvars
             .color_scheme()
             .bind_map(&hvars.0.actual_color_scheme, |&s| s.unwrap_or_default());
         handles.push(h);
+
+        hvars
+            .0
+            .actual_color_scheme
+            .set_ne(vars, hvars.color_scheme().get().unwrap_or_default())
+            .unwrap();
     }
 
     handles
@@ -1229,7 +1241,7 @@ impl HeadlessCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
