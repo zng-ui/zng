@@ -254,6 +254,27 @@ impl Command {
         events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled)))
     }
 
+    /// Create a new handle for this command for a handler in the `target` widget.
+    ///
+    /// The handle behaves like [`subscribe`], but include the `target` on the delivery list for window and app scoped commands.
+    /// Note that for widget scoped commands only the scope can receive the event, so the `target` is ignored.
+    ///
+    /// [`subscribe`]: Command::subscribe
+    pub fn subscribe_wgt<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool, target: WidgetId) -> CommandHandle {
+        let handle = self.subscribe(events, enabled);
+
+        let subscribe_event = match self.scope() {
+            CommandScope::Widget(_) => false,
+            _ => true,
+        };
+        if subscribe_event {
+            let h = self.event.subscribe(target);
+            handle.event_handle.set(Some(h));
+        }
+
+        handle
+    }
+
     /// Raw command event.
     pub fn event(&self) -> Event<CommandArgs> {
         self.event
@@ -326,7 +347,7 @@ impl Command {
     pub fn on_unhandled<'a>(&self, update: &'a EventUpdate) -> Option<&'a CommandArgs> {
         self.event
             .on(update)
-            .filter(|a| a.scope == self.scope && a.propagation().is_stopped())
+            .filter(|a| a.scope == self.scope && !a.propagation().is_stopped())
     }
 
     /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.
@@ -578,6 +599,7 @@ pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Cell<bool>,
     _not_send: PhantomData<Rc<()>>,
+    event_handle: Cell<Option<EventWidgetHandle>>,
 }
 impl CommandHandle {
     /// The command.
@@ -630,6 +652,7 @@ impl CommandHandle {
             command: None,
             local_enabled: Cell::new(false),
             _not_send: PhantomData,
+            event_handle: Cell::new(None),
         }
     }
 }
@@ -1093,6 +1116,7 @@ impl CommandData {
             command: Some(command),
             local_enabled: Cell::new(enabled),
             _not_send: PhantomData,
+            event_handle: Cell::new(None),
         }
     }
 }
@@ -1146,7 +1170,7 @@ where
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
-            self.handle = Some(command.subscribe(ctx, is_enabled));
+            self.handle = Some(command.subscribe_wgt(ctx, is_enabled, ctx.path.widget_id()));
             self.command = Some(command);
         }
 
@@ -1159,6 +1183,7 @@ where
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
+
             if let Some(args) = self.command.expect("OnCommandNode not initialized").on_unhandled(update) {
                 self.handler.event(ctx, args);
             }
@@ -1214,7 +1239,7 @@ where
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
-            self.handle = Some(command.subscribe(ctx, is_enabled));
+            self.handle = Some(command.subscribe_wgt(ctx, is_enabled, ctx.path.widget_id()));
             self.command = Some(command);
         }
 
