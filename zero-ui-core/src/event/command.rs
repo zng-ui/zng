@@ -263,11 +263,7 @@ impl Command {
     pub fn subscribe_wgt<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool, target: WidgetId) -> CommandHandle {
         let handle = self.subscribe(events, enabled);
 
-        let subscribe_event = match self.scope() {
-            CommandScope::Widget(_) => false,
-            _ => true,
-        };
-        if subscribe_event {
+        if !matches!(self.scope(), CommandScope::Widget(_)) {
             let h = self.event.subscribe(target);
             handle.event_handle.set(Some(h));
         }

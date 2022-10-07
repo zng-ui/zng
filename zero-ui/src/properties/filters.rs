@@ -19,14 +19,14 @@ use crate::core::color::filters::{
 /// [`opacity`]: fn@opacity
 #[property(context, default(Filter::default()))]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    struct FilterNode<C, F> {
-        child: C,
-        var_filter: F,
+    #[impl_ui_node(struct FilterNode {
+        child: impl UiNode,
+        var_filter: impl Var<Filter>,
         render_filter: Option<RenderFilter>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: Var<Filter>> UiNode for FilterNode<C, F> {
+    })]
+    impl UiNode for FilterNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.init_handles(ctx);
             self.render_filter = self.var_filter.with(Filter::try_render);
             self.child.init(ctx);
         }
@@ -86,8 +86,8 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
     })]
     impl UiNode for ChildFilterNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.render_filter = self.var_filter.with(Filter::try_render);
             self.init_handles(ctx);
+            self.render_filter = self.var_filter.with(Filter::try_render);
             self.child.init(ctx);
         }
 
