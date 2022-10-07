@@ -145,14 +145,22 @@ context_var! {
 ///
 /// The image widget adds this node around the [`image_presenter`] node.
 pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
-    let mut image_handle = None;
+    let mut image_handle: Option<(VarHandle, WidgetId)> = None;
 
     let view = ViewGenerator::presenter_map(
         IMAGE_ERROR_VIEW_VAR,
         move |ctx, is_new| {
-            if image_handle.is_none() || is_new {
-                // TODO !!: if the view gets (de)inited and moved this breaks.
-                image_handle = Some(CONTEXT_IMAGE_VAR.subscribe(ctx.path.widget_id()));
+            if is_new {
+                if let Some((handle, id)) = &mut image_handle {
+                    let current_id = ctx.path.widget_id();
+                    if *id != current_id {
+                        *id = ctx.path.widget_id();
+                        *handle = CONTEXT_IMAGE_VAR.subscribe(current_id);
+                    }
+                } else {
+                    let id = ctx.path.widget_id();
+                    image_handle = Some((CONTEXT_IMAGE_VAR.subscribe(id), id));
+                }
             }
 
             if IN_ERROR_VIEW_VAR.get() {
@@ -203,9 +211,17 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
     let view = ViewGenerator::presenter_map(
         IMAGE_LOADING_VIEW_VAR,
         move |ctx, is_new| {
-            if image_handle.is_none() || is_new {
-                // TODO !!: if the view gets (de)inited and moved this breaks.
-                image_handle = Some(CONTEXT_IMAGE_VAR.subscribe(ctx.path.widget_id()));
+            if is_new {
+                if let Some((handle, id)) = &mut image_handle {
+                    let current_id = ctx.path.widget_id();
+                    if *id != current_id {
+                        *id = ctx.path.widget_id();
+                        *handle = CONTEXT_IMAGE_VAR.subscribe(current_id);
+                    }
+                } else {
+                    let id = ctx.path.widget_id();
+                    image_handle = Some((CONTEXT_IMAGE_VAR.subscribe(id), id));
+                }
             }
 
             if IN_LOADING_VIEW_VAR.get() {

@@ -452,8 +452,6 @@ mod context {
                 self.handler.event(ctx, &());
             }
 
-            // TODO!!: subs
-
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 self.child.update(ctx, updates);
                 self.handler.update(ctx);

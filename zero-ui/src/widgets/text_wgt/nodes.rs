@@ -125,7 +125,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     }
     impl<C: UiNode, T> ResolveTextNode<C, T> {
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
-            // !! TODO, review this, we alloc a new box for every call, in previous API there was not alloc.
             let (resolved, r) = RESOLVED_TEXT_VAR.with_context(self.resolved.get_mut().take(), || f(&mut self.child));
             *self.resolved.get_mut() = resolved.into_value();
             r

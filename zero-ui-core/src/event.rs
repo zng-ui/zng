@@ -442,7 +442,7 @@ impl Drop for EventWidgetHandle {
 }
 
 /// Represents a collection of var handles.
-#[derive(Clone, Default)] // !!: TODO unify event handles, see general TODO, declaring this early to implement `ui_node!`.
+#[derive(Clone, Default)]
 pub struct EventHandles(pub Vec<EventWidgetHandle>);
 impl EventHandles {
     /// Add `other` handle to the collection.

@@ -238,7 +238,8 @@ impl<D> ViewGenerator<D> {
     ///
     /// The `update` closure is called every [`UiNode::init`] and [`UiNode::update`], it must return a [`DataUpdate`]
     /// that is used to [`generate`] a view, all other [`UiNode`] methods are delegated to this view. The `update` closure
-    /// is also called every time the `generator` variable updates. The boolean parameter indicates if the generator variable has updated.
+    /// is also called every time the `generator` variable updates. The boolean parameter indicates if the generator variable has updated or
+    /// is init.
     ///
     /// [`generate`]: ViewGenerator::generate
     pub fn presenter(

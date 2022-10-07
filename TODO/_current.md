@@ -1,4 +1,3 @@
-* Review "!!:".
 * Opening the image example flashes white.
     - Resizing gradient also flashes.
 * Profile.
@@ -8,10 +7,12 @@
     - Rename to `#[ui_node]`.
     - Explicit auto-handles with pseudo-attributes `#[var]` and  `#[event]` applied to member.
     - Custom delegate with pseudo-attribute `#[delegate]` applied to member.
+    - Document all this.
 * Review context var stack, nested borrows.
 * Review context vars usage, we abused the previous API to pass "service like" references to a context, now these values get cloned.
     - Maybe we can make an official API for these?
         - A `ContextValue<T>` that is a boxed `RcVar<T>` internally, but allows immediate modification?
+        - `resolve_text` now alloc a box every UiNode method call for example.
 * Stop propagation when all items in delivery list visited.
 * Stop propagation when it is requested.
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.

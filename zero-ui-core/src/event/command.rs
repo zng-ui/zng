@@ -950,7 +950,7 @@ pub type CommandMetaVar<T> = BoxedVar<T>;
 /// To convert a [`CommandMetaVar<T>`] into this var call [`read_only`].
 ///
 /// [`read_only`]: Var::read_only
-pub type ReadOnlyCommandMetaVar<T> = BoxedVar<T>; // !!: TODO, BoxedVar<T>::ReadOnly=BoxedVar<T>, so how to we signal read-only on the type?
+pub type ReadOnlyCommandMetaVar<T> = BoxedVar<T>;
 
 /// Adds the [`name`](CommandNameExt) metadata.
 pub trait CommandNameExt {

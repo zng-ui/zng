@@ -234,7 +234,7 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 ///
 /// # New Node
 ///
-/// !!: TODO doc
+/// TODO doc
 ///
 /// [`UiNode`]: crate::UiNode
 /// [`UiNodeList`]: crate::UiNodeList
