@@ -1,5 +1,3 @@
-* Merge.
-
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
     - Rename to `#[ui_node]`.
     - Explicit auto-handles with pseudo-attributes `#[var]` and  `#[event]` applied to member.
