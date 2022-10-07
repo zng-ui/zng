@@ -402,7 +402,12 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        self.active().capabilities() | VarCapabilities::CAP_CHANGE
+        let data = self.0.borrow();
+        if data.conditions.is_empty() {
+            data.default.capabilities()
+        } else {
+            self.active().capabilities() | VarCapabilities::CHANGE | VarCapabilities::CAP_CHANGE
+        }
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {

@@ -1,5 +1,3 @@
-* Gradient example: resize causes white flashes.
-    - Scrollbars don't highlight.
 * Opening the image example flashes white.
 
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
