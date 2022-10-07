@@ -20,20 +20,11 @@ fn app_main() {
             }
             count
         });
-        let countdown = count.map(|&n| {
-            let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
-            println!("{r}");
-            r
-        });
-        let background_color = count.map(|&n| {
+
+        let bkg = count.map(|&n| {
             let angle = (n + 3) as f32 / 10.0 * 360.0;
             hsl(angle.deg(), 80.pct(), 30.pct()).to_rgba()
         });
-
-        let window_background = var(background_color.copy(ctx)).easing(150.ms(), easing::linear);
-        background_color.bind(ctx, &window_background).perm();
-
-        let icon_label = count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() });
 
         window! {
             title = "Countdown Example";
@@ -43,20 +34,30 @@ fn app_main() {
 
             color_scheme = ColorScheme::Dark;
 
-            icon = WindowIcon::render(clone_move!(background_color, |_| container! {
+            font_size = 42.pt();
+            content_align = Align::CENTER;
+
+            background_color = bkg.easing(150.ms(), easing::linear);
+
+            content = text(count.map(|&n| {
+                let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
+                println!("{r}");
+                r
+            }));
+
+            icon = WindowIcon::render(move |_,| container! {
+                zero_ui::core::image::render_retain = true;
+
                 size = (36, 36);
-                background_color = background_color.clone();
                 corner_radius = 8;
                 font_size = 28;
                 font_weight = FontWeight::BOLD;
                 content_align = Align::CENTER;
-                content = text(icon_label.clone());
-            }));
 
-            font_size = 42.pt();
-            background_color = window_background;
-            content_align = Align::CENTER;
-            content = text(countdown);
+                background_color = bkg.clone();
+
+                content = text(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
+            });
         }
     })
 }

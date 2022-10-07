@@ -167,7 +167,7 @@ pub mod scroll {
 
                 // arrange
                 let final_size = viewport + self.joiner;
-                let content_size = SCROLL_CONTENT_SIZE_VAR.get_clone(ctx);
+                let content_size = SCROLL_CONTENT_SIZE_VAR.get();
 
                 if content_size.height > final_size.height {
                     SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, true).unwrap();

@@ -10,7 +10,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::EventUpdate,
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
-    widget_info::{UpdateMask, WidgetInfoTree},
+    widget_info::WidgetInfoTree,
     window::WindowId,
     WidgetId, WidgetPath,
 };
@@ -103,9 +103,8 @@ pub struct UpdateArgs {
 /// An instance of this struct is available in [`AppContext`] and derived contexts.
 pub struct Updates {
     event_sender: AppEventSender,
-    next_updates: UpdateMask,
-    pub(super) current: UpdateMask,
     update: bool,
+    update_widgets: UpdateDeliveryList,
     layout: bool,
     l_updates: LayoutUpdates,
 
@@ -116,13 +115,12 @@ impl Updates {
     pub(super) fn new(event_sender: AppEventSender) -> Self {
         Updates {
             event_sender,
-            next_updates: UpdateMask::none(),
-            current: UpdateMask::none(),
             update: false,
+            update_widgets: UpdateDeliveryList::new_any(),
             layout: false,
             l_updates: LayoutUpdates {
                 render: false,
-                window_updates: WindowUpdates::default(),
+                window_updates: InfoLayoutRenderUpdates::default(),
             },
 
             pre_handlers: vec![],
@@ -135,38 +133,38 @@ impl Updates {
         self.event_sender.clone()
     }
 
-    /// Reference a mask that represents all the variable or other update sources
-    /// that are updating during this call of [`UiNode::update`].
-    ///
-    /// Note that this value is only valid in [`UiNode::update`] and is used by widget roots to optimize the call to update.
-    ///
-    /// [`UiNode::update`]: crate::UiNode::update
-    pub fn current(&self) -> &UpdateMask {
-        &self.current
-    }
-
     /// Schedules an update.
-    pub fn update(&mut self, mask: UpdateMask) {
+    pub fn update(&mut self, target: impl Into<Option<WidgetId>>) {
         UpdatesTrace::log_update();
-        self.update_internal(mask);
+        self.update_internal(target.into());
     }
 
-    pub(crate) fn update_internal(&mut self, mask: UpdateMask) {
-        self.next_updates |= mask;
+    pub(crate) fn update_internal(&mut self, target: Option<WidgetId>) {
         self.update = true;
+        if let Some(id) = target {
+            self.update_widgets.search_widget(id);
+        }
+    }
+
+    pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {
+        self.update = true;
+        for id in targets {
+            self.update_widgets.search_widget(id);
+        }
     }
 
     /// Schedules an update that only affects the app extensions.
     ///
-    /// This is the equivalent of calling [`update`] with [`UpdateMask::none`].
+    /// This is the equivalent of calling [`update`] with an empty vec.
     ///
     /// [`update`]: Self::update
     pub fn update_ext(&mut self) {
-        self.update(UpdateMask::none());
+        UpdatesTrace::log_update();
+        self.update_ext_internal();
     }
 
     pub(crate) fn update_ext_internal(&mut self) {
-        self.update_internal(UpdateMask::none())
+        self.update = true;
     }
 
     /// Gets `true` if an update was requested.
@@ -177,13 +175,6 @@ impl Updates {
     /// Schedules a info tree rebuild, layout and render.
     pub fn info_layout_and_render(&mut self) {
         self.info();
-        self.layout();
-        self.render();
-    }
-
-    /// Schedules subscriptions aggregation, layout and render.
-    pub fn subscriptions_layout_and_render(&mut self) {
-        self.subscriptions();
         self.layout();
         self.render();
     }
@@ -215,21 +206,6 @@ impl Updates {
     pub fn info(&mut self) {
         // tracing::trace!("requested `info`");
         self.l_updates.window_updates.info = true;
-        self.l_updates.window_updates.subscriptions = true;
-    }
-
-    /// Flag a subscriptions aggregation for the parent window.
-    ///
-    /// The window will call [`UiNode::subscriptions`] as soon as the current UI node method finishes,
-    /// requests outside windows are ignored.
-    ///
-    /// Note that [`info`] updates already request this too.
-    ///
-    /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
-    /// [`info`]: Self::info
-    pub fn subscriptions(&mut self) {
-        // tracing::trace!("requested `subscriptions`");
-        self.l_updates.window_updates.subscriptions = true;
     }
 
     /// Schedules a new full frame for the parent window.
@@ -339,24 +315,26 @@ impl Updates {
     }
 
     pub(super) fn enter_window_ctx(&mut self) {
-        self.l_updates.window_updates = WindowUpdates::default();
+        self.l_updates.window_updates = InfoLayoutRenderUpdates::default();
     }
-    pub(super) fn exit_window_ctx(&mut self) -> WindowUpdates {
+    pub(super) fn exit_window_ctx(&mut self) -> InfoLayoutRenderUpdates {
         mem::take(&mut self.l_updates.window_updates)
     }
 
-    pub(super) fn enter_widget_ctx(&mut self) -> WindowUpdates {
+    pub(super) fn enter_widget_ctx(&mut self) -> InfoLayoutRenderUpdates {
         mem::take(&mut self.l_updates.window_updates)
     }
-    pub(super) fn exit_widget_ctx(&mut self, mut prev: WindowUpdates) -> WindowUpdates {
+    pub(super) fn exit_widget_ctx(&mut self, mut prev: InfoLayoutRenderUpdates) -> InfoLayoutRenderUpdates {
         prev |= self.l_updates.window_updates;
         mem::replace(&mut self.l_updates.window_updates, prev)
     }
 
-    pub(super) fn take_updates(&mut self) -> (bool, bool, bool) {
-        self.current = mem::take(&mut self.next_updates);
+    pub(super) fn take_updates(&mut self) -> (bool, WidgetUpdates, bool, bool) {
         (
             mem::take(&mut self.update),
+            WidgetUpdates {
+                delivery_list: mem::take(&mut self.update_widgets),
+            },
             mem::take(&mut self.layout),
             mem::take(&mut self.l_updates.render),
         )
@@ -398,7 +376,7 @@ impl DerefMut for Updates {
 /// [`LayoutContext`]: crate::context::LayoutContext
 pub struct LayoutUpdates {
     render: bool,
-    window_updates: WindowUpdates,
+    window_updates: InfoLayoutRenderUpdates,
 }
 impl LayoutUpdates {
     /// Schedules a new frame for the parent window.
@@ -422,10 +400,10 @@ impl LayoutUpdates {
         self.render
     }
 
-    pub(super) fn enter_widget_ctx(&mut self) -> WindowUpdates {
+    pub(super) fn enter_widget_ctx(&mut self) -> InfoLayoutRenderUpdates {
         mem::take(&mut self.window_updates)
     }
-    pub(super) fn exit_widget_ctx(&mut self, mut prev: WindowUpdates) -> WindowUpdates {
+    pub(super) fn exit_widget_ctx(&mut self, mut prev: InfoLayoutRenderUpdates) -> InfoLayoutRenderUpdates {
         prev |= self.window_updates;
         mem::replace(&mut self.window_updates, prev)
     }
@@ -480,6 +458,59 @@ impl WithUpdates for crate::app::HeadlessApp {
     }
 }
 
+/// Widget updates of the current cycle.
+#[derive(Debug, Default)]
+pub struct WidgetUpdates {
+    delivery_list: UpdateDeliveryList,
+}
+impl WidgetUpdates {
+    /// New with list.
+    pub fn new(delivery_list: UpdateDeliveryList) -> Self {
+        Self { delivery_list }
+    }
+
+    /// Updates delivery list.
+    pub fn delivery_list(&self) -> &UpdateDeliveryList {
+        &self.delivery_list
+    }
+
+    /// Find all targets.
+    ///
+    /// This must be called before the first window visit, see [`UpdateDeliveryList::fulfill_search`] for details.
+    pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
+        self.delivery_list.fulfill_search(windows)
+    }
+
+    /// Calls `handle` if the event targets the window.
+    pub fn with_window<H, R>(&mut self, ctx: &mut super::WindowContext, handle: H) -> Option<R>
+    where
+        H: FnOnce(&mut super::WindowContext, &mut Self) -> R,
+    {
+        if self.delivery_list.enter_window(*ctx.window_id) {
+            Some(handle(ctx, self))
+        } else {
+            None
+        }
+    }
+
+    /// Calls `handle` if the event targets the widget.
+    pub fn with_widget<H, R>(&mut self, ctx: &mut super::WidgetContext, handle: H) -> Option<R>
+    where
+        H: FnOnce(&mut super::WidgetContext, &mut Self) -> R,
+    {
+        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+            Some(handle(ctx, self))
+        } else {
+            None
+        }
+    }
+
+    /// Copy all delivery from `other` onto `self`.
+    pub fn extend(&mut self, other: WidgetUpdates) {
+        self.delivery_list.extend_unchecked(other.delivery_list)
+    }
+}
+
 /// Updates that must be reacted by an app context owner.
 #[derive(Debug, Default)]
 pub struct ContextUpdates {
@@ -489,7 +520,15 @@ pub struct ContextUpdates {
     pub events: Vec<EventUpdate>,
 
     /// Update requested.
+    ///
+    /// When this is `true`, [`update`](Self::update) may contain widgets, if not then only
+    /// app extensions must update.
     pub update: bool,
+
+    /// Update targets.
+    ///
+    /// When this is not empty [`update`](Self::update) is `true`.
+    pub update_widgets: WidgetUpdates,
 
     /// Layout requested.
     pub layout: bool,
@@ -507,6 +546,7 @@ impl std::ops::BitOrAssign for ContextUpdates {
     fn bitor_assign(&mut self, rhs: Self) {
         self.events.extend(rhs.events);
         self.update |= rhs.update;
+        self.update_widgets.extend(rhs.update_widgets);
         self.layout |= rhs.layout;
         self.render |= rhs.render;
     }
@@ -520,38 +560,25 @@ impl std::ops::BitOr for ContextUpdates {
     }
 }
 
-/// Info, Layout or render updates that where requested by the content of a widget.
-///
-/// Unlike the general updates, layout and render can be optimized to only apply if
-/// the content requested it.
-pub type WidgetUpdates = WindowUpdates;
-
 /// Info, Layout or render updates that where requested by the content of a window.
 ///
 /// Unlike the general updates, layout and render can be optimized to only apply if
 /// the window content requested it.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct WindowUpdates {
+pub struct InfoLayoutRenderUpdates {
     /// Info tree rebuild requested.
     ///
     /// Windows should call [`UiNode::info`] to rebuild the info tree as soon as they receive this flag.
     ///
     /// [`UiNode::info`]: crate::UiNode::info
     pub info: bool,
-    /// Subscriptions re-count requested.
-    ///
-    /// Windows should call [`UiNode::subscriptions`] to aggregate the subscriptions masks
-    /// as soon as they receive this flag.
-    ///
-    /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
-    pub subscriptions: bool,
 
     /// Layout requested.
     pub layout: bool,
     /// Full frame or frame update requested.
     pub render: WindowRenderUpdate,
 }
-impl WindowUpdates {
+impl InfoLayoutRenderUpdates {
     /// No updates, this the default value.
     pub fn none() -> Self {
         Self::default()
@@ -559,9 +586,8 @@ impl WindowUpdates {
 
     /// Update layout and render frame.
     pub fn all() -> Self {
-        WindowUpdates {
+        InfoLayoutRenderUpdates {
             info: true,
-            subscriptions: true,
             layout: true,
             render: WindowRenderUpdate::Render,
         }
@@ -569,19 +595,8 @@ impl WindowUpdates {
 
     /// Info tree rebuild and subscriptions only.
     pub fn info() -> Self {
-        WindowUpdates {
+        InfoLayoutRenderUpdates {
             info: true,
-            subscriptions: true,
-            layout: false,
-            render: WindowRenderUpdate::None,
-        }
-    }
-
-    /// Subscriptions aggregation only.
-    pub fn subscriptions() -> Self {
-        WindowUpdates {
-            info: false,
-            subscriptions: true,
             layout: false,
             render: WindowRenderUpdate::None,
         }
@@ -589,9 +604,8 @@ impl WindowUpdates {
 
     /// Update layout only.
     pub fn layout() -> Self {
-        WindowUpdates {
+        InfoLayoutRenderUpdates {
             info: false,
-            subscriptions: false,
             layout: true,
             render: WindowRenderUpdate::None,
         }
@@ -599,9 +613,8 @@ impl WindowUpdates {
 
     /// Update render only.
     pub fn render() -> Self {
-        WindowUpdates {
+        InfoLayoutRenderUpdates {
             info: false,
-            subscriptions: false,
             layout: false,
             render: WindowRenderUpdate::Render,
         }
@@ -609,9 +622,8 @@ impl WindowUpdates {
 
     /// Update render-update only.
     pub fn render_update() -> Self {
-        WindowUpdates {
+        InfoLayoutRenderUpdates {
             info: false,
-            subscriptions: false,
             layout: false,
             render: WindowRenderUpdate::RenderUpdate,
         }
@@ -631,15 +643,14 @@ impl WindowUpdates {
         self == Self::none()
     }
 }
-impl std::ops::BitOrAssign for WindowUpdates {
+impl std::ops::BitOrAssign for InfoLayoutRenderUpdates {
     fn bitor_assign(&mut self, rhs: Self) {
         self.info |= rhs.info;
-        self.subscriptions |= rhs.subscriptions;
         self.layout |= rhs.layout;
         self.render |= rhs.render;
     }
 }
-impl std::ops::BitOr for WindowUpdates {
+impl std::ops::BitOr for InfoLayoutRenderUpdates {
     type Output = Self;
 
     fn bitor(mut self, rhs: Self) -> Self {
@@ -720,6 +731,11 @@ impl fmt::Debug for UpdateDeliveryList {
             .finish_non_exhaustive()
     }
 }
+impl Default for UpdateDeliveryList {
+    fn default() -> Self {
+        Self::new_any()
+    }
+}
 impl UpdateDeliveryList {
     /// New list that only allows `subscribers`.
     pub fn new(subscribers: Box<dyn UpdateSubscribers>) -> Self {
@@ -746,6 +762,8 @@ impl UpdateDeliveryList {
     }
 
     /// New list that does allows all entries.
+    ///
+    /// This is the default value.
     pub fn new_any() -> Self {
         struct UpdateDeliveryListAny;
         impl UpdateSubscribers for UpdateDeliveryListAny {
@@ -821,6 +839,13 @@ impl UpdateDeliveryList {
     /// Returns `true` if has entered all widgets on the list.
     pub fn is_done(&self) -> bool {
         self.widgets.is_empty()
+    }
+
+    /// Copy windows, widgets and search from `other`, trusting that all values are allowed.
+    fn extend_unchecked(&mut self, other: UpdateDeliveryList) {
+        self.windows.extend(other.windows);
+        self.widgets.extend(other.widgets);
+        self.search.extend(other.search)
     }
 }
 

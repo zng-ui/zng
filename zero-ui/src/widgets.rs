@@ -39,10 +39,6 @@ mod scroll_wgt;
 #[doc(inline)]
 pub use scroll_wgt::scroll;
 
-mod slot_wgt;
-#[doc(inline)]
-pub use slot_wgt::slot;
-
 mod switch_wgt;
 #[doc(inline)]
 pub use switch_wgt::switch;

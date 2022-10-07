@@ -440,3 +440,47 @@ impl Drop for EventWidgetHandle {
         self.event.unsubscribe_widget(self.widget_id);
     }
 }
+
+/// Represents a collection of var handles.
+#[derive(Clone, Default)]
+pub struct EventHandles(pub Vec<EventWidgetHandle>);
+impl EventHandles {
+    /// Add `other` handle to the collection.
+    pub fn push(&mut self, other: EventWidgetHandle) -> &mut Self {
+        // TODO, filter out dummies.
+        self.0.push(other);
+        self
+    }
+
+    /// Drop all handles.
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+impl FromIterator<EventWidgetHandle> for EventHandles {
+    fn from_iter<T: IntoIterator<Item = EventWidgetHandle>>(iter: T) -> Self {
+        // TODO, filter out dummies.
+        EventHandles(iter.into_iter().collect())
+    }
+}
+impl<const N: usize> From<[EventWidgetHandle; N]> for EventHandles {
+    fn from(handles: [EventWidgetHandle; N]) -> Self {
+        handles.into_iter().collect()
+    }
+}
+impl Extend<EventWidgetHandle> for EventHandles {
+    fn extend<T: IntoIterator<Item = EventWidgetHandle>>(&mut self, iter: T) {
+        for handle in iter {
+            self.push(handle);
+        }
+    }
+}
+impl IntoIterator for EventHandles {
+    type Item = EventWidgetHandle;
+
+    type IntoIter = std::vec::IntoIter<EventWidgetHandle>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}

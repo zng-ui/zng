@@ -191,11 +191,11 @@ impl AppExtension for KeyboardManager {
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
-            let focused = Focus::req(ctx.services).focused().get_clone(ctx);
+            let focused = Focus::req(ctx.services).focused().get();
             let keyboard = Keyboard::req(ctx.services);
             keyboard.key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
-            let focused = Focus::req(ctx.services).focused().get_clone(ctx);
+            let focused = Focus::req(ctx.services).focused().get();
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
                     CHAR_INPUT_EVENT.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
@@ -203,28 +203,28 @@ impl AppExtension for KeyboardManager {
             }
         } else if let Some(args) = RAW_KEY_REPEAT_DELAY_CHANGED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
-            kb.repeat_delay.set_ne(ctx.vars, args.delay);
+            kb.repeat_delay.set_ne(ctx.vars, args.delay).unwrap();
             kb.last_key_down = None;
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
                 let kb = Keyboard::req(ctx.services);
 
-                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
+                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty()).unwrap();
                 kb.current_modifiers.clear();
-                kb.codes.set_ne(ctx.vars, vec![]);
-                kb.keys.set_ne(ctx.vars, vec![]);
+                kb.codes.set_ne(ctx.vars, vec![]).unwrap();
+                kb.keys.set_ne(ctx.vars, vec![]).unwrap();
 
                 kb.last_key_down = None;
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
-            kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay);
+            kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay).unwrap();
 
             if args.is_respawn {
-                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
+                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty()).unwrap();
                 kb.current_modifiers.clear();
-                kb.codes.set_ne(ctx.vars, vec![]);
-                kb.keys.set_ne(ctx.vars, vec![]);
+                kb.codes.set_ne(ctx.vars, vec![]).unwrap();
+                kb.keys.set_ne(ctx.vars, vec![]).unwrap();
 
                 kb.last_key_down = None;
             }
@@ -267,7 +267,7 @@ impl Keyboard {
         match args.state {
             KeyState::Pressed => {
                 if let Some((d_id, code, time)) = &mut self.last_key_down {
-                    let max_t = self.repeat_delay.copy(vars) * 2;
+                    let max_t = self.repeat_delay.get() * 2;
                     if args.scan_code == *code && args.device_id == *d_id && (args.timestamp - *time) < max_t {
                         repeat = true;
                     } else {
@@ -280,17 +280,21 @@ impl Keyboard {
                 }
 
                 let scan_code = args.scan_code;
-                if !self.codes.get(vars).contains(&scan_code) {
-                    self.codes.modify(vars, move |mut cs| {
-                        cs.push(scan_code);
-                    });
+                if !self.codes.with(|c| c.contains(&scan_code)) {
+                    self.codes
+                        .modify(vars, move |cs| {
+                            cs.get_mut().push(scan_code);
+                        })
+                        .unwrap();
                 }
 
                 if let Some(key) = args.key {
-                    if !self.keys.get(vars).contains(&key) {
-                        self.keys.modify(vars, move |mut ks| {
-                            ks.push(key);
-                        });
+                    if !self.keys.with(|c| c.contains(&key)) {
+                        self.keys
+                            .modify(vars, move |ks| {
+                                ks.get_mut().push(key);
+                            })
+                            .unwrap();
                     }
 
                     if key.is_modifier() {
@@ -302,21 +306,25 @@ impl Keyboard {
                 self.last_key_down = None;
 
                 let key = args.scan_code;
-                if self.codes.get(vars).contains(&key) {
-                    self.codes.modify(vars, move |mut cs| {
-                        if let Some(i) = cs.iter().position(|c| *c == key) {
-                            cs.swap_remove(i);
-                        }
-                    });
+                if self.codes.with(|c| c.contains(&key)) {
+                    self.codes
+                        .modify(vars, move |cs| {
+                            if let Some(i) = cs.get().iter().position(|c| *c == key) {
+                                cs.get_mut().swap_remove(i);
+                            }
+                        })
+                        .unwrap();
                 }
 
                 if let Some(key) = args.key {
-                    if self.keys.get(vars).contains(&key) {
-                        self.keys.modify(vars, move |mut ks| {
-                            if let Some(i) = ks.iter().position(|k| *k == key) {
-                                ks.swap_remove(i);
-                            }
-                        });
+                    if self.keys.with(|c| c.contains(&key)) {
+                        self.keys
+                            .modify(vars, move |ks| {
+                                if let Some(i) = ks.get().iter().position(|k| *k == key) {
+                                    ks.get_mut().swap_remove(i);
+                                }
+                            })
+                            .unwrap();
                     }
 
                     if key.is_modifier() {
@@ -355,7 +363,7 @@ impl Keyboard {
         let new_modifiers = self.current_modifiers();
 
         if prev_modifiers != new_modifiers {
-            self.modifiers.set(vars, new_modifiers);
+            self.modifiers.set(vars, new_modifiers).unwrap();
             MODIFIERS_CHANGED_EVENT.notify(events, ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
         }
     }
@@ -370,17 +378,17 @@ impl Keyboard {
 
     /// Returns a read-only variable that tracks the currently pressed modifier keys.
     pub fn modifiers(&self) -> ReadOnlyRcVar<ModifiersState> {
-        self.modifiers.clone().into_read_only()
+        self.modifiers.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
     pub fn codes(&self) -> ReadOnlyRcVar<Vec<ScanCode>> {
-        self.codes.clone().into_read_only()
+        self.codes.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
     pub fn keys(&self) -> ReadOnlyRcVar<Vec<Key>> {
-        self.keys.clone().into_read_only()
+        self.keys.read_only()
     }
 
     /// Returns a read-only variable that tracks the operating system key press repeat delay.
@@ -391,7 +399,7 @@ impl Keyboard {
     ///
     /// [`is_repeat`]: KeyInputArgs::is_repeat
     pub fn repeat_delay(&self) -> ReadOnlyRcVar<Duration> {
-        self.repeat_delay.clone().into_read_only()
+        self.repeat_delay.read_only()
     }
 }
 

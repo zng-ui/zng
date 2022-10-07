@@ -103,12 +103,12 @@ impl AppExtension for FontManager {
         if RAW_FONT_CHANGED_EVENT.has(update) {
             FONT_CHANGED_EVENT.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
-            Fonts::req(ctx.services).font_aa.set_ne(ctx.vars, args.aa);
+            Fonts::req(ctx.services).font_aa.set_ne(ctx.vars, args.aa).unwrap();
         } else if FONT_CHANGED_EVENT.has(update) {
             Fonts::req(ctx.services).on_fonts_changed();
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let fonts = Fonts::req(ctx.services);
-            fonts.font_aa.set_ne(ctx.vars, args.font_aa);
+            fonts.font_aa.set_ne(ctx.vars, args.font_aa).unwrap();
             if args.is_respawn {
                 fonts.loader.on_view_process_respawn();
             }
@@ -259,7 +259,7 @@ impl Fonts {
     ///
     /// The variable updates when the system config changes.
     pub fn system_font_aa(&self) -> impl Var<FontAntiAliasing> {
-        self.font_aa.clone().into_read_only()
+        self.font_aa.read_only()
     }
 }
 

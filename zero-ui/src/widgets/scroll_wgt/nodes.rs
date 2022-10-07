@@ -16,9 +16,9 @@ use super::types::*;
 
 /// The actual content presenter.
 pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
-    struct ViewportNode<C, M> {
-        child: C,
-        mode: M,
+    #[impl_ui_node(struct ViewportNode {
+        child: impl UiNode,
+        mode: impl Var<ScrollMode>,
 
         viewport_unit: PxSize,
         viewport_size: PxSize,
@@ -30,24 +30,22 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         binding_key: FrameValueKey<PxTransform>,
 
         info: ScrollInfo,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
+    })]
+    impl UiNode for ViewportNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&self.mode)
+                .sub_var(&SCROLL_VERTICAL_OFFSET_VAR)
+                .sub_var(&SCROLL_HORIZONTAL_OFFSET_VAR);
+            self.child.init(ctx);
+        }
+
         fn info(&self, ctx: &mut InfoContext, builder: &mut WidgetInfoBuilder) {
             builder.meta().set(&SCROLL_INFO_ID, self.info.clone());
             self.child.info(ctx, builder);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx)
-                .var(&self.mode)
-                .var(&SCROLL_VERTICAL_OFFSET_VAR)
-                .var(&SCROLL_HORIZONTAL_OFFSET_VAR);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             if self.mode.is_new(ctx) || SCROLL_VERTICAL_OFFSET_VAR.is_new(ctx) || SCROLL_HORIZONTAL_OFFSET_VAR.is_new(ctx) {
                 ctx.updates.layout();
@@ -60,10 +58,10 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 return constrains.fill_size();
             }
 
-            let mode = self.mode.copy(ctx);
+            let mode = self.mode.get();
 
             let viewport_unit = constrains.fill_size();
-            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.copy(ctx) // requested
+            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
                 && viewport_unit.width > Px(0) // and has fill-size
                 && viewport_unit.height > Px(0)
                 && constrains.max_size() == Some(viewport_unit); // that is not just min size.
@@ -91,11 +89,11 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             constrains.fill_size_or(ct_size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let mode = self.mode.copy(ctx);
+            let mode = self.mode.get();
 
             let constrains = ctx.constrains();
             let viewport_unit = constrains.fill_size();
-            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.copy(ctx) // requested
+            let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
                 && viewport_unit.width > Px(0) // and has fill-size
                 && viewport_unit.height > Px(0)
                 && constrains.max_size() == Some(viewport_unit); // that is not just min size.
@@ -141,9 +139,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             }
 
             let mut content_offset = PxVector::zero();
-            let v_offset = SCROLL_VERTICAL_OFFSET_VAR.copy(ctx.vars);
+            let v_offset = SCROLL_VERTICAL_OFFSET_VAR.get();
             content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
-            let h_offset = SCROLL_HORIZONTAL_OFFSET_VAR.copy(ctx.vars);
+            let h_offset = SCROLL_HORIZONTAL_OFFSET_VAR.get();
             content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
 
             if content_offset != self.content_offset {
@@ -228,17 +226,13 @@ pub fn h_scrollbar_presenter() -> impl UiNode {
 }
 
 fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
-    ViewGenerator::presenter(
-        var,
-        |_, _| {},
-        move |_, is_new| {
-            if is_new {
-                DataUpdate::Update(ScrollBarArgs::new(orientation))
-            } else {
-                DataUpdate::Same
-            }
-        },
-    )
+    ViewGenerator::presenter(var, move |_, is_new| {
+        if is_new {
+            DataUpdate::Update(ScrollBarArgs::new(orientation))
+        } else {
+            DataUpdate::Same
+        }
+    })
 }
 
 /// Create a node that generates and presents the [scrollbar joiner].
@@ -251,8 +245,8 @@ pub fn scrollbar_joiner_presenter() -> impl UiNode {
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
 /// [`SCROLL_LEFT_CMD`] and [`SCROLL_RIGHT_CMD`] scoped on the widget.
 pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
-    struct ScrollCommandsNode<C> {
-        child: C,
+    #[impl_ui_node(struct ScrollCommandsNode {
+        child: impl UiNode,
 
         up: CommandHandle,
         down: CommandHandle,
@@ -260,16 +254,17 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         right: CommandHandle,
 
         layout_line: PxVector,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ScrollCommandsNode<C> {
+    })]
+    impl UiNode for ScrollCommandsNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&VERTICAL_LINE_UNIT_VAR).sub_var(&HORIZONTAL_LINE_UNIT_VAR);
+
             let scope = ctx.path.widget_id();
 
-            self.up = SCROLL_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = SCROLL_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = SCROLL_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = SCROLL_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
+            self.down = SCROLL_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down());
+            self.left = SCROLL_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left());
+            self.right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right());
 
             self.child.init(ctx);
         }
@@ -283,19 +278,13 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             self.right = CommandHandle::dummy();
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx).var(&VERTICAL_LINE_UNIT_VAR).var(&HORIZONTAL_LINE_UNIT_VAR);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
-
-            self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
-            self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
-            self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
-            self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
+            self.up.set_enabled(ScrollContext::can_scroll_up());
+            self.down.set_enabled(ScrollContext::can_scroll_down());
+            self.left.set_enabled(ScrollContext::can_scroll_left());
+            self.right.set_enabled(ScrollContext::can_scroll_right());
 
             if VERTICAL_LINE_UNIT_VAR.is_new(ctx) || HORIZONTAL_LINE_UNIT_VAR.is_new(ctx) {
                 ctx.updates.layout();
@@ -311,7 +300,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -319,7 +308,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -327,7 +316,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -335,7 +324,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -348,13 +337,13 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.copy(ctx);
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
                     self.layout_line = PxVector::new(
-                        HORIZONTAL_LINE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
-                        VERTICAL_LINE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(20)),
+                        HORIZONTAL_LINE_UNIT_VAR.get().layout(ctx.metrics.for_x(), |_| Px(20)),
+                        VERTICAL_LINE_UNIT_VAR.get().layout(ctx.metrics.for_y(), |_| Px(20)),
                     );
                 },
             );
@@ -362,7 +351,6 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             r
         }
     }
-
     ScrollCommandsNode {
         child: child.cfg_boxed(),
 
@@ -379,8 +367,8 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that implements [`PAGE_UP_CMD`], [`PAGE_DOWN_CMD`],
 /// [`PAGE_LEFT_CMD`] and [`PAGE_RIGHT_CMD`] scoped on the widget.
 pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
-    struct PageCommandsNode<C> {
-        child: C,
+    #[impl_ui_node(struct PageCommandsNode {
+        child: impl UiNode,
 
         up: CommandHandle,
         down: CommandHandle,
@@ -388,16 +376,17 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         right: CommandHandle,
 
         layout_page: PxVector,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for PageCommandsNode<C> {
+    })]
+    impl UiNode for PageCommandsNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&VERTICAL_PAGE_UNIT_VAR).sub_var(&HORIZONTAL_PAGE_UNIT_VAR);
+
             let scope = ctx.path.widget_id();
 
-            self.up = PAGE_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
-            self.down = PAGE_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down(ctx));
-            self.left = PAGE_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left(ctx));
-            self.right = PAGE_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right(ctx));
+            self.up = PAGE_UP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
+            self.down = PAGE_DOWN_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down());
+            self.left = PAGE_LEFT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_left());
+            self.right = PAGE_RIGHT_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_right());
 
             self.child.init(ctx);
         }
@@ -411,19 +400,13 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             self.right = CommandHandle::dummy();
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx).var(&VERTICAL_PAGE_UNIT_VAR).var(&HORIZONTAL_PAGE_UNIT_VAR);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
-
-            self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
-            self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
-            self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
-            self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
+            self.up.set_enabled(ScrollContext::can_scroll_up());
+            self.down.set_enabled(ScrollContext::can_scroll_down());
+            self.left.set_enabled(ScrollContext::can_scroll_left());
+            self.right.set_enabled(ScrollContext::can_scroll_right());
 
             if VERTICAL_PAGE_UNIT_VAR.is_new(ctx) || HORIZONTAL_PAGE_UNIT_VAR.is_new(ctx) {
                 ctx.updates.layout();
@@ -439,7 +422,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -447,7 +430,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
@@ -455,7 +438,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -463,7 +446,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        offset *= ALT_FACTOR_VAR.get_clone(ctx);
+                        offset *= ALT_FACTOR_VAR.get();
                     }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
@@ -476,13 +459,13 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.copy(ctx);
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
                     self.layout_page = PxVector::new(
-                        HORIZONTAL_PAGE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
-                        VERTICAL_PAGE_UNIT_VAR.get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(20)),
+                        HORIZONTAL_PAGE_UNIT_VAR.get().layout(ctx.metrics.for_x(), |_| Px(20)),
+                        VERTICAL_PAGE_UNIT_VAR.get().layout(ctx.metrics.for_y(), |_| Px(20)),
                     );
                 },
             );
@@ -490,7 +473,6 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             r
         }
     }
-
     PageCommandsNode {
         child,
 
@@ -506,29 +488,26 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that implements [`SCROLL_TO_TOP_CMD`], [`SCROLL_TO_BOTTOM_CMD`],
 /// [`SCROLL_TO_LEFTMOST_CMD`] and [`SCROLL_TO_RIGHTMOST_CMD`] scoped on the widget.
 pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
-    struct ScrollToEdgeCommandsNode<C> {
-        child: C,
+    #[impl_ui_node(struct ScrollToEdgeCommandsNode {
+        child: impl UiNode,
 
         top: CommandHandle,
         bottom: CommandHandle,
         leftmost: CommandHandle,
         rightmost: CommandHandle,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ScrollToEdgeCommandsNode<C> {
+    })]
+    impl UiNode for ScrollToEdgeCommandsNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let scope = ctx.path.widget_id();
 
-            self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up(ctx));
-            self.bottom = SCROLL_TO_BOTTOM_CMD
-                .scoped(scope)
-                .subscribe(ctx, ScrollContext::can_scroll_down(ctx));
+            self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_up());
+            self.bottom = SCROLL_TO_BOTTOM_CMD.scoped(scope).subscribe(ctx, ScrollContext::can_scroll_down());
             self.leftmost = SCROLL_TO_LEFTMOST_CMD
                 .scoped(scope)
-                .subscribe(ctx, ScrollContext::can_scroll_left(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_left());
             self.rightmost = SCROLL_TO_RIGHTMOST_CMD
                 .scoped(scope)
-                .subscribe(ctx, ScrollContext::can_scroll_right(ctx));
+                .subscribe(ctx, ScrollContext::can_scroll_right());
 
             self.child.init(ctx);
         }
@@ -542,13 +521,13 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             self.rightmost = CommandHandle::dummy();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
-            self.top.set_enabled(ScrollContext::can_scroll_up(ctx));
-            self.bottom.set_enabled(ScrollContext::can_scroll_down(ctx));
-            self.leftmost.set_enabled(ScrollContext::can_scroll_left(ctx));
-            self.rightmost.set_enabled(ScrollContext::can_scroll_right(ctx));
+            self.top.set_enabled(ScrollContext::can_scroll_up());
+            self.bottom.set_enabled(ScrollContext::can_scroll_down());
+            self.leftmost.set_enabled(ScrollContext::can_scroll_left());
+            self.rightmost.set_enabled(ScrollContext::can_scroll_right());
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -589,14 +568,13 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements [`SCROLL_TO_CMD`] scoped on the widget and scroll to focused.
 pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
-    struct ScrollToCommandNode<C> {
-        child: C,
+    #[impl_ui_node(struct ScrollToCommandNode {
+        child: impl UiNode,
 
         handle: CommandHandle,
         scroll_to: Option<(WidgetBoundsInfo, ScrollToMode)>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
+    })]
+    impl UiNode for ScrollToCommandNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.handle = SCROLL_TO_CMD.scoped(ctx.path.widget_id()).subscribe(ctx, true);
             self.child.init(ctx);
@@ -621,7 +599,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                     // we are a scroll.
 
                                     let bounds = target.bounds_info();
-                                    let mode = SCROLL_TO_FOCUSED_MODE_VAR.get_clone(ctx.vars);
+                                    let mode = SCROLL_TO_FOCUSED_MODE_VAR.get();
 
                                     self.scroll_to = Some((bounds, mode));
                                     ctx.updates.layout();
@@ -772,12 +750,12 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
-                if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.copy(ctx)) {
+                if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.get()) {
                     args.handle(|_| {
                         match delta {
                             MouseScrollDelta::LineDelta(x, y) => {
-                                self.offset.x -= HORIZONTAL_LINE_UNIT_VAR.get_clone(ctx) * x.fct();
-                                self.offset.y -= VERTICAL_LINE_UNIT_VAR.get_clone(ctx) * y.fct();
+                                self.offset.x -= HORIZONTAL_LINE_UNIT_VAR.get() * x.fct();
+                                self.offset.y -= VERTICAL_LINE_UNIT_VAR.get() * y.fct();
                             }
                             MouseScrollDelta::PixelDelta(x, y) => {
                                 self.offset.x -= x.px();
@@ -798,7 +776,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            let viewport = *SCROLL_VIEWPORT_SIZE_VAR.get(ctx);
+            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
 
             ctx.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),

@@ -132,7 +132,7 @@ pub mod vis {
         /// Defines the color of an icon.
         ///
         /// Inherits from [`TEXT_COLOR_VAR`].
-        pub static ICON_COLOR_VAR: Rgba => TEXT_COLOR_VAR;
+        pub static ICON_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
     }
 
     /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.

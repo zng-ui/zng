@@ -1,5 +1,7 @@
 use crate::{
-    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WidgetUpdates,
+    },
     event::EventUpdate,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
@@ -8,7 +10,7 @@ use crate::{
         WidgetFilterArgs, WidgetList, WidgetVec,
     },
     units::PxSize,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation},
     widget_vec, UiNode, Widget, WidgetId,
 };
 
@@ -221,8 +223,8 @@ macro_rules! impl_tuples {
                 $(self.items.$n.deinit(ctx);)+
             }
 
-            fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, _: &mut O) {
-                $(self.items.$n.update(ctx);)+
+            fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, _: &mut O) {
+                $(self.items.$n.update(ctx, updates);)+
             }
 
             fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -252,12 +254,6 @@ macro_rules! impl_tuples {
             fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 $(
                     self.items.$n.info(ctx, info);
-                )+
-            }
-
-            fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                $(
-                    self.items.$n.subscriptions(ctx, subs);
                 )+
             }
 
@@ -451,7 +447,7 @@ macro_rules! empty_node_list {
 
             fn deinit_all(&mut self, _: &mut WidgetContext) {}
 
-            fn update_all<O: UiListObserver>(&mut self, _: &mut WidgetContext, _: &mut O) {}
+            fn update_all<O: UiListObserver>(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates, _: &mut O) {}
 
             fn event_all(&mut self, _: &mut WidgetContext, _: &mut EventUpdate) {}
 
@@ -476,8 +472,6 @@ macro_rules! empty_node_list {
 
             fn info_all(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             }
-
-            fn subscriptions_all(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
 
             fn render_all(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
             }

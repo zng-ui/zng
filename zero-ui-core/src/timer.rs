@@ -16,7 +16,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,
-    var::{types::WeakRcVar, var, ReadOnlyRcVar, Var, Vars, VarsRead, WeakVar},
+    var::{types::WeakRcVar, var, ReadOnlyRcVar, Var, Vars, WeakVar},
 };
 
 struct DeadlineHandlerEntry {
@@ -111,7 +111,7 @@ impl Timers {
     pub fn deadline(&mut self, deadline: impl Into<Deadline>) -> DeadlineVar {
         let timer = var(deadline.into());
         self.deadlines.push(timer.downgrade());
-        timer.into_read_only()
+        timer.read_only()
     }
 
     /// Returns a [`TimerVar`] that will update every time the `interval` elapses.
@@ -150,7 +150,7 @@ impl Timers {
             handle: owner,
             weak_var: timer.downgrade(),
         });
-        timer.into_read_only()
+        timer.read_only()
     }
 
     /// Register a `handler` that will be called once when the `deadline` is reached.
@@ -226,10 +226,10 @@ impl Timers {
         handle
     }
 
-    pub(crate) fn next_deadline(&self, vars: &VarsRead, timer: &mut LoopTimer) {
+    pub(crate) fn next_deadline(&self, timer: &mut LoopTimer) {
         for wk in &self.deadlines {
             if let Some(var) = wk.upgrade() {
-                timer.register(var.copy(vars));
+                timer.register(var.get());
             }
         }
 
@@ -237,9 +237,10 @@ impl Timers {
             if let Some(var) = t.weak_var.upgrade() {
                 if !t.handle.is_dropped() && !t.handle.data().paused.load(Ordering::Relaxed) {
                     // not dropped and not paused
-                    let t = var.get(vars);
-                    let deadline = t.0 .0.data().deadline.lock();
-                    timer.register(deadline.current_deadline());
+                    var.with(|t| {
+                        let deadline = t.0 .0.data().deadline.lock();
+                        timer.register(deadline.current_deadline());
+                    });
                 }
             }
         }
@@ -274,11 +275,11 @@ impl Timers {
         // update `deadline` vars
         self.deadlines.retain(|wk| {
             if let Some(var) = wk.upgrade() {
-                if !timer.elapsed(var.copy(vars)) {
+                if !timer.elapsed(var.get()) {
                     return true; // retain
                 }
 
-                var.touch(vars);
+                var.touch(vars).unwrap();
             }
             false // don't retain
         });
@@ -288,16 +289,17 @@ impl Timers {
             if let Some(var) = t.weak_var.upgrade() {
                 if !t.handle.is_dropped() {
                     if !t.handle.data().paused.load(Ordering::Relaxed) {
-                        let t = var.get(vars);
-                        let mut deadline = t.0 .0.data().deadline.lock();
+                        var.with(|t| {
+                            let mut deadline = t.0 .0.data().deadline.lock();
 
-                        if timer.elapsed(deadline.current_deadline()) {
-                            t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
-                            var.touch(vars);
+                            if timer.elapsed(deadline.current_deadline()) {
+                                t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
+                                var.touch(vars).unwrap();
 
-                            deadline.last = now;
-                            timer.register(deadline.current_deadline());
-                        }
+                                deadline.last = now;
+                                timer.register(deadline.current_deadline());
+                            }
+                        })
                     }
 
                     return true; // retain, var is alive and did not call stop.

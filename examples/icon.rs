@@ -73,7 +73,7 @@ fn icons() -> impl Widget {
                 ]
             },
             view(selected_font, show_font(icons::outlined::all()), |ctx, font| {
-                match font.copy_new(ctx) {
+                match font.get_new(ctx) {
                     Some("filled") => View::Update(show_font(icons::filled::all())),
                     Some("outlined") => View::Update(show_font(icons::outlined::all())),
                     Some("rounded") => View::Update(show_font(icons::rounded::all())),

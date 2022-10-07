@@ -36,7 +36,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             >(
                 #(#input_idents: #var_idents,)*
                 mut merge: F
-            ) -> #vars_mod::types::RcMergeVar<O> {
+            ) -> #vars_mod::types::ContextualizedRcMergeVar<O> {
                 let input_types = (
                     #(#vars_mod::types::RcMergeVarInput::new(&#input_idents)),*
                 );
@@ -44,11 +44,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     Box::new([
                         #(Box::new(#input_idents),)*
                     ]),
-                    Box::new(move |vars, inputs| {
+                    move |inputs| {
                         merge(
-                            #(input_types.#idx.get(&inputs[#idx], vars)),*
+                            #(input_types.#idx.get(&inputs[#idx])),*
                         )
-                    })
+                    }
                 )
             }
             merge_var__(#inputs #merge)

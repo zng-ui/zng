@@ -1351,11 +1351,9 @@ mod output {
                     let dyn_args_decl = arg_locals.iter().zip(arg_types.iter()).map(|(arg_local, arg_ty)| {
                         let span = arg_ty.span();
                         let mut r = quote_spanned! {span=>
-                            #crate_core::var::AnyVar::into_any(
-                                #crate_core::var::Var::boxed(
-                                    #crate_core::var::IntoVar::allowed_in_when_property_requires_IntoVar_members(
-                                        #arg_local
-                                    )
+                            #crate_core::var::Var::boxed_any(
+                                #crate_core::var::IntoVar::allowed_in_when_property_requires_IntoVar_members(
+                                    #arg_local
                                 )
                             ),
                         };
@@ -1367,7 +1365,7 @@ mod output {
                     let dyn_when_args_tuple_ty = dyn_when_args_t.iter().zip(arg_types.iter()).map(|(arg_t, arg_ty)| {
                         let span = arg_ty.span();
                         let mut r = quote_spanned! {span=>
-                            #crate_core::var::types::RcWhenVar<#arg_t>
+                            #crate_core::var::types::ContextualizedRcWhenVar<#arg_t>
                         };
                         crate::util::set_span(&mut r, span);
                         r
@@ -1908,7 +1906,7 @@ mod output {
                         _ => $default_args:ident,
                     }) => {
                         {
-                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, rc_when_var as __when_var};
+                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, when_var as __when_var};
                             $(
                                 $cfg_macro! {
                                     $(#[$meta])*
@@ -2033,7 +2031,7 @@ mod output {
                     }
 
                     pub use #macro_ident as code_gen;
-                    pub use #crate_core::var::{when_var, types::rc_when_var, switch_var};
+                    pub use #crate_core::var::when_var;
                     #[doc(hidden)]
                     pub use #crate_core::{property_new as __property_new, core_cfg_inspector};
                 }

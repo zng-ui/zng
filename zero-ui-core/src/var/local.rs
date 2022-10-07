@@ -1,117 +1,82 @@
+use rc::WeakRcVar;
+
 use super::*;
 
-/// A [`Var`] is a fixed value that is stored locally.
-///
-/// Cloning this variable clones the value.
+/// Represents a single value as [`Var<T>`].
 #[derive(Clone)]
 pub struct LocalVar<T: VarValue>(pub T);
+
 impl<T: VarValue> crate::private::Sealed for LocalVar<T> {}
-impl<T: VarValue> Var<T> for LocalVar<T> {
-    type AsReadOnly = Self;
-    type Weak = NoneWeakVar<T>;
 
-    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, _: &'a Vr) -> &'a T {
-        &self.0
+impl<T: VarValue> AnyVar for LocalVar<T> {
+    fn clone_any(&self) -> BoxedAnyVar {
+        Box::new(self.clone())
     }
 
-    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, _: &'a Vw) -> Option<&'a T> {
-        None
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
-    fn is_new<Vw: WithVars>(&self, _: &Vw) -> bool {
-        false
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
     }
 
-    fn into_value<Vr: WithVarsRead>(self, _: &Vr) -> T {
-        self.0
+    fn var_type_id(&self) -> TypeId {
+        TypeId::of::<T>()
     }
 
-    fn version<Vr: WithVarsRead>(&self, _: &Vr) -> VarVersion {
-        VarVersion::normal(0)
+    fn get_any(&self) -> Box<dyn AnyVarValue> {
+        Box::new(self.0.clone())
     }
 
-    fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
-        true
+    fn set_any(&self, _: &Vars, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        Err(VarIsReadOnlyError {
+            capabilities: self.capabilities(),
+        })
     }
 
-    fn is_animating<Vr: WithVarsRead>(&self, _: &Vr) -> bool {
-        false
+    fn last_update(&self) -> VarUpdateId {
+        VarUpdateId::never()
+    }
+
+    fn capabilities(&self) -> VarCapabilities {
+        VarCapabilities::empty()
+    }
+
+    fn hook(&self, _: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+        VarHandle::dummy()
+    }
+
+    fn subscribe(&self, _: WidgetId) -> VarHandle {
+        VarHandle::dummy()
     }
 
     fn strong_count(&self) -> usize {
         0
     }
 
-    fn always_read_only(&self) -> bool {
-        true
-    }
-
-    fn can_update(&self) -> bool {
-        false
-    }
-
-    fn is_contextual(&self) -> bool {
-        false
-    }
-
-    fn actual_var<Vw: WithVars>(&self, _: &Vw) -> BoxedVar<T> {
-        self.clone().boxed()
-    }
-
-    fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        M: FnOnce(VarModify<T>) + 'static,
-    {
-        Err(VarIsReadOnly)
-    }
-
-    fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-    {
-        Err(VarIsReadOnly)
-    }
-
-    fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        T: PartialEq,
-    {
-        Err(VarIsReadOnly)
-    }
-
-    fn into_read_only(self) -> Self::AsReadOnly {
-        self
-    }
-
-    fn update_mask<Vr: WithVarsRead>(&self, _: &Vr) -> UpdateMask {
-        UpdateMask::none()
-    }
-
-    fn is_rc(&self) -> bool {
-        false
-    }
-
-    fn downgrade(&self) -> Option<Self::Weak> {
-        None
-    }
-
     fn weak_count(&self) -> usize {
         0
     }
 
-    fn as_ptr(&self) -> *const () {
-        std::ptr::null()
+    fn actual_var_any(&self) -> BoxedAnyVar {
+        self.clone_any()
+    }
+
+    fn downgrade_any(&self) -> BoxedAnyWeakVar {
+        Box::new(WeakRcVar::<T>::new())
+    }
+
+    fn is_animating(&self) -> bool {
+        false
+    }
+
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_never_eq(self)
     }
 }
-impl<T: VarValue + Default> Default for LocalVar<T> {
-    fn default() -> Self {
-        LocalVar(T::default())
-    }
-}
+
 impl<T: VarValue> IntoVar<T> for LocalVar<T> {
     type Var = Self;
 
@@ -126,6 +91,68 @@ impl<T: VarValue> IntoVar<T> for T {
         LocalVar(self)
     }
 }
-impl<T: VarValue> any::AnyVar for LocalVar<T> {
-    any_var_impls!(Var);
+
+macro_rules! impl_into_var_option {
+    (
+        $($T:ty),* $(,)?
+    ) => {
+        $(
+            impl IntoVar<Option<$T>> for $T {
+                type Var = LocalVar<Option<$T>>;
+
+                fn into_var(self) -> Self::Var {
+                    LocalVar(Some(self))
+                }
+            }
+
+            impl IntoValue<Option<$T>> for $T { }
+        )*
+    }
+}
+impl_into_var_option! {
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize,
+    f32, f64,
+    char, bool,
+}
+
+impl<T: VarValue> Var<T> for LocalVar<T> {
+    type ReadOnly = Self;
+
+    type ActualVar = Self;
+
+    type Downgrade = WeakRcVar<T>;
+
+    fn with<R, F>(&self, read: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        read(&self.0)
+    }
+
+    fn modify<V, F>(&self, _: &V, _: F) -> Result<(), VarIsReadOnlyError>
+    where
+        V: WithVars,
+        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+    {
+        Err(VarIsReadOnlyError {
+            capabilities: self.capabilities(),
+        })
+    }
+
+    fn actual_var(&self) -> Self::ActualVar {
+        self.clone()
+    }
+
+    fn downgrade(&self) -> Self::Downgrade {
+        WeakRcVar::new()
+    }
+
+    fn into_value(self) -> T {
+        self.0
+    }
+
+    fn read_only(&self) -> Self::ReadOnly {
+        self.clone()
+    }
 }

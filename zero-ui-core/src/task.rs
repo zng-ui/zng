@@ -8,7 +8,7 @@
 //! # Examples
 //!
 //! ```
-//! # use zero_ui_core::{widget, UiNode, var::{var, IntoVar}, async_hn, event_property, property,
+//! # use zero_ui_core::{widget, UiNode, var::{var, IntoVar, Var}, async_hn, event_property, property,
 //! # gesture::{CLICK_EVENT, ClickArgs}, task::{self, rayon::prelude::*}};
 //! # #[widget($crate::button)]
 //! # pub mod button { }
@@ -102,6 +102,7 @@
 //!             Ok(r) => msg.set(&ctx, r),
 //!             Err(e) => msg.set(&ctx, formatx!("error: {e}")),
 //!         }
+//!         .unwrap();
 //!
 //!         enabled.set(&ctx, true);
 //!     });
@@ -509,7 +510,7 @@ where
 
     spawn(async move {
         let ctor = task.await;
-        let _ = modify_sender.send(move |mut v| *v = crate::var::Response::Done(ctor()));
+        let _ = modify_sender.send(move |v| *v.get_mut() = crate::var::types::Response::Done(ctor()));
     });
 
     response

@@ -101,28 +101,24 @@ pub fn node() -> impl UiNode {
     use crate::core::gradient::RenderExtendMode;
     use properties::*;
 
-    struct CheckerboardNode {
+    #[impl_ui_node(struct CheckerboardNode {
         final_size: PxSize,
         tile_size: PxSize,
         center: PxPoint,
         colors: [RenderColor; 2],
-    }
-    #[impl_ui_node(none)]
+    })]
     impl UiNode for CheckerboardNode {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.vars(ctx)
-                .var(&CHECKERBOARD_COLORS_VAR)
-                .var(&CHECKERBOARD_SIZE_VAR)
-                .var(&CHECKERBOARD_OFFSET_VAR);
-        }
-
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let (c0, c1) = CHECKERBOARD_COLORS_VAR.copy(ctx);
+            ctx.sub_var(&CHECKERBOARD_COLORS_VAR)
+                .sub_var(&CHECKERBOARD_SIZE_VAR)
+                .sub_var(&CHECKERBOARD_OFFSET_VAR);
+
+            let (c0, c1) = CHECKERBOARD_COLORS_VAR.get();
             self.colors = [c0.into(), c1.into()];
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some((c0, c1)) = CHECKERBOARD_COLORS_VAR.copy_new(ctx) {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+            if let Some((c0, c1)) = CHECKERBOARD_COLORS_VAR.get_new(ctx) {
                 self.colors = [c0.into(), c1.into()];
                 ctx.updates.render();
             }
@@ -137,9 +133,9 @@ pub fn node() -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             self.final_size = ctx.constrains().fill_size();
 
-            let tile_size = CHECKERBOARD_SIZE_VAR.get(ctx.vars).layout(ctx, |_| PxSize::splat(Px(4)));
+            let tile_size = CHECKERBOARD_SIZE_VAR.get().layout(ctx, |_| PxSize::splat(Px(4)));
 
-            let mut offset = CHECKERBOARD_OFFSET_VAR.get(ctx.vars).layout(ctx, |_| PxVector::zero());
+            let mut offset = CHECKERBOARD_OFFSET_VAR.get().layout(ctx, |_| PxVector::zero());
             if offset.x > self.tile_size.width {
                 offset.x /= self.tile_size.width;
             }

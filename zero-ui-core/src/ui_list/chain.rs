@@ -1,12 +1,14 @@
 use crate::{
-    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WidgetUpdates,
+    },
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
         OffsetUiListObserver, PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
     },
     units::PxSize,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation},
     WidgetId,
 };
 
@@ -44,9 +46,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.deinit_all(ctx);
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
-        self.0.update_all(ctx, observer);
-        self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
+        self.0.update_all(ctx, updates, observer);
+        self.1.update_all(ctx, updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -118,11 +120,6 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.0.info_all(ctx, info);
         self.1.info_all(ctx, info);
-    }
-
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.0.subscriptions_all(ctx, subs);
-        self.1.subscriptions_all(ctx, subs);
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -397,9 +394,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.deinit_all(ctx);
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
-        self.0.update_all(ctx, observer);
-        self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
+        self.0.update_all(ctx, updates, observer);
+        self.1.update_all(ctx, updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -470,11 +467,6 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.0.info_all(ctx, info);
         self.1.info_all(ctx, info);
-    }
-
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.0.subscriptions_all(ctx, subs);
-        self.1.subscriptions_all(ctx, subs);
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

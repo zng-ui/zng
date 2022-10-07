@@ -8,7 +8,6 @@ pub mod view_process;
 pub use intrinsic::*;
 
 use crate::config::ConfigManager;
-use crate::context::*;
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, Events};
 use crate::image::ImageManager;
@@ -16,8 +15,8 @@ use crate::service::Services;
 use crate::timer::Timers;
 use crate::units::Deadline;
 use crate::var::Vars;
-use crate::widget_info::{UpdateMask, UpdateSlot};
 use crate::window::WindowMode;
+use crate::{context::*, WidgetId};
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,
@@ -259,8 +258,8 @@ pub trait AppExtension: 'static {
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::update`](super::UiNode::update)
     /// method is called here.
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        let _ = (ctx, updates);
     }
 
     /// Called after every [`update_ui`](Self::update_ui).
@@ -306,7 +305,7 @@ pub trait AppExtensionBoxed: 'static {
     fn init_boxed(&mut self, ctx: &mut AppContext);
     fn enable_device_events_boxed(&self) -> bool;
     fn update_preview_boxed(&mut self, ctx: &mut AppContext);
-    fn update_ui_boxed(&mut self, ctx: &mut AppContext);
+    fn update_ui_boxed(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates);
     fn update_boxed(&mut self, ctx: &mut AppContext);
     fn event_preview_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
     fn event_ui_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
@@ -336,8 +335,8 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update_preview(ctx);
     }
 
-    fn update_ui_boxed(&mut self, ctx: &mut AppContext) {
-        self.update_ui(ctx);
+    fn update_ui_boxed(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.update_ui(ctx, updates);
     }
 
     fn update_boxed(&mut self, ctx: &mut AppContext) {
@@ -389,8 +388,8 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().update_preview_boxed(ctx);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        self.as_mut().update_ui_boxed(ctx);
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.as_mut().update_ui_boxed(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -468,9 +467,9 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.update_preview(ctx);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("update_ui");
-        self.0.update_ui(ctx);
+        self.0.update_ui(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -865,7 +864,6 @@ impl<E: AppExtension> RunningApp<E> {
         let ctx = &mut self.owned_ctx.borrow();
 
         self.extensions.event_preview(ctx, &mut update);
-        Vars::event_preview(ctx, &mut update);
         observer.event_preview(ctx, &mut update);
 
         Events::on_pre_events(ctx, &mut update);
@@ -1271,7 +1269,7 @@ impl<E: AppExtension> RunningApp<E> {
             },
             AppEvent::Event(ev) => self.ctx().events.notify(ev.get()),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
-            AppEvent::Update(mask) => self.ctx().updates.update_internal(mask),
+            AppEvent::Update(targets) => self.ctx().updates.recv_update_internal(targets),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
     }
@@ -1314,14 +1312,6 @@ impl<E: AppExtension> RunningApp<E> {
                         }
                     },
                 }
-
-                // let wait_time = Instant::now();
-                // if wait_time > time.0 {
-                //     let wait_error = wait_time - time.0;
-                //     if wait_error >= Duration::from_millis(1) {
-                //         eprintln!("timer error +{:?}", wait_error);
-                //     }
-                // }
             } else {
                 match self.receiver.recv() {
                     Ok(ev) => {
@@ -1363,6 +1353,7 @@ impl<E: AppExtension> RunningApp<E> {
         if updated_timers {
             // tick timers and collect not elapsed timers.
             self.owned_ctx.update_timers(&mut self.loop_timer);
+            self.apply_updates(observer);
         }
 
         let mut events = mem::take(&mut self.pending_view_events);
@@ -1426,18 +1417,15 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.extensions.update_preview(ctx);
                 observer.update_preview(ctx);
-                Vars::on_pre_vars(ctx);
                 Updates::on_pre_updates(ctx);
 
-                self.extensions.update_ui(ctx);
-                observer.update_ui(ctx);
+                let mut wgt_updates = u.update_widgets;
+                self.extensions.update_ui(ctx, &mut wgt_updates);
+                observer.update_ui(ctx, &mut wgt_updates);
 
                 self.extensions.update(ctx);
                 observer.update(ctx);
-                Vars::on_vars(ctx);
                 Updates::on_updates(ctx);
-
-                self.owned_ctx.applied_updates();
 
                 true
             });
@@ -1460,7 +1448,6 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.loop_monitor.maybe_trace(|| {
                     self.extensions.event_preview(ctx, &mut update);
-                    Vars::event_preview(ctx, &mut update);
                     observer.event_preview(ctx, &mut update);
                     Events::on_pre_events(ctx, &mut update);
 
@@ -1864,8 +1851,8 @@ pub trait AppEventObserver {
     }
 
     /// Called just after [`AppExtension::update_ui`].
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        let _ = (ctx, updates);
     }
 
     /// Called just after [`AppExtension::update`].
@@ -1905,7 +1892,7 @@ trait AppEventObserverDyn {
     fn event_ui_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
     fn event_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
     fn update_preview_dyn(&mut self, ctx: &mut AppContext);
-    fn update_ui_dyn(&mut self, ctx: &mut AppContext);
+    fn update_ui_dyn(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates);
     fn update_dyn(&mut self, ctx: &mut AppContext);
     fn layout_dyn(&mut self, ctx: &mut AppContext);
     fn render_dyn(&mut self, ctx: &mut AppContext);
@@ -1931,8 +1918,8 @@ impl<O: AppEventObserver> AppEventObserverDyn for O {
         self.update_preview(ctx)
     }
 
-    fn update_ui_dyn(&mut self, ctx: &mut AppContext) {
-        self.update_ui(ctx)
+    fn update_ui_dyn(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.update_ui(ctx, updates)
     }
 
     fn update_dyn(&mut self, ctx: &mut AppContext) {
@@ -1968,8 +1955,8 @@ impl<'a> AppEventObserver for DynAppEventObserver<'a> {
         self.0.update_preview_dyn(ctx)
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        self.0.update_ui_dyn(ctx)
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.0.update_ui_dyn(ctx, updates)
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -2013,9 +2000,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.update_preview(ctx);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        self.0.update_ui(ctx);
-        self.1.update_ui(ctx);
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.0.update_ui(ctx, updates);
+        self.1.update_ui(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -2081,9 +2068,9 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         for ext in self {
-            ext.update_ui(ctx);
+            ext.update_ui(ctx, updates);
         }
     }
 
@@ -2140,7 +2127,7 @@ pub(crate) enum AppEvent {
     /// Notify [`Vars`](crate::var::Vars).
     Var,
     /// Do an update cycle.
-    Update(UpdateMask),
+    Update(Vec<WidgetId>),
     /// Resume a panic in the app thread.
     ResumeUnwind(PanicPayload),
 }
@@ -2169,19 +2156,19 @@ impl AppEventSender {
     }
 
     /// Causes an update cycle to happen in the app.
-    pub fn send_update(&self, mask: UpdateMask) -> Result<(), AppDisconnected<()>> {
+    pub fn send_update(&self, targets: Vec<WidgetId>) -> Result<(), AppDisconnected<()>> {
         UpdatesTrace::log_update();
-        self.send_app_event(AppEvent::Update(mask)).map_err(|_| AppDisconnected(()))
+        self.send_app_event(AppEvent::Update(targets)).map_err(|_| AppDisconnected(()))
     }
 
     /// Causes an update cycle that only affects app extensions to happen in the app.
     ///
-    /// This is the equivalent of calling [`send_update`] with [`UpdateMask::none`].
+    /// This is the equivalent of calling [`send_update`] with an empty vec.
     ///
     /// [`send_update`]: Self::send_update
     pub fn send_ext_update(&self) -> Result<(), AppDisconnected<()>> {
         UpdatesTrace::log_update();
-        self.send_update(UpdateMask::none())
+        self.send_update(vec![])
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
@@ -2206,8 +2193,8 @@ impl AppEventSender {
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
-    pub fn waker(&self, update_slot: UpdateSlot) -> Waker {
-        Arc::new(AppWaker(self.0.clone(), update_slot)).into()
+    pub fn waker(&self, targets: Vec<WidgetId>) -> Waker {
+        Arc::new(AppWaker(self.0.clone(), targets)).into()
     }
 
     /// Create an unbound channel that causes an extension update for each message received.
@@ -2243,10 +2230,13 @@ impl AppEventSender {
     }
 }
 
-struct AppWaker(flume::Sender<AppEvent>, UpdateSlot);
+struct AppWaker(flume::Sender<AppEvent>, Vec<WidgetId>);
 impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
-        let _ = self.0.send(AppEvent::Update(self.1.mask()));
+        let _ = match std::sync::Arc::try_unwrap(self) {
+            Ok(w) => w.0.send(AppEvent::Update(w.1)),
+            Err(arc) => arc.0.send(AppEvent::Update(arc.1.clone())),
+        };
     }
 }
 

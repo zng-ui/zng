@@ -122,14 +122,14 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                                 window! {
                                     title = "Detached Button";
                                     content_align = Align::CENTER;
-                                    content = slot(wwk.upgrade().unwrap(), slot::take_on_init());
+                                    content = wwk.upgrade().unwrap().take_when(true);
                                 }
                             });
                         });
                     };
                     btn.boxed()
                 });
-                slot(detach_focused, slot::take_on_init())
+                detach_focused.take_when(true).into_widget()
             },
             // Disable Window
             disable_window(window_enabled.clone()),
@@ -149,9 +149,9 @@ fn disable_window(window_enabled: RcVar<bool>) -> impl Widget {
         content = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
         on_click = async_hn!(window_enabled, |ctx, _| {
-            window_enabled.set(&ctx, false);
+            window_enabled.set(&ctx, false).unwrap();
             task::deadline(1.secs()).await;
-            window_enabled.set(&ctx, true);
+            window_enabled.set(&ctx, true).unwrap();
         });
     }
 }
@@ -248,13 +248,13 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
     button! {
         content = text(content.into());
         on_click = async_hn!(enabled, on_timeout, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(&ctx, false).unwrap();
             task::deadline(4.secs()).await;
             ctx.with(|ctx| {
                 let mut on_timeout = on_timeout.borrow_mut();
                 on_timeout(ctx);
             });
-            enabled.set(&ctx, true);
+            enabled.set(&ctx, true).unwrap();
         });
         enabled;
     }
@@ -326,8 +326,8 @@ fn trace_focus(events: &mut Events) {
                 } else {
                     println!(
                         "{} -> {}",
-                        inspect::focus(ctx.vars, ctx.services, &args.prev_focus),
-                        inspect::focus(ctx.vars, ctx.services, &args.new_focus)
+                        inspect::focus(ctx.services, &args.prev_focus),
+                        inspect::focus(ctx.services, &args.new_focus)
                     );
                 }
             }),
@@ -407,7 +407,7 @@ mod inspect {
     use zero_ui::core::focus::WidgetInfoFocusExt;
     use zero_ui::core::inspector::WidgetInfoInspectorExt;
 
-    pub fn focus(vars: &VarsRead, services: &mut Services, path: &Option<InteractionPath>) -> String {
+    pub fn focus(services: &mut Services, path: &Option<InteractionPath>) -> String {
         path.as_ref()
             .map(|p| {
                 let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
@@ -434,14 +434,14 @@ mod inspect {
                             .expect("expected text property")
                             .arg(0)
                             .value
-                            .get(vars)
+                            .get()
                     )
                 } else if info.meta.widget_name == "window" {
                     let title = info
                         .properties
                         .iter()
                         .find(|p| p.meta.property_name == "title")
-                        .map(|p| format!("{:?}", p.args[0].value.get(vars)))
+                        .map(|p| format!("{:?}", p.args[0].value.get()))
                         .unwrap_or_default();
                     format!("window({title})")
                 } else {

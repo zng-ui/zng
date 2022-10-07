@@ -1,17 +1,55 @@
 use std::{
-    cell::{Cell, RefCell},
-    fmt, mem,
+    cell::RefCell,
+    mem,
     rc::{Rc, Weak},
 };
 
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
+    app::AppEventSender,
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
     event::{Event, EventArgs, EventUpdate},
     render::{FrameBuilder, FrameUpdate},
     units::PxSize,
-    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    UiNode,
+    var::*,
+    widget_info::{WidgetInfoBuilder, WidgetLayout},
+    *,
 };
+
+type SlotId = usize;
+
+struct NodeData<U> {
+    node: RefCell<U>,
+    slots: RefCell<SlotsData<U>>,
+}
+struct SlotsData<U> {
+    // id of the next slot created.
+    next_slot: SlotId,
+
+    // slot and context where the node is inited.
+    owner: Option<(SlotId, WidgetId, AppEventSender)>,
+    // slot and context that has requested ownership.
+    move_request: Option<(SlotId, WidgetId)>,
+
+    // node instance that must replace the current in the active slot.
+    replacement: Option<U>,
+}
+impl<U> SlotsData<U> {
+    fn next_slot(&mut self) -> SlotId {
+        let r = self.next_slot;
+        self.next_slot = self.next_slot.wrapping_add(1);
+        r
+    }
+}
+impl<U> Default for SlotsData<U> {
+    fn default() -> Self {
+        Self {
+            next_slot: Default::default(),
+            owner: Default::default(),
+            move_request: Default::default(),
+            replacement: Default::default(),
+        }
+    }
+}
 
 /// A reference counted [`UiNode`].
 ///
@@ -22,45 +60,35 @@ use crate::{
 /// When a slot takes the node it is deinited in the previous UI tree place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the node when they have it as their child and a weak reference when they don't.
-pub struct RcNode<U: UiNode>(Rc<RcNodeData<U>>);
+pub struct RcNode<U: UiNode>(Rc<NodeData<U>>);
 impl<U: UiNode> Clone for RcNode<U> {
     fn clone(&self) -> Self {
-        Self(Rc::clone(&self.0))
+        Self(self.0.clone())
     }
 }
 impl<U: UiNode> RcNode<U> {
-    /// New rc node.
-    ///
-    /// The `node` is assumed to not be inited.
+    /// New node.
     pub fn new(node: U) -> Self {
-        Self(Rc::new(RcNodeData::new(node)))
+        RcNode(Rc::new(NodeData {
+            node: RefCell::new(node),
+            slots: RefCell::default(),
+        }))
     }
 
     /// New rc node that contains a weak reference to itself.
     ///
     /// **Note** the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
     pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
-        Self(Rc::new_cyclic(|wk| RcNodeData::new(node(WeakNode(wk.clone())))))
+        Self(Rc::new_cyclic(|wk| {
+            let node = node(WeakNode(wk.clone()));
+            NodeData {
+                node: RefCell::new(node),
+                slots: RefCell::default(),
+            }
+        }))
     }
 
-    /// Creates an [`UiNode`] implementer that can *exclusive take* the referenced node as its child when
-    /// signaled by `take_signal`.
-    pub fn slot<S: RcNodeTakeSignal>(&self, take_signal: S) -> impl UiNode {
-        SlotNode {
-            update_slot: self.0.update_slot,
-            slot_id: self.0.next_id(),
-            take_signal,
-            event_signal: false,
-            state: if S::TAKE_ON_INIT {
-                SlotNodeState::TakeOnInit(Rc::clone(&self.0))
-            } else {
-                SlotNodeState::Inactive(Rc::downgrade(&self.0))
-            },
-        }
-        .cfg_boxed()
-    }
-
-    /// Creates a new [`WeakNode`] that points to this node.
+    /// Creates a [`WeakNode<U>`] reference to this node.
     pub fn downgrade(&self) -> WeakNode<U> {
         WeakNode(Rc::downgrade(&self.0))
     }
@@ -69,348 +97,388 @@ impl<U: UiNode> RcNode<U> {
     ///
     /// The previous node is deinited and the `new_node` is inited.
     pub fn set(&self, new_node: U) {
-        *self.0.new_node.borrow_mut() = Some(new_node);
+        let mut slots = self.0.slots.borrow_mut();
+        let slots = &mut *slots;
+        if let Some((_, id, u)) = &slots.owner {
+            // current node inited on a slot, signal it to replace.
+            slots.replacement = Some(new_node);
+            let _ = u.send_update(vec![*id]);
+        } else {
+            // node already not inited, just replace.
+            *self.0.node.borrow_mut() = new_node;
+        }
+    }
+
+    /// Create a *slot* node that takes ownership of this node when `var` updates to `true`.
+    ///
+    /// The slot node also takes ownership on init if the `var`
+    pub fn take_when(&self, var: impl IntoVar<bool>) -> impl UiNode {
+        #[impl_ui_node(struct TakeWhenNode<U: UiNode> {
+            slot: SlotId,
+            rc: Rc<NodeData<U>>,
+            var: impl Var<bool>,
+        })]
+        impl TakeWhenNode {
+            fn is_owner(&self) -> bool {
+                self.rc
+                    .slots
+                    .borrow()
+                    .owner
+                    .as_ref()
+                    .map(|(sl, _, _)| *sl == self.slot)
+                    .unwrap_or(false)
+            }
+
+            #[UiNode]
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.init_handles(ctx);
+
+                if self.var.get() {
+                    let mut is_owner = false;
+
+                    {
+                        let mut slots = self.rc.slots.borrow_mut();
+                        let slots = &mut *slots;
+                        if let Some((_, id, _)) = &slots.owner {
+                            // currently inited in another slot, signal it to deinit.
+                            slots.move_request = Some((self.slot, ctx.path.widget_id()));
+                            ctx.updates.update(*id);
+                        } else {
+                            // no current owner, take ownership immediately.
+                            slots.owner = Some((self.slot, ctx.path.widget_id(), ctx.updates.sender()));
+                            is_owner = true;
+                        }
+                    }
+
+                    if is_owner {
+                        self.rc.node.borrow_mut().init(ctx);
+                        ctx.updates.info_layout_and_render();
+                    }
+                }
+            }
+
+            #[UiNode]
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                let mut is_owner = false;
+                {
+                    let mut slots = self.rc.slots.borrow_mut();
+                    let slots = &mut *slots;
+                    if let Some((slot, _, _)) = &slots.owner {
+                        if *slot == self.slot {
+                            slots.owner = None;
+                            is_owner = true;
+                        }
+                    }
+                }
+
+                if is_owner {
+                    self.rc.node.borrow_mut().deinit(ctx);
+                }
+            }
+
+            #[UiNode]
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                if self.is_owner() {
+                    self.rc.node.borrow().info(ctx, info);
+                }
+            }
+
+            #[UiNode]
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+                if self.is_owner() {
+                    self.rc.node.borrow_mut().event(ctx, update);
+                }
+            }
+
+            #[UiNode]
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if self.is_owner() {
+                    let mut slots = self.rc.slots.borrow_mut();
+                    if let Some((_, id)) = slots.move_request {
+                        // deinit to move to other slot.
+
+                        let replacement = slots.replacement.take();
+                        slots.owner = None;
+
+                        drop(slots);
+
+                        let mut node = self.rc.node.borrow_mut();
+                        node.deinit(ctx);
+                        ctx.updates.info_layout_and_render();
+
+                        if let Some(new) = replacement {
+                            *node = new;
+                        }
+
+                        ctx.updates.update(id);
+                    } else if let Some(mut new) = slots.replacement.take() {
+                        // apply replacement.
+
+                        drop(slots);
+
+                        let mut node = self.rc.node.borrow_mut();
+                        node.deinit(ctx);
+                        new.init(ctx);
+                        *node = new;
+
+                        ctx.updates.info_layout_and_render();
+                    } else {
+                        drop(slots);
+
+                        // normal update.
+                        self.rc.node.borrow_mut().update(ctx, updates);
+                    }
+                } else if let Some(true) = self.var.get_new(ctx) {
+                    // request ownership.
+                    self.init(ctx);
+                } else {
+                    let mut slots = self.rc.slots.borrow_mut();
+                    if let Some((slot, _)) = &slots.move_request {
+                        if *slot == self.slot && slots.owner.is_none() {
+                            slots.move_request = None;
+                            // requested move in prev update, now can take ownership.
+                            drop(slots);
+                            self.init(ctx);
+                        }
+                    }
+                }
+            }
+
+            #[UiNode]
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                if self.is_owner() {
+                    self.rc.node.borrow().measure(ctx)
+                } else {
+                    PxSize::zero()
+                }
+            }
+
+            #[UiNode]
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                if self.is_owner() {
+                    self.rc.node.borrow_mut().layout(ctx, wl)
+                } else {
+                    PxSize::zero()
+                }
+            }
+
+            #[UiNode]
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                if self.is_owner() {
+                    self.rc.node.borrow().render(ctx, frame);
+                }
+            }
+
+            #[UiNode]
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                if self.is_owner() {
+                    self.rc.node.borrow().render_update(ctx, update);
+                }
+            }
+        }
+        TakeWhenNode {
+            slot: self.0.slots.borrow_mut().next_slot(),
+            rc: self.0.clone(),
+            var: var.into_var(),
+        }
+    }
+
+    /// Create a *slot* node that takes ownership of this node when `event` updates and `filter` returns `true`.
+    ///
+    /// The slot node also takes ownership on init if `take_on_init` is `true`.
+    pub fn take_on<A: EventArgs>(&self, event: Event<A>, filter: impl FnMut(&A) -> bool + 'static, take_on_init: bool) -> impl UiNode {
+        #[impl_ui_node(struct TakeOnNode<U: UiNode, A: EventArgs> {
+            slot: SlotId,
+            rc: Rc<NodeData<U>>,
+            event: Event<A>,
+            filter: impl FnMut(&A) -> bool + 'static,
+            take_on_init: bool,
+        })]
+        impl TakeOnNode {
+            fn is_owner(&self) -> bool {
+                self.rc
+                    .slots
+                    .borrow()
+                    .owner
+                    .as_ref()
+                    .map(|(sl, _, _)| *sl == self.slot)
+                    .unwrap_or(false)
+            }
+
+            #[UiNode]
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.init_handles(ctx);
+
+                if self.take_on_init {
+                    let mut is_owner = false;
+
+                    {
+                        let mut slots = self.rc.slots.borrow_mut();
+                        let slots = &mut *slots;
+                        if let Some((_, id, _)) = &slots.owner {
+                            // currently inited in another slot, signal it to deinit.
+                            slots.move_request = Some((self.slot, ctx.path.widget_id()));
+                            ctx.updates.update(*id);
+                        } else {
+                            // no current owner, take ownership immediately.
+                            slots.owner = Some((self.slot, ctx.path.widget_id(), ctx.updates.sender()));
+                            is_owner = true;
+                        }
+                    }
+
+                    if is_owner {
+                        self.rc.node.borrow_mut().init(ctx);
+                        ctx.updates.info_layout_and_render();
+                    }
+                }
+            }
+
+            #[UiNode]
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                let mut is_owner = false;
+                {
+                    let mut slots = self.rc.slots.borrow_mut();
+                    let slots = &mut *slots;
+                    if let Some((slot, _, _)) = &slots.owner {
+                        if *slot == self.slot {
+                            slots.owner = None;
+                            is_owner = true;
+                        }
+                    }
+                }
+
+                if is_owner {
+                    self.rc.node.borrow_mut().deinit(ctx);
+                }
+            }
+
+            #[UiNode]
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                if self.is_owner() {
+                    self.rc.node.borrow().info(ctx, info);
+                }
+            }
+
+            #[UiNode]
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+                if self.is_owner() {
+                    self.rc.node.borrow_mut().event(ctx, update);
+                } else if let Some(args) = self.event.on(update) {
+                    if (self.filter)(args) {
+                        // request ownership.
+                        let tk_on = mem::replace(&mut self.take_on_init, true);
+                        self.init(ctx);
+                        self.take_on_init = tk_on;
+                    }
+                }
+            }
+
+            #[UiNode]
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if self.is_owner() {
+                    let mut slots = self.rc.slots.borrow_mut();
+                    if let Some((_, id)) = slots.move_request {
+                        // deinit to move to other slot.
+
+                        let replacement = slots.replacement.take();
+                        slots.owner = None;
+
+                        drop(slots);
+
+                        let mut node = self.rc.node.borrow_mut();
+                        node.deinit(ctx);
+                        ctx.updates.info_layout_and_render();
+
+                        if let Some(new) = replacement {
+                            *node = new;
+                        }
+
+                        ctx.updates.update(id);
+                    } else if let Some(mut new) = slots.replacement.take() {
+                        // apply replacement.
+
+                        drop(slots);
+
+                        let mut node = self.rc.node.borrow_mut();
+                        node.deinit(ctx);
+                        new.init(ctx);
+                        *node = new;
+
+                        ctx.updates.info_layout_and_render();
+                    } else {
+                        drop(slots);
+
+                        // normal update.
+                        self.rc.node.borrow_mut().update(ctx, updates);
+                    }
+                } else {
+                    let mut slots = self.rc.slots.borrow_mut();
+                    if let Some((slot, _)) = &slots.move_request {
+                        if *slot == self.slot && slots.owner.is_none() {
+                            slots.move_request = None;
+                            // requested move in prev update, now can take ownership.
+                            drop(slots);
+
+                            let tk_on = mem::replace(&mut self.take_on_init, true);
+                            self.init(ctx);
+                            self.take_on_init = tk_on;
+                        }
+                    }
+                }
+            }
+
+            #[UiNode]
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                if self.is_owner() {
+                    self.rc.node.borrow().measure(ctx)
+                } else {
+                    PxSize::zero()
+                }
+            }
+
+            #[UiNode]
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                if self.is_owner() {
+                    self.rc.node.borrow_mut().layout(ctx, wl)
+                } else {
+                    PxSize::zero()
+                }
+            }
+
+            #[UiNode]
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                if self.is_owner() {
+                    self.rc.node.borrow().render(ctx, frame);
+                }
+            }
+
+            #[UiNode]
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                if self.is_owner() {
+                    self.rc.node.borrow().render_update(ctx, update);
+                }
+            }
+        }
+        TakeOnNode {
+            slot: self.0.slots.borrow_mut().next_slot(),
+            rc: self.0.clone(),
+            event,
+            filter,
+            take_on_init,
+        }
     }
 }
 
-/// `Weak` version of [`RcNode`].
-pub struct WeakNode<U: UiNode>(Weak<RcNodeData<U>>);
+/// `Weak` reference to a [`RcNode<U>`].
+pub struct WeakNode<U: UiNode>(Weak<NodeData<U>>);
 impl<U: UiNode> Clone for WeakNode<U> {
     fn clone(&self) -> Self {
         Self(Weak::clone(&self.0))
     }
 }
 impl<U: UiNode> WeakNode<U> {
-    /// Attempts to upgrade to a [`RcNode`].
+    /// Attempts to upgrade to a [`RcNode<U>`].
     pub fn upgrade(&self) -> Option<RcNode<U>> {
         self.0.upgrade().map(RcNode)
-    }
-}
-
-/// Signal an [`RcNode`] slot to take the referenced node as its child.
-///
-/// This trait is implemented for all `bool` variables, you can also use [`take_on_init`] to
-/// be the first slot to take the widget, [`take_on`] to take when an event updates.
-pub trait RcNodeTakeSignal: 'static {
-    /// If slot node must take the node when it is created.
-    const TAKE_ON_INIT: bool = false;
-
-    /// Signal subscriptions, [`event_take`] and  [`update_take`] are only called if
-    /// their update and event sources are registered here.
-    ///
-    /// [`update_take`]: Self::update_take
-    /// [`event_take`]: Self::event_take
-    fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _ = (ctx, subs);
-    }
-
-    /// Returns `true` when the slot must take the node as its child.
-    fn event_take(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) -> bool {
-        let _ = (ctx, update);
-        false
-    }
-
-    /// Returns `true` when the slot must take the node as its child.
-    fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
-        let _ = ctx;
-        false
-    }
-}
-impl<V> RcNodeTakeSignal for V
-where
-    V: crate::var::Var<bool>,
-{
-    fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.var(ctx, self);
-    }
-
-    /// Takes the widget when the var value is `true`.
-    fn update_take(&mut self, ctx: &mut WidgetContext) -> bool {
-        *self.get(ctx)
-    }
-}
-/// An [`RcNodeTakeSignal`] that takes the widget every time the `event` updates and passes the filter.
-pub fn take_on<A, F>(event: Event<A>, filter: F) -> impl RcNodeTakeSignal
-where
-    A: EventArgs,
-    F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
-{
-    struct TakeOn<A: EventArgs, F>(Event<A>, F);
-    impl<A, F> RcNodeTakeSignal for TakeOn<A, F>
-    where
-        A: EventArgs,
-        F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
-    {
-        fn event_take(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) -> bool {
-            self.0.on(update).map(|a| (self.1)(ctx, a)).unwrap_or_default()
-        }
-    }
-    TakeOn(event, filter)
-}
-/// An [`RcNodeTakeSignal`] that takes the widget once on init.
-pub fn take_on_init() -> impl RcNodeTakeSignal {
-    struct TakeOnInit;
-    impl RcNodeTakeSignal for TakeOnInit {
-        const TAKE_ON_INIT: bool = true;
-    }
-    TakeOnInit
-}
-
-struct RcNodeData<U: UiNode> {
-    next_id: Cell<u32>,
-    owner_id: Cell<u32>,
-    waiting_deinit: Cell<bool>,
-    inited: Cell<bool>,
-    node: RefCell<U>,
-    new_node: RefCell<Option<U>>,
-    update_slot: UpdateSlot,
-}
-impl<U: UiNode> RcNodeData<U> {
-    pub fn new(node: U) -> Self {
-        Self {
-            next_id: Cell::new(1),
-            owner_id: Cell::new(0),
-            waiting_deinit: Cell::new(false),
-            inited: Cell::new(false),
-            node: RefCell::new(node),
-            new_node: RefCell::new(None),
-            update_slot: UpdateSlot::next(),
-        }
-    }
-
-    pub fn next_id(&self) -> u32 {
-        let id = self.next_id.get();
-        self.next_id.set(id.wrapping_add(1));
-        id
-    }
-}
-
-enum SlotNodeState<U: UiNode> {
-    TakeOnInit(Rc<RcNodeData<U>>),
-    /// Slot is not the owner of the child node.
-    Inactive(Weak<RcNodeData<U>>),
-    /// Slot is the next owner of the child node, awaiting previous slot deinit.
-    Activating(Rc<RcNodeData<U>>),
-    /// Slot is the owner of the child node.
-    Active(Rc<RcNodeData<U>>),
-    /// Slot deinited itself when it was the owner of the child node.
-    ActiveDeinited(Rc<RcNodeData<U>>),
-    /// Tried to activate but the weak reference in `Inactive` is dead.
-    Dropped,
-}
-impl<U: UiNode> fmt::Debug for SlotNodeState<U> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SlotNodeState::TakeOnInit(_) => write!(f, "TakeOnInit"),
-            SlotNodeState::Inactive(wk) => {
-                write!(f, "Inactive(can_upgrade: {})", wk.upgrade().is_some())
-            }
-            SlotNodeState::Activating(_) => write!(f, "Activating"),
-            SlotNodeState::Active(_) => write!(f, "Active"),
-            SlotNodeState::ActiveDeinited(_) => write!(f, "ActiveDeinited"),
-            SlotNodeState::Dropped => write!(f, "Dropped"),
-        }
-    }
-}
-
-struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
-    slot_id: u32,
-    take_signal: S,
-    event_signal: bool,
-    update_slot: UpdateSlot,
-    state: SlotNodeState<U>,
-}
-impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().info(ctx, info);
-        }
-    }
-
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.update(self.update_slot);
-        self.take_signal.subscribe(ctx, subs);
-
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().subscriptions(ctx, subs);
-        }
-    }
-
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        match &self.state {
-            SlotNodeState::TakeOnInit(rc) => {
-                if rc.inited.get() {
-                    rc.waiting_deinit.set(true);
-                    self.state = SlotNodeState::Activating(Rc::clone(rc));
-                    ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
-                } else {
-                    // node already free to take.
-                    rc.node.borrow_mut().init(ctx);
-                    rc.inited.set(true);
-                    rc.owner_id.set(self.slot_id);
-                    self.state = SlotNodeState::Active(Rc::clone(rc));
-                }
-            }
-            SlotNodeState::Inactive(wk) => {
-                if self.take_signal.update_take(ctx) {
-                    if let Some(rc) = wk.upgrade() {
-                        if rc.inited.get() {
-                            rc.waiting_deinit.set(true);
-                            self.state = SlotNodeState::Activating(rc);
-                            ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
-                        } else {
-                            // node already free to take.
-                            rc.node.borrow_mut().init(ctx);
-                            rc.inited.set(true);
-                            rc.owner_id.set(self.slot_id);
-                            self.state = SlotNodeState::Active(rc);
-                        }
-                    } else {
-                        self.state = SlotNodeState::Dropped;
-                    }
-                }
-            }
-            SlotNodeState::ActiveDeinited(rc) => {
-                if rc.owner_id.get() == self.slot_id {
-                    // still the owner
-                    assert!(!rc.inited.get());
-                    assert!(!rc.waiting_deinit.get());
-
-                    rc.node.borrow_mut().init(ctx);
-                    rc.inited.set(true);
-
-                    self.state = SlotNodeState::Active(Rc::clone(rc));
-                }
-            }
-            SlotNodeState::Activating(_) => {
-                panic!("`SlotNode` in `Activating` state on init")
-            }
-            SlotNodeState::Active(_) => {
-                panic!("`SlotNode` in `Active` state on init")
-            }
-            SlotNodeState::Dropped => {}
-        }
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            assert!(rc.inited.take());
-
-            rc.node.borrow_mut().deinit(ctx);
-            rc.waiting_deinit.set(false); // just in case?
-
-            self.state = SlotNodeState::ActiveDeinited(Rc::clone(rc));
-        }
-    }
-
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate)
-    where
-        Self: Sized,
-    {
-        if let SlotNodeState::Active(rc) = &self.state {
-            // propagate event to active node.
-            rc.node.borrow_mut().event(ctx, update);
-        } else if let SlotNodeState::Inactive(_) = &self.state {
-            // check event take_signal.
-            if self.take_signal.event_take(ctx, update) {
-                self.event_signal = true;
-                ctx.updates.update(self.update_slot.mask());
-            }
-        }
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        match &self.state {
-            SlotNodeState::Inactive(wk) => {
-                // fulfill event take_signal or update take_signal:
-                if mem::take(&mut self.event_signal) || self.take_signal.update_take(ctx) {
-                    if let Some(rc) = wk.upgrade() {
-                        if rc.inited.get() {
-                            // node is inited in other slot.
-                            rc.waiting_deinit.set(true);
-                            self.state = SlotNodeState::Activating(rc);
-                            ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
-                        } else {
-                            // node already free to take.
-                            rc.node.borrow_mut().init(ctx);
-                            rc.inited.set(true);
-                            rc.owner_id.set(self.slot_id);
-                            self.state = SlotNodeState::Active(rc);
-                            ctx.updates.info_layout_and_render();
-                        }
-                    } else {
-                        self.state = SlotNodeState::Dropped
-                    }
-                }
-            }
-            SlotNodeState::Activating(rc) => {
-                if !rc.inited.get() {
-                    // node now free to take.
-                    rc.node.borrow_mut().init(ctx);
-                    rc.inited.set(true);
-                    self.state = SlotNodeState::Active(Rc::clone(rc));
-                    ctx.updates.info_layout_and_render();
-                }
-            }
-            SlotNodeState::Active(rc) => {
-                if rc.waiting_deinit.take() {
-                    // moving to other slot, must deinit here.
-                    if rc.inited.take() {
-                        rc.node.borrow_mut().deinit(ctx);
-                    }
-                    ctx.updates.update(self.update_slot.mask()); // notify the other slot to activate.
-                    self.state = SlotNodeState::Inactive(Rc::downgrade(rc));
-                    ctx.updates.info_layout_and_render();
-                } else if let Some(new) = rc.new_node.borrow_mut().take() {
-                    let mut node = rc.node.borrow_mut();
-                    if rc.inited.take() {
-                        node.deinit(ctx);
-                    }
-
-                    *node = new;
-                    node.init(ctx);
-
-                    rc.inited.set(true);
-                    ctx.updates.info_layout_and_render();
-                } else {
-                    rc.node.borrow_mut().update(ctx);
-                }
-            }
-            SlotNodeState::ActiveDeinited(_) => {
-                panic!("`SlotNode` in `ActiveDeinited` state on update")
-            }
-            SlotNodeState::TakeOnInit(_) => {
-                panic!("`SlotNode` in `TakeOnInit` state on update")
-            }
-            SlotNodeState::Dropped => {}
-        }
-    }
-
-    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().measure(ctx)
-        } else {
-            PxSize::zero()
-        }
-    }
-
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().layout(ctx, wl)
-        } else {
-            PxSize::zero()
-        }
-    }
-
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().render(ctx, frame);
-        }
-    }
-
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().render_update(ctx, update);
-        }
     }
 }

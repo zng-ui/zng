@@ -10,7 +10,7 @@ use crate::{
     context::*,
     event::EventUpdate,
     var::impl_from_and_into_var,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -188,9 +188,6 @@ pub trait UiNode: Any {
     /// * `info`: Widget info tree builder.
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
-    /// Called every time the set of variables and events monitored by the widget changes.
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
-
     /// Called every time an event updates.
     ///
     /// Every call to this method is for a single update of a single event type, you can listen to events
@@ -202,9 +199,9 @@ pub trait UiNode: Any {
 
     /// Called every time an update is requested.
     ///
-    /// An update happens every time after a sequence of [`event`](Self::event), they also happen
+    /// An update can be requested using the context [`Updates`], after each request, they also happen
     /// when variables update and any other context or service structure that can be observed updates.
-    fn update(&mut self, ctx: &mut WidgetContext);
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates);
 
     /// Compute the widget size given the contextual layout metrics.
     ///
@@ -389,10 +386,9 @@ pub trait UiNode: Any {
 #[doc(hidden)]
 pub trait UiNodeBoxed: 'static {
     fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
-    fn update_boxed(&mut self, ctx: &mut WidgetContext);
+    fn update_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates);
     fn event_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
     fn measure_boxed(&self, ctx: &mut MeasureContext) -> PxSize;
     fn layout_boxed(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
@@ -416,10 +412,6 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.info(ctx, info);
     }
 
-    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.subscriptions(ctx, subs)
-    }
-
     fn init_boxed(&mut self, ctx: &mut WidgetContext) {
         self.init(ctx);
     }
@@ -428,8 +420,8 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.deinit(ctx);
     }
 
-    fn update_boxed(&mut self, ctx: &mut WidgetContext) {
-        self.update(ctx);
+    fn update_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        self.update(ctx, updates);
     }
 
     fn event_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -497,10 +489,6 @@ impl UiNode for BoxedUiNode {
         self.as_ref().info_boxed(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.as_ref().subscriptions_boxed(ctx, subs);
-    }
-
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.as_mut().init_boxed(ctx);
     }
@@ -509,8 +497,8 @@ impl UiNode for BoxedUiNode {
         self.as_mut().deinit_boxed(ctx);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().update_boxed(ctx);
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        self.as_mut().update_boxed(ctx, updates);
     }
 
     fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -583,12 +571,6 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        if let Some(node) = self {
-            node.subscriptions(ctx, subs);
-        }
-    }
-
     fn init(&mut self, ctx: &mut WidgetContext) {
         if let Some(node) = self {
             node.init(ctx);
@@ -607,9 +589,9 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         if let Some(node) = self {
-            node.update(ctx);
+            node.update(ctx, updates);
         }
     }
 
@@ -779,7 +761,24 @@ pub trait Widget: UiNode {
     }
 
     declare_widget_test_calls! {
-        init, deinit, update
+        init, deinit
+    }
+
+    /// Run [`UiNode::update`] using the [`TestWidgetContext`].
+    ///
+    /// If `updates` is `None` one is generated for the widget.
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+    fn test_update(&mut self, ctx: &mut TestWidgetContext, updates: Option<&mut WidgetUpdates>) {
+        if let Some(updates) = updates {
+            updates.fulfill_search([&ctx.info_tree].into_iter());
+            ctx.widget_context(|ctx| self.update(ctx, updates));
+        } else {
+            let mut list = UpdateDeliveryList::new_any();
+            list.insert_path(&crate::WidgetPath::new(ctx.window_id, [self.id()]));
+            list.enter_window(ctx.window_id);
+            ctx.widget_context(|ctx| self.update(ctx, &mut WidgetUpdates::new(list)));
+        }
     }
 
     /// Run [`UiNode::layout`] using the [`TestWidgetContext`].
@@ -802,13 +801,6 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_info(&self, ctx: &mut TestWidgetContext, info: &mut WidgetInfoBuilder) {
         ctx.info_context(|ctx| self.info(ctx, info));
-    }
-
-    /// Run [`UiNode::subscriptions`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_subscriptions(&self, ctx: &mut TestWidgetContext, subs: &mut WidgetSubscriptions) {
-        ctx.info_context(|ctx| self.subscriptions(ctx, subs));
     }
 
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
@@ -876,10 +868,6 @@ impl UiNode for BoxedWidget {
         self.as_ref().info_boxed(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.as_ref().subscriptions_boxed(ctx, subs);
-    }
-
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.as_mut().init_boxed(ctx);
     }
@@ -888,8 +876,8 @@ impl UiNode for BoxedWidget {
         self.as_mut().deinit_boxed(ctx);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().update_boxed(ctx);
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        self.as_mut().update_boxed(ctx, updates);
     }
 
     fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -1001,11 +989,11 @@ impl UiNode for FillUiNode {}
 #[doc(hidden)]
 pub mod impl_ui_node_util {
     use crate::{
-        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
+        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
         event::EventUpdate,
         render::{FrameBuilder, FrameUpdate},
         units::PxSize,
-        widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+        widget_info::{WidgetInfoBuilder, WidgetLayout},
         UiNode,
     };
 
@@ -1020,13 +1008,12 @@ pub mod impl_ui_node_util {
     pub trait IterMutImpl {
         fn init_all(self, ctx: &mut WidgetContext);
         fn deinit_all(self, ctx: &mut WidgetContext);
-        fn update_all(self, ctx: &mut WidgetContext);
+        fn update_all(self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates);
         fn event_all(self, ctx: &mut WidgetContext, update: &mut EventUpdate);
         fn layout_all(self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
     }
     pub trait IterImpl {
         fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-        fn subscriptions_all(self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
         fn measure_all(self, ctx: &mut MeasureContext) -> PxSize;
         fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
         fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate);
@@ -1045,9 +1032,9 @@ pub mod impl_ui_node_util {
             }
         }
 
-        fn update_all(self, ctx: &mut WidgetContext) {
+        fn update_all(self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             for child in self {
-                child.update(ctx);
+                child.update(ctx, updates);
             }
         }
 
@@ -1070,12 +1057,6 @@ pub mod impl_ui_node_util {
         fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             for child in self {
                 child.info(ctx, info);
-            }
-        }
-
-        fn subscriptions_all(self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            for child in self {
-                child.subscriptions(ctx, subs);
             }
         }
 

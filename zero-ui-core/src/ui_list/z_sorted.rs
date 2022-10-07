@@ -3,7 +3,7 @@ use std::{cell::Cell, fmt, ops};
 use crate::{
     context::StaticStateId,
     impl_from_and_into_var, impl_ui_node, property,
-    var::{context_var, ContextVarData, IntoVar, Var, Vars},
+    var::{context_var, IntoVar, Var},
 };
 
 use super::*;
@@ -110,10 +110,6 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.info_all(ctx, info)
     }
 
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.list.subscriptions_all(ctx, subs)
-    }
-
     fn init_all(&mut self, ctx: &mut WidgetContext) {
         let mut sort = false;
         self.list.init_all_z(ctx, &mut sort);
@@ -126,10 +122,11 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.deinit_all(ctx)
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
         let mut resort = false;
         let mut items_changed = false;
-        self.list.update_all_z(ctx, &mut (observer, &mut items_changed), &mut resort);
+        self.list
+            .update_all_z(ctx, updates, &mut (observer, &mut items_changed), &mut resort);
 
         if resort || (items_changed && self.has_non_default_zs) {
             // z_index changed or inserted
@@ -332,57 +329,51 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
 /// see [`ZSortedWidgetList`] for more details.
 #[property(context, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
-    struct ZIndexNode<C, I> {
-        child: C,
-        index: I,
+    #[impl_ui_node(struct ZIndexNode {
+        child: impl UiNode,
+        var_index: impl Var<ZIndex>,
         valid: bool,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, I: Var<ZIndex>> UiNode for ZIndexNode<C, I> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.index);
-
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for ZIndexNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let z_ctx = Z_INDEX_VAR.get(ctx.vars);
-            if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
-                tracing::error!(
-                    "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
-                    ctx.path.widget_id()
-                );
-                self.valid = false;
-            } else {
-                self.valid = true;
+            Z_INDEX_VAR.with(|z_ctx| {
+                if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
+                    tracing::error!(
+                        "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
+                        ctx.path.widget_id()
+                    );
+                    self.valid = false;
+                } else {
+                    self.valid = true;
+                    self.init_handles(ctx);
 
-                let index = self.index.copy(ctx);
-                if index != ZIndex::DEFAULT {
-                    z_ctx.resort.set(true);
-                    ctx.widget_state.set(&Z_INDEX_ID, self.index.copy(ctx));
+                    let index = self.var_index.get();
+                    if index != ZIndex::DEFAULT {
+                        z_ctx.resort.set(true);
+                        ctx.widget_state.set(&Z_INDEX_ID, self.var_index.get());
+                    }
                 }
-            }
+            });
             self.child.init(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
-                if let Some(i) = self.index.copy_new(ctx) {
-                    let z_ctx = Z_INDEX_VAR.get(ctx.vars);
-
-                    debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
-
-                    z_ctx.resort.set(true);
+                if let Some(i) = self.var_index.get_new(ctx) {
+                    Z_INDEX_VAR.with(|z_ctx| {
+                        debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
+                        z_ctx.resort.set(true);
+                    });
                     ctx.widget_state.set(&Z_INDEX_ID, i);
                 }
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     ZIndexNode {
         child,
-        index: index.into_var(),
+        var_index: index.into_var(),
         valid: false,
     }
 }
@@ -528,7 +519,13 @@ pub trait WidgetListZIndexExt {
     /// reported to the `observer`.
     ///
     /// [`update_all`]: UiNodeList::update_all
-    fn update_all_z<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O, resort_z: &mut bool);
+    fn update_all_z<O: UiListObserver>(
+        &mut self,
+        ctx: &mut WidgetContext,
+        updates: &mut WidgetUpdates,
+        observer: &mut O,
+        resort_z: &mut bool,
+    );
 }
 impl<L: WidgetList> WidgetListZIndexExt for L {
     fn widget_z_index(&self, index: usize) -> ZIndex {
@@ -536,11 +533,17 @@ impl<L: WidgetList> WidgetListZIndexExt for L {
     }
 
     fn init_all_z(&mut self, ctx: &mut WidgetContext, sort_z: &mut bool) {
-        *sort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.init_all(ctx));
+        *sort_z = ZIndexContext::with(ctx.path.widget_id(), || self.init_all(ctx));
     }
 
-    fn update_all_z<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O, resort_z: &mut bool) {
-        *resort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.update_all(ctx, observer));
+    fn update_all_z<O: UiListObserver>(
+        &mut self,
+        ctx: &mut WidgetContext,
+        updates: &mut WidgetUpdates,
+        observer: &mut O,
+        resort_z: &mut bool,
+    ) {
+        *resort_z = ZIndexContext::with(ctx.path.widget_id(), || self.update_all(ctx, updates, observer));
     }
 }
 
@@ -554,13 +557,13 @@ struct ZIndexContext {
     resort: Cell<bool>,
 }
 impl ZIndexContext {
-    fn with(vars: &Vars, panel_id: WidgetId, action: impl FnOnce()) -> bool {
+    fn with(panel_id: WidgetId, action: impl FnOnce()) -> bool {
         let ctx = ZIndexContext {
             panel_id: Some(panel_id),
             resort: Cell::new(false),
         };
-        vars.with_context_var(Z_INDEX_VAR, ContextVarData::fixed(&ctx), action);
-        ctx.resort.get()
+        let (ctx, _) = Z_INDEX_VAR.with_context(ctx, action);
+        ctx.get().resort.get()
     }
 }
 context_var! {

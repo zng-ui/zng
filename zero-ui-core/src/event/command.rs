@@ -12,8 +12,7 @@ use crate::{
     handler::WidgetHandler,
     impl_ui_node,
     text::Text,
-    var::{types::ReadOnlyVar, *},
-    widget_info::{WidgetInfoBuilder, WidgetSubscriptions},
+    var::{types::RcCowVar, *},
     window::WindowId,
     UiNode, WidgetId,
 };
@@ -255,6 +254,23 @@ impl Command {
         events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled)))
     }
 
+    /// Create a new handle for this command for a handler in the `target` widget.
+    ///
+    /// The handle behaves like [`subscribe`], but include the `target` on the delivery list for window and app scoped commands.
+    /// Note that for widget scoped commands only the scope can receive the event, so the `target` is ignored.
+    ///
+    /// [`subscribe`]: Command::subscribe
+    pub fn subscribe_wgt<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool, target: WidgetId) -> CommandHandle {
+        let handle = self.subscribe(events, enabled);
+
+        if !matches!(self.scope(), CommandScope::Widget(_)) {
+            let h = self.event.subscribe(target);
+            handle.event_handle.set(Some(h));
+        }
+
+        handle
+    }
+
     /// Raw command event.
     pub fn event(&self) -> Event<CommandArgs> {
         self.event
@@ -327,7 +343,7 @@ impl Command {
     pub fn on_unhandled<'a>(&self, update: &'a EventUpdate) -> Option<&'a CommandArgs> {
         self.event
             .on(update)
-            .filter(|a| a.scope == self.scope && a.propagation().is_stopped())
+            .filter(|a| a.scope == self.scope && !a.propagation().is_stopped())
     }
 
     /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.
@@ -344,8 +360,8 @@ impl Command {
         self.local.with(|l| {
             let mut l = l.data.borrow_mut();
             match self.scope {
-                CommandScope::App => l.has_handlers.clone().into_read_only(),
-                scope => l.scopes.entry(scope).or_default().has_handlers.clone().into_read_only(),
+                CommandScope::App => l.has_handlers.read_only(),
+                scope => l.scopes.entry(scope).or_default().has_handlers.read_only(),
             }
         })
     }
@@ -355,8 +371,8 @@ impl Command {
         self.local.with(|l| {
             let mut l = l.data.borrow_mut();
             match self.scope {
-                CommandScope::App => l.is_enabled.clone().into_read_only(),
-                scope => l.scopes.entry(scope).or_default().is_enabled.clone().into_read_only(),
+                CommandScope::App => l.is_enabled.read_only(),
+                scope => l.scopes.entry(scope).or_default().is_enabled.read_only(),
             }
         })
     }
@@ -409,12 +425,12 @@ impl Command {
             let l = l.data.borrow();
             if let CommandScope::App = self.scope {
                 let has_handlers = l.handle_count > 0;
-                l.has_handlers.set_ne(vars, has_handlers);
-                l.is_enabled.set_ne(vars, has_handlers && l.enabled_count > 0);
+                l.has_handlers.set_ne(vars, has_handlers).unwrap();
+                l.is_enabled.set_ne(vars, has_handlers && l.enabled_count > 0).unwrap();
             } else if let Some(scope) = l.scopes.get(&self.scope) {
                 let has_handlers = !scope.handle_count > 0;
-                scope.has_handlers.set_ne(vars, has_handlers);
-                scope.is_enabled.set_ne(vars, has_handlers && scope.enabled_count > 0);
+                scope.has_handlers.set_ne(vars, has_handlers).unwrap();
+                scope.is_enabled.set_ne(vars, has_handlers && scope.enabled_count > 0).unwrap();
             }
         });
     }
@@ -579,6 +595,7 @@ pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Cell<bool>,
     _not_send: PhantomData<Rc<()>>,
+    event_handle: Cell<Option<EventWidgetHandle>>,
 }
 impl CommandHandle {
     /// The command.
@@ -631,6 +648,7 @@ impl CommandHandle {
             command: None,
             local_enabled: Cell::new(false),
             _not_send: PhantomData,
+            event_handle: Cell::new(None),
         }
     }
 }
@@ -786,7 +804,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///     }
 ///
 ///     fn bar(self) -> ReadOnlyCommandMetaVar<bool> {
-///         self.with_meta(|m| m.get_var_or_insert(&COMMAND_BAR_ID, ||true)).into_read_only()
+///         self.with_meta(|m| m.get_var_or_insert(&COMMAND_BAR_ID, ||true)).read_only()
 ///     }
 ///
 ///     fn foo_and_bar(self) -> BoxedVar<bool> {
@@ -873,9 +891,9 @@ impl<'a> CommandMeta<'a> {
     /// Clone a meta variable identified by a [`CommandMetaVarId`].
     ///
     /// The variable is read-write and is clone-on-write if the command is scoped,
-    /// call [`into_read_only`] to make it read-only.
+    /// call [`read_only`] to make it read-only.
     ///
-    /// [`into_read_only`]: Var::into_read_only
+    /// [`read_only`]: Var::read_only
     pub fn get_var_or_insert<T, F>(&mut self, id: impl Into<CommandMetaVarId<T>>, init: F) -> CommandMetaVar<T>
     where
         T: StateValue + VarValue,
@@ -888,12 +906,12 @@ impl<'a> CommandMeta<'a> {
                 .entry(id.scope())
                 .or_insert_with(|| {
                     let var = meta.entry(id.app()).or_insert_with(|| var(init())).clone();
-                    CommandMetaVar::new(var)
+                    var.cow()
                 })
                 .clone()
+                .boxed()
         } else {
-            let var = self.meta.entry(id.app()).or_insert_with(|| var(init())).clone();
-            CommandMetaVar::pass_through(var)
+            self.meta.entry(id.app()).or_insert_with(|| var(init())).clone().boxed()
         }
     }
 
@@ -924,17 +942,15 @@ impl<'a> CommandMeta<'a> {
 /// the value for all scopes. If you get this variable using a scoped command,
 /// setting it overrides only the value for the scope.
 ///
-/// The aliased type is an [`RcVar`] wrapped in a [`RcCowVar`], for not scoped commands the
-/// [`RcCowVar::pass_through`] is used so that the wrapped [`RcVar`] is set directly on assign
-/// but the variable type matches that from a scoped command.
-pub type CommandMetaVar<T> = RcCowVar<T, RcVar<T>>;
+/// The boxed var is an [`RcVar<T>`] for *app* scope, or [`RcCowVar<T, RcVar<T>>`] for scoped commands.
+pub type CommandMetaVar<T> = BoxedVar<T>;
 
 /// Read-only command metadata variable.
 ///
-/// To convert a [`CommandMetaVar<T>`] into this var call [`into_read_only`].
+/// To convert a [`CommandMetaVar<T>`] into this var call [`read_only`].
 ///
-/// [`into_read_only`]: Var::into_read_only
-pub type ReadOnlyCommandMetaVar<T> = ReadOnlyVar<T, CommandMetaVar<T>>;
+/// [`read_only`]: Var::read_only
+pub type ReadOnlyCommandMetaVar<T> = BoxedVar<T>;
 
 /// Adds the [`name`](CommandNameExt) metadata.
 pub trait CommandNameExt {
@@ -988,7 +1004,7 @@ impl CommandNameExt for Command {
     where
         Self: crate::gesture::CommandShortcutExt,
     {
-        crate::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
+        crate::var::merge_var!(self.name(), self.shortcut(), |name, shortcut| {
             if shortcut.is_empty() {
                 name.clone()
             } else {
@@ -1096,6 +1112,7 @@ impl CommandData {
             command: Some(command),
             local_enabled: Cell::new(enabled),
             _not_send: PhantomData,
+            event_handle: Cell::new(None),
         }
     }
 }
@@ -1130,72 +1147,54 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnCommandNode<U, CB, E, EB, H> {
-        child: U,
+    #[impl_ui_node(struct OnCommandNode<E: Var<bool>> {
+        child: impl UiNode,
         command: Option<Command>,
-        command_builder: CB,
+        command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,
         enabled: Option<E>,
-        enabled_builder: EB,
-        handler: H,
+        enabled_builder: impl FnMut(&mut WidgetContext) -> E + 'static,
+        handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<U, CB, E, EB, H> UiNode for OnCommandNode<U, CB, E, EB, H>
-    where
-        U: UiNode,
-        CB: FnMut(&mut WidgetContext) -> Command + 'static,
-        E: Var<bool>,
-        EB: FnMut(&mut WidgetContext) -> E + 'static,
-        H: WidgetHandler<CommandArgs>,
-    {
-        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget_builder);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, self.enabled.as_ref().unwrap()).handler(&self.handler);
-
-            self.child.subscriptions(ctx, subs);
-        }
-
+    })]
+    impl UiNode for OnCommandNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
-            let is_enabled = enabled.copy(ctx);
+            ctx.sub_var(&enabled);
+            let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
+            self.handle = Some(command.subscribe_wgt(ctx, is_enabled, ctx.path.widget_id()));
             self.command = Some(command);
+        }
 
-            self.handle = Some(command.subscribe(ctx, is_enabled));
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            self.command = None;
+            self.enabled = None;
+            self.handle = None;
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.child.event(ctx, update);
+
             if let Some(args) = self.command.expect("OnCommandNode not initialized").on_unhandled(update) {
                 self.handler.event(ctx, args);
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
 
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").copy_new(ctx) {
+            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").get_new(ctx) {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
         }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            self.handle = None;
-            self.command = None;
-            self.enabled = None;
-        }
     }
-
     OnCommandNode {
         child: child.cfg_boxed(),
         command: None,
@@ -1217,45 +1216,27 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    struct OnPreCommandNode<U, CB, E, EB, H> {
-        child: U,
+    #[impl_ui_node(struct OnPreCommandNode<E: Var<bool>> {
+        child: impl UiNode,
         command: Option<Command>,
-        command_builder: CB,
+        command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,
         enabled: Option<E>,
-        enabled_builder: EB,
-        handler: H,
+        enabled_builder: impl FnMut(&mut WidgetContext) -> E + 'static,
+        handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<U, CB, E, EB, H> UiNode for OnPreCommandNode<U, CB, E, EB, H>
-    where
-        U: UiNode,
-        CB: FnMut(&mut WidgetContext) -> Command + 'static,
-        E: Var<bool>,
-        EB: FnMut(&mut WidgetContext) -> E + 'static,
-        H: WidgetHandler<CommandArgs>,
-    {
+    })]
+    impl UiNode for OnPreCommandNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
             let enabled = (self.enabled_builder)(ctx);
-            let is_enabled = enabled.copy(ctx);
+            ctx.sub_var(&enabled);
+            let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
+            self.handle = Some(command.subscribe_wgt(ctx, is_enabled, ctx.path.widget_id()));
             self.command = Some(command);
-
-            self.handle = Some(command.subscribe(ctx, is_enabled));
-        }
-
-        fn info(&self, ctx: &mut InfoContext, widget_builder: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget_builder);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, self.enabled.as_ref().unwrap()).handler(&self.handler);
-
-            self.child.subscriptions(ctx, subs);
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -1265,14 +1246,14 @@ where
             self.child.event(ctx, update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").copy_new(ctx) {
+            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").get_new(ctx) {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
 
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {

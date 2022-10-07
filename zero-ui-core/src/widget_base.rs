@@ -4,17 +4,16 @@ use std::{fmt, mem};
 
 use crate::{
     context::{
-        state_map, InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMapMut, StateMapRef, WidgetContext,
-        WidgetUpdates,
+        state_map, InfoContext, InfoLayoutRenderUpdates, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMapMut,
+        StateMapRef, WidgetContext, WidgetUpdates,
     },
-    event::EventUpdate,
+    event::{EventHandles, EventUpdate},
     impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
     widget_info::{
-        Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
-        WidgetLayout, WidgetSubscriptions,
+        Interactivity, LayoutPassId, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder, WidgetLayout,
     },
     window::WIDGET_INFO_CHANGED_EVENT,
     FillUiNode, UiNode, Widget, WidgetId,
@@ -218,23 +217,22 @@ pub mod implicit_base {
         ///
         /// [`new_border`]: super::new_border
         pub fn inner(child: impl UiNode) -> impl UiNode {
-            struct InnerNode<C> {
-                child: C,
+            #[impl_ui_node(struct InnerNode {
+                child: impl UiNode,
                 transform_key: FrameValueKey<PxTransform>,
                 hits_clip: (PxSize, PxCornerRadius),
-            }
-            #[impl_ui_node(child)]
-            impl<C: UiNode> UiNode for InnerNode<C> {
-                fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                    subs.updates(&HitTestMode::update_mask(ctx));
-                    self.child.subscriptions(ctx, subs);
+            })]
+            impl UiNode for InnerNode {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    ctx.sub_var(&HitTestMode::var());
+                    self.child.init(ctx);
                 }
 
-                fn update(&mut self, ctx: &mut WidgetContext) {
-                    if HitTestMode::is_new(ctx) {
+                fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                    if HitTestMode::var().is_new(ctx) {
                         ctx.updates.layout();
                     }
-                    self.child.update(ctx);
+                    self.child.update(ctx, updates);
                 }
 
                 fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -243,7 +241,7 @@ pub mod implicit_base {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
-                    match HitTestMode::get(ctx.vars) {
+                    match HitTestMode::var().get() {
                         HitTestMode::RoundedBounds => {
                             let clip = (size, ctx.widget_info.border.corner_radius());
                             if self.hits_clip != clip {
@@ -264,7 +262,7 @@ pub mod implicit_base {
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     frame.push_inner(ctx, self.transform_key, true, |ctx, frame| {
-                        match HitTestMode::get(ctx.vars) {
+                        match HitTestMode::var().get() {
                             HitTestMode::RoundedBounds => {
                                 let rect = PxRect::from_size(self.hits_clip.0);
                                 frame.hit_test().push_rounded_rect(rect, self.hits_clip.1);
@@ -302,11 +300,13 @@ pub mod implicit_base {
                 state: OwnedStateMap<state_map::Widget>,
                 child: C,
                 info: WidgetContextInfo,
-                subscriptions: RefCell<WidgetSubscriptions>,
+
+                var_handles: VarHandles,
+                event_handles: crate::event::EventHandles,
 
                 #[cfg(debug_assertions)]
                 inited: bool,
-                pending_updates: RefCell<WidgetUpdates>,
+                pending_updates: RefCell<InfoLayoutRenderUpdates>,
                 offsets_pass: Cell<LayoutPassId>,
 
                 reuse: RefCell<Option<ReuseRange>>,
@@ -318,8 +318,15 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
                     }
 
-                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.init(ctx));
-                    *self.pending_updates.get_mut() = WidgetUpdates::all();
+                    ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| self.child.init(ctx),
+                    );
+                    *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::all();
 
                     #[cfg(debug_assertions)]
                     {
@@ -333,8 +340,17 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
                     }
 
-                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.deinit(ctx));
-                    *self.pending_updates.get_mut() = WidgetUpdates::none();
+                    ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| self.child.deinit(ctx),
+                    );
+                    *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::none();
+                    self.var_handles.clear();
+                    self.var_handles.clear();
 
                     #[cfg(debug_assertions)]
                     {
@@ -359,50 +375,46 @@ pub mod implicit_base {
                     });
                 }
 
-                fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                    #[cfg(debug_assertions)]
-                    if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::subscriptions` called in not inited widget {:?}", self.id);
-                    }
-
-                    if mem::take(&mut self.pending_updates.borrow_mut().subscriptions) {
-                        let mut wgt_subs = self.subscriptions.borrow_mut();
-                        *wgt_subs = WidgetSubscriptions::new();
-
-                        ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                            self.child.subscriptions(ctx, &mut wgt_subs);
-                        });
-
-                        subs.extend(&wgt_subs);
-                    } else {
-                        subs.extend(&*self.subscriptions.borrow());
-                    }
-                }
-
                 fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event_name(), self.id);
                     }
 
-                    let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
-                        update.with_widget(ctx, |ctx, update| {
-                            self.child.event(ctx, update);
-                        });
-                    });
+                    let (_, updates) = ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| {
+                            update.with_widget(ctx, |ctx, update| {
+                                self.child.event(ctx, update);
+                            });
+                        },
+                    );
                     *self.pending_updates.get_mut() |= updates;
                 }
 
-                fn update(&mut self, ctx: &mut WidgetContext) {
+                fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
                     }
 
-                    if self.subscriptions.borrow().update_intersects(ctx.updates) {
-                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.update(ctx));
-                        *self.pending_updates.get_mut() |= updates;
-                    }
+                    let (_, updates) = ctx.widget_context(
+                        self.id,
+                        &self.info,
+                        &mut self.state,
+                        &mut self.var_handles,
+                        &mut self.event_handles,
+                        |ctx| {
+                            updates.with_widget(ctx, |ctx, updates| {
+                                self.child.update(ctx, updates);
+                            });
+                        },
+                    );
+                    *self.pending_updates.get_mut() |= updates;
                 }
 
                 fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -528,7 +540,8 @@ pub mod implicit_base {
                 state: OwnedStateMap::default(),
                 child: child.cfg_boxed(),
                 info: WidgetContextInfo::default(),
-                subscriptions: RefCell::default(),
+                var_handles: VarHandles::default(),
+                event_handles: EventHandles::default(),
                 #[cfg(debug_assertions)]
                 inited: false,
                 pending_updates: RefCell::default(),
@@ -577,29 +590,23 @@ context_var! {
 /// [`is_disabled`]: fn@is_disabled
 #[property(context, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct EnabledNode<C, E> {
-        child: C,
-        local_enabled: E,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
+    #[impl_ui_node(struct EnabledNode {
+        child: impl UiNode,
+        var_enabled: impl Var<bool>,
+    })]
+    impl UiNode for EnabledNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.local_enabled.copy(ctx) {
+            if !self.var_enabled.get() {
                 info.push_interactivity(Interactivity::DISABLED);
             }
             self.child.info(ctx, info);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.local_enabled);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.local_enabled.is_new(ctx) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if self.var_enabled.is_new(ctx) {
                 ctx.updates.info();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
 
@@ -607,7 +614,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(
         EnabledNode {
             child,
-            local_enabled: enabled.clone(),
+            var_enabled: enabled.clone(),
         },
         IS_ENABLED_VAR,
         merge_var!(IS_ENABLED_VAR, enabled, |&a, &b| a && b),
@@ -630,34 +637,28 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// [`enabled`]: fn@enabled
 #[property(context, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
-    struct InteractiveNode<C, I> {
-        child: C,
-        interactive: I,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, I: Var<bool>> UiNode for InteractiveNode<C, I> {
+    #[impl_ui_node(struct InteractiveNode {
+        child: impl UiNode,
+        var_interactive: impl Var<bool>,
+    })]
+    impl UiNode for InteractiveNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.interactive.copy(ctx) {
+            if !self.var_interactive.get() {
                 info.push_interactivity(Interactivity::BLOCKED);
             }
             self.child.info(ctx, info);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.interactive);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.interactive.is_new(ctx) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if self.var_interactive.is_new(ctx) {
                 ctx.updates.info();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     InteractiveNode {
         child,
-        interactive: interactive.into_var(),
+        var_interactive: interactive.into_var(),
     }
 }
 
@@ -671,14 +672,13 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 /// [`BLOCKED`]: Interactivity::BLOCKED
 /// [`interactive`]: fn@interactive
 pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
-    struct BlockInteractionNode<C, I> {
-        child: C,
-        interactive: I,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, I: Var<bool>> UiNode for BlockInteractionNode<C, I> {
+    #[impl_ui_node(struct BlockInteractionNode {
+        child: impl UiNode,
+        var_interactive: impl Var<bool>,
+    })]
+    impl UiNode for BlockInteractionNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if self.interactive.copy(ctx) {
+            if self.var_interactive.get() {
                 self.child.info(ctx, info);
             } else if let Some(id) = self.child.try_id() {
                 // child is a widget.
@@ -719,14 +719,16 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
             }
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.interactive);
-            self.child.subscriptions(ctx, subs);
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if self.var_interactive.is_new(ctx) {
+                ctx.updates.info();
+            }
+            self.child.update(ctx, updates);
         }
     }
     BlockInteractionNode {
         child: child.cfg_boxed(),
-        interactive: interactive.into_var(),
+        var_interactive: interactive.into_var(),
     }
     .cfg_boxed()
 }
@@ -787,29 +789,24 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
 #[property(context, default(true))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
-    struct VisibilityNode<C, V> {
-        child: C,
+    #[impl_ui_node(struct VisibilityNode {
+        child: impl UiNode,
         prev_vis: Visibility,
-        visibility: V,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, V: Var<Visibility>> UiNode for VisibilityNode<C, V> {
+        var_visibility: impl Var<Visibility>,
+    })]
+    impl UiNode for VisibilityNode {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.visibility);
-            self.child.subscriptions(ctx, subs);
-        }
-
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.prev_vis = self.visibility.copy(ctx);
+            self.init_handles(ctx);
+            self.prev_vis = self.var_visibility.get();
             self.child.init(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(vis) = self.visibility.copy_new(ctx) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if let Some(vis) = self.var_visibility.get_new(ctx) {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
                     (Collapsed, Visible) | (Visible, Collapsed) => ctx.updates.layout_and_render(),
@@ -819,18 +816,18 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
                 }
                 self.prev_vis = vis;
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            if Visibility::Collapsed != self.visibility.copy(ctx) {
+            if Visibility::Collapsed != self.var_visibility.get() {
                 self.child.measure(ctx)
             } else {
                 PxSize::zero()
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            if Visibility::Collapsed != self.visibility.copy(ctx) {
+            if Visibility::Collapsed != self.var_visibility.get() {
                 self.child.layout(ctx, wl)
             } else {
                 wl.collapse(ctx);
@@ -839,7 +836,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            match self.visibility.copy(ctx) {
+            match self.var_visibility.get() {
                 Visibility::Visible => self.child.render(ctx, frame),
                 Visibility::Hidden => frame.hide(|frame| self.child.render(ctx, frame)),
                 Visibility::Collapsed => frame.collapse(ctx.info_tree),
@@ -847,7 +844,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            match self.visibility.copy(ctx) {
+            match self.var_visibility.get() {
                 Visibility::Visible => self.child.render_update(ctx, update),
                 Visibility::Hidden => update.hidden(|update| self.child.render_update(ctx, update)),
                 Visibility::Collapsed => {}
@@ -857,7 +854,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     VisibilityNode {
         child,
         prev_vis: Visibility::Visible,
-        visibility: visibility.into_var(),
+        var_visibility: visibility.into_var(),
     }
 }
 
@@ -920,26 +917,9 @@ impl HitTestMode {
         !matches!(self, Self::Disabled)
     }
 
-    /// Gets the hit-test mode of the current widget context.
-    pub fn get<Vr: WithVarsRead>(vars: &Vr) -> HitTestMode {
-        HIT_TEST_MODE_VAR.get_clone(vars)
-    }
-
-    /// Gets the new hit-test mode of the current widget context.
-    pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<HitTestMode> {
-        HIT_TEST_MODE_VAR.clone_new(vars)
-    }
-
-    /// Gets if the hit-test mode has changed.
-    pub fn is_new<Vw: WithVars>(vars: &Vw) -> bool {
-        HIT_TEST_MODE_VAR.is_new(vars)
-    }
-
-    /// Gets the update mask for [`WidgetSubscriptions`].
-    ///
-    /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-    pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|vars| HIT_TEST_MODE_VAR.update_mask(vars))
+    /// Read-only context var with the contextual mode.
+    pub fn var() -> impl Var<HitTestMode> {
+        HIT_TEST_MODE_VAR.read_only()
     }
 }
 impl fmt::Debug for HitTestMode {
@@ -988,25 +968,24 @@ context_var! {
 /// [`corner_radius`]: fn@crate::border::corner_radius
 #[property(context, default(HIT_TEST_MODE_VAR))]
 pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
-    struct HitTestModeNode<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for HitTestModeNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.updates(&HitTestMode::update_mask(ctx));
-            self.child.subscriptions(ctx, subs);
+    #[impl_ui_node(struct HitTestModeNode {
+        child: impl UiNode,
+    })]
+    impl UiNode for HitTestModeNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&HitTestMode::var());
+            self.child.init(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if HitTestMode::get_new(ctx).is_some() {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if HitTestMode::var().is_new(ctx) {
                 ctx.updates.render();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            match HitTestMode::get(ctx.vars) {
+            match HitTestMode::var().get() {
                 HitTestMode::Disabled => {
                     frame.with_hit_tests_disabled(|frame| self.child.render(ctx, frame));
                 }
@@ -1016,7 +995,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.with_auto_hit_test(matches!(HitTestMode::get(ctx.vars), HitTestMode::Visual), |update| {
+            update.with_auto_hit_test(matches!(HitTestMode::var().get(), HitTestMode::Visual), |update| {
                 self.child.render_update(ctx, update)
             });
         }
@@ -1079,24 +1058,18 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`inner_bounds`]: WidgetBoundsInfo::inner_bounds
 #[property(context, default(true))]
 pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct CanAutoHideNode<C, E> {
-        child: C,
-        enabled: E,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, E: Var<bool>> UiNode for CanAutoHideNode<C, E> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.enabled);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new) = self.enabled.copy_new(ctx) {
+    #[impl_ui_node(struct CanAutoHideNode {
+        child: impl UiNode,
+        var_enabled: impl Var<bool>,
+    })]
+    impl UiNode for CanAutoHideNode {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if let Some(new) = self.var_enabled.get_new(ctx) {
                 if ctx.widget_info.bounds.can_auto_hide() != new {
                     ctx.updates.layout_and_render();
                 }
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -1104,12 +1077,12 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.allow_auto_hide(self.enabled.copy(ctx));
+            wl.allow_auto_hide(self.var_enabled.get());
             self.child.layout(ctx, wl)
         }
     }
     CanAutoHideNode {
         child,
-        enabled: enabled.into_var(),
+        var_enabled: enabled.into_var(),
     }
 }

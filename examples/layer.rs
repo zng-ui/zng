@@ -71,7 +71,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
     container! {
         id;
         modal = true;
-        background_color = color_scheme_map(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
+        background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         content_align = Align::CENTER;
         content = container! {
             offset = (offset, offset);
@@ -183,10 +183,12 @@ fn anchor_example() -> impl Widget {
     });
 
     let next_point = hn!(|ctx, _| {
-        point_index.modify(ctx, move |mut i| {
-            let next = *i + 1;
-            *i = if next == points_len { 0 } else { next };
-        })
+        point_index
+            .modify(ctx, move |i| {
+                let next = *i.get() + 1;
+                *i.get_mut() = if next == points_len { 0 } else { next };
+            })
+            .unwrap()
     });
 
     button! {

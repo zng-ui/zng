@@ -123,40 +123,27 @@ pub mod thumb {
     }
 
     fn new_layout(child: impl UiNode) -> impl UiNode {
-        struct DragNode<C> {
-            child: C,
+        #[impl_ui_node(struct DragNode {
+            child: impl UiNode,
             content_length: Px,
             viewport_length: Px,
             thumb_length: Px,
             scale_factor: Factor,
-            event_handles: Option<[EventWidgetHandle; 2]>,
 
             mouse_down: Option<(Px, Factor)>,
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode> UiNode for DragNode<C> {
+        })]
+        impl UiNode for DragNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.event_handles = Some([
-                    MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
-                    MOUSE_INPUT_EVENT.subscribe(ctx.path.widget_id()),
-                ]);
+                ctx.sub_event(&MOUSE_MOVE_EVENT)
+                    .sub_event(&MOUSE_INPUT_EVENT)
+                    .sub_var(&THUMB_OFFSET_VAR);
                 self.child.init(ctx);
-            }
-
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.event_handles = None;
-                self.child.deinit(ctx);
-            }
-
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                subs.var(ctx, &THUMB_OFFSET_VAR);
-                self.child.subscriptions(ctx, subs);
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                        let offset = match THUMB_ORIENTATION_VAR.copy(ctx) {
+                        let offset = match THUMB_ORIENTATION_VAR.get() {
                             scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
                             scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         } - mouse_down;
@@ -184,22 +171,22 @@ pub mod thumb {
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_down() {
-                        let a = match THUMB_ORIENTATION_VAR.copy(ctx) {
+                        let a = match THUMB_ORIENTATION_VAR.get() {
                             scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
                             scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         };
-                        self.mouse_down = Some((a, THUMB_OFFSET_VAR.copy(ctx.vars)));
+                        self.mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
                     }
                 }
                 self.child.event(ctx, update);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if THUMB_OFFSET_VAR.is_new(ctx) {
                     ctx.updates.layout();
                 }
 
-                self.child.update(ctx);
+                self.child.update(ctx, updates);
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -209,14 +196,14 @@ pub mod thumb {
                 let final_size = ctx.constrains().fill_size();
 
                 let mut final_offset = PxVector::zero();
-                let (px_vp_length, final_offset_d) = match THUMB_ORIENTATION_VAR.copy(ctx) {
+                let (px_vp_length, final_offset_d) = match THUMB_ORIENTATION_VAR.get() {
                     scrollbar::Orientation::Vertical => (final_size.height, &mut final_offset.y),
                     scrollbar::Orientation::Horizontal => (final_size.width, &mut final_offset.x),
                 };
 
-                let ratio = THUMB_VIEWPORT_RATIO_VAR.copy(ctx);
+                let ratio = THUMB_VIEWPORT_RATIO_VAR.get();
                 let px_tb_length = px_vp_length * ratio;
-                *final_offset_d = (px_vp_length - px_tb_length) * THUMB_OFFSET_VAR.get_clone(ctx.vars);
+                *final_offset_d = (px_vp_length - px_tb_length) * THUMB_OFFSET_VAR.get();
 
                 self.scale_factor = ctx.metrics.scale_factor();
                 self.content_length = px_vp_length / ratio;
@@ -234,7 +221,6 @@ pub mod thumb {
             viewport_length: Px(0),
             thumb_length: Px(0),
             scale_factor: 1.fct(),
-            event_handles: None,
 
             mouse_down: None,
         }

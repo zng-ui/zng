@@ -18,7 +18,6 @@ use crate::app::HeadlessApp;
 use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
 use crate::crate_util::{Handle, WeakHandle};
 use crate::task::ui::{AppTask, WidgetTask};
-use crate::widget_info::{UpdateSlot, WidgetSubscriptions};
 
 /// Marker traits that can be used to constrain what [`AppHandler`] or [ `WidgetHandler`] are accepted.
 ///
@@ -59,14 +58,7 @@ pub mod marker {
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`hn!`], [`hn_once!`] or [`async_hn!`], [`async_hn_once!`] to start.
 pub trait WidgetHandler<A: Clone + 'static>: 'static {
-    /// Called every time the widget [`info`] is rebuild, register async handler waker update slot.
-    ///
-    /// [`info`]: crate::UiNode::info
-    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
-        let _ = widget_subs;
-    }
-
-    /// Called every time the event happens in the widget context.
+    /// Called every time the handler's event happens in the widget context.
     ///
     /// Returns `true` when the event handler is async and it has not finished handing the event, if this
     /// is the case the handler also requests a widget [`info`] rebuild.
@@ -119,10 +111,6 @@ pub trait WidgetHandler<A: Clone + 'static>: 'static {
 impl<A: Clone + 'static> WidgetHandler<A> for Box<dyn WidgetHandler<A>> {
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         self.as_mut().event(ctx, args)
-    }
-
-    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
-        self.as_ref().subscribe(widget_subs)
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) -> bool {
@@ -344,19 +332,12 @@ where
     F: Future<Output = ()> + 'static,
     H: FnMut(WidgetContextMut, A) -> F + 'static,
 {
-    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
-        for t in &self.tasks {
-            t.subscribe(widget_subs);
-        }
-    }
-
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         let handler = &mut self.handler;
         let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
         let need_update = task.update(ctx).is_none();
         if need_update {
             self.tasks.push(task);
-            ctx.updates.subscriptions();
         }
         need_update
     }
@@ -506,19 +487,12 @@ where
     F: Future<Output = ()> + 'static,
     H: FnOnce(WidgetContextMut, A) -> F + 'static,
 {
-    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
-        if let AsyncFnOnceWhState::Pending(t) = &self.state {
-            t.subscribe(widget_subs);
-        }
-    }
-
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         if let AsyncFnOnceWhState::NotCalled(handler) = mem::replace(&mut self.state, AsyncFnOnceWhState::Done) {
             let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
             let is_pending = task.update(ctx).is_none();
             if is_pending {
                 self.state = AsyncFnOnceWhState::Pending(task);
-                ctx.updates.subscriptions();
             }
             is_pending
         } else {
@@ -1876,8 +1850,7 @@ impl HeadlessApp {
 
     /// Polls a `future` and updates the app repeatedly until it completes or the `timeout` is reached.
     pub fn block_on_fut<F: Future>(&mut self, future: F, timeout: Duration) -> Result<F::Output, String> {
-        let slot = UpdateSlot::next();
-        let waker = self.ctx().updates.sender().waker(slot);
+        let waker = self.ctx().updates.sender().waker(vec![]);
         let mut cx = std::task::Context::from_waker(&waker);
         let start_time = Instant::now();
         crate::task::pin!(future);

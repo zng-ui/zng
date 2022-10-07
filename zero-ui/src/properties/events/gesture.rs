@@ -4,7 +4,6 @@
 //! Prefer using these events over the events directly tied to an input device.
 
 use super::event_property;
-use crate::core::context::WidgetContext;
 use crate::core::gesture::*;
 use crate::prelude::new_property::*;
 
@@ -115,7 +114,7 @@ event_property! {
 pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
-        shortcuts: shortcuts.into_var(),
+        var_shortcuts: shortcuts.into_var(),
         kind: ShortcutClick::Primary,
         handle: None,
     }
@@ -127,38 +126,28 @@ pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
-        shortcuts: shortcuts.into_var(),
+        var_shortcuts: shortcuts.into_var(),
         kind: ShortcutClick::Context,
         handle: None,
     }
 }
-struct ClickShortcutNode<C: UiNode, S: Var<Shortcuts>> {
-    child: C,
-    shortcuts: S,
+#[impl_ui_node(struct ClickShortcutNode {
+    child: impl UiNode,
+    var_shortcuts: impl Var<Shortcuts>,
     kind: ShortcutClick,
     handle: Option<ShortcutsHandle>,
-}
-#[impl_ui_node(child)]
-impl<C, S> UiNode for ClickShortcutNode<C, S>
-where
-    C: UiNode,
-    S: Var<Shortcuts>,
-{
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.var(ctx, &self.shortcuts);
-        self.child.subscriptions(ctx, subs);
-    }
-
+})]
+impl UiNode for ClickShortcutNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        let s = self.shortcuts.get_clone(ctx);
+        let s = self.var_shortcuts.get();
         self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        self.child.update(ctx, updates);
 
-        if let Some(s) = self.shortcuts.clone_new(ctx) {
+        if let Some(s) = self.var_shortcuts.get_new(ctx) {
             self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
         }
     }

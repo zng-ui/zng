@@ -93,11 +93,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
         formatx!("loading{:.^dots_count$}", "")
     });
 
-    let monitor_size = MonitorQuery::Primary
-        .select(ctx.vars, Monitors::req(ctx.services))
-        .unwrap()
-        .size()
-        .copy(ctx.vars);
+    let monitor_size = MonitorQuery::Primary.select(Monitors::req(ctx.services)).unwrap().size().get();
     let window_size = PxSize::new(monitor_size.width / Px(5), monitor_size.height / Px(2));
 
     let mut window_pos = PxPoint::zero();
@@ -120,7 +116,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
             position = window_pos;
             size = window_size;
             on_close = hn!(|ctx, _| {
-                if Keyboard::req(ctx.services).modifiers().get(ctx).is_empty() {
+                if Keyboard::req(ctx.services).modifiers().get().is_empty() {
                     Windows::req(ctx.services).close_all();
                 }
             });

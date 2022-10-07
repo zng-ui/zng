@@ -271,27 +271,25 @@ pub struct ImageErrorArgs {
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(event, default( hn!(|_, _|{}) ))]
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>) -> impl UiNode {
-    struct OnErrorNode<C, H> {
-        child: C,
-        handler: H,
+    #[impl_ui_node(struct OnErrorNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<ImageErrorArgs>,
         error: Text,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<ImageErrorArgs>> UiNode for OnErrorNode<C, H> {
+    })]
+    impl UiNode for OnErrorNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(error) = CONTEXT_IMAGE_VAR.get(ctx.vars).error() {
-                self.error = error.to_owned().into();
-                self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
-            }
+            ctx.sub_var(&CONTEXT_IMAGE_VAR);
+
+            CONTEXT_IMAGE_VAR.with(|i| {
+                if let Some(error) = i.error() {
+                    self.error = error.to_owned().into();
+                    self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
+                }
+            });
             self.child.init(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &CONTEXT_IMAGE_VAR).handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 if let Some(error) = new_img.error() {
                     if self.error != error {
@@ -304,7 +302,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
             }
 
             self.handler.update(ctx);
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     OnErrorNode {
@@ -328,25 +326,21 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(event, default( hn!(|_, _|{}) ))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -> impl UiNode {
-    struct OnLoadNode<C, H> {
-        child: C,
-        handler: H,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, H: WidgetHandler<ImageLoadArgs>> UiNode for OnLoadNode<C, H> {
+    #[impl_ui_node(struct OnLoadNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<ImageLoadArgs>,
+    })]
+    impl UiNode for OnLoadNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if CONTEXT_IMAGE_VAR.get(ctx.vars).is_loaded() {
+            ctx.sub_var(&CONTEXT_IMAGE_VAR);
+
+            if CONTEXT_IMAGE_VAR.with(Image::is_loaded) {
                 self.handler.event(ctx, &ImageLoadArgs {});
             }
             self.child.init(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &CONTEXT_IMAGE_VAR).handler(&self.handler);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 if new_img.is_loaded() {
                     self.handler.event(ctx, &ImageLoadArgs {});
@@ -354,7 +348,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
             }
 
             self.handler.update(ctx);
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     OnLoadNode { child, handler }
@@ -366,32 +360,26 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
 #[property(layout, allowed_in_when = false, default(false))]
 pub fn image_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
-    struct ImageBlockWindowLoadNode<C> {
-        child: C,
+    #[impl_ui_node(struct ImageBlockWindowLoadNode {
+        child: impl UiNode,
         enabled: BlockWindowLoad,
         block: Option<WindowLoadingHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ImageBlockWindowLoadNode<C> {
+    })]
+    impl UiNode for ImageBlockWindowLoadNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.sub_var(&CONTEXT_IMAGE_VAR);
+
             if let Some(delay) = self.enabled.deadline() {
                 self.block = Windows::req(ctx.services).loading_handle(ctx.path.window_id(), delay);
             }
             self.child.init(ctx);
         }
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            if self.block.is_some() {
-                subs.var(ctx, &CONTEXT_IMAGE_VAR);
-            }
-            self.child.subscriptions(ctx, subs);
-        }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.block.is_some() && !CONTEXT_IMAGE_VAR.get(ctx).is_loading() {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if self.block.is_some() && !CONTEXT_IMAGE_VAR.with(Image::is_loading) {
                 self.block = None;
-                ctx.updates.subscriptions();
             }
-            self.child.update(ctx);
+            self.child.update(ctx, updates);
         }
     }
     ImageBlockWindowLoadNode {

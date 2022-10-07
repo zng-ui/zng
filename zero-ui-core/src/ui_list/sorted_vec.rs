@@ -1,14 +1,15 @@
 use std::{cell::RefCell, cmp, mem, ops::Deref, rc::Rc};
 
 use crate::{
-    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WithUpdates},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WidgetUpdates,
+        WithUpdates,
+    },
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
     units::PxSize,
-    widget_info::{
-        UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions,
-    },
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation},
     BoxedWidget, UiNode, Widget, WidgetId,
 };
 
@@ -295,21 +296,23 @@ impl UiNodeList for SortedWidgetVec {
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.ctrl.0.borrow_mut().target = Some(ctx.path.widget_id());
         for widget in &mut self.vec {
             widget.init(ctx);
         }
     }
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.ctrl.0.borrow_mut().target = None;
         for widget in &mut self.vec {
             widget.deinit(ctx);
         }
     }
 
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
         self.fullfill_requests(ctx, observer);
         for widget in &mut self.vec {
-            widget.update(ctx);
+            widget.update(ctx, updates);
         }
     }
 
@@ -350,13 +353,6 @@ impl UiNodeList for SortedWidgetVec {
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         for widget in &self.vec {
             widget.info(ctx, info);
-        }
-    }
-
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.update(self.ctrl.update_slot());
-        for widget in &self.vec {
-            widget.subscriptions(ctx, subs);
         }
     }
 
@@ -539,7 +535,8 @@ impl Drop for SortedWidgetVec {
 #[derive(Clone)]
 pub struct SortedWidgetVecRef(Rc<RefCell<SortedWidgetVecRequests>>);
 struct SortedWidgetVecRequests {
-    update_slot: UpdateSlot,
+    target: Option<WidgetId>,
+
     insert: Vec<BoxedWidget>,
     remove: Vec<WidgetId>,
     sort: Vec<WidgetId>,
@@ -551,7 +548,7 @@ struct SortedWidgetVecRequests {
 impl SortedWidgetVecRef {
     fn new() -> Self {
         Self(Rc::new(RefCell::new(SortedWidgetVecRequests {
-            update_slot: UpdateSlot::next(),
+            target: None,
             insert: vec![],
             remove: vec![],
             sort: vec![],
@@ -568,23 +565,23 @@ impl SortedWidgetVecRef {
 
     /// Request an update for the insertion of the `widget`.
     ///
-    /// The `widget` will be initialized, inserted in its sorted place and the info tree and subscriptions updated.
+    /// The `widget` will be initialized, inserted in its sorted place and the info tree updated.
     pub fn insert(&self, updates: &mut impl WithUpdates, widget: impl Widget) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.insert.push(widget.boxed_wgt());
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
     }
 
     /// Request an update for the removal of the widget identified by `id`.
     ///
-    /// The widget will be deinitialized, dropped and the info tree and subscriptions will update.
+    /// The widget will be deinitialized, dropped and the info tree will update.
     pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.remove.push(id.into());
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
     }
 
@@ -600,11 +597,11 @@ impl SortedWidgetVecRef {
                     s.sort.clear();
                     s.sort_all = true;
 
-                    u.update(s.update_slot.mask());
+                    u.update(s.target);
                 } else {
                     s.sort.push(id.into());
 
-                    u.update(s.update_slot.mask());
+                    u.update(s.target);
                 }
             }
         })
@@ -617,12 +614,8 @@ impl SortedWidgetVecRef {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.clear = true;
-            u.update(s.update_slot.mask());
+            u.update(s.target);
         })
-    }
-
-    fn update_slot(&self) -> UpdateSlot {
-        self.0.borrow().update_slot
     }
 
     fn take_requests(&self) -> Option<SortedWidgetVecRequests> {
@@ -630,7 +623,8 @@ impl SortedWidgetVecRef {
 
         if s.clear || s.sort_all || !s.sort.is_empty() || !s.insert.is_empty() || !s.remove.is_empty() {
             let empty = SortedWidgetVecRequests {
-                update_slot: s.update_slot,
+                target: s.target,
+
                 alive: s.alive,
                 sort_all: false,
                 clear: false,

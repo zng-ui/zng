@@ -29,14 +29,14 @@ pub mod switch {
         delegate_list_mut = &mut self.options,
     )]
     impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.index.is_new(ctx) {
                 ctx.updates.layout_and_render();
                 self.collapse = true;
 
-                self.options.update_all(ctx, &mut ());
+                self.options.update_all(ctx, updates, &mut ());
             } else if self.options.is_fixed() {
-                self.options.update_all(ctx, &mut ());
+                self.options.update_all(ctx, updates, &mut ());
             } else {
                 struct TouchedIndex {
                     index: usize,
@@ -57,10 +57,10 @@ pub mod switch {
                     }
                 }
                 let mut check = TouchedIndex {
-                    index: self.index.copy(ctx),
+                    index: self.index.get(),
                     touched: false,
                 };
-                self.options.update_all(ctx, &mut check);
+                self.options.update_all(ctx, updates, &mut check);
 
                 if check.touched {
                     ctx.updates.layout_and_render();
@@ -70,7 +70,7 @@ pub mod switch {
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let index = self.index.copy(ctx);
+            let index = self.index.get();
             if index < self.options.len() {
                 self.options.item_measure(index, ctx)
             } else {
@@ -83,7 +83,7 @@ pub mod switch {
                 *self.render_collapse_once.get_mut() = true;
             }
 
-            let index = self.index.copy(ctx);
+            let index = self.index.get();
             if index < self.options.len() {
                 self.options.item_layout(index, ctx, wl)
             } else {
@@ -95,13 +95,13 @@ pub mod switch {
             if self.render_collapse_once.take() {
                 frame.collapse_descendants(ctx.info_tree);
             }
-            let index = self.index.copy(ctx);
+            let index = self.index.get();
             if index < self.options.len() {
                 self.options.item_render(index, ctx, frame)
             }
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            let index = self.index.copy(ctx);
+            let index = self.index.get();
             if index < self.options.len() {
                 self.options.item_render_update(index, ctx, update)
             }

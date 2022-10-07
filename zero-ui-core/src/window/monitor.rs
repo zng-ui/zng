@@ -114,8 +114,8 @@ impl Monitors {
     }
 
     /// Gets the monitor info marked as primary.
-    pub fn primary_monitor<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<&MonitorInfo> {
-        vars.with_vars_read(|vars| self.available_monitors().find(|m| m.is_primary().copy(vars)))
+    pub fn primary_monitor(&self) -> Option<&MonitorInfo> {
+        self.available_monitors().find(|m| m.is_primary().get())
     }
 
     fn on_monitors_changed(&mut self, events: &mut Events, vars: &Vars, args: &RawMonitorsChangedArgs) {
@@ -153,7 +153,7 @@ impl Monitors {
     pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = Monitors::req(ctx.services).monitor(args.monitor_id) {
-                m.scale_factor.set_ne(ctx.vars, args.scale_factor);
+                m.scale_factor.set_ne(ctx.vars, args.scale_factor).unwrap();
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
             Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, args);
@@ -281,12 +281,18 @@ impl MonitorInfo {
     /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
     /// returns if any value changed.
     fn update(&self, vars: &Vars, info: zero_ui_view_api::MonitorInfo) -> bool {
-        self.is_primary.set_ne(vars, info.is_primary)
-            | self.name.set_ne(vars, info.name.to_text())
-            | self.position.set_ne(vars, info.position)
-            | self.size.set_ne(vars, info.size)
-            | self.scale_factor.set_ne(vars, info.scale_factor.fct())
-            | self.video_modes.set_ne(vars, info.video_modes)
+        fn check_set<T: VarValue + PartialEq>(vars: &Vars, var: &impl Var<T>, value: T) -> bool {
+            let ne = var.with(|v| v != &value);
+            var.set_ne(vars, value).unwrap();
+            ne
+        }
+
+        check_set(vars, &self.is_primary, info.is_primary)
+            | check_set(vars, &self.name, info.name.to_text())
+            | check_set(vars, &self.position, info.position)
+            | check_set(vars, &self.size, info.size)
+            | check_set(vars, &self.scale_factor, info.scale_factor.fct())
+            | check_set(vars, &self.video_modes, info.video_modes)
     }
 
     /// Unique ID.
@@ -296,32 +302,32 @@ impl MonitorInfo {
 
     /// If could determine this monitor is the primary.
     pub fn is_primary(&self) -> ReadOnlyRcVar<bool> {
-        self.is_primary.clone().into_read_only()
+        self.is_primary.read_only()
     }
 
     /// Name of the monitor.
     pub fn name(&self) -> ReadOnlyRcVar<Text> {
-        self.name.clone().into_read_only()
+        self.name.read_only()
     }
     /// Top-left offset of the monitor region in the virtual screen, in pixels.
     pub fn position(&self) -> ReadOnlyRcVar<PxPoint> {
-        self.position.clone().into_read_only()
+        self.position.read_only()
     }
     /// Width/height of the monitor region in the virtual screen, in pixels.
     pub fn size(&self) -> ReadOnlyRcVar<PxSize> {
-        self.size.clone().into_read_only()
+        self.size.read_only()
     }
 
     /// Exclusive fullscreen video modes.
     pub fn video_modes(&self) -> ReadOnlyRcVar<Vec<VideoMode>> {
-        self.video_modes.clone().into_read_only()
+        self.video_modes.read_only()
     }
 
     /// The monitor scale factor.
     ///
     /// Can update if the user changes system settings.
     pub fn scale_factor(&self) -> ReadOnlyRcVar<Factor> {
-        self.scale_factor.clone().into_read_only()
+        self.scale_factor.read_only()
     }
     /// PPI config var.
     pub fn ppi(&self) -> RcVar<f32> {
@@ -329,24 +335,20 @@ impl MonitorInfo {
     }
 
     /// Gets the monitor area in device pixels.
-    pub fn px_rect(&self, vars: &impl WithVarsRead) -> PxRect {
-        vars.with_vars_read(|vars| {
-            let pos = self.position.copy(vars);
-            let size = self.size.copy(vars);
+    pub fn px_rect(&self) -> PxRect {
+        let pos = self.position.get();
+        let size = self.size.get();
 
-            PxRect::new(pos, size)
-        })
+        PxRect::new(pos, size)
     }
 
     /// Gets the monitor area in device independent pixels.
-    pub fn dip_rect(&self, vars: &impl WithVarsRead) -> DipRect {
-        vars.with_vars_read(|vars| {
-            let pos = self.position.copy(vars);
-            let size = self.size.copy(vars);
-            let factor = self.scale_factor.copy(vars);
+    pub fn dip_rect(&self) -> DipRect {
+        let pos = self.position.get();
+        let size = self.size.get();
+        let factor = self.scale_factor.get();
 
-            PxRect::new(pos, size).to_dip(factor.0)
-        })
+        PxRect::new(pos, size).to_dip(factor.0)
     }
 
     /// Bogus metadata for the [`MonitorId::fallback`].
@@ -376,33 +378,33 @@ pub enum MonitorQuery {
     ///
     /// If the closure returns `None` the primary monitor is used, if there is any.
     #[allow(clippy::type_complexity)]
-    Query(Rc<dyn for<'v, 'm> Fn(&'v VarsRead, &'m mut Monitors) -> Option<&'m MonitorInfo>>),
+    Query(Rc<dyn Fn(&mut Monitors) -> Option<&MonitorInfo>>),
 }
 impl MonitorQuery {
     /// New query.
-    pub fn new(query: impl for<'v, 'm> Fn(&'v VarsRead, &'m mut Monitors) -> Option<&'m MonitorInfo> + 'static) -> Self {
+    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorInfo> + 'static) -> Self {
         Self::Query(Rc::new(query))
     }
 
     /// Runs the query.
-    pub fn select<'a, 'v, 'm>(&'a self, vars: &'v impl WithVarsRead, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
-        vars.with_vars_read(|vars| match self {
-            MonitorQuery::Primary => Self::primary_query(vars, monitors),
-            MonitorQuery::Query(q) => q(vars, monitors),
-        })
+    pub fn select<'a, 'm>(&'a self, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
+        match self {
+            MonitorQuery::Primary => Self::primary_query(monitors),
+            MonitorQuery::Query(q) => q(monitors),
+        }
     }
 
     /// Runs the query, fallback to `Primary` and [`MonitorInfo::fallback`]
-    pub fn select_fallback(&self, vars: &impl WithVarsRead, monitors: &mut Monitors) -> MonitorInfo {
-        vars.with_vars_read(|vars| match self {
-            MonitorQuery::Primary => Self::primary_query(vars, monitors).cloned(),
-            MonitorQuery::Query(q) => q(vars, monitors).cloned().or_else(|| Self::primary_query(vars, monitors).cloned()),
-        })
+    pub fn select_fallback(&self, monitors: &mut Monitors) -> MonitorInfo {
+        match self {
+            MonitorQuery::Primary => Self::primary_query(monitors).cloned(),
+            MonitorQuery::Query(q) => q(monitors).cloned().or_else(|| Self::primary_query(monitors).cloned()),
+        }
         .unwrap_or_else(MonitorInfo::fallback)
     }
 
-    fn primary_query<'v, 'm>(vars: &'v VarsRead, m: &'m mut Monitors) -> Option<&'m MonitorInfo> {
-        m.available_monitors().find(|m| m.is_primary.copy(vars))
+    fn primary_query(m: &mut Monitors) -> Option<&MonitorInfo> {
+        m.available_monitors().find(|m| m.is_primary.get())
     }
 }
 impl PartialEq for MonitorQuery {

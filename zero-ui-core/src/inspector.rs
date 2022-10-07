@@ -18,11 +18,11 @@ use std::any::type_name;
 use std::fmt;
 use std::{any::Any, rc::Rc};
 
-use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, UpdatesTrace};
+use crate::context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, UpdatesTrace, WidgetUpdates};
 use crate::event::EventUpdate;
 use crate::render::FrameUpdate;
 use crate::text::Text;
-use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions};
+use crate::widget_info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout};
 use crate::{units::*, var::*, *};
 
 /// Represents an inspected property var value.
@@ -628,18 +628,10 @@ impl UiNode for InspectPropertyNode {
                 args: self.args.clone(),
             });
         }
-        ctx.vars.with_context_var(
-            WIDGET_PARENT_VAR,
-            ContextVarData::fixed(&WidgetInstanceParent::Property(self.meta.property_name)),
-            || {
-                self.child.info(ctx, info);
-            },
-        );
-    }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = UpdatesTrace::property_span(self.meta.property_name, "subscriptions");
-        self.child.subscriptions(ctx, subs);
+        WIDGET_PARENT_VAR.with_context(WidgetInstanceParent::Property(self.meta.property_name), || {
+            self.child.info(ctx, info);
+        });
     }
 
     fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
@@ -647,9 +639,9 @@ impl UiNode for InspectPropertyNode {
         self.child.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut context::WidgetContext) {
+    fn update(&mut self, ctx: &mut context::WidgetContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::property_span(self.meta.property_name, "update");
-        self.child.update(ctx);
+        self.child.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -708,15 +700,10 @@ impl UiNode for InspectWidgetNode {
                 properties: vec![],
                 whens: self.whens.clone(),
                 constructors: vec![],
-                parent_name: WIDGET_PARENT_VAR.copy(ctx),
+                parent_name: WIDGET_PARENT_VAR.get(),
             },
         );
         self.child.info(ctx, info);
-    }
-
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "subscriptions");
-        self.child.subscriptions(ctx, subs);
     }
 
     fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
@@ -724,9 +711,9 @@ impl UiNode for InspectWidgetNode {
         self.child.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut context::WidgetContext) {
+    fn update(&mut self, ctx: &mut context::WidgetContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "update");
-        self.child.update(ctx);
+        self.child.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -785,18 +772,10 @@ impl UiNode for InspectConstructorNode {
                 captures: self.captures.clone(),
             });
         }
-        ctx.vars.with_context_var(
-            WIDGET_PARENT_VAR,
-            ContextVarData::fixed(&WidgetInstanceParent::Constructor(self.fn_name)),
-            || {
-                self.child.info(ctx, info);
-            },
-        );
-    }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = UpdatesTrace::constructor_span(self.fn_name, "subscriptions");
-        self.child.subscriptions(ctx, subs);
+        WIDGET_PARENT_VAR.with_context(WidgetInstanceParent::Constructor(self.fn_name), || {
+            self.child.info(ctx, info);
+        });
     }
 
     fn event(&mut self, ctx: &mut context::WidgetContext, update: &mut EventUpdate) {
@@ -804,9 +783,9 @@ impl UiNode for InspectConstructorNode {
         self.child.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut context::WidgetContext) {
+    fn update(&mut self, ctx: &mut context::WidgetContext, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::constructor_span(self.fn_name, "update");
-        self.child.update(ctx);
+        self.child.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -1016,9 +995,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::new();
-
-            assert_eq!("\"called into_var\"", format!("{:?}", r.get(&ctx.vars)))
+            assert_eq!("\"called into_var\"", format!("{:?}", r.get()))
         }
 
         #[test]
@@ -1030,9 +1007,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::new();
-
-            assert_eq!("true", format!("{:?}", r.get(&ctx.vars)))
+            assert_eq!("true", format!("{:?}", r.get()))
         }
 
         #[test]
@@ -1045,13 +1020,13 @@ pub mod debug_var_util {
 
             let mut ctx = TestWidgetContext::new();
 
-            assert_eq!("true", format!("{:?}", r.get(&ctx.vars)));
+            assert_eq!("true", format!("{:?}", r.get()));
 
-            value.set(&ctx.vars, false);
+            value.set(&ctx.vars, false).unwrap();
 
             ctx.apply_updates();
 
-            assert_eq!("false", format!("{:?}", r.get(&ctx.vars)));
+            assert_eq!("false", format!("{:?}", r.get()));
         }
 
         #[test]
@@ -1060,9 +1035,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::new();
-
-            assert_eq!("true", format!("{:?}", r.get(&ctx.vars)))
+            assert_eq!("true", format!("{:?}", r.get()))
         }
 
         #[test]
@@ -1072,9 +1045,7 @@ pub mod debug_var_util {
 
             let r = debug_var_util_trick!(&value);
 
-            let ctx = TestWidgetContext::new();
-
-            assert!(format!("{:?}", r.get(&ctx.vars)).contains("Foo"));
+            assert!(format!("{:?}", r.get()).contains("Foo"));
         }
     }
 }

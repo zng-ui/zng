@@ -1,4 +1,7 @@
-use zero_ui::core::{context::WidgetContext, impl_ui_node, NilUiNode, UiNode};
+use zero_ui::core::{
+    context::{WidgetContext, WidgetUpdates},
+    impl_ui_node, NilUiNode, UiNode,
+};
 
 struct Node1<C> {
     child: C,
@@ -11,9 +14,9 @@ impl<C: UiNode> UiNode for Node1<C> {
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        let _ = ctx;
-        // does not call self.child.update(ctx);
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        let _ = (ctx, updates);
+        // does not call self.child.update(ctx, updates);
     }
 }
 

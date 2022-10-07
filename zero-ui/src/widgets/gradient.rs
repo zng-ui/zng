@@ -24,7 +24,73 @@ pub fn linear_gradient_ext(
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var()).cfg_boxed()
+    #[impl_ui_node(struct LinearGradientNode {
+        var_axis: impl Var<LinearGradientAxis>,
+        var_stops: impl Var<GradientStops>,
+        var_extend_mode: impl Var<ExtendMode>,
+
+        render_line: PxLine,
+        render_stops: Vec<RenderGradientStop>,
+
+        final_size: PxSize,
+    })]
+    impl UiNode for LinearGradientNode {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+            if self.var_axis.is_new(ctx) || self.var_stops.is_new(ctx) || self.var_extend_mode.is_new(ctx) {
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            ctx.constrains().fill_size()
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            let final_size = ctx.constrains().fill_size();
+            if self.final_size != final_size {
+                self.final_size = final_size;
+                self.render_line = self.var_axis.get().layout(ctx);
+
+                let length = self.render_line.length();
+
+                ctx.with_constrains(
+                    |c| c.with_new_exact_x(length),
+                    |ctx| {
+                        self.var_stops.get().layout_linear(
+                            ctx.for_x(),
+                            self.var_extend_mode.get(),
+                            &mut self.render_line,
+                            &mut self.render_stops,
+                        )
+                    },
+                );
+
+                ctx.updates.render();
+            }
+            final_size
+        }
+
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_linear_gradient(
+                PxRect::from_size(self.final_size),
+                self.render_line,
+                &self.render_stops,
+                self.var_extend_mode.get().into(),
+                self.final_size,
+                PxSize::zero(),
+            );
+        }
+    }
+    LinearGradientNode {
+        var_axis: axis.into_var(),
+        var_stops: stops.into_var(),
+        var_extend_mode: extend_mode.into_var(),
+
+        render_line: PxLine::zero(),
+        render_stops: vec![],
+
+        final_size: PxSize::zero(),
+    }
 }
 
 /// Node that fills the widget area with a Linear gradient with all features configurable.
@@ -35,171 +101,83 @@ pub fn linear_gradient_full(
     tile_size: impl IntoVar<Size>,
     tile_spacing: impl IntoVar<Size>,
 ) -> impl UiNode {
-    LinearGradientFullNode {
-        g: LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var()),
-        tile_size: tile_size.into_var(),
-        tile_spacing: tile_spacing.into_var(),
-        render_tile_size: PxSize::zero(),
-        render_tile_spacing: PxSize::zero(),
-    }
-    .cfg_boxed()
-}
+    #[impl_ui_node(struct LinearGradientFullNode {
+        var_axis: impl Var<LinearGradientAxis>,
+        var_stops: impl Var<GradientStops>,
+        var_extend_mode: impl Var<ExtendMode>,
+        var_tile_size: impl Var<Size>,
+        var_tile_spacing: impl Var<Size>,
 
-struct LinearGradientNode<A, S, E> {
-    axis: A,
-    stops: S,
-    extend_mode: E,
+        final_line: PxLine,
+        final_stops: Vec<RenderGradientStop>,
 
-    do_layout: bool,
-    render_line: PxLine,
-    render_stops: Vec<RenderGradientStop>,
-
-    final_size: PxSize,
-}
-#[impl_ui_node(none)]
-impl<A, S, E> LinearGradientNode<A, S, E>
-where
-    A: Var<LinearGradientAxis>,
-    S: Var<GradientStops>,
-    E: Var<ExtendMode>,
-{
-    fn new(axis: A, stops: S, extend_mode: E) -> Self {
-        Self {
-            axis,
-            stops,
-            extend_mode,
-
-            do_layout: true,
-            render_line: PxLine::zero(),
-            render_stops: vec![],
-
-            final_size: PxSize::zero(),
+        final_size: PxSize,
+        final_tile_size: PxSize,
+        final_tile_spacing: PxSize,
+    })]
+    impl UiNode for LinearGradientFullNode {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+            if self.var_axis.is_new(ctx)
+                || self.var_stops.is_new(ctx)
+                || self.var_extend_mode.is_new(ctx)
+                || self.var_tile_size.is_new(ctx)
+                || self.var_tile_spacing.is_new(ctx)
+            {
+                ctx.updates.layout();
+            }
         }
-    }
 
-    #[UiNode]
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.vars(ctx).var(&self.axis).var(&self.stops).var(&self.extend_mode);
-    }
-
-    #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.axis.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
-            self.do_layout = true;
-            ctx.updates.layout();
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            ctx.constrains().fill_size()
         }
-    }
-    #[UiNode]
-    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-        ctx.constrains().fill_size()
-    }
-    #[UiNode]
-    fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-        let final_size = ctx.constrains().fill_size();
-        if self.do_layout || self.final_size != final_size {
-            self.do_layout = false;
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            self.final_size = ctx.constrains().fill_size();
 
-            self.final_size = final_size;
-            self.render_line = self.axis.get(ctx).layout(ctx);
+            self.final_tile_size = self.var_tile_size.get().layout(ctx.metrics, |_| self.final_size);
+            self.final_tile_spacing = self.var_tile_spacing.get().layout(ctx.metrics, |_| self.final_size);
 
-            let length = self.render_line.length();
+            self.final_line = ctx.with_constrains(|c| c.with_exact_size(self.final_tile_size), |ctx| self.var_axis.get().layout(ctx));
 
+            let length = self.final_line.length();
             ctx.with_constrains(
                 |c| c.with_new_exact_x(length),
                 |ctx| {
-                    self.stops.get(ctx).layout_linear(
-                        ctx.for_x(),
-                        *self.extend_mode.get(ctx),
-                        &mut self.render_line,
-                        &mut self.render_stops,
-                    )
+                    self.var_stops
+                        .get()
+                        .layout_linear(ctx.for_x(), self.var_extend_mode.get(), &mut self.final_line, &mut self.final_stops)
                 },
             );
 
             ctx.updates.render();
+
+            self.final_size
         }
-        final_size
-    }
-    #[UiNode]
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        frame.push_linear_gradient(
-            PxRect::from_size(self.final_size),
-            self.render_line,
-            &self.render_stops,
-            (*self.extend_mode.get(ctx)).into(),
-            self.final_size,
-            PxSize::zero(),
-        );
-    }
-}
 
-struct LinearGradientFullNode<A, S, E, T, TS> {
-    g: LinearGradientNode<A, S, E>,
-
-    tile_size: T,
-    tile_spacing: TS,
-
-    render_tile_size: PxSize,
-    render_tile_spacing: PxSize,
-}
-
-#[impl_ui_node(none)]
-impl<A, S, E, T, TS> UiNode for LinearGradientFullNode<A, S, E, T, TS>
-where
-    A: Var<LinearGradientAxis>,
-    S: Var<GradientStops>,
-    E: Var<ExtendMode>,
-    T: Var<Size>,
-    TS: Var<Size>,
-{
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.vars(ctx).var(&self.tile_size).var(&self.tile_spacing);
-        self.g.subscriptions(ctx, subs);
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.g.update(ctx);
-
-        if self.tile_size.is_new(ctx) || self.tile_spacing.is_new(ctx) {
-            ctx.updates.layout();
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_linear_gradient(
+                PxRect::from_size(self.final_size),
+                self.final_line,
+                &self.final_stops,
+                self.var_extend_mode.get().into(),
+                self.final_tile_size,
+                self.final_tile_spacing,
+            );
         }
     }
 
-    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-        ctx.constrains().fill_size()
+    LinearGradientFullNode {
+        var_axis: axis.into_var(),
+        var_stops: stops.into_var(),
+        var_extend_mode: extend_mode.into_var(),
+        var_tile_size: tile_size.into_var(),
+        var_tile_spacing: tile_spacing.into_var(),
+
+        final_line: PxLine::zero(),
+        final_stops: vec![],
+
+        final_size: PxSize::zero(),
+        final_tile_size: PxSize::zero(),
+        final_tile_spacing: PxSize::zero(),
     }
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let final_size = ctx.constrains().fill_size();
-
-        if self.g.final_size != final_size {
-            ctx.updates.render();
-        }
-
-        self.g.final_size = self.render_tile_size;
-
-        self.render_tile_size = self.tile_size.get(ctx.vars).layout(ctx.metrics, |_| final_size);
-        self.render_tile_spacing = self.tile_spacing.get(ctx.vars).layout(ctx.metrics, |_| final_size);
-
-        ctx.with_constrains(
-            |c| c.with_max_size(self.render_tile_size).with_fill(true, true),
-            |ctx| {
-                self.g.layout(ctx, wl);
-            },
-        );
-
-        self.g.final_size = final_size;
-
-        final_size
-    }
-
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        frame.push_linear_gradient(
-            PxRect::from_size(self.g.final_size),
-            self.g.render_line,
-            &self.g.render_stops,
-            self.g.extend_mode.copy(ctx).into(),
-            self.render_tile_size,
-            self.render_tile_spacing,
-        );
-    }
+    .cfg_boxed()
 }

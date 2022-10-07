@@ -193,13 +193,13 @@ pub mod properties {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
-                        && !self.checked.is_read_only(ctx)
+                        && self.checked.capabilities().contains(VarCapabilities::MODIFY)
                         && !args.propagation().is_stopped()
                         && args.is_enabled(ctx.path.widget_id())
                     {
                         args.propagation().stop();
 
-                        let _ = self.checked.modify(ctx, |mut c| *c = !*c);
+                        let _ = self.checked.modify(ctx, |c| *c.get_mut() = !*c.get());
                     }
                 }
             }
@@ -240,23 +240,23 @@ pub mod properties {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
-                        && !self.checked.is_read_only(ctx)
+                        && self.checked.capabilities().contains(VarCapabilities::MODIFY)
                         && !args.propagation().is_stopped()
                         && args.is_enabled(ctx.path.widget_id())
                     {
                         args.propagation().stop();
 
-                        if IS_TRISTATE_VAR.copy(ctx) {
-                            let _ = self.checked.modify(ctx, |mut c| {
-                                *c = match *c {
+                        if IS_TRISTATE_VAR.get() {
+                            let _ = self.checked.modify(ctx, |c| {
+                                *c.get_mut() = match *c.get() {
                                     Some(true) => None,
                                     Some(false) => Some(true),
                                     None => Some(false),
                                 }
                             });
                         } else {
-                            let _ = self.checked.modify(ctx, |mut c| {
-                                *c = match *c {
+                            let _ = self.checked.modify(ctx, |c| {
+                                *c.get_mut() = match *c.get() {
                                     Some(true) | None => Some(false),
                                     Some(false) => Some(true),
                                 }
@@ -298,81 +298,92 @@ pub mod properties {
     /// the contextual [`Selector`] is used to implement the behavior.
     #[property(context, allowed_in_when = false)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-        struct ValueNode<C, T, V> {
-            child: C,
-            value: V,
+        #[impl_ui_node(struct ValueNode<T: VarValue + PartialEq> {
+            child: impl UiNode,
+            value: impl Var<T>,
             checked: RcVar<Option<bool>>,
             prev_value: Option<T>,
             click_handle: Option<EventWidgetHandle>,
-        }
-        impl<C, T: VarValue + PartialEq, V> ValueNode<C, T, V> {
+        })]
+        impl ValueNode {
+            // Returns `true` if selected.
             fn select(ctx: &mut WidgetContext, value: &T) -> bool {
-                let mut selector = SELECTOR_VAR.get(ctx.vars).instance.borrow_mut();
-                match selector.select(ctx, Box::new(value.clone())) {
-                    Ok(()) => true,
-                    Err(e) => {
-                        let selected = selector.is_selected(&mut ctx.as_info(), value);
-                        if selected {
-                            tracing::error!("selected `{value:?}` with error, {e}");
-                        } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
-                            // ignore
-                        } else {
-                            tracing::error!("failed to select `{value:?}`, {e}");
+                SELECTOR_VAR.with(|selector| {
+                    let mut selector = selector.instance.borrow_mut();
+
+                    match selector.select(ctx, Box::new(value.clone())) {
+                        Ok(()) => true,
+                        Err(e) => {
+                            let selected = selector.is_selected(&mut ctx.as_info(), value);
+                            if selected {
+                                tracing::error!("selected `{value:?}` with error, {e}");
+                            } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                                // ignore
+                            } else {
+                                tracing::error!("failed to select `{value:?}`, {e}");
+                            }
+                            selected
                         }
-                        selected
                     }
-                }
+                })
             }
 
+            /// Returns `true` if deselected.
             fn deselect(ctx: &mut WidgetContext, value: &T) -> bool {
-                let mut selector = SELECTOR_VAR.get(ctx.vars).instance.borrow_mut();
-                match selector.deselect(ctx, value) {
-                    Ok(()) => true,
-                    Err(e) => {
-                        let deselected = !selector.is_selected(&mut ctx.as_info(), value);
-                        if deselected {
-                            tracing::error!("deselected `{value:?}` with error, {e}");
-                        } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
-                            // ignore
-                        } else {
-                            tracing::error!("failed to deselect `{value:?}`, {e}");
+                SELECTOR_VAR.with(|selector| {
+                    let mut selector = selector.instance.borrow_mut();
+                    match selector.deselect(ctx, value) {
+                        Ok(()) => true,
+                        Err(e) => {
+                            let deselected = !selector.is_selected(&mut ctx.as_info(), value);
+                            if deselected {
+                                tracing::error!("deselected `{value:?}` with error, {e}");
+                            } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                                // ignore
+                            } else {
+                                tracing::error!("failed to deselect `{value:?}`, {e}");
+                            }
+                            deselected
                         }
-                        deselected
                     }
-                }
+                })
             }
 
             fn is_selected(ctx: &mut WidgetContext, value: &T) -> bool {
-                SELECTOR_VAR.get(ctx.vars).instance.borrow().is_selected(&mut ctx.as_info(), value)
+                SELECTOR_VAR.with(|sel| sel.instance.borrow().is_selected(&mut ctx.as_info(), value))
             }
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode, T: VarValue + PartialEq, V: Var<T>> UiNode for ValueNode<C, T, V> {
+
+            #[UiNode]
             fn init(&mut self, ctx: &mut WidgetContext) {
-                let value = self.value.get(ctx.vars);
+                ctx.sub_var(&self.value).sub_var(&SELECTOR_VAR).sub_var(&DESELECT_ON_NEW_VAR);
+                SELECTOR_VAR.with(|s| s.instance.borrow().subscribe(ctx.path.widget_id(), &mut ctx.handles));
 
-                let selected = if SELECT_ON_INIT_VAR.copy(ctx) {
-                    Self::select(ctx, value)
-                } else {
-                    Self::is_selected(ctx, value)
-                };
-                self.checked.set_ne(ctx.vars, Some(selected));
+                self.value.with(|value| {
+                    let selected = if SELECT_ON_INIT_VAR.get() {
+                        Self::select(ctx, value)
+                    } else {
+                        Self::is_selected(ctx, value)
+                    };
+                    self.checked.set_ne(ctx.vars, Some(selected)).unwrap();
 
-                if DESELECT_ON_DEINIT_VAR.copy(ctx) {
-                    self.prev_value = Some(value.clone());
-                }
+                    if DESELECT_ON_DEINIT_VAR.get() {
+                        self.prev_value = Some(value.clone());
+                    }
+                });
 
                 self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
 
                 self.child.init(ctx);
             }
 
+            #[UiNode]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                if self.checked.copy(ctx.vars) == Some(true) && DESELECT_ON_DEINIT_VAR.copy(ctx) {
-                    let value = self.value.get(ctx.vars);
-                    if Self::deselect(ctx, value) {
-                        self.checked.set_ne(ctx, Some(false));
-                    }
+                if self.checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
+                    self.value.with(|value| {
+                        if Self::deselect(ctx, value) {
+                            self.checked.set_ne(ctx, Some(false)).unwrap();
+                        }
+                    });
                 }
 
                 self.prev_value = None;
@@ -381,34 +392,35 @@ pub mod properties {
                 self.child.deinit(ctx);
             }
 
-            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                SELECTOR_VAR.get(ctx.vars).instance.borrow().subscribe(ctx, subs);
-                subs.vars(ctx).var(&self.value).var(&SELECTOR_VAR).var(&DESELECT_ON_NEW_VAR);
-                self.child.subscriptions(ctx, subs);
-            }
-
+            #[UiNode]
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 self.child.event(ctx, update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary() && !args.propagation().is_stopped() && args.is_enabled(ctx.path.widget_id()) {
                         args.propagation().stop();
 
-                        let value = self.value.get(ctx.vars);
-                        let selected = self.checked.copy(ctx) == Some(true);
-                        let selected = if selected {
-                            !Self::deselect(ctx, value)
-                        } else {
-                            Self::select(ctx, value)
-                        };
-                        self.checked.set_ne(ctx, Some(selected));
+                        let selected = self.value.with(|value| {
+                            let selected = self.checked.get() == Some(true);
+                            if selected {
+                                !Self::deselect(ctx, value)
+                            } else {
+                                Self::select(ctx, value)
+                            }
+                        });
+                        self.checked.set_ne(ctx, Some(selected)).unwrap()
                     }
                 }
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                let selected = if let Some(new) = self.value.get_new(ctx.vars) {
+            #[UiNode]
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if SELECTOR_VAR.is_new(ctx) {
+                    todo!("reload widget?")
+                }
+
+                let selected = self.value.with_new(ctx.vars, |new| {
                     // auto select new.
-                    let selected = if self.checked.copy(ctx) == Some(true) && SELECT_ON_NEW_VAR.copy(ctx.vars) {
+                    let selected = if self.checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
                         Self::select(ctx, new)
                     } else {
                         Self::is_selected(ctx, new)
@@ -416,31 +428,30 @@ pub mod properties {
 
                     // auto deselect prev, need to be done after potential auto select new to avoid `CannotClear` error.
                     if let Some(prev) = self.prev_value.take() {
-                        if DESELECT_ON_NEW_VAR.copy(ctx.vars) {
+                        if DESELECT_ON_NEW_VAR.get() {
                             Self::deselect(ctx, &prev);
                             self.prev_value = Some(new.clone());
                         }
                     }
 
                     selected
-                } else {
+                });
+                let selected = selected.unwrap_or_else(|| {
                     // contextual selection can change in any update.
-                    let value = self.value.get(ctx.vars);
-                    Self::is_selected(ctx, value)
-                };
-                self.checked.set_ne(ctx.vars, selected);
+                    self.value.with(|val| Self::is_selected(ctx, val))
+                });
+                self.checked.set_ne(ctx.vars, selected).unwrap();
 
-                if DESELECT_ON_NEW_VAR.copy(ctx) && selected {
+                if DESELECT_ON_NEW_VAR.get() && selected {
                     // save a clone of the value to reference it on deselection triggered by variable value changing.
                     if self.prev_value.is_none() {
-                        let value = self.value.get_clone(ctx);
-                        self.prev_value = Some(value);
+                        self.prev_value = Some(self.value.get());
                     }
                 } else {
                     self.prev_value = None;
                 }
 
-                self.child.update(ctx);
+                self.child.update(ctx, updates);
             }
         }
         let checked = var(Some(false));
@@ -560,13 +571,8 @@ pub mod properties {
     /// [`value`]: fn@value
     /// [`selection`]: fn@selection
     pub trait Selector: 'static {
-        /// Subscribe the selector in a [`value`] widget to receive selection updates.
-        ///
-        /// The [`value`] property checks [`is_selected`] every update.
-        ///
-        /// [`value`]: fn@value
-        /// [`is_selected`]: Selector::is_selected
-        fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
+        /// Add the selector subscriptions for a widget.
+        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles);
 
         /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
         fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError>;
@@ -619,8 +625,8 @@ pub mod properties {
             }
         }
     }
-    impl From<VarIsReadOnly> for SelectorError {
-        fn from(_: VarIsReadOnly) -> Self {
+    impl From<VarIsReadOnlyError> for SelectorError {
+        fn from(_: VarIsReadOnlyError) -> Self {
             SelectorError::ReadOnly
         }
     }
@@ -633,7 +639,7 @@ pub mod properties {
     pub struct NilSel;
 
     impl Selector for NilSel {
-        fn subscribe(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
+        fn subscribe(&self, _: WidgetId, _: &mut WidgetHandles) {}
 
         fn select(&mut self, _: &mut WidgetContext, _: Box<dyn Any>) -> Result<(), SelectorError> {
             Err(SelectorError::custom_str("no contextual `selection`"))
@@ -675,15 +681,15 @@ pub mod properties {
         T: VarValue + PartialEq,
         S: Var<T>,
     {
-        fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.target);
+        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
+            handles.push_var(self.target.subscribe(widget_id));
         }
 
         fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
             match value.downcast::<T>() {
                 Ok(value) => match self.target.set_ne(ctx, *value) {
                     Ok(_) => Ok(()),
-                    Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                 },
                 Err(_) => Err(SelectorError::WrongType),
             }
@@ -697,9 +703,9 @@ pub mod properties {
             }
         }
 
-        fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
+        fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
             match value.downcast_ref::<T>() {
-                Some(value) => self.target.get(ctx) == value,
+                Some(value) => self.target.with(|t| t == value),
                 None => false,
             }
         }
@@ -732,20 +738,20 @@ pub mod properties {
         T: VarValue + PartialEq,
         S: Var<Option<T>>,
     {
-        fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.target);
+        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
+            handles.push_var(self.target.subscribe(widget_id));
         }
 
         fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
             match value.downcast::<T>() {
                 Ok(value) => match self.target.set_ne(ctx, Some(*value)) {
                     Ok(_) => Ok(()),
-                    Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                 },
                 Err(value) => match value.downcast::<Option<T>>() {
                     Ok(value) => match self.target.set_ne(ctx, *value) {
                         Ok(_) => Ok(()),
-                        Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                        Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                     },
                     Err(_) => Err(SelectorError::WrongType),
                 },
@@ -755,10 +761,10 @@ pub mod properties {
         fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
             match value.downcast_ref::<T>() {
                 Some(value) => {
-                    if self.target.get(ctx).as_ref() == Some(value) {
+                    if self.target.with(|t| t.as_ref() == Some(value)) {
                         match self.target.set(ctx, None) {
                             Ok(_) => Ok(()),
-                            Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                            Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         }
                     } else {
                         Ok(())
@@ -766,13 +772,13 @@ pub mod properties {
                 }
                 None => match value.downcast_ref::<Option<T>>() {
                     Some(value) => {
-                        if self.target.get(ctx) == value {
+                        if self.target.with(|t| t == value) {
                             if value.is_none() {
                                 Ok(())
                             } else {
                                 match self.target.set(ctx, None) {
                                     Ok(_) => Ok(()),
-                                    Err(VarIsReadOnly) => Err(SelectorError::ReadOnly),
+                                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                                 }
                             }
                         } else {
@@ -784,11 +790,11 @@ pub mod properties {
             }
         }
 
-        fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
+        fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
             match value.downcast_ref::<T>() {
-                Some(value) => self.target.get(ctx).as_ref() == Some(value),
+                Some(value) => self.target.with(|t| t.as_ref() == Some(value)),
                 None => match value.downcast_ref::<Option<T>>() {
-                    Some(value) => self.target.get(ctx) == value,
+                    Some(value) => self.target.with(|t| t == value),
                     None => false,
                 },
             }

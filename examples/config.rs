@@ -29,7 +29,7 @@ fn app_main() {
         let txt = cfg.var("main.txt", || "Save this".to_text());
         let status = cfg.status();
 
-        trace_status(ctx.vars, &status);
+        trace_status(&status);
 
         window! {
             title = "Config Example";
@@ -56,7 +56,7 @@ fn app_main() {
                     button! {
                         content = text(count.map(|c| formatx!("Count: {c:?}")));
                         on_click = hn!(count, |ctx, _| {
-                            count.modify(ctx, |mut c| *c += 1).unwrap();
+                            count.modify(ctx, |c| *c.get_mut() += 1).unwrap();
                         })
                     },
                     separator(),
@@ -77,7 +77,7 @@ fn app_main() {
                         content = text("Open Another Instance");
                         on_click = hn!(|ctx, _| {
                             let offset= Dip::new(30);
-                            let pos = WindowVars::req(ctx).actual_position().copy(ctx) + DipVector::new(offset, offset);
+                            let pos = WindowVars::req(ctx).actual_position().get() + DipVector::new(offset, offset);
                             let pos = pos.to_i32();
                             let r: Result<(), Box<dyn std::error::Error>> = (|| {
                                 let exe = std::env::current_exe()?;
@@ -97,7 +97,7 @@ fn app_main() {
                     if let Some((x, y)) = pos.split_once(',') {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                             let pos = DipPoint::new(Dip::new(x), Dip::new(y));
-                            WindowVars::req(&ctx.window_state).position().set(ctx.vars, pos);
+                            WindowVars::req(&ctx.window_state).position().set(ctx.vars, pos).unwrap();
                             Windows::req(ctx.services).focus(ctx.path.window_id()).unwrap();
                         }
                     }
@@ -115,12 +115,12 @@ fn separator() -> impl Widget {
     }
 }
 
-fn trace_status(vars: &Vars, status: &impl Var<ConfigStatus>) {
+fn trace_status(status: &impl Var<ConfigStatus>) {
     let mut read_errs = 0;
     let mut write_errs = 0;
     let mut internal_errs = 0;
     status
-        .trace_value(vars, move |s: &ConfigStatus| {
+        .trace_value(move |s: &ConfigStatus| {
             if let Some(e) = &s.internal_error {
                 if s.internal_errors != internal_errs {
                     internal_errs = s.internal_errors;

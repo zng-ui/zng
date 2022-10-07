@@ -17,7 +17,7 @@ use crate::{
     task::{self, SignalOnce},
     text::Text,
     units::*,
-    var::{ReadOnlyRcVar, Var},
+    var::{AnyVar, ReadOnlyRcVar, Var},
     window::{FrameCaptureMode, Window, WindowId, WindowVars},
     UiNode,
 };
@@ -530,11 +530,12 @@ impl ImageSource {
     {
         Self::Render(
             Rc::new(Box::new(move |ctx, args| {
-                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent).unwrap();
                 let r = new_img(ctx, args);
                 WindowVars::req(&ctx.window_state)
                     .frame_capture_mode()
-                    .set_ne(ctx.vars, FrameCaptureMode::All);
+                    .set_ne(ctx.vars, FrameCaptureMode::All)
+                    .unwrap();
                 r
             })),
             None,
@@ -572,7 +573,7 @@ impl ImageSource {
         N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + 'static,
     {
         Self::render(move |ctx, args| {
-            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent).unwrap();
             let node = render(ctx, args);
             Window::new_container(
                 crate::WidgetId::new_unique(),
@@ -648,7 +649,7 @@ impl PartialEq for ImageSource {
             #[cfg(http)]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
             (Self::Render(lf, la), Self::Render(rf, ra)) => Rc::ptr_eq(lf, rf) && la == ra,
-            (Self::Image(l), Self::Image(r)) => l.ptr_eq(r),
+            (Self::Image(l), Self::Image(r)) => l.var_ptr() == r.var_ptr(),
             (l, r) => {
                 let l_hash = match l {
                     ImageSource::Static(h, _, _) => h,

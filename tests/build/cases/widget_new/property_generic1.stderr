@@ -24,9 +24,9 @@ error[E0283]: type annotations needed
     = note: multiple `impl`s satisfying `i32: IntoVar<_>` found in the `zero_ui_core` crate:
             - impl IntoVar<CornerRadius> for i32;
             - impl IntoVar<GridSpacing> for i32;
+            - impl IntoVar<Option<i32>> for i32;
             - impl IntoVar<SideOffsets> for i32;
-            - impl IntoVar<Vector> for i32;
-            and 4 more
+            and 5 more
 note: required by a bound in `value_ArgsImpl::<T, T_value>::new`
    --> $WORKSPACE/zero-ui/src/widgets/toggle_wgt.rs
     |

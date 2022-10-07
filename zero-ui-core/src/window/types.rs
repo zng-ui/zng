@@ -493,7 +493,10 @@ impl WindowIcon {
     {
         Self::Image(ImageSource::render_node(RenderMode::Software, move |ctx, args| {
             let node = new_icon(ctx);
-            super::WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+            super::WindowVars::req(&ctx.window_state)
+                .parent()
+                .set_ne(ctx.vars, args.parent)
+                .unwrap();
             node
         }))
     }
@@ -731,7 +734,7 @@ event_args! {
         /// Windows closing.
         ///
         /// This is at least one window, is multiple if the close operation was requested as group, cancelling the request
-        /// cancels close for all windows .
+        /// cancels close for all windows.
         pub windows: LinearSet<WindowId>,
 
         ..

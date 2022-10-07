@@ -1,9 +1,9 @@
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetInfoBuilder, WidgetLayout},
     UiNode,
 };
 
@@ -41,11 +41,6 @@ where
         self.node.info(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let _span = (self.enter_mtd)(ctx, "subscriptions");
-        self.node.subscriptions(ctx, subs);
-    }
-
     fn init(&mut self, ctx: &mut WidgetContext) {
         let _span = (self.enter_mtd)(&mut ctx.as_info(), "init");
         self.node.init(ctx);
@@ -61,9 +56,9 @@ where
         self.node.event(ctx, update);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         let _span = (self.enter_mtd)(&mut ctx.as_info(), "update");
-        self.node.update(ctx);
+        self.node.update(ctx, updates);
     }
 
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

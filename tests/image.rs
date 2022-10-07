@@ -17,16 +17,16 @@ fn main() {
 pub fn get_before_view_init(app: &mut HeadlessApp) {
     let img = Images::req(app).cache(image());
 
-    assert!(img.get(app.ctx().vars).is_loading());
+    assert!(img.get().is_loading());
 
     let mut inited = false;
     while !inited {
         app.update_observe_event(
-            |ctx, update| {
+            |_, update| {
                 if VIEW_PROCESS_INITED_EVENT.has(update) {
                     inited = true;
 
-                    assert!(img.get(ctx).is_loading());
+                    assert!(img.get().is_loading());
                 }
             },
             true,
@@ -34,11 +34,11 @@ pub fn get_before_view_init(app: &mut HeadlessApp) {
         .assert_wait();
     }
 
-    app.run_task(async_clone_move_fn!(img, |ctx| {
-        task::with_deadline(img.get_clone(&ctx).wait_done(), 5.secs()).await.unwrap();
+    app.run_task(async_clone_move_fn!(img, |_| {
+        task::with_deadline(img.get().wait_done(), 5.secs()).await.unwrap();
     }));
 
-    assert!(img.get(app.ctx().vars).is_loaded());
+    assert!(img.get().is_loaded());
 }
 
 fn image() -> ImageSource {

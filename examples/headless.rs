@@ -109,10 +109,10 @@ fn images_render() {
     let img = Images::req(&mut app).render_node(RenderMode::Software, 1.fct(), |_| image());
 
     app.run_task(move |ctx| async move {
-        while ctx.with(|ctx| img.get(ctx).is_loading()) {
+        while ctx.with(|ctx| img.with(Image::is_loading)) {
             img.wait_new(&ctx).await;
         }
-        let img = img.get_clone(&ctx);
+        let img = img.get();
 
         if img.is_loaded() {
             // we save it...

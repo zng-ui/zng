@@ -11,14 +11,8 @@
 
 //! Zero-Ui is the pure Rust GUI framework with batteries included.
 //!
-//! It provides all that you need to create a beautiful, fast and responsive multi-platform GUI apps, it includes many features
-//! that allow you to get started quickly, without sacrificing customization or performance. With features like gesture events,
-//! common widgets, layouts, data binding, async tasks, accessibility and localization
-//! you can focus on what makes your app unique, not the boilerplate required to get modern apps up to standard.
-//!
-//! When you do need to customize, Zero-Ui is rightly flexible, you can create new widgets or customize existing ones, not just
-//! new looks but new behavior, at a lower level you can introduce new event types or new event sources, making custom hardware seamless
-//! integrate into the framework.
+//! It provides all that you need to create a beautiful, fast and responsive multi-platform apps, it includes many features
+//! that allow you to get started quickly, without sacrificing customization or performance.
 //!
 //! # Usage
 //!
@@ -271,7 +265,7 @@
 //! let moving_btn = button! {
 //!     margin = offset.clone();
 //!     on_click = hn!(|ctx, _| {
-//!         offset.modify(ctx, |mut m|m.left += 50.0);
+//!         offset.modify(ctx, |m|m.get_mut().left += 50.0);
 //!     });
 //!     content = text("Click to Move!")
 //! };
@@ -293,7 +287,7 @@
 //! let btn = button! {
 //!     content = text(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
-//!         flag.set(ctx.vars, !flag.copy(ctx.vars));
+//!         flag.set(ctx.vars, !flag.get());
 //!     });
 //! };
 //! ```
@@ -317,11 +311,11 @@
 //! let btn = button! {
 //!     content = text(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
-//!         let new_value = !*flag.get(ctx.vars);
+//!         let new_value = !flag.get();
 //!         // 3 methods doing the same thing.
 //!         flag.set(ctx.vars, new_value);
 //!         flag.set_ne(ctx.vars, new_value);
-//!         flag.modify(ctx.vars, move |mut f| *f = new_value);
+//!         flag.modify(ctx.vars, move |f| *f.get_mut() = new_value);
 //!     });
 //! };
 //! ```
@@ -345,7 +339,7 @@
 //!         }
 //!     }));
 //!     on_click = hn!(|ctx, _| {
-//!         let next = count.copy(ctx) + 1;
+//!         let next = count.get() + 1;
 //!         count.set(ctx, next);
 //!     });
 //! };
@@ -365,7 +359,7 @@
 //! App::default().run_window(|ctx| {
 //!     let count = var(0u32);
 //!     let count_text = var_from("Click Me!");
-//!     let handle = count.bind_map(ctx, &count_text, |_, c| {
+//!     let handle = count.bind_map(&count_text, |c| {
 //!         match c {
 //!             1 => "Clicked 1 Time!".to_text(),
 //!             n => formatx!("Clicked {n} Times!")
@@ -376,7 +370,7 @@
 //!         content = button! {
 //!             content = text(count_text);
 //!             on_click = hn!(|ctx, _| {
-//!                 count.modify(ctx, |mut c| *c += 1);
+//!                 count.modify(ctx, |c| *c.get_mut() += 1);
 //!             });
 //!         }
 //!     }
@@ -385,7 +379,7 @@
 //!
 //! Notice the differences between mapping and binding, first we need a context to access the [`Vars`] reference, second the
 //! text variable already has a value and it is only overwritten when the count variable updates, and
-//! finally the bind method returned a [`VarBindingHandle`] that must be dealt with.
+//! finally the bind method returned a binding handle.
 //!
 //! ### Variable Send/Receive
 //!
@@ -514,7 +508,7 @@
 //!
 //! button! {
 //!     on_click = hn!(count, |ctx, _| {
-//!         count.modify(ctx, |mut c| *c += 1);
+//!         count.modify(ctx, |c| *c.get_mut() += 1);
 //!     });
 //!     content = text(count.map_to_text());
 //! }
@@ -535,11 +529,11 @@
 //!         status.set(&ctx, "Loading..");
 //!         match task::wait(|| std::fs::read("some/data")).await {
 //!             Ok(data) => {
-//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len()));
+//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len())).unwrap();
 //!                 task::wait(move || std::fs::write("data.bin", data)).await;
-//!                 status.set(&ctx, "Done.");
+//!                 status.set(&ctx, "Done.").unwrap();
 //!             },
-//!             Err(e) => status.set(&ctx, e.to_text()),
+//!             Err(e) => status.set(&ctx, e.to_text()).unwrap(),
 //!         }
 //!     });
 //!#    content = text("Save");
@@ -696,7 +690,7 @@
 //! # let foo_var = var(true);
 //! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
 //! hn!(|ctx, _| {
-//!     let value_ref = foo_var.get(ctx.vars);
+//!     let value_ref = foo_var.get();
 //!     let service_ref = Windows::req(ctx.services);
 //!     let state_ref = ctx.widget_state.get(&FOO_ID);
 //! })
@@ -822,7 +816,6 @@
 //! [`var_from()`]: crate::core::var::var_from
 //! [`Text`]: crate::core::text::Text
 //! [`Vars`]: crate::core::var::Vars
-//! [`VarBindingHandle`]: crate::core::var::VarBindingHandle
 //! [`SideOffsets`]: crate::core::units::SideOffsets
 //! [`RcVar<T>`]: crate::core::var::RcVar
 //! [#widget]: macro@crate::core::widget
@@ -930,8 +923,8 @@ pub mod prelude {
             PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
         var::{
-            animation, easing, expr_var, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver,
-            VarSender, VarValue, Vars, VarsRead,
+            animation::{self, easing},
+            expr_var, merge_var, state_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, VarValue, Vars,
         },
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility},
@@ -999,8 +992,8 @@ pub mod prelude {
     /// }
     /// #[impl_ui_node(child)]
     /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> {
-    ///     fn update(&mut self, ctx: &mut WidgetContext) {
-    ///         self.child.update(ctx);
+    ///     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    ///         self.child.update(ctx, updates);
     ///         if let Some(new_value) = self.value.get_new(ctx) {
     ///             // ..
     ///         }
@@ -1046,7 +1039,6 @@ pub mod prelude {
             widget_base::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
-                WidgetSubscriptions,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
@@ -1106,8 +1098,7 @@ pub mod prelude {
             widget,
             widget_base::{implicit_base, HitTestMode},
             widget_info::{
-                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
-                WidgetLayout, WidgetSubscriptions,
+                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

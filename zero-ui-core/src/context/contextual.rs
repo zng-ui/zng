@@ -1,6 +1,6 @@
 use std::{cell::Cell, ptr, rc::Rc};
 
-use crate::{crate_util::RunOnDrop, task, widget_info::UpdateMask, window::WindowId, WidgetId};
+use crate::{crate_util::RunOnDrop, task, window::WindowId, WidgetId};
 
 use super::{AppContext, WidgetContext};
 
@@ -131,23 +131,23 @@ impl AppContextMut {
     ///     ctx.yield_one().await;// wait next update.
     ///
     ///     // we are in the next update now, the variable value is new.
-    ///     assert_eq!(Some(true), foo_var.copy_new(&ctx));
+    ///     assert_eq!(Some(true), foo_var.get_new(&ctx));
     ///
     ///     ctx.update().await;// force next update and wait.
     ///
     ///     // we are in the requested update, variable value is no longer new.
-    ///     assert_eq!(None, foo_var.copy_new(&ctx));
+    ///     assert_eq!(None, foo_var.get_new(&ctx));
     /// })
     /// # ).perm();
     /// # app.update(false);
-    /// # assert!(foo_var.copy(&app.ctx()));
+    /// # assert!(foo_var.get());
     /// ```
     ///
     /// In the example above, the variable assign causes an app update so `yield_one` processes it immediately,
     /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
     /// to awake.
     pub async fn update(&self) {
-        self.with(|c| c.updates.update(UpdateMask::none()));
+        self.with(|c| c.updates.update_ext());
         self.yield_one().await
     }
 }
@@ -196,12 +196,12 @@ impl WidgetContextMut {
     ///     ctx.yield_one().await;// wait next update.
     ///
     ///     // we are in the next update now, the variable value is new.
-    ///     assert_eq!(Some(true), foo_var.copy_new(&ctx));
+    ///     assert_eq!(Some(true), foo_var.get_new(&ctx));
     ///
     ///     ctx.update().await;// force next update and wait.
     ///
     ///     // we are in the requested update, variable value is no longer new.
-    ///     assert_eq!(None, foo_var.copy_new(&ctx));
+    ///     assert_eq!(None, foo_var.get_new(&ctx));
     /// })
     /// # );
     /// ```
@@ -210,7 +210,7 @@ impl WidgetContextMut {
     /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
     /// to awake.
     pub async fn update(&self) {
-        self.with(|c| c.updates.update(UpdateMask::all()));
+        self.with(|c| c.updates.update(c.path.widget_id()));
         self.yield_one().await
     }
 

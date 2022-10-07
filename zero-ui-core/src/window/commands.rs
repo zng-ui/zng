@@ -89,15 +89,15 @@ impl WindowCommands {
         let scope = *ctx.window_id;
         if let Some(args) = MAXIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.maximize_handle, |_| {
-                window_vars.state().set_ne(ctx, WindowState::Maximized);
+                window_vars.state().set_ne(ctx, WindowState::Maximized).unwrap();
             });
         } else if let Some(args) = MINIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.minimize_handle, |_| {
-                window_vars.state().set_ne(ctx, WindowState::Minimized);
+                window_vars.state().set_ne(ctx, WindowState::Minimized).unwrap();
             });
         } else if let Some(args) = RESTORE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.restore_handle, |_| {
-                window_vars.state().set_ne(ctx.vars, window_vars.restore_state().copy(ctx.vars));
+                window_vars.state().set_ne(ctx.vars, window_vars.restore_state().get()).unwrap();
             });
         } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.close_handle, |_| {
@@ -105,29 +105,29 @@ impl WindowCommands {
             });
         } else if let Some(args) = FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.fullscreen_handle, |_| {
-                if let WindowState::Fullscreen = window_vars.state().copy(ctx) {
-                    window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));
+                if let WindowState::Fullscreen = window_vars.state().get() {
+                    window_vars.state().set(ctx.vars, window_vars.restore_state().get()).unwrap();
                 } else {
-                    window_vars.state().set(ctx.vars, WindowState::Fullscreen);
+                    window_vars.state().set(ctx.vars, WindowState::Fullscreen).unwrap();
                 }
             });
         } else if let Some(args) = EXCLUSIVE_FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.exclusive_handle, |_| {
-                if let WindowState::Exclusive = window_vars.state().copy(ctx) {
-                    window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));
+                if let WindowState::Exclusive = window_vars.state().get() {
+                    window_vars.state().set(ctx.vars, window_vars.restore_state().get()).unwrap();
                 } else {
-                    window_vars.state().set(ctx, WindowState::Exclusive);
+                    window_vars.state().set(ctx, WindowState::Exclusive).unwrap();
                 }
             });
         }
     }
 
-    pub fn init(&mut self, vars: &Vars, window_vars: &WindowVars) {
-        self.update_state(window_vars.state().copy(vars));
+    pub fn init(&mut self, window_vars: &WindowVars) {
+        self.update_state(window_vars.state().get());
     }
 
     pub fn update(&mut self, vars: &Vars, window_vars: &WindowVars) {
-        if let Some(state) = window_vars.state().copy_new(vars) {
+        if let Some(state) = window_vars.state().get_new(vars) {
             self.update_state(state);
         }
     }

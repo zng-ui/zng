@@ -3,6 +3,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use std::collections::HashSet;
 use syn::parse::{Error, Parse, ParseStream, Result};
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::*;
@@ -113,21 +114,39 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     }
 
+    let (new_node, args) = match args {
+        Args::NewNode(args) => {
+            let new_node = expand_new_node(args, &mut errors);
+            let args = syn::parse2::<Args>(new_node.delegate.to_token_stream()).unwrap();
+            (Some(new_node), args)
+        }
+        a => (None, a),
+    };
+
+    let auto_init = if new_node.as_ref().map(|n| !n.handle_init.is_empty()).unwrap_or(false) {
+        quote!(self.init_handles(ctx);)
+    } else {
+        quote!()
+    };
+
     // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
             validate_manual_delegate = false;
-            no_delegate_absents(crate_.clone(), node_item_names)
+            no_delegate_absents(crate_.clone(), node_item_names, auto_init)
         }
-        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut),
+        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut, auto_init),
         Args::DelegateList {
             delegate_list,
             delegate_list_mut,
-        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut),
+        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut, auto_init),
         Args::DelegateIter {
             delegate_iter,
             delegate_iter_mut,
         } => delegate_iter_absents(crate_.clone(), node_item_names, delegate_iter, delegate_iter_mut),
+        Args::NewNode(_) => {
+            unreachable!()
+        }
     };
 
     if validate_manual_delegate {
@@ -178,9 +197,68 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         .map(|p| p.to_token_stream())
         .unwrap_or_else(|| quote! { #crate_::UiNode });
 
+    // modify impl header for new_node and collect
+    let (impl_generics, self_ty, decl) = if let Some(new_node) = new_node {
+        let gen = new_node.impl_generics;
+        let custom_gen = &generics.params;
+        let sep = if custom_gen.trailing_punct() || custom_gen.is_empty() {
+            TokenStream::new()
+        } else {
+            quote!( , )
+        };
+
+        let mut node_custom_gen = TokenStream::new();
+        let mut node_sep = TokenStream::new();
+        let node_ident = new_node.ident;
+        let mut self_ty_error = true;
+        if let syn::Type::Path(p) = &*self_ty {
+            if p.path.segments.len() == 1 {
+                let seg = &p.path.segments[0];
+                if seg.ident == node_ident {
+                    self_ty_error = false;
+                    if let PathArguments::AngleBracketed(a) = &seg.arguments {
+                        node_custom_gen = a.args.to_token_stream();
+                        if !a.args.trailing_punct() && !a.args.is_empty() {
+                            node_sep = quote!( , );
+                        }
+                    }
+                }
+            }
+        }
+        if self_ty_error {
+            errors.push(format!("expected `{}`", node_ident), self_ty.span());
+        }
+        let node_gen = new_node.node_generics;
+
+        let impl_generics = quote! { <#custom_gen #sep #gen> };
+        let self_ty = quote! { #node_ident<#node_custom_gen #node_sep #node_gen> };
+
+        let mut decl = new_node.decl;
+
+        if !new_node.handle_init.is_empty() {
+            let init = new_node.handle_init;
+
+            decl.extend(quote! {
+                impl #impl_generics #self_ty #where_clause {
+                    /// Init auto-generated event and var subscriptions.
+                    fn init_handles(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+                        let widget_id = ctx.path.widget_id();
+                        #init
+                    }
+                }
+            });
+        }
+
+        (impl_generics, self_ty, decl)
+    } else {
+        (impl_generics.to_token_stream(), self_ty.to_token_stream(), quote!())
+    };
+
     let result = if in_node_impl {
         quote! {
             #errors
+
+            #decl
 
             impl #impl_generics #ui_node_path for #self_ty #where_clause {
                 #(#node_items)*
@@ -192,6 +270,9 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         let input_attrs = input.attrs;
         quote! {
             #errors
+
+            #decl
+
             #(#input_attrs)*
             impl #impl_generics #self_ty #where_clause {
                 #(#other_items)*
@@ -229,17 +310,15 @@ macro_rules! make_absents {
     }};
 }
 
-fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
+fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init: TokenStream) -> Vec<ImplItem> {
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) { }]
-
-        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
+        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { #auto_init }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) { }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) { }]
 
@@ -256,7 +335,13 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
     }
 }
 
-fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+fn delegate_absents(
+    crate_: TokenStream,
+    user_mtds: HashSet<Ident>,
+    borrow: Expr,
+    borrow_mut: Expr,
+    auto_init: TokenStream,
+) -> Vec<ImplItem> {
     let child = ident_spanned!(borrow.span()=> "child");
     let child_mut = ident_spanned!(borrow_mut.span()=> "child");
 
@@ -273,12 +358,8 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::UiNode::info(#deref, ctx, info);
         }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
-            let #child = {#borrow};
-            #crate_::UiNode::subscriptions(#deref, ctx, subs);
-        }]
-
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+            #auto_init
             let mut #child_mut = {#borrow_mut};
             #crate_::UiNode::init(#deref_mut, ctx);
         }]
@@ -288,9 +369,9 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::UiNode::deinit(#deref_mut, ctx);
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::update(#deref_mut, ctx);
+            #crate_::UiNode::update(#deref_mut, ctx, updates);
         }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
@@ -320,7 +401,13 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
     }
 }
 
-fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+fn delegate_list_absents(
+    crate_: TokenStream,
+    user_mtds: HashSet<Ident>,
+    borrow: Expr,
+    borrow_mut: Expr,
+    auto_init: TokenStream,
+) -> Vec<ImplItem> {
     let children = ident_spanned!(borrow.span()=> "children");
     let children_mut = ident_spanned!(borrow_mut.span()=> "children");
     let deref = quote_spanned! {borrow.span()=>
@@ -335,12 +422,8 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::info_all(#deref, ctx, info);
         }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
-            let #children = {#borrow};
-            #crate_::UiNodeList::subscriptions_all(#deref, ctx, subs);
-        }]
-
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+            #auto_init
             let #children_mut = {#borrow_mut};
             #crate_::UiNodeList::init_all(#deref_mut, ctx)
         }]
@@ -350,10 +433,10 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::deinit_all(#deref_mut, ctx)
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#borrow_mut};
             let mut changed = false;
-            #crate_::UiNodeList::update_all(#deref_mut, ctx, &mut changed);
+            #crate_::UiNodeList::update_all(#deref_mut, ctx, updates, &mut changed);
             if changed {
                 ctx.updates.layout_and_render();
             }
@@ -411,11 +494,6 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterImpl::info_all(#children, ctx, info);
         }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
-            let #children = {#iter};
-            #crate_::impl_ui_node_util::IterImpl::subscriptions_all(#children, ctx, subs);
-        }]
-
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let #children_mut = {#iter_mut};
             #crate_::impl_ui_node_util::IterMutImpl::init_all(#children_mut, ctx);
@@ -426,9 +504,9 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterMutImpl::deinit_all(#children_mut, ctx);
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::update_all(#children_mut, ctx);
+            #crate_::impl_ui_node_util::IterMutImpl::update_all(#children_mut, ctx, updates);
         }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
@@ -471,11 +549,15 @@ enum Args {
     /// `children_iter` or `delegate_iter=expr` and `delegate_iter_mut=expr`. Impl
     /// is for an Ui that delegates each call to multiple delegates.
     DelegateIter { delegate_iter: Expr, delegate_iter_mut: Expr },
+    /// New node mode.
+    NewNode(ArgsNewNode),
 }
 
 impl Parse for Args {
     fn parse(args: ParseStream) -> Result<Self> {
-        if args.peek(Ident) {
+        if args.peek(Token![struct]) {
+            args.parse().map(Args::NewNode)
+        } else if args.peek(Ident) {
             let arg0 = args.parse::<Ident>()?;
 
             let args = if arg0 == ident!("child") {
@@ -536,7 +618,7 @@ impl Parse for Args {
         } else {
             Err(Error::new(
                 Span::call_site(),
-                "missing macro argument, expected `none`, `child`, `children`, `children_iter`, `delegate`, `delegate_list` or `delegate_iter`",
+                "missing macro argument, expected `none`, `child`, `children`, `children_iter`, `delegate`, `delegate_list`, `delegate_iter` or `struct`",
             ))
         }
     }
@@ -639,4 +721,174 @@ fn take_missing_deletate_level(
         }
     }
     r
+}
+
+struct ArgsNewNode {
+    ident: Ident,
+    explicit_generics: Option<Generics>,
+    fields: Punctuated<ArgsNewNodeField, Token![,]>,
+}
+impl Parse for ArgsNewNode {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let _: Token![struct] = input.parse()?;
+        let ident: Ident = input.parse()?;
+        let explicit_generics = if input.peek(Token![<]) { Some(input.parse()?) } else { None };
+        let inner;
+        braced!(inner in input);
+        let fields = Punctuated::parse_terminated(&inner)?;
+        Ok(ArgsNewNode {
+            ident,
+            explicit_generics,
+            fields,
+        })
+    }
+}
+
+struct ArgsNewNodeField {
+    attrs: Vec<Attribute>,
+    kind: ArgsNewNodeFieldKind,
+    ident: Ident,
+    ty: Type,
+}
+impl Parse for ArgsNewNodeField {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let attrs = Attribute::parse_outer(input)?;
+        let ident = input.parse()?;
+        let kind = ArgsNewNodeFieldKind::from_ident(&ident);
+        let _: Token![:] = input.parse()?;
+        let ty = input.parse()?;
+        Ok(ArgsNewNodeField { attrs, kind, ident, ty })
+    }
+}
+
+enum ArgsNewNodeFieldKind {
+    Var,
+    Event,
+    Custom,
+}
+impl ArgsNewNodeFieldKind {
+    fn from_ident(ident: &Ident) -> Self {
+        let s = ident.to_string();
+        if ["event_", "ev_", "e_"].into_iter().any(|p| s.starts_with(p)) {
+            ArgsNewNodeFieldKind::Event
+        } else if ["var_", "v_"].into_iter().any(|p| s.starts_with(p)) {
+            ArgsNewNodeFieldKind::Var
+        } else if s == "event" {
+            ArgsNewNodeFieldKind::Event
+        } else if s == "var" {
+            ArgsNewNodeFieldKind::Var
+        } else {
+            ArgsNewNodeFieldKind::Custom
+        }
+    }
+}
+
+fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewNode {
+    let mut delegate = ident!("none");
+    let mut impl_generics = TokenStream::new();
+    let mut node_generics = TokenStream::new();
+    let mut node_fields = TokenStream::new();
+    let mut handle_init = TokenStream::new();
+
+    if let Some(g) = args.explicit_generics {
+        for p in g.params.into_iter() {
+            if let GenericParam::Type(t) = p {
+                t.to_tokens(&mut impl_generics);
+                impl_generics.extend(quote!( , ));
+
+                let cfg = util::Attributes::new(t.attrs).cfg;
+                let ident = t.ident;
+                node_generics.extend(quote! {
+                    #cfg #ident ,
+                });
+            } else {
+                errors.push("only type params are supported", p.span());
+            }
+        }
+    }
+
+    for ArgsNewNodeField {
+        attrs, kind, ident, ty, ..
+    } in args.fields
+    {
+        let attrs = util::Attributes::new(attrs);
+        let cfg = attrs.cfg;
+        let mut member_attrs = attrs.docs;
+        member_attrs.extend(attrs.lints);
+        member_attrs.extend(attrs.others);
+
+        if ident == ident!("child") || ident == ident!("children") {
+            delegate = ident.clone();
+        }
+
+        match ty {
+            Type::ImplTrait(t) => {
+                let t_ident = ident!("T_{ident}");
+                node_fields.extend(quote! {
+                    #cfg
+                    #(#member_attrs)*
+                    #ident: #t_ident,
+                });
+
+                let bounds = t.bounds;
+                impl_generics.extend(quote! {
+                    #cfg
+                    #t_ident: #bounds,
+                });
+
+                node_generics.extend(quote! {
+                    #cfg
+                    #t_ident,
+                });
+            }
+            t => {
+                node_fields.extend(quote! {
+                    #cfg
+                    #(#member_attrs)*
+                    #ident: #t,
+                });
+            }
+        }
+
+        match kind {
+            ArgsNewNodeFieldKind::Var => {
+                handle_init.extend(quote! {
+                    #cfg
+                    ctx.handles.push_var(self.#ident.subscribe(widget_id));
+                });
+            }
+            ArgsNewNodeFieldKind::Event => {
+                handle_init.extend(quote! {
+                    #cfg
+                    ctx.handles.push_event(self.#ident.subscribe(widget_id));
+                });
+            }
+            ArgsNewNodeFieldKind::Custom => {}
+        }
+    }
+
+    let ident = args.ident;
+    let decl = quote! {
+        struct #ident<#impl_generics> {
+            #node_fields
+        }
+    };
+
+    ExpandedNewNode {
+        delegate,
+        ident,
+        decl,
+        impl_generics,
+        node_generics,
+        handle_init,
+    }
+}
+
+struct ExpandedNewNode {
+    delegate: Ident,
+    ident: Ident,
+    decl: TokenStream,
+    impl_generics: TokenStream,
+    node_generics: TokenStream,
+    handle_init: TokenStream,
 }

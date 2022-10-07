@@ -8,14 +8,14 @@ use super::commands::WindowCommands;
 use super::*;
 use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
-use crate::context::{state_map, OwnedStateMap};
+use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
 use crate::event::{EventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
 use crate::service::Service;
 use crate::timer::{DeadlineHandle, Timers};
 use crate::var::*;
-use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};
+use crate::widget_info::WidgetInfoTree;
 use crate::{
     app::{
         raw_events::{RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT},
@@ -287,17 +287,6 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))
     }
 
-    /// Reference the current window's subscriptions.
-    ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
-    pub fn subscriptions(&self, window_id: impl Into<WindowId>) -> Result<&WidgetSubscriptions, WindowNotFound> {
-        let window_id = window_id.into();
-        self.windows_info
-            .get(&window_id)
-            .map(|w| &w.subscriptions)
-            .ok_or(WindowNotFound(window_id))
-    }
-
     /// Generate an image from the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
@@ -328,15 +317,15 @@ impl Windows {
                         let img = Image::new(img);
                         let img = var(img);
                         self.frame_images.push(img.clone());
-                        img.into_read_only()
+                        img.read_only()
                     }
-                    Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only(),
+                    Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only(),
                 }
             } else {
-                var(Image::dummy(Some(format!("window `{window_id}` is headless without renderer")))).into_read_only()
+                var(Image::dummy(Some(format!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
-            var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only()
+            var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only()
         }
     }
 
@@ -459,13 +448,6 @@ impl Windows {
         }
     }
 
-    /// Update window info subscriptions copy.
-    pub(super) fn set_subscriptions(&mut self, window_id: WindowId, subscriptions: WidgetSubscriptions) {
-        if let Some(info) = self.windows_info.get_mut(&window_id) {
-            info.subscriptions = subscriptions;
-        }
-    }
-
     /// Change window state to loaded if there are no load handles active.
     ///
     /// Returns `true` if loaded.
@@ -473,7 +455,8 @@ impl Windows {
         if let Some(info) = self.windows_info.get_mut(&window_id) {
             info.is_loaded = info.loading_handle.try_load(timers);
 
-            if info.is_loaded && info.vars.0.is_loaded.set_ne(vars, true) {
+            if info.is_loaded && !info.vars.0.is_loaded.get() {
+                info.vars.0.is_loaded.set_ne(vars, true).unwrap();
                 WINDOW_LOAD_EVENT.notify(events, WindowOpenArgs::now(info.id));
             }
 
@@ -511,7 +494,7 @@ impl Windows {
                 if let Some(window) = wns.windows_info.get_mut(&new_focus) {
                     if !window.is_focused {
                         window.is_focused = true;
-                        window.vars.focus_indicator().set_ne(ctx.vars, None);
+                        window.vars.focus_indicator().set_ne(ctx.vars, None).unwrap();
                         new = Some(new_focus);
                     }
                 }
@@ -582,7 +565,7 @@ impl Windows {
                     let wns = Windows::req(ctx.services);
                     let info = wns.windows_info.remove(&id).unwrap();
 
-                    info.vars.0.is_open.set(ctx.vars, false);
+                    info.vars.0.is_open.set(ctx.vars, false).unwrap();
 
                     if info.is_focused {
                         let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
@@ -619,12 +602,16 @@ impl Windows {
         }
     }
 
-    pub(super) fn on_ui_update(ctx: &mut AppContext) {
+    pub(super) fn on_ui_update(ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         Self::fullfill_requests(ctx);
+
+        if updates.delivery_list().has_pending_search() {
+            updates.fulfill_search(Windows::req(ctx).windows_info.values().map(|w| &w.widget_tree));
+        }
 
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
-                window.update(ctx);
+                window.update(ctx, updates);
             }
         });
     }
@@ -689,14 +676,16 @@ impl Windows {
                             .or_insert_with(Default::default)
                             .push(r.responder.clone());
 
-                        for &c in info.vars.0.children.get(ctx.vars) {
-                            if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
-                                wns.close_responders
-                                    .entry(c)
-                                    .or_insert_with(Default::default)
-                                    .push(r.responder.clone());
+                        info.vars.0.children.with(|c| {
+                            for &c in c {
+                                if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
+                                    wns.close_responders
+                                        .entry(c)
+                                        .or_insert_with(Default::default)
+                                        .push(r.responder.clone());
+                                }
                             }
-                        }
+                        });
                     }
                 }
             }
@@ -753,7 +742,6 @@ struct AppWindowInfo {
     vars: WindowVars,
 
     widget_tree: WidgetInfoTree,
-    subscriptions: WidgetSubscriptions,
     // focus tracked by the raw focus events.
     is_focused: bool,
 
@@ -768,7 +756,6 @@ impl AppWindowInfo {
             renderer: None,
             vars,
             widget_tree: WidgetInfoTree::blank(id, root_id),
-            subscriptions: WidgetSubscriptions::new(),
             is_focused: false,
             loading_handle,
             is_loaded: false,
@@ -804,8 +791,8 @@ impl AppWindow {
         loading: WindowLoading,
     ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = Monitors::req(ctx.services)
-            .primary_monitor(ctx.vars)
-            .map(|m| m.scale_factor().copy(ctx.vars))
+            .primary_monitor()
+            .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
 
         let vars = WindowVars::new(Windows::req(ctx.services).default_render_mode, primary_scale_factor);
@@ -814,10 +801,10 @@ impl AppWindow {
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
 
         if window.kiosk {
-            vars.chrome().set_ne(ctx, WindowChrome::None);
-            vars.visible().set_ne(ctx, true);
-            if !vars.state().get(ctx).is_fullscreen() {
-                vars.state().set(ctx, WindowState::Exclusive);
+            vars.chrome().set_ne(ctx, WindowChrome::None).unwrap();
+            vars.visible().set_ne(ctx, true).unwrap();
+            if !vars.state().get().is_fullscreen() {
+                vars.state().set(ctx, WindowState::Exclusive).unwrap();
             }
         }
 
@@ -848,8 +835,8 @@ impl AppWindow {
         self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.ui_event(ctx, update))
     }
 
-    pub fn update(&mut self, ctx: &mut AppContext) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.update(ctx));
+    pub fn update(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.update(ctx, updates));
     }
 
     pub fn layout(&mut self, ctx: &mut AppContext) {
@@ -889,7 +876,7 @@ impl WindowLoading {
                 if h.deadline.has_elapsed() {
                     false
                 } else {
-                    deadline = deadline.max(h.deadline);
+                    deadline = deadline.min(h.deadline);
                     true
                 }
             }

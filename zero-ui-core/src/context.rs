@@ -1,5 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
+use crate::event::{EventHandles, EventWidgetHandle};
+use crate::var::{VarHandle, VarHandles};
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId, WidgetPath};
 use std::cell::Cell;
 use std::rc::Rc;
@@ -9,7 +11,7 @@ use crate::app::{AppEventSender, LoopTimer};
 
 use crate::timer::Timers;
 use crate::widget_info::{WidgetContextInfo, WidgetInfoTree};
-use crate::{var::VarsRead, window::WindowMode};
+use crate::window::WindowMode;
 
 mod contextual;
 pub use contextual::*;
@@ -87,24 +89,20 @@ impl OwnedAppContext {
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
 
-        let (update, layout, render) = self.updates.take_updates();
+        let (update, update_widgets, layout, render) = self.updates.take_updates();
 
         ContextUpdates {
             events,
             update,
+            update_widgets,
             layout,
             render,
         }
     }
 
-    /// Drops variables held only because they updated.
-    pub fn applied_updates(&mut self) {
-        self.vars.applied_updates();
-    }
-
     /// Returns next timer or animation tick time.
     pub fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        self.timers.next_deadline(&self.vars, timer);
+        self.timers.next_deadline(timer);
         self.vars.next_deadline(timer);
     }
 
@@ -154,7 +152,7 @@ impl<'a> AppContext<'a> {
         window_mode: WindowMode,
         window_state: &mut OwnedStateMap<state_map::Window>,
         f: impl FnOnce(&mut WindowContext) -> R,
-    ) -> (R, WindowUpdates) {
+    ) -> (R, InfoLayoutRenderUpdates) {
         let _span = UpdatesTrace::window_span(window_id);
 
         self.updates.enter_window_ctx();
@@ -220,6 +218,8 @@ impl<'a> WindowContext<'a> {
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
         root_widget_state: &mut OwnedStateMap<state_map::Widget>,
+        var_handles: &mut VarHandles,
+        event_handles: &mut EventHandles,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         let widget_id = info_tree.root().widget_id();
@@ -233,6 +233,11 @@ impl<'a> WindowContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: root_widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
+
+            handles: WidgetHandles {
+                var_handles,
+                event_handles,
+            },
 
             vars: self.vars,
             events: self.events,
@@ -260,7 +265,6 @@ impl<'a> WindowContext<'a> {
             window_state: self.window_state.as_ref(),
             widget_state: root_widget_state.borrow(),
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         })
     }
 
@@ -313,7 +317,6 @@ impl<'a> WindowContext<'a> {
             window_state: self.window_state.as_ref(),
             widget_state: root_widget_state.borrow(),
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         })
     }
 }
@@ -370,6 +373,11 @@ pub struct TestWidgetContext {
     /// [`clear`]: OwnedStateMap::clear
     pub update_state: OwnedStateMap<state_map::Update>,
 
+    /// Var subscriptions storage used in [`WidgetHandles`].
+    pub var_handles: VarHandles,
+    /// Event subscriptions storage used in [`WidgetHandles`].
+    pub event_handles: EventHandles,
+
     /// The [`services`] repository. Empty by default.
     ///
     /// [`services`]: WidgetContext::services
@@ -409,7 +417,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder, WidgetSubscriptions};
+use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -431,6 +439,8 @@ impl TestWidgetContext {
             window_state: OwnedStateMap::new(),
             widget_state: OwnedStateMap::new(),
             update_state: OwnedStateMap::new(),
+            var_handles: Default::default(),
+            event_handles: Default::default(),
             services: Services::default(),
             events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
@@ -453,6 +463,10 @@ impl TestWidgetContext {
             window_state: self.window_state.borrow_mut(),
             widget_state: self.widget_state.borrow_mut(),
             update_state: self.update_state.borrow_mut(),
+            handles: WidgetHandles {
+                var_handles: &mut self.var_handles,
+                event_handles: &mut self.event_handles,
+            },
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
@@ -471,7 +485,6 @@ impl TestWidgetContext {
             window_state: self.window_state.borrow(),
             widget_state: self.widget_state.borrow(),
             update_state: self.update_state.borrow_mut(),
-            vars: &self.vars,
         })
     }
 
@@ -487,13 +500,6 @@ impl TestWidgetContext {
         let r = self.info_context(|ctx| action(ctx, &mut builder));
         let (t, _) = builder.finalize();
         (t, r)
-    }
-
-    /// Aggregate subscriptions.
-    pub fn subscriptions<R>(&mut self, action: impl FnOnce(&mut InfoContext, &mut WidgetSubscriptions) -> R) -> (WidgetSubscriptions, R) {
-        let mut subs = WidgetSubscriptions::new();
-        let r = self.info_context(|ctx| action(ctx, &mut subs));
-        (subs, r)
     }
 
     /// Calls `action` in a fake layout context.
@@ -534,15 +540,14 @@ impl TestWidgetContext {
             window_state: self.window_state.borrow(),
             widget_state: self.widget_state.borrow(),
             update_state: self.update_state.borrow_mut(),
-            vars: &self.vars,
         })
     }
 
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
-    /// Returns the [`WindowUpdates`] and [`ContextUpdates`] a full app and window would
+    /// Returns the [`InfoLayoutRenderUpdates`] and [`ContextUpdates`] a full app and window would
     /// use to update the application.
-    pub fn apply_updates(&mut self) -> (WindowUpdates, ContextUpdates) {
+    pub fn apply_updates(&mut self) -> (InfoLayoutRenderUpdates, ContextUpdates) {
         let win_updt = self.updates.exit_window_ctx();
 
         for ev in self.receiver.try_iter() {
@@ -550,19 +555,20 @@ impl TestWidgetContext {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
                 crate::app::AppEvent::Event(ev) => self.events.notify(ev.get()),
                 crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
-                crate::app::AppEvent::Update(mask) => self.updates.update_internal(mask),
+                crate::app::AppEvent::Update(targets) => self.updates.recv_update_internal(targets),
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
         let events = self.events.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
-        let (update, layout, render) = self.updates.take_updates();
+        let (update, update_widgets, layout, render) = self.updates.take_updates();
 
         (
             win_updt,
             ContextUpdates {
                 events,
                 update,
+                update_widgets,
                 layout,
                 render,
             },
@@ -578,10 +584,36 @@ impl TestWidgetContext {
 
         self.loop_timer.poll()
     }
+}
 
-    /// Force set the current update mask.
-    pub fn set_current_update(&mut self, current: crate::widget_info::UpdateMask) {
-        self.updates.current = current;
+/// Var and event subscription handles managed by the widget.
+///
+/// These handles are kept in the widget instance and are dropped on deinit.
+///
+/// You can access the widget handles for a widget in [`WidgetContext::handles`].
+pub struct WidgetHandles<'a> {
+    var_handles: &'a mut VarHandles,
+    event_handles: &'a mut EventHandles,
+}
+impl<'a> WidgetHandles<'a> {
+    /// Keep var subscription handle.
+    pub fn push_var(&mut self, other: VarHandle) {
+        self.var_handles.push(other);
+    }
+
+    /// Keep var subscription handles.
+    pub fn push_vars(&mut self, others: VarHandles) {
+        self.var_handles.extend(others);
+    }
+
+    /// Keep event subscription handle.
+    pub fn push_event(&mut self, other: EventWidgetHandle) {
+        self.event_handles.push(other);
+    }
+
+    /// Keep event subscription handles.
+    pub fn push_events(&mut self, others: EventHandles) {
+        self.event_handles.extend(others);
     }
 }
 
@@ -614,6 +646,11 @@ pub struct WidgetContext<'a> {
     /// [`UiNode`]: crate::UiNode
     pub update_state: StateMapMut<'a, state_map::Update>,
 
+    /// Var and event subscription handles managed by the widget.
+    ///
+    /// These handles are kept in the widget instance and are dropped on deinit.
+    pub handles: WidgetHandles<'a>,
+
     /// Access to variables.
     pub vars: &'a Vars,
     /// Access to application events.
@@ -635,31 +672,36 @@ impl<'a> WidgetContext<'a> {
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap<state_map::Widget>,
+        var_handles: &mut VarHandles,
+        event_handles: &mut EventHandles,
         f: impl FnOnce(&mut WidgetContext) -> R,
-    ) -> (R, WidgetUpdates) {
+    ) -> (R, InfoLayoutRenderUpdates) {
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
 
-        let r = self.vars.with_widget(widget_id, || {
-            f(&mut WidgetContext {
-                path: self.path,
+        let r = f(&mut WidgetContext {
+            path: self.path,
 
-                info_tree: self.info_tree,
-                widget_info,
-                app_state: self.app_state.reborrow(),
-                window_state: self.window_state.reborrow(),
-                widget_state: widget_state.borrow_mut(),
-                update_state: self.update_state.reborrow(),
+            info_tree: self.info_tree,
+            widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: widget_state.borrow_mut(),
+            update_state: self.update_state.reborrow(),
 
-                vars: self.vars,
-                events: self.events,
-                services: self.services,
+            handles: WidgetHandles {
+                var_handles,
+                event_handles,
+            },
 
-                timers: self.timers,
+            vars: self.vars,
+            events: self.events,
+            services: self.services,
 
-                updates: self.updates,
-            })
+            timers: self.timers,
+
+            updates: self.updates,
         });
 
         self.path.pop();
@@ -677,8 +719,25 @@ impl<'a> WidgetContext<'a> {
             window_state: self.window_state.as_ref(),
             widget_state: self.widget_state.as_ref(),
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         }
+    }
+
+    /// Subscribe the widget to receive `var` updates, register the handle in [`handles`].
+    ///
+    /// [`handles`]: Self::handles
+    pub fn sub_var(&mut self, var: &impl crate::var::AnyVar) -> &mut Self {
+        let handle = var.subscribe(self.path.widget_id());
+        self.handles.push_var(handle);
+        self
+    }
+
+    /// Subscribe the widget to receive `event` updates, register the handle in [`handles`].
+    ///
+    /// [`handles`]: Self::handles
+    pub fn sub_event<A: crate::event::EventArgs>(&mut self, event: &crate::event::Event<A>) -> &mut Self {
+        let handle = event.subscribe(self.path.widget_id());
+        self.handles.push_event(handle);
+        self
     }
 }
 
@@ -811,9 +870,6 @@ pub struct MeasureContext<'a> {
     /// This state lives only for the call to [`UiNode::measure`](crate::UiNode::measure) in all nodes of the window.
     /// You can use this to signal nodes that have not measured yet.
     pub update_state: StateMapMut<'a, state_map::Update>,
-
-    /// Read-only access to variables.
-    pub vars: &'a VarsRead,
 }
 impl<'a> Deref for MeasureContext<'a> {
     type Target = LayoutMetrics;
@@ -842,8 +898,6 @@ impl<'a> MeasureContext<'a> {
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
-
-            vars: self.vars,
         })
     }
 
@@ -870,8 +924,6 @@ impl<'a> MeasureContext<'a> {
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
-
-            vars: self.vars,
         })
     }
 
@@ -888,8 +940,6 @@ impl<'a> MeasureContext<'a> {
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
-
-            vars: self.vars,
         })
     }
 
@@ -936,21 +986,17 @@ impl<'a> MeasureContext<'a> {
 
         let parent_uses = self.metrics.enter_widget_ctx();
 
-        let size = self.vars.with_widget(widget_id, || {
-            f(&mut MeasureContext {
-                metrics: self.metrics,
+        let size = f(&mut MeasureContext {
+            metrics: self.metrics,
 
-                path: self.path,
+            path: self.path,
 
-                info_tree: self.info_tree,
-                widget_info,
-                app_state: self.app_state,
-                window_state: self.window_state,
-                widget_state: widget_state.borrow(),
-                update_state: self.update_state.reborrow(),
-
-                vars: self.vars,
-            })
+            info_tree: self.info_tree,
+            widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: widget_state.borrow(),
+            update_state: self.update_state.reborrow(),
         });
 
         let measure_uses = self.metrics.exit_widget_ctx(parent_uses);
@@ -972,7 +1018,6 @@ impl<'a> MeasureContext<'a> {
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         }
     }
 }
@@ -1116,27 +1161,25 @@ impl<'a> LayoutContext<'a> {
         widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap<state_map::Widget>,
         f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> (R, WidgetUpdates) {
+    ) -> (R, InfoLayoutRenderUpdates) {
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
 
-        let r = self.vars.with_widget(widget_id, || {
-            f(&mut LayoutContext {
-                metrics: self.metrics,
+        let r = f(&mut LayoutContext {
+            metrics: self.metrics,
 
-                path: self.path,
+            path: self.path,
 
-                info_tree: self.info_tree,
-                widget_info,
-                app_state: self.app_state.reborrow(),
-                window_state: self.window_state.reborrow(),
-                widget_state: widget_state.borrow_mut(),
-                update_state: self.update_state.reborrow(),
+            info_tree: self.info_tree,
+            widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: widget_state.borrow_mut(),
+            update_state: self.update_state.reborrow(),
 
-                vars: self.vars,
-                updates: self.updates,
-            })
+            vars: self.vars,
+            updates: self.updates,
         });
 
         self.path.pop();
@@ -1154,7 +1197,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.as_ref(),
             widget_state: self.widget_state.as_ref(),
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         }
     }
 
@@ -1169,7 +1211,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.as_ref(),
             widget_state: self.widget_state.as_ref(),
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         }
     }
 }
@@ -1200,9 +1241,6 @@ pub struct RenderContext<'a> {
     /// [`UiNode::render_update`](crate::UiNode::render_update) method call in all nodes of the window.
     /// You can use this to signal nodes that have not rendered yet.
     pub update_state: StateMapMut<'a, state_map::Update>,
-
-    /// Read-only access to variables.
-    pub vars: &'a VarsRead,
 }
 impl<'a> RenderContext<'a> {
     /// Runs a function `f` in the render context of a widget.
@@ -1222,7 +1260,6 @@ impl<'a> RenderContext<'a> {
             window_state: self.window_state,
             widget_state: widget_state.borrow(),
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         });
         self.path.pop();
         r
@@ -1238,7 +1275,6 @@ impl<'a> RenderContext<'a> {
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         }
     }
 }
@@ -1265,13 +1301,9 @@ pub struct InfoContext<'a> {
 
     /// State that lives for the duration of the node tree rebuild or subscriptions aggregation call in the window.
     ///
-    /// This state lives only for the call to [`UiNode::info`](crate::UiNode::info) or
-    /// [`UiNode::subscriptions`](crate::UiNode::subscriptions) method call in all nodes of the window.
+    /// This state lives only for the call to the [`UiNode::info`](crate::UiNode::info) method in all nodes of the window.
     /// You can use this to signal nodes that have not added info yet.
     pub update_state: StateMapMut<'a, state_map::Update>,
-
-    /// Read-only access to variables.
-    pub vars: &'a VarsRead,
 }
 impl<'a> InfoContext<'a> {
     /// Runs a function `f` in the info context of a widget.
@@ -1291,7 +1323,6 @@ impl<'a> InfoContext<'a> {
             window_state: self.window_state,
             widget_state: widget_state.borrow(),
             update_state: self.update_state.reborrow(),
-            vars: self.vars,
         });
         self.path.pop();
         r

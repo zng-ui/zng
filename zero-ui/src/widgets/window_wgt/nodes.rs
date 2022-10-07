@@ -44,19 +44,19 @@ impl WindowLayers {
             )]
         impl<L: Var<LayerIndex>, W: Widget> UiNode for LayeredWidget<L, W> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.widget.state_mut().set(&LAYER_INDEX_ID, self.layer.copy(ctx.vars));
+                self.widget.state_mut().set(&LAYER_INDEX_ID, self.layer.get());
                 self.widget.init(ctx);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                if let Some(index) = self.layer.copy_new(ctx) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if let Some(index) = self.layer.get_new(ctx) {
                     self.widget.state_mut().set(&LAYER_INDEX_ID, index);
                     ctx.window_state
                         .req(&WINDOW_LAYERS_ID)
                         .items
                         .sort(ctx.updates, ctx.path.widget_id());
                 }
-                self.widget.update(ctx);
+                self.widget.update(ctx, updates);
             }
         }
         impl<L: Var<LayerIndex>, W: Widget> Widget for LayeredWidget<L, W> {
@@ -130,7 +130,7 @@ impl WindowLayers {
         {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
-                    let anchor = self.anchor.copy(ctx);
+                    let anchor = self.anchor.get();
                     let widget = self.widget.id();
                     let querying = Cell::new(false);
                     info.push_interactivity_filter(move |args| {
@@ -153,11 +153,11 @@ impl WindowLayers {
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(w) = ctx.info_tree.get(self.anchor.copy(ctx.vars)) {
+                if let Some(w) = ctx.info_tree.get(self.anchor.get()) {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
 
-                self.interaction = self.mode.get(ctx).interaction;
+                self.interaction = self.mode.with(|m| m.interaction);
                 self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
                 self.widget.init(ctx);
@@ -172,19 +172,16 @@ impl WindowLayers {
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == ctx.path.window_id() {
-                        self.anchor_info = ctx
-                            .info_tree
-                            .get(self.anchor.copy(ctx.vars))
-                            .map(|w| (w.bounds_info(), w.border_info()));
+                        self.anchor_info = ctx.info_tree.get(self.anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
                     }
                 }
                 self.widget.event(ctx, update);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                if let Some(anchor) = self.anchor.copy_new(ctx) {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if let Some(anchor) = self.anchor.get_new(ctx) {
                     self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
-                    if self.mode.get(ctx).interaction {
+                    if self.mode.with(|m| m.interaction) {
                         ctx.updates.info();
                     }
                     ctx.updates.layout_and_render();
@@ -196,12 +193,12 @@ impl WindowLayers {
                     }
                     ctx.updates.layout_and_render();
                 }
-                self.widget.update(ctx);
+                self.widget.update(ctx, updates);
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
-                    let mode = self.mode.get(ctx.vars);
+                    let mode = self.mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         return ctx.with_constrains(
@@ -221,7 +218,7 @@ impl WindowLayers {
             }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
-                    let mode = self.mode.get(ctx.vars);
+                    let mode = self.mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         // if we don't link visibility or anchor is not collapsed.
@@ -256,9 +253,9 @@ impl WindowLayers {
                                     if let AnchorSize::InnerBorder = mode.size {
                                         cr = cr.deflate(border.offsets());
                                     }
-                                    ctx.vars.with_context_var(CORNER_RADIUS_VAR, ContextVarData::fixed(&cr.into()), || {
-                                        ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl))
-                                    })
+                                    CORNER_RADIUS_VAR
+                                        .with_context(cr, || ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl)))
+                                        .1
                                 } else {
                                     self.widget.layout(ctx, wl)
                                 }
@@ -273,9 +270,9 @@ impl WindowLayers {
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
-                    let mode = &self.mode.get(ctx.vars);
-                    if !self.mode.get(ctx).visibility || bounds_info.rendered().is_some() {
-                        match &mode.transform {
+                    let mode = self.mode.get();
+                    if !mode.visibility || bounds_info.rendered().is_some() {
+                        match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let point_in_window = bounds_info.inner_transform().transform_point(self.offset_point).unwrap_or_default();
 
@@ -342,9 +339,9 @@ impl WindowLayers {
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
-                    let mode = &self.mode.get(ctx.vars);
+                    let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
-                        match &mode.transform {
+                        match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let point_in_window = bounds_info.inner_transform().transform_point(self.offset_point).unwrap_or_default();
                                 update.with_transform(
@@ -468,10 +465,10 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             self.children.init_all(ctx);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let mut changed = false;
 
-            self.children.update_all(ctx, &mut changed);
+            self.children.update_all(ctx, updates, &mut changed);
 
             if changed {
                 ctx.updates.layout_and_render();
@@ -837,7 +834,7 @@ impl_from_and_into_var! {
 
 /// Node that binds the [`COLOR_SCHEME_VAR`] to the [`WindowVars::actual_color_scheme`].
 pub fn color_scheme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req(ctx).actual_color_scheme())
+    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req(ctx).actual_color_scheme().boxed())
 }
 
 #[cfg(test)]

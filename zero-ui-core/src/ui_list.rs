@@ -1,11 +1,13 @@
 //! UI node and widget lists abstraction.
 
 use crate::{
-    context::{state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext},
+    context::{
+        state_map, InfoContext, LayoutContext, MeasureContext, RenderContext, StateMapMut, StateMapRef, WidgetContext, WidgetUpdates,
+    },
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation},
     WidgetId,
 };
 #[allow(unused)] // used in docs.
@@ -52,9 +54,6 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
-    /// Calls [`UiNode::subscriptions`] in all widgets in the list, sequentially.
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
-
     /// Calls [`UiNode::init`] in all widgets in the list, sequentially.
     fn init_all(&mut self, ctx: &mut WidgetContext);
 
@@ -69,7 +68,7 @@ pub trait UiNodeList: 'static {
     /// the list implementer, the observer is for updating custom state and requesting layout when required.
     ///
     /// [fixed]: UiNodeList::is_fixed
-    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O);
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O);
 
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
     fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);

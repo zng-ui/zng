@@ -20,31 +20,21 @@ use crate::prelude::new_property::*;
 /// [`CursorIcon`]: crate::core::window::CursorIcon
 #[property(context, default(CursorIcon::Default))]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
-    struct CursorNode<T, C> {
-        cursor: C,
-        child: T,
-        mouse_hovered_handle: Option<EventWidgetHandle>,
-        hovered_binding: Option<VarBindingHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<T, C> UiNode for CursorNode<T, C>
-    where
-        T: UiNode,
-        C: Var<Option<CursorIcon>>,
-    {
+    #[impl_ui_node(struct CursorNode {
+        child: impl UiNode,
+        var_cursor: impl Var<Option<CursorIcon>>,
+        hovered_binding: Option<VarHandle>,
+    })]
+    impl UiNode for CursorNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
+            self.init_handles(ctx);
+            ctx.sub_event(&MOUSE_HOVERED_EVENT);
             self.child.init(ctx);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.mouse_hovered_handle = None;
+            self.hovered_binding = None;
             self.child.deinit(ctx);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.cursor);
-            self.child.subscriptions(ctx, subs);
         }
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -62,8 +52,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                                 // we are not already set, setup binding.
 
                                 let cursor = WindowVars::req(&ctx.window_state).cursor();
-                                cursor.set_ne(ctx.vars, self.cursor.copy(ctx.vars));
-                                self.hovered_binding = Some(self.cursor.bind(ctx.vars, cursor));
+                                cursor.set_ne(ctx.vars, self.var_cursor.get()).unwrap();
+                                self.hovered_binding = Some(self.var_cursor.bind(cursor));
                             }
 
                             // flag parent
@@ -74,7 +64,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                             self.hovered_binding = None;
                             WindowVars::req(&ctx.window_state)
                                 .cursor()
-                                .set_ne(ctx.vars, Some(CursorIcon::Default));
+                                .set_ne(ctx.vars, Some(CursorIcon::Default))
+                                .unwrap();
                         }
                     }
                     CursorState::Set => {
@@ -87,9 +78,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         }
     }
     CursorNode {
-        cursor: cursor.into_var(),
         child,
-        mouse_hovered_handle: None,
+        var_cursor: cursor.into_var(),
         hovered_binding: None,
     }
 }

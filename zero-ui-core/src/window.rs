@@ -23,10 +23,9 @@ use crate::{
         raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
-    context::{AppContext, WindowContext},
+    context::{AppContext, WidgetUpdates, WindowContext},
     event::EventUpdate,
     image::ImageVar,
-    var::WithVars,
 };
 
 /// Application extension that manages windows.
@@ -70,8 +69,8 @@ impl AppExtension for WindowManager {
         Windows::on_event(ctx, update);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        Windows::on_ui_update(ctx);
+    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+        Windows::on_ui_update(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -170,7 +169,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         let response = Windows::req(self).open(new_window);
         self.run_task(move |ctx| async move {
             response.wait_rsp(&ctx).await;
-            ctx.with_vars(|v| response.rsp(v).unwrap().window_id)
+            response.rsp().unwrap().window_id
         })
         .unwrap()
     }
