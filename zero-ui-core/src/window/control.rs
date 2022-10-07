@@ -1161,15 +1161,16 @@ fn update_headless_vars(windows: &mut Windows, mfactor: Option<Factor>, hvars: &
         let parent = &parent_vars.0.actual_color_scheme;
         let actual = &hvars.0.actual_color_scheme;
 
-        let h = user.hook(Box::new(clone_move!(user, parent, actual, |vars, _, _| {
-            let scheme = user.get().unwrap_or_else(|| parent.get());
+        let h = user.hook(Box::new(clone_move!(parent, actual, |vars, _, value| {
+            let value = *value.as_any().downcast_ref::<Option<ColorScheme>>().unwrap();
+            let scheme = value.unwrap_or_else(|| parent.get());
             actual.set_ne(vars, scheme).unwrap();
             true
         })));
         handles.push(h);
 
-        let h = parent.hook(Box::new(clone_move!(user, parent, actual, |vars, _, _| {
-            let scheme = user.get().unwrap_or_else(|| parent.get());
+        let h = parent.hook(Box::new(clone_move!(user, actual, |vars, _, value| {
+            let scheme = user.get().unwrap_or_else(|| *value.as_any().downcast_ref::<ColorScheme>().unwrap());
             actual.set_ne(vars, scheme).unwrap();
             true
         })));

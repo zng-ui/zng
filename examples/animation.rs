@@ -191,7 +191,8 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 })
             }
 
-            let meta_color = WindowVars::req(&ctx.window_state).actual_color_scheme().map(|t| match t {
+            zero_ui::core::image::ImageRenderVars::req(&ctx.window_state).retain().set(ctx.vars, true).unwrap();
+            let meta_color = WindowVars::req(ctx).actual_color_scheme().map(|t| match t {
                 ColorScheme::Light => rgba(0, 0, 0, 0.4),
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),
             });

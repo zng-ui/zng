@@ -1,6 +1,5 @@
 # Var/Update Rewrite
 
-* Animation example: panic.
 * Gradient example: resize causes white flashes.
     - Scrollbars don't highlight.
 
