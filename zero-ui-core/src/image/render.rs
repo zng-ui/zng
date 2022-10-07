@@ -167,7 +167,7 @@ struct RenderRequest {
     image: WeakRcVar<Image>,
 }
 
-/// Controls properties of the render window used by [`ImagesRender`].
+/// Controls properties of the render window used by [`Images::render`].
 ///
 /// You can get the controller inside the closure using [`req`] or [`get`] and the `window_state`
 /// in [`WindowContext`] and [`WidgetContext`].
@@ -175,6 +175,8 @@ struct RenderRequest {
 /// [`WindowContext`]: crate::context::WindowContext::window_state
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state
 /// [`Windows::vars`]: crate::window::Windows::vars
+/// [`req`]: ImageRenderVars::req
+/// [`get`]: ImageRenderVars::get
 pub struct ImageRenderVars {
     retain: RcVar<bool>,
 }
