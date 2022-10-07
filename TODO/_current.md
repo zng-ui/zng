@@ -2,7 +2,7 @@
 
 * Animation example: panic.
 * Gradient example: resize causes white flashes.
-    - Scrollbars don't highlight, scroll commands don't work.
+    - Scrollbars don't highlight.
 
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
 * Review "!!:".

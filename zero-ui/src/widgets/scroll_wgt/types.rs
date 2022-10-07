@@ -192,25 +192,26 @@ impl ScrollContext {
             if smooth.is_disabled() {
                 let _ = SCROLL_VERTICAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                let config = SCROLL_CONFIG_VAR.get();
-                let mut config = config.borrow_mut();
+                SCROLL_CONFIG_VAR.with(|config| {
+                    let mut config = config.borrow_mut();
 
-                match &config.vertical {
-                    Some(anim) if !anim.handle.is_stopped() => {
-                        anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
+                    match &config.vertical {
+                        Some(anim) if !anim.handle.is_stopped() => {
+                            anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
+                        }
+                        _ => {
+                            let ease = smooth.easing.clone();
+                            let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(
+                                vars,
+                                new_offset,
+                                smooth.duration,
+                                move |t| ease(t),
+                                0.fct()..=1.fct(),
+                            );
+                            config.vertical = Some(anim);
+                        }
                     }
-                    _ => {
-                        let ease = smooth.easing.clone();
-                        let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(
-                            vars,
-                            new_offset,
-                            smooth.duration,
-                            move |t| ease(t),
-                            0.fct()..=1.fct(),
-                        );
-                        config.vertical = Some(anim);
-                    }
-                }
+                })
             }
         })
     }
@@ -226,25 +227,26 @@ impl ScrollContext {
             if smooth.is_disabled() {
                 let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                let config = SCROLL_CONFIG_VAR.get();
-                let mut config = config.borrow_mut();
+                SCROLL_CONFIG_VAR.with(|config| {
+                    let mut config = config.borrow_mut();
 
-                match &config.horizontal {
-                    Some(anim) if !anim.handle.is_stopped() => {
-                        anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
+                    match &config.horizontal {
+                        Some(anim) if !anim.handle.is_stopped() => {
+                            anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
+                        }
+                        _ => {
+                            let ease = smooth.easing.clone();
+                            let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(
+                                vars,
+                                new_offset,
+                                smooth.duration,
+                                move |t| ease(t),
+                                0.fct()..=1.fct(),
+                            );
+                            config.horizontal = Some(anim);
+                        }
                     }
-                    _ => {
-                        let ease = smooth.easing.clone();
-                        let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(
-                            vars,
-                            new_offset,
-                            smooth.duration,
-                            move |t| ease(t),
-                            0.fct()..=1.fct(),
-                        );
-                        config.horizontal = Some(anim);
-                    }
-                }
+                })
             }
         })
     }
