@@ -1,12 +1,12 @@
 //! App event and commands API.
 
-use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, ops::Deref, thread::LocalKey, time::Instant};
+use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, ops::Deref, thread::LocalKey, time::Instant, rc::{Rc, self}};
 
 use crate::{
     context::{UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
     crate_util::{IdMap, IdSet},
     widget_info::WidgetInfoTree,
-    WidgetId,
+    WidgetId, handler::AppHandler,
 };
 
 mod args;
@@ -80,6 +80,7 @@ pub use crate::event_macro as event;
 pub struct EventData {
     name: &'static str,
     widget_subs: RefCell<IdMap<WidgetId, usize>>,
+    hooks: RefCell<Vec<rc::Weak<dyn Fn(&mut Events, &dyn AnyEventArgs)>>>,
 }
 impl EventData {
     #[doc(hidden)]
@@ -87,6 +88,7 @@ impl EventData {
         EventData {
             name,
             widget_subs: RefCell::default(),
+            hooks: RefCell::new(vec![]),
         }
     }
 
@@ -209,6 +211,13 @@ impl<E: EventArgs> Event<E> {
             ev.notify(update);
         })
     }
+
+    
+    pub fn on_event(&self, handler: impl AppHandler<E>) -> EventHandle {
+        self.as_any().hook(move |events, args| {
+            // TODO, push the handler for once call in events
+        })
+    }
 }
 impl<E: EventArgs> Clone for Event<E> {
     fn clone(&self) -> Self {
@@ -259,6 +268,21 @@ impl AnyEvent {
     /// Returns `true` if the update is for this event.
     pub fn has(&self, update: &EventUpdate) -> bool {
         self.id() == update.event_id
+    }
+
+    pub fn hook(&self, hook: impl Fn(&mut Events, &dyn AnyEventArgs) + 'static) -> EventHandle {
+        self.hook_impl(Rc::new(hook))
+    }
+    fn hook_impl(&self, hook: Rc<dyn Fn(&mut Events, &dyn AnyEventArgs)>) -> EventHandle {
+        let wk_hook = Rc::downgrade(&hook);
+        self.local.with(move |l| l.hooks.borrow_mut().push(wk_hook));
+        EventHandle::new(hook)
+    }
+
+    pub fn subscribe2(&self, widget_id: WidgetId) -> EventHandle {
+        self.hook(move |events, _args| {
+            // events.notify, target after args, how?
+        })
     }
 
     fn unsubscribe_widget(&self, widget_id: WidgetId) {
@@ -482,5 +506,27 @@ impl IntoIterator for EventHandles {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+pub struct EventHandle(Option<Rc<dyn Fn(&mut Events, &dyn AnyEventArgs)>>);
+
+impl EventHandle {
+    fn new(hook: Rc<dyn Fn(&mut Events, &dyn AnyEventArgs)>) -> Self {
+        Self(Some(hook))
+    }
+
+    pub fn dummy() -> Self {
+        EventHandle(None)
+    }
+
+    pub fn is_dummy(&self) -> bool {
+        self.0.is_none()
+    }
+
+    pub fn perm(self) {
+        if let Some(rc) = self.0 {
+            std::mem::forget(rc); // TODO !!: is this ok?
+        }
     }
 }

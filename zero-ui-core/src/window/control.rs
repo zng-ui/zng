@@ -12,7 +12,7 @@ use crate::{
     },
     color::{ColorScheme, RenderColor},
     context::{state_map, InfoLayoutRenderUpdates, LayoutContext, OwnedStateMap, WidgetUpdates, WindowContext, WindowRenderUpdate},
-    event::{EventArgs, EventHandles, EventUpdate},
+    event::{AnyEventArgs, EventHandles, EventUpdate},
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::Fonts,

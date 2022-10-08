@@ -9,7 +9,7 @@ use crate::{
         view_process::VIEW_PROCESS_INITED_EVENT,
     },
     context::AppContext,
-    event::{event, EventArgs, EventUpdate, Events},
+    event::{event, AnyEventArgs, EventUpdate, Events},
     event_args,
     service::Service,
     text::*,

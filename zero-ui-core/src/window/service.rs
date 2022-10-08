@@ -9,7 +9,7 @@ use super::*;
 use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
-use crate::event::{EventArgs, EventUpdate};
+use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
 use crate::service::Service;

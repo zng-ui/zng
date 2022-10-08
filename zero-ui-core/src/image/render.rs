@@ -1,6 +1,6 @@
 use crate::{
     context::{state_map, AppContext, BorrowStateMap, StaticStateId, WindowContext},
-    event::{EventArgs, EventUpdate},
+    event::{AnyEventArgs, EventUpdate},
     impl_ui_node, property,
     render::RenderMode,
     service::ServiceTuple,

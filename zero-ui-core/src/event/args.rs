@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     fmt,
     sync::{
         atomic::{self, AtomicBool},
@@ -12,19 +13,7 @@ use crate::context::UpdateDeliveryList;
 /// [`Event<A>`] arguments.
 ///
 /// [`Event<A>`]: crate::event::Event
-pub trait EventArgs: fmt::Debug + Clone + 'static {
-    /// Gets the instant this event happen.
-    fn timestamp(&self) -> Instant;
-
-    /// Insert all targets of this event on the [`UpdateDeliveryList`].
-    fn delivery_list(&self, list: &mut UpdateDeliveryList);
-
-    /// Propagation handle associated with this event instance.
-    ///
-    /// Cloned arguments share the same handle, some arguments may also share the handle
-    /// of another event if they share the same cause.
-    fn propagation(&self) -> &EventPropagationHandle;
-
+pub trait EventArgs: AnyEventArgs + Clone {
     /// Calls `handler` and stops propagation if propagation is still allowed.
     ///
     /// Returns the `handler` result if it was called.
@@ -40,6 +29,32 @@ pub trait EventArgs: fmt::Debug + Clone + 'static {
             Some(r)
         }
     }
+}
+
+/// Methods of [`EventArgs`] that don't depend on the value type.
+pub trait AnyEventArgs: fmt::Debug + Any {
+    /// Clone the variable into a type erased box.
+    fn clone_any(&self) -> Box<dyn AnyEventArgs>;
+
+    /// Access to `dyn Any` methods.
+    fn as_any(&self) -> &dyn Any
+    where
+        Self: Sized,
+    {
+        self
+    }
+
+    /// Gets the instant this event happened.
+    fn timestamp(&self) -> Instant;
+
+    /// Insert all targets of this event on the [`UpdateDeliveryList`].
+    fn delivery_list(&self, list: &mut UpdateDeliveryList);
+
+    /// Propagation handle associated with this event instance.
+    ///
+    /// Cloned arguments share the same handle, some arguments may also share the handle
+    /// of another event if they share the same cause.
+    fn propagation(&self) -> &EventPropagationHandle;
 }
 
 /// Event propagation handle associated with one or multiple [`EventArgs`].
@@ -329,6 +344,12 @@ macro_rules! __event_args {
             propagation_handle: $crate::event::EventPropagationHandle,
         }
         impl $crate::event::EventArgs for $Args {
+        }
+        impl $crate::event::AnyEventArgs for $Args {
+
+            fn clone_any(&self) -> std::boxed::Box<dyn $crate::event::AnyEventArgs> {
+                Box::new(self.clone())
+            }
 
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
