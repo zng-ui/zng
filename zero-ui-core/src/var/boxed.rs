@@ -209,19 +209,9 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        let mut read = Some(read);
-        let mut result = None;
-        (**self).with_boxed(&mut |var_value| match read.take() {
-            Some(read) => {
-                result = Some(read(var_value));
-            }
-            None => unreachable!(),
-        });
-
-        match result.take() {
-            Some(r) => r,
-            None => unreachable!(),
-        }
+        #[cfg(dyn_closure)]
+        let read: Box<dyn FnOnce(&T) -> R> = Box::new(read);
+        boxed_var_with(self, read)
     }
 
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
@@ -229,7 +219,8 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         V: WithVars,
         F: FnOnce(&mut VarModifyValue<T>) + 'static,
     {
-        vars.with_vars(|vars| (**self).modify_boxed(vars, Box::new(modify)))
+        let modify = Box::new(modify);
+        vars.with_vars(move |vars| (**self).modify_boxed(vars, modify))
     }
 
     fn boxed(self) -> BoxedVar<T> {
@@ -263,4 +254,18 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
             (**self).read_only_boxed()
         }
     }
+}
+
+
+fn boxed_var_with<T: VarValue, R, F>(var: &BoxedVar<T>, read: F) -> R
+where
+    F: FnOnce(&T) -> R,
+{
+    let mut read = Some(read);
+    let mut result = None;
+    (**var).with_boxed(&mut |var_value| {
+        let read = read.take().unwrap();
+        result = Some(read(var_value));
+    });
+    result.take().unwrap()
 }
