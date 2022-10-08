@@ -587,8 +587,7 @@ impl CommandArgs {
 pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Cell<bool>,
-    _not_send: PhantomData<Rc<()>>,
-    event_handle: EventHandle,
+    _event_handle: EventHandle,
 }
 impl CommandHandle {
     /// The command.
@@ -640,8 +639,7 @@ impl CommandHandle {
         CommandHandle {
             command: None,
             local_enabled: Cell::new(false),
-            _not_send: PhantomData,
-            event_handle: EventHandle::dummy(),
+            _event_handle: EventHandle::dummy(),
         }
     }
 
@@ -1105,8 +1103,7 @@ impl CommandData {
         CommandHandle {
             command: Some(command),
             local_enabled: Cell::new(enabled),
-            _not_send: PhantomData,
-            event_handle: target.map(|t| command.event.subscribe(t)).unwrap_or_else(EventHandle::dummy),
+            _event_handle: target.map(|t| command.event.subscribe(t)).unwrap_or_else(EventHandle::dummy),
         }
     }
 }

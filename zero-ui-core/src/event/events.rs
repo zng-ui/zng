@@ -2,6 +2,7 @@ use std::{mem, rc::Rc};
 
 use crate::{
     app::AppEventSender,
+    clone_move,
     context::AppContext,
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
@@ -9,79 +10,6 @@ use crate::{
 };
 
 use super::*;
-
-struct OnEventHandler {
-    handle: HandleOwner<()>,
-    handler: Box<dyn FnMut(&mut AppContext, &mut EventUpdate, &dyn AppWeakHandle)>,
-}
-
-/// Represents an app context event handler created by [`Events::on_event`] or [`Events::on_pre_event`].
-///
-/// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
-/// without dropping the handler.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[repr(transparent)]
-#[must_use = "the event handler unsubscribes if the handle is dropped"]
-pub struct OnEventHandle(Handle<()>);
-impl OnEventHandle {
-    fn new() -> (HandleOwner<()>, OnEventHandle) {
-        let (owner, handle) = Handle::new(());
-        (owner, OnEventHandle(handle))
-    }
-
-    /// Create a handle to nothing, the handle always in the *unsubscribed* state.
-    ///
-    /// Note that `Option<OnEventHandle>` takes up the same space as `OnEventHandle` and avoids an allocation.
-    pub fn dummy() -> Self {
-        assert_non_null!(OnEventHandle);
-        OnEventHandle(Handle::dummy(()))
-    }
-
-    /// Drop the handle but does **not** unsubscribe.
-    ///
-    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
-    pub fn perm(self) {
-        self.0.perm();
-    }
-
-    /// If another handle has called [`perm`](Self::perm).
-    /// If `true` the var binding will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
-    pub fn is_permanent(&self) -> bool {
-        self.0.is_permanent()
-    }
-
-    /// Drops the handle and forces the handler to drop.
-    pub fn unsubscribe(self) {
-        self.0.force_drop()
-    }
-
-    /// If another handle has called [`unsubscribe`](Self::unsubscribe).
-    ///
-    /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
-    pub fn is_unsubscribed(&self) -> bool {
-        self.0.is_dropped()
-    }
-
-    /// Create a weak handle.
-    pub fn downgrade(&self) -> WeakOnEventHandle {
-        WeakOnEventHandle(self.0.downgrade())
-    }
-}
-
-/// Weak [`OnEventHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
-pub struct WeakOnEventHandle(WeakHandle<()>);
-impl WeakOnEventHandle {
-    /// New weak handle that does not upgrade.
-    pub fn new() -> Self {
-        Self(WeakHandle::new())
-    }
-
-    /// Gets the strong handle if it is still subscribed.
-    pub fn upgrade(&self) -> Option<OnEventHandle> {
-        self.0.upgrade().map(OnEventHandle)
-    }
-}
 
 thread_singleton!(SingletonEvents);
 
@@ -220,119 +148,6 @@ impl Events {
         EventReceiver { receiver, event }
     }
 
-    /// Creates a preview event handler.
-    ///
-    /// The event `handler` is called for every update of `E` that has not stopped [`propagation`](EventArgs::propagation).
-    /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
-    /// preview handlers.
-    ///
-    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use zero_ui_core::event::*;
-    /// # use zero_ui_core::handler::app_hn;
-    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
-    /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_pre_event(FOCUS_CHANGED_EVENT, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
-    ///     println!("focused: {:?}", args.new_focus);
-    /// }));
-    /// # }
-    /// ```
-    /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context and before all UI handlers.
-    ///
-    /// # Handlers
-    ///
-    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
-    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
-    /// [`app_hn_once!`] and [`async_app_hn_once!`].
-    ///
-    /// ## Async
-    ///
-    /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
-    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](EventArgs::propagation)
-    /// only causes the desired effect before the first `.await`.
-    ///
-    /// [`app_hn!`]: crate::handler::app_hn!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn!
-    /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_pre_event<A, H>(&mut self, event: Event<A>, handler: H) -> OnEventHandle
-    where
-        A: EventArgs,
-        H: AppHandler<A>,
-    {
-        Self::push_event_handler(&mut self.pre_handlers, event, true, handler)
-    }
-
-    /// Creates an event handler.
-    ///
-    /// The event `handler` is called for every update of `E` that has not stopped [`propagation`](EventArgs::propagation).
-    /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
-    /// registered before this one.
-    ///
-    /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
-    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use zero_ui_core::event::*;
-    /// # use zero_ui_core::handler::app_hn;
-    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
-    /// # fn example(ctx: &mut zero_ui_core::context::AppContext) {
-    /// let handle = ctx.events.on_event(FOCUS_CHANGED_EVENT, app_hn!(|_ctx, args: &FocusChangedArgs, _| {
-    ///     println!("focused: {:?}", args.new_focus);
-    /// }));
-    /// # }
-    /// ```
-    /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context, after the UI was notified.
-    ///
-    /// # Handlers
-    ///
-    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
-    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
-    /// [`app_hn_once!`] and [`async_app_hn_once!`].
-    ///
-    /// ## Async
-    ///
-    /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
-    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](EventArgs::propagation)
-    /// only causes the desired effect before the first `.await`.
-    ///
-    /// [`app_hn!`]: crate::handler::app_hn!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn!
-    /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_event<A, H>(&mut self, event: Event<A>, handler: H) -> OnEventHandle
-    where
-        A: EventArgs,
-        H: AppHandler<A>,
-    {
-        Self::push_event_handler(&mut self.pos_handlers, event, false, handler)
-    }
-
-    fn push_event_handler<A, H>(handlers: &mut Vec<OnEventHandler>, event: Event<A>, is_preview: bool, mut handler: H) -> OnEventHandle
-    where
-        A: EventArgs,
-        H: AppHandler<A>,
-    {
-        let (handle_owner, handle) = OnEventHandle::new();
-        let handler = move |ctx: &mut AppContext, update: &mut EventUpdate, handle: &dyn AppWeakHandle| {
-            if let Some(args) = event.on(update) {
-                if !args.propagation().is_stopped() {
-                    handler.event(ctx, args, &AppHandlerArgs { handle, is_preview });
-                }
-            }
-        };
-        handlers.push(OnEventHandler {
-            handle: handle_owner,
-            handler: Box::new(handler),
-        });
-        handle
-    }
 
     pub(crate) fn has_pending_updates(&mut self) -> bool {
         !self.updates.is_empty()
@@ -381,6 +196,14 @@ impl Events {
     /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> impl Iterator<Item = Command> + '_ {
         self.commands.iter().copied()
+    }
+
+    pub(crate) fn push_once_action(&mut self, action: Box<dyn FnOnce(&mut AppContext, &EventUpdate)>, is_preview: bool) -> _ {
+        if is_preview {
+            self.pre_actions.push(action);
+        } else {
+            self.pos_actions.push(action);
+        }
     }
 }
 impl Drop for Events {

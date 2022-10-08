@@ -14,9 +14,9 @@ use std::{
 use crate::{
     context::{UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
     crate_util::{IdMap, IdSet},
-    handler::AppHandler,
+    handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
-    WidgetId,
+    WidgetId, clone_move,
 };
 
 mod args;
@@ -222,9 +222,124 @@ impl<E: EventArgs> Event<E> {
         })
     }
 
+    /// Creates a preview event handler.
+    ///
+    /// The event `handler` is called for every update of `E` that has not stopped [`propagation`](AnyEventArgs::propagation).
+    /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
+    /// preview handlers.
+    ///
+    /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui_core::event::*;
+    /// # use zero_ui_core::handler::app_hn;
+    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
+    /// #
+    /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(app_hn!(|_ctx, args: &FocusChangedArgs, _| {
+    ///     println!("focused: {:?}", args.new_focus);
+    /// }));
+    /// ```
+    /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context and before all UI handlers.
+    ///
+    /// # Handlers
+    ///
+    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
+    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    ///
+    /// ## Async
+    ///
+    /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
+    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](EventArgs::propagation)
+    /// only causes the desired effect before the first `.await`.
+    ///
+    /// [`app_hn!`]: crate::handler::app_hn!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn!
+    /// [`app_hn_once!`]: crate::handler::app_hn_once!
+    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
+    pub fn on_pre_event<A, H>(&mut self, event: Event<A>, handler: H) -> EventHandle
+    where
+        A: EventArgs,
+        H: AppHandler<A>,
+    {
+        self.on_event_impl(handler, true)
+    }
+
+    /// Creates an event handler.
+    ///
+    /// The event `handler` is called for every update of `E` that has not stopped [`propagation`](AnyEventArgs::propagation).
+    /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
+    /// registered before this one.
+    ///
+    /// Returns an [`EventHandle`] that can be dropped to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui_core::event::*;
+    /// # use zero_ui_core::handler::app_hn;
+    /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
+    /// #
+    /// let handle = FOCUS_CHANGED_EVENT.on_event(app_hn!(|_ctx, args: &FocusChangedArgs, _| {
+    ///     println!("focused: {:?}", args.new_focus);
+    /// }));
+    /// ```
+    /// The example listens to all `FOCUS_CHANGED_EVENT` events, independent of widget context, after the UI was notified.
+    ///
+    /// # Handlers
+    ///
+    /// the event handler can be any type that implements [`AppHandler`], there are multiple flavors of handlers, including
+    /// async handlers that allow calling `.await`. The handler closures can be declared using [`app_hn!`], [`async_app_hn!`],
+    /// [`app_hn_once!`] and [`async_app_hn_once!`].
+    ///
+    /// ## Async
+    ///
+    /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
+    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](AnyEventArgs::propagation)
+    /// only causes the desired effect before the first `.await`.
+    ///
+    /// [`app_hn!`]: crate::handler::app_hn!
+    /// [`async_app_hn!`]: crate::handler::async_app_hn!
+    /// [`app_hn_once!`]: crate::handler::app_hn_once!
+    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
     pub fn on_event(&self, handler: impl AppHandler<E>) -> EventHandle {
-        self.as_any().hook(move |events, args| {
-            // TODO, push the handler for once call in events
+        self.on_event_impl(handler, false)
+    }
+
+    fn on_event_impl(&self, handler: impl AppHandler<E>, is_preview: bool) -> EventHandle {
+        let event = *self;
+        let handler = Rc::new(RefCell::new(handler));
+        let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
+        event.as_any().hook(move |events, args| {
+            if inner_handle_owner.is_dropped() {
+                return false;
+            }
+
+            if let Some(args) = args.as_any().downcast_ref::<E>() {
+                if !args.propagation().is_stopped() {
+                    let handle = inner_handle.downgrade();
+                    let action = Box::new(clone_move!(handler, |ctx, update| {
+                        if let Some(args) = event.on(update) {
+                            if !args.propagation().is_stopped() {
+                                handler.borrow_mut().event(
+                                    ctx,
+                                    args,
+                                    &AppHandlerArgs {
+                                        handle: &handle,
+                                        is_preview,
+                                    },
+                                );
+                            }
+                        }
+                    }));
+                    events.push_once_action(action, is_preview);
+                }
+            }
+
             true
         })
     }
