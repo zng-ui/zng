@@ -262,7 +262,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         var_orientation: impl Var<Option<Orientation2D>>,
         valid: bool,
         search_quads: Vec<PxRect>,
-        mouse_hovered_handle: Option<EventWidgetHandle>,
+        mouse_hovered_handle: Option<EventHandle>,
     })]
     impl UiNode for ShowDirectionalQueryNode {
         fn init(&mut self, ctx: &mut WidgetContext) {

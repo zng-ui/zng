@@ -257,7 +257,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
     #[impl_ui_node(struct SaveStateNode {
         child: impl UiNode,
         enabled: SaveState,
-        handles: Option<[EventWidgetHandle; 2]>,
+        handles: Option<[EventHandle; 2]>,
 
         task: Task,
     })]

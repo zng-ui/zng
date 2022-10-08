@@ -256,7 +256,6 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     }
 }
 
-
 fn boxed_var_with<T: VarValue, R, F>(var: &BoxedVar<T>, read: F) -> R
 where
     F: FnOnce(&T) -> R,

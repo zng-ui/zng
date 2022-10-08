@@ -251,7 +251,7 @@ impl Command {
     ///
     /// If the handle is scoped on a widget it it is added to the command event subscribers.
     pub fn subscribe<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
-        events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled)))
+        events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled, None)))
     }
 
     /// Create a new handle for this command for a handler in the `target` widget.
@@ -261,14 +261,7 @@ impl Command {
     ///
     /// [`subscribe`]: Command::subscribe
     pub fn subscribe_wgt<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool, target: WidgetId) -> CommandHandle {
-        let handle = self.subscribe(events, enabled);
-
-        if !matches!(self.scope(), CommandScope::Widget(_)) {
-            let h = self.event.subscribe(target);
-            handle.event_handle.set(Some(h));
-        }
-
-        handle
+        events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled, Some(target))))
     }
 
     /// Raw command event.
@@ -595,7 +588,7 @@ pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Cell<bool>,
     _not_send: PhantomData<Rc<()>>,
-    event_handle: Cell<Option<EventWidgetHandle>>,
+    event_handle: EventHandle,
 }
 impl CommandHandle {
     /// The command.
@@ -648,8 +641,13 @@ impl CommandHandle {
             command: None,
             local_enabled: Cell::new(false),
             _not_send: PhantomData,
-            event_handle: Cell::new(None),
+            event_handle: EventHandle::dummy(),
         }
+    }
+
+    /// If the handle is not connected to any command.
+    pub fn is_dummy(&self) -> bool {
+        self.command.is_none()
     }
 }
 impl fmt::Debug for CommandHandle {
@@ -677,10 +675,6 @@ impl Drop for CommandHandle {
                             data.handle_count -= 1;
                             if self.local_enabled.get() {
                                 data.enabled_count -= 1;
-                            }
-
-                            if let CommandScope::Widget(id) = scope {
-                                command.event.as_any().unsubscribe_widget(id);
                             }
                         }
                     }
@@ -1076,7 +1070,7 @@ impl CommandData {
         }
     }
 
-    fn subscribe(&self, events: &mut Events, command: Command, enabled: bool) -> CommandHandle {
+    fn subscribe(&self, events: &mut Events, command: Command, enabled: bool, mut target: Option<WidgetId>) -> CommandHandle {
         let mut data = self.data.borrow_mut();
 
         match command.scope {
@@ -1103,16 +1097,16 @@ impl CommandData {
                 }
 
                 if let CommandScope::Widget(id) = scope {
-                    command.event.as_any().subscribe_widget_raw(id);
+                    target = Some(id);
                 }
             }
-        }
+        };
 
         CommandHandle {
             command: Some(command),
             local_enabled: Cell::new(enabled),
             _not_send: PhantomData,
-            event_handle: Cell::new(None),
+            event_handle: target.map(|t| command.event.subscribe(t)).unwrap_or_else(EventHandle::dummy),
         }
     }
 }

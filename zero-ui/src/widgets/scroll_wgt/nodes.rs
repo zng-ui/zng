@@ -734,7 +734,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
     struct ScrollWheelNode<C> {
         child: C,
         offset: Vector,
-        mouse_wheel_handle: Option<EventWidgetHandle>,
+        mouse_wheel_handle: Option<EventHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollWheelNode<C> {

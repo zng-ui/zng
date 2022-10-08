@@ -81,7 +81,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
         partial_default: (bool, bool),
         partial: (bool, bool),
         merge: M,
-        handle: Option<[EventWidgetHandle; 2]>,
+        handle: Option<[EventHandle; 2]>,
     }
     #[impl_ui_node(child)]
     impl<C, A0, A1, S0, S1, M> UiNode for EventState2Node<C, A0, A1, S0, S1, M>
@@ -171,7 +171,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         partial_default: (bool, bool, bool),
         partial: (bool, bool, bool),
         merge: M,
-        handle: Option<[EventWidgetHandle; 3]>,
+        handle: Option<[EventHandle; 3]>,
     }
     #[impl_ui_node(child)]
     impl<C, A0, A1, A2, S0, S1, S2, M> UiNode for EventState3Node<C, A0, A1, A2, S0, S1, S2, M>

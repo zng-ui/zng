@@ -176,7 +176,7 @@ pub mod properties {
         struct CheckedNode<C, B> {
             child: C,
             checked: B,
-            click_handle: Option<EventWidgetHandle>,
+            click_handle: Option<EventHandle>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<bool>> UiNode for CheckedNode<C, B> {
@@ -223,7 +223,7 @@ pub mod properties {
         struct CheckedOptNode<C, B> {
             child: C,
             checked: B,
-            click_handle: Option<EventWidgetHandle>,
+            click_handle: Option<EventHandle>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, B: Var<Option<bool>>> UiNode for CheckedOptNode<C, B> {
@@ -303,7 +303,7 @@ pub mod properties {
             value: impl Var<T>,
             checked: RcVar<Option<bool>>,
             prev_value: Option<T>,
-            click_handle: Option<EventWidgetHandle>,
+            click_handle: Option<EventHandle>,
         })]
         impl ValueNode {
             // Returns `true` if selected.

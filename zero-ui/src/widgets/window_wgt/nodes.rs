@@ -109,7 +109,7 @@ impl WindowLayers {
             anchor: A,
             mode: M,
             widget: W,
-            info_changed_handle: Option<EventWidgetHandle>,
+            info_changed_handle: Option<EventHandle>,
 
             anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo)>,
             offset_point: PxPoint,

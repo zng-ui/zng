@@ -1,6 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
-use crate::event::{EventHandles, EventWidgetHandle};
+use crate::event::{EventHandle, EventHandles};
 use crate::var::{VarHandle, VarHandles};
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId, WidgetPath};
 use std::cell::Cell;
@@ -607,7 +607,7 @@ impl<'a> WidgetHandles<'a> {
     }
 
     /// Keep event subscription handle.
-    pub fn push_event(&mut self, other: EventWidgetHandle) {
+    pub fn push_event(&mut self, other: EventHandle) {
         self.event_handles.push(other);
     }
 

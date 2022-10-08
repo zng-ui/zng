@@ -121,7 +121,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         child: C,
         text: T,
         resolved: RefCell<Option<ResolvedText>>,
-        char_input_handle: Option<EventWidgetHandle>,
+        char_input_handle: Option<EventHandle>,
     }
     impl<C: UiNode, T> ResolveTextNode<C, T> {
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
