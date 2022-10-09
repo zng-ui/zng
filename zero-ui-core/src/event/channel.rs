@@ -23,7 +23,7 @@ impl fmt::Debug for EventUpdateMsg {
 
 /// An event update sender that can be used from any thread and without access to [`Events`].
 ///
-/// Use [`Events::sender`] to create a sender.
+/// Use [`Event::sender`] to create a sender.
 pub struct EventSender<A>
 where
     A: EventArgs + Send,
@@ -80,7 +80,7 @@ where
 
 /// An event update receiver that can be used from any thread and without access to [`Events`].
 ///
-/// Use [`Events::receiver`] to create a receiver, drop to stop listening.
+/// Use [`Event::receiver`] to create a receiver, drop to stop listening.
 pub struct EventReceiver<A>
 where
     A: EventArgs + Send,
@@ -199,7 +199,7 @@ where
 /// A buffered event listener.
 ///
 /// This `struct` is a refence to the buffer, clones of it point to the same buffer. This `struct`
-/// is not `Send`, you can use an [`Events::receiver`] for that.
+/// is not `Send`, you can use an [`Event::receiver`] for that.
 #[derive(Clone)]
 pub struct EventBuffer<A: EventArgs> {
     event: Event<A>,

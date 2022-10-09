@@ -1,12 +1,10 @@
-use std::{mem, rc::Rc};
+use std::mem;
 
 use crate::{app::AppEventSender, context::AppContext, var::Vars};
 
 use super::*;
 
 thread_singleton!(SingletonEvents);
-
-type BufferEntry = Box<dyn Fn(&EventUpdate) -> Retain>;
 
 /// Access to application events.
 ///
@@ -15,9 +13,6 @@ pub struct Events {
     app_event_sender: AppEventSender,
 
     updates: Vec<EventUpdate>,
-
-    pre_buffers: Vec<BufferEntry>,
-    buffers: Vec<BufferEntry>,
 
     pre_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
     pos_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
@@ -39,8 +34,6 @@ impl Events {
         Events {
             app_event_sender,
             updates: vec![],
-            pre_buffers: vec![],
-            buffers: vec![],
             pre_actions: vec![],
             pos_actions: vec![],
             commands: vec![],
@@ -53,47 +46,14 @@ impl Events {
         self.updates.push(update);
     }
 
-    pub(crate) fn register_command(&mut self, command: Command) {
+    pub(super) fn register_command(&mut self, command: Command) {
         if self.commands.iter().any(|c| c == &command) {
             panic!("command `{command:?}` is already registered")
         }
         self.commands.push(command);
     }
 
-    /// Creates an event buffer that listens to `E`. The event updates are pushed as soon as possible, before
-    /// the UI and [`on_event`](Event::on_event) are notified.
-    ///
-    /// Drop the buffer to stop listening.
-    pub fn pre_buffer<A: EventArgs>(&mut self, event: Event<A>) -> EventBuffer<A> {
-        Self::push_buffer(&mut self.pre_buffers, event)
-    }
-
-    /// Creates an event buffer that listens to `E`. The event updates are pushed only after
-    /// the UI and [`on_event`](Event::on_event) are notified.
-    ///
-    /// Drop the buffer to stop listening.
-    pub fn buffer<A: EventArgs>(&mut self, event: Event<A>) -> EventBuffer<A> {
-        Self::push_buffer(&mut self.buffers, event)
-    }
-
-    fn push_buffer<A: EventArgs>(buffers: &mut Vec<BufferEntry>, event: Event<A>) -> EventBuffer<A> {
-        let buf = EventBuffer::never(event);
-        let weak = Rc::downgrade(&buf.queue);
-        buffers.push(Box::new(move |update| {
-            let mut retain = false;
-            if let Some(rc) = weak.upgrade() {
-                if let Some(args) = event.on(update) {
-                    rc.borrow_mut().push_back(args.clone());
-                }
-                retain = true;
-            }
-            retain
-        }));
-        buf
-    }
-
-    /// Creates a sender that can raise an event from other threads and without access to [`Events`].
-    pub fn sender<A>(&mut self, event: Event<A>) -> EventSender<A>
+    pub(super) fn sender<A>(&mut self, event: Event<A>) -> EventSender<A>
     where
         A: EventArgs + Send,
     {
@@ -101,45 +61,6 @@ impl Events {
             sender: self.app_event_sender.clone(),
             event,
         }
-    }
-
-    /// Creates a channel that can listen to event from another thread. The event updates are sent as soon as possible, before
-    /// the UI and [`on_event`](Event::on_event) are notified.
-    ///
-    /// Drop the receiver to stop listening.
-    pub fn pre_receiver<A>(&mut self, event: Event<A>) -> EventReceiver<A>
-    where
-        A: EventArgs + Send,
-    {
-        Self::push_receiver(&mut self.pre_buffers, event)
-    }
-
-    /// Creates a channel that can listen to event from another thread. The event updates are sent only after the
-    /// UI and [`on_event`](Event::on_event) are notified.
-    ///
-    /// Drop the receiver to stop listening.
-    pub fn receiver<A>(&mut self, event: Event<A>) -> EventReceiver<A>
-    where
-        A: EventArgs + Send,
-    {
-        Self::push_receiver(&mut self.buffers, event)
-    }
-
-    fn push_receiver<A>(buffers: &mut Vec<BufferEntry>, event: Event<A>) -> EventReceiver<A>
-    where
-        A: EventArgs + Send,
-    {
-        let (sender, receiver) = flume::unbounded();
-
-        buffers.push(Box::new(move |update| {
-            let mut retain = true;
-            if let Some(args) = event.on(update) {
-                retain = sender.send(args.clone()).is_ok();
-            }
-            retain
-        }));
-
-        EventReceiver { receiver, event }
     }
 
     pub(crate) fn has_pending_updates(&mut self) -> bool {
@@ -160,8 +81,6 @@ impl Events {
     }
 
     pub(crate) fn on_pre_events(ctx: &mut AppContext, update: &mut EventUpdate) {
-        ctx.events.pre_buffers.retain(|buf| buf(update));
-
         let mut actions = mem::take(&mut ctx.events.pre_actions);
 
         for action in actions.drain(..) {
@@ -173,7 +92,7 @@ impl Events {
     }
 
     pub(crate) fn on_events(ctx: &mut AppContext, update: &mut EventUpdate) {
-        let mut actions = mem::take(&mut ctx.events.pos_actions);
+        let mut actions = mem::take(&mut ctx.events.pre_actions);
 
         for action in actions.drain(..) {
             action(ctx, update);
@@ -181,8 +100,6 @@ impl Events {
 
         actions.extend(mem::take(&mut ctx.events.pos_actions));
         ctx.events.pos_actions = actions;
-
-        ctx.events.buffers.retain(|buf| buf(update));
     }
 
     /// Commands that had handles generated in this app.
@@ -282,5 +199,3 @@ impl WithEvents for crate::app::HeadlessApp {
         action(self.ctx().events)
     }
 }
-
-type Retain = bool;

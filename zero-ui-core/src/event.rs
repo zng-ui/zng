@@ -110,11 +110,11 @@ impl EventData {
 }
 
 /// Represents an event.
-pub struct Event<E: EventArgs> {
+pub struct Event<A: EventArgs> {
     local: &'static LocalKey<EventData>,
-    _args: PhantomData<fn(E)>,
+    _args: PhantomData<fn(A)>,
 }
-impl<E: EventArgs> fmt::Debug for Event<E> {
+impl<A: EventArgs> fmt::Debug for Event<A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "Event({})", self.name())
@@ -123,7 +123,7 @@ impl<E: EventArgs> fmt::Debug for Event<E> {
         }
     }
 }
-impl<E: EventArgs> Event<E> {
+impl<A: EventArgs> Event<A> {
     #[doc(hidden)]
     pub const fn new(local: &'static LocalKey<EventData>) -> Self {
         Event { local, _args: PhantomData }
@@ -163,7 +163,7 @@ impl<E: EventArgs> Event<E> {
     }
 
     /// Get the event update args if the update is for this event.
-    pub fn on<'a>(&self, update: &'a EventUpdate) -> Option<&'a E> {
+    pub fn on<'a>(&self, update: &'a EventUpdate) -> Option<&'a A> {
         if *self == update.event {
             update.args.as_any().downcast_ref()
         } else {
@@ -172,12 +172,12 @@ impl<E: EventArgs> Event<E> {
     }
 
     /// Get the event update args if the update is for this event and propagation is not stopped.
-    pub fn on_unhandled<'a>(&self, update: &'a EventUpdate) -> Option<&'a E> {
+    pub fn on_unhandled<'a>(&self, update: &'a EventUpdate) -> Option<&'a A> {
         self.on(update).filter(|a| a.propagation().is_stopped())
     }
 
     /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.
-    pub fn handle<R>(&self, update: &EventUpdate, handler: impl FnOnce(&E) -> R) -> Option<R> {
+    pub fn handle<R>(&self, update: &EventUpdate, handler: impl FnOnce(&A) -> R) -> Option<R> {
         if let Some(args) = self.on(update) {
             args.handle(handler)
         } else {
@@ -186,12 +186,12 @@ impl<E: EventArgs> Event<E> {
     }
 
     /// Create an event update for this event with delivery list filtered by the event subscribers.
-    pub fn new_update(&self, args: E) -> EventUpdate {
+    pub fn new_update(&self, args: A) -> EventUpdate {
         self.new_update_custom(args, UpdateDeliveryList::new(Box::new(self.as_any())))
     }
 
     /// Create and event update for this event with a custom delivery list.
-    pub fn new_update_custom(&self, args: E, mut delivery_list: UpdateDeliveryList) -> EventUpdate {
+    pub fn new_update_custom(&self, args: A, mut delivery_list: UpdateDeliveryList) -> EventUpdate {
         args.delivery_list(&mut delivery_list);
         EventUpdate {
             event: self.as_any(),
@@ -201,7 +201,7 @@ impl<E: EventArgs> Event<E> {
     }
 
     /// Schedule an event update.
-    pub fn notify<Ev>(&self, events: &mut Ev, args: E)
+    pub fn notify<Ev>(&self, events: &mut Ev, args: A)
     where
         Ev: WithEvents,
     {
@@ -251,7 +251,7 @@ impl<E: EventArgs> Event<E> {
     /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
     pub fn on_pre_event<H>(&self, handler: H) -> EventHandle
     where
-        H: AppHandler<E>,
+        H: AppHandler<A>,
     {
         self.on_event_impl(handler, true)
     }
@@ -294,11 +294,11 @@ impl<E: EventArgs> Event<E> {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_event(&self, handler: impl AppHandler<E>) -> EventHandle {
+    pub fn on_event(&self, handler: impl AppHandler<A>) -> EventHandle {
         self.on_event_impl(handler, false)
     }
 
-    fn on_event_impl(&self, handler: impl AppHandler<E>, is_preview: bool) -> EventHandle {
+    fn on_event_impl(&self, handler: impl AppHandler<A>, is_preview: bool) -> EventHandle {
         let event = *self;
         let handler = Rc::new(RefCell::new(handler));
         let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
@@ -307,7 +307,7 @@ impl<E: EventArgs> Event<E> {
                 return false;
             }
 
-            if let Some(args) = args.as_any().downcast_ref::<E>() {
+            if let Some(args) = args.as_any().downcast_ref::<A>() {
                 if !args.propagation().is_stopped() {
                     let handle = inner_handle.downgrade();
                     events.push_once_action(
@@ -333,8 +333,56 @@ impl<E: EventArgs> Event<E> {
             true
         })
     }
+
+    /// Create a buffer that retains a clone of each notified args until it is drained.
+    ///
+    /// New args are pushed to the buffer as soon as the event update cycle starts. Note that the buffer
+    /// is UI thread bound, you can use a [`receiver`] instead for `Send` args.
+    ///
+    /// [`receiver`]: Self::receiver
+    pub fn buffer(&self) -> EventBuffer<A> {
+        let buf = EventBuffer::never(*self);
+        let weak = Rc::downgrade(&buf.queue);
+
+        self.as_any()
+            .hook(move |_, args| match weak.upgrade() {
+                Some(rc) => {
+                    rc.borrow_mut().push_back(args.as_any().downcast_ref::<A>().unwrap().clone());
+                    true
+                }
+                None => false,
+            })
+            .perm();
+
+        buf
+    }
+
+    /// Creates a receiver that can listen to the event from another thread. The event updates are sent as soon as the
+    /// event update cycle starts in the UI thread.
+    ///
+    /// Drop the receiver to stop listening.
+    pub fn receiver(&self) -> EventReceiver<A>
+    where
+        A: Send,
+    {
+        let (sender, receiver) = flume::unbounded();
+
+        self.as_any()
+            .hook(move |_, args| sender.send(args.as_any().downcast_ref::<A>().unwrap().clone()).is_ok())
+            .perm();
+
+        EventReceiver { receiver, event: *self }
+    }
+
+    /// Creates a sender that can raise an event from other threads and without access to [`Events`].
+    pub fn sender(&self, ev: &mut impl WithEvents) -> EventSender<A>
+    where
+        A: Send,
+    {
+        ev.with_events(|ev| ev.sender(*self))
+    }
 }
-impl<E: EventArgs> Clone for Event<E> {
+impl<A: EventArgs> Clone for Event<A> {
     fn clone(&self) -> Self {
         Self {
             local: self.local,
@@ -342,13 +390,13 @@ impl<E: EventArgs> Clone for Event<E> {
         }
     }
 }
-impl<E: EventArgs> Copy for Event<E> {}
-impl<E: EventArgs> PartialEq for Event<E> {
+impl<A: EventArgs> Copy for Event<A> {}
+impl<A: EventArgs> PartialEq for Event<A> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.local, other.local)
     }
 }
-impl<E: EventArgs> Eq for Event<E> {}
+impl<A: EventArgs> Eq for Event<A> {}
 
 /// Represents an [`Event`] without the args type.
 #[derive(Clone, Copy)]
@@ -371,7 +419,7 @@ impl AnyEvent {
     }
 
     /// Returns `true` is `self` is the type erased `event`.
-    pub fn is<E: EventArgs>(&self, event: &Event<E>) -> bool {
+    pub fn is<A: EventArgs>(&self, event: &Event<A>) -> bool {
         self == event
     }
 
@@ -430,13 +478,13 @@ impl PartialEq for AnyEvent {
     }
 }
 impl Eq for AnyEvent {}
-impl<E: EventArgs> PartialEq<AnyEvent> for Event<E> {
+impl<A: EventArgs> PartialEq<AnyEvent> for Event<A> {
     fn eq(&self, other: &AnyEvent) -> bool {
         std::ptr::eq(self.local, other.local)
     }
 }
-impl<E: EventArgs> PartialEq<Event<E>> for AnyEvent {
-    fn eq(&self, other: &Event<E>) -> bool {
+impl<A: EventArgs> PartialEq<Event<A>> for AnyEvent {
+    fn eq(&self, other: &Event<A>) -> bool {
         std::ptr::eq(self.local, other.local)
     }
 }

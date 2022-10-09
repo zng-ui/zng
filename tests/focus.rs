@@ -1542,9 +1542,8 @@ impl TestApp {
         let mut app = App::default().run_headless(false);
 
         let (focus_changed, return_focus_changed) = {
-            let ctx = app.ctx();
-            let a = ctx.events.buffer(FOCUS_CHANGED_EVENT);
-            let b = ctx.events.buffer(RETURN_FOCUS_CHANGED_EVENT);
+            let a = FOCUS_CHANGED_EVENT.buffer();
+            let b = RETURN_FOCUS_CHANGED_EVENT.buffer();
             (a, b)
         };
 

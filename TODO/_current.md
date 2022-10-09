@@ -3,8 +3,6 @@
     - Only command metadata for commands that where subscribed once is unloaded.
     - Have an AppId and compare it?
 
-* Refactor event buffer + channel to be associated with the Event type, not Events.
-
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
     - Rename to `#[ui_node]`.
     - Explicit auto-handles with pseudo-attributes `#[var]` and  `#[event]` applied to member.
