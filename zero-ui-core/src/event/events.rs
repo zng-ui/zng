@@ -1,6 +1,4 @@
-use std::mem;
-
-use crate::{app::AppEventSender, context::AppContext, var::Vars};
+use crate::{app::AppEventSender, var::Vars};
 
 use super::*;
 
@@ -13,10 +11,6 @@ pub struct Events {
     app_event_sender: AppEventSender,
 
     updates: Vec<EventUpdate>,
-
-    pre_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
-    pos_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
-
     commands: Vec<Command>,
 
     _singleton: SingletonEvents,
@@ -34,8 +28,6 @@ impl Events {
         Events {
             app_event_sender,
             updates: vec![],
-            pre_actions: vec![],
-            pos_actions: vec![],
             commands: vec![],
             _singleton: SingletonEvents::assert_new("Events"),
         }
@@ -73,33 +65,12 @@ impl Events {
         for command in &self.commands {
             command.update_state(vars);
         }
-        let updates: Vec<_> = self.updates.drain(..).collect();
-        for u in &updates {
-            u.event.on_update(self, u);
+        let mut updates: Vec<_> = self.updates.drain(..).collect();
+        for u in &mut updates {
+            let ev = u.event;
+            ev.on_update(self, u);
         }
         updates
-    }
-
-    pub(crate) fn on_pre_events(ctx: &mut AppContext, update: &mut EventUpdate) {
-        let mut actions = mem::take(&mut ctx.events.pre_actions);
-
-        for action in actions.drain(..) {
-            action(ctx, update);
-        }
-
-        actions.extend(mem::take(&mut ctx.events.pre_actions));
-        ctx.events.pre_actions = actions;
-    }
-
-    pub(crate) fn on_events(ctx: &mut AppContext, update: &mut EventUpdate) {
-        let mut actions = mem::take(&mut ctx.events.pre_actions);
-
-        for action in actions.drain(..) {
-            action(ctx, update);
-        }
-
-        actions.extend(mem::take(&mut ctx.events.pos_actions));
-        ctx.events.pos_actions = actions;
     }
 
     /// Commands that had handles generated in this app.
@@ -109,14 +80,6 @@ impl Events {
     /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> impl Iterator<Item = Command> + '_ {
         self.commands.iter().copied()
-    }
-
-    pub(crate) fn push_once_action(&mut self, action: Box<dyn FnOnce(&mut AppContext, &EventUpdate)>, is_preview: bool) {
-        if is_preview {
-            self.pre_actions.push(action);
-        } else {
-            self.pos_actions.push(action);
-        }
     }
 }
 impl Drop for Events {

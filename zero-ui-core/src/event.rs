@@ -14,7 +14,7 @@ use std::{
 
 use crate::{
     clone_move,
-    context::{UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
+    context::{AppContext, UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
@@ -197,6 +197,8 @@ impl<A: EventArgs> Event<A> {
             event: self.as_any(),
             delivery_list,
             args: Box::new(args),
+            pre_actions: vec![],
+            pos_actions: vec![],
         }
     }
 
@@ -299,36 +301,30 @@ impl<A: EventArgs> Event<A> {
     }
 
     fn on_event_impl(&self, handler: impl AppHandler<A>, is_preview: bool) -> EventHandle {
-        let event = *self;
         let handler = Rc::new(RefCell::new(handler));
         let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
-        event.as_any().hook(move |events, args| {
+        self.as_any().hook(move |_, update| {
             if inner_handle_owner.is_dropped() {
                 return false;
             }
 
-            if let Some(args) = args.as_any().downcast_ref::<A>() {
-                if !args.propagation().is_stopped() {
-                    let handle = inner_handle.downgrade();
-                    events.push_once_action(
-                        Box::new(clone_move!(handler, |ctx, update| {
-                            if let Some(args) = event.on(update) {
-                                if !args.propagation().is_stopped() {
-                                    handler.borrow_mut().event(
-                                        ctx,
-                                        args,
-                                        &AppHandlerArgs {
-                                            handle: &handle,
-                                            is_preview,
-                                        },
-                                    );
-                                }
-                            }
-                        })),
-                        is_preview,
-                    );
-                }
-            }
+            let handle = inner_handle.downgrade();
+            update.push_once_action(
+                Box::new(clone_move!(handler, |ctx, update| {
+                    let args = update.args().as_any().downcast_ref::<A>().unwrap();
+                    if !args.propagation().is_stopped() {
+                        handler.borrow_mut().event(
+                            ctx,
+                            args,
+                            &AppHandlerArgs {
+                                handle: &handle,
+                                is_preview,
+                            },
+                        );
+                    }
+                })),
+                is_preview,
+            );
 
             true
         })
@@ -345,9 +341,10 @@ impl<A: EventArgs> Event<A> {
         let weak = Rc::downgrade(&buf.queue);
 
         self.as_any()
-            .hook(move |_, args| match weak.upgrade() {
+            .hook(move |_, update| match weak.upgrade() {
                 Some(rc) => {
-                    rc.borrow_mut().push_back(args.as_any().downcast_ref::<A>().unwrap().clone());
+                    rc.borrow_mut()
+                        .push_back(update.args().as_any().downcast_ref::<A>().unwrap().clone());
                     true
                 }
                 None => false,
@@ -368,7 +365,7 @@ impl<A: EventArgs> Event<A> {
         let (sender, receiver) = flume::unbounded();
 
         self.as_any()
-            .hook(move |_, args| sender.send(args.as_any().downcast_ref::<A>().unwrap().clone()).is_ok())
+            .hook(move |_, update| sender.send(update.args().as_any().downcast_ref::<A>().unwrap().clone()).is_ok())
             .perm();
 
         EventReceiver { receiver, event: *self }
@@ -429,10 +426,10 @@ impl AnyEvent {
     }
 
     /// Register a callback that is called just before an event begins notifying.
-    pub fn hook(&self, hook: impl Fn(&mut Events, &dyn AnyEventArgs) -> bool + 'static) -> EventHandle {
+    pub fn hook(&self, hook: impl Fn(&mut Events, &mut EventUpdate) -> bool + 'static) -> EventHandle {
         self.hook_impl(Box::new(hook))
     }
-    fn hook_impl(&self, hook: Box<dyn Fn(&mut Events, &dyn AnyEventArgs) -> bool>) -> EventHandle {
+    fn hook_impl(&self, hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool>) -> EventHandle {
         let (handle, hook) = EventHandle::new(hook);
         self.local.with(move |l| l.hooks.borrow_mut().push(hook));
         handle
@@ -462,10 +459,10 @@ impl AnyEvent {
         self.local.with(|l| !l.widget_subs.borrow().is_empty())
     }
 
-    fn on_update(&self, events: &mut Events, update: &EventUpdate) {
+    fn on_update(&self, events: &mut Events, update: &mut EventUpdate) {
         self.local.with(|l| {
             let mut hooks = mem::take(&mut *l.hooks.borrow_mut());
-            hooks.retain(|h| h.call(events, update.args()));
+            hooks.retain(|h| h.call(events, update));
             let mut h = l.hooks.borrow_mut();
             hooks.extend(h.drain(..));
             *h = hooks;
@@ -494,6 +491,8 @@ pub struct EventUpdate {
     event: AnyEvent,
     args: Box<dyn AnyEventArgs>,
     delivery_list: UpdateDeliveryList,
+    pre_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
+    pos_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
 }
 impl EventUpdate {
     /// The event.
@@ -533,6 +532,28 @@ impl EventUpdate {
             Some(handle(ctx, self))
         } else {
             None
+        }
+    }
+
+    fn push_once_action(&mut self, action: Box<dyn FnOnce(&mut AppContext, &EventUpdate)>, is_preview: bool) {
+        if is_preview {
+            self.pre_actions.push(action);
+        } else {
+            self.pos_actions.push(action);
+        }
+    }
+
+    pub(crate) fn call_pre_actions(&mut self, ctx: &mut AppContext) {
+        let actions = mem::take(&mut self.pre_actions);
+        for action in actions {
+            action(ctx, self)
+        }
+    }
+
+    pub(crate) fn call_pos_actions(&mut self, ctx: &mut AppContext) {
+        let actions = mem::take(&mut self.pos_actions);
+        for action in actions {
+            action(ctx, self)
         }
     }
 }
@@ -610,7 +631,7 @@ impl IntoIterator for EventHandles {
 
 struct EventHandleData {
     perm: Cell<bool>,
-    hook: Option<Box<dyn Fn(&mut Events, &dyn AnyEventArgs) -> bool>>,
+    hook: Option<Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool>>,
 }
 
 /// Represents an event widget subscription, handler callback or hook.
@@ -645,7 +666,7 @@ impl fmt::Debug for EventHandle {
     }
 }
 impl EventHandle {
-    fn new(hook: Box<dyn Fn(&mut Events, &dyn AnyEventArgs) -> bool>) -> (Self, EventHook) {
+    fn new(hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool>) -> (Self, EventHook) {
         let rc = Rc::new(EventHandleData {
             perm: Cell::new(false),
             hook: Some(hook),
@@ -692,7 +713,7 @@ impl EventHandle {
 struct EventHook(Rc<EventHandleData>);
 impl EventHook {
     /// Callback, returns `true` if the handle must be retained.
-    fn call(&self, events: &mut Events, args: &dyn AnyEventArgs) -> bool {
-        (Rc::strong_count(&self.0) > 1 || self.0.perm.get()) && (self.0.hook.as_ref().unwrap())(events, args)
+    fn call(&self, events: &mut Events, update: &mut EventUpdate) -> bool {
+        (Rc::strong_count(&self.0) > 1 || self.0.perm.get()) && (self.0.hook.as_ref().unwrap())(events, update)
     }
 }

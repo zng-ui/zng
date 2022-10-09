@@ -9,7 +9,7 @@ pub use intrinsic::*;
 
 use crate::config::ConfigManager;
 use crate::crate_util::{PanicPayload, ReceiverExt};
-use crate::event::{event, event_args, EventUpdate, Events};
+use crate::event::{event, event_args, EventUpdate};
 use crate::image::ImageManager;
 use crate::service::Services;
 use crate::timer::Timers;
@@ -865,16 +865,14 @@ impl<E: AppExtension> RunningApp<E> {
 
         self.extensions.event_preview(ctx, &mut update);
         observer.event_preview(ctx, &mut update);
-
-        Events::on_pre_events(ctx, &mut update);
+        update.call_pre_actions(ctx);
 
         self.extensions.event_ui(ctx, &mut update);
         observer.event_ui(ctx, &mut update);
 
         self.extensions.event(ctx, &mut update);
         observer.event(ctx, &mut update);
-
-        Events::on_events(ctx, &mut update);
+        update.call_pos_actions(ctx);
     }
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
@@ -1449,14 +1447,14 @@ impl<E: AppExtension> RunningApp<E> {
                 self.loop_monitor.maybe_trace(|| {
                     self.extensions.event_preview(ctx, &mut update);
                     observer.event_preview(ctx, &mut update);
-                    Events::on_pre_events(ctx, &mut update);
+                    update.call_pre_actions(ctx);
 
                     self.extensions.event_ui(ctx, &mut update);
                     observer.event_ui(ctx, &mut update);
 
                     self.extensions.event(ctx, &mut update);
                     observer.event(ctx, &mut update);
-                    Events::on_events(ctx, &mut update);
+                    update.call_pos_actions(ctx);
                 });
 
                 self.apply_updates(observer);
