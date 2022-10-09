@@ -526,10 +526,20 @@ impl EventUpdate {
         }
     }
 
-    /// Calls `handle` if the event targets the widget.
+    /// Calls `handle` if the event targets the widget and propagation is not stopped.
     pub fn with_widget<H: FnOnce(&mut WidgetContext, &mut Self) -> R, R>(&mut self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
         if self.delivery_list.enter_widget(ctx.path.widget_id()) {
-            Some(handle(ctx, self))
+            let stop = self.args.propagation().is_stopped();
+
+            let r = if stop { None } else { Some(handle(ctx, self)) };
+
+            if stop || self.args.propagation().is_stopped() {
+                self.pre_actions.clear();
+                self.pos_actions.clear();
+                self.delivery_list.clear();
+            }
+
+            r
         } else {
             None
         }

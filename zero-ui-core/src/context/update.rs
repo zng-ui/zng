@@ -847,6 +847,12 @@ impl UpdateDeliveryList {
         self.widgets.extend(other.widgets);
         self.search.extend(other.search)
     }
+
+    pub(crate) fn clear(&mut self) {
+        self.widgets.clear();
+        self.windows.clear();
+        self.search.clear();
+    }
 }
 
 /// Represents a set of widgets that subscribe to an event source.
