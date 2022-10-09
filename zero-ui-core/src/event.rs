@@ -5,6 +5,7 @@ use std::{
     cell::{Cell, RefCell},
     fmt,
     marker::PhantomData,
+    mem,
     ops::Deref,
     rc::Rc,
     thread::LocalKey,
@@ -12,11 +13,12 @@ use std::{
 };
 
 use crate::{
+    clone_move,
     context::{UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
-    WidgetId, clone_move,
+    WidgetId,
 };
 
 mod args;
@@ -107,10 +109,6 @@ impl EventData {
     }
 }
 
-/// Unique identifier of an [`Event`] instance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct EventId(usize);
-
 /// Represents an event.
 pub struct Event<E: EventArgs> {
     local: &'static LocalKey<EventData>,
@@ -134,11 +132,6 @@ impl<E: EventArgs> Event<E> {
     /// Gets the event without the args type.
     pub fn as_any(&self) -> AnyEvent {
         AnyEvent { local: self.local }
-    }
-
-    /// Event ID.
-    pub fn id(&self) -> EventId {
-        EventId(self.local as *const _ as _)
     }
 
     /// Register the widget to receive targeted events from this event.
@@ -166,13 +159,13 @@ impl<E: EventArgs> Event<E> {
 
     /// Returns `true` if the update is for this event.
     pub fn has(&self, update: &EventUpdate) -> bool {
-        self.id() == update.event_id
+        *self == update.event
     }
 
     /// Get the event update args if the update is for this event.
     pub fn on<'a>(&self, update: &'a EventUpdate) -> Option<&'a E> {
-        if self.id() == update.event_id {
-            update.args.downcast_ref()
+        if *self == update.event {
+            update.args.as_any().downcast_ref()
         } else {
             None
         }
@@ -201,12 +194,8 @@ impl<E: EventArgs> Event<E> {
     pub fn new_update_custom(&self, args: E, mut delivery_list: UpdateDeliveryList) -> EventUpdate {
         args.delivery_list(&mut delivery_list);
         EventUpdate {
-            event_id: self.id(),
-            event_name: self.name(),
+            event: self.as_any(),
             delivery_list,
-            timestamp: args.timestamp(),
-            propagation: args.propagation().clone(),
-
             args: Box::new(args),
         }
     }
@@ -253,17 +242,16 @@ impl<E: EventArgs> Event<E> {
     /// ## Async
     ///
     /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
-    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](EventArgs::propagation)
+    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](AnyEventArgs::propagation)
     /// only causes the desired effect before the first `.await`.
     ///
     /// [`app_hn!`]: crate::handler::app_hn!
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
-    pub fn on_pre_event<A, H>(&mut self, event: Event<A>, handler: H) -> EventHandle
+    pub fn on_pre_event<H>(&self, handler: H) -> EventHandle
     where
-        A: EventArgs,
-        H: AppHandler<A>,
+        H: AppHandler<E>,
     {
         self.on_event_impl(handler, true)
     }
@@ -322,21 +310,23 @@ impl<E: EventArgs> Event<E> {
             if let Some(args) = args.as_any().downcast_ref::<E>() {
                 if !args.propagation().is_stopped() {
                     let handle = inner_handle.downgrade();
-                    let action = Box::new(clone_move!(handler, |ctx, update| {
-                        if let Some(args) = event.on(update) {
-                            if !args.propagation().is_stopped() {
-                                handler.borrow_mut().event(
-                                    ctx,
-                                    args,
-                                    &AppHandlerArgs {
-                                        handle: &handle,
-                                        is_preview,
-                                    },
-                                );
+                    events.push_once_action(
+                        Box::new(clone_move!(handler, |ctx, update| {
+                            if let Some(args) = event.on(update) {
+                                if !args.propagation().is_stopped() {
+                                    handler.borrow_mut().event(
+                                        ctx,
+                                        args,
+                                        &AppHandlerArgs {
+                                            handle: &handle,
+                                            is_preview,
+                                        },
+                                    );
+                                }
                             }
-                        }
-                    }));
-                    events.push_once_action(action, is_preview);
+                        })),
+                        is_preview,
+                    );
                 }
             }
 
@@ -355,7 +345,7 @@ impl<E: EventArgs> Clone for Event<E> {
 impl<E: EventArgs> Copy for Event<E> {}
 impl<E: EventArgs> PartialEq for Event<E> {
     fn eq(&self, other: &Self) -> bool {
-        self.id() == other.id()
+        std::ptr::eq(self.local, other.local)
     }
 }
 impl<E: EventArgs> Eq for Event<E> {}
@@ -375,11 +365,6 @@ impl fmt::Debug for AnyEvent {
     }
 }
 impl AnyEvent {
-    /// Event ID.
-    pub fn id(&self) -> EventId {
-        EventId(self.local as *const _ as _)
-    }
-
     /// Display name.
     pub fn name(&self) -> &'static str {
         self.local.with(EventData::name)
@@ -392,7 +377,7 @@ impl AnyEvent {
 
     /// Returns `true` if the update is for this event.
     pub fn has(&self, update: &EventUpdate) -> bool {
-        self.id() == update.event_id
+        *self == update.event
     }
 
     /// Register a callback that is called just before an event begins notifying.
@@ -428,60 +413,54 @@ impl AnyEvent {
     pub fn has_subscribers(&self) -> bool {
         self.local.with(|l| !l.widget_subs.borrow().is_empty())
     }
+
+    fn on_update(&self, events: &mut Events, update: &EventUpdate) {
+        self.local.with(|l| {
+            let mut hooks = mem::take(&mut *l.hooks.borrow_mut());
+            hooks.retain(|h| h.call(events, update.args()));
+            let mut h = l.hooks.borrow_mut();
+            hooks.extend(h.drain(..));
+            *h = hooks;
+        })
+    }
 }
 impl PartialEq for AnyEvent {
     fn eq(&self, other: &Self) -> bool {
-        self.id() == other.id()
+        std::ptr::eq(self.local, other.local)
     }
 }
 impl Eq for AnyEvent {}
 impl<E: EventArgs> PartialEq<AnyEvent> for Event<E> {
     fn eq(&self, other: &AnyEvent) -> bool {
-        self.id() == other.id()
+        std::ptr::eq(self.local, other.local)
     }
 }
 impl<E: EventArgs> PartialEq<Event<E>> for AnyEvent {
     fn eq(&self, other: &Event<E>) -> bool {
-        self.id() == other.id()
+        std::ptr::eq(self.local, other.local)
     }
 }
 
 /// Represents a single event update.
 pub struct EventUpdate {
-    event_id: EventId,
-    event_name: &'static str,
+    event: AnyEvent,
+    args: Box<dyn AnyEventArgs>,
     delivery_list: UpdateDeliveryList,
-    timestamp: Instant,
-    propagation: EventPropagationHandle,
-    args: Box<dyn Any>,
 }
 impl EventUpdate {
-    /// Event ID.
-    pub fn event_id(&self) -> EventId {
-        self.event_id
+    /// The event.
+    pub fn event(&self) -> AnyEvent {
+        self.event
     }
 
-    /// Event name.
-    pub fn event_name(&self) -> &'static str {
-        self.event_name
-    }
-
-    /// Event delivery list.
+    /// The update delivery list.
     pub fn delivery_list(&self) -> &UpdateDeliveryList {
         &self.delivery_list
     }
 
-    /// Gets the instant this event happen.
-    pub fn timestamp(&self) -> Instant {
-        self.timestamp
-    }
-
-    /// Propagation handle associated with this event update.
-    ///
-    /// Cloned arguments share the same handle, some arguments may also share the handle
-    /// of another event if they share the same cause.
-    pub fn propagation(&self) -> &EventPropagationHandle {
-        &self.propagation
+    /// The update args.
+    pub fn args(&self) -> &dyn AnyEventArgs {
+        &*self.args
     }
 
     /// Find all targets.
@@ -512,11 +491,9 @@ impl EventUpdate {
 impl fmt::Debug for EventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("EventUpdate")
-            .field("event_id", &self.event_id)
-            .field("event_name", &self.event_name)
+            .field("event", &self.event)
+            .field("args", &self.args)
             .field("delivery_list", &self.delivery_list)
-            .field("timestamp", &self.timestamp)
-            .field("propagation", &self.propagation)
             .finish_non_exhaustive()
     }
 }

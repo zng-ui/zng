@@ -21,7 +21,7 @@ fn app_main() {
     App::default().run_window(|ctx| {
         ctx.window_id.set_name("main").unwrap();
 
-        trace_focus(ctx.events);
+        trace_focus();
         let window_enabled = var(true);
         window! {
             title = "Focus Example";
@@ -312,26 +312,23 @@ fn commands() -> impl Widget {
     }
 }
 
-fn trace_focus(events: &mut Events) {
-    events
-        .on_pre_event(
-            FOCUS_CHANGED_EVENT,
-            app_hn!(|ctx, args: &FocusChangedArgs, _| {
-                if args.is_hightlight_changed() {
-                    println!("highlight: {}", args.highlight);
-                } else if args.is_widget_move() {
-                    println!("focused {:?} moved", args.new_focus.as_ref().unwrap());
-                } else if args.is_enabled_change() {
-                    println!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
-                } else {
-                    println!(
-                        "{} -> {}",
-                        inspect::focus(ctx.services, &args.prev_focus),
-                        inspect::focus(ctx.services, &args.new_focus)
-                    );
-                }
-            }),
-        )
+fn trace_focus() {
+    FOCUS_CHANGED_EVENT
+        .on_pre_event(app_hn!(|ctx, args: &FocusChangedArgs, _| {
+            if args.is_hightlight_changed() {
+                println!("highlight: {}", args.highlight);
+            } else if args.is_widget_move() {
+                println!("focused {:?} moved", args.new_focus.as_ref().unwrap());
+            } else if args.is_enabled_change() {
+                println!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
+            } else {
+                println!(
+                    "{} -> {}",
+                    inspect::focus(ctx.services, &args.prev_focus),
+                    inspect::focus(ctx.services, &args.new_focus)
+                );
+            }
+        }))
         .perm();
 }
 

@@ -739,9 +739,9 @@ where
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(CLICK_EVENT, app_hn!(|_, _, _| {
+/// CLICK_EVENT.on_event(app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
-/// }));
+/// })).perm();
 /// # }
 /// ```
 ///
@@ -756,11 +756,11 @@ where
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(CLICK_EVENT, app_hn!(|ctx, args: &ClickArgs, handle| {
+/// CLICK_EVENT.on_event(app_hn!(|ctx, args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     let _ = ctx.services;
 ///     handle.unsubscribe();
-/// }));
+/// })).perm();
 /// # }
 /// ```
 ///
@@ -775,9 +775,9 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let foo = var("".to_text());
 ///
-/// ctx.events.on_event(CLICK_EVENT, app_hn!(foo, |ctx, args: &ClickArgs, _| {
+/// CLICK_EVENT.on_event(app_hn!(foo, |ctx, args: &ClickArgs, _| {
 ///     foo.set(ctx, args.target.to_text());
-/// }));
+/// })).perm();
 ///
 /// // can still use after:
 /// let bar = foo.map(|c| formatx!("last click: {c}"));
@@ -855,11 +855,11 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
-/// ctx.events.on_event(CLICK_EVENT, app_hn_once!(|_, _| {
+/// CLICK_EVENT.on_event(app_hn_once!(|_, _| {
 ///     for i in data {
 ///         print!("{i}, ");
 ///     }
-/// }));
+/// })).perm();
 /// # }
 /// ```
 ///
@@ -874,9 +874,9 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
-/// ctx.events.on_event(CLICK_EVENT, app_hn_once!(data, |ctx, args: &ClickArgs| {
+/// CLICK_EVENT.on_event(app_hn_once!(data, |ctx, args: &ClickArgs| {
 ///     drop(data);
-/// }));
+/// })).perm();
 ///
 ///  println!("{data:?}");
 /// # }
@@ -961,7 +961,7 @@ where
 /// to update in [`on_pre_update`](crate::context::Updates::on_pre_update) or [`on_update`](crate::context::Updates::on_update) depending
 /// on if the handler was assigned to a *preview* event or not.
 ///
-/// Note that this means [`propagation`](crate::event::EventArgs::propagation) can only be meaningfully stopped before the
+/// Note that this means [`propagation`](crate::event::AnyEventArgs::propagation) can only be meaningfully stopped before the
 /// first `.await`, after, the event has already propagated.
 ///
 /// # Examples
@@ -974,7 +974,7 @@ where
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(CLICK_EVENT, async_app_hn!(|_, _, _| {
+/// CLICK_EVENT.on_event(async_app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
 ///
 ///     task::run(async {
@@ -982,7 +982,7 @@ where
 ///     }).await;
 ///
 ///     println!("Back in UI thread, in an app update.");
-/// }));
+/// })).perm();
 /// # }
 /// ```
 ///
@@ -999,13 +999,13 @@ where
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
 /// # fn assert_type(ctx: &mut AppContext) {
-/// ctx.events.on_event(CLICK_EVENT, async_app_hn!(|ctx, args: ClickArgs, handle| {
+/// CLICK_EVENT.on_event(async_app_hn!(|ctx, args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     ctx.with(|c| {  });
 ///     task::run(async move {
 ///         handle.unsubscribe();
 ///     });
-/// }));
+/// })).perm();
 /// # }
 /// ```
 ///
@@ -1021,7 +1021,7 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let status = var("pending..".to_text());
 ///
-/// ctx.events.on_event(CLICK_EVENT, async_app_hn!(status, |ctx, args: ClickArgs, _| {
+/// CLICK_EVENT.on_event(async_app_hn!(status, |ctx, args: ClickArgs, _| {
 ///     status.set(&ctx, formatx!("processing {}..", args.target));
 ///
 ///     task::run(async move {
@@ -1029,7 +1029,7 @@ where
 ///     }).await;
 ///
 ///     status.set(&ctx, formatx!("finished {}", args.target));
-/// }));
+/// })).perm();
 ///
 /// // can still use after:
 /// let text = status;

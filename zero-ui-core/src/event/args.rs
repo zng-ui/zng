@@ -37,12 +37,7 @@ pub trait AnyEventArgs: fmt::Debug + Any {
     fn clone_any(&self) -> Box<dyn AnyEventArgs>;
 
     /// Access to `dyn Any` methods.
-    fn as_any(&self) -> &dyn Any
-    where
-        Self: Sized,
-    {
-        self
-    }
+    fn as_any(&self) -> &dyn Any;
 
     /// Gets the instant this event happened.
     fn timestamp(&self) -> Instant;
@@ -61,7 +56,7 @@ pub trait AnyEventArgs: fmt::Debug + Any {
 ///
 /// Event handlers can use this handle to signal subsequent handlers that they should skip handling the event.
 ///
-/// You can get the propagation handle of any event argument by using the [`EventArgs::propagation`] method.
+/// You can get the propagation handle of any event argument by using the [`AnyEventArgs::propagation`] method.
 #[derive(Debug, Clone)]
 pub struct EventPropagationHandle(Arc<AtomicBool>);
 impl EventPropagationHandle {
@@ -346,9 +341,12 @@ macro_rules! __event_args {
         impl $crate::event::EventArgs for $Args {
         }
         impl $crate::event::AnyEventArgs for $Args {
-
             fn clone_any(&self) -> std::boxed::Box<dyn $crate::event::AnyEventArgs> {
                 Box::new(self.clone())
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
             }
 
             fn timestamp(&self) -> std::time::Instant {

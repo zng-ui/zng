@@ -859,7 +859,7 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Notify an event directly to the app extensions.
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
-        let _scope = tracing::trace_span!("notify_event", event = update.event_name()).entered();
+        let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
 
         let ctx = &mut self.owned_ctx.borrow();
 

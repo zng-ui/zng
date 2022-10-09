@@ -115,7 +115,7 @@ macro_rules! __event_property {
 ///
 /// [`on_pre_event`]: crate::event::on_pre_event
 /// [`on_event`]: crate::event::on_event
-/// [`propagation`]: EventArgs::propagation
+/// [`propagation`]: AnyEventArgs::propagation
 /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
 /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 #[macro_export]
@@ -163,7 +163,7 @@ pub use crate::event_property;
 /// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
 /// other async tasks handling the same event, if they are monitoring the propagation handle.
 ///
-/// [`propagation`]: EventArgs::propagation
+/// [`propagation`]: AnyEventArgs::propagation
 /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
 /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode
@@ -229,7 +229,7 @@ where
 /// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
 /// other async tasks handling the same event, if they are monitoring the propagation handle.
 ///
-/// [`propagation`]: EventArgs::propagation
+/// [`propagation`]: AnyEventArgs::propagation
 /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
 /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode

@@ -823,7 +823,7 @@
 //! [#impl_ui_node]: macro@crate::core::impl_ui_node
 //! [`Event`]: crate::core::event::Event
 //! [`EventArgs`]: crate::core::event::EventArgs
-//! [`delivery_list`]: crate::core::event::EventArgs::delivery_list
+//! [`delivery_list`]: crate::core::event::AnyEventArgs::delivery_list
 //! [`propagation().stop()`]: crate::core::event::EventPropagationHandle::stop
 //! [`WidgetHandler<T>`]: crate::core::handler::WidgetHandler
 //! [`hn!`]: macro@crate::core::handler::hn

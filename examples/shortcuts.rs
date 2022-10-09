@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
+    App::default().run_window(|_| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());
         let shortcut_error = var(false);
@@ -25,26 +25,25 @@ fn app_main() {
         // examples_util::trace_var!(ctx, ?keypress_text);
         // examples_util::trace_var!(ctx, %shortcut_color);
 
-        ctx.events
-            .on_pre_event(
-                zero_ui::core::gesture::SHORTCUT_EVENT,
-                app_hn!(
-                    shortcut_text,
-                    shortcut_error,
-                    |ctx, args: &zero_ui::core::gesture::ShortcutArgs, _| {
-                        if args.is_repeat {
-                            return;
-                        }
-                        shortcut_text.set(ctx, args.shortcut.to_text()).unwrap();
-                        shortcut_error.set(ctx, false).unwrap();
+        zero_ui::core::gesture::SHORTCUT_EVENT
+            .on_pre_event(app_hn!(
+                shortcut_text,
+                shortcut_error,
+                |ctx, args: &zero_ui::core::gesture::ShortcutArgs, _| {
+                    if args.is_repeat {
+                        return;
                     }
-                ),
-            )
+                    shortcut_text.set(ctx, args.shortcut.to_text()).unwrap();
+                    shortcut_error.set(ctx, false).unwrap();
+                }
+            ))
             .perm();
-        ctx.events
-            .on_pre_event(
-                zero_ui::core::keyboard::KEY_INPUT_EVENT,
-                app_hn!(shortcut_text, keypress_text, shortcut_error, |ctx, args: &KeyInputArgs, _| {
+        zero_ui::core::keyboard::KEY_INPUT_EVENT
+            .on_pre_event(app_hn!(
+                shortcut_text,
+                keypress_text,
+                shortcut_error,
+                |ctx, args: &KeyInputArgs, _| {
                     if args.is_repeat || args.state != KeyState::Pressed {
                         return;
                     }
@@ -60,8 +59,8 @@ fn app_main() {
 
                     shortcut_text.set(ctx, new_shortcut_text).unwrap();
                     shortcut_error.set(ctx, true).unwrap();
-                }),
-            )
+                }
+            ))
             .perm();
 
         window! {

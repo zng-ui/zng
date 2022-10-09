@@ -64,8 +64,8 @@ where
         };
 
         self.sender.send_event(msg).map_err(|e| {
-            if let Ok(args) = (e.0.args)().args.downcast::<A>() {
-                AppDisconnected(*args)
+            if let Some(args) = (e.0.args)().args.as_any().downcast_ref::<A>() {
+                AppDisconnected(args.clone())
             } else {
                 unreachable!()
             }

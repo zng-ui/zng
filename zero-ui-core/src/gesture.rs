@@ -827,10 +827,10 @@ impl AppExtension for GestureManager {
 /// [`context_click_focused`]: Self::context_click_focused
 /// [`click_shortcut`]: Self::click_shortcut
 /// [`focus_shortcut`]: Self::focus_shortcut
-/// [`on_pre_event`]: Events::on_pre_event
-/// [`on_event`]: Events::on_event
+/// [`on_pre_event`]: Event::on_pre_event
+/// [`on_event`]: Event::on_event
 /// [`BLOCKED`]: crate::widget_info::Interactivity::BLOCKED
-/// [`propagation`]: EventArgs::propagation
+/// [`propagation`]: AnyEventArgs::propagation
 /// [`event_preview`]: AppExtension::event_preview
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
