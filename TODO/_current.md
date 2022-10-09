@@ -1,3 +1,10 @@
+* Review Event hooks and Command data unload.
+    - If we unload a headless app and reuse the thread hooks stay alive.
+    - Only command metadata for commands that where subscribed once is unloaded.
+    - Have an AppId and compare it?
+
+* Refactor event buffer + channel to be associated with the Event type, not Events.
+
 * Use `impl_ui_node(struct Node { ..})` syntax everywhere.
     - Rename to `#[ui_node]`.
     - Explicit auto-handles with pseudo-attributes `#[var]` and  `#[event]` applied to member.
@@ -21,12 +28,6 @@
 * Review `unsafe`, only use when there is no alternative.
 * Review nodes that call `(de)init(ctx)`, are they causing a widget handle collection to grow uncontrolledly?
 
-* Implement event handlers using a callback in the event that queues the handlers to run once. 
-    - This avoids the linear event update search.
-    - This causes lets us unify all event handles to a single `EventHandle` like the `VarHandle`.
-* Review Command unload, if we only modify a command meta and don't create any handlers it does not register for cleanup.
-    - Bug already existed in previous implementation.
-    - Have an AppId?
 * Implement all `todo!` code.
 
 * Opening the image example flashes white.
