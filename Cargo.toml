@@ -32,6 +32,9 @@ exclude = [
     "dependencies/webrender"
 ]
 
+[profile.dev]
+debug = 1
+
 [profile.release-lto]
 inherits = "release"
 lto = true
