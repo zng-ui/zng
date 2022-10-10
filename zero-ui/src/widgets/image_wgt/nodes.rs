@@ -59,7 +59,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             }
             self.img = Images::req(ctx.services).image(source, mode, limits);
 
-            self.ctx_img.set(ctx.vars, self.img.get()).unwrap();
+            self.ctx_img.set(ctx.vars, self.img.get());
             self.ctx_binding = Some(self.img.bind(&self.ctx_img));
 
             self.child.init(ctx);
@@ -67,7 +67,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
-            self.ctx_img.set(ctx, no_context_image()).unwrap();
+            self.ctx_img.set(ctx, no_context_image());
             self.img = var(no_context_image()).read_only();
             self.ctx_binding = None;
         }
@@ -91,7 +91,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
                 self.img = Images::req(ctx.services).image(source, mode, limits);
 
-                self.ctx_img.set(ctx.vars, self.img.get()).unwrap();
+                self.ctx_img.set(ctx.vars, self.img.get());
                 self.ctx_binding = Some(self.img.bind(&self.ctx_img));
             } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new(ctx) {
                 // cache-mode update:
@@ -111,7 +111,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         Images::req(ctx.services).image(source, ImageCacheMode::Cache, limits)
                     };
 
-                    self.ctx_img.set(ctx.vars, self.img.get()).unwrap();
+                    self.ctx_img.set(ctx.vars, self.img.get());
                     self.ctx_binding = Some(self.img.bind(&self.ctx_img));
                 }
             }

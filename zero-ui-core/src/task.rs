@@ -102,7 +102,6 @@
 //!             Ok(r) => msg.set(&ctx, r),
 //!             Err(e) => msg.set(&ctx, formatx!("error: {e}")),
 //!         }
-//!         .unwrap();
 //!
 //!         enabled.set(&ctx, true);
 //!     });

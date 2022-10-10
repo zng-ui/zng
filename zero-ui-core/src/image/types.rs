@@ -17,7 +17,7 @@ use crate::{
     task::{self, SignalOnce},
     text::Text,
     units::*,
-    var::{AnyVar, ReadOnlyRcVar, Var},
+    var::{AnyVar, ReadOnlyRcVar},
     window::{FrameCaptureMode, Window, WindowId, WindowVars},
     UiNode,
 };
@@ -530,12 +530,11 @@ impl ImageSource {
     {
         Self::Render(
             Rc::new(Box::new(move |ctx, args| {
-                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent).unwrap();
+                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
                 let r = new_img(ctx, args);
                 WindowVars::req(&ctx.window_state)
                     .frame_capture_mode()
-                    .set_ne(ctx.vars, FrameCaptureMode::All)
-                    .unwrap();
+                    .set_ne(ctx.vars, FrameCaptureMode::All);
                 r
             })),
             None,
@@ -573,7 +572,7 @@ impl ImageSource {
         N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + 'static,
     {
         Self::render(move |ctx, args| {
-            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent).unwrap();
+            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
             let node = render(ctx, args);
             Window::new_container(
                 crate::WidgetId::new_unique(),

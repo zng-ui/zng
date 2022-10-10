@@ -529,11 +529,11 @@
 //!         status.set(&ctx, "Loading..");
 //!         match task::wait(|| std::fs::read("some/data")).await {
 //!             Ok(data) => {
-//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len())).unwrap();
+//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len()));
 //!                 task::wait(move || std::fs::write("data.bin", data)).await;
-//!                 status.set(&ctx, "Done.").unwrap();
+//!                 status.set(&ctx, "Done.");
 //!             },
-//!             Err(e) => status.set(&ctx, e.to_text()).unwrap(),
+//!             Err(e) => status.set(&ctx, e.to_text()),
 //!         }
 //!     });
 //!#    content = text("Save");

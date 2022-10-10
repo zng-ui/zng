@@ -209,7 +209,7 @@ fn sprite(timers: &mut Timers) -> impl Widget {
                     } else {
                         t.pause();
                     }
-                    label.set(ctx, if t.is_paused() { "play" } else { "pause" }).unwrap();
+                    label.set(ctx, if t.is_paused() { "play" } else { "pause" });
                 });
             },
             image! {
@@ -279,7 +279,7 @@ fn block_window_load_image() -> impl Widget {
         content = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
         enabled = enabled.clone();
         on_click = hn!(|ctx, _| {
-            enabled.set(ctx, false).unwrap();
+            enabled.set(ctx, false);
             Windows::req(ctx.services).open(clone_move!(enabled, |_| img_window! {
                 title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
                 state = WindowState::Normal;
@@ -302,7 +302,7 @@ fn block_window_load_image() -> impl Widget {
                 };
 
                 on_load = hn!(enabled, |ctx, _| {
-                    enabled.set(ctx, true).unwrap();
+                    enabled.set(ctx, true);
                 });
             }));
         });

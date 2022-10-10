@@ -456,7 +456,7 @@ impl Windows {
             info.is_loaded = info.loading_handle.try_load(timers);
 
             if info.is_loaded && !info.vars.0.is_loaded.get() {
-                info.vars.0.is_loaded.set_ne(vars, true).unwrap();
+                info.vars.0.is_loaded.set_ne(vars, true);
                 WINDOW_LOAD_EVENT.notify(events, WindowOpenArgs::now(info.id));
             }
 
@@ -494,7 +494,7 @@ impl Windows {
                 if let Some(window) = wns.windows_info.get_mut(&new_focus) {
                     if !window.is_focused {
                         window.is_focused = true;
-                        window.vars.focus_indicator().set_ne(ctx.vars, None).unwrap();
+                        window.vars.focus_indicator().set_ne(ctx.vars, None);
                         new = Some(new_focus);
                     }
                 }
@@ -565,7 +565,7 @@ impl Windows {
                     let wns = Windows::req(ctx.services);
                     let info = wns.windows_info.remove(&id).unwrap();
 
-                    info.vars.0.is_open.set(ctx.vars, false).unwrap();
+                    info.vars.0.is_open.set(ctx.vars, false);
 
                     if info.is_focused {
                         let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
@@ -801,10 +801,10 @@ impl AppWindow {
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
 
         if window.kiosk {
-            vars.chrome().set_ne(ctx, WindowChrome::None).unwrap();
-            vars.visible().set_ne(ctx, true).unwrap();
+            vars.chrome().set_ne(ctx, WindowChrome::None);
+            vars.visible().set_ne(ctx, true);
             if !vars.state().get().is_fullscreen() {
-                vars.state().set(ctx, WindowState::Exclusive).unwrap();
+                vars.state().set(ctx, WindowState::Exclusive);
             }
         }
 

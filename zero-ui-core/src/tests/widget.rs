@@ -1873,7 +1873,7 @@ mod util {
         fn update_state(&mut self, ctx: &mut WidgetContext) {
             let wgt_state = ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default();
             if wgt_state != self.state.get() {
-                self.state.set(ctx.vars, wgt_state).unwrap();
+                self.state.set(ctx.vars, wgt_state);
             }
         }
 

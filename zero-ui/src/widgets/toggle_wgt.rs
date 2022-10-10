@@ -364,7 +364,7 @@ pub mod properties {
                     } else {
                         Self::is_selected(ctx, value)
                     };
-                    self.checked.set_ne(ctx.vars, Some(selected)).unwrap();
+                    self.checked.set_ne(ctx.vars, Some(selected));
 
                     if DESELECT_ON_DEINIT_VAR.get() {
                         self.prev_value = Some(value.clone());
@@ -381,7 +381,7 @@ pub mod properties {
                 if self.checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
                     self.value.with(|value| {
                         if Self::deselect(ctx, value) {
-                            self.checked.set_ne(ctx, Some(false)).unwrap();
+                            self.checked.set_ne(ctx, Some(false));
                         }
                     });
                 }
@@ -407,7 +407,7 @@ pub mod properties {
                                 Self::select(ctx, value)
                             }
                         });
-                        self.checked.set_ne(ctx, Some(selected)).unwrap()
+                        self.checked.set_ne(ctx, Some(selected))
                     }
                 }
             }
@@ -440,7 +440,7 @@ pub mod properties {
                     // contextual selection can change in any update.
                     self.value.with(|val| Self::is_selected(ctx, val))
                 });
-                self.checked.set_ne(ctx.vars, selected).unwrap();
+                self.checked.set_ne(ctx.vars, selected);
 
                 if DESELECT_ON_NEW_VAR.get() && selected {
                     // save a clone of the value to reference it on deselection triggered by variable value changing.

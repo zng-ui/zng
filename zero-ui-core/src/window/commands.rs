@@ -89,15 +89,15 @@ impl WindowCommands {
         let scope = *ctx.window_id;
         if let Some(args) = MAXIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.maximize_handle, |_| {
-                window_vars.state().set_ne(ctx, WindowState::Maximized).unwrap();
+                window_vars.state().set_ne(ctx, WindowState::Maximized);
             });
         } else if let Some(args) = MINIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.minimize_handle, |_| {
-                window_vars.state().set_ne(ctx, WindowState::Minimized).unwrap();
+                window_vars.state().set_ne(ctx, WindowState::Minimized);
             });
         } else if let Some(args) = RESTORE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.restore_handle, |_| {
-                window_vars.state().set_ne(ctx.vars, window_vars.restore_state().get()).unwrap();
+                window_vars.state().set_ne(ctx.vars, window_vars.restore_state().get());
             });
         } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.close_handle, |_| {
@@ -106,17 +106,17 @@ impl WindowCommands {
         } else if let Some(args) = FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.fullscreen_handle, |_| {
                 if let WindowState::Fullscreen = window_vars.state().get() {
-                    window_vars.state().set(ctx.vars, window_vars.restore_state().get()).unwrap();
+                    window_vars.state().set(ctx.vars, window_vars.restore_state().get());
                 } else {
-                    window_vars.state().set(ctx.vars, WindowState::Fullscreen).unwrap();
+                    window_vars.state().set(ctx.vars, WindowState::Fullscreen);
                 }
             });
         } else if let Some(args) = EXCLUSIVE_FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.exclusive_handle, |_| {
                 if let WindowState::Exclusive = window_vars.state().get() {
-                    window_vars.state().set(ctx.vars, window_vars.restore_state().get()).unwrap();
+                    window_vars.state().set(ctx.vars, window_vars.restore_state().get());
                 } else {
-                    window_vars.state().set(ctx, WindowState::Exclusive).unwrap();
+                    window_vars.state().set(ctx, WindowState::Exclusive);
                 }
             });
         }

@@ -746,6 +746,34 @@ pub trait IntoVar<T: VarValue>: Clone {
     }
 }
 
+macro_rules! impl_infallible_write {
+    (for<$T:ident>) => {
+        /// Infallible [`Var::modify`].
+        pub fn modify(&self, vars: &impl WithVars, modify: impl FnOnce(&mut VarModifyValue<$T>) + 'static) {
+            Var::modify(self, vars, modify).unwrap()
+        }
+
+        /// Infallible [`Var::set`].
+        pub fn set(&self, vars: &impl WithVars, value: impl Into<$T>) {
+            Var::set(self, vars, value).unwrap()
+        }
+
+        /// Infallible [`Var::set_ne`].
+        pub fn set_ne(&self, vars: &impl WithVars, value: impl Into<$T>)
+        where
+            $T: PartialEq,
+        {
+            Var::set_ne(self, vars, value).unwrap()
+        }
+
+        /// Infallible [`Var::touch`].
+        pub fn touch(&self, vars: &impl WithVars) {
+            Var::touch(self, vars).unwrap()
+        }
+    };
+}
+use impl_infallible_write;
+
 /// Represents an observable value.
 ///
 /// All variable types can be read, some can update, variables update only in between app updates so

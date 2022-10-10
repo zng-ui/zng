@@ -6,7 +6,6 @@ use crate::{
 };
 use std::{fmt, marker::PhantomData, num::NonZeroU32};
 
-
 use num_enum::FromPrimitive;
 
 /// Name of a font feature.

@@ -32,7 +32,7 @@ const FPS: u32 = 60;
 
 fn example(vars: &Vars) -> impl Widget {
     // vars.animation_time_scale().set(vars, 0.5.fct());
-    vars.frame_duration().set(vars, (1.0 / FPS as f32).secs()).unwrap();
+    vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
 
     let x = var(0.dip());
     let color = var(FROM_COLOR);
@@ -118,8 +118,8 @@ fn example(vars: &Vars) -> impl Widget {
                 };
                 click_shortcut = shortcut![Escape];
                 on_click = hn!(x, color, |ctx, _| {
-                    x.set(ctx, 0).unwrap();
-                    color.set(ctx, FROM_COLOR).unwrap();
+                    x.set(ctx, 0);
+                    color.set(ctx, FROM_COLOR);
                 });
             },
         ]
@@ -193,8 +193,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
 
             zero_ui::core::image::ImageRenderVars::req(&ctx.window_state)
                 .retain()
-                .set(ctx.vars, true)
-                .unwrap();
+                .set(ctx.vars, true);
             let meta_color = WindowVars::req(ctx).actual_color_scheme().map(|t| match t {
                 ColorScheme::Light => rgba(0, 0, 0, 0.4),
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),

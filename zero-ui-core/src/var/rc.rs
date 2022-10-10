@@ -79,7 +79,8 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value))
+        self.modify(vars, var_set_any(value));
+        Ok(())
     }
 
     fn last_update(&self) -> VarUpdateId {
@@ -178,6 +179,10 @@ impl<T: VarValue> RcVar<T> {
             }
         }));
         Ok(())
+    }
+
+    impl_infallible_write! {
+        for<T>
     }
 }
 

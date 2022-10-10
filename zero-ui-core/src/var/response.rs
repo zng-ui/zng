@@ -173,7 +173,7 @@ impl<T: VarValue> ResponderVar<T> {
     /// Sets the one time response.
     pub fn respond<'a, Vw: WithVars>(&'a self, vars: &'a Vw, response: T) {
         vars.with_vars(|vars| {
-            let _ = self.set(vars, Response::Done(response));
+            self.set(vars, Response::Done(response));
         })
     }
 

@@ -504,9 +504,8 @@ impl Shortcuts {
     ///
     /// Note chords are not generated. Caps lock is assumed to be off.
     pub fn from_char(character: char) -> Result<Self, char> {
-        let char_range_to_key = |char0: char, key0: GestureKey| {
-            GestureKey::try_from(key0 as u32 + (character as u8 - char0 as u8) as u32).unwrap()
-        };
+        let char_range_to_key =
+            |char0: char, key0: GestureKey| GestureKey::try_from(key0 as u32 + (character as u8 - char0 as u8) as u32).unwrap();
 
         match character {
             'a'..='z' => {

@@ -203,28 +203,28 @@ impl AppExtension for KeyboardManager {
             }
         } else if let Some(args) = RAW_KEY_REPEAT_DELAY_CHANGED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
-            kb.repeat_delay.set_ne(ctx.vars, args.delay).unwrap();
+            kb.repeat_delay.set_ne(ctx.vars, args.delay);
             kb.last_key_down = None;
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
                 let kb = Keyboard::req(ctx.services);
 
-                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty()).unwrap();
+                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
                 kb.current_modifiers.clear();
-                kb.codes.set_ne(ctx.vars, vec![]).unwrap();
-                kb.keys.set_ne(ctx.vars, vec![]).unwrap();
+                kb.codes.set_ne(ctx.vars, vec![]);
+                kb.keys.set_ne(ctx.vars, vec![]);
 
                 kb.last_key_down = None;
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
-            kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay).unwrap();
+            kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay);
 
             if args.is_respawn {
-                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty()).unwrap();
+                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
                 kb.current_modifiers.clear();
-                kb.codes.set_ne(ctx.vars, vec![]).unwrap();
-                kb.keys.set_ne(ctx.vars, vec![]).unwrap();
+                kb.codes.set_ne(ctx.vars, vec![]);
+                kb.keys.set_ne(ctx.vars, vec![]);
 
                 kb.last_key_down = None;
             }
@@ -281,20 +281,16 @@ impl Keyboard {
 
                 let scan_code = args.scan_code;
                 if !self.codes.with(|c| c.contains(&scan_code)) {
-                    self.codes
-                        .modify(vars, move |cs| {
-                            cs.get_mut().push(scan_code);
-                        })
-                        .unwrap();
+                    self.codes.modify(vars, move |cs| {
+                        cs.get_mut().push(scan_code);
+                    });
                 }
 
                 if let Some(key) = args.key {
                     if !self.keys.with(|c| c.contains(&key)) {
-                        self.keys
-                            .modify(vars, move |ks| {
-                                ks.get_mut().push(key);
-                            })
-                            .unwrap();
+                        self.keys.modify(vars, move |ks| {
+                            ks.get_mut().push(key);
+                        });
                     }
 
                     if key.is_modifier() {
@@ -307,24 +303,20 @@ impl Keyboard {
 
                 let key = args.scan_code;
                 if self.codes.with(|c| c.contains(&key)) {
-                    self.codes
-                        .modify(vars, move |cs| {
-                            if let Some(i) = cs.get().iter().position(|c| *c == key) {
-                                cs.get_mut().swap_remove(i);
-                            }
-                        })
-                        .unwrap();
+                    self.codes.modify(vars, move |cs| {
+                        if let Some(i) = cs.get().iter().position(|c| *c == key) {
+                            cs.get_mut().swap_remove(i);
+                        }
+                    });
                 }
 
                 if let Some(key) = args.key {
                     if self.keys.with(|c| c.contains(&key)) {
-                        self.keys
-                            .modify(vars, move |ks| {
-                                if let Some(i) = ks.get().iter().position(|k| *k == key) {
-                                    ks.get_mut().swap_remove(i);
-                                }
-                            })
-                            .unwrap();
+                        self.keys.modify(vars, move |ks| {
+                            if let Some(i) = ks.get().iter().position(|k| *k == key) {
+                                ks.get_mut().swap_remove(i);
+                            }
+                        });
                     }
 
                     if key.is_modifier() {
@@ -363,7 +355,7 @@ impl Keyboard {
         let new_modifiers = self.current_modifiers();
 
         if prev_modifiers != new_modifiers {
-            self.modifiers.set(vars, new_modifiers).unwrap();
+            self.modifiers.set(vars, new_modifiers);
             MODIFIERS_CHANGED_EVENT.notify(events, ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
         }
     }

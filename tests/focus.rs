@@ -985,21 +985,21 @@ pub fn window_blur_focus() {
 pub fn focused_removed_by_interacivity() {
     let interactive = var(true);
     focused_removed_test(button! { content = text("Button 1"); interactive = interactive.clone() }, |vars| {
-        interactive.set(vars, false).unwrap()
+        interactive.set(vars, false)
     })
 }
 #[test]
 pub fn focused_removed_by_collapsing() {
     let visibility = var(Visibility::Visible);
     focused_removed_test(button! { content = text("Button 1"); visibility = visibility.clone() }, |vars| {
-        visibility.set(vars, Visibility::Collapsed).unwrap()
+        visibility.set(vars, Visibility::Collapsed)
     })
 }
 #[test]
 pub fn focused_removed_by_making_not_focusable() {
     let focusable = var(true);
     focused_removed_test(button! { content = text("Button 1"); focusable = focusable.clone() }, |vars| {
-        focusable.set(vars, false).unwrap()
+        focusable.set(vars, false)
     })
 }
 fn focused_removed_test(button1: impl Widget, set_var: impl FnOnce(&Vars)) {
@@ -1043,7 +1043,7 @@ pub fn focused_removed_by_deleting() {
     assert_eq!(Some(button1_id), app.focused());
 
     app.set_vars(|vars| {
-        exist.set(vars, false).unwrap();
+        exist.set(vars, false);
     });
 
     assert_ne!(Some(button1_id), app.focused());
@@ -1136,7 +1136,7 @@ pub fn focus_continued_after_widget_id_move() {
 
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();
-    app.set_vars(|vars| do_move_id.set(vars, true).unwrap());
+    app.set_vars(|vars| do_move_id.set(vars, true));
 
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
@@ -1165,7 +1165,7 @@ pub fn focus_continued_after_widget_move_same_window() {
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();
 
-    app.set_vars(|vars| do_move.set(vars, true).unwrap());
+    app.set_vars(|vars| do_move.set(vars, true));
 
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
@@ -1221,7 +1221,7 @@ pub fn focus_goes_to_parent_after_remove() {
     app.take_focus_changed();
 
     app.set_vars(|vars| {
-        interactive.set(vars, false).unwrap();
+        interactive.set(vars, false);
     });
     assert_eq!(Some(parent_id), app.focused());
     let evs = app.take_focus_changed();

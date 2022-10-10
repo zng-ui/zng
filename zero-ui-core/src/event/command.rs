@@ -418,12 +418,12 @@ impl Command {
             let l = l.data.borrow();
             if let CommandScope::App = self.scope {
                 let has_handlers = l.handle_count > 0;
-                l.has_handlers.set_ne(vars, has_handlers).unwrap();
-                l.is_enabled.set_ne(vars, has_handlers && l.enabled_count > 0).unwrap();
+                l.has_handlers.set_ne(vars, has_handlers);
+                l.is_enabled.set_ne(vars, has_handlers && l.enabled_count > 0);
             } else if let Some(scope) = l.scopes.get(&self.scope) {
                 let has_handlers = !scope.handle_count > 0;
-                scope.has_handlers.set_ne(vars, has_handlers).unwrap();
-                scope.is_enabled.set_ne(vars, has_handlers && scope.enabled_count > 0).unwrap();
+                scope.has_handlers.set_ne(vars, has_handlers);
+                scope.is_enabled.set_ne(vars, has_handlers && scope.enabled_count > 0);
             }
         });
     }

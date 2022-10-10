@@ -769,7 +769,7 @@ impl MouseManager {
             }
 
             if !mouse.buttons.with(|b| b.contains(&button)) {
-                mouse.buttons.modify(ctx.vars, move |btns| btns.get_mut().push(button)).unwrap();
+                mouse.buttons.modify(ctx.vars, move |btns| btns.get_mut().push(button));
             }
 
             prev_pressed = self.pressed.insert(button, target.clone());
@@ -781,14 +781,11 @@ impl MouseManager {
             }
 
             if mouse.buttons.with(|b| b.contains(&button)) {
-                mouse
-                    .buttons
-                    .modify(ctx.vars, move |btns| {
-                        if let Some(i) = btns.get().iter().position(|k| *k == button) {
-                            btns.get_mut().swap_remove(i);
-                        }
-                    })
-                    .unwrap();
+                mouse.buttons.modify(ctx.vars, move |btns| {
+                    if let Some(i) = btns.get().iter().position(|k| *k == button) {
+                        btns.get_mut().swap_remove(i);
+                    }
+                });
             }
 
             prev_pressed = self.pressed.remove(&button);
@@ -1174,10 +1171,10 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.on_window_closed(args.window_id, ctx);
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
-            self.multi_click_config.set_ne(ctx.vars, args.config).unwrap();
+            self.multi_click_config.set_ne(ctx.vars, args.config);
             self.click_state = ClickState::None;
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            self.multi_click_config.set_ne(ctx.vars, args.multi_click_config).unwrap();
+            self.multi_click_config.set_ne(ctx.vars, args.multi_click_config);
 
             if args.is_respawn {
                 let mouse = Mouse::req(ctx.services);

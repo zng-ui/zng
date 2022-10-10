@@ -493,10 +493,7 @@ impl WindowIcon {
     {
         Self::Image(ImageSource::render_node(RenderMode::Software, move |ctx, args| {
             let node = new_icon(ctx);
-            super::WindowVars::req(&ctx.window_state)
-                .parent()
-                .set_ne(ctx.vars, args.parent)
-                .unwrap();
+            super::WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
             node
         }))
     }

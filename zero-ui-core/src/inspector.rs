@@ -1022,7 +1022,7 @@ pub mod debug_var_util {
 
             assert_eq!("true", format!("{:?}", r.get()));
 
-            value.set(&ctx.vars, false).unwrap();
+            value.set(&ctx.vars, false);
 
             ctx.apply_updates();
 

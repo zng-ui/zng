@@ -31,8 +31,7 @@ impl Images {
                 let r = render(ctx);
                 WindowVars::req(&ctx.window_state)
                     .frame_capture_mode()
-                    .set_ne(ctx.vars, FrameCaptureMode::All)
-                    .unwrap();
+                    .set_ne(ctx.vars, FrameCaptureMode::All);
                 r
             },
             &result,
@@ -110,13 +109,13 @@ impl ImageManager {
                         let retain = vars.retain.clone();
                         ctx.window_state.set(&IMAGE_RENDER_VARS_ID, vars);
                         let vars = WindowVars::req(&ctx.window_state);
-                        vars.auto_size().set(ctx.vars, true).unwrap();
-                        vars.min_size().set(ctx.vars, (1.px(), 1.px())).unwrap();
+                        vars.auto_size().set(ctx.vars, true);
+                        vars.min_size().set(ctx.vars, (1.px(), 1.px()));
 
                         let w = (req.render)(ctx);
 
                         let vars = WindowVars::req(&ctx.window_state);
-                        vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All).unwrap();
+                        vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All);
 
                         let a = ActiveRenderer {
                             window_id: *ctx.window_id,
@@ -140,7 +139,7 @@ impl ImageManager {
                 let imgs = Images::req(ctx.services);
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {
                     if let Some(img_var) = a.image.upgrade() {
-                        img_var.set(ctx.vars, img.clone()).unwrap();
+                        img_var.set(ctx.vars, img.clone());
                     }
                     args.propagation().stop();
                 }
@@ -223,7 +222,7 @@ pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiN
     impl UiNode for RenderRetainNode {
         fn init(&mut self, ctx: &mut crate::context::WidgetContext) {
             if let Some(vars) = ImageRenderVars::get(ctx) {
-                vars.retain.set_ne(ctx, self.retain.get()).unwrap();
+                vars.retain.set_ne(ctx, self.retain.get());
                 let handle = self.retain.bind(vars.retain());
                 ctx.handles.push_var(handle);
             } else {

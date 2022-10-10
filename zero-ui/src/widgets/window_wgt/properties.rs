@@ -320,17 +320,17 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
                 if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {
                         let window_vars = WindowVars::req(&ctx.window_state);
-                        window_vars.state().set_ne(ctx.vars, s.state).unwrap();
+                        window_vars.state().set_ne(ctx.vars, s.state);
                         let restore_rect: DipRect = s.restore_rect.cast();
 
                         let visible = Monitors::req(ctx.services)
                             .available_monitors()
                             .any(|m| m.dip_rect().intersects(&restore_rect));
                         if visible {
-                            window_vars.position().set_ne(ctx.vars, restore_rect.origin).unwrap();
+                            window_vars.position().set_ne(ctx.vars, restore_rect.origin);
                         }
 
-                        window_vars.size().set_ne(ctx.vars, restore_rect.size).unwrap();
+                        window_vars.size().set_ne(ctx.vars, restore_rect.size);
                     }
                     self.task = Task::None;
                 }

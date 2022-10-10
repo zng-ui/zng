@@ -58,7 +58,7 @@ impl AppExtension for ImageManager {
                 .map(|(_, _, v)| v)
                 .find(|v| v.with(|img| img.view.get().unwrap() == &args.image))
             {
-                var.touch(ctx.vars).unwrap();
+                var.touch(ctx.vars);
             }
         } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update) {
             let image = &args.image;
@@ -73,7 +73,7 @@ impl AppExtension for ImageManager {
                 .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
             {
                 let (_, _, var) = images.decoding.swap_remove(i);
-                var.touch(ctx.vars).unwrap();
+                var.touch(ctx.vars);
                 var.with(|img| img.done_signal.set());
             }
         } else if let Some(args) = RAW_IMAGE_LOAD_ERROR_EVENT.on(update) {
@@ -89,7 +89,7 @@ impl AppExtension for ImageManager {
                 .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
             {
                 let (_, _, var) = images.decoding.swap_remove(i);
-                var.touch(ctx.vars).unwrap();
+                var.touch(ctx.vars);
                 var.with(|img| {
                     img.done_signal.set();
 
@@ -127,7 +127,7 @@ impl AppExtension for ImageManager {
                     }
                     if let Some(e) = view.error() {
                         // respawned, but image was an error.
-                        img_var.set(vars, Image::dummy(Some(e.to_owned()))).unwrap();
+                        img_var.set(vars, Image::dummy(Some(e.to_owned())));
                     } else if let Some((img_format, data, _)) =
                         decoding_interrupted.iter().find(|(_, _, v)| v.with(|img| img.view() == Some(view)))
                     {
@@ -135,7 +135,7 @@ impl AppExtension for ImageManager {
 
                         match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
                             Ok(img) => {
-                                img_var.set(vars, Image::new(img)).unwrap();
+                                img_var.set(vars, Image::new(img));
                             }
                             Err(ViewProcessOffline) => { /*will receive another event.*/ }
                         }
@@ -154,7 +154,7 @@ impl AppExtension for ImageManager {
                             Err(ViewProcessOffline) => return, // we will receive another event.
                         };
 
-                        img_var.set(vars, Image::new(img)).unwrap();
+                        img_var.set(vars, Image::new(img));
 
                         images.decoding.push((img_format, data, img_var));
                     }
@@ -190,8 +190,7 @@ impl AppExtension for ImageManager {
                                         var.modify(vars, move |v| {
                                             v.get().view.set(img).unwrap();
                                             v.touch();
-                                        })
-                                        .unwrap();
+                                        });
                                     }
                                     Err(ViewProcessOffline) => {
                                         // will recover in ViewProcessInitedEvent
@@ -205,8 +204,7 @@ impl AppExtension for ImageManager {
                                     v.get().view.set(img).unwrap();
                                     v.touch();
                                     v.get().done_signal.set();
-                                })
-                                .unwrap();
+                                });
                             }
                         }
                         Err(e) => {
@@ -217,8 +215,7 @@ impl AppExtension for ImageManager {
                                 v.get().view.set(img).unwrap();
                                 v.touch();
                                 v.get().done_signal.set();
-                            })
-                            .unwrap();
+                            });
 
                             // flag error for user retry
                             if let Some(k) = &var.with(|img| img.cache_key) {

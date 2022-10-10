@@ -71,21 +71,21 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
 
 fn btn_square(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square()).unwrap());
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square()));
         content = text("x²");
     }
 }
 
 fn btn_square_root(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square_root()).unwrap());
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square_root()));
         content = text("√x");
     }
 }
 
 fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().clear()).unwrap());
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().clear()));
         click_shortcut = shortcut!(Escape);
         content = text("C");
     }
@@ -93,7 +93,7 @@ fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
 
 fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().backspace()).unwrap());
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
         content = text("⌫");
     }
@@ -102,7 +102,7 @@ fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
 fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
     button! {
         on_click = hn!(|ctx, _| {
-            calc.modify(ctx.vars, move |b| b.get_mut().push(c)).unwrap()
+            calc.modify(ctx.vars, move |b| b.get_mut().push(c))
         });
         click_shortcut = {
             let shortcuts: Shortcuts = c.try_into().unwrap_or_default();
@@ -115,7 +115,7 @@ fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
 
 fn btn_eval(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().eval()).unwrap());
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
         content = text("=");
     }

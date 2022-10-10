@@ -158,11 +158,9 @@ impl Config {
                     }
                     ConfigSourceUpdate::RefreshAll => read_all = true,
                     ConfigSourceUpdate::InternalError(e) => {
-                        self.status
-                            .modify(vars, move |s| {
-                                s.get_mut().set_internal_error(e);
-                            })
-                            .unwrap();
+                        self.status.modify(vars, move |s| {
+                            s.get_mut().set_internal_error(e);
+                        });
                     }
                 }
             }
@@ -233,16 +231,14 @@ impl Config {
     /// [`status`]: Self::status
     pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
         vars.with_vars(|vars| {
-            self.status
-                .modify(vars, |s| {
-                    if s.get().has_errors() {
-                        let s = s.get_mut();
-                        s.read_error = None;
-                        s.write_error = None;
-                        s.internal_error = None;
-                    }
-                })
-                .unwrap();
+            self.status.modify(vars, |s| {
+                if s.get().has_errors() {
+                    let s = s.get_mut();
+                    s.read_error = None;
+                    s.write_error = None;
+                    s.internal_error = None;
+                }
+            });
         })
     }
 
@@ -286,11 +282,9 @@ impl Config {
                             respond(vars, r.and_then(|v| serde_json::from_value(v).ok()));
                         }
                         Err(e) => {
-                            status
-                                .modify(vars, move |s| {
-                                    s.get_mut().set_read_error(e);
-                                })
-                                .unwrap();
+                            status.modify(vars, move |s| {
+                                s.get_mut().set_read_error(e);
+                            });
 
                             let respond = respond.take().unwrap();
                             respond(vars, None);
@@ -334,8 +328,7 @@ impl Config {
                                 v.get_mut().value = value;
                                 v.get().write.set(false);
                             }
-                        })
-                        .unwrap();
+                        });
                     }));
 
                     let _ = self.update.send_ext_update();
@@ -363,9 +356,7 @@ impl Config {
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
-                        status
-                            .modify(vars, move |s| s.get_mut().set_write_error(ConfigError::new(e)))
-                            .unwrap();
+                        status.modify(vars, move |s| s.get_mut().set_write_error(ConfigError::new(e)));
                     }));
                     let _ = self.update.send_ext_update();
                 }
@@ -394,19 +385,17 @@ impl Config {
             let finished = task.as_mut().unwrap().update().is_some();
             if finished {
                 let r = task.take().unwrap().into_result().unwrap();
-                status
-                    .modify(vars, move |s| {
-                        let s = s.get_mut();
-                        s.pending -= count;
-                        if let Err(e) = r {
-                            s.set_write_error(e);
-                        }
-                    })
-                    .unwrap();
+                status.modify(vars, move |s| {
+                    let s = s.get_mut();
+                    s.pending -= count;
+                    if let Err(e) = r {
+                        s.set_write_error(e);
+                    }
+                });
             } else if count == 0 {
                 // first try, add pending.
                 count = 1;
-                status.modify(vars, |s| s.get_mut().pending += 1).unwrap();
+                status.modify(vars, |s| s.get_mut().pending += 1);
             }
 
             !finished
@@ -463,14 +452,12 @@ impl Config {
             let target_to_source = target.hook(Box::new(move |vars, _, value| {
                 if let Some(source) = wk_source.upgrade() {
                     if let Some(value) = value.as_any().downcast_ref::<T>().cloned() {
-                        source
-                            .modify(vars, move |val| {
-                                if val.get().value != value {
-                                    val.get_mut().value = value;
-                                    val.get().write.set(true);
-                                }
-                            })
-                            .unwrap();
+                        source.modify(vars, move |val| {
+                            if val.get().value != value {
+                                val.get_mut().value = value;
+                                val.get().write.set(true);
+                            }
+                        });
                     }
                     true
                 } else {
@@ -525,8 +512,7 @@ impl Config {
                             v.get_mut().value = value;
                             v.get().write.set(false);
                         }
-                    })
-                    .unwrap();
+                    });
                 }
                 false // task finished
             } else {
@@ -698,8 +684,7 @@ impl ConfigVar {
                                         v.get_mut().value = value;
                                         v.get().write.set(false);
                                     }
-                                })
-                                .unwrap();
+                                });
                             }
                         });
                     })

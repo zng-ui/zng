@@ -120,6 +120,10 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
             }
         }
     }
+
+    impl_infallible_write! {
+        for<T>
+    }
 }
 
 impl<T, S> Clone for RcCowVar<T, S> {
@@ -159,7 +163,8 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value))
+        self.modify(vars, var_set_any(value));
+        Ok(())
     }
 
     fn last_update(&self) -> VarUpdateId {
