@@ -23,7 +23,6 @@ use std::{
     cell::RefCell,
     convert::{TryFrom, TryInto},
     fmt::{self, Display},
-    mem,
     num::NonZeroU32,
     rc::Rc,
     time::{Duration, Instant},
@@ -506,10 +505,7 @@ impl Shortcuts {
     /// Note chords are not generated. Caps lock is assumed to be off.
     pub fn from_char(character: char) -> Result<Self, char> {
         let char_range_to_key = |char0: char, key0: GestureKey| {
-            // SAFETY: this is safe if the char range matches the key range,
-            // which we verified for all cases.
-            let key: GestureKey = unsafe { mem::transmute(key0 as u32 + (character as u8 - char0 as u8) as u32) };
-            key
+            GestureKey::try_from(key0 as u32 + (character as u8 - char0 as u8) as u32).unwrap()
         };
 
         match character {
@@ -1524,7 +1520,7 @@ macro_rules! gesture_key_name {
 macro_rules! gesture_keys {
     ($($(#[$docs:meta])* $key:ident $(= $name:expr)?),+ $(,)?) => {
         /// The set of keys that can be used in a [`KeyGesture`].
-        #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Clone, Copy, PartialEq, Eq, Hash, num_enum::TryFromPrimitive)]
         #[repr(u32)]
         #[allow(missing_docs)] // they are mostly self-explanatory.
         pub enum GestureKey {

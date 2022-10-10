@@ -2,9 +2,12 @@
 
 use crate::{
     crate_util::{FxEntry, FxHashMap, FxHashSet},
-    var::impl_from_and_into_var,
+    var::{impl_from_and_into_var, IntoVar},
 };
-use std::{fmt, marker::PhantomData, mem, num::NonZeroU32};
+use std::{fmt, marker::PhantomData, num::NonZeroU32};
+
+
+use num_enum::FromPrimitive;
 
 /// Name of a font feature.
 ///
@@ -868,9 +871,11 @@ impl_from_and_into_var! {
 }
 
 /// Font capital letters variant features.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum CapsVariant {
     /// No caps variant.
+    #[default]
     Auto,
 
     /// Enable small caps alternative for lowercase letters.
@@ -946,12 +951,7 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
     }
 
     fn from_variant(v: u32) -> Self {
-        if v as usize > Self::names().len() {
-            CapsVariant::Auto
-        } else {
-            // SAFETY:
-            unsafe { mem::transmute(v as u8) }
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -960,9 +960,11 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
 }
 
 /// Font numeric variant features.
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum NumVariant {
     /// Uses the default numeric glyphs, in most fonts this is the same as `Lining`, some fonts use the `OldStyle`.
+    #[default]
     Auto,
     /// Uses numeric glyphs that rest on the baseline.
     ///
@@ -1005,11 +1007,7 @@ impl FontFeatureExclusiveSetState for NumVariant {
     }
 
     fn from_variant(v: u32) -> Self {
-        match v {
-            1 => NumVariant::Lining,
-            2 => NumVariant::OldStyle,
-            _ => NumVariant::Auto,
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -1018,9 +1016,11 @@ impl FontFeatureExclusiveSetState for NumVariant {
 }
 
 /// Font numeric spacing features.
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum NumSpacing {
     /// Uses the default numeric width, usually this is `Tabular` for *monospace* fonts and `Proportional` for the others.
+    #[default]
     Auto,
     /// Numeric glyphs take different space depending on the design of the glyph.
     ///
@@ -1063,11 +1063,7 @@ impl FontFeatureExclusiveSetState for NumSpacing {
     }
 
     fn from_variant(v: u32) -> Self {
-        match v {
-            1 => NumSpacing::Proportional,
-            2 => NumSpacing::Tabular,
-            _ => NumSpacing::Auto,
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -1076,9 +1072,11 @@ impl FontFeatureExclusiveSetState for NumSpacing {
 }
 
 /// Font numeric fraction features.
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum NumFraction {
     /// Don't use fraction variants.
+    #[default]
     Auto,
     /// Variant where the numerator and denominator are made smaller and separated by a slash.
     ///
@@ -1121,11 +1119,7 @@ impl FontFeatureExclusiveSetState for NumFraction {
     }
 
     fn from_variant(v: u32) -> Self {
-        match v {
-            1 => NumFraction::Diagonal,
-            2 => NumFraction::Stacked,
-            _ => NumFraction::Auto,
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -1137,11 +1131,12 @@ impl FontFeatureExclusiveSetState for NumFraction {
 ///
 /// The styles depend on the font, it is recommended you create an `enum` with named sets that
 /// converts into this one for each font you wish to use.
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, FromPrimitive)]
 #[repr(u8)]
 #[allow(missing_docs)]
 pub enum FontStyleSet {
     /// Don't use alternative style set.
+    #[default]
     Auto = 0,
 
     S01,
@@ -1185,17 +1180,14 @@ impl fmt::Debug for FontStyleSet {
         }
     }
 }
-impl_from_and_into_var! {
-    /// `set == 0 || set > 20` is Auto, `set >= 1 && set <= 20` maps to their variant.
-    fn from(set: u8) -> FontStyleSet {
-        if set > 20 {
-            FontStyleSet::Auto
-        } else {
-            // SAFETY: We eliminated the bad values in the `if`.
-            unsafe { mem::transmute(set) }
-        }
+impl IntoVar<FontStyleSet> for u8 {
+    type Var = crate::var::LocalVar<FontStyleSet>;
+
+    fn into_var(self) -> Self::Var {
+        FontStyleSet::from(self).into_var()
     }
 }
+
 impl FontFeatureExclusiveSetState for FontStyleSet {
     fn names() -> &'static [FontFeatureName] {
         &[
@@ -1213,12 +1205,7 @@ impl FontFeatureExclusiveSetState for FontStyleSet {
     }
 
     fn from_variant(v: u32) -> Self {
-        if v > 20 {
-            FontStyleSet::Auto
-        } else {
-            // SAFETY: we validated the input in the `if`.
-            unsafe { mem::transmute(v as u8) }
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -1295,9 +1282,11 @@ impl FontFeatureExclusiveSetState for CharVariant {
 }
 
 /// Sub-script and super-script variants.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum FontPosition {
     /// Don't use sub/super script positions.
+    #[default]
     Auto,
     /// Uses sub-script position and alternative glyphs.
     ///
@@ -1340,11 +1329,7 @@ impl FontFeatureExclusiveSetState for FontPosition {
     }
 
     fn from_variant(v: u32) -> Self {
-        match v {
-            1 => FontPosition::Sub,
-            2 => FontPosition::Super,
-            _ => FontPosition::Auto,
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -1353,9 +1338,11 @@ impl FontFeatureExclusiveSetState for FontPosition {
 }
 
 /// Logographic glyph variants for Japanese fonts.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum JpVariant {
     /// Uses the font default glyphs.
+    #[default]
     Auto,
 
     /// JIS X 0208-1978 (first standard)
@@ -1415,12 +1402,7 @@ impl FontFeatureExclusiveSetState for JpVariant {
     }
 
     fn from_variant(v: u32) -> Self {
-        if v > Self::names().len() as u32 {
-            JpVariant::Auto
-        } else {
-            // SAFETY: we validated the input in the `if`.
-            unsafe { mem::transmute(v as u8) }
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -1428,9 +1410,11 @@ impl FontFeatureExclusiveSetState for JpVariant {
     }
 }
 /// Logographic glyph variants for Chinese fonts.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum CnVariant {
     /// Uses the font default glyphs.
+    #[default]
     Auto,
     /// Simplified Chinese glyphs.
     ///
@@ -1473,11 +1457,7 @@ impl FontFeatureExclusiveSetState for CnVariant {
     }
 
     fn from_variant(v: u32) -> Self {
-        match v {
-            1 => CnVariant::Simplified,
-            2 => CnVariant::Tradicional,
-            _ => CnVariant::Auto,
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
@@ -1486,9 +1466,11 @@ impl FontFeatureExclusiveSetState for CnVariant {
 }
 
 /// The sizing and spacing of figures used for East Asian characters.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, FromPrimitive)]
+#[repr(u8)]
 pub enum EastAsianWidth {
     /// Uses the font default glyphs and spacing.
+    #[default]
     Auto,
 
     /// Uses the set of glyphs designed for proportional spacing.
@@ -1569,12 +1551,7 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
     }
 
     fn from_variant(v: u32) -> Self {
-        if v > Self::names().len() as u32 {
-            EastAsianWidth::Auto
-        } else {
-            // SAFETY: we validated the input in the `if`.
-            unsafe { mem::transmute(v as u8) }
-        }
+        Self::from(v as u8)
     }
 
     fn auto() -> Self {
