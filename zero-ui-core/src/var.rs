@@ -3,7 +3,9 @@
 use std::{
     any::{Any, TypeId},
     cell::{Cell, RefCell},
-    fmt, ops,
+    fmt,
+    marker::PhantomData,
+    ops,
     rc::Rc,
     time::Duration,
 };
@@ -69,6 +71,34 @@ pub mod types {
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
     pub use super::when::{AnyWhenVarBuilder, ContextualizedRcWhenVar, RcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
+
+    use super::*;
+
+    /// Helper type for debug printing [`Var<T>`].
+    ///
+    /// You can use [`Var::debug`] to get an instance.
+    pub struct VarDebug<'a, T: VarValue, V: Var<T>> {
+        pub(super) var: &'a V,
+        pub(super) _t: PhantomData<fn() -> T>,
+    }
+    impl<'a, T: VarValue, V: Var<T>> fmt::Debug for VarDebug<'a, T, V> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.var.with(|t| fmt::Debug::fmt(t, f))
+        }
+    }
+
+    /// Helper type for display printing [`Var<T>`].
+    ///
+    /// You can use [`Var::display`] to get an instance.
+    pub struct VarDisplay<'a, T: VarValue + fmt::Display, V: Var<T>> {
+        pub(super) var: &'a V,
+        pub(super) _t: PhantomData<fn() -> T>,
+    }
+    impl<'a, T: VarValue + fmt::Display, V: Var<T>> fmt::Display for VarDisplay<'a, T, V> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.var.with(|t| fmt::Display::fmt(t, f))
+        }
+    }
 }
 
 /// A type that can be a [`Var<T>`] value.
@@ -1822,6 +1852,25 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             .perm();
             easing_var.read_only()
         }))
+    }
+
+    /// Returns a wrapper that implements [`fmt::Debug`] to write the var value.
+    fn debug(&self) -> types::VarDebug<T, Self> {
+        types::VarDebug {
+            var: self,
+            _t: PhantomData,
+        }
+    }
+
+    /// Returns a wrapper that implements [`fmt::Display`] to write the var value.
+    fn display(&self) -> types::VarDisplay<T, Self>
+    where
+        T: fmt::Display,
+    {
+        types::VarDisplay {
+            var: self,
+            _t: PhantomData,
+        }
     }
 }
 

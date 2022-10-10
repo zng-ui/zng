@@ -17,7 +17,6 @@
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.
 
-* `Var::display` like `Path::display`,  for easy formatting.
 * Review `VarCapabilities` variant names.
 * Review `Var::actual_var`, can we make it `actual_var(self)` instead of a ref?
     - We use this method in context-vars, so values get cloned a lot.
