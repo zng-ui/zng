@@ -1383,7 +1383,7 @@ fn inline_to_str(d: &[u8; INLINE_MAX]) -> &str {
     } else {
         &d[..]
     };
-    unsafe { std::str::from_utf8_unchecked(utf8) }
+    std::str::from_utf8(utf8).unwrap()
 }
 fn str_to_inline(s: &str) -> [u8; INLINE_MAX] {
     let mut inline = [b'\0'; INLINE_MAX];

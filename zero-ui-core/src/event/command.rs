@@ -721,18 +721,12 @@ unique_id_64! {
 impl<T: StateValue + VarValue> CommandMetaVarId<T> {
     fn app(self) -> StateId<RcVar<T>> {
         let id = self.get();
-        // SAFETY:
-        // id: We "inherit" from `StateId` so there is no repeated IDs.
-        // type: only our private code can get this ID and we only use it in the app level state-map.
-        unsafe { StateId::from_raw(id) }
+        StateId::from_raw(id)
     }
 
     fn scope(self) -> StateId<RcCowVar<T, RcVar<T>>> {
         let id = self.get();
-        // SAFETY:
-        // id: We "inherit" from `StateId` so there is no repeated IDs.
-        // type: only our private code can get this ID and we only use it in the scope level state-map.
-        unsafe { StateId::from_raw(id) }
+        StateId::from_raw(id)
     }
 }
 

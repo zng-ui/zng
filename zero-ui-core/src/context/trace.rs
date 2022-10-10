@@ -99,7 +99,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                 if id == 0 {
                     panic!()
                 }
-                let id = unsafe { WidgetId::from_raw(id) };
+                let id = WidgetId::from_raw(id);
 
                 let name = visit_str(|v| span.record(v), "name");
 
@@ -123,7 +123,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                 if id == 0 {
                     panic!()
                 }
-                let id = unsafe { WindowId::from_raw(id) };
+                let id = WindowId::from_raw(id);
 
                 let mut ctx = self.context.lock();
                 ctx.window_id = Some(id);

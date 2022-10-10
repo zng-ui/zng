@@ -1,7 +1,5 @@
 use std::{fmt, marker::PhantomData};
 
-use unsafe_any::UnsafeAny;
-
 use crate::{
     context::{WidgetContext, WidgetUpdates},
     impl_ui_node,
@@ -398,9 +396,11 @@ impl BorrowMutStateMap<state_map::App> for crate::app::HeadlessApp {
 
 /// State map helper types.
 pub mod state_map {
+    use std::any::Any;
+
     use super::*;
 
-    type AnyMap = crate::crate_util::IdMap<u64, Box<dyn unsafe_any::UnsafeAny>>;
+    type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any>>;
 
     /// App state-map tag.
     pub enum App {}
@@ -427,10 +427,7 @@ pub mod state_map {
         }
 
         pub(super) fn remove<T: StateValue>(&mut self, id: StateId<T>) -> Option<T> {
-            self.map.remove(&id.get()).map(|a| {
-                // SAFETY: The type system asserts this is valid.
-                unsafe { *a.downcast_unchecked::<T>() }
-            })
+            self.map.remove(&id.get()).map(|a| *a.downcast().unwrap())
         }
 
         pub(super) fn clear(&mut self) {
@@ -438,10 +435,7 @@ pub mod state_map {
         }
 
         pub fn set<T: StateValue>(&mut self, id: StateId<T>, value: T) -> Option<T> {
-            self.map.insert(id.get(), Box::new(value)).map(|any| {
-                // SAFETY: The type system asserts this is valid.
-                unsafe { *any.downcast_unchecked::<T>() }
-            })
+            self.map.insert(id.get(), Box::new(value)).map(|any| *any.downcast().unwrap())
         }
 
         pub fn contains<T: StateValue>(&self, id: StateId<T>) -> bool {
@@ -449,17 +443,11 @@ pub mod state_map {
         }
 
         pub fn get<T: StateValue>(&self, id: StateId<T>) -> Option<&T> {
-            self.map.get(&id.get()).map(|any| {
-                // SAFETY: The type system asserts this is valid.
-                unsafe { any.downcast_ref_unchecked::<T>() }
-            })
+            self.map.get(&id.get()).map(|any| any.downcast_ref().unwrap())
         }
 
         pub fn get_mut<T: StateValue>(&mut self, id: StateId<T>) -> Option<&mut T> {
-            self.map.get_mut(&id.get()).map(|any| {
-                // SAFETY: The type system asserts this is valid.
-                unsafe { any.downcast_mut_unchecked::<T>() }
-            })
+            self.map.get_mut(&id.get()).map(|any| any.downcast_mut().unwrap())
         }
 
         pub fn req<T: StateValue>(&self, id: StateId<T>) -> &T {
@@ -501,13 +489,12 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct OccupiedStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::OccupiedEntry<'a, u64, Box<dyn UnsafeAny>>,
+        entry: std::collections::hash_map::OccupiedEntry<'a, u64, Box<dyn Any>>,
     }
     impl<'a, T: StateValue> OccupiedStateMapEntry<'a, T> {
         /// Gets a reference to the value in the entry.
         pub fn get(&self) -> &T {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { self.entry.get().downcast_ref_unchecked() }
+            self.entry.get().downcast_ref().unwrap()
         }
 
         /// Gets a mutable reference to the value in the entry.
@@ -516,8 +503,7 @@ pub mod state_map {
         ///
         /// [`into_mut`]: Self::into_mut
         pub fn get_mut(&mut self) -> &mut T {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { self.entry.get_mut().downcast_mut_unchecked() }
+            self.entry.get_mut().downcast_mut().unwrap()
         }
 
         /// Converts the entry into a mutable reference to the value in the entry with a lifetime bound to the map itself.
@@ -526,26 +512,22 @@ pub mod state_map {
         ///
         /// [`get_mut`]: Self::get_mut
         pub fn into_mut(self) -> &'a mut T {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { self.entry.into_mut().downcast_mut_unchecked() }
+            self.entry.into_mut().downcast_mut().unwrap()
         }
 
         /// Sets the value of the entry, and returns the entry’s old value.
         pub fn insert(&mut self, value: T) -> T {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { *self.entry.insert(Box::new(value)).downcast_unchecked() }
+            *self.entry.insert(Box::new(value)).downcast().unwrap()
         }
 
         /// Takes the value out of the entry, and returns it.
         pub fn remove(self) -> T {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { *self.entry.remove().downcast_unchecked() }
+            *self.entry.remove().downcast().unwrap()
         }
     }
     impl<'a, T: StateValue + fmt::Debug> fmt::Debug for OccupiedStateMapEntry<'a, T> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            // SAFETY: we control the creation of the key and only use StateId::get().
-            let id = unsafe { StateId::<T>::from_raw(*self.entry.key()) };
+            let id = StateId::<T>::from_raw(*self.entry.key());
             f.debug_struct("OccupiedStateMapEntry")
                 .field("key", &id)
                 .field("value", self.get())
@@ -558,19 +540,17 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct VacantStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::VacantEntry<'a, u64, Box<dyn UnsafeAny>>,
+        entry: std::collections::hash_map::VacantEntry<'a, u64, Box<dyn Any>>,
     }
     impl<'a, T: StateValue> VacantStateMapEntry<'a, T> {
         /// Sets the value of the entry and returns a mutable reference to it.
         pub fn insert(self, value: impl Into<T>) -> &'a mut T {
-            // SAFETY: The type system asserts this is valid.
-            unsafe { self.entry.insert(Box::new(value.into())).downcast_mut_unchecked() }
+            self.entry.insert(Box::new(value.into())).downcast_mut().unwrap()
         }
     }
     impl<'a, T: StateValue + fmt::Debug> fmt::Debug for VacantStateMapEntry<'a, T> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            // SAFETY: we control the creation of the key and only use StateId::get().
-            let id = unsafe { StateId::<T>::from_raw(*self.entry.key()) };
+            let id = StateId::<T>::from_raw(*self.entry.key());
             f.debug_struct("VacantStateMapEntry").field("key", &id).finish_non_exhaustive()
         }
     }

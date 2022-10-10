@@ -26,7 +26,6 @@ pub fn cmd_env_req(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &
     cmd_impl(cmd, default_args, user_args, envs, true)
 }
 fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)], required: bool) {
-    let info = TaskInfo::get();
     let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
 
     let mut cmd = Command::new(cmd);
@@ -49,11 +48,11 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
         cmd.env("PATH", modified_path);
     }
 
-    if info.dump {
-        if let Some(stdout) = info.stdout_dump() {
+    if TaskInfo::dump() {
+        if let Some(stdout) = TaskInfo::stdout_dump() {
             cmd.stdout(Stdio::from(stdout));
         }
-        if let Some(stderr) = info.stderr_dump() {
+        if let Some(stderr) = TaskInfo::stderr_dump() {
             cmd.stderr(Stdio::from(stderr));
         }
     }
@@ -62,7 +61,7 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
     match status {
         Ok(status) => {
             if !status.success() {
-                let msg = format!("task {:?} failed with {status}", info.name);
+                let msg = format!("task {:?} failed with {status}", TaskInfo::name());
                 if required {
                     fatal(msg);
                 } else {
@@ -71,7 +70,7 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
             }
         }
         Err(e) => {
-            let msg = format!("task {:?} failed to run, {e}", info.name);
+            let msg = format!("task {:?} failed to run, {e}", TaskInfo::name());
             if required {
                 fatal(msg)
             } else {
@@ -172,15 +171,6 @@ pub fn take_value<'a>(args: &mut Vec<&'a str>, option: &[&str], default_value: &
 
 // Parses the initial input. Returns ("task-name", ["task", "args"]).
 pub fn args() -> (&'static str, Vec<&'static str>) {
-    #[cfg(windows)]
-    unsafe {
-        ANSI_ENABLED = ansi_term::enable_ansi_support().is_ok();
-    }
-    #[cfg(unix)]
-    unsafe {
-        ANSI_ENABLED = true;
-    }
-
     let mut args: Vec<_> = env::args().skip(1).collect();
     if args.is_empty() {
         return ("", vec![]);
@@ -189,10 +179,8 @@ pub fn args() -> (&'static str, Vec<&'static str>) {
     let mut args = args.into_iter().map(|a| Box::leak(a.into_boxed_str()) as &'static str).collect();
 
     // set task name and flags
-    let info = TaskInfo::get();
-    info.name = task;
-
-    info.dump = take_flag(&mut args, &["--dump"]);
+    TaskInfo::set_name(task);
+    TaskInfo::set_dump(take_flag(&mut args, &["--dump"]));
 
     // prints header
     println(f!("{}Running{}: {}{} {:?} {:?}", c_green(), c_wb(), do_cmd(), c_w(), task, args));
@@ -208,24 +196,47 @@ pub struct TaskInfo {
     pub stderr_dump: &'static str,
     dump_files: Option<std::collections::HashMap<&'static str, std::fs::File>>,
 }
-static mut TASK_INFO: TaskInfo = TaskInfo {
+static TASK_INFO: std::sync::Mutex<TaskInfo> = std::sync::Mutex::new(TaskInfo {
     name: "",
     dump: false,
     stdout_dump: "dump.log",
     stderr_dump: "dump.log",
     dump_files: None,
-};
+});
 impl TaskInfo {
-    pub fn get() -> &'static mut TaskInfo {
-        unsafe { &mut TASK_INFO }
+    pub fn name() -> &'static str {
+        TASK_INFO.try_lock().unwrap().name
     }
+
+    pub fn set_name(name: &'static str) {
+        TASK_INFO.try_lock().unwrap().name = name;
+    }
+
+    // Get if "--dump" redirect is enabled.
+    pub fn dump() -> bool {
+        TASK_INFO.try_lock().unwrap().dump
+    }
+
+    pub fn set_dump(dump: bool) {
+        TASK_INFO.try_lock().unwrap().dump = dump;
+    }
+
     // Get the stdout dump stream.
-    pub fn stdout_dump(&mut self) -> Option<std::fs::File> {
-        self.dump_file(self.stdout_dump)
+    pub fn stdout_dump() -> Option<std::fs::File> {
+        let mut info = TASK_INFO.try_lock().unwrap();
+        let file = info.stdout_dump;
+        info.dump_file(file)
     }
+
+    pub fn set_stdout_dump(stdout_dump: &'static str) {
+        TASK_INFO.try_lock().unwrap().stdout_dump = stdout_dump;
+    }
+
     // Get the stderr dump stream.
-    pub fn stderr_dump(&mut self) -> Option<std::fs::File> {
-        self.dump_file(self.stderr_dump)
+    pub fn stderr_dump() -> Option<std::fs::File> {
+        let mut info = TASK_INFO.try_lock().unwrap();
+        let file = info.stderr_dump;
+        info.dump_file(file)
     }
 
     fn dump_file(&mut self, file: &'static str) -> Option<std::fs::File> {
@@ -366,14 +377,14 @@ fn glob(pattern: &str) -> Vec<String> {
 }
 
 pub fn println(msg: impl std::fmt::Display) {
-    if let Some(mut dump) = TaskInfo::get().stdout_dump() {
+    if let Some(mut dump) = TaskInfo::stdout_dump() {
         writeln!(dump, "{msg}").ok();
     } else {
         println!("{msg}");
     }
 }
 pub fn print(msg: impl std::fmt::Display) {
-    if let Some(mut dump) = TaskInfo::get().stdout_dump() {
+    if let Some(mut dump) = TaskInfo::stdout_dump() {
         write!(dump, "{msg}").ok();
     } else {
         print!("{msg}");
@@ -393,7 +404,7 @@ pub fn do_after(delay_secs: u64, action: impl FnOnce() + Send + 'static) {
 
 // Prints an error message, use `error(f!("{}", .."))` for formatting.
 pub fn error(msg: impl std::fmt::Display) {
-    if let Some(mut dump) = TaskInfo::get().stderr_dump() {
+    if let Some(mut dump) = TaskInfo::stderr_dump() {
         writeln!(dump, "{}error{}: {}{}", c_red(), c_wb(), c_w(), msg).ok();
     } else {
         eprintln!("{}error{}: {}{}", c_red(), c_wb(), c_w(), msg);
@@ -420,13 +431,32 @@ pub fn c_w() -> &'static str {
     color("\x1B[0m")
 }
 fn color(color: &str) -> &str {
-    if TaskInfo::get().dump || !unsafe { ANSI_ENABLED } {
+    if TaskInfo::dump() || !ansi_enabled() {
         ""
     } else {
         color
     }
 }
-static mut ANSI_ENABLED: bool = false;
+#[allow(unreachable_code)]
+fn ansi_enabled() -> bool {
+    #[cfg(windows)]
+    {
+        use std::sync::atomic::*;
+
+        static ENABLED: AtomicU8 = AtomicU8::new(0);
+
+        return match ENABLED.load(Ordering::Relaxed) {
+            0 => {
+                let enabled = ansi_term::enable_ansi_support().is_ok();
+                ENABLED.store(if enabled { 1 } else { 2 }, Ordering::Relaxed);
+                enabled
+            }
+            n => n == 1,
+        };
+    }
+
+    cfg!(unix)
+}
 
 pub fn settings_path() -> PathBuf {
     std::env::current_exe().unwrap().parent().unwrap().to_owned()

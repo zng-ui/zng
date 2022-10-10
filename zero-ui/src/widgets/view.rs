@@ -393,19 +393,3 @@ macro_rules! view_generator {
 }
 #[doc(inline)]
 pub use crate::view_generator;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validate_nil_static_unsafe() {
-        // same size:
-        let _: ViewGenerator<()> = unsafe { std::mem::transmute(None::<std::num::NonZeroUsize>) };
-
-        // same value:
-        let nil: usize = unsafe { std::mem::transmute(ViewGenerator::<()>::nil()) };
-        let none: usize = unsafe { std::mem::transmute(None::<std::num::NonZeroUsize>) };
-        assert_eq!(nil, none);
-    }
-}

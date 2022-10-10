@@ -350,7 +350,7 @@ fn expand(mut args: Vec<&str>) {
         test_args.insert(0, "+nightly");
         test(test_args);
 
-        TaskInfo::get().stdout_dump = "dump.rs";
+        TaskInfo::set_stdout_dump("dump.rs");
         for (bin_name, path) in build_test_cases() {
             let i = path.find("tests").unwrap_or_default();
             println(f!("\n//\n// {}\n//\n", &path[i..]));
@@ -368,7 +368,7 @@ fn expand(mut args: Vec<&str>) {
             );
         }
     } else if take_flag(&mut args, &["-e", "--example"]) {
-        TaskInfo::get().stdout_dump = "dump.rs";
+        TaskInfo::set_stdout_dump("dump.rs");
 
         if take_flag(&mut args, &["-r", "--raw"]) {
             cmd(
@@ -390,7 +390,7 @@ fn expand(mut args: Vec<&str>) {
             cmd("cargo", &["expand", "--package", "examples", "--example"], &args);
         }
     } else {
-        TaskInfo::get().stdout_dump = "dump.rs";
+        TaskInfo::set_stdout_dump("dump.rs");
         if !args.contains(&"-p") && !args.contains(&"--package") {
             error("expected crate name");
         } else if take_flag(&mut args, &["-r", "--raw"]) {
@@ -718,10 +718,9 @@ fn asm(mut args: Vec<&str>) {
     }
 
     {
-        let t = TaskInfo::get();
-        if t.dump {
+        if TaskInfo::dump() {
             asm_args.push("--no-color");
-            t.stdout_dump = "dump.asm";
+            TaskInfo::set_stdout_dump("dump.asm");
         }
     }
 

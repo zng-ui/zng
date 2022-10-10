@@ -8,7 +8,7 @@ impl NodeId {
     fn new(i: usize) -> Self {
         debug_assert!(i < u32::MAX as usize);
         // SAFETY: +1
-        Self(unsafe { NonZeroU32::new_unchecked((i + 1) as u32) })
+        Self(NonZeroU32::new((i + 1) as u32).unwrap())
     }
 
     pub fn get(self) -> usize {
@@ -18,8 +18,7 @@ impl NodeId {
     pub fn next(self) -> Self {
         let mut id = self.0.get();
         id = id.saturating_add(1);
-        // SAFETY: sat +1
-        Self(unsafe { NonZeroU32::new_unchecked(id) })
+        Self(NonZeroU32::new(id).unwrap())
     }
 }
 impl fmt::Debug for NodeId {

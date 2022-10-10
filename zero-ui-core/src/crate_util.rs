@@ -216,34 +216,28 @@ macro_rules! unique_id {
 
             /// Creates an id from a raw value.
             ///
-            /// # Safety
-            ///
-            /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`get`] otherwise
-            /// the ID will not be unique, it may represent a random resource existing or future.
+            /// The value must not be zero, panics if it is, the value must have been provided by [`get`] otherwise
+            /// the ID will not be unique.
             ///
             /// [`get`]: Self::get
-            pub unsafe fn from_raw(raw: $lit) -> Self {
-                debug_assert!(raw != 0);
-
+            pub fn from_raw(raw: $lit) -> Self {
                 use $non_zero as __non_zero;
 
-                Self(__non_zero::new_unchecked(raw) $(, std::marker::PhantomData::<$T>)?)
+                Self(__non_zero::new(raw).unwrap() $(, std::marker::PhantomData::<$T>)?)
             }
 
             /// Creates an id from a [`sequential`] number.
             ///
             /// # Safety
             ///
-            /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`sequential`] otherwise
-            /// the ID will not be unique, it may represent a random resource existing or future.
+            /// The value must not be zero, panics if it is, the value must have been provided by [`sequential`] otherwise
+            /// the ID will not be unique.
             ///
             /// [`sequential`]: Self::sequential
-            pub unsafe fn from_sequential(num: $lit) -> Self {
-                debug_assert!(num != 0);
-
+            pub fn from_sequential(num: $lit) -> Self {
                 use $non_zero as __non_zero;
 
-                Self(__non_zero::new_unchecked($to_hash(num)) $(, std::marker::PhantomData::<$T>)?)
+                Self(__non_zero::new($to_hash(num)).unwrap() $(, std::marker::PhantomData::<$T>)?)
             }
         }
 
@@ -278,8 +272,7 @@ macro_rules! unique_id {
                         };
 
                         // SAFETY: already replaced zero.
-                        let id = unsafe { __non_zero::new_unchecked(id) };
-                        $Type(id $(, std::marker::PhantomData::<$T>)?)
+                        $Type(__non_zero::new(id).unwrap() $(, std::marker::PhantomData::<$T>)?)
                     }
                 }
             }
@@ -307,8 +300,7 @@ macro_rules! unique_id {
         pub fn new_unique() -> Self {
             use $ParentId as __parent;
             let id = __parent $(::<$T>)? ::new_unique().get();
-            // SAFETY: we are defining the `new_unique`, there is no other safe way to generate the value.
-            unsafe { Self::from_raw(id) }
+            Self::from_raw(id)
         }
     };
 

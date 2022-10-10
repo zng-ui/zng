@@ -886,7 +886,7 @@ impl<E: AppExtension> RunningApp<E> {
         use zero_ui_view_api::Event;
 
         fn window_id(id: zero_ui_view_api::WindowId) -> WindowId {
-            unsafe { WindowId::from_raw(id) }
+            WindowId::from_raw(id)
         }
 
         match ev {
@@ -1169,8 +1169,7 @@ impl<E: AppExtension> RunningApp<E> {
     /// Process a [`Event::FrameRendered`] event.
     fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::EventFrameRendered, observer: &mut O) {
         debug_assert!(ev.window != 0);
-        // SAFETY: the value is not zero, we handle zeros in `push_coalesce`.
-        let window_id = unsafe { WindowId::from_raw(ev.window) };
+        let window_id = WindowId::from_raw(ev.window);
         let view = ViewProcess::req(self.ctx().services);
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| view.on_frame_image(img));
@@ -1200,8 +1199,7 @@ impl<E: AppExtension> RunningApp<E> {
                         return;
                     }
 
-                    // SAFETY: it is not zero.
-                    let window = unsafe { WindowId::from_raw(ev.window) };
+                    let window = WindowId::from_raw(ev.window);
 
                     // update ViewProcess immediately.
                     if let Some(vp) = self.ctx().services.get::<ViewProcess>() {
