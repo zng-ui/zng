@@ -114,14 +114,21 @@ impl<T: VarValue> WhenVarBuilder<T> {
             let mut data = rc_when.borrow_mut();
             let data = &mut *data;
 
-            let mut input_handles = vec![];
+            // capacity can be n*2+1, but we only bet on conditions being `NEW`.
+            let mut input_handles = Vec::with_capacity(data.conditions.len());
             if data.default.capabilities().contains(VarCapabilities::NEW) {
                 input_handles.push(data.default.hook(RcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
             }
-            for (i, (c, v)) in data.conditions.iter().enumerate() {
-                if data.active == usize::MAX && c.get() {
+            for (i, (c, v)) in data.conditions.iter_mut().enumerate() {
+                if c.get() && data.active > i {
                     data.active = i;
                 }
+
+                fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
+                    types::ContextualizedVar::<T, BoxedVar<T>>::new(Rc::new(|| unreachable!())).boxed()
+                }
+                take_mut::take_or_recover(c, panic_placeholder::<bool>, Var::actual_var);
+                take_mut::take_or_recover(v, panic_placeholder::<T>, Var::actual_var);
 
                 if c.capabilities().contains(VarCapabilities::NEW) {
                     input_handles.push(c.hook(RcWhenVar::handle_condition(wk_when.clone(), i)));
@@ -494,6 +501,7 @@ impl<T: VarValue> Var<T> for RcWhenVar<T> {
     }
 
     fn actual_var(self) -> Self {
+        // inputs already actualized on ctor
         self
     }
 

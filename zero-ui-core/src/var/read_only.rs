@@ -131,7 +131,7 @@ impl<T: VarValue, V: Var<T>> IntoVar<T> for ReadOnlyVar<T, V> {
 impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
     type ReadOnly = Self;
 
-    type ActualVar = Self;
+    type ActualVar = <V::ActualVar as Var<T>>::ReadOnly;
 
     type Downgrade = WeakReadOnlyVar<T, V::Downgrade>;
 
@@ -159,8 +159,8 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
         Box::new(self)
     }
 
-    fn actual_var(self) -> Self {
-        self
+    fn actual_var(self) -> Self::ActualVar {
+        self.1.actual_var().read_only()
     }
 
     fn downgrade(&self) -> Self::Downgrade {

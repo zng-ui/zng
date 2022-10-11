@@ -1870,6 +1870,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             _t: PhantomData,
         }
     }
+
+    /*
+    after https://github.com/rust-lang/rust/issues/20041
+
+    /// Replaces `self` with the current [`actual_var`] if both are the same type.
+    fn actualize_in_place(&mut self) where Self::ActualVar = Self {
+        take_mut::take(self, Var::actual_var)
+    }
+    */
 }
 
 // Closure type independent of the variable type, hopefully reduces LLVM lines:

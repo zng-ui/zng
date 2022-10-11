@@ -118,6 +118,7 @@ async-trait = "0.1"
 async-recursion = "1"
 pretty-type-name = "1"
 num_enum = "0.5"
+take_mut = "0.2"
 
 # serde
 serde = "1"
