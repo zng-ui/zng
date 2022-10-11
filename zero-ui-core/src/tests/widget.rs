@@ -1694,7 +1694,7 @@ mod util {
 
     use crate::{
         context::{StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
-        impl_ui_node, property,
+        property, ui_node,
         var::{IntoVar, StateVar, Var},
         UiNode, Widget,
     };
@@ -1712,7 +1712,7 @@ mod util {
 
     static TRACE_ID: StaticStateId<HashSet<&'static str>> = StaticStateId::new_unique();
 
-    #[impl_ui_node(struct TraceNode {
+    #[ui_node(struct TraceNode {
         child: impl UiNode,
         trace: &'static str,
     })]
@@ -1830,7 +1830,7 @@ mod util {
     static VALUE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
     static NODE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
 
-    #[impl_ui_node(struct CountNode {
+    #[ui_node(struct CountNode {
         child: impl UiNode,
         value_pos: Position,
     })]
@@ -1863,7 +1863,7 @@ mod util {
         *wgt.state_mut().entry(&IS_STATE_ID).or_default() = state;
     }
 
-    #[impl_ui_node(struct IsStateNode {
+    #[ui_node(struct IsStateNode {
         child: impl UiNode,
         state: StateVar,
     })]
@@ -1907,7 +1907,7 @@ mod util {
         }
     }
 
-    #[impl_ui_node(struct LiveTraceNode {
+    #[ui_node(struct LiveTraceNode {
         child: impl UiNode,
         #[var] trace: impl Var<&'static str>,
     })]

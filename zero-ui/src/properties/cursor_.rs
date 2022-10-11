@@ -20,7 +20,7 @@ use crate::prelude::new_property::*;
 /// [`CursorIcon`]: crate::core::window::CursorIcon
 #[property(context, default(CursorIcon::Default))]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
-    #[impl_ui_node(struct CursorNode {
+    #[ui_node(struct CursorNode {
         child: impl UiNode,
         #[var] cursor: impl Var<Option<CursorIcon>>,
         hovered_binding: Option<VarHandle>,

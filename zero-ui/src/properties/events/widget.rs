@@ -44,7 +44,7 @@ pub struct OnInitArgs {
 /// [`on_info_init`]: fn@on_info_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    #[impl_ui_node(struct OnInitNode {
+    #[ui_node(struct OnInitNode {
         child: impl UiNode,
         handler: impl WidgetHandler<OnInitArgs>,
         count: usize,
@@ -83,7 +83,7 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
 /// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    #[impl_ui_node(struct OnPreviewInitNode {
+    #[ui_node(struct OnPreviewInitNode {
         child: impl UiNode,
         handler: impl WidgetHandler<OnInitArgs>,
         count: usize,
@@ -120,7 +120,7 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    #[impl_ui_node(struct OnInfoInitNode {
+    #[ui_node(struct OnInfoInitNode {
         child: impl UiNode,
         handler: impl  WidgetHandler<OnInitArgs>,
         count: usize,
@@ -178,7 +178,7 @@ pub struct OnUpdateArgs {
 /// UI update every time they awake, so it is very easy to lock the app in a constant sequence of updates.
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> + marker::NotAsyncHn) -> impl UiNode {
-    #[impl_ui_node(struct OnUpdateNode {
+    #[ui_node(struct OnUpdateNode {
         child: impl UiNode,
         handler: impl WidgetHandler<OnUpdateArgs>,
         count: usize,
@@ -213,7 +213,7 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> +
 /// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> + marker::NotAsyncHn) -> impl UiNode {
-    #[impl_ui_node(struct OnPreviewUpdateNode {
+    #[ui_node(struct OnPreviewUpdateNode {
         child: impl UiNode,
         handler: impl WidgetHandler<OnUpdateArgs>,
         count: usize,
@@ -258,7 +258,7 @@ pub struct OnDeinitArgs {
 /// in a worker thread.
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
-    #[impl_ui_node(struct OnDeinitNode {
+    #[ui_node(struct OnDeinitNode {
         child: impl UiNode,
         handler: impl WidgetHandler<OnDeinitArgs>,
         count: usize,
@@ -300,7 +300,7 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> +
 /// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
-    #[impl_ui_node(struct OnPreviewDeinitNode {
+    #[ui_node(struct OnPreviewDeinitNode {
         child: impl UiNode,
         handler: impl WidgetHandler<OnDeinitArgs>,
         count: usize,
@@ -335,7 +335,7 @@ pub struct OnMeasureArgs {
 /// The `handler` is called even if the widget has [`Interactivity::BLOCK`].
 #[property(event, default(|_, _|{}))]
 pub fn on_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext, OnMeasureArgs) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnMeasureNode {
+    #[ui_node(struct OnMeasureNode {
         child: impl UiNode,
         handler: impl Fn(&mut MeasureContext, OnMeasureArgs) + 'static,
     })]
@@ -362,7 +362,7 @@ pub fn on_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext, OnMe
 /// [`on_layout`]: fn@on_layout
 #[property(event, default(|_|{}))]
 pub fn on_pre_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnMeasureNode {
+    #[ui_node(struct OnMeasureNode {
         child: impl UiNode,
         handler: impl Fn(&mut MeasureContext) + 'static,
     })]
@@ -395,7 +395,7 @@ pub struct OnLayoutArgs<'a> {
 /// The `handler` is called even if the widget has [`Interactivity::BLOCK`].
 #[property(event, default(|_, _|{}))]
 pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnLayoutArgs) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnLayoutNode {
+    #[ui_node(struct OnLayoutNode {
         child: impl UiNode,
         handler: impl FnMut(&mut LayoutContext, OnLayoutArgs) + 'static,
     })]
@@ -423,7 +423,7 @@ pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnL
 /// [`on_layout`]: fn@on_layout
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnPreviewLayoutNode {
+    #[ui_node(struct OnPreviewLayoutNode {
         child: impl UiNode,
         handler: impl FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static,
     })]
@@ -449,7 +449,7 @@ pub fn on_pre_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext,
 /// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnRenderNode {
+    #[ui_node(struct OnRenderNode {
         child: impl UiNode,
         handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static,
     })]
@@ -472,7 +472,7 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut F
 /// [`on_render`]: fn@on_render
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnPreviewRenderNode {
+    #[ui_node(struct OnPreviewRenderNode {
         child: impl UiNode,
         handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static,
     })]
@@ -494,7 +494,7 @@ pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &m
 /// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnRenderUpdateNode {
+    #[ui_node(struct OnRenderUpdateNode {
         child: impl UiNode,
         handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static,
     })]
@@ -516,7 +516,7 @@ pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext,
 /// [`on_render_update`]: fn@on_render_update
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
-    #[impl_ui_node(struct OnPreviewRenderUpdateNode {
+    #[ui_node(struct OnPreviewRenderUpdateNode {
         child: impl UiNode,
         handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static,
     })]

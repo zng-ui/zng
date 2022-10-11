@@ -32,7 +32,7 @@ fn no_context_image() -> Image {
 /// [`Images`]: crate::core::image::Images
 /// [`image_cache`]: mod@crate::widgets::image::properties::image_cache
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
-    #[impl_ui_node(struct ImageSourceNode {
+    #[ui_node(struct ImageSourceNode {
         child: impl UiNode,
         #[var] source: impl Var<ImageSource>,
 
@@ -271,7 +271,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
 /// * [`IMAGE_RENDERING_VAR`]: Defines the image resize algorithm used in the GPU.
 /// * [`IMAGE_OFFSET_VAR`]: Defines an offset applied to the image after all measure and arrange.
 pub fn image_presenter() -> impl UiNode {
-    #[impl_ui_node(struct ImagePresenterNode {
+    #[ui_node(struct ImagePresenterNode {
         requested_layout: bool,
 
         // pixel size of the context image.

@@ -2,7 +2,7 @@ use std::{cell::Cell, fmt, ops};
 
 use crate::{
     context::StaticStateId,
-    impl_from_and_into_var, impl_ui_node, property,
+    impl_from_and_into_var, property, ui_node,
     var::{context_var, IntoVar, Var},
 };
 
@@ -329,7 +329,7 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
 /// see [`ZSortedWidgetList`] for more details.
 #[property(context, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
-    #[impl_ui_node(struct ZIndexNode {
+    #[ui_node(struct ZIndexNode {
         child: impl UiNode,
         #[var] index: impl Var<ZIndex>,
         valid: bool,

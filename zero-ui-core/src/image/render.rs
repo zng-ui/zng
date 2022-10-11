@@ -1,9 +1,10 @@
 use crate::{
     context::{state_map, AppContext, BorrowStateMap, StaticStateId, WindowContext},
     event::{AnyEventArgs, EventUpdate},
-    impl_ui_node, property,
+    property,
     render::RenderMode,
     service::ServiceTuple,
+    ui_node,
     units::*,
     var::{types::WeakRcVar, *},
     window::*,
@@ -215,7 +216,7 @@ pub(super) static IMAGE_RENDER_VARS_ID: StaticStateId<ImageRenderVars> = StaticS
 /// This property sets and binds `retain` to [`ImageRenderVars::retain`].
 #[property(context)]
 pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct RenderRetainNode {
+    #[ui_node(struct RenderRetainNode {
         child: impl UiNode,
         retain: impl Var<bool>,
     })]

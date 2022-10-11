@@ -350,7 +350,7 @@ mod helpers {
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
     pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
-        #[impl_ui_node(struct WithContextVarNode<T: VarValue> {
+        #[ui_node(struct WithContextVarNode<T: VarValue> {
             child: impl UiNode,
             context_var: ContextVar<T>,
             value: RefCell<Option<BoxedVar<T>>>,
@@ -434,7 +434,7 @@ mod helpers {
         var: ContextVar<T>,
         init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
     ) -> impl UiNode {
-        #[impl_ui_node(struct WithContextVarInitNode<T: VarValue> {
+        #[ui_node(struct WithContextVarInitNode<T: VarValue> {
             child: impl UiNode,
             context_var: ContextVar<T>,
             init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,

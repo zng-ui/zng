@@ -1,0 +1,5 @@
+error[E0609]: no field `iner` on type `&mut Node<C>`
+ --> cases/ui_node/delegate_expr_error_no_field.rs:6:60
+  |
+6 | #[ui_node(delegate = &self.inner, delegate_mut = &mut self.iner)]
+  |                                                            ^^^^ help: a field with a similar name exists: `inner`

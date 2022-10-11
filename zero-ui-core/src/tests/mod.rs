@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-mod impl_ui_node;
 mod property;
+mod ui_node;
 mod widget;
 
 mod a;

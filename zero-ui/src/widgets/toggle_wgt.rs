@@ -173,7 +173,7 @@ pub mod properties {
     /// Toggle `checked` on click and sets the [`IsCheckedVar`], disables the widget if `checked` is read-only.
     #[property(context, default(false))]
     pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
-        #[impl_ui_node(struct CheckedNode {
+        #[ui_node(struct CheckedNode {
             child: impl UiNode,
             checked: impl Var<bool>,
             click_handle: Option<EventHandle>,
@@ -219,7 +219,7 @@ pub mod properties {
     /// Sets to `None` if [`IsTristateVar`] is `true`.
     #[property(context, default(None))]
     pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
-        #[impl_ui_node(struct CheckedOptNode {
+        #[ui_node(struct CheckedOptNode {
             child: impl UiNode,
             checked: impl Var<Option<bool>>,
             click_handle: Option<EventHandle>,
@@ -296,7 +296,7 @@ pub mod properties {
     /// the contextual [`Selector`] is used to implement the behavior.
     #[property(context, allowed_in_when = false)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-        #[impl_ui_node(struct ValueNode<T: VarValue + PartialEq> {
+        #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
             child: impl UiNode,
             value: impl Var<T>,
             checked: RcVar<Option<bool>>,

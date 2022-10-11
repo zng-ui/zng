@@ -113,7 +113,7 @@ impl<U: UiNode> RcNode<U> {
     ///
     /// The slot node also takes ownership on init if the `var`
     pub fn take_when(&self, var: impl IntoVar<bool>) -> impl UiNode {
-        #[impl_ui_node(struct TakeWhenNode<U: UiNode> {
+        #[ui_node(struct TakeWhenNode<U: UiNode> {
             slot: SlotId,
             rc: Rc<NodeData<U>>,
             #[var] var: impl Var<bool>,
@@ -287,7 +287,7 @@ impl<U: UiNode> RcNode<U> {
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
     pub fn take_on<A: EventArgs>(&self, event: Event<A>, filter: impl FnMut(&A) -> bool + 'static, take_on_init: bool) -> impl UiNode {
-        #[impl_ui_node(struct TakeOnNode<U: UiNode, A: EventArgs> {
+        #[ui_node(struct TakeOnNode<U: UiNode, A: EventArgs> {
             slot: SlotId,
             rc: Rc<NodeData<U>>,
             #[event] event: Event<A>,

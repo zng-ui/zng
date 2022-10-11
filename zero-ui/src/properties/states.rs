@@ -171,7 +171,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
 /// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration
 #[property(context)]
 pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
-    #[impl_ui_node(struct IsShortcutPressedNode {
+    #[ui_node(struct IsShortcutPressedNode {
         child: impl UiNode,
         state: StateVar,
         shortcut_press: Option<DeadlineVar>,

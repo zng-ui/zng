@@ -418,7 +418,7 @@ mod context {
 
     #[property(context)]
     fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
-        #[impl_ui_node(struct ProbeNode {
+        #[ui_node(struct ProbeNode {
             child: impl UiNode,
             var: impl Var<Text>,
         })]
@@ -436,7 +436,7 @@ mod context {
 
     #[property(event)]
     fn on_init(child: impl UiNode, handler: impl handler::WidgetHandler<()>) -> impl UiNode {
-        #[impl_ui_node(struct OnInitNode {
+        #[ui_node(struct OnInitNode {
             child: impl UiNode,
             handler: impl handler::WidgetHandler<()>,
         })]

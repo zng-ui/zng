@@ -108,7 +108,7 @@ pub mod scroll {
     }
 
     fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
-        #[impl_ui_node(struct ScrollNode {
+        #[ui_node(struct ScrollNode {
             children: impl UiNodeList,
             viewport: PxSize,
             joiner: PxSize,

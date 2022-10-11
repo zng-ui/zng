@@ -84,11 +84,11 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// generator to delegate the method calls for the child node.
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode};
+/// # use zero_ui_core::{ui_node, UiNode};
 /// struct MyNode<C> {
 ///     child: C
 /// }
-/// #[impl_ui_node(
+/// #[ui_node(
 ///     // Expression that borrows the delegation target node.
 ///     delegate = &self.child,
 ///     // Expression that exclusive borrows the delegation target node.
@@ -100,9 +100,9 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// If the child node is in a field named `child` you can use this shorthand to the same effect:
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode};
+/// # use zero_ui_core::{ui_node, UiNode};
 /// # struct MyNode<C> { child: C }
-/// #[impl_ui_node(child)]
+/// #[ui_node(child)]
 /// impl<C: UiNode> UiNode for MyNode<C> { }
 /// ```
 ///
@@ -114,11 +114,11 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// you can configure the code generator to delegate to the equivalent list methods.
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode, UiNodeList};
+/// # use zero_ui_core::{ui_node, UiNode, UiNodeList};
 /// struct MyNode<L> {
 ///     children: L
 /// }
-/// #[impl_ui_node(
+/// #[ui_node(
 ///     // Expression that borrows the delegation target list.
 ///     delegate_list = &self.children,
 ///     // Expression that exclusive borrows the delegation target list.
@@ -130,9 +130,9 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// If the children list is a member named `children` you can use this shorthand to the same effect:
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode, UiNodeList};
+/// # use zero_ui_core::{ui_node, UiNode, UiNodeList};
 /// # struct MyNode<L> { children: L }
-/// #[impl_ui_node(children)]
+/// #[ui_node(children)]
 /// impl<L: UiNodeList> UiNode for MyNode<L> { }
 /// ```
 ///
@@ -145,11 +145,11 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// to the same [`UiNode`] method on each node.
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode, BoxedUiNode};
+/// # use zero_ui_core::{ui_node, UiNode, BoxedUiNode};
 /// struct MyNode {
 ///     children: Vec<BoxedUiNode>
 /// }
-/// #[impl_ui_node(
+/// #[ui_node(
 ///     delegate_iter = self.children.iter(),
 ///     delegate_iter_mut = self.children.iter_mut(),
 /// )]
@@ -160,9 +160,9 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// you can use this shorthand to the same effect:
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode, BoxedUiNode};
+/// # use zero_ui_core::{ui_node, UiNode, BoxedUiNode};
 /// # struct MyNode { children: Vec<BoxedUiNode> }
-/// #[impl_ui_node(children_iter)]
+/// #[ui_node(children_iter)]
 /// impl UiNode for MyNode { }
 /// ```
 ///
@@ -178,9 +178,9 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// If your node does not have any child nodes you can configure the code generator to generate empty missing methods.
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode};
+/// # use zero_ui_core::{ui_node, UiNode};
 /// # struct MyNode { }
-/// #[impl_ui_node(none)]
+/// #[ui_node(none)]
 /// impl UiNode for MyNode { }
 /// ```
 ///
@@ -205,9 +205,9 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// methods must be tagged with the `#[UiNode]` pseudo-attribute.
 ///
 /// ```
-/// # use zero_ui_core::{impl_ui_node, UiNode, BoxedUiNode, context::*};
+/// # use zero_ui_core::{ui_node, UiNode, BoxedUiNode, context::*};
 /// # struct MyNode { child: BoxedUiNode }
-/// #[impl_ui_node(child)]
+/// #[ui_node(child)]
 /// impl MyNode {
 ///     fn do_the_thing(&mut self, ctx: &mut WidgetContext) {
 ///         // ..
@@ -245,7 +245,7 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 ///
 /// <div style='display:none'>
 #[doc(inline)]
-pub use zero_ui_proc_macros::impl_ui_node;
+pub use zero_ui_proc_macros::ui_node;
 
 /// Expands a function to a widget property module.
 ///
@@ -284,10 +284,10 @@ pub use zero_ui_proc_macros::impl_ui_node;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
+/// # use zero_ui_core::{property, UiNode, ui_node, var::{Var, IntoVar}, context::WidgetContext};
 /// #
 /// struct MyNode<C, V> { child: C, value: V }
-/// #[impl_ui_node(child)]
+/// #[ui_node(child)]
 /// impl<C: UiNode, V: Var<&'static str>> UiNode for MyNode<C, V> {
 ///     fn init(&mut self, ctx: &mut WidgetContext) {
 ///         self.child.init(ctx);
@@ -408,7 +408,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// ```
 /// # use zero_ui_core::{*, var::*, text::*};
 /// # struct MyNode<C, V> { child: C, value: V }
-/// # #[impl_ui_node(child)]
+/// # #[ui_node(child)]
 /// # impl<C: UiNode, V: Var<Text>> UiNode for MyNode<C, V> {}
 /// #[property(fill, default("default!"))]
 /// pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
@@ -422,7 +422,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// ```
 /// # use zero_ui_core::{*, var::*, text::*};
 /// # struct MyNode<C, V> { child: C, value: V }
-/// # #[impl_ui_node(child)]
+/// # #[ui_node(child)]
 /// # impl<C: UiNode, V: Var<Text>> UiNode for MyNode<C, V> {}
 /// # #[property(fill, default("default!"))]
 /// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
@@ -451,7 +451,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// ```
 /// # use zero_ui_core::{*, var::*, text::*, color::*};
 /// # struct MyNode<C, V> { child: C, value: V }
-/// # #[impl_ui_node(child)]
+/// # #[ui_node(child)]
 /// # impl<C: UiNode, V: Var<Text>> UiNode for MyNode<C, V> {}
 /// # #[property(fill, default("default!"))]
 /// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {

@@ -604,7 +604,7 @@ pub fn inspect_property(property_node: BoxedUiNode, meta: PropertyInstanceMeta, 
     .boxed()
 }
 
-#[impl_ui_node(struct InspectPropertyNode {
+#[ui_node(struct InspectPropertyNode {
     child: BoxedUiNode,
     meta: PropertyInstanceMeta,
     args: Box<[PropertyArg]>,
@@ -675,7 +675,7 @@ pub fn inspect_widget(widget_outermost_node: BoxedUiNode, meta: WidgetInstanceMe
     .boxed()
 }
 
-#[impl_ui_node(struct InspectWidgetNode {
+#[ui_node(struct InspectWidgetNode {
     child: BoxedUiNode,
     meta: WidgetInstanceMeta,
     whens: Box<[WhenInfo]>,
@@ -747,7 +747,7 @@ pub fn inspect_constructor(constructor_node: BoxedUiNode, fn_name: &'static str,
     .boxed()
 }
 
-#[impl_ui_node(struct InspectConstructorNode {
+#[ui_node(struct InspectConstructorNode {
     child: BoxedUiNode,
     fn_name: &'static str,
     captures: Box<[CapturedPropertyInfo]>,
@@ -834,7 +834,7 @@ context_var! {
 /// # struct FooNode {
 /// #     bar: bool,
 /// # }
-/// # #[impl_ui_node(none)]
+/// # #[ui_node(none)]
 /// # impl UiNode for FooNode { }
 /// #
 /// #[widget($crate::foo)]

@@ -24,7 +24,7 @@ pub fn linear_gradient_ext(
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    #[impl_ui_node(struct LinearGradientNode {
+    #[ui_node(struct LinearGradientNode {
         #[var] axis: impl Var<LinearGradientAxis>,
         #[var] stops: impl Var<GradientStops>,
         #[var] extend_mode: impl Var<ExtendMode>,
@@ -98,7 +98,7 @@ pub fn linear_gradient_full(
     tile_size: impl IntoVar<Size>,
     tile_spacing: impl IntoVar<Size>,
 ) -> impl UiNode {
-    #[impl_ui_node(struct LinearGradientFullNode {
+    #[ui_node(struct LinearGradientFullNode {
         #[var] axis: impl Var<LinearGradientAxis>,
         #[var] stops: impl Var<GradientStops>,
         #[var] extend_mode: impl Var<ExtendMode>,

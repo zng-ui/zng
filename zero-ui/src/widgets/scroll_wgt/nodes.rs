@@ -16,7 +16,7 @@ use super::types::*;
 
 /// The actual content presenter.
 pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
-    #[impl_ui_node(struct ViewportNode {
+    #[ui_node(struct ViewportNode {
         child: impl UiNode,
         mode: impl Var<ScrollMode>,
 
@@ -245,7 +245,7 @@ pub fn scrollbar_joiner_presenter() -> impl UiNode {
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
 /// [`SCROLL_LEFT_CMD`] and [`SCROLL_RIGHT_CMD`] scoped on the widget.
 pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct ScrollCommandsNode {
+    #[ui_node(struct ScrollCommandsNode {
         child: impl UiNode,
 
         up: CommandHandle,
@@ -367,7 +367,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that implements [`PAGE_UP_CMD`], [`PAGE_DOWN_CMD`],
 /// [`PAGE_LEFT_CMD`] and [`PAGE_RIGHT_CMD`] scoped on the widget.
 pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct PageCommandsNode {
+    #[ui_node(struct PageCommandsNode {
         child: impl UiNode,
 
         up: CommandHandle,
@@ -488,7 +488,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 /// Create a node that implements [`SCROLL_TO_TOP_CMD`], [`SCROLL_TO_BOTTOM_CMD`],
 /// [`SCROLL_TO_LEFTMOST_CMD`] and [`SCROLL_TO_RIGHTMOST_CMD`] scoped on the widget.
 pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct ScrollToEdgeCommandsNode {
+    #[ui_node(struct ScrollToEdgeCommandsNode {
         child: impl UiNode,
 
         top: CommandHandle,
@@ -568,7 +568,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements [`SCROLL_TO_CMD`] scoped on the widget and scroll to focused.
 pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct ScrollToCommandNode {
+    #[ui_node(struct ScrollToCommandNode {
         child: impl UiNode,
 
         handle: CommandHandle,
@@ -731,7 +731,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements scroll-wheel handling for the widget.
 pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct ScrollWheelNode {
+    #[ui_node(struct ScrollWheelNode {
         child: impl UiNode,
         offset: Vector,
         mouse_wheel_handle: Option<EventHandle>,

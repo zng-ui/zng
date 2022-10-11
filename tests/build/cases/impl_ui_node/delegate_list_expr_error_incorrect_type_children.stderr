@@ -1,9 +1,0 @@
-error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
- --> cases/impl_ui_node/delegate_list_expr_error_incorrect_type_children.rs:9:1
-  |
-9 | #[impl_ui_node(children)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `UiNodeList` is not implemented for `NotANodeList`
-  |
-  = help: the following other types implement trait `UiNodeList`:
-            <implementers-list>
-  = note: this error originates in the attribute macro `impl_ui_node` (in Nightly builds, run with -Z macro-backtrace for more info)

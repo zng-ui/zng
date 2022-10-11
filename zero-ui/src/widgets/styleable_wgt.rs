@@ -104,7 +104,7 @@ pub mod styleable {
 
     /// Styleable `new`, captures the `id` and `style` properties.
     pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl Widget {
-        #[impl_ui_node(struct StyleableNode {
+        #[ui_node(struct StyleableNode {
             child: DynWidgetNode,
             snapshot: Option<DynWidgetSnapshot>,
             #[var] style: impl Var<StyleGenerator>,
@@ -280,7 +280,7 @@ impl Style {
         self.node.extend(other.node);
     }
 }
-#[impl_ui_node(
+#[ui_node(
     delegate = &self.node,
     delegate_mut = &mut self.node,
 )]

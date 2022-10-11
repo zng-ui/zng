@@ -1,12 +1,10 @@
-* Review Event hooks and Command data unload.
-    - If we unload a headless app and reuse the thread hooks stay alive.
-    - Only command metadata for commands that where subscribed once is unloaded.
-    - Have an AppId and compare it?
+* Document `#[ui_node(struct NewNode { .. })]` feature.
 
-* Use `impl_ui_node(struct Node { ..})` syntax everywhere.
-    - Rename to `#[ui_node]`.
-    - Custom delegate with pseudo-attribute `#[delegate]` applied to member.
-    - Document all this.
+* Implement an APP_DEINIT thread local that gets run on app shutdown.
+    - Use it to clear all other thread_local items associated with the lifetime of an app.
+        - Event.
+        - Command.
+
 * Review context vars usage, we abused the previous API to pass "service like" references to a context, now these values get cloned.
     - Maybe we can make an official API for these?
         - A `ContextValue<T>` that is a boxed `RcVar<T>` internally, but allows immediate modification?

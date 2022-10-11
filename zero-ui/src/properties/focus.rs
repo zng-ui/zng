@@ -7,7 +7,7 @@ use crate::prelude::new_property::*;
 /// Enables a widget to receive focus.
 #[property(context, default(false))]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct FocusableNode {
+    #[ui_node(struct FocusableNode {
         child: impl UiNode,
         #[var] focusable: impl Var<bool>,
     })]
@@ -33,7 +33,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 /// Customizes the widget order during TAB navigation.
 #[property(context, default(TabIndex::default()))]
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
-    #[impl_ui_node(struct TabIndexNode {
+    #[ui_node(struct TabIndexNode {
         child: impl UiNode,
         #[var] tab_index: impl Var<TabIndex>,
     })]
@@ -77,7 +77,7 @@ pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl
     }
 }
 
-#[impl_ui_node(struct FocusScopeNode {
+#[ui_node(struct FocusScopeNode {
     child: impl UiNode,
     #[var] is_focus_scope: impl Var<bool>,
     is_alt: bool,
@@ -105,7 +105,7 @@ impl UiNode for FocusScopeNode {
 /// Behavior of a focus scope when it receives direct focus.
 #[property(context, default(FocusScopeOnFocus::default()))]
 pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> impl UiNode {
-    #[impl_ui_node(struct FocusScopeBehaviorNode {
+    #[ui_node(struct FocusScopeBehaviorNode {
         child: impl UiNode,
         #[var] behavior: impl Var<FocusScopeOnFocus>,
     })]
@@ -132,7 +132,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 /// Tab navigation within this focus scope.
 #[property(context, default(TabNav::Continue))]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
-    #[impl_ui_node(struct TabNavNode {
+    #[ui_node(struct TabNavNode {
         child: impl UiNode,
         #[var] tab_nav: impl Var<TabNav>,
     })]
@@ -158,7 +158,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 /// Arrows navigation within this focus scope.
 #[property(context, default(DirectionalNav::Continue))]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
-    #[impl_ui_node(struct DirectionalNavNode {
+    #[ui_node(struct DirectionalNavNode {
         child: impl UiNode,
         #[var] directional_nav: impl Var<DirectionalNav>,
     })]
@@ -184,7 +184,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 /// Keyboard shortcuts that focus this widget or its first focusable descendant or its first focusable parent.
 #[property(context, default(Shortcuts::default()))]
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
-    #[impl_ui_node(struct FocusShortcutNode {
+    #[ui_node(struct FocusShortcutNode {
         child: impl UiNode,
         #[var] shortcuts: impl Var<Shortcuts>,
         handle: Option<ShortcutsHandle>,
@@ -216,7 +216,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 /// Setting this to `true` is the directional navigation equivalent of setting `tab_index` to `SKIP`.
 #[property(context, default(false))]
 pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct SkipDirectionalNode {
+    #[ui_node(struct SkipDirectionalNode {
         child: impl UiNode,
         #[var] enabled: impl Var<bool>,
     })]
@@ -439,7 +439,7 @@ pub fn is_return_focus_within(child: impl UiNode, state: StateVar) -> impl UiNod
 /// When the widget is inited a [`Focus::focus_widget_or_related`] request is made for the widget.
 #[property(context, default(false))]
 pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node( struct FocusOnInitNode {
+    #[ui_node( struct FocusOnInitNode {
         child: impl UiNode,
         enabled: impl Var<bool>,
     })]

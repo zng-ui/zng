@@ -555,7 +555,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
     }
 
-    #[impl_ui_node(struct LayoutTextNode {
+    #[ui_node(struct LayoutTextNode {
         child: impl UiNode,
         txt: RefCell<FinalText>,
         pending: Layout,
@@ -686,7 +686,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
 pub fn render_underlines(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct RenderUnderlineNode {
+    #[ui_node(struct RenderUnderlineNode {
         child: impl UiNode,
     })]
     impl UiNode for RenderUnderlineNode {
@@ -731,7 +731,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
 pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct RenderStrikethroughsNode {
+    #[ui_node(struct RenderStrikethroughsNode {
         child: impl UiNode,
     })]
     impl UiNode for RenderStrikethroughsNode {
@@ -775,7 +775,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_overlines(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct RenderOverlineNode {
+    #[ui_node(struct RenderOverlineNode {
         child: impl UiNode,
     })]
     impl UiNode for RenderOverlineNode {
@@ -819,7 +819,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct RenderCaretNode {
+    #[ui_node(struct RenderCaretNode {
         child: impl UiNode,
         color_key: FrameValueKey<RenderColor>,
     })]
@@ -881,7 +881,7 @@ pub fn render_text() -> impl UiNode {
         color: Rgba,
         aa: FontAntiAliasing,
     }
-    #[impl_ui_node(struct RenderTextNode {
+    #[ui_node(struct RenderTextNode {
         reuse: RefCell<Option<ReuseRange>>,
         rendered: Cell<Option<RenderedText>>,
         color_key: Option<FrameValueKey<RenderColor>>,

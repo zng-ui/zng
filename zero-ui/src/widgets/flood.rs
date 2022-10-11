@@ -2,7 +2,7 @@ use crate::prelude::new_widget::*;
 
 /// Node that fills the widget area with a color.
 pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
-    #[impl_ui_node(struct FloodNode {
+    #[ui_node(struct FloodNode {
         #[var] color: impl Var<Rgba>,
         frame_key: FrameVarKey<RenderColor>,
         final_size: PxSize,

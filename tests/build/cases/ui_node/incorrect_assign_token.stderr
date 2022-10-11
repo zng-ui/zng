@@ -1,0 +1,13 @@
+error: expected `delegate = <expr>`
+ --> cases/ui_node/incorrect_assign_token.rs:5:5
+  |
+5 |     delegate: &self.0,
+  |     ^^^^^^^^
+
+warning: unused import: `UiNode`
+ --> cases/ui_node/incorrect_assign_token.rs:1:41
+  |
+1 | use zero_ui::core::{ui_node, NilUiNode, UiNode};
+  |                                         ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

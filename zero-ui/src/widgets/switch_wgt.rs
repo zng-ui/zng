@@ -24,7 +24,7 @@ pub mod switch {
         collapse: bool,
         render_collapse_once: Cell<bool>,
     }
-    #[impl_ui_node(
+    #[ui_node(
         delegate_list = &self.options,
         delegate_list_mut = &mut self.options,
     )]

@@ -6,7 +6,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 use crate::var::types::AnyWhenVarBuilder;
 use crate::var::{AnyVar, *};
 use crate::NilUiNode;
-use crate::{context::WidgetContext, impl_ui_node, BoxedUiNode, UiNode};
+use crate::{context::WidgetContext, ui_node, BoxedUiNode, UiNode};
 
 /// Represents a node setup to dynamically swap child.
 ///
@@ -60,7 +60,7 @@ impl<U: UiNode> AdoptiveNode<U> {
         (self.child, self.node)
     }
 }
-#[impl_ui_node(
+#[ui_node(
     delegate = &self.node,
     delegate_mut = &mut self.node,
 )]
@@ -88,7 +88,7 @@ impl AdoptiveChildNode {
         }
     }
 }
-#[impl_ui_node(
+#[ui_node(
     delegate = self.child.borrow(),
     delegate_mut = self.child.borrow_mut(),
 )]
@@ -1189,7 +1189,7 @@ impl DynWidgetNode {
         ps..self.priority_ranges[priority]
     }
 }
-#[impl_ui_node(
+#[ui_node(
     delegate = self.node.borrow(),
     delegate_mut = self.node.borrow_mut(),
 )]

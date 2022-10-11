@@ -123,7 +123,7 @@ pub mod thumb {
     }
 
     fn new_layout(child: impl UiNode) -> impl UiNode {
-        #[impl_ui_node(struct DragNode {
+        #[ui_node(struct DragNode {
             child: impl UiNode,
             content_length: Px,
             viewport_length: Px,

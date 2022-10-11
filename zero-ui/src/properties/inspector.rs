@@ -70,7 +70,7 @@ fn show_widget_tree(
     render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
     enabled: impl IntoVar<bool>,
 ) -> impl UiNode {
-    #[impl_ui_node(struct RenderWidgetTreeNode {
+    #[ui_node(struct RenderWidgetTreeNode {
         child: impl UiNode,
         render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
         #[var] enabled: impl Var<bool>,
@@ -121,7 +121,7 @@ fn show_widget_tree(
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 #[property(context)]
 pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct ShowHitTestNode {
+    #[ui_node(struct ShowHitTestNode {
         child: impl UiNode,
         #[var] enabled: impl Var<bool>,
 
@@ -257,7 +257,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 #[property(context)]
 pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> impl UiNode {
-    #[impl_ui_node(struct ShowDirectionalQueryNode {
+    #[ui_node(struct ShowDirectionalQueryNode {
         child: impl UiNode,
         #[var] orientation: impl Var<Option<Orientation2D>>,
         valid: bool,

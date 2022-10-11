@@ -144,7 +144,7 @@ pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl U
 /// Sets the [`FONT_SIZE_VAR`] context var and the [`LayoutMetrics::font_size`].
 #[property(context, default(FONT_SIZE_VAR))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
-    #[impl_ui_node(struct FontSizeNode {
+    #[ui_node(struct FontSizeNode {
         child: impl UiNode,
     })]
     impl UiNode for FontSizeNode {

@@ -21,7 +21,7 @@ where
     T: VarValue + PartialEq,
     V: Var<T>,
 {
-    #[impl_ui_node(struct BindWindowVarNode<T: VarValue + PartialEq, SV: Var<T>> {
+    #[ui_node(struct BindWindowVarNode<T: VarValue + PartialEq, SV: Var<T>> {
         _t: PhantomData<T>,
         child: impl UiNode,
         user_var: impl Var<T>,
@@ -122,7 +122,7 @@ map_properties! {
 /// Sets the frame clear color.
 #[property(context, default(colors::WHITE))]
 pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    #[impl_ui_node(struct ClearColorNode {
+    #[ui_node(struct ClearColorNode {
         child: impl UiNode,
         #[var] clear_color: impl Var<Rgba>,
     })]
@@ -254,7 +254,7 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
         },
     }
 
-    #[impl_ui_node(struct SaveStateNode {
+    #[ui_node(struct SaveStateNode {
         child: impl UiNode,
         enabled: SaveState,
         handles: Option<[EventHandle; 2]>,

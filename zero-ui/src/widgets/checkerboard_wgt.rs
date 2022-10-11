@@ -101,7 +101,7 @@ pub fn node() -> impl UiNode {
     use crate::core::gradient::RenderExtendMode;
     use properties::*;
 
-    #[impl_ui_node(struct CheckerboardNode {
+    #[ui_node(struct CheckerboardNode {
         final_size: PxSize,
         tile_size: PxSize,
         center: PxPoint,

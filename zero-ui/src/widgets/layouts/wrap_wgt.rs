@@ -23,7 +23,7 @@ pub mod wrap {
         implicit_base::nodes::children_layout(node)
     }
 
-    #[impl_ui_node(struct WrapNode {
+    #[ui_node(struct WrapNode {
         children: impl WidgetList,
         #[var] spacing: impl Var<GridSpacing>,
     })]

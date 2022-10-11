@@ -1,5 +1,5 @@
 use super::*;
-use crate::{context::WidgetUpdates, handler::WidgetHandler, impl_ui_node, UiNode};
+use crate::{context::WidgetUpdates, handler::WidgetHandler, ui_node, UiNode};
 
 #[doc(hidden)]
 #[macro_export]
@@ -173,7 +173,7 @@ where
     F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
     H: WidgetHandler<A>,
 {
-    #[impl_ui_node(struct OnEventNode<A: EventArgs> {
+    #[ui_node(struct OnEventNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
         filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,
@@ -239,7 +239,7 @@ where
     F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
     H: WidgetHandler<A>,
 {
-    #[impl_ui_node(struct OnPreviewEventNode<A: EventArgs> {
+    #[ui_node(struct OnPreviewEventNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
         filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,

@@ -219,7 +219,7 @@
 //! ```
 //!
 //! The mechanism properties use to append their own code to widgets is beyond the scope of this introduction, the documentation
-//! of the **[`#[property]`][#property]** and **[`#[impl_ui_node]`][#impl_ui_node]** attributes explains it in detail.
+//! of the **[`#[property]`][#property]** and **[`#[ui_node]`][#ui_node]** attributes explains it in detail.
 //!
 //! ## Variables
 //!
@@ -820,7 +820,7 @@
 //! [`RcVar<T>`]: crate::core::var::RcVar
 //! [#widget]: macro@crate::core::widget
 //! [#property]: macro@crate::core::property
-//! [#impl_ui_node]: macro@crate::core::impl_ui_node
+//! [#ui_node]: macro@crate::core::ui_node
 //! [`Event`]: crate::core::event::Event
 //! [`EventArgs`]: crate::core::event::EventArgs
 //! [`delivery_list`]: crate::core::event::AnyEventArgs::delivery_list
@@ -986,7 +986,7 @@ pub mod prelude {
     ///     MyPropertyNode { child, value: value.into_var() }
     /// }
     ///
-    /// #[impl_ui_node(struct MyPropertyNode {
+    /// #[ui_node(struct MyPropertyNode {
     ///     child: impl UiNode,
     ///     #[var] value: impl Var<bool>,
     /// })]
@@ -1032,9 +1032,9 @@ pub mod prelude {
         pub use crate::core::window::{WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, node_vec, nodes, property,
+            node_vec, nodes, property,
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
-            widget,
+            ui_node, widget,
             widget_base::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
@@ -1089,12 +1089,12 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, node_vec, nodes, property,
+            node_vec, nodes, property,
             ui_list::{
                 z_index, SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef, ZIndex,
                 ZSortedWidgetList,
             },
-            widget,
+            ui_node, widget,
             widget_base::{implicit_base, HitTestMode},
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,

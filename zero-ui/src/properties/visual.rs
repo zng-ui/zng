@@ -33,7 +33,7 @@ use super::hit_test_mode;
 /// The example renders a custom text background.
 #[property(fill, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct BackgroundNode {
+    #[ui_node(struct BackgroundNode {
         children: impl UiNodeList,
     })]
     impl UiNode for BackgroundNode {
@@ -153,7 +153,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// The example renders a custom see-through text overlay.
 #[property(fill, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct ForegroundNode {
+    #[ui_node(struct ForegroundNode {
         children: impl UiNodeList,
     })]
     impl UiNode for ForegroundNode {
@@ -209,7 +209,7 @@ pub fn foreground_highlight(
     widths: impl IntoVar<SideOffsets>,
     sides: impl IntoVar<BorderSides>,
 ) -> impl UiNode {
-    #[impl_ui_node(struct ForegroundHighlightNode {
+    #[ui_node(struct ForegroundHighlightNode {
         child: impl UiNode,
         #[var] offsets: impl Var<SideOffsets>,
         #[var] widths: impl Var<SideOffsets>,
@@ -363,7 +363,7 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// [`corner_radius`]: fn@corner_radius
 #[property(fill, default(false))]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct ClipToBoundsNode {
+    #[ui_node(struct ClipToBoundsNode {
         child: impl UiNode,
         #[var] clip: impl Var<bool>,
         corners: PxCornerRadius,

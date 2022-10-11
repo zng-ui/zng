@@ -131,7 +131,7 @@ pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortc
         handle: None,
     }
 }
-#[impl_ui_node(struct ClickShortcutNode {
+#[ui_node(struct ClickShortcutNode {
     child: impl UiNode,
     #[var] shortcuts: impl Var<Shortcuts>,
     kind: ShortcutClick,

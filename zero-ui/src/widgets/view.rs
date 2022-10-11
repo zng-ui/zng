@@ -121,7 +121,7 @@ where
     V: Var<D>,
     P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
 {
-    #[impl_ui_node(struct ViewNode<D: VarValue> {
+    #[ui_node(struct ViewNode<D: VarValue> {
         #[var] data: impl Var<D>,
         child: impl UiNode,
         presenter: impl FnMut(&mut WidgetContext, &T_data) -> View<T_child> + 'static,
@@ -275,7 +275,7 @@ impl<D> ViewGenerator<D> {
         D: 'static,
         V: UiNode,
     {
-        #[impl_ui_node(struct ViewGenVarPresenter<D: 'static, V: UiNode> {
+        #[ui_node(struct ViewGenVarPresenter<D: 'static, V: UiNode> {
             #[var] gen: impl Var<ViewGenerator<D>>,
             update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
             map: impl FnMut(BoxedUiNode) -> V + 'static,

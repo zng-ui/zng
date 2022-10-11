@@ -2,8 +2,8 @@ use zero_ui::{
     core::{
         context::StaticStateId,
         event::{command, CommandHandle, EventUpdate},
-        impl_ui_node,
         keyboard::HeadlessAppKeyboardExt,
+        ui_node,
     },
     prelude::*,
 };
@@ -92,7 +92,7 @@ fn shortcut_scoped() {
 }
 
 fn listener_window(focused_wgt: bool) -> Window {
-    #[impl_ui_node(struct FooHandlerNode {
+    #[ui_node(struct FooHandlerNode {
         handle: Option<CommandHandle>,
         handle_scoped: Option<CommandHandle>,
         handle_scoped_wgt: Option<CommandHandle>,

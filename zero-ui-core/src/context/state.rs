@@ -2,7 +2,7 @@ use std::{fmt, marker::PhantomData};
 
 use crate::{
     context::{WidgetContext, WidgetUpdates},
-    impl_ui_node,
+    ui_node,
     var::{IntoVar, Var, VarValue},
     UiNode,
 };
@@ -661,7 +661,7 @@ where
     T: StateValue + VarValue,
     H: FnMut(&mut WidgetContext, &T) + 'static,
 {
-    #[impl_ui_node(struct SetWidgetStateNode<T: StateValue + VarValue> {
+    #[ui_node(struct SetWidgetStateNode<T: StateValue + VarValue> {
         child: impl UiNode,
         id: StateId<T>,
         #[var] value: impl Var<T>,

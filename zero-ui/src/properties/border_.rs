@@ -12,7 +12,7 @@ use crate::core::border::{border_node, ContextBorders};
 /// [`corner_radius`]: fn@corner_radius
 #[property(border, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-    #[impl_ui_node(struct BorderNode {
+    #[ui_node(struct BorderNode {
         #[var] sides: impl Var<BorderSides>,
         corners: PxCornerRadius,
     })]

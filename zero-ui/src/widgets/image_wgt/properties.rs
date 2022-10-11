@@ -271,7 +271,7 @@ pub struct ImageErrorArgs {
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(event, default( hn!(|_, _|{}) ))]
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>) -> impl UiNode {
-    #[impl_ui_node(struct OnErrorNode {
+    #[ui_node(struct OnErrorNode {
         child: impl UiNode,
         handler: impl WidgetHandler<ImageErrorArgs>,
         error: Text,
@@ -326,7 +326,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(event, default( hn!(|_, _|{}) ))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -> impl UiNode {
-    #[impl_ui_node(struct OnLoadNode {
+    #[ui_node(struct OnLoadNode {
         child: impl UiNode,
         handler: impl WidgetHandler<ImageLoadArgs>,
     })]
@@ -360,7 +360,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
 #[property(layout, allowed_in_when = false, default(false))]
 pub fn image_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
-    #[impl_ui_node(struct ImageBlockWindowLoadNode {
+    #[ui_node(struct ImageBlockWindowLoadNode {
         child: impl UiNode,
         enabled: BlockWindowLoad,
         block: Option<WindowLoadingHandle>,

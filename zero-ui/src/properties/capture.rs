@@ -32,7 +32,7 @@ use std::rc::Rc;
 /// [`Window`]: CaptureMode::Window
 #[property(context, default(false))]
 pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
-    #[impl_ui_node(struct CaptureMouseNode {
+    #[ui_node(struct CaptureMouseNode {
         child: impl UiNode,
         #[var] mode: impl Var<CaptureMode>,
     })]
@@ -112,7 +112,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         last_in_tree: Option<WidgetId>,
     }
 
-    #[impl_ui_node(struct ModalNode {
+    #[ui_node(struct ModalNode {
         child: impl UiNode,
         #[var] enabled: impl Var<bool>,
     })]

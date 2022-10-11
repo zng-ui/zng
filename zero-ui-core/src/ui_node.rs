@@ -15,9 +15,9 @@ use crate::{
 };
 use crate::{crate_util::NameIdMap, units::*};
 use crate::{
-    impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     text::Text,
+    ui_node,
 };
 
 mod rc_node;
@@ -969,7 +969,7 @@ impl Widget for BoxedWidget {
 
 /// A UI node that does not contain any other node, only takes the minimum space and renders nothing.
 pub struct NilUiNode;
-#[impl_ui_node(none)]
+#[ui_node(none)]
 impl UiNode for NilUiNode {
     fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
         ctx.constrains().min_size()
@@ -982,12 +982,12 @@ impl UiNode for NilUiNode {
 
 /// A UI node that does not contain any other node, fills the available space, but renders nothing.
 pub struct FillUiNode;
-#[impl_ui_node(none)]
+#[ui_node(none)]
 impl UiNode for FillUiNode {}
 
-// Used by #[impl_ui_node] to implement delegate_iter.
+// Used by #[ui_node] to implement delegate_iter.
 #[doc(hidden)]
-pub mod impl_ui_node_util {
+pub mod ui_node_util {
     use crate::{
         context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
         event::EventUpdate,

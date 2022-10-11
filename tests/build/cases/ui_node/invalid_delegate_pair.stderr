@@ -1,0 +1,19 @@
+error: expected `, delegate_mut = <expr>`
+ --> cases/ui_node/invalid_delegate_pair.rs:6:28
+  |
+6 | #[ui_node(delegate = &self.inner)]
+  |                            ^^^^^
+
+error: expected `, delegate = <expr>`
+  --> cases/ui_node/invalid_delegate_pair.rs:12:36
+   |
+12 | #[ui_node(delegate_mut = &mut self.inner)]
+   |                                    ^^^^^
+
+warning: unused import: `UiNode`
+ --> cases/ui_node/invalid_delegate_pair.rs:1:41
+  |
+1 | use zero_ui::core::{ui_node, NilUiNode, UiNode};
+  |                                         ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

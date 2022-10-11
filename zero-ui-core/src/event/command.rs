@@ -10,8 +10,8 @@ use crate::{
     crate_util::FxHashMap,
     gesture::CommandShortcutExt,
     handler::WidgetHandler,
-    impl_ui_node,
     text::Text,
+    ui_node,
     var::{types::RcCowVar, *},
     window::WindowId,
     UiNode, WidgetId,
@@ -1132,7 +1132,7 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    #[impl_ui_node(struct OnCommandNode<E: Var<bool>> {
+    #[ui_node(struct OnCommandNode<E: Var<bool>> {
         child: impl UiNode,
         command: Option<Command>,
         command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,
@@ -1201,7 +1201,7 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    #[impl_ui_node(struct OnPreCommandNode<E: Var<bool>> {
+    #[ui_node(struct OnPreCommandNode<E: Var<bool>> {
         child: impl UiNode,
         command: Option<Command>,
         command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,

@@ -11,7 +11,7 @@ use crate::{
     color::*,
     context::LayoutMetrics,
     context::{LayoutContext, WidgetContext},
-    impl_ui_node, property,
+    property, ui_node,
     units::*,
     var::impl_from_and_into_var,
     var::*,
@@ -621,7 +621,7 @@ impl fmt::Debug for CornerRadiusFit {
 /// [`Default`]: crate::units::Length::Default
 #[property(context, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
-    #[impl_ui_node(struct CornerRadiusNode {
+    #[ui_node(struct CornerRadiusNode {
         child: impl UiNode,
     })]
     impl UiNode for CornerRadiusNode {
@@ -692,7 +692,7 @@ context_var! {
 /// [`corner_radius`]: fn@corner_radius
 /// [`border_align`]: fn@border_align
 pub fn fill_node(content: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct FillNodeNode {
+    #[ui_node(struct FillNodeNode {
         child: impl UiNode,
 
         clip_bounds: PxSize,
@@ -791,7 +791,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 /// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating
 /// with the other borders of the widget.
 pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct BorderNode {
+    #[ui_node(struct BorderNode {
         children: impl UiNodeList,
         #[var] offsets: impl Var<SideOffsets>,
         layout_offsets: SideOffsets,

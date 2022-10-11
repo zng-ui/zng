@@ -18,8 +18,8 @@ mod merge_var;
 mod static_list;
 mod when_var;
 
-mod impl_ui_node;
 pub(crate) mod property;
+mod ui_node;
 
 mod widget_0_attr;
 mod widget_1_inherit;
@@ -37,10 +37,10 @@ mod rust_analyzer;
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the [`zero_ui_core::impl_ui_node`](../zero_ui_core/attr.impl_ui_node.html) page.
+/// Read the documentation in the [`zero_ui_core::ui_node`](../zero_ui_core/attr.ui_node.html) page.
 #[proc_macro_attribute]
-pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
-    impl_ui_node::gen_impl_ui_node(args, input)
+pub fn ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
+    ui_node::gen_ui_node(args, input)
 }
 
 /// Expands a function to a widget property.

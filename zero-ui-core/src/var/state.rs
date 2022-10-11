@@ -22,7 +22,7 @@ pub fn event_state<A: EventArgs>(
     event: Event<A>,
     on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    #[impl_ui_node(struct EventStateNode<A: EventArgs> {
+    #[ui_node(struct EventStateNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
         default: bool,
@@ -72,9 +72,9 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
     on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    #[impl_ui_node(struct EventState2Node<A0: EventArgs, A1: EventArgs,> {
+    #[ui_node(struct EventState2Node<A0: EventArgs, A1: EventArgs,> {
         child: impl UiNode,
-        #[event] event0: Event<A0>, 
+        #[event] event0: Event<A0>,
         #[event] event1: Event<A1>,
         default: bool,
         state: StateVar,
@@ -154,7 +154,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    #[impl_ui_node(struct EventState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
+    #[ui_node(struct EventState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
         child: impl UiNode,
         #[event] event0: Event<A0>,
         #[event] event1: Event<A1>,
@@ -235,7 +235,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
 /// that merge other state properties.
 pub fn bind_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVar) -> impl UiNode {
-    #[impl_ui_node(struct BindStateNode {
+    #[ui_node(struct BindStateNode {
         child: impl UiNode,
         source: impl Var<bool>,
         state: StateVar,

@@ -10,7 +10,7 @@ use crate::prelude::new_property::*;
 /// [`transform_origin`]: fn@transform_origin
 #[property(layout, default(Transform::identity()))]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
-    #[impl_ui_node(struct TransformNode {
+    #[ui_node(struct TransformNode {
         child: impl UiNode,
         #[var] transform: impl Var<Transform>,
 

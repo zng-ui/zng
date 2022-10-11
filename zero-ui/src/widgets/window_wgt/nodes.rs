@@ -38,7 +38,7 @@ impl WindowLayers {
             layer: L,
             widget: W,
         }
-        #[impl_ui_node(
+        #[ui_node(
                 delegate = &self.widget,
                 delegate_mut = &mut self.widget,
             )]
@@ -118,7 +118,7 @@ impl WindowLayers {
             spatial_id: SpatialFrameId,
             transform_key: FrameValueKey<PxTransform>,
         }
-        #[impl_ui_node(
+        #[ui_node(
                 delegate = &self.widget,
                 delegate_mut = &mut self.widget,
             )]
@@ -448,7 +448,7 @@ static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 ///
 /// This node is included in the `window::new_event` constructor.
 pub fn layers(child: impl UiNode) -> impl UiNode {
-    #[impl_ui_node(struct LayersNode {
+    #[ui_node(struct LayersNode {
         children: impl UiNodeList,
         layered: SortedWidgetVecRef,
     })]

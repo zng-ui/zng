@@ -156,7 +156,7 @@ impl<T: VarValue> AnyVarValue for T {
 /// #
 /// #[property(context, allowed_in_when = false)]
 /// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl Into<bool>) -> impl UiNode {
-///     #[impl_ui_node(struct FooNode {
+///     #[ui_node(struct FooNode {
 ///         child: impl UiNode,
 ///         a: bool,
 ///         b: bool,
@@ -707,7 +707,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// # use zero_ui_core::*;
 /// #[property(layout)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
-///     #[impl_ui_node(struct FooNode {
+///     #[ui_node(struct FooNode {
 ///         child: impl UiNode,
 ///         bar: impl Var<u32>,
 ///     })]

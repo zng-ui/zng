@@ -19,7 +19,7 @@ use crate::core::color::filters::{
 /// [`opacity`]: fn@opacity
 #[property(context, default(Filter::default()))]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    #[impl_ui_node(struct FilterNode {
+    #[ui_node(struct FilterNode {
         child: impl UiNode,
         #[var] filter: impl Var<Filter>,
         render_filter: Option<RenderFilter>,
@@ -79,7 +79,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 /// [`child_opacity`]: fn@child_opacity
 #[property(child_context, default(Filter::default()))]
 pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    #[impl_ui_node(struct ChildFilterNode {
+    #[ui_node(struct ChildFilterNode {
         child: impl UiNode,
         #[var] filter: impl Var<Filter>,
         render_filter: Option<RenderFilter>,
@@ -261,7 +261,7 @@ pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -
 /// [`filter`]: fn@filter
 #[property(context, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
-    #[impl_ui_node(struct OpacityNode {
+    #[ui_node(struct OpacityNode {
         child: impl UiNode,
         #[var] alpha: impl Var<Factor>,
         frame_key: FrameVarKey<f32>,
@@ -300,7 +300,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 /// [`child_filter`]: fn@child_filter
 #[property(child_context, default(1.0))]
 pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
-    #[impl_ui_node(struct ChildOpacityNode {
+    #[ui_node(struct ChildOpacityNode {
         child: impl UiNode,
         #[var] alpha: impl Var<Factor>,
         frame_key: FrameVarKey<f32>,

@@ -103,7 +103,7 @@ pub mod uniform_grid {
         implicit_base::nodes::children_layout(node)
     }
 
-    #[impl_ui_node(struct UniformGridNode {
+    #[ui_node(struct UniformGridNode {
         children: impl WidgetList,
         #[var] columns: impl Var<u32>,
         #[var] rows: impl Var<u32>,

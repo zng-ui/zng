@@ -8,8 +8,9 @@ use crate::{
         StateMapRef, WidgetContext, WidgetUpdates,
     },
     event::{EventHandles, EventUpdate},
-    impl_ui_node, property,
+    property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
+    ui_node,
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
     widget_info::{
@@ -115,7 +116,7 @@ pub mod implicit_base {
         ///
         /// [`new_child`]: super::new_child
         pub fn children_layout(panel: impl UiNode) -> impl UiNode {
-            #[impl_ui_node(struct ChildrenLayoutNode {
+            #[ui_node(struct ChildrenLayoutNode {
                 child: impl UiNode,
                 spatial_id: SpatialFrameId,
                 translation_key: FrameValueKey<PxTransform>,
@@ -157,7 +158,7 @@ pub mod implicit_base {
         ///
         /// [`new_child_layout`]: super::new_child_layout
         pub fn child_layout(child: impl UiNode) -> impl UiNode {
-            #[impl_ui_node(struct ChildLayoutNode {
+            #[ui_node(struct ChildLayoutNode {
                 child: impl UiNode,
                 id: Option<(SpatialFrameId, FrameValueKey<PxTransform>)>,
             })]
@@ -212,7 +213,7 @@ pub mod implicit_base {
         ///
         /// [`new_border`]: super::new_border
         pub fn inner(child: impl UiNode) -> impl UiNode {
-            #[impl_ui_node(struct InnerNode {
+            #[ui_node(struct InnerNode {
                 child: impl UiNode,
                 transform_key: FrameValueKey<PxTransform>,
                 hits_clip: (PxSize, PxCornerRadius),
@@ -585,7 +586,7 @@ context_var! {
 /// [`is_disabled`]: fn@is_disabled
 #[property(context, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct EnabledNode {
+    #[ui_node(struct EnabledNode {
         child: impl UiNode,
         #[var] enabled: impl Var<bool>,
     })]
@@ -632,7 +633,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// [`enabled`]: fn@enabled
 #[property(context, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct InteractiveNode {
+    #[ui_node(struct InteractiveNode {
         child: impl UiNode,
         #[var] interactive: impl Var<bool>,
     })]
@@ -667,7 +668,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 /// [`BLOCKED`]: Interactivity::BLOCKED
 /// [`interactive`]: fn@interactive
 pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct BlockInteractionNode {
+    #[ui_node(struct BlockInteractionNode {
         child: impl UiNode,
         #[var] interactive: impl Var<bool>,
     })]
@@ -784,7 +785,7 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
 #[property(context, default(true))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
-    #[impl_ui_node(struct VisibilityNode {
+    #[ui_node(struct VisibilityNode {
         child: impl UiNode,
         prev_vis: Visibility,
         #[var] visibility: impl Var<Visibility>,
@@ -963,7 +964,7 @@ context_var! {
 /// [`corner_radius`]: fn@crate::border::corner_radius
 #[property(context, default(HIT_TEST_MODE_VAR))]
 pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
-    #[impl_ui_node(struct HitTestModeNode {
+    #[ui_node(struct HitTestModeNode {
         child: impl UiNode,
     })]
     impl UiNode for HitTestModeNode {
@@ -1053,7 +1054,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`inner_bounds`]: WidgetBoundsInfo::inner_bounds
 #[property(context, default(true))]
 pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    #[impl_ui_node(struct CanAutoHideNode {
+    #[ui_node(struct CanAutoHideNode {
         child: impl UiNode,
         #[var] enabled: impl Var<bool>,
     })]

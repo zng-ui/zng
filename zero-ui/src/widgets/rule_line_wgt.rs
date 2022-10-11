@@ -43,7 +43,7 @@ pub mod rule_line {
         }
     }
 
-    #[impl_ui_node(struct LineNode {
+    #[ui_node(struct LineNode {
         #[var] stroke_thickness: impl Var<Length>,
         #[var] length: impl Var<Length>,
         #[var] orientation: impl Var<LineOrientation>,
