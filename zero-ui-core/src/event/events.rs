@@ -82,13 +82,6 @@ impl Events {
         self.commands.iter().copied()
     }
 }
-impl Drop for Events {
-    fn drop(&mut self) {
-        for cmd in &self.commands {
-            cmd.on_exit();
-        }
-    }
-}
 
 /// Represents a type that can provide access to [`Events`] inside the window of function call.
 ///

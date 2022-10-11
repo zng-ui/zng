@@ -251,6 +251,7 @@ impl Command {
     ///
     /// If the handle is scoped on a widget it it is added to the command event subscribers.
     pub fn subscribe<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
+        self.init_app();
         events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled, None)))
     }
 
@@ -261,6 +262,7 @@ impl Command {
     ///
     /// [`subscribe`]: Command::subscribe
     pub fn subscribe_wgt<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool, target: WidgetId) -> CommandHandle {
+        self.init_app();
         events.with_events(|events| self.local.with(|l| l.subscribe(events, *self, enabled, Some(target))))
     }
 
@@ -282,6 +284,8 @@ impl Command {
 
     /// Visit the command custom metadata of the current scope.
     pub fn with_meta<R>(&self, visit: impl FnOnce(&mut CommandMeta) -> R) -> R {
+        self.init_app();
+
         enum Meta<R, F> {
             Result(R),
             Init(Box<dyn Fn(Command)>, F),
@@ -428,6 +432,18 @@ impl Command {
         });
     }
 
+    fn init_app(&self) {
+        self.local.with(|l| {
+            let mut l = l.data.borrow_mut();
+            if !mem::replace(&mut l.app_inited, true) {
+                let ev = *self;
+                AppProcess::on_exited(move || {
+                    ev.on_exit();
+                })
+            }
+        })
+    }
+
     pub(crate) fn on_exit(&self) {
         self.local.with(|l| {
             let mut l = l.data.borrow_mut();
@@ -437,6 +453,7 @@ impl Command {
             l.meta_inited = false;
             l.has_handlers = var(false);
             l.is_enabled = var(false);
+            l.app_inited = false;
 
             // can't clear these because handles may be dropped later.
             // l.enabled_count = 0;
@@ -1040,6 +1057,7 @@ struct CommandDataInner {
     is_enabled: RcVar<bool>,
 
     scopes: FxHashMap<CommandScope, ScopedValue>,
+    app_inited: bool,
 }
 
 impl CommandData {
@@ -1058,6 +1076,7 @@ impl CommandData {
                 is_enabled: var(false),
 
                 scopes: FxHashMap::default(),
+                app_inited: false,
             }),
         }
     }

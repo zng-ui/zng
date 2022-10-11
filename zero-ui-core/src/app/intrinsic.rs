@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{cell::RefCell, fmt};
 
 use crate::app::*;
 use crate::event::*;
@@ -50,11 +50,13 @@ impl AppIntrinsic {
     /// Returns if exit was requested and not cancelled.
     pub(super) fn exit(&mut self, vars: &Vars) -> bool {
         if let Some(pending) = self.pending_exit.take() {
-            let cancel = !pending.handle.is_stopped();
-            if cancel {
+            if pending.handle.is_stopped() {
                 pending.response.respond(vars, ExitCancelled);
+                false
+            } else {
+                AppOnExited::run();
+                true
             }
-            cancel
         } else {
             false
         }
@@ -119,6 +121,32 @@ impl AppProcess {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
         self.exit_requests.take()
     }
+
+    /// Register the `cleanup` closure to run after the app exits.
+    pub fn on_exited(cleanup: impl FnOnce() + 'static) {
+        AppOnExited::register(Box::new(cleanup))
+    }
+}
+
+#[derive(Default)]
+struct AppOnExited {
+    cleanup: Vec<Box<dyn FnOnce()>>,
+}
+impl AppOnExited {
+    fn register(cleanup: Box<dyn FnOnce()>) {
+        APP_ON_EXITED.with(|c| c.borrow_mut().cleanup.push(cleanup));
+    }
+
+    fn run() {
+        APP_ON_EXITED.with(|c| {
+            for cleanup in c.borrow_mut().cleanup.drain(..) {
+                cleanup();
+            }
+        });
+    }
+}
+thread_local! {
+    static APP_ON_EXITED: RefCell<AppOnExited> = RefCell::new(AppOnExited::default())
 }
 
 command! {
