@@ -827,7 +827,7 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
         member_attrs.extend(attrs.lints);
         member_attrs.extend(attrs.others);
 
-        if ident == ident!("child") || ident == ident!("children") {
+        if ident == ident!("child") || ident == ident!("children") || ident == ident!("children_iter") {
             delegate = ident.clone();
         }
 

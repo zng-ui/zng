@@ -60,10 +60,9 @@ pub fn default_delegate_list() {
 }
 #[test]
 pub fn default_children_iter() {
-    struct Node {
+    #[impl_ui_node(struct Node {
         children: UiNodeVec,
-    }
-    #[impl_ui_node(children_iter)]
+    })]
     impl UiNode for Node {}
 
     test_trace(Node {

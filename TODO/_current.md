@@ -7,7 +7,6 @@
     - Rename to `#[ui_node]`.
     - Custom delegate with pseudo-attribute `#[delegate]` applied to member.
     - Document all this.
-* Review context var stack, nested borrows.
 * Review context vars usage, we abused the previous API to pass "service like" references to a context, now these values get cloned.
     - Maybe we can make an official API for these?
         - A `ContextValue<T>` that is a boxed `RcVar<T>` internally, but allows immediate modification?
