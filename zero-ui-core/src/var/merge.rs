@@ -110,7 +110,7 @@ impl<T: VarValue> RcMergeVar<T> {
             .iter()
             .enumerate()
             .filter_map(|(i, var)| {
-                if var.capabilities().contains(VarCapabilities::CHANGE) {
+                if var.capabilities().contains(VarCapabilities::NEW) {
                     let wk_merge = wk_merge.clone();
                     let handle = var.hook(Box::new(move |vars, _, value| {
                         if let Some(rc_merge) = wk_merge.upgrade() {
@@ -210,7 +210,7 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
         if self.0.borrow().inputs.is_empty() {
             VarCapabilities::empty()
         } else {
-            VarCapabilities::CHANGE
+            VarCapabilities::NEW
         }
     }
 

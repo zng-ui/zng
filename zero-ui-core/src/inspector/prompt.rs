@@ -135,7 +135,7 @@ fn write_impl(vars: &Vars, updates_from: &WriteTreeState, widget: WidgetInfo, pa
                     group,
                     property_name,
                     prop.user_assigned(),
-                    args[0].value.capabilities().contains(VarCapabilities::CHANGE),
+                    args[0].value.capabilities().contains(VarCapabilities::NEW),
                     value,
                 );
             } else {
@@ -145,7 +145,7 @@ fn write_impl(vars: &Vars, updates_from: &WriteTreeState, widget: WidgetInfo, pa
                     fmt.write_property_arg(
                         arg.name,
                         user_assigned,
-                        arg.value.capabilities().contains(VarCapabilities::CHANGE),
+                        arg.value.capabilities().contains(VarCapabilities::NEW),
                         updates_from.arg_diff(info.meta.instance_id, property_name, arg),
                     );
                 }

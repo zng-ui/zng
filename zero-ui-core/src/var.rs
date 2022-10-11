@@ -189,35 +189,35 @@ bitflags! {
     pub struct VarCapabilities: u8 {
         /// Var value can change.
         ///
-        /// If this is set the [`Var::is_new`] can be `true` in some updates, a variable can `CHANGE`
+        /// If this is set the [`Var::is_new`] can be `true` in some updates, a variable can `NEW`
         /// even if it cannot `MODIFY`, in this case the variable is a read-only wrapper on a read-write variable.
-        const CHANGE = 0b0000_0010;
+        const NEW = 0b0000_0010;
 
         /// Var can be modified.
         ///
-        /// If this is set [`Var::modify`] does succeeds, if this is set `CHANGE` is also set.
+        /// If this is set [`Var::modify`] does succeeds, if this is set `NEW` is also set.
         const MODIFY = 0b0000_0011;
 
         /// Var capabilities can change.
         ///
         /// Var capabilities can only change in between app updates, just like the var value, but [`AnyVar::last_update`]
         /// may not change when capability changes.
-        const CAP_CHANGE = 0b1000_0000;
+        const CAPS_CHANGE = 0b1000_0000;
     }
 }
 impl VarCapabilities {
-    /// Remove only the `MODIFY` flag without removing `CHANGE`.
+    /// Remove only the `MODIFY` flag without removing `NEW`.
     pub fn as_read_only(mut self) -> Self {
         self.bits &= 0b1111_1110;
         self
     }
 
-    /// If cannot `MODIFY` and is not `CAP_CHANGE`.
+    /// If cannot `MODIFY` and is not `CAPS_CHANGE`.
     pub fn is_always_read_only(self) -> bool {
-        !self.contains(Self::MODIFY) && !self.contains(Self::CAP_CHANGE)
+        !self.contains(Self::MODIFY) && !self.contains(Self::CAPS_CHANGE)
     }
 
-    /// If cannot `CHANGE` and is not `CAP_CHANGE`.
+    /// If cannot `NEW` and is not `CAPS_CHANGE`.
     pub fn is_always_static(self) -> bool {
         self.is_empty()
     }
@@ -487,7 +487,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
     /// the `modify` closure.
     ///
-    /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAP_CHANGE` capabilities, otherwise
+    /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
     ///
     /// This is the most basic callback, used by the variables themselves, you can create a more elaborate handle using [`on_new`].
@@ -498,9 +498,9 @@ pub trait AnyVar: Any + crate::private::Sealed {
 
     /// Register the widget to receive update when this variable is new.
     ///
-    /// Variables without the [`CHANGE`] capability return [`VarHandle::dummy`].
+    /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
     ///
-    /// [`CHANGE`]: VarCapabilities::CHANGE
+    /// [`NEW`]: VarCapabilities::NEW
     fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
         self.hook(var_subscribe(widget_id))
     }
@@ -1156,7 +1156,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The `map` closure is called immediately to clone the initial inner var, and than once every time
     /// the source variable updates.
     ///
-    /// The mapping var has the same capabilities of the inner var + `CAP_CHANGE`, modifying the mapping var modifies the inner var.
+    /// The mapping var has the same capabilities of the inner var + `CAPS_CHANGE`, modifying the mapping var modifies the inner var.
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///

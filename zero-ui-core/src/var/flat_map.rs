@@ -146,7 +146,7 @@ where
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        self.0.borrow().var.capabilities() | VarCapabilities::CAP_CHANGE
+        self.0.borrow().var.capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {

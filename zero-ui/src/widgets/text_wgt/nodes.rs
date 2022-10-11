@@ -888,7 +888,7 @@ pub fn render_text() -> impl UiNode {
     })]
     impl UiNode for RenderTextNode {
         fn init(&mut self, _: &mut WidgetContext) {
-            if TEXT_COLOR_VAR.capabilities().contains(VarCapabilities::CHANGE) {
+            if TEXT_COLOR_VAR.capabilities().contains(VarCapabilities::NEW) {
                 self.color_key = Some(FrameValueKey::new_unique());
             }
         }

@@ -2100,17 +2100,17 @@ impl<T> Default for FrameVarKey<T> {
 impl<T> FrameVarKey<T> {
     /// New lazy key.
     ///
-    /// An unique key will only be generated on first render with variable that has `CHANGE` capability.
+    /// An unique key will only be generated on first render with variable that has `NEW` capability.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// The value key.
     ///
-    /// Returns `None` if the is not generated and `var` does not have the `CHANGE` capability.
+    /// Returns `None` if the is not generated and `var` does not have the `NEW` capability.
     pub fn key(&self, var: &impl var::AnyVar) -> Option<FrameValueKey<T>> {
         let mut r = self.key.get();
-        if r.is_none() && var.capabilities().contains(var::VarCapabilities::CHANGE) {
+        if r.is_none() && var.capabilities().contains(var::VarCapabilities::NEW) {
             r = Some(FrameValueKey::new_unique());
             self.key.set(r);
         }
