@@ -159,8 +159,8 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
         Box::new(self)
     }
 
-    fn actual_var(&self) -> Self {
-        self.clone()
+    fn actual_var(self) -> Self {
+        self
     }
 
     fn downgrade(&self) -> Self::Downgrade {

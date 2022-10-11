@@ -140,8 +140,8 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
         })
     }
 
-    fn actual_var(&self) -> Self::ActualVar {
-        self.clone()
+    fn actual_var(self) -> Self::ActualVar {
+        self
     }
 
     fn downgrade(&self) -> Self::Downgrade {

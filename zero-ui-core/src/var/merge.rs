@@ -299,8 +299,8 @@ impl<T: VarValue> Var<T> for RcMergeVar<T> {
         })
     }
 
-    fn actual_var(&self) -> Self {
-        self.clone()
+    fn actual_var(self) -> Self {
+        self
     }
 
     fn downgrade(&self) -> WeakMergeVar<T> {

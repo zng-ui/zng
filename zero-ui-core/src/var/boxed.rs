@@ -35,7 +35,7 @@ pub trait VarBoxed<T: VarValue>: AnyVar {
     fn clone_boxed(&self) -> BoxedVar<T>;
     fn with_boxed(&self, read: &mut dyn FnMut(&T));
     fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModifyValue<T>)>) -> Result<(), VarIsReadOnlyError>;
-    fn actual_var_boxed(&self) -> BoxedVar<T>;
+    fn actual_var_boxed(self: Box<Self>) -> BoxedVar<T>;
     fn downgrade_boxed(&self) -> BoxedWeakVar<T>;
     fn read_only_boxed(&self) -> BoxedVar<T>;
     fn boxed_any_boxed(self: Box<Self>) -> BoxedAnyVar;
@@ -53,8 +53,8 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
         self.modify(vars, modify)
     }
 
-    fn actual_var_boxed(&self) -> BoxedVar<T> {
-        self.actual_var().boxed()
+    fn actual_var_boxed(self: Box<Self>) -> BoxedVar<T> {
+        (*self).actual_var().boxed()
     }
 
     fn downgrade_boxed(&self) -> BoxedWeakVar<T> {
@@ -235,8 +235,8 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         self.clone_any()
     }
 
-    fn actual_var(&self) -> BoxedVar<T> {
-        (**self).actual_var_boxed()
+    fn actual_var(self) -> BoxedVar<T> {
+        self.actual_var_boxed()
     }
 
     fn downgrade(&self) -> BoxedWeakVar<T> {

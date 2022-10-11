@@ -244,8 +244,8 @@ where
         self.0.borrow().var.modify(vars, modify)
     }
 
-    fn actual_var(&self) -> Self {
-        self.clone()
+    fn actual_var(self) -> Self {
+        self
     }
 
     fn downgrade(&self) -> Self::Downgrade {

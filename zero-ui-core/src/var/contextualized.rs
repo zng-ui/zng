@@ -214,8 +214,9 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         self.borrow_init().modify(vars, modify)
     }
 
-    fn actual_var(&self) -> Self::ActualVar {
-        self.borrow_init().actual_var()
+    fn actual_var(self) -> Self::ActualVar {
+        self.borrow_init();
+        self.actual.into_inner().unwrap().actual_var()
     }
 
     fn downgrade(&self) -> Self::Downgrade {

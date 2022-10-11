@@ -560,7 +560,7 @@ pub(super) fn var_animate<T: VarValue>(
     mut animate: impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
 ) -> AnimationHandle {
     if !target.capabilities().is_always_read_only() {
-        let target = target.actual_var();
+        let target = target.clone().actual_var();
         if !target.capabilities().is_always_read_only() {
             let wk_target = target.downgrade();
             return vars.animate(move |vars, args| {

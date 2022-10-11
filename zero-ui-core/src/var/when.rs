@@ -493,8 +493,8 @@ impl<T: VarValue> Var<T> for RcWhenVar<T> {
         self.active().modify(vars, modify)
     }
 
-    fn actual_var(&self) -> Self {
-        self.clone()
+    fn actual_var(self) -> Self {
+        self
     }
 
     fn downgrade(&self) -> WeakWhenVar<T> {

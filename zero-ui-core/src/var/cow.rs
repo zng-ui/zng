@@ -267,8 +267,8 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
         vars.with_vars(|vars| self.modify_impl(vars, modify))
     }
 
-    fn actual_var(&self) -> Self {
-        self.clone()
+    fn actual_var(self) -> Self {
+        self
     }
 
     fn downgrade(&self) -> Self::Downgrade {

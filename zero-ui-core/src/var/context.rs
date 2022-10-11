@@ -245,8 +245,8 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
         self.with_var(move |v| v.modify(vars, modify))
     }
 
-    fn actual_var(&self) -> BoxedVar<T> {
-        self.with_var(Var::actual_var)
+    fn actual_var(self) -> BoxedVar<T> {
+        self.with_var(|v| v.clone().actual_var())
     }
 
     fn downgrade(&self) -> BoxedWeakVar<T> {

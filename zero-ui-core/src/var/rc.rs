@@ -208,8 +208,8 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         vars.with_vars(move |vars| self.modify_impl(vars, modify))
     }
 
-    fn actual_var(&self) -> Self {
-        self.clone()
+    fn actual_var(self) -> Self {
+        self
     }
 
     fn downgrade(&self) -> WeakRcVar<T> {

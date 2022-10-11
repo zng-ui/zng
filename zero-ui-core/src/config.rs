@@ -436,7 +436,7 @@ impl Config {
         V: Var<T>,
     {
         let source = self.var_with_source(key.into(), default_value);
-        let target = target.actual_var();
+        let target = target.clone().actual_var();
         let wk_target = target.downgrade();
         if target.strong_count() > 0 {
             let source_to_target = source.hook(Box::new(move |vars, _, value| {

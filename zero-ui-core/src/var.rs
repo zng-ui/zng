@@ -853,9 +853,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         Box::new(self)
     }
 
-    /// Gets a clone of the current *inner* var represented by this var. This is the same var, except for [`ContextVar<T>`]
+    /// Gets the current *inner* var represented by this var. This is the same var, except for [`ContextVar<T>`]
     /// and [`types::RcFlatMapVar<T, V>`].
-    fn actual_var(&self) -> Self::ActualVar;
+    fn actual_var(self) -> Self::ActualVar;
 
     /// Create a weak reference to this *Rc* variable.
     ///

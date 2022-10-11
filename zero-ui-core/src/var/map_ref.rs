@@ -95,7 +95,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
-        Box::new(self.actual_var())
+        Box::new(self.clone().actual_var())
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
@@ -167,10 +167,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         })
     }
 
-    fn actual_var(&self) -> Self::ActualVar {
+    fn actual_var(self) -> Self::ActualVar {
         MapRef {
             source: self.source.actual_var(),
-            map: self.map.clone(),
+            map: self.map,
         }
     }
 
@@ -298,7 +298,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
-        Box::new(self.actual_var())
+        Box::new(self.clone().actual_var())
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
@@ -369,11 +369,11 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         self.source.modify(vars, move |value| value.map_ref(&*map_mut, modify))
     }
 
-    fn actual_var(&self) -> Self::ActualVar {
+    fn actual_var(self) -> Self::ActualVar {
         MapRefBidi {
             source: self.source.actual_var(),
-            map: self.map.clone(),
-            map_mut: self.map_mut.clone(),
+            map: self.map,
+            map_mut: self.map_mut,
         }
     }
 
