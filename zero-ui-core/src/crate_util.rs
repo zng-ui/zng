@@ -1272,7 +1272,6 @@ pub mod context_value {
         event::EventUpdate,
         render::{FrameBuilder, FrameUpdate},
         ui_node, units,
-        var::{IntoValue, VarValue},
         widget_info::{WidgetInfoBuilder, WidgetLayout},
         UiNode,
     };
@@ -1376,6 +1375,13 @@ pub mod context_value {
             self.local.with(|l| f(&*l.value.borrow()))
         }
 
+        /// Calls `f` with exclusive access to the contextual value.
+        ///
+        /// Returns the result of `f`.
+        pub fn with_mut<R>(self, f: impl FnOnce(&mut T) -> R) -> R {
+            self.local.with(|l| f(&mut *l.value.borrow_mut()))
+        }
+
         /// Runs `action` while the `value` is moved into context, restores the `value` if `action` does not panic.
         ///
         /// Returns the result of `action`.
@@ -1401,12 +1407,12 @@ pub mod context_value {
     impl<T: Any> Copy for ContextValue<T> {}
 
     /// Helper for declaring nodes that sets a context value.
-    pub fn with_context_value<T: VarValue>(child: impl UiNode, context: ContextValue<T>, value: impl IntoValue<T>) -> impl UiNode {
-        #[ui_node(struct WithContextValueNode<T: VarValue> {
-        child: impl UiNode,
-        context: ContextValue<T>,
-        value: RefCell<Option<T>>,
-    })]
+    pub fn with_context_value<T: Any>(child: impl UiNode, context: ContextValue<T>, value: impl Into<T>) -> impl UiNode {
+        #[ui_node(struct WithContextValueNode<T: Any> {
+            child: impl UiNode,
+            context: ContextValue<T>,
+            value: RefCell<Option<T>>,
+        })]
         impl WithContextValueNode {
             fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
                 let mut value = self.value.borrow_mut();

@@ -158,7 +158,7 @@ pub mod toggle {
 
 /// Properties used in the toggle widget.
 pub mod properties {
-    use std::{any::Any, cell::RefCell, error::Error, fmt, marker::PhantomData, rc::Rc};
+    use std::{any::Any, error::Error, fmt, marker::PhantomData, rc::Rc};
 
     use crate::prelude::new_property::*;
 
@@ -306,9 +306,7 @@ pub mod properties {
         impl ValueNode {
             // Returns `true` if selected.
             fn select(ctx: &mut WidgetContext, value: &T) -> bool {
-                SELECTOR_VAR.with(|selector| {
-                    let mut selector = selector.instance.borrow_mut();
-
+                SELECTOR.with_mut(|selector| {
                     match selector.select(ctx, Box::new(value.clone())) {
                         Ok(()) => true,
                         Err(e) => {
@@ -328,8 +326,7 @@ pub mod properties {
 
             /// Returns `true` if deselected.
             fn deselect(ctx: &mut WidgetContext, value: &T) -> bool {
-                SELECTOR_VAR.with(|selector| {
-                    let mut selector = selector.instance.borrow_mut();
+                SELECTOR.with_mut(|selector| {
                     match selector.deselect(ctx, value) {
                         Ok(()) => true,
                         Err(e) => {
@@ -348,13 +345,13 @@ pub mod properties {
             }
 
             fn is_selected(ctx: &mut WidgetContext, value: &T) -> bool {
-                SELECTOR_VAR.with(|sel| sel.instance.borrow().is_selected(&mut ctx.as_info(), value))
+                SELECTOR.with(|sel| sel.is_selected(&mut ctx.as_info(), value))
             }
 
             #[UiNode]
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.sub_var(&self.value).sub_var(&SELECTOR_VAR).sub_var(&DESELECT_ON_NEW_VAR);
-                SELECTOR_VAR.with(|s| s.instance.borrow().subscribe(ctx.path.widget_id(), &mut ctx.handles));
+                ctx.sub_var(&self.value).sub_var(&DESELECT_ON_NEW_VAR);
+                SELECTOR.with(|s| s.subscribe(ctx.path.widget_id(), &mut ctx.handles));
 
                 self.value.with(|value| {
                     let selected = if SELECT_ON_INIT_VAR.get() {
@@ -412,10 +409,6 @@ pub mod properties {
 
             #[UiNode]
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if SELECTOR_VAR.is_new(ctx) {
-                    todo!("reload widget?")
-                }
-
                 let selected = self.value.with_new(ctx.vars, |new| {
                     // auto select new.
                     let selected = if self.checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
@@ -474,7 +467,7 @@ pub mod properties {
     /// [`value`]: fn@value
     #[property(context, allowed_in_when = false, default(NilSel))]
     pub fn selection(child: impl UiNode, selector: impl Selector) -> impl UiNode {
-        with_context_var(child, SELECTOR_VAR, SelectorInstance::new(selector))
+        with_context_value(child, SELECTOR, Box::new(selector) as SelectorInstance)
     }
 
     /// If [`value`] is selected when the widget that has the value is inited.
@@ -509,9 +502,13 @@ pub mod properties {
         with_context_var(child, DESELECT_ON_NEW_VAR, enabled)
     }
 
-    context_var! {
-        static SELECTOR_VAR: SelectorInstance = SelectorInstance::new(NilSel);
+    type SelectorInstance = Box<dyn Selector>;
 
+    context_value! {
+        static SELECTOR: SelectorInstance = Box::new(NilSel) as SelectorInstance;
+    }
+
+    context_var! {
         /// If [`value`] is selected when the widget that has the value is inited.
         ///
         /// Use the [`select_on_init`] property to set. By default is `false`.
@@ -543,23 +540,6 @@ pub mod properties {
         /// [`value`]: fn@value
         /// [`select_on_new`]: fn@select_on_new
         pub static DESELECT_ON_NEW_VAR: bool = false;
-    }
-
-    #[derive(Clone)]
-    struct SelectorInstance {
-        instance: Rc<RefCell<Box<dyn Selector>>>,
-    }
-    impl fmt::Debug for SelectorInstance {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("SelectorInstance").finish_non_exhaustive()
-        }
-    }
-    impl SelectorInstance {
-        pub fn new<S: Selector>(selector: S) -> Self {
-            SelectorInstance {
-                instance: Rc::new(RefCell::new(Box::new(selector))),
-            }
-        }
     }
 
     /// Represents the contextual selection behavior of [`value`] selection.
