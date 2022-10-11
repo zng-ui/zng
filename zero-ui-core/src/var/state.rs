@@ -24,7 +24,7 @@ pub fn event_state<A: EventArgs>(
 ) -> impl UiNode {
     #[impl_ui_node(struct EventStateNode<A: EventArgs> {
         child: impl UiNode,
-        event: Event<A>,
+        #[event] event: Event<A>,
         default: bool,
         state: StateVar,
         on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,

@@ -592,18 +592,18 @@ context_var! {
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct EnabledNode {
         child: impl UiNode,
-        var_enabled: impl Var<bool>,
+        #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for EnabledNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.var_enabled.get() {
+            if !self.enabled.get() {
                 info.push_interactivity(Interactivity::DISABLED);
             }
             self.child.info(ctx, info);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_enabled.is_new(ctx) {
+            if self.enabled.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
@@ -614,7 +614,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(
         EnabledNode {
             child,
-            var_enabled: enabled.clone(),
+            enabled: enabled.clone(),
         },
         IS_ENABLED_VAR,
         merge_var!(IS_ENABLED_VAR, enabled, |&a, &b| a && b),
@@ -639,18 +639,18 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct InteractiveNode {
         child: impl UiNode,
-        var_interactive: impl Var<bool>,
+        #[var] interactive: impl Var<bool>,
     })]
     impl UiNode for InteractiveNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.var_interactive.get() {
+            if !self.interactive.get() {
                 info.push_interactivity(Interactivity::BLOCKED);
             }
             self.child.info(ctx, info);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_interactive.is_new(ctx) {
+            if self.interactive.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
@@ -658,7 +658,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
     }
     InteractiveNode {
         child,
-        var_interactive: interactive.into_var(),
+        interactive: interactive.into_var(),
     }
 }
 
@@ -674,11 +674,11 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct BlockInteractionNode {
         child: impl UiNode,
-        var_interactive: impl Var<bool>,
+        #[var] interactive: impl Var<bool>,
     })]
     impl UiNode for BlockInteractionNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if self.var_interactive.get() {
+            if self.interactive.get() {
                 self.child.info(ctx, info);
             } else if let Some(id) = self.child.try_id() {
                 // child is a widget.
@@ -720,7 +720,7 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_interactive.is_new(ctx) {
+            if self.interactive.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
@@ -728,7 +728,7 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
     }
     BlockInteractionNode {
         child: child.cfg_boxed(),
-        var_interactive: interactive.into_var(),
+        interactive: interactive.into_var(),
     }
     .cfg_boxed()
 }
@@ -792,7 +792,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     #[impl_ui_node(struct VisibilityNode {
         child: impl UiNode,
         prev_vis: Visibility,
-        var_visibility: impl Var<Visibility>,
+        #[var] visibility: impl Var<Visibility>,
     })]
     impl UiNode for VisibilityNode {
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
@@ -801,12 +801,12 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.init_handles(ctx);
-            self.prev_vis = self.var_visibility.get();
+            self.prev_vis = self.visibility.get();
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(vis) = self.var_visibility.get_new(ctx) {
+            if let Some(vis) = self.visibility.get_new(ctx) {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
                     (Collapsed, Visible) | (Visible, Collapsed) => ctx.updates.layout_and_render(),
@@ -820,14 +820,14 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            if Visibility::Collapsed != self.var_visibility.get() {
+            if Visibility::Collapsed != self.visibility.get() {
                 self.child.measure(ctx)
             } else {
                 PxSize::zero()
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            if Visibility::Collapsed != self.var_visibility.get() {
+            if Visibility::Collapsed != self.visibility.get() {
                 self.child.layout(ctx, wl)
             } else {
                 wl.collapse(ctx);
@@ -836,7 +836,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            match self.var_visibility.get() {
+            match self.visibility.get() {
                 Visibility::Visible => self.child.render(ctx, frame),
                 Visibility::Hidden => frame.hide(|frame| self.child.render(ctx, frame)),
                 Visibility::Collapsed => frame.collapse(ctx.info_tree),
@@ -844,7 +844,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            match self.var_visibility.get() {
+            match self.visibility.get() {
                 Visibility::Visible => self.child.render_update(ctx, update),
                 Visibility::Hidden => update.hidden(|update| self.child.render_update(ctx, update)),
                 Visibility::Collapsed => {}
@@ -854,7 +854,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     VisibilityNode {
         child,
         prev_vis: Visibility::Visible,
-        var_visibility: visibility.into_var(),
+        visibility: visibility.into_var(),
     }
 }
 
@@ -1060,11 +1060,11 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
 pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct CanAutoHideNode {
         child: impl UiNode,
-        var_enabled: impl Var<bool>,
+        #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for CanAutoHideNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new) = self.var_enabled.get_new(ctx) {
+            if let Some(new) = self.enabled.get_new(ctx) {
                 if ctx.widget_info.bounds.can_auto_hide() != new {
                     ctx.updates.layout_and_render();
                 }
@@ -1077,12 +1077,12 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.allow_auto_hide(self.var_enabled.get());
+            wl.allow_auto_hide(self.enabled.get());
             self.child.layout(ctx, wl)
         }
     }
     CanAutoHideNode {
         child,
-        var_enabled: enabled.into_var(),
+        enabled: enabled.into_var(),
     }
 }

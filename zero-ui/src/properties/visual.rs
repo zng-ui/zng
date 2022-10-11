@@ -214,9 +214,9 @@ pub fn foreground_highlight(
 ) -> impl UiNode {
     #[impl_ui_node(struct ForegroundHighlightNode {
         child: impl UiNode,
-        var_offsets: impl Var<SideOffsets>,
-        var_widths: impl Var<SideOffsets>,
-        var_sides: impl Var<BorderSides>,
+        #[var] offsets: impl Var<SideOffsets>,
+        #[var] widths: impl Var<SideOffsets>,
+        #[var] sides: impl Var<BorderSides>,
 
         render_bounds: PxRect,
         render_widths: PxSideOffsets,
@@ -224,9 +224,9 @@ pub fn foreground_highlight(
     })]
     impl UiNode for ForegroundHighlightNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_offsets.is_new(ctx) || self.var_widths.is_new(ctx) {
+            if self.offsets.is_new(ctx) || self.widths.is_new(ctx) {
                 ctx.updates.layout();
-            } else if self.var_sides.is_new(ctx) {
+            } else if self.sides.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx, updates);
@@ -239,7 +239,7 @@ pub fn foreground_highlight(
             let size = self.child.layout(ctx, wl);
 
             let radius = ContextBorders::inner_radius(ctx);
-            let offsets = self.var_offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let offsets = self.offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             let radius = radius.deflate(offsets);
             let border_offsets = ContextBorders::inner_offsets(ctx.path.widget_id());
 
@@ -250,7 +250,7 @@ pub fn foreground_highlight(
 
             let widths = ctx.with_constrains(
                 |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
-                |ctx| self.var_widths.get().layout(ctx.metrics, |_| PxSideOffsets::zero()),
+                |ctx| self.widths.get().layout(ctx.metrics, |_| PxSideOffsets::zero()),
             );
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
@@ -265,14 +265,14 @@ pub fn foreground_highlight(
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
-            frame.push_border(self.render_bounds, self.render_widths, self.var_sides.get(), self.render_radius);
+            frame.push_border(self.render_bounds, self.render_widths, self.sides.get(), self.render_radius);
         }
     }
     ForegroundHighlightNode {
         child: child.cfg_boxed(),
-        var_offsets: offsets.into_var(),
-        var_widths: widths.into_var(),
-        var_sides: sides.into_var(),
+        offsets: offsets.into_var(),
+        widths: widths.into_var(),
+        sides: sides.into_var(),
 
         render_bounds: PxRect::zero(),
         render_widths: PxSideOffsets::zero(),
@@ -368,12 +368,12 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct ClipToBoundsNode {
         child: impl UiNode,
-        var_clip: impl Var<bool>,
+        #[var] clip: impl Var<bool>,
         corners: PxCornerRadius,
     })]
     impl UiNode for ClipToBoundsNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_clip.is_new(ctx) {
+            if self.clip.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
 
@@ -386,7 +386,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let bounds = self.child.layout(ctx, wl);
 
-            if self.var_clip.get() {
+            if self.clip.get() {
                 let corners = ContextBorders::border_radius(ctx);
                 if corners != self.corners {
                     self.corners = corners;
@@ -398,7 +398,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if self.var_clip.get() {
+            if self.clip.get() {
                 let bounds = PxRect::from_size(ctx.widget_info.bounds.inner_size());
 
                 if self.corners != PxCornerRadius::zero() {
@@ -413,7 +413,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     }
     ClipToBoundsNode {
         child,
-        var_clip: clip.into_var(),
+        clip: clip.into_var(),
         corners: PxCornerRadius::zero(),
     }
 }

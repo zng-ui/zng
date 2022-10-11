@@ -13,12 +13,12 @@ use crate::core::border::{border_node, ContextBorders};
 #[property(border, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
     #[impl_ui_node(struct BorderNode {
-        var_sides: impl Var<BorderSides>,
+        #[var] sides: impl Var<BorderSides>,
         corners: PxCornerRadius,
     })]
     impl UiNode for BorderNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.var_sides.is_new(ctx) {
+            if self.sides.is_new(ctx) {
                 ctx.updates.render();
             }
         }
@@ -33,7 +33,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
 
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
             let (rect, offsets) = ContextBorders::border_layout();
-            frame.push_border(rect, offsets, self.var_sides.get(), self.corners);
+            frame.push_border(rect, offsets, self.sides.get(), self.corners);
         }
     }
 
@@ -41,7 +41,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
         child,
         widths,
         BorderNode {
-            var_sides: sides.into_var(),
+            sides: sides.into_var(),
             corners: PxCornerRadius::zero(),
         },
     )

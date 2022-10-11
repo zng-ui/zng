@@ -107,11 +107,11 @@ pub mod styleable {
         #[impl_ui_node(struct StyleableNode {
             child: DynWidgetNode,
             snapshot: Option<DynWidgetSnapshot>,
-            var_style: impl Var<StyleGenerator>,
+            #[var] style: impl Var<StyleGenerator>,
         })]
         impl UiNode for StyleableNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(style) = self.var_style.get().generate(ctx, &StyleArgs {}) {
+                if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
                     self.snapshot = Some(self.child.snapshot());
                     self.child.extend(style.into_node());
                 }
@@ -126,7 +126,7 @@ pub mod styleable {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if self.var_style.is_new(ctx.vars) {
+                if self.style.is_new(ctx.vars) {
                     self.deinit(ctx);
                     self.init(ctx);
                     ctx.updates.info_layout_and_render();
@@ -138,7 +138,7 @@ pub mod styleable {
         let child = StyleableNode {
             child: widget.into_node(true),
             snapshot: None,
-            var_style: style.into_var(),
+            style: style.into_var(),
         };
         implicit_base::new(child, id)
     }

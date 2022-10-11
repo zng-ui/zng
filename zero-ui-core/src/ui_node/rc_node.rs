@@ -116,7 +116,7 @@ impl<U: UiNode> RcNode<U> {
         #[impl_ui_node(struct TakeWhenNode<U: UiNode> {
             slot: SlotId,
             rc: Rc<NodeData<U>>,
-            var: impl Var<bool>,
+            #[var] var: impl Var<bool>,
         })]
         impl TakeWhenNode {
             fn is_owner(&self) -> bool {
@@ -290,7 +290,7 @@ impl<U: UiNode> RcNode<U> {
         #[impl_ui_node(struct TakeOnNode<U: UiNode, A: EventArgs> {
             slot: SlotId,
             rc: Rc<NodeData<U>>,
-            event: Event<A>,
+            #[event] event: Event<A>,
             filter: impl FnMut(&A) -> bool + 'static,
             take_on_init: bool,
         })]

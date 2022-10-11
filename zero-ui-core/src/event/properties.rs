@@ -175,7 +175,7 @@ where
 {
     #[impl_ui_node(struct OnEventNode<A: EventArgs> {
         child: impl UiNode,
-        event: Event<A>,
+        #[event] event: Event<A>,
         filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,
         handler: impl WidgetHandler<A>,
     })]
@@ -241,7 +241,7 @@ where
 {
     #[impl_ui_node(struct OnPreviewEventNode<A: EventArgs> {
         child: impl UiNode,
-        event: Event<A>,
+        #[event] event: Event<A>,
         filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,
         handler: impl WidgetHandler<A>,
     })]

@@ -114,7 +114,7 @@ event_property! {
 pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
-        var_shortcuts: shortcuts.into_var(),
+        shortcuts: shortcuts.into_var(),
         kind: ShortcutClick::Primary,
         handle: None,
     }
@@ -126,28 +126,28 @@ pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
-        var_shortcuts: shortcuts.into_var(),
+        shortcuts: shortcuts.into_var(),
         kind: ShortcutClick::Context,
         handle: None,
     }
 }
 #[impl_ui_node(struct ClickShortcutNode {
     child: impl UiNode,
-    var_shortcuts: impl Var<Shortcuts>,
+    #[var] shortcuts: impl Var<Shortcuts>,
     kind: ShortcutClick,
     handle: Option<ShortcutsHandle>,
 })]
 impl UiNode for ClickShortcutNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        let s = self.var_shortcuts.get();
+        let s = self.shortcuts.get();
         self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
     }
 
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         self.child.update(ctx, updates);
 
-        if let Some(s) = self.var_shortcuts.get_new(ctx) {
+        if let Some(s) = self.shortcuts.get_new(ctx) {
             self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
         }
     }

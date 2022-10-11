@@ -124,27 +124,27 @@ map_properties! {
 pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     #[impl_ui_node(struct ClearColorNode {
         child: impl UiNode,
-        var_clear_color: impl Var<Rgba>,
+        #[var] clear_color: impl Var<Rgba>,
     })]
     impl UiNode for ClearColorNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_clear_color.is_new(ctx) {
+            if self.clear_color.is_new(ctx) {
                 ctx.updates.render_update();
             }
             self.child.update(ctx, updates);
         }
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.set_clear_color(self.var_clear_color.get().into());
+            frame.set_clear_color(self.clear_color.get().into());
             self.child.render(ctx, frame);
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.set_clear_color(self.var_clear_color.get().into());
+            update.set_clear_color(self.clear_color.get().into());
             self.child.render_update(ctx, update);
         }
     }
     ClearColorNode {
         child,
-        var_clear_color: color.into_var(),
+        clear_color: color.into_var(),
     }
 }
 

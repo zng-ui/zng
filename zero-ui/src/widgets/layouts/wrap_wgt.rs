@@ -18,14 +18,14 @@ pub mod wrap {
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
         let node = WrapNode {
             children: ZSortedWidgetList::new(items),
-            var_spacing: spacing.into_var(),
+            spacing: spacing.into_var(),
         };
         implicit_base::nodes::children_layout(node)
     }
 
     #[impl_ui_node(struct WrapNode {
         children: impl WidgetList,
-        var_spacing: impl Var<GridSpacing>,
+        #[var] spacing: impl Var<GridSpacing>,
     })]
     impl UiNode for WrapNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -36,7 +36,7 @@ pub mod wrap {
             }
 
             let mut panel_size = PxSize::zero();
-            let spacing = self.var_spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
             let max_width = constrains.x.max().unwrap_or(Px::MAX);
             let mut row_size = PxSize::zero();
 
@@ -84,7 +84,7 @@ pub mod wrap {
             let constrains = ctx.constrains();
 
             let mut panel_size = PxSize::zero();
-            let spacing = self.var_spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
             let max_width = constrains.x.max().unwrap_or(Px::MAX);
             let mut row_size = PxSize::zero();
 

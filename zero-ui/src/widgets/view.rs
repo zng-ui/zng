@@ -122,16 +122,16 @@ where
     P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
 {
     #[impl_ui_node(struct ViewNode<D: VarValue> {
-        var_data: impl Var<D>,
+        #[var] data: impl Var<D>,
         child: impl UiNode,
-        presenter: impl FnMut(&mut WidgetContext, &T_var_data) -> View<T_child> + 'static,
+        presenter: impl FnMut(&mut WidgetContext, &T_data) -> View<T_child> + 'static,
         _d: std::marker::PhantomData<D>,
     })]
     impl UiNode for ViewNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.init_handles(ctx);
 
-            if let View::Update(new_child) = (self.presenter)(ctx, &self.var_data) {
+            if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
                 self.child = new_child;
             }
 
@@ -139,8 +139,8 @@ where
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_data.is_new(ctx) {
-                if let View::Update(new_child) = (self.presenter)(ctx, &self.var_data) {
+            if self.data.is_new(ctx) {
+                if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
                     self.child.deinit(ctx);
                     self.child = new_child;
                     self.child.init(ctx);
@@ -152,7 +152,7 @@ where
     }
 
     ViewNode {
-        var_data: data,
+        data,
         child: initial_ui,
         presenter,
         _d: std::marker::PhantomData,
@@ -276,7 +276,7 @@ impl<D> ViewGenerator<D> {
         V: UiNode,
     {
         #[impl_ui_node(struct ViewGenVarPresenter<D: 'static, V: UiNode> {
-            var_gen: impl Var<ViewGenerator<D>>,
+            #[var] gen: impl Var<ViewGenerator<D>>,
             update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
             map: impl FnMut(BoxedUiNode) -> V + 'static,
             child: Option<V>,
@@ -285,7 +285,7 @@ impl<D> ViewGenerator<D> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.init_handles(ctx);
 
-                let gen = self.var_gen.get();
+                let gen = self.gen.get();
 
                 if gen.is_nil() {
                     self.child = None;
@@ -306,7 +306,7 @@ impl<D> ViewGenerator<D> {
                 self.child.deinit(ctx);
             }
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                let gen = self.var_gen.get();
+                let gen = self.gen.get();
 
                 if gen.is_nil() {
                     if let Some(mut old) = self.child.take() {
@@ -317,7 +317,7 @@ impl<D> ViewGenerator<D> {
                     return;
                 }
 
-                match (self.update)(ctx, self.var_gen.is_new(ctx.vars)) {
+                match (self.update)(ctx, self.gen.is_new(ctx.vars)) {
                     DataUpdate::Update(data) => {
                         if let Some(mut old) = self.child.take() {
                             old.deinit(ctx);
@@ -338,7 +338,7 @@ impl<D> ViewGenerator<D> {
             }
         }
         ViewGenVarPresenter {
-            var_gen: generator.into_var(),
+            gen: generator.into_var(),
             update,
             map,
             child: None,

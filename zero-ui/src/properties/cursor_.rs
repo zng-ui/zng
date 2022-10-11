@@ -22,7 +22,7 @@ use crate::prelude::new_property::*;
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
     #[impl_ui_node(struct CursorNode {
         child: impl UiNode,
-        var_cursor: impl Var<Option<CursorIcon>>,
+        #[var] cursor: impl Var<Option<CursorIcon>>,
         hovered_binding: Option<VarHandle>,
     })]
     impl UiNode for CursorNode {
@@ -52,8 +52,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                                 // we are not already set, setup binding.
 
                                 let cursor = WindowVars::req(&ctx.window_state).cursor();
-                                cursor.set_ne(ctx.vars, self.var_cursor.get());
-                                self.hovered_binding = Some(self.var_cursor.bind(cursor));
+                                cursor.set_ne(ctx.vars, self.cursor.get());
+                                self.hovered_binding = Some(self.cursor.bind(cursor));
                             }
 
                             // flag parent
@@ -78,7 +78,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
     }
     CursorNode {
         child,
-        var_cursor: cursor.into_var(),
+        cursor: cursor.into_var(),
         hovered_binding: None,
     }
 }

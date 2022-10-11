@@ -34,7 +34,7 @@ use std::rc::Rc;
 pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
     #[impl_ui_node(struct CaptureMouseNode {
         child: impl UiNode,
-        var_mode: impl Var<CaptureMode>,
+        #[var] mode: impl Var<CaptureMode>,
     })]
     impl UiNode for CaptureMouseNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -49,7 +49,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     let mouse = Mouse::req(ctx.services);
                     let widget_id = ctx.path.widget_id();
 
-                    match self.var_mode.get() {
+                    match self.mode.get() {
                         CaptureMode::Widget => {
                             mouse.capture_widget(widget_id);
                         }
@@ -64,7 +64,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new_mode) = self.var_mode.get_new(ctx) {
+            if let Some(new_mode) = self.mode.get_new(ctx) {
                 if ctx
                     .info_tree
                     .get(ctx.path.widget_id())
@@ -90,7 +90,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     }
     CaptureMouseNode {
         child,
-        var_mode: mode.into_var(),
+        mode: mode.into_var(),
     }
 }
 
@@ -114,13 +114,13 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
     #[impl_ui_node(struct ModalNode {
         child: impl UiNode,
-        var_enabled: impl Var<bool>,
+        #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for ModalNode {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             let mws = ctx.window_state.get(&MODAL_WIDGETS).unwrap();
 
-            if self.var_enabled.get() {
+            if self.enabled.get() {
                 let insert_filter = {
                     let mut mws = mws.borrow_mut();
                     if mws.widgets.insert(ctx.path.widget_id()) {
@@ -203,7 +203,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_enabled.is_new(ctx) {
+            if self.enabled.is_new(ctx) {
                 ctx.updates.info();
             }
 
@@ -212,6 +212,6 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     }
     ModalNode {
         child,
-        var_enabled: enabled.into_var(),
+        enabled: enabled.into_var(),
     }
 }

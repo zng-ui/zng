@@ -46,7 +46,7 @@ pub struct OnInitArgs {
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     #[impl_ui_node(struct OnInitNode {
         child: impl UiNode,
-        handler: impl  WidgetHandler<OnInitArgs>,
+        handler: impl WidgetHandler<OnInitArgs>,
         count: usize,
     })]
     impl UiNode for OnInitNode {

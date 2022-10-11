@@ -1897,7 +1897,7 @@ mod util {
     pub fn live_trace(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
         LiveTraceNode {
             child,
-            var_trace: trace.into_var(),
+            trace: trace.into_var(),
         }
     }
     /// A [trace] that can update and has a default value of `"default-trace"`.
@@ -1905,24 +1905,24 @@ mod util {
     pub fn live_trace_default(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
         LiveTraceNode {
             child,
-            var_trace: trace.into_var(),
+            trace: trace.into_var(),
         }
     }
 
     #[impl_ui_node(struct LiveTraceNode {
         child: impl UiNode,
-        var_trace: impl Var<&'static str>,
+        #[var] trace: impl Var<&'static str>,
     })]
     impl UiNode for LiveTraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.var_trace.get());
+            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace.get());
             self.init_handles(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if let Some(trace) = self.var_trace.get_new(ctx) {
+            if let Some(trace) = self.trace.get_new(ctx) {
                 ctx.widget_state.entry(&TRACE_ID).or_default().insert(trace);
             }
         }

@@ -9,24 +9,24 @@ use crate::prelude::new_property::*;
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct FocusableNode {
         child: impl UiNode,
-        var_focusable: impl Var<bool>,
+        #[var] focusable: impl Var<bool>,
     })]
     impl UiNode for FocusableNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_focusable.is_new(ctx) {
+            if self.focusable.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
         }
 
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(info).focusable(self.var_focusable.get());
+            FocusInfoBuilder::get(info).focusable(self.focusable.get());
             self.child.info(ctx, info);
         }
     }
     FocusableNode {
         child,
-        var_focusable: focusable.into_var(),
+        focusable: focusable.into_var(),
     }
 }
 
@@ -35,24 +35,24 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
     #[impl_ui_node(struct TabIndexNode {
         child: impl UiNode,
-        var_tab_index: impl Var<TabIndex>,
+        #[var] tab_index: impl Var<TabIndex>,
     })]
     impl UiNode for TabIndexNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_tab_index.is_new(ctx) {
+            if self.tab_index.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).tab_index(self.var_tab_index.get());
+            FocusInfoBuilder::get(widget).tab_index(self.tab_index.get());
             self.child.info(ctx, widget);
         }
     }
     TabIndexNode {
         child,
-        var_tab_index: tab_index.into_var(),
+        tab_index: tab_index.into_var(),
     }
 }
 
@@ -61,7 +61,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
-        var_is_focus_scope: is_scope.into_var(),
+        is_focus_scope: is_scope.into_var(),
         is_alt: false,
     }
 }
@@ -72,19 +72,19 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
-        var_is_focus_scope: is_scope.into_var(),
+        is_focus_scope: is_scope.into_var(),
         is_alt: true,
     }
 }
 
 #[impl_ui_node(struct FocusScopeNode {
     child: impl UiNode,
-    var_is_focus_scope: impl Var<bool>,
+    #[var] is_focus_scope: impl Var<bool>,
     is_alt: bool,
 })]
 impl UiNode for FocusScopeNode {
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        if self.var_is_focus_scope.is_new(ctx) {
+        if self.is_focus_scope.is_new(ctx) {
             ctx.updates.info();
         }
         self.child.update(ctx, updates);
@@ -93,9 +93,9 @@ impl UiNode for FocusScopeNode {
     fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
         let mut info = FocusInfoBuilder::get(widget);
         if self.is_alt {
-            info.alt_scope(self.var_is_focus_scope.get());
+            info.alt_scope(self.is_focus_scope.get());
         } else {
-            info.scope(self.var_is_focus_scope.get());
+            info.scope(self.is_focus_scope.get());
         }
 
         self.child.info(ctx, widget);
@@ -107,11 +107,11 @@ impl UiNode for FocusScopeNode {
 pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> impl UiNode {
     #[impl_ui_node(struct FocusScopeBehaviorNode {
         child: impl UiNode,
-        var_behavior: impl Var<FocusScopeOnFocus>,
+        #[var] behavior: impl Var<FocusScopeOnFocus>,
     })]
     impl UiNode for FocusScopeBehaviorNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_behavior.is_new(ctx) {
+            if self.behavior.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
@@ -119,13 +119,13 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
             let mut info = FocusInfoBuilder::get(widget);
-            info.on_focus(self.var_behavior.get());
+            info.on_focus(self.behavior.get());
             self.child.info(ctx, widget);
         }
     }
     FocusScopeBehaviorNode {
         child,
-        var_behavior: behavior.into_var(),
+        behavior: behavior.into_var(),
     }
 }
 
@@ -134,24 +134,24 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
     #[impl_ui_node(struct TabNavNode {
         child: impl UiNode,
-        var_tab_nav: impl Var<TabNav>,
+        #[var] tab_nav: impl Var<TabNav>,
     })]
     impl UiNode for TabNavNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_tab_nav.is_new(ctx) {
+            if self.tab_nav.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).tab_nav(self.var_tab_nav.get());
+            FocusInfoBuilder::get(widget).tab_nav(self.tab_nav.get());
             self.child.info(ctx, widget);
         }
     }
     TabNavNode {
         child,
-        var_tab_nav: tab_nav.into_var(),
+        tab_nav: tab_nav.into_var(),
     }
 }
 
@@ -160,24 +160,24 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
     #[impl_ui_node(struct DirectionalNavNode {
         child: impl UiNode,
-        var_directional_nav: impl Var<DirectionalNav>,
+        #[var] directional_nav: impl Var<DirectionalNav>,
     })]
     impl UiNode for DirectionalNavNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_directional_nav.is_new(ctx) {
+            if self.directional_nav.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).directional_nav(self.var_directional_nav.get());
+            FocusInfoBuilder::get(widget).directional_nav(self.directional_nav.get());
             self.child.info(ctx, widget);
         }
     }
     DirectionalNavNode {
         child,
-        var_directional_nav: directional_nav.into_var(),
+        directional_nav: directional_nav.into_var(),
     }
 }
 
@@ -186,27 +186,27 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     #[impl_ui_node(struct FocusShortcutNode {
         child: impl UiNode,
-        var_shortcuts: impl Var<Shortcuts>,
+        #[var] shortcuts: impl Var<Shortcuts>,
         handle: Option<ShortcutsHandle>,
     })]
     impl UiNode for FocusShortcutNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            let s = self.var_shortcuts.get();
+            let s = self.shortcuts.get();
             self.handle = Some(Gestures::req(ctx.services).focus_shortcut(s, ctx.path.widget_id()));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
 
-            if let Some(s) = self.var_shortcuts.get_new(ctx) {
+            if let Some(s) = self.shortcuts.get_new(ctx) {
                 self.handle = Some(Gestures::req(ctx.services).focus_shortcut(s, ctx.path.widget_id()));
             }
         }
     }
     FocusShortcutNode {
         child,
-        var_shortcuts: shortcuts.into_var(),
+        shortcuts: shortcuts.into_var(),
         handle: None,
     }
 }
@@ -218,25 +218,25 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct SkipDirectionalNode {
         child: impl UiNode,
-        var_enabled: impl Var<bool>,
+        #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for SkipDirectionalNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.var_enabled.is_new(ctx) {
+            if self.enabled.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::get(widget).skip_directional(self.var_enabled.get());
+            FocusInfoBuilder::get(widget).skip_directional(self.enabled.get());
 
             self.child.info(ctx, widget);
         }
     }
     SkipDirectionalNode {
         child,
-        var_enabled: enabled.into_var(),
+        enabled: enabled.into_var(),
     }
 }
 

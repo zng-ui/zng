@@ -73,7 +73,7 @@ fn show_widget_tree(
     #[impl_ui_node(struct RenderWidgetTreeNode {
         child: impl UiNode,
         render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
-        var_enabled: impl Var<bool>,
+        #[var] enabled: impl Var<bool>,
         valid: bool,
     })]
     impl UiNode for RenderWidgetTreeNode {
@@ -89,7 +89,7 @@ fn show_widget_tree(
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.valid && self.var_enabled.is_new(ctx) {
+            if self.valid && self.enabled.is_new(ctx) {
                 ctx.updates.render();
             }
             self.child.update(ctx, updates);
@@ -98,7 +98,7 @@ fn show_widget_tree(
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.var_enabled.get() {
+            if self.valid && self.enabled.get() {
                 frame.with_hit_tests_disabled(|frame| {
                     (self.render)(ctx.info_tree, frame);
                 });
@@ -108,7 +108,7 @@ fn show_widget_tree(
     RenderWidgetTreeNode {
         child,
         render,
-        var_enabled: enabled.into_var(),
+        enabled: enabled.into_var(),
 
         valid: false,
     }
@@ -123,7 +123,7 @@ fn show_widget_tree(
 pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[impl_ui_node(struct ShowHitTestNode {
         child: impl UiNode,
-        var_enabled: impl Var<bool>,
+        #[var] enabled: impl Var<bool>,
 
         valid: bool,
 
@@ -138,7 +138,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             if self.valid {
                 self.init_handles(ctx);
 
-                if self.var_enabled.get() {
+                if self.enabled.get() {
                     self.handles = [
                         MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
                         MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
@@ -161,7 +161,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                if self.valid && self.var_enabled.get() {
+                if self.valid && self.enabled.get() {
                     let factor = WindowVars::req(ctx).scale_factor().get();
                     let pt = args.position.to_px(factor.0);
 
@@ -205,7 +205,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(enabled) = self.var_enabled.get_new(ctx) {
+            if let Some(enabled) = self.enabled.get_new(ctx) {
                 if enabled && self.valid {
                     self.handles = [
                         MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
@@ -223,7 +223,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.var_enabled.get() {
+            if self.valid && self.enabled.get() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
                 let fail_sides = BorderSides::solid(colors::RED);
                 let hits_sides = BorderSides::solid(colors::LIME_GREEN);
@@ -242,7 +242,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
     }
     ShowHitTestNode {
         child,
-        var_enabled: enabled.into_var(),
+        enabled: enabled.into_var(),
         handles: EventHandles::default(),
         valid: false,
         fails: vec![],
@@ -259,7 +259,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> impl UiNode {
     #[impl_ui_node(struct ShowDirectionalQueryNode {
         child: impl UiNode,
-        var_orientation: impl Var<Option<Orientation2D>>,
+        #[var] orientation: impl Var<Option<Orientation2D>>,
         valid: bool,
         search_quads: Vec<PxRect>,
         mouse_hovered_handle: Option<EventHandle>,
@@ -269,7 +269,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             self.valid = ctx.path.is_root();
             if self.valid {
                 self.init_handles(ctx);
-                if self.var_orientation.get().is_some() {
+                if self.orientation.get().is_some() {
                     self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
                 }
             } else {
@@ -287,7 +287,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if self.valid {
                 if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                    if let Some(orientation) = self.var_orientation.get() {
+                    if let Some(orientation) = self.orientation.get() {
                         let mut none = true;
                         if let Some(target) = &args.target {
                             for w_id in target.widgets_path().iter().rev() {
@@ -323,7 +323,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
-                if let Some(ori) = self.var_orientation.get_new(ctx) {
+                if let Some(ori) = self.orientation.get_new(ctx) {
                     self.search_quads.clear();
 
                     if ori.is_some() {
@@ -341,7 +341,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid && self.var_orientation.get().is_some() {
+            if self.valid && self.orientation.get().is_some() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
                 let quad_sides = BorderSides::solid(colors::YELLOW);
 
@@ -355,7 +355,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
     }
     ShowDirectionalQueryNode {
         child,
-        var_orientation: orientation.into_var(),
+        orientation: orientation.into_var(),
         valid: false,
         search_quads: vec![],
         mouse_hovered_handle: None,

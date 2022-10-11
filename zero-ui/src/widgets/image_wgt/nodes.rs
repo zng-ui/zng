@@ -34,7 +34,7 @@ fn no_context_image() -> Image {
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
     #[impl_ui_node(struct ImageSourceNode {
         child: impl UiNode,
-        var_source: impl Var<ImageSource>,
+        #[var] source: impl Var<ImageSource>,
 
         img: ImageVar,
         ctx_img: RcVar<Image>,
@@ -51,7 +51,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             };
             let limits = IMAGE_LIMITS_VAR.get();
 
-            let mut source = self.var_source.get();
+            let mut source = self.source.get();
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs {
                     parent: Some(ctx.path.window_id()),
@@ -73,7 +73,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(mut source) = self.var_source.get_new(ctx) {
+            if let Some(mut source) = self.source.get_new(ctx) {
                 // source update:
 
                 if let ImageSource::Render(_, args) = &mut source {
@@ -106,7 +106,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     } else {
                         // must cache, but image is not cached, get source again.
 
-                        let source = self.var_source.get();
+                        let source = self.source.get();
                         let limits = IMAGE_LIMITS_VAR.get();
                         Images::req(ctx.services).image(source, ImageCacheMode::Cache, limits)
                     };
@@ -127,7 +127,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         img: var(Image::dummy(None)).read_only(),
         ctx_img,
         ctx_binding: None,
-        var_source: source.into_var(),
+        source: source.into_var(),
     }
     .cfg_boxed()
 }

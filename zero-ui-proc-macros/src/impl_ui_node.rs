@@ -752,9 +752,9 @@ struct ArgsNewNodeField {
 }
 impl Parse for ArgsNewNodeField {
     fn parse(input: ParseStream) -> Result<Self> {
-        let attrs = Attribute::parse_outer(input)?;
+        let mut attrs = Attribute::parse_outer(input)?;
         let ident = input.parse()?;
-        let kind = ArgsNewNodeFieldKind::from_ident(&ident);
+        let kind = ArgsNewNodeFieldKind::from_attrs(&mut attrs);
         let _: Token![:] = input.parse()?;
         let ty = input.parse()?;
         Ok(ArgsNewNodeField { attrs, kind, ident, ty })
@@ -767,19 +767,29 @@ enum ArgsNewNodeFieldKind {
     Custom,
 }
 impl ArgsNewNodeFieldKind {
-    fn from_ident(ident: &Ident) -> Self {
-        let s = ident.to_string();
-        if ["event_", "ev_", "e_"].into_iter().any(|p| s.starts_with(p)) {
-            ArgsNewNodeFieldKind::Event
-        } else if ["var_", "v_"].into_iter().any(|p| s.starts_with(p)) {
-            ArgsNewNodeFieldKind::Var
-        } else if s == "event" {
-            ArgsNewNodeFieldKind::Event
-        } else if s == "var" {
-            ArgsNewNodeFieldKind::Var
-        } else {
-            ArgsNewNodeFieldKind::Custom
+    fn from_attrs(attrs: &mut Vec<Attribute>) -> Self {
+        let mut r = ArgsNewNodeFieldKind::Custom;
+        let mut rmv = None;
+        
+        for (i, attr) in attrs.iter().enumerate() {
+            if let Some(id) = attr.path.get_ident() {
+                if id == "var" {
+                    r = ArgsNewNodeFieldKind::Var;
+                    rmv = Some(i);
+                    break;
+                } else if id == "event" {
+                    r = ArgsNewNodeFieldKind::Event;
+                    rmv = Some(i);
+                    break;
+                }
+            }
         }
+
+        if let Some(i) = rmv {
+            attrs.remove(i);
+        }
+
+        r
     }
 }
 

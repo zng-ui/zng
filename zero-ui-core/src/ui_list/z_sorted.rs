@@ -331,7 +331,7 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     #[impl_ui_node(struct ZIndexNode {
         child: impl UiNode,
-        var_index: impl Var<ZIndex>,
+        #[var] index: impl Var<ZIndex>,
         valid: bool,
     })]
     impl UiNode for ZIndexNode {
@@ -347,10 +347,10 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                     self.valid = true;
                     self.init_handles(ctx);
 
-                    let index = self.var_index.get();
+                    let index = self.index.get();
                     if index != ZIndex::DEFAULT {
                         z_ctx.resort.set(true);
-                        ctx.widget_state.set(&Z_INDEX_ID, self.var_index.get());
+                        ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
                     }
                 }
             });
@@ -359,7 +359,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
-                if let Some(i) = self.var_index.get_new(ctx) {
+                if let Some(i) = self.index.get_new(ctx) {
                     Z_INDEX_VAR.with(|z_ctx| {
                         debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
                         z_ctx.resort.set(true);
@@ -373,7 +373,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     }
     ZIndexNode {
         child,
-        var_index: index.into_var(),
+        index: index.into_var(),
         valid: false,
     }
 }

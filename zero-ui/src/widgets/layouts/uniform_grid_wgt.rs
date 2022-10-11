@@ -95,27 +95,27 @@ pub mod uniform_grid {
         let node = UniformGridNode {
             children: ZSortedWidgetList::new(items),
 
-            var_columns: columns.into_var(),
-            var_rows: rows.into_var(),
-            var_first_column: first_column.into_var(),
-            var_spacing: spacing.into_var(),
+            columns: columns.into_var(),
+            rows: rows.into_var(),
+            first_column: first_column.into_var(),
+            spacing: spacing.into_var(),
         };
         implicit_base::nodes::children_layout(node)
     }
 
     #[impl_ui_node(struct UniformGridNode {
         children: impl WidgetList,
-        var_columns: impl Var<u32>,
-        var_rows: impl Var<u32>,
-        var_first_column: impl Var<u32>,
-        var_spacing: impl Var<GridSpacing>,
+        #[var] columns: impl Var<u32>,
+        #[var] rows: impl Var<u32>,
+        #[var] first_column: impl Var<u32>,
+        #[var] spacing: impl Var<GridSpacing>,
     })]
     impl UniformGridNode {
         /// (columns, rows, first_column)
         fn grid_len(&self, cells_count: usize) -> (i32, i32, i32) {
-            let mut columns = self.var_columns.get() as i32;
-            let mut rows = self.var_rows.get() as i32;
-            let mut first_column = self.var_first_column.get() as i32;
+            let mut columns = self.columns.get() as i32;
+            let mut rows = self.rows.get() as i32;
+            let mut first_column = self.first_column.get() as i32;
             let rows_is_bound = rows > 0;
 
             if columns == 0 {
@@ -155,10 +155,10 @@ pub mod uniform_grid {
             self.children.update_all(ctx, updates, &mut changed);
 
             if changed
-                || self.var_columns.is_new(ctx)
-                || self.var_rows.is_new(ctx)
-                || self.var_first_column.is_new(ctx)
-                || self.var_spacing.is_new(ctx)
+                || self.columns.is_new(ctx)
+                || self.rows.is_new(ctx)
+                || self.first_column.is_new(ctx)
+                || self.spacing.is_new(ctx)
             {
                 ctx.updates.layout_and_render();
             }
@@ -191,7 +191,7 @@ pub mod uniform_grid {
 
             let (columns, rows, _) = self.grid_len(count);
 
-            let spacing = self.var_spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
 
             let panel_size = PxSize::new(
                 (cell_size.width + spacing.column) * Px(columns) - spacing.column,
@@ -204,7 +204,7 @@ pub mod uniform_grid {
         #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let constrains = ctx.constrains();
-            let spacing = self.var_spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
+            let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
 
             let final_panel_size;
             let final_cell_size;
