@@ -554,26 +554,26 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             r.shaped_text.align_box().size
         }
     }
-    struct LayoutTextNode<C> {
-        child: C,
+
+    #[impl_ui_node(struct LayoutTextNode {
+        child: impl UiNode,
         txt: RefCell<FinalText>,
         pending: Layout,
-    }
-    impl<C: UiNode> LayoutTextNode<C> {
-        fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
+    })]
+    impl LayoutTextNode {
+        fn with_mut<R>(&mut self, f: impl FnOnce(&mut T_child) -> R) -> R {
             let txt = self.txt.get_mut();
             let (layout, r) = LAYOUT_TEXT_VAR.with_context(txt.layout.take(), || f(&mut self.child));
             txt.layout = layout.into_value();
             r
         }
-        fn with(&self, f: impl FnOnce(&C)) {
+        fn with(&self, f: impl FnOnce(&T_child)) {
             let mut txt = self.txt.borrow_mut();
             let (layout, ()) = LAYOUT_TEXT_VAR.with_context(txt.layout.take(), || f(&self.child));
             txt.layout = layout.into_value();
         }
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for LayoutTextNode<C> {
+
+        #[UiNode]
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.sub_var(&TEXT_PADDING_VAR);
             // other subscriptions are handled by the `resolve_text` node.
@@ -581,11 +581,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             self.child.init(ctx);
         }
 
+        #[UiNode]
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.txt.get_mut().layout = None;
         }
 
+        #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if FONT_SIZE_VAR.is_new(ctx) || FONT_VARIATIONS_VAR.is_new(ctx) {
                 self.pending.insert(Layout::RESHAPE);
@@ -620,6 +622,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             self.child.update(ctx, updates);
         }
 
+        #[UiNode]
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let mut txt = self.txt.borrow_mut();
 
@@ -633,6 +636,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 .expect("expected `ResolvedText` in `measure`")
             }
         }
+        #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             ResolvedText::with(|t| {
                 let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending);
@@ -656,9 +660,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             .expect("expected `ResolvedText` in `layout`")
         }
 
+        #[UiNode]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.with(|c| c.render(ctx, frame))
         }
+        #[UiNode]
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             self.with(|c| c.render_update(ctx, update))
         }
@@ -769,11 +775,10 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_overlines(child: impl UiNode) -> impl UiNode {
-    struct RenderOverlineNode<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for RenderOverlineNode<C> {
+    #[impl_ui_node(struct RenderOverlineNode {
+        child: impl UiNode,
+    })]
+    impl UiNode for RenderOverlineNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if OVERLINE_STYLE_VAR.is_new(ctx) || OVERLINE_COLOR_VAR.is_new(ctx) {
@@ -814,12 +819,11 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
-    struct RenderCaretNode<C> {
-        child: C,
+    #[impl_ui_node(struct RenderCaretNode {
+        child: impl UiNode,
         color_key: FrameValueKey<RenderColor>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for RenderCaretNode<C> {
+    })]
+    impl UiNode for RenderCaretNode {
         // subscriptions are handled by the `editable` property node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if TEXT_EDITABLE_VAR.is_new(ctx) || CARET_COLOR_VAR.is_new(ctx) {
@@ -877,12 +881,11 @@ pub fn render_text() -> impl UiNode {
         color: Rgba,
         aa: FontAntiAliasing,
     }
-    struct RenderTextNode {
+    #[impl_ui_node(struct RenderTextNode {
         reuse: RefCell<Option<ReuseRange>>,
         rendered: Cell<Option<RenderedText>>,
         color_key: Option<FrameValueKey<RenderColor>>,
-    }
-    #[impl_ui_node(none)]
+    })]
     impl UiNode for RenderTextNode {
         fn init(&mut self, _: &mut WidgetContext) {
             if TEXT_COLOR_VAR.capabilities().contains(VarCapabilities::CHANGE) {

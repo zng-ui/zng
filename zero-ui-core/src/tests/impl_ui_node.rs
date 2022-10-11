@@ -18,11 +18,8 @@ use crate::{
 
 #[test]
 pub fn default_child() {
-    struct Node<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for Node<C> {}
+    #[impl_ui_node(struct Node { child: impl UiNode })]
+    impl UiNode for Node {}
 
     test_trace(Node {
         child: TestTraceNode::default(),
@@ -42,11 +39,8 @@ pub fn default_delegate() {
 }
 #[test]
 pub fn default_children() {
-    struct Node<C> {
-        children: C,
-    }
-    #[impl_ui_node(children)]
-    impl<C: UiNodeList> UiNode for Node<C> {}
+    #[impl_ui_node(struct Node { children: impl UiNodeList })]
+    impl UiNode for Node {}
 
     test_trace(Node {
         children: nodes![TestTraceNode::default(), TestTraceNode::default()],
@@ -148,22 +142,16 @@ fn test_trace(node: impl UiNode) {
 
 #[test]
 pub fn allow_missing_delegate() {
-    struct Node1<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for Node1<C> {
+    #[impl_ui_node(struct Node1 { child: impl UiNode })]
+    impl UiNode for Node1 {
         #[allow_(zero_ui::missing_delegate)]
         fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
             // self.child.update(ctx, updates);
         }
     }
-    struct Node2<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
+    #[impl_ui_node(struct Node2 { child: impl UiNode })]
     #[allow_(zero_ui::missing_delegate)]
-    impl<C: UiNode> UiNode for Node2<C> {
+    impl UiNode for Node2 {
         fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
             // self.child.update(ctx, updates);
         }
@@ -192,11 +180,10 @@ pub fn allow_missing_delegate() {
 pub fn default_no_child() {
     crate::test_log();
 
-    struct Node;
-    #[impl_ui_node(none)]
+    #[impl_ui_node(struct Node { })]
     impl UiNode for Node {}
 
-    let mut wgt = util::test_wgt(Node);
+    let mut wgt = util::test_wgt(Node {});
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);

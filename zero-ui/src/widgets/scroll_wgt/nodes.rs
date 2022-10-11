@@ -731,13 +731,12 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
 /// Create a node that implements scroll-wheel handling for the widget.
 pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
-    struct ScrollWheelNode<C> {
-        child: C,
+    #[impl_ui_node(struct ScrollWheelNode {
+        child: impl UiNode,
         offset: Vector,
         mouse_wheel_handle: Option<EventHandle>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for ScrollWheelNode<C> {
+    })]
+    impl UiNode for ScrollWheelNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.mouse_wheel_handle = Some(MOUSE_WHEEL_EVENT.subscribe(ctx.path.widget_id()));
             self.child.init(ctx);

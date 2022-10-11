@@ -738,11 +738,10 @@ pub fn z_stack(items: impl WidgetList) -> impl Widget {
 ///
 /// [`z_stack`]: mod@z_stack
 pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
-    struct StackNodesNode<C> {
-        children: C,
-    }
-    #[impl_ui_node(children)]
-    impl<C: UiNodeList> StackNodesNode<C> {}
+    #[impl_ui_node(struct StackNodesNode {
+        children: impl UiNodeList,
+    })]
+    impl StackNodesNode {}
 
     StackNodesNode { children: nodes }.cfg_boxed()
 }

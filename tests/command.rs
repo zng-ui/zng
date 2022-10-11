@@ -92,12 +92,11 @@ fn shortcut_scoped() {
 }
 
 fn listener_window(focused_wgt: bool) -> Window {
-    struct FooHandlerNode {
+    #[impl_ui_node(struct FooHandlerNode {
         handle: Option<CommandHandle>,
         handle_scoped: Option<CommandHandle>,
         handle_scoped_wgt: Option<CommandHandle>,
-    }
-    #[impl_ui_node(none)]
+    })]
     impl UiNode for FooHandlerNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.handle = Some(FOO_CMD.subscribe(ctx, true));

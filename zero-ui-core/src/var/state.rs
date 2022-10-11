@@ -72,50 +72,41 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
     on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    struct EventState2Node<C, A0: EventArgs, A1: EventArgs, S0, S1, M> {
-        child: C,
-        events: (Event<A0>, Event<A1>),
+    #[impl_ui_node(struct EventState2Node<A0: EventArgs, A1: EventArgs,> {
+        child: impl UiNode,
+        #[event] event0: Event<A0>, 
+        #[event] event1: Event<A1>,
         default: bool,
         state: StateVar,
-        on_events: (S0, S1),
-        partial_default: (bool, bool),
+        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
+        merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
         partial: (bool, bool),
-        merge: M,
-        handle: Option<[EventHandle; 2]>,
-    }
-    #[impl_ui_node(child)]
-    impl<C, A0, A1, S0, S1, M> UiNode for EventState2Node<C, A0, A1, S0, S1, M>
-    where
-        C: UiNode,
-        A0: EventArgs,
-        A1: EventArgs,
-        S0: FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
-        S1: FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
-        M: FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
-    {
+        partial_default: (bool, bool),
+    })]
+    impl UiNode for EventState2Node {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.init_handles(ctx);
+
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);
-            let w = ctx.path.widget_id();
-            self.handle = Some([self.events.0.subscribe(w), self.events.1.subscribe(w)]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
-            self.handle = None;
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             let mut updated = false;
-            if let Some(args) = self.events.0.on(update) {
-                if let Some(state) = (self.on_events.0)(ctx, args) {
+            if let Some(args) = self.event0.on(update) {
+                if let Some(state) = (self.on_event0)(ctx, args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.events.1.on(update) {
-                if let Some(state) = (self.on_events.1)(ctx, args) {
+            } else if let Some(args) = self.event1.on(update) {
+                if let Some(state) = (self.on_event1)(ctx, args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
                         updated = true;
@@ -133,14 +124,15 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
     }
     EventState2Node {
         child: child.cfg_boxed(),
-        events: (event0, event1),
+        event0,
+        event1,
         default,
         state,
-        on_events: (on_event0, on_event1),
+        on_event0,
+        on_event1,
         partial_default: (default0, default1),
         partial: (default0, default1),
         merge,
-        handle: None,
     }
     .cfg_boxed()
 }
@@ -162,59 +154,50 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
 ) -> impl UiNode {
-    struct EventState3Node<C, A0: EventArgs, A1: EventArgs, A2: EventArgs, S0, S1, S2, M> {
-        child: C,
-        events: (Event<A0>, Event<A1>, Event<A2>),
+    #[impl_ui_node(struct EventState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
+        child: impl UiNode,
+        #[event] event0: Event<A0>,
+        #[event] event1: Event<A1>,
+        #[event] event2: Event<A2>,
         default: bool,
         state: StateVar,
-        on_events: (S0, S1, S2),
+        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
+        on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
         partial_default: (bool, bool, bool),
         partial: (bool, bool, bool),
-        merge: M,
-        handle: Option<[EventHandle; 3]>,
-    }
-    #[impl_ui_node(child)]
-    impl<C, A0, A1, A2, S0, S1, S2, M> UiNode for EventState3Node<C, A0, A1, A2, S0, S1, S2, M>
-    where
-        C: UiNode,
-        A0: EventArgs,
-        A1: EventArgs,
-        A2: EventArgs,
-        S0: FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
-        S1: FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
-        S2: FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
-        M: FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
-    {
+        merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
+    })]
+    impl UiNode for EventState3Node {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.init_handles(ctx);
+
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);
-            let w = ctx.path.widget_id();
-            self.handle = Some([self.events.0.subscribe(w), self.events.1.subscribe(w), self.events.2.subscribe(w)]);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.default);
-            self.handle = None;
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             let mut updated = false;
-            if let Some(args) = self.events.0.on(update) {
-                if let Some(state) = (self.on_events.0)(ctx, args) {
+            if let Some(args) = self.event0.on(update) {
+                if let Some(state) = (self.on_event0)(ctx, args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.events.1.on(update) {
-                if let Some(state) = (self.on_events.1)(ctx, args) {
+            } else if let Some(args) = self.event1.on(update) {
+                if let Some(state) = (self.on_event1)(ctx, args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.events.2.on(update) {
-                if let Some(state) = (self.on_events.2)(ctx, args) {
+            } else if let Some(args) = self.event2.on(update) {
+                if let Some(state) = (self.on_event2)(ctx, args) {
                     if self.partial.2 != state {
                         self.partial.2 = state;
                         updated = true;
@@ -232,14 +215,17 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     }
     EventState3Node {
         child: child.cfg_boxed(),
-        events: (event0, event1, event2),
+        event0,
+        event1,
+        event2,
         default,
         state,
-        on_events: (on_event0, on_event1, on_event2),
+        on_event0,
+        on_event1,
+        on_event2,
         partial_default: (default0, default1, default2),
         partial: (default0, default1, default2),
         merge,
-        handle: None,
     }
     .cfg_boxed()
 }
@@ -249,14 +235,13 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
 /// that merge other state properties.
 pub fn bind_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVar) -> impl UiNode {
-    struct BindStateNode<C, S> {
-        child: C,
-        source: S,
+    #[impl_ui_node(struct BindStateNode {
+        child: impl UiNode,
+        source: impl Var<bool>,
         state: StateVar,
         binding: VarHandle,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, S: Var<bool>> UiNode for BindStateNode<C, S> {
+    })]
+    impl UiNode for BindStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.state.set_ne(ctx, self.source.get());
             self.binding = self.source.bind(&self.state);

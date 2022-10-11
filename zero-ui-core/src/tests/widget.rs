@@ -1712,12 +1712,11 @@ mod util {
 
     static TRACE_ID: StaticStateId<HashSet<&'static str>> = StaticStateId::new_unique();
 
-    struct TraceNode<C: UiNode> {
-        child: C,
+    #[impl_ui_node(struct TraceNode {
+        child: impl UiNode,
         trace: &'static str,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for TraceNode<C> {
+    })]
+    impl UiNode for TraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
             ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace);
@@ -1831,12 +1830,11 @@ mod util {
     static VALUE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
     static NODE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
 
-    struct CountNode<C: UiNode> {
-        child: C,
+    #[impl_ui_node(struct CountNode {
+        child: impl UiNode,
         value_pos: Position,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for CountNode<C> {
+    })]
+    impl UiNode for CountNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.widget_state
                 .entry(&VALUE_POSITION_ID)

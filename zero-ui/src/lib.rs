@@ -986,12 +986,11 @@ pub mod prelude {
     ///     MyPropertyNode { child, value: value.into_var() }
     /// }
     ///
-    /// struct MyPropertyNode<C: UiNode, V: Var<bool>> {
-    ///     child: C,
-    ///     value: V
-    /// }
-    /// #[impl_ui_node(child)]
-    /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> {
+    /// #[impl_ui_node(struct MyPropertyNode {
+    ///     child: impl UiNode,
+    ///     #[var] value: impl Var<bool>,
+    /// })]
+    /// impl UiNode for MyPropertyNode {
     ///     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
     ///         self.child.update(ctx, updates);
     ///         if let Some(new_value) = self.value.get_new(ctx) {

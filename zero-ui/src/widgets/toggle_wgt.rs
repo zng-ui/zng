@@ -173,13 +173,12 @@ pub mod properties {
     /// Toggle `checked` on click and sets the [`IsCheckedVar`], disables the widget if `checked` is read-only.
     #[property(context, default(false))]
     pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
-        struct CheckedNode<C, B> {
-            child: C,
-            checked: B,
+        #[impl_ui_node(struct CheckedNode {
+            child: impl UiNode,
+            checked: impl Var<bool>,
             click_handle: Option<EventHandle>,
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode, B: Var<bool>> UiNode for CheckedNode<C, B> {
+        })]
+        impl UiNode for CheckedNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
                 self.child.init(ctx);
@@ -220,13 +219,12 @@ pub mod properties {
     /// Sets to `None` if [`IsTristateVar`] is `true`.
     #[property(context, default(None))]
     pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
-        struct CheckedOptNode<C, B> {
-            child: C,
-            checked: B,
+        #[impl_ui_node(struct CheckedOptNode {
+            child: impl UiNode,
+            checked: impl Var<Option<bool>>,
             click_handle: Option<EventHandle>,
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode, B: Var<Option<bool>>> UiNode for CheckedOptNode<C, B> {
+        })]
+        impl UiNode for CheckedOptNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.click_handle = Some(CLICK_EVENT.subscribe(ctx.path.widget_id()));
                 self.child.init(ctx);

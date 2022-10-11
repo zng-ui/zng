@@ -246,10 +246,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
             size
         }
     }
-    XNode {
-        child,
-        x: x.into_var(),
-    }
+    XNode { child, x: x.into_var() }
 }
 
 /// Offset on the ***y*** axis.
@@ -303,10 +300,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
             size
         }
     }
-    YNode {
-        child,
-        y: y.into_var(),
-    }
+    YNode { child, y: y.into_var() }
 }
 
 /// Minimum size of the widget.

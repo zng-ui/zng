@@ -603,12 +603,12 @@ pub fn inspect_property(property_node: BoxedUiNode, meta: PropertyInstanceMeta, 
     }
     .boxed()
 }
-struct InspectPropertyNode {
+
+#[impl_ui_node(struct InspectPropertyNode {
     child: BoxedUiNode,
     meta: PropertyInstanceMeta,
     args: Box<[PropertyArg]>,
-}
-#[impl_ui_node(child)]
+})]
 impl UiNode for InspectPropertyNode {
     fn init(&mut self, ctx: &mut context::WidgetContext) {
         let _span = UpdatesTrace::property_span(self.meta.property_name, "init");
@@ -674,12 +674,12 @@ pub fn inspect_widget(widget_outermost_node: BoxedUiNode, meta: WidgetInstanceMe
     }
     .boxed()
 }
-struct InspectWidgetNode {
+
+#[impl_ui_node(struct InspectWidgetNode {
     child: BoxedUiNode,
     meta: WidgetInstanceMeta,
     whens: Box<[WhenInfo]>,
-}
-#[impl_ui_node(child)]
+})]
 impl UiNode for InspectWidgetNode {
     fn init(&mut self, ctx: &mut context::WidgetContext) {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.meta.widget_name, "init");
@@ -746,12 +746,12 @@ pub fn inspect_constructor(constructor_node: BoxedUiNode, fn_name: &'static str,
     }
     .boxed()
 }
-struct InspectConstructorNode {
+
+#[impl_ui_node(struct InspectConstructorNode {
     child: BoxedUiNode,
     fn_name: &'static str,
     captures: Box<[CapturedPropertyInfo]>,
-}
-#[impl_ui_node(child)]
+})]
 impl UiNode for InspectConstructorNode {
     fn init(&mut self, ctx: &mut context::WidgetContext) {
         let _span = UpdatesTrace::constructor_span(self.fn_name, "init");

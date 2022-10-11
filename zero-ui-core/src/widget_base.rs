@@ -161,12 +161,11 @@ pub mod implicit_base {
         ///
         /// [`new_child_layout`]: super::new_child_layout
         pub fn child_layout(child: impl UiNode) -> impl UiNode {
-            struct ChildLayoutNode<C> {
-                child: C,
+            #[impl_ui_node(struct ChildLayoutNode {
+                child: impl UiNode,
                 id: Option<(SpatialFrameId, FrameValueKey<PxTransform>)>,
-            }
-            #[impl_ui_node(child)]
-            impl<C: UiNode> UiNode for ChildLayoutNode<C> {
+            })]
+            impl UiNode for ChildLayoutNode {
                 fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
                     self.child.measure(ctx)
                 }

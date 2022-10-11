@@ -621,11 +621,10 @@ impl fmt::Debug for CornerRadiusFit {
 /// [`Default`]: crate::units::Length::Default
 #[property(context, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
-    struct CornerRadiusNode<C> {
-        child: C,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for CornerRadiusNode<C> {
+    #[impl_ui_node(struct CornerRadiusNode {
+        child: impl UiNode,
+    })]
+    impl UiNode for CornerRadiusNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             self.child.measure(ctx)
         }
@@ -792,17 +791,18 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 /// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating
 /// with the other borders of the widget.
 pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
-    struct BorderNode<C, O> {
-        children: C,
-        offsets: O,
+    #[impl_ui_node(struct BorderNode {
+        children: impl UiNodeList,
+        #[var] offsets: impl Var<SideOffsets>,
         layout_offsets: SideOffsets,
         render_offsets: PxSideOffsets,
 
         border_rect: PxRect,
-    }
-    #[impl_ui_node(children)]
-    impl<C: UiNodeList, O: Var<SideOffsets>> UiNode for BorderNode<C, O> {
+    })]
+    impl UiNode for BorderNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.init_handles(ctx);
+
             self.layout_offsets = self.offsets.get();
             self.children.init_all(ctx);
         }

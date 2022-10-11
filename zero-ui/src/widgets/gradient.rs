@@ -56,12 +56,9 @@ pub fn linear_gradient_ext(
                 ctx.with_constrains(
                     |c| c.with_new_exact_x(length),
                     |ctx| {
-                        self.stops.get().layout_linear(
-                            ctx.for_x(),
-                            self.extend_mode.get(),
-                            &mut self.render_line,
-                            &mut self.render_stops,
-                        )
+                        self.stops
+                            .get()
+                            .layout_linear(ctx.for_x(), self.extend_mode.get(), &mut self.render_line, &mut self.render_stops)
                     },
                 );
 

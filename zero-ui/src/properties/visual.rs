@@ -33,12 +33,10 @@ use super::hit_test_mode;
 /// The example renders a custom text background.
 #[property(fill, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
-    struct BackgroundNode<C> {
-        /// [background, child]
-        children: C,
-    }
-    #[impl_ui_node(children)]
-    impl<C: UiNodeList> UiNode for BackgroundNode<C> {
+    #[impl_ui_node(struct BackgroundNode {
+        children: impl UiNodeList,
+    })]
+    impl UiNode for BackgroundNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             self.children.item_measure(1, ctx)
         }
@@ -155,11 +153,10 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// The example renders a custom see-through text overlay.
 #[property(fill, allowed_in_when = false, default(crate::core::NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
-    struct ForegroundNode<C> {
-        children: C,
-    }
-    #[impl_ui_node(children)]
-    impl<C: UiNodeList> UiNode for ForegroundNode<C> {
+    #[impl_ui_node(struct ForegroundNode {
+        children: impl UiNodeList,
+    })]
+    impl UiNode for ForegroundNode {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             self.children.item_measure(0, ctx)
         }

@@ -770,7 +770,7 @@ impl ArgsNewNodeFieldKind {
     fn from_attrs(attrs: &mut Vec<Attribute>) -> Self {
         let mut r = ArgsNewNodeFieldKind::Custom;
         let mut rmv = None;
-        
+
         for (i, attr) in attrs.iter().enumerate() {
             if let Some(id) = attr.path.get_ident() {
                 if id == "var" {

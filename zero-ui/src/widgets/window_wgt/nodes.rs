@@ -448,12 +448,11 @@ static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 ///
 /// This node is included in the `window::new_event` constructor.
 pub fn layers(child: impl UiNode) -> impl UiNode {
-    struct LayersNode<C> {
-        children: C,
+    #[impl_ui_node(struct LayersNode {
+        children: impl UiNodeList,
         layered: SortedWidgetVecRef,
-    }
-    #[impl_ui_node(children)]
-    impl<C: UiNodeList> UiNode for LayersNode<C> {
+    })]
+    impl UiNode for LayersNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.window_state.set(
                 &WINDOW_LAYERS_ID,

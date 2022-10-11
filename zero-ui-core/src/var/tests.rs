@@ -418,12 +418,11 @@ mod context {
 
     #[property(context)]
     fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
-        struct ProbeNode<C, V> {
-            child: C,
-            var: V,
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode, V: Var<Text>> UiNode for ProbeNode<C, V> {
+        #[impl_ui_node(struct ProbeNode {
+            child: impl UiNode,
+            var: impl Var<Text>,
+        })]
+        impl UiNode for ProbeNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.app_state.set(&PROBE_ID, self.var.get());
                 self.child.init(ctx);
@@ -437,16 +436,11 @@ mod context {
 
     #[property(event)]
     fn on_init(child: impl UiNode, handler: impl handler::WidgetHandler<()>) -> impl UiNode {
-        struct OnInitNode<C, H> {
-            child: C,
-            handler: H,
-        }
-        #[impl_ui_node(child)]
-        impl<C, H> UiNode for OnInitNode<C, H>
-        where
-            C: UiNode,
-            H: handler::WidgetHandler<()>,
-        {
+        #[impl_ui_node(struct OnInitNode {
+            child: impl UiNode,
+            handler: impl handler::WidgetHandler<()>,
+        })]
+        impl UiNode for OnInitNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.child.init(ctx);
                 self.handler.event(ctx, &());
