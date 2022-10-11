@@ -123,7 +123,7 @@ impl AppProcess {
     }
 
     /// Register the `cleanup` closure to run after the app exits.
-    /// 
+    ///
     /// The closure runs on graceful shutdowns or when the app is dropped and Rust calls the drop methods.
     pub fn on_exited(cleanup: impl FnOnce() + 'static) {
         AppOnExited::register(Box::new(cleanup))

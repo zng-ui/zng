@@ -1263,3 +1263,210 @@ macro_rules! measure_time {
 }
 
 pub type BoxedFut<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T>>>;
+
+pub mod context_value {
+    use std::{any::Any, cell::RefCell, mem, thread::LocalKey};
+
+    use crate::{
+        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
+        event::EventUpdate,
+        render::{FrameBuilder, FrameUpdate},
+        ui_node, units,
+        var::{IntoValue, VarValue},
+        widget_info::{WidgetInfoBuilder, WidgetLayout},
+        UiNode,
+    };
+
+    ///<span data-del-macro-root></span> Declares new thread local static that facilitates sharing *contextual* values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui_core::context_value;
+    /// context_value! {
+    ///     /// A public documented value.
+    ///     pub static FOO: u8 = 10u8;
+    ///
+    ///     // A private value.
+    ///     static BAR: String = "Into!";
+    /// }
+    /// ```
+    ///
+    /// # Default Value
+    ///
+    /// All contextual values must have a fallback value that is used when no context is loaded.
+    ///
+    /// The default value is instantiated once per thread, the expression can be any static value that converts [`Into<T>`].
+    ///
+    /// # Usage
+    ///
+    /// After you declare the contextual value you can use it by loading a context, calling a closure and inside it *visiting* the value.
+    ///
+    /// ```
+    /// # use zero_ui_core::context_value;
+    /// context_value! { static FOO: String = "default"; }
+    ///
+    /// fn print_value() {
+    ///     FOO.with(|val| println!("value is {val}!"));
+    /// }
+    ///
+    /// let mut value = Some(String::from("other"));
+    /// FOO.with_context(&mut value, || {
+    ///     print!("in context, ");
+    ///     print_value();
+    /// });
+    ///
+    /// print!("out of context, ");
+    /// print_value();
+    /// ```
+    ///
+    /// The example above prints:
+    ///
+    /// ```text
+    /// in context, value is other!
+    /// out of context, value is default!
+    /// ```
+    #[macro_export]
+    macro_rules! context_value {
+    ($(
+        $(#[$attr:meta])*
+        $vis:vis static $NAME:ident: $Type:ty = $default:expr;
+    )+) => {$(
+        $crate::paste! {
+            std::thread_local! {
+                #[doc(hidden)]
+                static [<$NAME _LOCAL>]: $crate::ContextValueData<$Type> = $crate::ContextValueData::init($default);
+            }
+        }
+
+        $(#[$attr])*
+        $vis static $NAME: $crate::ContextValue<$Type> = paste::paste! { $crate::ContextValue::new(&[<$NAME _LOCAL>]) };
+    )+}
+}
+
+    #[doc(hidden)]
+    pub struct ContextValueData<T: Any> {
+        value: RefCell<T>,
+    }
+    impl<T: Any> ContextValueData<T> {
+        pub fn init(default: impl Into<T>) -> Self {
+            Self {
+                value: RefCell::new(default.into()),
+            }
+        }
+    }
+
+    /// Represents value that can only be read in a context.
+    ///
+    /// See [`context_value!`] for more details.
+    pub struct ContextValue<T: Any> {
+        local: &'static LocalKey<ContextValueData<T>>,
+    }
+
+    impl<T: Any> ContextValue<T> {
+        #[doc(hidden)]
+        pub const fn new(local: &'static LocalKey<ContextValueData<T>>) -> Self {
+            ContextValue { local }
+        }
+
+        /// Calls `f` with read-only access to the contextual value.
+        ///
+        /// Returns the result of `f`.
+        pub fn with<R>(self, f: impl FnOnce(&T) -> R) -> R {
+            self.local.with(|l| f(&*l.value.borrow()))
+        }
+
+        /// Runs `action` while the `value` is moved into context, restores the `value` if `action` does not panic.
+        ///
+        /// Returns the result of `action`.
+        pub fn with_context<R>(self, value: &mut Option<T>, action: impl FnOnce() -> R) -> R {
+            let val = value.take().expect("no contextual value to load");
+            let prev = self.set_context(val);
+            let r = action();
+            let val = self.set_context(prev);
+            *value = Some(val);
+            r
+        }
+
+        fn set_context(&self, val: T) -> T {
+            self.local.with(|l| mem::replace(&mut *l.value.borrow_mut(), val))
+        }
+    }
+
+    impl<T: Any> Clone for ContextValue<T> {
+        fn clone(&self) -> Self {
+            Self { local: self.local }
+        }
+    }
+    impl<T: Any> Copy for ContextValue<T> {}
+
+    /// Helper for declaring nodes that sets a context value.
+    pub fn with_context_value<T: VarValue>(child: impl UiNode, context: ContextValue<T>, value: impl IntoValue<T>) -> impl UiNode {
+        #[ui_node(struct WithContextValueNode<T: VarValue> {
+        child: impl UiNode,
+        context: ContextValue<T>,
+        value: RefCell<Option<T>>,
+    })]
+        impl WithContextValueNode {
+            fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
+                let mut value = self.value.borrow_mut();
+                self.context.with_context(&mut value, move || mtd(&self.child))
+            }
+
+            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
+                let value = self.value.get_mut();
+                self.context.with_context(value, || mtd(&mut self.child))
+            }
+
+            #[UiNode]
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.with_mut(|c| c.init(ctx))
+            }
+
+            #[UiNode]
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.with_mut(|c| c.deinit(ctx))
+            }
+
+            #[UiNode]
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                self.with(|c| c.info(ctx, info))
+            }
+
+            #[UiNode]
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+                self.with_mut(|c| c.event(ctx, update))
+            }
+
+            #[UiNode]
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.with_mut(|c| c.update(ctx, updates))
+            }
+
+            #[UiNode]
+            fn measure(&self, ctx: &mut MeasureContext) -> units::PxSize {
+                self.with(|c| c.measure(ctx))
+            }
+
+            #[UiNode]
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> units::PxSize {
+                self.with_mut(|c| c.layout(ctx, wl))
+            }
+
+            #[UiNode]
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                self.with(|c| c.render(ctx, frame))
+            }
+
+            #[UiNode]
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                self.with(|c| c.render_update(ctx, update))
+            }
+        }
+        WithContextValueNode {
+            child,
+            context,
+            value: RefCell::new(Some(value.into())),
+        }
+    }
+}

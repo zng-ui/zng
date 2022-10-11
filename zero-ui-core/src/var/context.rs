@@ -5,6 +5,7 @@ use super::*;
 ///<span data-del-macro-root></span> Declares new [`ContextVar`] keys.
 ///
 /// # Examples
+///
 /// ```
 /// # use zero_ui_core::var::context_var;
 /// # #[derive(Debug, Clone)]
@@ -35,6 +36,10 @@ use super::*;
 /// # Naming Convention
 ///
 /// It is recommended that the type name ends with the `_VAR` suffix.
+///
+/// # Context Only
+///
+/// Note that if you are only interested in sharing a contextual value you can use the [`context_value!`] macro instead.
 #[macro_export]
 macro_rules! context_var {
     ($(

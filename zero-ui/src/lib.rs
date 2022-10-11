@@ -1032,14 +1032,14 @@ pub mod prelude {
         pub use crate::core::window::{WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            node_vec, nodes, property,
+            context_value, node_vec, nodes, property,
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
             ui_node, widget,
             widget_base::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
             },
-            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
+            widget_mixin, widget_vec, widgets, with_context_value, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
         pub use crate::widgets::{layouts::stack_nodes, view_generator, DataUpdate, ViewGenerator};
@@ -1089,7 +1089,7 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            node_vec, nodes, property,
+            context_value, node_vec, nodes, property,
             ui_list::{
                 z_index, SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef, ZIndex,
                 ZSortedWidgetList,
@@ -1099,7 +1099,8 @@ pub mod prelude {
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,
             },
-            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget, WidgetId,
+            widget_mixin, widget_vec, widgets, with_context_value, BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget,
+            WidgetId,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};

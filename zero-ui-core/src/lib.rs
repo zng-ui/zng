@@ -238,7 +238,7 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// In all the usage seen so far you must declare the `struct` type yourself, and the generic bounds to
 /// make it work in the `impl` block, and any var or event in it needs to be subscribed manually. You can
 /// avoid this extra boilerplate by declaring the node `struct` as an arg for the macro.
-/// 
+///
 /// ```
 /// # use zero_ui_core::{ui_node, UiNode, context::*, var::*};
 /// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
@@ -264,40 +264,40 @@ pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_lis
 /// In the example above the `MyNode` struct is declared with two generic params: `T_child` and `T_var`, the unimplemented
 /// node methods are delegated to `child` because of the name, and the `number` var is subscribed automatically because of
 /// the `#[var]` pseudo attribute.
-/// 
+///
 /// This syntax can save a lot of typing and improve readability for nodes that have multiple generic parameters, it is ideal
 /// for declaring *anonymous* nodes, like those returned by functions with return type `-> impl UiNode`.
-/// 
+///
 /// ## Generics
-/// 
+///
 /// You can declare named generics in the `struct`, those are copied to the implement block, you can also have members with type
 /// `impl Trait`, a named generic is generated for these, the generated name is `T_member`. You can use named generics in the `impl`
 /// generics the same way as you would in a function.
-/// 
+///
 /// ## Impl Block
-/// 
+///
 /// The impl block cannot have any generics, they are added automatically, the `UiNode for` part is optional, like in the delegating
 /// mode, if you omit the trait you must annotate each node method with the `#[UiNode]` pseudo attribute.
-/// 
+///
 /// ## Delegation
-/// 
+///
 /// Delegation is limited to members named `child`, `children` and `children_iter`, there is no way to declare a custom delegation in *new node*
 /// mode. If no specially named member is present the `none` delegation is used.
-/// 
+///
 /// ## Subscription
-/// 
+///
 /// You can mark members with the `#[var]` or `#[event]` pseudo attributes to generate initialization code that subscribes the var or
 /// event to the [`WidgetContext::handles`]. The init code is placed in a method with signature `fn init_handles(&mut self, &mut WidgetContext)`,
 /// if you manually implement the `init` node method you must call `self.init_handles(ctx);` in it.
-/// 
+///
 /// ## Limitations
-/// 
+///
 /// The new node type must be private, you cannot set visibility modifiers. The struct cannot have any attribute set on it, but you can
-/// have attributes in members, the `#[cfg]` attribute is copied to generated generics. The `impl Trait` auto-generics only works for 
-/// the entire type of a generic, you cannot declare a type `Vec<impl Debug>` for example. 
-/// 
+/// have attributes in members, the `#[cfg]` attribute is copied to generated generics. The `impl Trait` auto-generics only works for
+/// the entire type of a generic, you cannot declare a type `Vec<impl Debug>` for example.
+///
 /// The new node syntax is designed to alleviate the boilerplate of declaring nodes that are just implementation detail of properties and widgets.
-/// 
+///
 /// [`UiNode`]: crate::UiNode
 /// [`UiNodeList`]: crate::UiNodeList
 /// [`into_iter`]: std::iter::IntoIterator::into_iter
@@ -1365,7 +1365,7 @@ pub use zero_ui_proc_macros::widget;
 /// <div style='display:none'>
 pub use zero_ui_proc_macros::widget_mixin;
 
-pub use crate_util::IdNameError;
+pub use crate_util::{context_value::*, IdNameError};
 
 mod tests;
 
