@@ -156,13 +156,12 @@ impl<T: VarValue> AnyVarValue for T {
 /// #
 /// #[property(context, allowed_in_when = false)]
 /// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl Into<bool>) -> impl UiNode {
-///     struct FooNode<C> {
-///         child: C,
+///     #[impl_ui_node(struct FooNode {
+///         child: impl UiNode,
 ///         a: bool,
 ///         b: bool,
-///     }
-/// #    #[impl_ui_node(child)]
-/// #    impl<C: UiNode> UiNode for FooNode<C> { }
+///     })]
+///     impl UiNode for FooNode { }
 ///
 ///     FooNode {
 ///         child,
@@ -708,12 +707,11 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// # use zero_ui_core::*;
 /// #[property(layout)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
-///     struct FooNode<C, V> {
-///         child: C,
-///         bar: V
-///     }
-///     #[impl_ui_node(child)]
-///     impl<C: UiNode, V: Var<u32>> UiNode for FooNode<C, V> {
+///     #[impl_ui_node(struct FooNode {
+///         child: impl UiNode,
+///         bar: impl Var<u32>,
+///     })]
+///     impl UiNode for FooNode {
 ///         fn init(&mut self, ctx: &mut WidgetContext) {
 ///             self.child.init(ctx);
 ///             println!("init: {}", self.bar.get());

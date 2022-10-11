@@ -115,37 +115,33 @@ pub mod implicit_base {
         ///
         /// [`new_child`]: super::new_child
         pub fn children_layout(panel: impl UiNode) -> impl UiNode {
-            struct ChildrenLayoutNode<P> {
-                panel: P,
+            #[impl_ui_node(struct ChildrenLayoutNode {
+                child: impl UiNode,
                 spatial_id: SpatialFrameId,
                 translation_key: FrameValueKey<PxTransform>,
-            }
-            #[impl_ui_node(
-                delegate = &self.panel,
-                delegate_mut = &mut self.panel,
-            )]
-            impl<P: UiNode> UiNode for ChildrenLayoutNode<P> {
+            })]
+            impl UiNode for ChildrenLayoutNode {
                 fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                    self.panel.measure(ctx)
+                    self.child.measure(ctx)
                 }
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl))
+                    wl.with_children(ctx, |ctx, wl| self.child.layout(ctx, wl))
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                     frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform, true), true, false, |frame| {
-                        self.panel.render(ctx, frame)
+                        self.child.render(ctx, frame)
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                     update.with_transform(self.translation_key.update(transform, true), false, |update| {
-                        self.panel.render_update(ctx, update);
+                        self.child.render_update(ctx, update);
                     });
                 }
             }
             ChildrenLayoutNode {
-                panel: panel.cfg_boxed(),
+                child: panel.cfg_boxed(),
                 spatial_id: SpatialFrameId::new_unique(),
                 translation_key: FrameValueKey::new_unique(),
             }
