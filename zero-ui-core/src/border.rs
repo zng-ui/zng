@@ -5,7 +5,7 @@ use std::{fmt, mem};
 use crate::context::{MeasureContext, RenderContext, WidgetUpdates};
 use crate::render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId};
 use crate::widget_info::WidgetBorderInfo;
-use crate::{nodes, UiNodeList, WidgetId, context_value};
+use crate::{context_value, nodes, UiNodeList, WidgetId};
 
 use crate::{
     color::*,
@@ -951,14 +951,13 @@ impl ContextBorders {
         let mut data = BORDER_DATA.get();
         data.add_inner(&ctx.widget_info.border, ctx.path.widget_id(), ctx.metrics);
 
-        BORDER_DATA
-            .with_context(&mut Some(data), || {
-                let corner_radius = ContextBorders::border_radius(ctx);
-                ctx.widget_info.border.set_corner_radius(corner_radius);
-                ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
+        BORDER_DATA.with_context(&mut Some(data), || {
+            let corner_radius = ContextBorders::border_radius(ctx);
+            ctx.widget_info.border.set_corner_radius(corner_radius);
+            ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
 
-                f(ctx)
-            })
+            f(ctx)
+        })
     }
 
     fn with_border(ctx: &mut LayoutContext, offsets: PxSideOffsets, f: impl FnOnce(&mut LayoutContext)) {

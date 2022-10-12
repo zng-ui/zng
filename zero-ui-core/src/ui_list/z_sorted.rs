@@ -2,8 +2,8 @@ use std::{fmt, ops};
 
 use crate::{
     context::StaticStateId,
-    impl_from_and_into_var, property, ui_node,
-    var::{IntoVar, Var}, context_value,
+    context_value, impl_from_and_into_var, property, ui_node,
+    var::{IntoVar, Var},
 };
 
 use super::*;

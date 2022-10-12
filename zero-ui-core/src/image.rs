@@ -483,7 +483,7 @@ impl Images {
     /// Clear cached images that are not referenced outside of the cache.
     pub fn clean_all(&mut self) {
         self.proxies.iter_mut().for_each(|p| p.clear(false));
-        todo!()
+        self.cache.retain(|_, v| v.img.strong_count() > 1);
     }
 
     /// Clear all cached images, including images that are still referenced outside of the cache.
