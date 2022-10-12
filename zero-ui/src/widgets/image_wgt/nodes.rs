@@ -132,11 +132,11 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     .cfg_boxed()
 }
 
-context_var! {
+context_value! {
     /// Used to avoid recursion in [`image_error_presenter`].
-    static IN_ERROR_VIEW_VAR: bool = false;
+    static IN_ERROR_VIEW: bool = false;
     /// Used to avoid recursion in [`image_loading_presenter`].
-    static IN_LOADING_VIEW_VAR: bool = false;
+    static IN_LOADING_VIEW: bool = false;
 }
 
 /// Presents the contextual [`IMAGE_ERROR_VIEW_VAR`] if the [`CONTEXT_IMAGE_VAR`] is an error.
@@ -163,7 +163,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if IN_ERROR_VIEW_VAR.get() {
+            if IN_ERROR_VIEW.get() {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
@@ -188,7 +188,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 DataUpdate::Same
             }
         },
-        |view| with_context_var(view, IN_ERROR_VIEW_VAR, true),
+        |view| with_context_value(view, IN_ERROR_VIEW, true),
     );
 
     stack_nodes_layout_by(nodes![view, child], 1, |constrains, _, img_size| {
@@ -224,7 +224,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if IN_LOADING_VIEW_VAR.get() {
+            if IN_LOADING_VIEW.get() {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
@@ -245,7 +245,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                 DataUpdate::Same
             }
         },
-        |view| with_context_var(view, IN_LOADING_VIEW_VAR, true),
+        |view| with_context_value(view, IN_LOADING_VIEW, true),
     );
 
     stack_nodes_layout_by(nodes![view, child], 1, |constrains, _, img_size| {

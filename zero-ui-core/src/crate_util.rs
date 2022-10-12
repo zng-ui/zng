@@ -1394,6 +1394,14 @@ pub mod context_value {
             r
         }
 
+        /// Get a clone of the current contextual value.
+        pub fn get(self) -> T
+        where
+            T: Clone,
+        {
+            self.with(Clone::clone)
+        }
+
         fn set_context(&self, val: T) -> T {
             self.local.with(|l| mem::replace(&mut *l.value.borrow_mut(), val))
         }

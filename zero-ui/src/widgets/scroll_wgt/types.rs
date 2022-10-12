@@ -1,16 +1,12 @@
-use std::{
-    cell::{Cell, RefCell},
-    fmt,
-    rc::Rc,
-    time::Duration,
-};
+use std::{cell::Cell, fmt, rc::Rc, time::Duration};
 
 use crate::core::{
     context::StaticStateId,
+    context_value,
     units::*,
     var::{animation::*, *},
     widget_info::WidgetInfo,
-    UiNode,
+    with_context_value, UiNode,
 };
 use bitflags::bitflags;
 use zero_ui_core::var::animation::ChaseAnimation;
@@ -81,7 +77,10 @@ context_var! {
     /// Latest computed content size of the parent scroll.
     pub(super) static SCROLL_CONTENT_SIZE_VAR: PxSize = PxSize::zero();
 
-    static SCROLL_CONFIG_VAR: RefCell<ScrollConfig> = RefCell::default();
+}
+
+context_value! {
+    static SCROLL_CONFIG: ScrollConfig = ScrollConfig::default();
 }
 
 #[derive(Debug, Clone, Default)]
@@ -99,7 +98,7 @@ impl ScrollContext {
     ///
     /// Scroll implementers must add this node to their context.
     pub fn config_node(child: impl UiNode) -> impl UiNode {
-        with_context_var(child, SCROLL_CONFIG_VAR, RefCell::default())
+        with_context_value(child, SCROLL_CONFIG, ScrollConfig::default())
     }
 
     /// Ratio of the scroll parent viewport height to its content.
@@ -192,24 +191,20 @@ impl ScrollContext {
             if smooth.is_disabled() {
                 let _ = SCROLL_VERTICAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                SCROLL_CONFIG_VAR.with(|config| {
-                    let mut config = config.borrow_mut();
-
-                    match &config.vertical {
-                        Some(anim) if !anim.handle.is_stopped() => {
-                            anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
-                        }
-                        _ => {
-                            let ease = smooth.easing.clone();
-                            let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(
-                                vars,
-                                new_offset,
-                                smooth.duration,
-                                move |t| ease(t),
-                                0.fct()..=1.fct(),
-                            );
-                            config.vertical = Some(anim);
-                        }
+                SCROLL_CONFIG.with_mut(|config| match &config.vertical {
+                    Some(anim) if !anim.handle.is_stopped() => {
+                        anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
+                    }
+                    _ => {
+                        let ease = smooth.easing.clone();
+                        let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(
+                            vars,
+                            new_offset,
+                            smooth.duration,
+                            move |t| ease(t),
+                            0.fct()..=1.fct(),
+                        );
+                        config.vertical = Some(anim);
                     }
                 })
             }
@@ -227,24 +222,20 @@ impl ScrollContext {
             if smooth.is_disabled() {
                 let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                SCROLL_CONFIG_VAR.with(|config| {
-                    let mut config = config.borrow_mut();
-
-                    match &config.horizontal {
-                        Some(anim) if !anim.handle.is_stopped() => {
-                            anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
-                        }
-                        _ => {
-                            let ease = smooth.easing.clone();
-                            let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(
-                                vars,
-                                new_offset,
-                                smooth.duration,
-                                move |t| ease(t),
-                                0.fct()..=1.fct(),
-                            );
-                            config.horizontal = Some(anim);
-                        }
+                SCROLL_CONFIG.with_mut(|config| match &config.horizontal {
+                    Some(anim) if !anim.handle.is_stopped() => {
+                        anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
+                    }
+                    _ => {
+                        let ease = smooth.easing.clone();
+                        let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(
+                            vars,
+                            new_offset,
+                            smooth.duration,
+                            move |t| ease(t),
+                            0.fct()..=1.fct(),
+                        );
+                        config.horizontal = Some(anim);
                     }
                 })
             }
