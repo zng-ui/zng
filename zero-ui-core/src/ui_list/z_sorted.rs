@@ -1,9 +1,9 @@
-use std::{cell::Cell, fmt, ops};
+use std::{fmt, ops};
 
 use crate::{
     context::StaticStateId,
     impl_from_and_into_var, property, ui_node,
-    var::{context_var, IntoVar, Var},
+    var::{IntoVar, Var}, context_value,
 };
 
 use super::*;
@@ -336,7 +336,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     })]
     impl UiNode for ZIndexNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            Z_INDEX_VAR.with(|z_ctx| {
+            Z_INDEX.with_mut(|z_ctx| {
                 if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
                     tracing::error!(
                         "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
@@ -349,7 +349,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
 
                     let index = self.index.get();
                     if index != ZIndex::DEFAULT {
-                        z_ctx.resort.set(true);
+                        z_ctx.resort = true;
                         ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
                     }
                 }
@@ -360,9 +360,9 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
                 if let Some(i) = self.index.get_new(ctx) {
-                    Z_INDEX_VAR.with(|z_ctx| {
+                    Z_INDEX.with_mut(|z_ctx| {
                         debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
-                        z_ctx.resort.set(true);
+                        z_ctx.resort = true;
                     });
                     ctx.widget_state.set(&Z_INDEX_ID, i);
                 }
@@ -554,18 +554,20 @@ struct ZIndexContext {
     // used in `z_index` to validate that it will have an effect.
     panel_id: Option<WidgetId>,
     // set by `z_index` to signal a z-resort is needed.
-    resort: Cell<bool>,
+    resort: bool,
 }
 impl ZIndexContext {
     fn with(panel_id: WidgetId, action: impl FnOnce()) -> bool {
         let ctx = ZIndexContext {
             panel_id: Some(panel_id),
-            resort: Cell::new(false),
+            resort: false,
         };
-        let (ctx, _) = Z_INDEX_VAR.with_context(ctx, action);
-        ctx.get().resort.get()
+        Z_INDEX.with_context(&mut Some(ctx), || {
+            action();
+            Z_INDEX.get().resort
+        })
     }
 }
-context_var! {
-    static Z_INDEX_VAR: ZIndexContext = ZIndexContext::default();
+context_value! {
+    static Z_INDEX: ZIndexContext = ZIndexContext::default();
 }

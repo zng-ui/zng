@@ -78,6 +78,7 @@ fn clip_to_bounds_demo() -> impl Widget {
             background_color = colors::GREEN.darken(40.pct());
             padding = 3;
             rotate = -(5.deg());
+            text_align = Align::CENTER;
             text = clip.map(|c| formatx!("clip_to_bounds = {c}"));
         };
     }
@@ -94,6 +95,8 @@ mod widgets {
 
         properties! {
             padding = 20;
+
+            content_align = Align::CENTER;
 
             background_color = colors::GREEN.darken(40.pct());
 

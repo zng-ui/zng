@@ -629,7 +629,8 @@ impl UiNode for InspectPropertyNode {
             });
         }
 
-        WIDGET_PARENT_VAR.with_context(WidgetInstanceParent::Property(self.meta.property_name), || {
+        let parent = WidgetInstanceParent::Property(self.meta.property_name);
+        WIDGET_PARENT.with_context(&mut Some(parent), || {
             self.child.info(ctx, info);
         });
     }
@@ -700,7 +701,7 @@ impl UiNode for InspectWidgetNode {
                 properties: vec![],
                 whens: self.whens.clone(),
                 constructors: vec![],
-                parent_name: WIDGET_PARENT_VAR.get(),
+                parent_name: WIDGET_PARENT.get(),
             },
         );
         self.child.info(ctx, info);
@@ -773,7 +774,8 @@ impl UiNode for InspectConstructorNode {
             });
         }
 
-        WIDGET_PARENT_VAR.with_context(WidgetInstanceParent::Constructor(self.fn_name), || {
+        let parent = WidgetInstanceParent::Constructor(self.fn_name);
+        WIDGET_PARENT.with_context(&mut Some(parent), || {
             self.child.info(ctx, info);
         });
     }
@@ -809,8 +811,8 @@ impl UiNode for InspectConstructorNode {
     }
 }
 
-context_var! {
-    static WIDGET_PARENT_VAR: WidgetInstanceParent = WidgetInstanceParent::Root;
+context_value! {
+    static WIDGET_PARENT: WidgetInstanceParent = WidgetInstanceParent::Root;
 }
 
 /// Remove the constructor function info node from the `child`.
