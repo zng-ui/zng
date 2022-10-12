@@ -23,7 +23,7 @@ pub struct ResolvedText {
     pub reshape: bool,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
-    baseline: Cell<Px>,
+    baseline: Px,
 }
 impl ResolvedText {
     /// If any [`ResolvedText`] is set in the current context.
@@ -31,14 +31,14 @@ impl ResolvedText {
     /// This is `true` for any property with priority `event` or up set in a `text!` widget or
     /// any widget that uses the [`resolve_text`] node.
     pub fn is_some() -> bool {
-        RESOLVED_TEXT_VAR.with(Option::is_some)
+        RESOLVED_TEXT.with(Option::is_some)
     }
 
     /// Calls `f` if [`is_some`], returns the result of `f`.
     ///
     /// [`is_some`]: Self::is_some
     pub fn with<R>(f: impl FnOnce(&Self) -> R) -> Option<R> {
-        RESOLVED_TEXT_VAR.with(|opt| opt.as_ref().map(f))
+        RESOLVED_TEXT.with(|opt| opt.as_ref().map(f))
     }
 }
 
@@ -92,22 +92,22 @@ impl LayoutText {
     /// This is `true` only during layout & render, in properties with priority `border` or `fill` set in a `text!` widget or
     /// any widget that uses the [`layout_text`] node.
     pub fn is_some() -> bool {
-        LAYOUT_TEXT_VAR.with(Option::is_some)
+        LAYOUT_TEXT.with(Option::is_some)
     }
 
     /// Calls `f` if [`is_some`], returns the result of `f`.
     ///
     /// [`is_some`]: Self::is_some
     pub fn with<R>(f: impl FnOnce(&Self) -> R) -> Option<R> {
-        LAYOUT_TEXT_VAR.with(|opt| opt.as_ref().map(f))
+        LAYOUT_TEXT.with(|opt| opt.as_ref().map(f))
     }
 }
 
-context_var! {
+context_value! {
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
-    static RESOLVED_TEXT_VAR: Option<ResolvedText> = None;
+    static RESOLVED_TEXT: Option<ResolvedText> = None;
     /// Represents the contextual [`LayoutText`] setup by the [`layout_text`] node.
-    static LAYOUT_TEXT_VAR: Option<LayoutText> = None;
+    static LAYOUT_TEXT: Option<LayoutText> = None;
 }
 
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
@@ -125,14 +125,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     }
     impl<C: UiNode, T> ResolveTextNode<C, T> {
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
-            let (resolved, r) = RESOLVED_TEXT_VAR.with_context(self.resolved.get_mut().take(), || f(&mut self.child));
-            *self.resolved.get_mut() = resolved.into_value();
-            r
+            RESOLVED_TEXT.with_context_opt(self.resolved.get_mut(), || f(&mut self.child))
         }
         fn with<R>(&self, f: impl FnOnce(&C) -> R) -> R {
-            let (resolved, r) = RESOLVED_TEXT_VAR.with_context(self.resolved.borrow_mut().take(), || f(&self.child));
-            *self.resolved.borrow_mut() = resolved.into_value();
-            r
+            RESOLVED_TEXT.with_context_opt(&mut *self.resolved.borrow_mut(), || f(&self.child))
         }
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
@@ -186,7 +182,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 faces,
                 text: SegmentedText::new(text),
                 reshape: false,
-                baseline: Cell::new(Px(0)),
+                baseline: Px(0),
             });
 
             if TEXT_EDITABLE_VAR.get() {
@@ -358,7 +354,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             ctx.constrains().fill_or_exact()
         }
 
-        fn layout(&mut self, metrics: &LayoutMetrics, t: &ResolvedText, pending: &mut Layout) -> PxSize {
+        fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, pending: &mut Layout) -> PxSize {
             if t.reshape {
                 pending.insert(Layout::RESHAPE);
             }
@@ -498,7 +494,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
 
                 let baseline = r.shaped_text.box_baseline() + padding.bottom;
-                t.baseline.set(baseline);
+                t.baseline = baseline;
             }
             if pending.contains(Layout::OVERLINE) {
                 if r.overline_thickness > Px(0) {
@@ -562,15 +558,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     })]
     impl LayoutTextNode {
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut T_child) -> R) -> R {
-            let txt = self.txt.get_mut();
-            let (layout, r) = LAYOUT_TEXT_VAR.with_context(txt.layout.take(), || f(&mut self.child));
-            txt.layout = layout.into_value();
-            r
+            LAYOUT_TEXT.with_context_opt(&mut self.txt.get_mut().layout, || f(&mut self.child))
         }
         fn with(&self, f: impl FnOnce(&T_child)) {
-            let mut txt = self.txt.borrow_mut();
-            let (layout, ()) = LAYOUT_TEXT_VAR.with_context(txt.layout.take(), || f(&self.child));
-            txt.layout = layout.into_value();
+            LAYOUT_TEXT.with_context_opt(&mut self.txt.borrow_mut().layout, || f(&self.child))
         }
 
         #[UiNode]
@@ -629,35 +620,37 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if let Some(size) = txt.measure(ctx) {
                 size
             } else {
-                ResolvedText::with(|t| {
-                    let mut pending = self.pending;
-                    txt.layout(ctx.metrics, t, &mut pending)
-                })
-                .expect("expected `ResolvedText` in `measure`")
+                RESOLVED_TEXT
+                    .with_mut_opt(|t| {
+                        let mut pending = self.pending;
+                        txt.layout(ctx.metrics, t, &mut pending)
+                    })
+                    .expect("expected `ResolvedText` in `measure`")
             }
         }
         #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            ResolvedText::with(|t| {
-                let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending);
+            RESOLVED_TEXT
+                .with_mut_opt(|t| {
+                    let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending);
 
-                if self.pending != Layout::empty() {
-                    ctx.updates.render();
-                    self.pending = Layout::empty();
-                }
+                    if self.pending != Layout::empty() {
+                        ctx.updates.render();
+                        self.pending = Layout::empty();
+                    }
 
-                wl.set_baseline(t.baseline.get());
+                    wl.set_baseline(t.baseline);
 
-                ctx.with_constrains(
-                    |_| PxConstrains2d::new_fill_size(size),
-                    |ctx| {
-                        self.with_mut(|c| c.layout(ctx, wl));
-                    },
-                );
+                    ctx.with_constrains(
+                        |_| PxConstrains2d::new_fill_size(size),
+                        |ctx| {
+                            self.with_mut(|c| c.layout(ctx, wl));
+                        },
+                    );
 
-                size
-            })
-            .expect("expected `ResolvedText` in `layout`")
+                    size
+                })
+                .expect("expected `ResolvedText` in `layout`")
         }
 
         #[UiNode]

@@ -1362,6 +1362,23 @@ pub mod context_value {
         local: &'static LocalKey<ContextValueData<T>>,
     }
 
+    #[doc(hidden)]
+    pub mod option {
+        pub trait Option<T> {
+            fn get(&self) -> &std::option::Option<T>;
+            fn get_mut(&mut self) -> &mut std::option::Option<T>;
+        }
+
+        impl<T> Option<T> for std::option::Option<T> {
+            fn get(&self) -> &std::option::Option<T> {
+                self
+            }
+            fn get_mut(&mut self) -> &mut std::option::Option<T> {
+                self
+            }
+        }
+    }
+
     impl<T: Any> ContextValue<T> {
         #[doc(hidden)]
         pub const fn new(local: &'static LocalKey<ContextValueData<T>>) -> Self {
@@ -1375,6 +1392,16 @@ pub mod context_value {
             self.local.with(|l| f(&*l.value.borrow()))
         }
 
+        /// Like [`with`] but only calls `f` if the value is `Some(I)`.
+        ///
+        /// [`with`]: Self::with
+        pub fn with_opt<I: Any, R>(self, f: impl FnOnce(&I) -> R) -> Option<R>
+        where
+            T: option::Option<I>,
+        {
+            self.with(|opt| opt.get().as_ref().map(f))
+        }
+
         /// Calls `f` with exclusive access to the contextual value.
         ///
         /// Returns the result of `f`.
@@ -1382,15 +1409,36 @@ pub mod context_value {
             self.local.with(|l| f(&mut *l.value.borrow_mut()))
         }
 
+        /// Like [`with_mut`] but only calls `f` if the value is `Some(I)`.
+        ///
+        /// [`with_mut`]: Self::with_mut
+        pub fn with_mut_opt<I: Any, R>(self, f: impl FnOnce(&mut I) -> R) -> Option<R>
+        where
+            T: option::Option<I>,
+        {
+            self.with_mut(|opt| opt.get_mut().as_mut().map(f))
+        }
+
         /// Runs `action` while the `value` is moved into context, restores the `value` if `action` does not panic.
         ///
-        /// Returns the result of `action`.
+        /// Returns the result of `action`, panics if `value` is `None`.
         pub fn with_context<R>(self, value: &mut Option<T>, action: impl FnOnce() -> R) -> R {
-            let val = value.take().expect("no contextual value to load");
-            let prev = self.set_context(val);
+            let prev = self.set_context(value.take().expect("no contextual value to load"));
             let r = action();
-            let val = self.set_context(prev);
-            *value = Some(val);
+            *value = Some(self.set_context(prev));
+            r
+        }
+
+        /// Like [`with_context`], but for context values that are `T: Option<I>`.
+        ///
+        /// [`with_context`]: Self::with_context
+        pub fn with_context_opt<I: Any, R>(self, value: &mut Option<I>, action: impl FnOnce() -> R) -> R
+        where
+            T: option::Option<I>,
+        {
+            let prev = self.set_context_opt(value.take());
+            let r = action();
+            *value = self.set_context_opt(prev);
             r
         }
 
@@ -1404,6 +1452,13 @@ pub mod context_value {
 
         fn set_context(&self, val: T) -> T {
             self.local.with(|l| mem::replace(&mut *l.value.borrow_mut(), val))
+        }
+
+        fn set_context_opt<I>(&self, val: Option<I>) -> Option<I>
+        where
+            T: option::Option<I>,
+        {
+            self.local.with(|l| mem::replace(l.value.borrow_mut().get_mut(), val))
         }
     }
 
