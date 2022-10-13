@@ -16,7 +16,9 @@
 * Don't be afraid to use some dyn runtime processing to form a widget, we have not seen a 
   performance impact of the fully dynamic styled widgets.
 
-## Property Requirements
+## Property
+
+Requirements:
 
 * Control its own priority "position" in a widget.
 * Have default values.
@@ -28,19 +30,9 @@
 * Accept explicit generic params `T`.
     - The toggle `value<u8> = 10u8` is a firm requirement, can't avoid this.
 * Have extra inspector info.
+* Allow strongly typed read in `when #expr` for var and value.
 
-## Widget Requirements
-
-* Insert custom nodes at each priority level.
-* Collect custom nodes in a dynamic list for styling.
-    - We could make all widgets "dynamic/stylable" by default.
-    - Then widget creation can be some sort of `WidgetBuilder` instance creation.
-* Finetune priority of a property within its own priority group.
-* Declare capture-only "properties", that are redirected to the custom nodes.
-
-## New Property
-
-Limitations:
+Ok Limitations:
 
 * All previous limitations, (no async, unsafe, const).
 * Input bindings can only be `ident: impl T`.
@@ -51,11 +43,20 @@ Limitations:
 * Return type also can only be `impl UiNode`.
 * Explicit generic types can only be `ident: VarValue`.
 * No attributes allowed in input/output or generic params.
-* No retention of actual types to the extreme we have today, values are actualized (and vars boxed) early.
+* No retention of full types to the extreme we have today, values are actualized (and vars boxed) early.
     - Property args type is dyn safe.
 
 These changes lets us simplify the macro a a lot (no more associated type transform), and clamps on the type explosion at the
 moment of instantiation, (no more cfg(dyn_))
+
+## Widget Requirements
+
+* Insert custom nodes at each priority level.
+* Collect custom nodes in a dynamic list for styling.
+    - We could make all widgets "dynamic/stylable" by default.
+    - Then widget creation can be some sort of `WidgetBuilder` instance creation.
+* Finetune priority of a property within its own priority group.
+* Declare capture-only "properties", that are redirected to the custom nodes.
 
 
 Widget expands too:

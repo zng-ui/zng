@@ -3,20 +3,22 @@
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    rc::Rc,
+    rc::Rc, mem,
 };
+
+use linear_map::LinearMap;
 
 use crate::{
     handler::WidgetHandler,
     inspector::SourceLocation,
-    var::{AnyVar, AnyVarValue, StateVar},
-    BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetList,
+    var::{AnyVar, AnyVarValue, BoxedVar, IntoVar, StateVar, Var, VarValue},
+    AdoptiveNode, BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetList, NilUiNode,
 };
 
 /// Property priority in a widget.
 ///
 /// See [the property doc](crate::property#priority) for more details.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Priority {
     /// [Context](crate::property#context) property.
     Context,
@@ -75,7 +77,7 @@ impl InputTakeout {
     where
         A: Clone + 'static,
     {
-        todo!("AnyBoxed version")
+        Self::new(Box::new(handler.boxed()))
     }
 
     /// New from `impl UiNodeList` input.
@@ -113,7 +115,12 @@ impl InputTakeout {
         self.take()
     }
 
-    // UiNodeList, WidgetHandler, etc. don't have a boxed version.
+    /// Takes the value for an `impl WidgetHandler<A>` input.
+    pub fn take_widget_handler<A: Clone + 'static>(&self) -> Box<dyn WidgetHandler<A>> {
+        self.take()
+    }
+
+    // UiNodeList, WidgetList, don't have a boxed version.
 }
 
 /// Property info.
@@ -123,7 +130,7 @@ pub struct Info {
     pub priority: Priority,
 
     /// Unique type ID that identifies the property.
-    pub type_id: fn() -> TypeId,
+    pub id: fn() -> TypeId,
     /// Property original name.
     pub name: &'static str,
 
@@ -195,14 +202,269 @@ pub fn panic_input(info: &Info, i: usize, kind: InputKind) -> ! {
     }
 }
 
+#[doc(hidden)]
+pub fn read_var<T: VarValue>(args: &dyn Args, i: usize) -> BoxedVar<T> {
+    args.var(i)
+        .as_any()
+        .downcast_ref::<BoxedVar<T>>()
+        .expect("expected different arg type")
+        .clone()
+}
+
+#[doc(hidden)]
+pub fn read_value<T: VarValue>(args: &dyn Args, i: usize) -> BoxedVar<T> {
+    args.value(i)
+        .as_any()
+        .downcast_ref::<T>()
+        .expect("expected diffent arg type")
+        .clone()
+        .into_var()
+        .boxed()
+}
+
+/*
+
+ WIDGET
+
+*/
+
+enum WidgetItem {
+    Instrinsic(AdoptiveNode<BoxedUiNode>),
+    Property {
+        id: (&'static str, TypeId),
+        importance: Importance,
+        args: Box<dyn Args>,
+    },
+}
+
+/// Value that indicates the override importance of a property instance, higher overrides lower.
+pub type Importance = usize;
+
+/// Widget instance builder.
+#[derive(Default)]
+pub struct WidgetBuilder {
+    child: Option<BoxedUiNode>,
+    items: Vec<(Priority, WidgetItem)>,
+    unset: LinearMap<(&'static str, TypeId), Importance>,
+}
+impl WidgetBuilder {
+    /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
+    pub fn insert_intrinsic(&mut self, priority: Priority, node: AdoptiveNode<BoxedUiNode>) {
+        self.items.push((priority, WidgetItem::Instrinsic(node)));
+    }
+
+    /// Insert/override a property.
+    pub fn insert_property(&mut self, name: &'static str, importance: Importance, args: Box<dyn Args>) {
+        let info = args.property();
+        let property_id = (name, (info.id)());
+        if let Some(i) = self.property_position(&property_id) {
+            match &self.items[i].1 {
+                WidgetItem::Property { importance: imp, .. } => {
+                    if *imp <= importance {
+                        self.items[i] = (
+                            info.priority,
+                            WidgetItem::Property {
+                                id: property_id,
+                                importance,
+                                args,
+                            },
+                        )
+                    }
+                    // else already overridden
+                }
+                WidgetItem::Instrinsic(_) => unreachable!(),
+            }
+        } else {
+            if let Some(imp) = self.unset.get(&property_id) {
+                if *imp >= importance {
+                    return; // unset overrides.
+                }
+            }
+            self.items.push((
+                info.priority,
+                WidgetItem::Property {
+                    id: property_id,
+                    importance,
+                    args,
+                },
+            ))
+        }
+    }
+
+    fn property_position(&self, property_id: &(&'static str, TypeId)) -> Option<usize> {
+        self.items.iter().position(|(_, item)| match item {
+            WidgetItem::Property { id, .. } => id == property_id,
+            WidgetItem::Instrinsic(_) => false,
+        })
+    }
+
+    /// Insert a `name = unset!;` property.
+    pub fn insert_unset(&mut self, property_id: (&'static str, TypeId), importance: Importance) {
+        match self.unset.entry(property_id) {
+            linear_map::Entry::Occupied(mut e) => {
+                let i = e.get_mut();
+                *i = (*i).max(importance);
+            }
+            linear_map::Entry::Vacant(e) => {
+                let mut rmv = None;
+                for (i, (_, item)) in self.items.iter().enumerate() {
+                    match item {
+                        WidgetItem::Property { id, importance: imp, .. } => {
+                            if id == &property_id {
+                                if *imp <= importance {
+                                    rmv = Some(i);
+                                    break;
+                                } else {
+                                    return;
+                                }
+                            }
+                        }
+                        WidgetItem::Instrinsic(_) => {}
+                    }
+                }
+
+                e.insert(importance);
+                if let Some(i) = rmv {
+                    self.items.remove(i);
+                }
+            }
+        }
+    }
+
+    /// Remove the property that matches the `property_id!(..)`.
+    pub fn remove_property(&mut self, property_id: &(&'static str, TypeId)) -> Option<(Importance, Box<dyn Args>)> {
+        if let Some(i) = self.property_position(property_id) {
+            match self.items.remove(i).1 {
+                // can't be swap remove for ordering of equal priority.
+                WidgetItem::Property { importance, args, .. } => Some((importance, args)),
+                WidgetItem::Instrinsic(_) => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
+    /// If a child not is already set in the builder.
+    ///
+    /// If build without child the [`NilUiNode`] is used as the innermost node.
+    pub fn has_child(&self) -> bool {
+        self.child.is_some()
+    }
+
+    /// Set/replace the inner most node of the widget.
+    pub fn set_child(&mut self, node: BoxedUiNode) -> Option<BoxedUiNode> {
+        self.child.replace(node)
+    }
+
+    fn sort_items(&mut self) {
+        self.items.sort_by(|(a_pri, a_item), (b_pri, b_item)| match a_pri.cmp(b_pri) {
+            std::cmp::Ordering::Equal => match (a_item, b_item) {
+                // INSTANCE importance is innermost of DEFAULT.
+                (WidgetItem::Property { importance: a_imp, .. }, WidgetItem::Property { importance: b_imp, .. }) => a_imp.cmp(b_imp),
+                // Intrinsic is outermost of priority items.
+                (WidgetItem::Property { .. }, WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Greater,
+                (WidgetItem::Instrinsic(_), WidgetItem::Property { .. }) => std::cmp::Ordering::Less,
+                (WidgetItem::Instrinsic(_), WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Equal,
+            },
+            ord => ord,
+        });
+    }
+
+    /// Instantiate and link all property and intrinsic nodes, returns the outermost node.
+    pub fn build(mut self) -> BoxedUiNode {
+        self.sort_items();
+
+        let mut child = self.child.unwrap_or_else(|| NilUiNode.boxed());
+
+        for (_, item) in self.items {
+            match item {
+                WidgetItem::Instrinsic(node) => {
+                    let (c, n) = node.into_parts();
+                    *c.borrow_mut() = mem::replace(&mut child, n);
+                },
+                WidgetItem::Property { args, .. } => {
+                    child = args.instantiate(child);
+                },
+            }
+        }
+
+        child
+    }
+
+    /// Build to a node type that can still be modified to an extent.
+    pub fn build_dyn(mut self) -> DynUiNode {
+        self.sort_items();
+
+        todo!()
+    }
+}
+
+struct DynUiNodeItem {
+    child: Rc<RefCell<BoxedUiNode>>,
+    node: Rc<RefCell<BoxedUiNode>>,
+    when: Option<()>,
+}
+
+/// Represents a built [`WidgetBuilder`] node that can still be modified to an extent when deinited.
+pub struct DynUiNode {
+    is_inited: bool,
+    is_linked: bool,
+}
+impl DynUiNode {
+    /// If the node is inited in a context, if `true` the node cannot be restored into a builder.
+    pub fn is_inited(&self) -> bool {
+        self.is_inited
+    }
+
+    fn delink(&mut self) {
+        assert!(!self.is_inited);
+        
+        if !mem::take(&mut self.is_linked) {
+            return;
+        }
+    }
+
+    fn link(&mut self) {
+        assert!(!self.is_inited);
+
+        if mem::replace(&mut self.is_linked, true) {
+            return;
+        }
+
+        todo!()
+    }
+
+    /// Take a snapshot that can be used to restore the node to a pre-injection state.
+    pub fn snapshot(&self) -> DynUiNodeSnapshot{
+        assert!(!self.is_inited);
+        todo!()
+    }
+
+    /// Restore the node properties.
+    pub fn restore(&mut self, snapshot: DynUiNodeSnapshot) {
+        self.delink();
+        todo!()
+    }
+
+    /// Insert/override nodes from `other` onto `self`.
+    /// 
+    /// Intrinsic nodes are moved in, property nodes of the same name, id and >= importance replace self, when conditions and assigns
+    /// are rebuild.
+    pub fn inject(&mut self, other: DynUiNode) {
+        self.delink();
+        todo!()
+    }
+}
+
+pub struct DynUiNodeSnapshot {
+
+}
+
 #[cfg(test)]
-mod tests {
+mod expanded {
     use std::any::type_name;
 
-    use crate::{
-        source_location,
-        var::{var, BoxedVar, IntoVar, Var, VarValue},
-    };
+    use crate::source_location;
 
     use super::*;
 
@@ -227,15 +489,23 @@ mod tests {
         }
 
         pub fn __default__() -> Box<dyn Args> {
-            Self::__new__(var(true), None)
+            Self::__new__(true, None)
         }
 
+        // used in named init and when assign.
         pub fn boo(boo: impl IntoVar<bool>) -> BoxedVar<bool> {
             boo.into_var().boxed()
         }
-
         pub fn too(too: impl IntoVar<Option<T>>) -> BoxedVar<Option<T>> {
             too.into_var().boxed()
+        }
+
+        // used in when expressions.
+        pub fn __boo_var__(args: &dyn Args) -> BoxedVar<bool> {
+            read_var(args, 0)
+        }
+        pub fn __too_var__(args: &dyn Args) -> BoxedVar<T> {
+            read_var(args, 1)
         }
     }
     impl<T: VarValue> Args for boo_Args<T> {
@@ -243,7 +513,7 @@ mod tests {
             Info {
                 name: "boo",
                 priority: Priority::Context,
-                type_id: TypeId::of::<Self>,
+                id: TypeId::of::<Self>,
                 location: source_location!(),
                 default: Some(Self::__default__),
                 inputs: Box::new([
@@ -290,12 +560,35 @@ mod tests {
             // ignore
         };
 
+        // explicit generics
+        (if generics {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if !generics {
+            $($tt:tt)*
+        }) => {
+            // ignore
+        };
+
         (if input(boo) {
             $($tt:tt)*
         }) => {
             $($tt)*
         };
         (if !input(boo) {
+            $($tt:tt)*
+        }) => {
+            // ignore
+        };
+
+        (if input(too) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if !input(too) {
             $($tt:tt)*
         }) => {
             // ignore
@@ -312,8 +605,56 @@ mod tests {
             $($tt:tt)*
         };
 
+        // used in when build.
         (input_index(boo)) => {
             0
+        };
+        (input_index(too)) => {
+            0
+        };
+
+        // can be got as var.
+        (if get_var(boo) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if !get_var(boo) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if get_var(too) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if !get_var(too) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+
+        // can be assigned with var.
+        (if set_var(boo) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if !set_var(boo) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if set_var(too) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
+        };
+        (if !set_var(too) {
+            $($tt:tt)*
+        }) => {
+            $($tt)*
         };
 
         // sorted named input

@@ -10,6 +10,7 @@
 //! macros also build on top of the primitive macros [`clone_move!`], [`async_clone_move_fn!`] and [`async_clone_move_fn_once!`] to
 //! provide a very easy way to *clone-move* captured variables into the handler.
 
+use std::any::Any;
 use std::future::Future;
 use std::time::{Duration, Instant};
 use std::{mem, thread};
@@ -57,7 +58,7 @@ pub mod marker {
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`hn!`], [`hn_once!`] or [`async_hn!`], [`async_hn_once!`] to start.
-pub trait WidgetHandler<A: Clone + 'static>: 'static {
+pub trait WidgetHandler<A: Clone + 'static>: Any {
     /// Called every time the handler's event happens in the widget context.
     ///
     /// Returns `true` when the event handler is async and it has not finished handing the event, if this
@@ -637,7 +638,7 @@ pub struct AppHandlerArgs<'a> {
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`app_hn!`], [`app_hn_once!`] or [`async_app_hn!`], [`async_app_hn_once!`] to start.
-pub trait AppHandler<A: Clone + 'static>: 'static {
+pub trait AppHandler<A: Clone + 'static>: Any {
     /// Called every time the event happens.
     ///
     /// The `handler_args` can be used to unsubscribe the handler. Async handlers are expected to schedule

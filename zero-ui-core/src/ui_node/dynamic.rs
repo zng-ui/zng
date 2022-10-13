@@ -59,6 +59,15 @@ impl<U: UiNode> AdoptiveNode<U> {
         assert!(!self.is_inited);
         (self.child, self.node)
     }
+
+    /// From parts, assumes not inited.
+    pub fn from_parts(child: Rc<RefCell<BoxedUiNode>>, node: U) -> Self {
+        Self {
+            child,
+            node,
+            is_inited: false,
+        }
+    }
 }
 #[ui_node(
     delegate = &self.node,
