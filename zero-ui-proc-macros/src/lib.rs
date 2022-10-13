@@ -19,6 +19,7 @@ mod static_list;
 mod when_var;
 
 pub(crate) mod property;
+mod property2;
 mod ui_node;
 
 mod widget_0_attr;

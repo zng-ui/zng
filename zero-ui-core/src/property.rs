@@ -12,7 +12,7 @@ use crate::{
     handler::WidgetHandler,
     inspector::SourceLocation,
     var::{AnyVar, AnyVarValue, BoxedVar, IntoVar, StateVar, Var, VarValue},
-    AdoptiveNode, BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetList, NilUiNode,
+    AdoptiveNode, BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetList, NilUiNode, impl_from_and_into_var,
 };
 
 /// Property priority in a widget.
@@ -124,13 +124,13 @@ impl InputTakeout {
 }
 
 /// Property info.
-#[derive(Debug)]
-pub struct Info {
+#[derive(Debug, Clone)]
+pub struct PropertyInfo {
     /// Property insert order.
     pub priority: Priority,
 
     /// Unique type ID that identifies the property.
-    pub id: fn() -> TypeId,
+    pub unique_id: TypeId,
     /// Property original name.
     pub name: &'static str,
 
@@ -138,29 +138,52 @@ pub struct Info {
     pub location: SourceLocation,
 
     /// Function that constructs the default args for the property.
-    pub default: Option<fn() -> Box<dyn Args>>,
+    pub default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
 
     /// Property inputs info, always at least one.
-    pub inputs: Box<[Input]>,
+    pub inputs: Box<[PropertyInput]>,
+}
+
+/// Property instance info.
+#[derive(Debug, Clone)]
+pub struct PropertyInstInfo {
+    /// Property name in this instance.
+    /// 
+    /// This can be different from [`PropertyInfo::name`] if the property was renamed by the widget.
+    pub name: &'static str,
+
+    /// Property instantiation location.
+    pub location: SourceLocation,
 }
 
 /// Property input info.
-#[derive(Debug)]
-pub struct Input {
+#[derive(Debug, Clone)]
+pub struct PropertyInput {
     /// Input name.
     pub name: &'static str,
     /// Input kind.
     pub kind: InputKind,
     /// Type as defined by kind.
-    pub ty: fn() -> TypeId,
+    pub ty: TypeId,
     /// Type name.
-    pub ty_name: fn() -> &'static str,
+    pub ty_name: &'static str,
 }
 
-/// Represents a property builder with input values.
-pub trait Args {
+/// Represents a property instantiation request.
+pub trait PropertyArgs {
     /// Property info.
-    fn property(&self) -> Info;
+    fn property(&self) -> PropertyInfo;
+
+    /// Instance info.
+    fn instance(&self) -> PropertyInstInfo;
+
+    /// Unique ID.
+    fn id(&self) -> PropertyId {
+        PropertyId {
+            unique_id: self.property().unique_id,
+            name: self.instance().name,
+        }
+    }
 
     /// Gets a [`InputKind::Value`].
     fn value(&self, i: usize) -> &dyn AnyVarValue {
@@ -189,7 +212,7 @@ pub trait Args {
 }
 
 #[doc(hidden)]
-pub fn panic_input(info: &Info, i: usize, kind: InputKind) -> ! {
+pub fn panic_input(info: &PropertyInfo, i: usize, kind: InputKind) -> ! {
     if i > info.inputs.len() {
         panic!("index out of bounds, the input len is {}, but the index is {i}", info.inputs.len())
     } else if info.inputs[i].kind != kind {
@@ -203,7 +226,7 @@ pub fn panic_input(info: &Info, i: usize, kind: InputKind) -> ! {
 }
 
 #[doc(hidden)]
-pub fn read_var<T: VarValue>(args: &dyn Args, i: usize) -> BoxedVar<T> {
+pub fn read_var<T: VarValue>(args: &dyn PropertyArgs, i: usize) -> BoxedVar<T> {
     args.var(i)
         .as_any()
         .downcast_ref::<BoxedVar<T>>()
@@ -212,7 +235,7 @@ pub fn read_var<T: VarValue>(args: &dyn Args, i: usize) -> BoxedVar<T> {
 }
 
 #[doc(hidden)]
-pub fn read_value<T: VarValue>(args: &dyn Args, i: usize) -> BoxedVar<T> {
+pub fn read_value<T: VarValue>(args: &dyn PropertyArgs, i: usize) -> BoxedVar<T> {
     args.value(i)
         .as_any()
         .downcast_ref::<T>()
@@ -231,14 +254,29 @@ pub fn read_value<T: VarValue>(args: &dyn Args, i: usize) -> BoxedVar<T> {
 enum WidgetItem {
     Instrinsic(AdoptiveNode<BoxedUiNode>),
     Property {
-        id: (&'static str, TypeId),
         importance: Importance,
-        args: Box<dyn Args>,
+        args: Box<dyn PropertyArgs>,
     },
 }
 
 /// Value that indicates the override importance of a property instance, higher overrides lower.
-pub type Importance = usize;
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+pub struct Importance(pub usize);
+impl_from_and_into_var! {
+    fn from(imp: usize) -> Importance {
+        Importance(imp)
+    }
+}
+
+/// Unique identifier of a property, properties with the same id override each other in a widget and are joined
+/// into a single instance is assigned in when blocks.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PropertyId {
+    /// The [`PropertyInfo::unique_id`].
+    pub unique_id: TypeId,
+    /// The [`PropertyInstInfo::name`].
+    pub name: &'static str,
+}
 
 /// Input var read in a `when` condition expression.
 pub struct WhenInput {
@@ -267,7 +305,7 @@ pub struct When {
 
     /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
     /// from other when blocks into a single property instance set to `when_var!` inputs.
-    pub assigns: Box<[Box<dyn Args>]>,
+    pub assigns: Box<[Box<dyn PropertyArgs>]>,
 }
 
 /// Widget instance builder.
@@ -275,7 +313,7 @@ pub struct When {
 pub struct WidgetBuilder {
     child: Option<BoxedUiNode>,
     items: Vec<(Priority, WidgetItem)>,
-    unset: LinearMap<(&'static str, TypeId), Importance>,
+    unset: LinearMap<PropertyId, Importance>,
     whens: Vec<(Importance, When)>,
 }
 impl WidgetBuilder {
@@ -285,17 +323,16 @@ impl WidgetBuilder {
     }
 
     /// Insert/override a property.
-    pub fn insert_property(&mut self, name: &'static str, importance: Importance, args: Box<dyn Args>) {
+    pub fn insert_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
+        let property_id = args.id();
         let info = args.property();
-        let property_id = (name, (info.id)());
-        if let Some(i) = self.property_position(&property_id) {
+        if let Some(i) = self.property_position(property_id) {
             match &self.items[i].1 {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
                         self.items[i] = (
                             info.priority,
                             WidgetItem::Property {
-                                id: property_id,
                                 importance,
                                 args,
                             },
@@ -314,7 +351,6 @@ impl WidgetBuilder {
             self.items.push((
                 info.priority,
                 WidgetItem::Property {
-                    id: property_id,
                     importance,
                     args,
                 },
@@ -322,15 +358,15 @@ impl WidgetBuilder {
         }
     }
 
-    fn property_position(&self, property_id: &(&'static str, TypeId)) -> Option<usize> {
+    fn property_position(&self, property_id: PropertyId) -> Option<usize> {
         self.items.iter().position(|(_, item)| match item {
-            WidgetItem::Property { id, .. } => id == property_id,
+            WidgetItem::Property { args, .. } => args.id() == property_id,
             WidgetItem::Instrinsic(_) => false,
         })
     }
 
     /// Insert a `name = unset!;` property.
-    pub fn insert_unset(&mut self, property_id: (&'static str, TypeId), importance: Importance) {
+    pub fn insert_unset(&mut self, importance: Importance, property_id: PropertyId) {
         match self.unset.entry(property_id) {
             linear_map::Entry::Occupied(mut e) => {
                 let i = e.get_mut();
@@ -340,8 +376,8 @@ impl WidgetBuilder {
                 let mut rmv = None;
                 for (i, (_, item)) in self.items.iter().enumerate() {
                     match item {
-                        WidgetItem::Property { id, importance: imp, .. } => {
-                            if id == &property_id {
+                        WidgetItem::Property { importance: imp, args, .. } => {
+                            if args.id() == property_id {
                                 if *imp <= importance {
                                     rmv = Some(i);
                                     break;
@@ -363,7 +399,7 @@ impl WidgetBuilder {
     }
 
     /// Remove the property that matches the `property_id!(..)`.
-    pub fn remove_property(&mut self, property_id: &(&'static str, TypeId)) -> Option<(Importance, Box<dyn Args>)> {
+    pub fn remove_property(&mut self, property_id: PropertyId) -> Option<(Importance, Box<dyn PropertyArgs>)> {
         if let Some(i) = self.property_position(property_id) {
             match self.items.remove(i).1 {
                 // can't be swap remove for ordering of equal priority.
@@ -519,19 +555,21 @@ mod expanded {
     #[doc(hidden)]
     #[allow(non_camel_case_types)]
     pub struct boo_Args<T: VarValue> {
+        __instance__: PropertyInstInfo,
         boo: BoxedVar<bool>,
         too: BoxedVar<Option<T>>,
     }
     impl<T: VarValue> boo_Args<T> {
-        pub fn __new__(boo: impl IntoVar<bool>, too: impl IntoVar<Option<T>>) -> Box<dyn Args> {
+        pub fn __new__(__instance__: PropertyInstInfo, boo: impl IntoVar<bool>, too: impl IntoVar<Option<T>>) -> Box<dyn PropertyArgs> {
             Box::new(Self {
+                __instance__,
                 boo: Self::boo(boo),
                 too: Self::too(too),
             })
         }
 
-        pub fn __default__() -> Box<dyn Args> {
-            Self::__new__(true, None)
+        pub fn __default__(__instance__: PropertyInstInfo) -> Box<dyn PropertyArgs> {
+            Self::__new__(__instance__, true, None)
         }
 
         // used in named init and when assign.
@@ -543,36 +581,40 @@ mod expanded {
         }
 
         // used in when expressions.
-        pub fn __boo_var__(args: &dyn Args) -> BoxedVar<bool> {
+        pub fn __boo_var__(args: &dyn PropertyArgs) -> BoxedVar<bool> {
             read_var(args, 0)
         }
-        pub fn __too_var__(args: &dyn Args) -> BoxedVar<T> {
+        pub fn __too_var__(args: &dyn PropertyArgs) -> BoxedVar<T> {
             read_var(args, 1)
         }
     }
-    impl<T: VarValue> Args for boo_Args<T> {
-        fn property(&self) -> Info {
-            Info {
+    impl<T: VarValue> PropertyArgs for boo_Args<T> {
+        fn property(&self) -> PropertyInfo {
+            PropertyInfo {
                 name: "boo",
                 priority: Priority::Context,
-                id: TypeId::of::<Self>,
+                unique_id: TypeId::of::<Self>(),
                 location: source_location!(),
                 default: Some(Self::__default__),
                 inputs: Box::new([
-                    Input {
+                    PropertyInput {
                         name: "boo",
                         kind: InputKind::Var,
-                        ty: TypeId::of::<bool>,
-                        ty_name: type_name::<bool>,
+                        ty: TypeId::of::<bool>(),
+                        ty_name: type_name::<bool>(),
                     },
-                    Input {
+                    PropertyInput {
                         name: "too",
                         kind: InputKind::Var,
-                        ty: TypeId::of::<T>,
-                        ty_name: type_name::<T>,
+                        ty: TypeId::of::<T>(),
+                        ty_name: type_name::<T>(),
                     },
                 ]),
             }
+        }
+
+        fn instance(&self) -> PropertyInstInfo {
+            self.__instance__.clone()
         }
 
         fn var(&self, i: usize) -> &dyn AnyVar {
