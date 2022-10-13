@@ -15,6 +15,8 @@ use crate::{
     AdoptiveNode, BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetList, NilUiNode, impl_from_and_into_var,
 };
 
+pub use crate::inspector::source_location;
+
 /// Property priority in a widget.
 ///
 /// See [the property doc](crate::property#priority) for more details.
@@ -538,7 +540,6 @@ pub struct DynUiNodeSnapshot {
 
 }
 
-#[cfg(test)]
 mod expanded {
     use std::any::type_name;
 
@@ -546,211 +547,10 @@ mod expanded {
 
     use super::*;
 
+    #[zero_ui_proc_macros::property2(context, default(true, None))]
     pub fn boo<T: VarValue>(child: impl UiNode, boo: impl IntoVar<bool>, too: impl IntoVar<Option<T>>) -> impl UiNode {
         let _ = (boo, too);
         tracing::error!("boo must be captured by the widget");
         child
-    }
-
-    #[doc(hidden)]
-    #[allow(non_camel_case_types)]
-    pub struct boo_Args<T: VarValue> {
-        __instance__: PropertyInstInfo,
-        boo: BoxedVar<bool>,
-        too: BoxedVar<Option<T>>,
-    }
-    impl<T: VarValue> boo_Args<T> {
-        pub fn __new__(__instance__: PropertyInstInfo, boo: impl IntoVar<bool>, too: impl IntoVar<Option<T>>) -> Box<dyn PropertyArgs> {
-            Box::new(Self {
-                __instance__,
-                boo: Self::boo(boo),
-                too: Self::too(too),
-            })
-        }
-
-        pub fn __default__(__instance__: PropertyInstInfo) -> Box<dyn PropertyArgs> {
-            Self::__new__(__instance__, true, None)
-        }
-
-        // used in named init and when assign.
-        pub fn boo(boo: impl IntoVar<bool>) -> BoxedVar<bool> {
-            boo.into_var().boxed()
-        }
-        pub fn too(too: impl IntoVar<Option<T>>) -> BoxedVar<Option<T>> {
-            too.into_var().boxed()
-        }
-
-        // used in when expressions.
-        pub fn __boo_var__(args: &dyn PropertyArgs) -> BoxedVar<bool> {
-            read_var(args, 0)
-        }
-        pub fn __too_var__(args: &dyn PropertyArgs) -> BoxedVar<T> {
-            read_var(args, 1)
-        }
-    }
-    impl<T: VarValue> PropertyArgs for boo_Args<T> {
-        fn property(&self) -> PropertyInfo {
-            PropertyInfo {
-                name: "boo",
-                priority: Priority::Context,
-                unique_id: TypeId::of::<Self>(),
-                location: source_location!(),
-                default: Some(Self::__default__),
-                inputs: Box::new([
-                    PropertyInput {
-                        name: "boo",
-                        kind: InputKind::Var,
-                        ty: TypeId::of::<bool>(),
-                        ty_name: type_name::<bool>(),
-                    },
-                    PropertyInput {
-                        name: "too",
-                        kind: InputKind::Var,
-                        ty: TypeId::of::<T>(),
-                        ty_name: type_name::<T>(),
-                    },
-                ]),
-            }
-        }
-
-        fn instance(&self) -> PropertyInstInfo {
-            self.__instance__.clone()
-        }
-
-        fn var(&self, i: usize) -> &dyn AnyVar {
-            match i {
-                0 => &self.boo,
-                1 => &self.too,
-                n => panic_input(&self.property(), n, InputKind::Var),
-            }
-        }
-
-        fn instantiate(&self, child: BoxedUiNode) -> BoxedUiNode {
-            boo(child, self.boo.clone(), self.too.clone()).boxed()
-        }
-    }
-
-    #[doc(hidden)]
-    #[macro_export]
-    macro_rules! boo_hash {
-        (if default {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !default {
-            $($tt:tt)*
-        }) => {
-            // ignore
-        };
-
-        // explicit generics
-        (if generics {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !generics {
-            $($tt:tt)*
-        }) => {
-            // ignore
-        };
-
-        (if input(boo) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !input(boo) {
-            $($tt:tt)*
-        }) => {
-            // ignore
-        };
-
-        (if input(too) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !input(too) {
-            $($tt:tt)*
-        }) => {
-            // ignore
-        };
-
-        (if input($other:ident) {
-            $($tt:tt)*
-        }) => {
-            // ignore
-        };
-        (if !input($other:ident) {
-            $($tt:tt)*
-        }) => {
-            $($tt:tt)*
-        };
-
-        // used in when build.
-        (input_index(boo)) => {
-            0
-        };
-        (input_index(too)) => {
-            0
-        };
-
-        // can be got as var.
-        (if get_var(boo) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !get_var(boo) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if get_var(too) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !get_var(too) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-
-        // can be assigned with var.
-        (if set_var(boo) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !set_var(boo) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if set_var(too) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-        (if !set_var(too) {
-            $($tt:tt)*
-        }) => {
-            $($tt)*
-        };
-
-        // sorted named input
-        (<$Args:ty>::__new__($boo:ident, $too:ident)) => {
-            $Args::__new__($foo, $too)
-        };
-    }
-    #[doc(hidden)]
-    pub use boo_hash;
-
-    #[doc(hidden)]
-    pub mod boo {
-        pub use super::{boo_Args as Args, boo_hash as code_gen};
     }
 }

@@ -54,6 +54,16 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand(args, input)
 }
 
+/// Expands a function to a widget property.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui_core::property`](../zero_ui_core/attr.property.html) page.
+#[proc_macro_attribute]
+pub fn property2(args: TokenStream, input: TokenStream) -> TokenStream {
+    property2::expand(args, input)
+}
+
 #[doc(hidden)]
 #[proc_macro]
 pub fn property_new(input: TokenStream) -> TokenStream {
