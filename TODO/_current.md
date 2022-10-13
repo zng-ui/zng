@@ -56,8 +56,10 @@ moment of instantiation, (no more cfg(dyn_))
     - We could make all widgets "dynamic/stylable" by default.
     - Then widget creation can be some sort of `WidgetBuilder` instance creation.
 * Finetune priority of a property within its own priority group.
-* Declare capture-only "properties", that are redirected to the custom nodes.
-
+* Capture property args to use in a different way.
+* Declare `when` blocks that dynamically merge with the widget assigns.
+    - Properties used in the condition expr need to be rebind-able.
+    - When assigns added by styles need to join in the property instance.
 
 Widget expands too:
 

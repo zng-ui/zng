@@ -240,12 +240,43 @@ enum WidgetItem {
 /// Value that indicates the override importance of a property instance, higher overrides lower.
 pub type Importance = usize;
 
+/// Input var read in a `when` condition expression.
+pub struct WhenInput {
+    /// Property name.
+    pub property_name: &'static str,
+    /// Id of the named property when the expression was created.
+    pub property_id: TypeId,
+    /// Property input name.
+    pub member_name: &'static str,
+    /// Property input index.
+    pub member_i: usize,
+    /// Property input value.
+    pub var: Box<dyn AnyVar>,
+}
+
+/// Represents a `when` block in a widget.
+pub struct When {
+    /// Properties referenced in the when condition expression.
+    /// 
+    /// They are type erased `RcVar<T>` instances and can be rebound, other variable references (`*#{var}`) are imbedded in
+    /// the build expression and cannot be modified.
+    pub inputs: Box<[WhenInput]>,
+
+    /// Output of the when expression.
+    pub state: BoxedVar<bool>,
+
+    /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
+    /// from other when blocks into a single property instance set to `when_var!` inputs.
+    pub assigns: Box<[Box<dyn Args>]>,
+}
+
 /// Widget instance builder.
 #[derive(Default)]
 pub struct WidgetBuilder {
     child: Option<BoxedUiNode>,
     items: Vec<(Priority, WidgetItem)>,
     unset: LinearMap<(&'static str, TypeId), Importance>,
+    whens: Vec<(Importance, When)>,
 }
 impl WidgetBuilder {
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
@@ -342,6 +373,13 @@ impl WidgetBuilder {
         } else {
             None
         }
+
+        // this method is used to remove "captures", that means we need to remove `when` assigns and a clone of the conditions too?
+    }
+
+    /// Insert a `when` block.
+    pub fn insert_when(&mut self, importance: Importance, when: When) {
+        self.whens.push((importance, when))
     }
 
     /// If a child not is already set in the builder.
@@ -368,6 +406,8 @@ impl WidgetBuilder {
             },
             ord => ord,
         });
+
+        self.whens.sort_by_key(|(imp, _)| *imp);
     }
 
     /// Instantiate and link all property and intrinsic nodes, returns the outermost node.
@@ -422,6 +462,8 @@ impl DynUiNode {
         if !mem::take(&mut self.is_linked) {
             return;
         }
+
+        todo!()
     }
 
     fn link(&mut self) {
