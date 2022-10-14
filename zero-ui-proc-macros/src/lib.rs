@@ -106,12 +106,6 @@ pub fn widget2(args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[doc(hidden)]
 #[proc_macro]
-pub fn widget_inherit2(input: TokenStream) -> TokenStream {
-    widget2::expand_inherit(input)
-}
-
-#[doc(hidden)]
-#[proc_macro]
 pub fn widget_new2(input: TokenStream) -> TokenStream {
     widget2::expand_new(input)
 }

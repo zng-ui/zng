@@ -79,7 +79,8 @@ Massive code-gen is solved by dynamic only, so the biggest problem left is the u
 properties, this is all caused by the macro recursion simulate "early eval" to get everything in one place. If we add limitations
 until the widget can expand without recursion all items become interactive.
 
-* Change `inherit!(#path);` to just expand to a `pub use #path::{p1, p2}`, (and a call to `#path::__intrinsic__`).
+* Change `inherit!(#path);` to just expand to a `pub use #path::*;`, (and a call to `#path::__intrinsic__`).
     - Expand the path with the span set, let Rust validate name conflicts.
-* The `remove { p3 }` directives becomes just a filter passed to the inherit macro.
-* 
+* No more `remove`, `#[required]` or any of that stuff.
+* Instantiation is just a `*` import in a block scope too.
+    - This actually adds some cool things we can do, like auto import a specific enum that is only useful inside a widget.

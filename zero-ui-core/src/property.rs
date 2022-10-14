@@ -555,8 +555,10 @@ pub mod expand {
     pub mod bar {
         use super::*;
 
+        pub use super::boo as other;
+
         properties! {
-            boo as other = true, Some(32);
+            other = true, Some(32);
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {
@@ -587,8 +589,8 @@ pub mod expand {
         inherit!(bar);
 
         properties! {
-            boo;
             other = true, Some(33);
+            unknown = true;
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {

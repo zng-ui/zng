@@ -33,11 +33,6 @@ impl WgtProperty {
         }
     }
 
-    /// Returns `true` if the property does not rename and the path a a single ident.
-    pub(crate) fn is_ident(&self) -> bool {
-        self.rename.is_none() && self.path.get_ident().is_some()
-    }
-
     /// Generate PropertyId init code.
     pub fn property_id(&self) -> TokenStream {
         let path = &self.path;
@@ -59,18 +54,6 @@ impl WgtProperty {
     /// Gets if this property has args.
     pub fn has_default(&self) -> bool {
         matches!(&self.value, Some((_, PropertyValue::Unnamed(_) | PropertyValue::Named(_, _))))
-    }
-
-    /// Gets if this property is marked `#[required]`.
-    pub fn is_required(&self) -> bool {
-        for attr in &self.attrs {
-            if let Some(id) = attr.path.get_ident() {
-                if id == "required" {
-                    return true;
-                }
-            }
-        }
-        false
     }
 
     /// Gets the property args new code.
@@ -267,7 +250,6 @@ fn peek_next_wgt_item(lookahead: parse::ParseStream) -> bool {
 
 pub mod keyword {
     syn::custom_keyword!(when);
-    syn::custom_keyword!(remove);
 }
 
 pub struct WgtWhen {
@@ -354,43 +336,5 @@ impl WgtWhen {
             brace_token,
             assigns,
         })
-    }
-}
-
-pub fn parse_remove(input: parse::ParseStream, removes: &mut Vec<Ident>, errors: &mut Errors) {
-    let input = non_user_braced!(input, "remove");
-    while !input.is_empty() {
-        if input.peek2(Token![::])
-            && (input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self]))
-        {
-            if let Ok(p) = input.parse::<Path>() {
-                errors.push("expected inherited property ident, found path", p.span());
-                let _ = input.parse::<Token![;]>();
-            }
-        }
-        match input.parse::<Ident>() {
-            Ok(ident) => {
-                if input.is_empty() {
-                    // found valid last item
-                    removes.push(ident);
-                    break;
-                } else {
-                    match input.parse::<Token![;]>() {
-                        Ok(_) => {
-                            // found valid item
-                            removes.push(ident);
-                            continue;
-                        }
-                        Err(e) => errors.push_syn(e),
-                    }
-                }
-            }
-            Err(e) => errors.push("expected inherited property ident", e.span()),
-        }
-
-        // seek next valid item
-        while !(input.is_empty() || input.peek(Ident) && input.peek2(Token![;])) {
-            input.parse::<TokenTree>().unwrap();
-        }
     }
 }

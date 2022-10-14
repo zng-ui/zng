@@ -1,12 +1,12 @@
-use std::{collections::HashSet, mem};
+use std::mem;
 
-use proc_macro2::{Ident, Span, TokenStream, TokenTree};
+use proc_macro2::{TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, spanned::Spanned, *};
 
 use crate::{
-    util::{self, parse_outer_attrs, Attributes, ErrorRecoverable, Errors},
-    widget_util::{self, parse_remove, WgtProperty, WgtWhen},
+    util::{self, parse_outer_attrs, ErrorRecoverable, Errors},
+    widget_util::{self, WgtProperty, WgtWhen},
 };
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -79,6 +79,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             intrinsic.extend(quote! {
                 __wgt__.insert_unset(#crate_core::property::Importance::WIDGET, #id);
             });
+        } else {
+            errors.push(format!("missing property `{}` value(s)", prop.ident()), prop.path.span());
         }
     }
 
@@ -110,74 +112,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
 
-    let mut remove = quote!();
-    for r in properties.iter().flat_map(|p| p.removes.iter()) {
-        r.to_tokens(&mut remove);
-    }
-
-    let mut macro_properties = quote!();
-    let mut macro_if_not_property = quote!();
-    let mut properties_export = quote!();
-
-    for p in properties.iter().flat_map(|p| p.properties.iter()) {
-        let ident = p.ident();
-        let required = &p.is_required();
-        let default = p.has_default();
-        macro_properties.extend(quote! {
-            property {
-                ident { #ident }
-                required { #required }
-                default { #default }
-            }
-        });
-
-        macro_if_not_property.extend(quote! {
-            (>> if !#ident { $($tt:tt)* }) => {
-                // ignore
-            };
-        });
-
-        let path = &p.path;
-        let mut export = quote! {
-            #[doc(inline)]
-            pub use #path::__export__ as #ident;
-        };
-
-        if !inherits.is_empty() && p.is_ident() {
-            // potentially inherited, avoid name conflict with our own re-export.
-            for Inherit { path, .. } in &inherits {
-                export = quote! {
-                    #path! {
-                        >> if !#ident {
-                            #export
-                        }
-                    }
-                }
-            }
-        }
-
-        properties_export.extend(export);
-    }
-
     let mut inherit_export = quote!();
-    let mut macro_inherits = quote!();
 
     for Inherit { attrs, path } in inherits {
         inherit_export.extend(quote_spanned! {path.span()=>
             #(#attrs)*
-            #path!(>> inherit {
-                call_site { . }
-                remove {
-                    #remove
-                }
-            });
+            pub use #path::*;
         });
-
-        macro_inherits.extend(quote! {
-            inherit {
-                path { #path }
-            }
-        })
     }
 
     let macro_ident = ident_spanned!(mod_path.span()=> "__wgt_{}__", mod_path_slug(mod_path.to_string()));
@@ -190,7 +131,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #(#uses)*
 
         #inherit_export
-        #properties_export
 
         #intrinsic_fn
 
@@ -204,7 +144,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         #[doc(hidden)]
         pub mod __core__ {
-            pub use #crate_core::{widget_new2, widget_inherit2, property};
+            pub use #crate_core::{widget_new2, property};
         }
     };
 
@@ -218,24 +158,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #macro_ident {
-            (>> inherit {
-                $($instructions:tt)*
-            }) => {
-                #mod_path::__core__::widget_inherit2! {
-                    widget { #mod_path }
-                    properties { #macro_properties }
-                    $($instructions)*
-                }
-            };
-            #macro_if_not_property
-            (>> if !$property:ident { $($tt:tt)* }) => {
-                $($tt)*
-            };
             ($($tt:tt)*) => {
                 #mod_path::__core__::widget_new2! {
-                    inherits { #macro_inherits }
                     widget { #mod_path }
-                    properties { #macro_properties }
                     instance {
                         $($tt)*
                     }
@@ -368,15 +293,12 @@ impl Parse for Inherit {
 struct Properties {
     errors: Errors,
     properties: Vec<WgtProperty>,
-    removes: Vec<Ident>,
     whens: Vec<WgtWhen>,
 }
-
 impl Parse for Properties {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let mut errors = Errors::default();
         let mut properties = vec![];
-        let mut removes = vec![];
         let mut whens = vec![];
 
         while !input.is_empty() {
@@ -387,8 +309,6 @@ impl Parse for Properties {
                     when.attrs = attrs;
                     whens.push(when);
                 }
-            } else if input.peek(widget_util::keyword::remove) && input.peek2(syn::token::Brace) {
-                parse_remove(input, &mut removes, &mut errors);
             } else if input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self]) {
                 // peek ident or path (including keywords because of super:: and self::). {
                 match input.parse::<WgtProperty>() {
@@ -429,117 +349,8 @@ impl Parse for Properties {
         Ok(Properties {
             errors,
             properties,
-            removes,
             whens,
         })
-    }
-}
-
-/*
-    INHERIT
-*/
-
-pub fn expand_inherit(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let args = parse_macro_input!(args as InheritArgs);
-    let remove: HashSet<_> = args.remove.into_iter().collect();
-
-    let path = util::set_stream_span(args.widget, args.call_site);
-    let mut r = quote!();
-    for p in args.properties {
-        let mut ident = p.ident;
-        ident.set_span(args.call_site);
-        if remove.contains(&ident) {
-            if !p.required {
-                continue;
-            }
-
-            let msg = format!("cannot remove `{}`, it is required", ident);
-            r.extend(quote_spanned! {args.call_site=>
-                std::compile_error! { #msg }
-            });
-        }
-
-        r.extend(quote_spanned! {args.call_site=>
-            #[doc(inline)]
-            pub use #path::#ident;
-        });
-    }
-
-    let reexport_ident = mod_path_slug(path.to_string());
-    let reexport_ident = ident_spanned!(args.call_site=> "__{reexport_ident}__");
-    r.extend(quote_spanned! {args.call_site=>
-        #[doc(hidden)]
-        pub use #path as #reexport_ident;
-    });
-
-    r.into()
-}
-
-struct InheritArgs {
-    // widget path.
-    widget: TokenStream,
-    properties: Vec<InheritProperty>,
-    call_site: Span,
-    remove: Vec<Ident>,
-}
-impl Parse for InheritArgs {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        Ok(InheritArgs {
-            widget: non_user_braced!(input, "widget").parse().unwrap(),
-            properties: {
-                let mut p = vec![];
-                let input = non_user_braced!(input, "properties");
-                while !input.is_empty() {
-                    p.push(input.parse().unwrap());
-                }
-                p
-            },
-            call_site: non_user_braced!(input, "call_site").parse::<TokenStream>().unwrap().span(),
-            remove: {
-                let mut p = vec![];
-                let input = non_user_braced!(input, "remove");
-                while !input.is_empty() {
-                    p.push(input.parse().unwrap_or_else(|e| non_user_error!(e)));
-                }
-                p
-            },
-        })
-    }
-}
-
-struct InheritProperty {
-    ident: Ident,
-    required: bool,
-    default: bool,
-}
-impl Parse for InheritProperty {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let input = non_user_braced!(input, "property");
-        let r = InheritProperty {
-            ident: non_user_braced!(&input, "ident").parse().unwrap_or_else(|e| non_user_error!(e)),
-            required: non_user_braced!(&input, "required")
-                .parse::<LitBool>()
-                .unwrap_or_else(|e| non_user_error!(e))
-                .value,
-            default: non_user_braced!(&input, "default")
-                .parse::<LitBool>()
-                .unwrap_or_else(|e| non_user_error!(e))
-                .value,
-        };
-        Ok(r)
-    }
-}
-
-struct InheritWidget {
-    path: TokenStream,
-}
-impl Parse for InheritWidget {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let input = non_user_braced!(input, "inherit");
-        let r = InheritWidget {
-            path: non_user_braced!(&input, "path").parse().unwrap(),
-        };
-        Ok(r)
     }
 }
 
@@ -552,12 +363,7 @@ fn mod_path_slug(path: String) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs {
-        inherits,
-        widget,
-        properties,
-        instance,
-    } = parse_macro_input!(args as NewArgs);
+    let NewArgs { widget, instance } = parse_macro_input!(args as NewArgs);
 
     let mut errors = Errors::default();
 
@@ -569,33 +375,13 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             Properties {
                 errors: Errors::default(),
                 properties: vec![],
-                removes: vec![],
                 whens: vec![],
             }
-        },
+        }
     };
     errors.extend(instance.errors);
 
     let widget = util::set_stream_span(widget, call_site);
-
-    let mut inherit_imports = quote!();
-    let mut widget_imports = quote!();
-
-    for InheritWidget { path } in &inherits {
-        let ident = mod_path_slug(path.to_string());
-        let ident = ident!("__inherited_{ident}__");
-        // inherit_imports.extend(quote_spanned! {call_site=>
-        //     use #widget::#ident!(>> inherit);
-        // });
-    }
-
-    for InheritProperty { mut ident, .. } in properties {
-        ident.set_span(call_site);
-        widget_imports.extend(quote_spanned! {call_site=>
-            #[allow(unused_imports)]
-            use #widget::#ident;
-        });
-    }
 
     let mut instance_stmts = quote!();
     for p in &instance.properties {
@@ -614,10 +400,10 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let r = quote_spanned! {call_site=>
         {
-            #inherit_imports
-            #widget_imports
+            #[allow(unused_imports)]
+            use #widget::*;
 
-            let mut __wgt__ = #widget::__core__::property::WidgetBuilder::new();
+            let mut __wgt__ = __core__::property::WidgetBuilder::new();
             #widget::__intrinsic__(&mut __wgt__);
 
             #instance_stmts
@@ -629,31 +415,13 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 struct NewArgs {
-    inherits: Vec<InheritWidget>,
     widget: TokenStream,
-    properties: Vec<InheritProperty>,
     instance: TokenStream,
 }
 impl Parse for NewArgs {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(NewArgs {
-            inherits: {
-                let input = non_user_braced!(input, "inherits");
-                let mut r = vec![];
-                while !input.is_empty() {
-                    r.push(input.parse().unwrap());
-                }
-                r
-            },
             widget: non_user_braced!(input, "widget").parse().unwrap(),
-            properties: {
-                let input = non_user_braced!(input, "properties");
-                let mut r = vec![];
-                while !input.is_empty() {
-                    r.push(input.parse().unwrap());
-                }
-                r
-            },
             instance: non_user_braced!(input, "instance").parse().unwrap(),
         })
     }
