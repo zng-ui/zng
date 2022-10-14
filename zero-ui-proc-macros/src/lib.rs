@@ -19,6 +19,7 @@ mod static_list;
 mod when_var;
 
 pub(crate) mod property;
+pub(crate) mod widget_util;
 mod property2;
 mod ui_node;
 
@@ -33,6 +34,7 @@ mod any_all;
 
 mod lang;
 mod rust_analyzer;
+mod widget2;
 
 /// Expands an impl into a `UiNode` impl.
 ///
@@ -90,6 +92,22 @@ pub fn derive_service(item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
     widget_0_attr::expand(false, false, args, input)
+}
+
+/// Expands a module to a widget module and macro.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui_core::widget`](../zero_ui_core/attr.widget.html) page.
+#[proc_macro_attribute]
+pub fn widget2(args: TokenStream, input: TokenStream) -> TokenStream {
+    widget2::expand(args, input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn widget_reexport(input: TokenStream) -> TokenStream {
+    widget2::expand_reexport(input)
 }
 
 // used only once to declare the widget base.

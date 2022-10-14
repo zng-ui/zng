@@ -20,13 +20,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
 
-    let args_valid = errors.is_empty();
-    let priority = if args_valid {
+    let priority = if errors.is_empty() {
         Priority::from_ident(&args.priority, &mut errors)
     } else {
         Priority::Context
     };
-    let args_valid = errors.is_empty();
 
     let item = match parse::<ItemFn>(input.clone()) {
         Ok(i) => i,
@@ -71,7 +69,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     }
 
-    let output_span = match &item.sig.output {
+    let _output_span = match &item.sig.output {
         ReturnType::Default => {
             errors.push("output type must be `impl UiNode`", item.sig.ident.span());
             proc_macro2::Span::call_site()
@@ -427,6 +425,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         __instance__,
                         #(#input_idents: #input_to_storage),*
                     })
+                }
+
+                pub fn __id__(name: &'static str) -> #core::property::PropertyId {
+                    #core::property::PropertyId {
+                        unique_id: TypeId::of::<Self>(),
+                        name,
+                    }
                 }
 
                 #default

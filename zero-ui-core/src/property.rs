@@ -264,6 +264,12 @@ enum WidgetItem {
 /// Value that indicates the override importance of a property instance, higher overrides lower.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct Importance(pub usize);
+impl Importance {
+    /// Importance of default values defined in the widget declaration.
+    pub const WIDGET: Importance = Importance(1000);    
+    /// Importance of values defined in the widget instantiation.
+    pub const INSTANCE: Importance = Importance(1000 * 10);    
+}
 impl_from_and_into_var! {
     fn from(imp: usize) -> Importance {
         Importance(imp)
@@ -540,11 +546,7 @@ pub struct DynUiNodeSnapshot {
 
 }
 
-mod expanded {
-    use std::any::type_name;
-
-    use crate::source_location;
-
+mod expand{
     use super::*;
 
     #[zero_ui_proc_macros::property2(context, default(true, None))]
@@ -552,5 +554,18 @@ mod expanded {
         let _ = (boo, too);
         tracing::error!("boo must be captured by the widget");
         child
+    }
+
+    #[zero_ui_proc_macros::widget2($crate::property::expand::bar)]
+    pub mod bar {
+        use super::*;
+
+        properties! {
+            foo;
+        }
+
+        fn build(_: WidgetBuilder) -> NilUiNode {
+            NilUiNode
+        }
     }
 }
