@@ -77,7 +77,7 @@ impl WgtProperty {
     pub fn args_new(&self, property_mod: TokenStream) -> TokenStream {
         let path = &self.path;
         let ident = self.ident();
-        let instance = quote_spanned!{property_mod.span()=>
+        let instance = quote_spanned! {property_mod.span()=>
             #property_mod::PropertyInstInfo {
                 name: stringify!(#ident),
                 location: #property_mod::source_location!(),

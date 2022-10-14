@@ -19,9 +19,9 @@ mod static_list;
 mod when_var;
 
 pub(crate) mod property;
-pub(crate) mod widget_util;
 mod property2;
 mod ui_node;
+pub(crate) mod widget_util;
 
 mod widget_0_attr;
 mod widget_1_inherit;

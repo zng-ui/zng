@@ -327,6 +327,11 @@ pub struct WidgetBuilder {
     whens: Vec<(Importance, When)>,
 }
 impl WidgetBuilder {
+    /// New empty default.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     pub fn insert_intrinsic(&mut self, priority: Priority, node: AdoptiveNode<BoxedUiNode>) {
         self.items.push((priority, WidgetItem::Instrinsic(node)));
@@ -589,5 +594,12 @@ pub mod expand {
         fn build(_: WidgetBuilder) -> NilUiNode {
             NilUiNode
         }
+    }
+
+    /// 
+    pub fn expand_instantiate() {
+        let _wgt = zap! {
+            boo = false, Some(45);
+        };
     }
 }

@@ -91,7 +91,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let args_ident = ident!("{ident}_Args");
         let macro_ident = ident!("{ident}_code_gen_{uuid}");
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
-        
+
         let (default, macro_default, default_fn) = if let Some(dft) = args.default {
             let args = dft.args;
             (
@@ -114,7 +114,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 },
                 quote! {
                     Some(Self::__default__)
-                }
+                },
             )
         } else {
             (
@@ -245,7 +245,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     };
                 });
             }
-            
 
             match kind {
                 InputKind::Var => {
@@ -269,7 +268,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::property::read_var(args, #i)
                         }
                     })
-                },
+                }
                 InputKind::Value => {
                     input_to_storage.push(quote! {
                         std::convert::Into::into(#ident)
@@ -286,7 +285,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::property::read_value(args, #i)
                         }
                     })
-                },
+                }
                 InputKind::UiNode => {
                     input_to_storage.push(quote! {
                         #core::property::InputTakeout::new_ui_node(#ident)
@@ -297,7 +296,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         self.#ident.take_ui_node(),
                     });
-                },
+                }
                 InputKind::Widget => {
                     input_to_storage.push(quote! {
                         #core::property::InputTakeout::new_widget(#ident)
@@ -308,7 +307,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         self.#ident.take_widget(),
                     });
-                },
+                }
                 InputKind::WidgetHandler => {
                     input_to_storage.push(quote! {
                         #core::property::InputTakeout::new_widget_handler(#ident)
@@ -319,7 +318,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         self.#ident.take_widget_handler(),
                     });
-                },
+                }
                 InputKind::UiNodeList => {
                     input_to_storage.push(quote! {
                         #core::property::InputTakeout::new_ui_node_list(#ident)
@@ -330,7 +329,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         self.#ident.take_ui_node_list(),
                     });
-                },
+                }
                 InputKind::WidgetList => {
                     input_to_storage.push(quote! {
                         #core::property::InputTakeout::new_widget_list(#ident)
@@ -341,7 +340,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         self.#ident.take_widget_list(),
                     });
-                },                
+                }
             }
         }
 
@@ -418,7 +417,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             impl #impl_gens #args_ident #ty_gens #where_gens {
                 pub fn __new__(
-                    __instance__: #core::property::PropertyInstInfo, 
+                    __instance__: #core::property::PropertyInstInfo,
                     #(#input_idents: #input_tys),*
                 ) -> std::boxed::Box<dyn #core::property::PropertyArgs> {
                     Box::new(Self {
@@ -489,7 +488,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #macro_input_index
                 #macro_get_var
                 #macro_set_var
-                
+
                 (<$Args:ty>::__new__($__instance__:expr, #($#sorted_inputs:ident),*)) => {
                     $Args::__new__(__instance__, #($#input_idents),*)
                 };
