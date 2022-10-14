@@ -537,6 +537,7 @@ impl DynUiNode {
     }
 }
 
+/// Represents a state of a [`DynUiNode`], can be used to restore the node.
 pub struct DynUiNodeSnapshot {}
 
 pub mod expand {
@@ -590,7 +591,6 @@ pub mod expand {
 
         properties! {
             other = true, Some(33);
-            unknown = true;
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {

@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::{Ident, TokenStream, TokenTree, Span};
 use quote::{quote, ToTokens};
 use syn::{
     ext::IdentExt,
@@ -56,11 +56,24 @@ impl WgtProperty {
         matches!(&self.value, Some((_, PropertyValue::Unnamed(_) | PropertyValue::Named(_, _))))
     }
 
+    fn location_span(&self) -> Span {
+        // if we just use the path span, go to rust-analyzer go-to-def gets confused.
+        if let Some((eq, _)) = &self.value {
+            eq.span()
+        } else if let Some((as_, _)) = &self.rename {
+            as_.span()
+        } else if let Some(s) = &self.semi {
+            s.span()
+        } else {
+            self.path.span()
+        }
+    }
+
     /// Gets the property args new code.
     pub fn args_new(&self, property_mod: TokenStream) -> TokenStream {
         let path = &self.path;
         let ident = self.ident();
-        let instance = quote_spanned! {property_mod.span()=>
+        let instance = quote_spanned! {self.location_span()=>
             #property_mod::PropertyInstInfo {
                 name: stringify!(#ident),
                 location: #property_mod::source_location!(),
@@ -69,7 +82,7 @@ impl WgtProperty {
         if let Some((_, val)) = &self.value {
             match val {
                 PropertyValue::Special(_, _) => quote!(),
-                PropertyValue::Unnamed(args) => quote! {
+                PropertyValue::Unnamed(args) => quote_spanned! {path.span()=>
                     #path::Args::__new__(#instance, #args)
                 },
                 PropertyValue::Named(_, args) => {
@@ -83,7 +96,7 @@ impl WgtProperty {
                             std::compile_error!(#msg);
                         }
                     });
-                    quote! {
+                    quote_spanned! {path.span()=>
                         {
                             #(
                                 #path::code_gen! {
