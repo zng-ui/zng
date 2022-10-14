@@ -77,7 +77,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 __wgt__.insert_unset(#crate_core::property::Importance::WIDGET, #id);
             });
         } else if prop.value.is_some() {
-            let args = prop.args_new();
+            let args = prop.args_new(quote!(#crate_core::property));
             intrinsic.extend(quote! {
                 __wgt__.insert_property(#crate_core::property::Importance::WIDGET, #args);
             });
@@ -138,6 +138,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     }
 
     let mut widget_macro_intrinsic = quote!();
+    let mut properties_export = quote!();
+
     for p in properties.iter().flat_map(|p| p.properties.iter()) {
         let cfg = Attributes::new(p.attrs.clone()).cfg;
         let ident = p.property_ident();
@@ -151,7 +153,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 default { #default }
             }
         });
+    
+        let path = &p.path;
+        properties_export.extend(quote! {
+            #[doc(inline)]
+            pub use #path::__export__ as #ident;
+        });
     }
+
 
     let macro_ident = ident!("{ident}_{uuid}");
 
@@ -165,6 +174,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #(#uses)*
 
             #inherits_reexport
+            #properties_export
 
             #intrinsic_fn
 
@@ -346,7 +356,7 @@ impl Parse for Properties {
         let mut removes = vec![];
         let mut whens = vec![];
 
-        while input.is_empty() {
+        while !input.is_empty() {
             let attrs = parse_outer_attrs(input, &mut errors);
 
             if input.peek(widget_util::keyword::when) {
@@ -390,8 +400,6 @@ impl Parse for Properties {
 
                 // suppress the "unexpected token" error from syn parse.
                 let _ = input.parse::<TokenStream>();
-
-                break;
             }
         }
 

@@ -3,16 +3,18 @@
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    rc::Rc, mem,
+    mem,
+    rc::Rc,
 };
 
 use linear_map::LinearMap;
 
 use crate::{
     handler::WidgetHandler,
+    impl_from_and_into_var,
     inspector::SourceLocation,
     var::{AnyVar, AnyVarValue, BoxedVar, IntoVar, StateVar, Var, VarValue},
-    AdoptiveNode, BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetList, NilUiNode, impl_from_and_into_var,
+    AdoptiveNode, BoxedUiNode, BoxedWidget, NilUiNode, UiNode, UiNodeList, Widget, WidgetList,
 };
 
 pub use crate::inspector::source_location;
@@ -150,7 +152,7 @@ pub struct PropertyInfo {
 #[derive(Debug, Clone)]
 pub struct PropertyInstInfo {
     /// Property name in this instance.
-    /// 
+    ///
     /// This can be different from [`PropertyInfo::name`] if the property was renamed by the widget.
     pub name: &'static str,
 
@@ -266,9 +268,9 @@ enum WidgetItem {
 pub struct Importance(pub usize);
 impl Importance {
     /// Importance of default values defined in the widget declaration.
-    pub const WIDGET: Importance = Importance(1000);    
+    pub const WIDGET: Importance = Importance(1000);
     /// Importance of values defined in the widget instantiation.
-    pub const INSTANCE: Importance = Importance(1000 * 10);    
+    pub const INSTANCE: Importance = Importance(1000 * 10);
 }
 impl_from_and_into_var! {
     fn from(imp: usize) -> Importance {
@@ -303,7 +305,7 @@ pub struct WhenInput {
 /// Represents a `when` block in a widget.
 pub struct When {
     /// Properties referenced in the when condition expression.
-    /// 
+    ///
     /// They are type erased `RcVar<T>` instances and can be rebound, other variable references (`*#{var}`) are imbedded in
     /// the build expression and cannot be modified.
     pub inputs: Box<[WhenInput]>,
@@ -338,13 +340,7 @@ impl WidgetBuilder {
             match &self.items[i].1 {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
-                        self.items[i] = (
-                            info.priority,
-                            WidgetItem::Property {
-                                importance,
-                                args,
-                            },
-                        )
+                        self.items[i] = (info.priority, WidgetItem::Property { importance, args })
                     }
                     // else already overridden
                 }
@@ -356,13 +352,7 @@ impl WidgetBuilder {
                     return; // unset overrides.
                 }
             }
-            self.items.push((
-                info.priority,
-                WidgetItem::Property {
-                    importance,
-                    args,
-                },
-            ))
+            self.items.push((info.priority, WidgetItem::Property { importance, args }))
         }
     }
 
@@ -465,10 +455,10 @@ impl WidgetBuilder {
                 WidgetItem::Instrinsic(node) => {
                     let (c, n) = node.into_parts();
                     *c.borrow_mut() = mem::replace(&mut child, n);
-                },
+                }
                 WidgetItem::Property { args, .. } => {
                     child = args.instantiate(child);
-                },
+                }
             }
         }
 
@@ -502,7 +492,7 @@ impl DynUiNode {
 
     fn delink(&mut self) {
         assert!(!self.is_inited);
-        
+
         if !mem::take(&mut self.is_linked) {
             return;
         }
@@ -521,7 +511,7 @@ impl DynUiNode {
     }
 
     /// Take a snapshot that can be used to restore the node to a pre-injection state.
-    pub fn snapshot(&self) -> DynUiNodeSnapshot{
+    pub fn snapshot(&self) -> DynUiNodeSnapshot {
         assert!(!self.is_inited);
         todo!()
     }
@@ -533,7 +523,7 @@ impl DynUiNode {
     }
 
     /// Insert/override nodes from `other` onto `self`.
-    /// 
+    ///
     /// Intrinsic nodes are moved in, property nodes of the same name, id and >= importance replace self, when conditions and assigns
     /// are rebuild.
     pub fn inject(&mut self, other: DynUiNode) {
@@ -542,13 +532,12 @@ impl DynUiNode {
     }
 }
 
-pub struct DynUiNodeSnapshot {
+pub struct DynUiNodeSnapshot {}
 
-}
-
-mod expand{
+pub mod expand {
     use super::*;
 
+    /// Property docs.
     #[zero_ui_proc_macros::property2(context, default(true, None))]
     pub fn boo<T: VarValue>(child: impl UiNode, boo: impl IntoVar<bool>, too: impl IntoVar<Option<T>>) -> impl UiNode {
         let _ = (boo, too);
@@ -556,12 +545,28 @@ mod expand{
         child
     }
 
+    /// Widget docs.
     #[zero_ui_proc_macros::widget2($crate::property::expand::bar)]
     pub mod bar {
         use super::*;
 
         properties! {
-            foo;
+            boo = true, Some(32);
+        }
+
+        fn build(_: WidgetBuilder) -> NilUiNode {
+            NilUiNode
+        }
+    }
+
+    #[zero_ui_proc_macros::widget2($crate::property::expand::zap)]
+    pub mod zap {
+        use super::*;
+
+        inherit!(bar);
+
+        properties! {
+            boo = true, Some(32);
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {

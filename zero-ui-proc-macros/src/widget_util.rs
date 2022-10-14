@@ -69,13 +69,20 @@ impl WgtProperty {
     }
 
     /// Gets the property args new code.
-    pub fn args_new(&self) -> TokenStream {
+    pub fn args_new(&self, property_mod: TokenStream) -> TokenStream {
         let path = &self.path;
+        let ident = self.property_ident();
+        let instance = quote_spanned!{path.span()=>
+            #property_mod::PropertyInstInfo {
+                name: stringify!(#ident),
+                location: #property_mod::source_location!(),
+            }
+        };
         if let Some((_, val)) = &self.value {
             match val {
                 PropertyValue::Special(_, _) => quote!(),
                 PropertyValue::Unnamed(args) => quote! {
-                    #path::Args::__new__(#args)
+                    #path::Args::__new__(#instance, #args)
                 },
                 PropertyValue::Named(_, args) => {
                     let mut idents_sorted: Vec<_> = args.iter().map(|f| &f.ident).collect();
@@ -104,7 +111,7 @@ impl WgtProperty {
                             )*
 
                             #path::code_gen! {
-                                <#path>::__new__(#(#idents_sorted),*)
+                                <#path>::__new__(#instance, #(#idents_sorted),*)
                             }
                         }
                     }
@@ -113,7 +120,7 @@ impl WgtProperty {
         } else {
             let ident = self.property_ident();
             quote! {
-                #path::Args::__new__(#ident)
+                #path::Args::__new__(#instance, #ident)
             }
         }
     }

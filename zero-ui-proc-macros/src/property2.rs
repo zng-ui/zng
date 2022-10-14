@@ -502,6 +502,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[doc(hidden)]
             #vis mod #ident {
                 pub use super::{#macro_ident as code_gen, #args_ident as Args};
+                #vis use super::#ident as __export__;
             }
         }
     } else {
