@@ -25,7 +25,7 @@ pub struct WgtProperty {
 }
 impl WgtProperty {
     /// Gets the property name.
-    pub fn property_ident(&self) -> &Ident {
+    pub fn ident(&self) -> &Ident {
         if let Some((_, id)) = &self.rename {
             id
         } else {
@@ -33,10 +33,15 @@ impl WgtProperty {
         }
     }
 
+    /// Returns `true` if the property does not rename and the path a a single ident.
+    pub(crate) fn is_ident(&self) -> bool {
+        self.rename.is_none() && self.path.get_ident().is_some()
+    }
+
     /// Generate PropertyId init code.
     pub fn property_id(&self) -> TokenStream {
         let path = &self.path;
-        let ident = self.property_ident();
+        let ident = self.ident();
         quote! {
             #path::Args::__id__(stringify!(#ident))
         }
@@ -71,8 +76,8 @@ impl WgtProperty {
     /// Gets the property args new code.
     pub fn args_new(&self, property_mod: TokenStream) -> TokenStream {
         let path = &self.path;
-        let ident = self.property_ident();
-        let instance = quote_spanned!{path.span()=>
+        let ident = self.ident();
+        let instance = quote_spanned!{property_mod.span()=>
             #property_mod::PropertyInstInfo {
                 name: stringify!(#ident),
                 location: #property_mod::source_location!(),
@@ -118,7 +123,7 @@ impl WgtProperty {
                 }
             }
         } else {
-            let ident = self.property_ident();
+            let ident = self.ident();
             quote! {
                 #path::Args::__new__(#instance, #ident)
             }

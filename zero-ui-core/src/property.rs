@@ -551,6 +551,20 @@ pub mod expand {
         use super::*;
 
         properties! {
+            boo as other = true, Some(32);
+        }
+
+        fn build(_: WidgetBuilder) -> NilUiNode {
+            NilUiNode
+        }
+    }
+
+    /// Widget docs.
+    #[zero_ui_proc_macros::widget2($crate::property::expand::foo)]
+    pub mod foo {
+        use super::*;
+
+        properties! {
             boo = true, Some(32);
         }
 
@@ -559,14 +573,17 @@ pub mod expand {
         }
     }
 
+    /// Widget docs.
     #[zero_ui_proc_macros::widget2($crate::property::expand::zap)]
     pub mod zap {
         use super::*;
 
+        inherit!(foo);
         inherit!(bar);
 
         properties! {
-            boo = true, Some(32);
+            boo;
+            other = true, Some(33);
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {

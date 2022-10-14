@@ -1,6 +1,6 @@
-use std::mem;
+use std::{mem, collections::HashSet};
 
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::{Ident, TokenStream, TokenTree, Span};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, spanned::Spanned, *};
 
@@ -25,7 +25,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         return r.into();
     }
 
-    let (_, items) = mod_.content.unwrap();
+    let (mod_braces, items) = mod_.content.unwrap();
 
     // accumulate the most errors as possible before returning.
     let mut errors = Errors::default();
@@ -34,6 +34,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let vis = mod_.vis;
     let ident = mod_.ident;
+    let mod_token = mod_.mod_token;
     let attrs = mod_.attrs;
     let wgt_cfg = Attributes::new(attrs.clone()).cfg;
 
@@ -71,15 +72,15 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     }
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
-        if prop.is_unset() {
-            let id = prop.property_id();
-            intrinsic.extend(quote! {
-                __wgt__.insert_unset(#crate_core::property::Importance::WIDGET, #id);
-            });
-        } else if prop.value.is_some() {
+        if prop.has_default() {
             let args = prop.args_new(quote!(#crate_core::property));
             intrinsic.extend(quote! {
                 __wgt__.insert_property(#crate_core::property::Importance::WIDGET, #args);
+            });
+        } else  if prop.is_unset() {
+            let id = prop.property_id();
+            intrinsic.extend(quote! {
+                __wgt__.insert_unset(#crate_core::property::Importance::WIDGET, #id);
             });
         }
     }
@@ -112,40 +113,21 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
 
-    let mut inherits_reexport = quote!();
-    if let Some(Inherit { attrs, path }) = inherits.first() {
-        let mut instructions = quote!();
-        for p in &properties {
-            for p in &p.removes {
-                instructions.extend(quote! {
-                    remove { #p }
-                });
-            }
-        }
-        for Inherit { attrs, path } in &inherits[1..] {
-            instructions.extend(quote! {
-                inherit { #path }
-            });
-        }
-
-        inherits_reexport = quote! {
-            #path! {
-                >> reexport {
-                    #instructions
-                }
-            }
-        }
+    let mut remove = quote!();
+    for r in properties.iter().flat_map(|p| p.removes.iter()) {
+        r.to_tokens(&mut remove);
     }
 
-    let mut widget_macro_intrinsic = quote!();
+    let mut macro_properties = quote!();
+    let mut macro_if_not_property = quote!();
     let mut properties_export = quote!();
 
     for p in properties.iter().flat_map(|p| p.properties.iter()) {
         let cfg = Attributes::new(p.attrs.clone()).cfg;
-        let ident = p.property_ident();
+        let ident = p.ident();
         let required = &p.is_required();
         let default = p.has_default();
-        widget_macro_intrinsic.extend(quote! {
+        macro_properties.extend(quote! {
             property {
                 cfg { #cfg }
                 ident { #ident }
@@ -153,66 +135,118 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 default { #default }
             }
         });
-    
+
+        macro_if_not_property.extend(quote! {
+            (>> if !#ident { $($tt:tt)* }) => {
+                // ignore
+            };
+        });
+
         let path = &p.path;
-        properties_export.extend(quote! {
+        let mut export = quote! {
             #[doc(inline)]
             pub use #path::__export__ as #ident;
-        });
+        };
+
+        if !inherits.is_empty() && p.is_ident() {
+            // potentially inherited, avoid name conflict with our own re-export.
+            for Inherit { path, .. } in &inherits {
+                export = quote! {
+                    #path! {
+                        >> if !#ident {
+                            #export
+                        }
+                    }
+                }
+            }
+        }
+
+        properties_export.extend(export);
     }
 
+    let mut inherit_export = quote!();
+    let mut macro_inherits = quote!();
 
-    let macro_ident = ident!("{ident}_{uuid}");
+    for Inherit { attrs, path } in inherits {
+        let cfg = Attributes::new(attrs).cfg;
+
+        inherit_export.extend(quote_spanned! {path.span()=> 
+            #cfg
+            #path!(>> inherit {
+                call_site { . }
+                remove {
+                    #remove
+                }
+            });
+        });
+
+        macro_inherits.extend(quote! {
+            inherit {
+                cfg { #cfg }
+                path { #path }
+            }
+        })
+    }
+
+    let macro_ident = ident_spanned!(mod_path.span()=> "__wgt_{}__", mod_path_slug(mod_path.to_string()));
+
+    let mod_items = quote! {
+        // custom items
+        #(#others)*
+
+        // use items (after custom items in case of custom macro_rules re-export)
+        #(#uses)*
+
+        #inherit_export
+        #properties_export
+
+        #intrinsic_fn
+
+        #[doc(hidden)]
+        pub fn __intrinsic__(__wgt__: &mut #crate_core::property::WidgetBuilder) {
+            #intrinsic
+        }
+
+        #build_fn
+        #build
+
+        #[doc(hidden)]
+        pub mod __core__ {
+            pub use #crate_core::{widget_new2, widget_inherit2};
+        }
+    };
+
+    let mut mod_block = quote!();
+    mod_braces.surround(&mut mod_block, |t| {
+        t.extend(mod_items)
+    });
 
     let r = quote! {
         #(#attrs)*
-        #vis mod #ident {
-            // custom items
-            #(#others)*
-
-            // use items (after custom items in case of custom macro_rules re-export)
-            #(#uses)*
-
-            #inherits_reexport
-            #properties_export
-
-            #intrinsic_fn
-
-            #[doc(hidden)]
-            pub fn __intrinsic__(__wgt__: &mut #crate_core::property::WidgetBuilder) {
-                #intrinsic
-            }
-
-            #build_fn
-            #build
-
-            #[doc(hidden)]
-            pub mod __core__ {
-                pub use #crate_core::{widget_new, widget_reexport};
-            }
-        }
+        #vis #mod_token #ident #mod_block
 
         #wgt_cfg
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #macro_ident {
-            (>> reexport {
+            (>> inherit {
                 $($instructions:tt)*
             }) => {
-                #mod_path::__core__::widget_reexport! {
-                    intrinsic {
-                        widget { #mod_path }
-                        #widget_macro_intrinsic
-                    }
+                #mod_path::__core__::widget_inherit2! {
+                    widget { #mod_path }
+                    properties { #macro_properties }
                     $($instructions)*
                 }
             };
+            #macro_if_not_property
+            (>> if !$property:ident { $($tt:tt)* }) => {
+                $($tt)*
+            };
             ($($tt:tt)*) => {
-                #mod_path::__core__::widget_new! {
-                    intrinsic {
-                        widget { #mod_path }
-                        #widget_macro_intrinsic
-                    }
+                #mod_path::__core__::widget_new2! {
+                    inherits { #macro_inherits }
+                    widget { #mod_path }
+                    properties { #macro_properties }
                     instance {
                         $($tt)*
                     }
@@ -413,62 +447,95 @@ impl Parse for Properties {
 }
 
 /*
-    REEXPORT
+    INHERIT
 */
 
-pub fn expand_reexport(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let args = parse_macro_input!(args as ReexportArgs);
+pub fn expand_inherit(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(args as InheritArgs);
+    let remove: HashSet<_> = args.remove.into_iter().collect();
+    
+    let path = util::set_stream_span(args.widget, args.call_site);
+    let mut r = quote!();
+    for p in args.properties {
+        let mut ident = p.ident;
+        ident.set_span(args.call_site);
+        if remove.contains(&ident) {
+            if !p.required {
+                continue;
+            }
 
-    let r = quote! {};
+            let msg = format!("cannot remove `{}`, it is required", ident);
+            r.extend(quote_spanned!{args.call_site=>
+                std::compile_error! { #msg }
+            });
+        } 
+
+        r.extend(quote_spanned!{args.call_site=> 
+            #[doc(inline)]
+            pub use #path::#ident;
+        });
+    }
+
+    let reexport_ident = mod_path_slug(path.to_string());
+    let reexport_ident = ident_spanned!(args.call_site=> "__{reexport_ident}__");
+    r.extend(quote_spanned!{args.call_site=>
+        #[doc(hidden)]
+        pub use #path as #reexport_ident;
+    });
+
     r.into()
 }
 
-struct ReexportArgs {
+struct InheritArgs {
+    // widget path.
     widget: TokenStream,
-    intrinsic: Vec<IntrinsicItem>,
-    instructions: Vec<ReexportInstruction>,
+    properties: Vec<InheritProperty>,
+    call_site: Span,
+    remove: Vec<Ident>,
 }
-impl Parse for ReexportArgs {
+impl Parse for InheritArgs {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        let intr = non_user_braced!(input, "intrinsic");
-        let widget = non_user_braced!(&intr, "widget").parse().unwrap();
-        let mut intrinsic = vec![];
-        while !intr.is_empty() {
-            intrinsic.push(intr.parse().unwrap());
-        }
-
-        let inst = non_user_braced!(input, "instructions");
-        let mut instructions = vec![];
-        while !inst.is_empty() {
-            instructions.push(inst.parse().unwrap());
-        }
-
-        Ok(ReexportArgs {
-            widget,
-            intrinsic,
-            instructions,
+        Ok(InheritArgs {
+            widget: non_user_braced!(input, "widget").parse().unwrap(),
+            properties: {
+                let mut p = vec![];
+                let input = non_user_braced!(input, "properties");
+                while !input.is_empty() {
+                    p.push(input.parse().unwrap());
+                }
+                p
+            },
+            call_site: non_user_braced!(input, "call_site").parse::<TokenStream>().unwrap().span(),
+            remove: {
+                let mut p = vec![];
+                let input = non_user_braced!(input, "remove");
+                while !input.is_empty() {
+                    p.push(input.parse().unwrap_or_else(|e| non_user_error!(e)));
+                }
+                p
+            },
         })
     }
 }
 
-enum IntrinsicItem {
-    Property {
-        cfg: TokenStream,
-        ident: Ident,
-        required: bool,
-        default: bool,
-    },
+struct InheritProperty {
+    cfg: TokenStream,
+    ident: Ident,
+    required: bool,
+    default: bool,
 }
-impl Parse for IntrinsicItem {
+impl Parse for InheritProperty {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let input = non_user_braced!(input, "property");
-        let r = IntrinsicItem::Property {
+        let r = InheritProperty {
             cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
             ident: non_user_braced!(&input, "ident").parse().unwrap_or_else(|e| non_user_error!(e)),
-            required: non_user_braced!(&input, "required").parse::<LitBool>()
+            required: non_user_braced!(&input, "required")
+                .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
-            default: non_user_braced!(&input, "default").parse::<LitBool>()
+            default: non_user_braced!(&input, "default")
+                .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
         };
@@ -476,21 +543,33 @@ impl Parse for IntrinsicItem {
     }
 }
 
-enum ReexportInstruction {
-    Remove(Ident),
-    Inherit(TokenStream),
+struct InheritWidget {
+    cfg: TokenStream,
+    path: TokenStream,
 }
-impl Parse for ReexportInstruction {
+impl Parse for InheritWidget {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        let tag: Ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
-        if tag == "remove" {
-            Ok(ReexportInstruction::Remove(
-                non_user_braced!(input).parse().unwrap_or_else(|e| non_user_error!(e)),
-            ))
-        } else if tag == "inherit" {
-            Ok(ReexportInstruction::Inherit(non_user_braced!(input).parse().unwrap()))
-        } else {
-            non_user_error!("{}", tag)
-        }
+        let input = non_user_braced!(input, "inherit");
+        let r = InheritWidget {
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            path: non_user_braced!(&input, "path").parse().unwrap(),
+        };
+        Ok(r)
     }
+}
+
+
+/*
+    NEW
+*/
+
+pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(args as InheritArgs);
+    panic!("panico");
+    let r = quote! {};
+    r.into()
+}
+
+fn mod_path_slug(path: String) -> String {
+    path.replace("crate", "").replace(':', "").replace('$', "").trim().replace(' ', "_")
 }

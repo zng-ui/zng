@@ -69,7 +69,9 @@ pub use widget_info::WidgetPath;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{property_new, rust_analyzer_widget_new, static_list, widget_declare, widget_inherit, widget_new, widget_reexport};
+pub use zero_ui_proc_macros::{
+    property_new, rust_analyzer_widget_new, static_list, widget_declare, widget_inherit, widget_inherit2, widget_new, widget_new2,
+};
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation or new node declaration.
 ///
