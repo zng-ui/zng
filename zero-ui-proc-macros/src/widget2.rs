@@ -128,7 +128,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         });
     }
 
-    let macro_ident = ident_spanned!(mod_path.span()=> "__wgt_{}__", mod_path_slug(mod_path.to_string()));
+    let macro_ident = ident!("__wgt_{}__", mod_path_slug(mod_path.to_string()));
 
     let mod_items = quote! {
         // custom items
@@ -150,8 +150,17 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #build
 
         #[doc(hidden)]
-        pub mod __core__ {
-            pub use #crate_core::{widget_new2, property};
+        pub mod __widget__ {
+            pub use #crate_core::{widget_new2 as widget_new, property};
+
+            pub use super::__intrinsic__ as intrinsic;
+            pub use super::__build__ as build;
+
+            pub fn new() -> property::WidgetBuilder {
+                let mut wgt = property::WidgetBuilder::new();
+                intrinsic(&mut wgt);
+                wgt
+            }
         }
     };
 
@@ -166,11 +175,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #[macro_export]
         macro_rules! #macro_ident {
             ($($tt:tt)*) => {
-                #mod_path::__core__::widget_new2! {
-                    widget { #mod_path }
-                    instance {
-                        $($tt)*
+                {
+                    use #mod_path::*;
+                    let mut __wgt__ = __widget__::new();
+                    __widget__::widget_new! {
+                        builder { __wgt__ }
+                        instance { $($tt)* }
                     }
+                    __widget__::build(__wgt__)
                 }
             };
         }
@@ -366,11 +378,10 @@ fn mod_path_slug(path: String) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs { widget, instance } = parse_macro_input!(args as NewArgs);
+    let NewArgs { builder, instance } = parse_macro_input!(args as NewArgs);
 
     let mut errors = Errors::default();
 
-    let call_site = instance.span();
     let instance = match syn::parse2::<Properties>(instance) {
         Ok(p) => p,
         Err(e) => {
@@ -384,54 +395,39 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
     errors.extend(instance.errors);
 
-    let widget = util::set_stream_span(widget, call_site);
-
     let mut instance_stmts = quote!();
     for p in &instance.properties {
         if p.is_unset() {
             let id = p.property_id();
             instance_stmts.extend(quote! {
-                __wgt__.insert_unset(#widget::__core__::property::Importance::INSTANCE, #id);
+                #builder.insert_unset(__widget__::property::Importance::INSTANCE, #id);
             });
         } else {
-            let args = p.args_new(quote!(#widget::__core__::property));
-            instance_stmts.extend(quote_spanned! {call_site=>
-                __wgt__.insert_property(#widget::__core__::property::Importance::INSTANCE, #args);
+            let args = p.args_new(quote!(__widget__::property));
+            instance_stmts.extend(quote! {
+                #builder.insert_property(__widget__::property::Importance::INSTANCE, #args);
             });
         }
     }
 
     for w in &instance.whens {
-        let args = w.when_new(quote!(#widget::__core__::property));
+        let args = w.when_new(quote!(__widget__::property));
         instance_stmts.extend(quote! {
-            __wgt__.insert_when(#widget::__core__::property::Importance::WIDGET, #args);
+            #builder.insert_when(__widget__::property::Importance::INSTANCE, #args);
         });
     }
 
-    let r = quote_spanned! {call_site=>
-        {
-            #[allow(unused_imports)]
-            use #widget::*;
-
-            let mut __wgt__ = __core__::property::WidgetBuilder::new();
-            #widget::__intrinsic__(&mut __wgt__);
-
-            #instance_stmts
-
-            #widget::__build__(__wgt__)
-        }
-    };
-    r.into()
+    instance_stmts.into()
 }
 
 struct NewArgs {
-    widget: TokenStream,
+    builder: Ident,
     instance: TokenStream,
 }
 impl Parse for NewArgs {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(NewArgs {
-            widget: non_user_braced!(input, "widget").parse().unwrap(),
+            builder: non_user_braced!(input, "builder").parse().unwrap(),
             instance: non_user_braced!(input, "instance").parse().unwrap(),
         })
     }

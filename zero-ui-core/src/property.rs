@@ -602,9 +602,9 @@ pub mod expand {
         properties! {
             other = true, Some(32);
 
-            when #is_state {
-                basic_prop = true;
-            }
+            //when #is_state {
+            //    basic_prop = true;
+            //}
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {
