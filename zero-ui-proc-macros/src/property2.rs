@@ -96,8 +96,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             let args = dft.args;
             (
                 quote! {
-                    pub fn __default__(__instance__: #core::property::PropertyInstInfo) -> std::boxed::Box<dyn #core::property::PropertyArgs> {
-                        Self::__new__(__instance__, #args)
+                    pub fn __default__(info: #core::property::PropertyInstInfo) -> std::boxed::Box<dyn #core::property::PropertyArgs> {
+                        Self::__new__(#args).__build__(info)
                     }
                 },
                 quote! {
@@ -448,13 +448,17 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             impl #impl_gens #args_ident #ty_gens #where_gens {
                 pub fn __new__(
-                    __instance__: #core::property::PropertyInstInfo,
                     #(#input_idents: #input_tys),*
-                ) -> std::boxed::Box<dyn #core::property::PropertyArgs> {
-                    Box::new(Self {
-                        __instance__,
+                ) -> Self {
+                    Self {
+                        __instance__: #core::property::PropertyInstInfo::none(),
                         #(#input_idents: #input_to_storage),*
-                    })
+                    }
+                }
+
+                pub fn __build__(mut self, info: #core::property::PropertyInstInfo) -> std::boxed::Box<dyn #core::property::PropertyArgs> {
+                    self.__instance__ = info;
+                    Box::new(self)
                 }
 
                 pub fn __id__(name: &'static str) -> #core::property::PropertyId {
@@ -521,8 +525,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #macro_get_var
                 #macro_set_var
 
-                (<$Args:ty>::__new__($__instance__:expr, #($#sorted_inputs:ident),*)) => {
-                    $Args::__new__(__instance__, #($#input_idents),*)
+                (<$Args:ty>::__new__(#($#sorted_inputs:ident),*)) => {
+                    $Args::__new__(#($#input_idents),*)
                 };
             }
             #cfg
@@ -532,7 +536,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             #[doc(hidden)]
             #vis mod #ident {
-                pub use super::{#macro_ident as code_gen, #args_ident as Args};
+                #[doc(hidden)]
+                #[allow(non_camel_case_types)]
+                pub use super::{#macro_ident as code_gen, #args_ident as property};
             }
         }
     } else {

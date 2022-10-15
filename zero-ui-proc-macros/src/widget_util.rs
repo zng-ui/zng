@@ -40,7 +40,7 @@ impl WgtProperty {
         let path = &self.path;
         let ident = self.ident();
         quote! {
-            #path::Args::__id__(stringify!(#ident))
+            #path::property::__id__(stringify!(#ident))
         }
     }
 
@@ -85,7 +85,7 @@ impl WgtProperty {
             match val {
                 PropertyValue::Special(_, _) => quote!(),
                 PropertyValue::Unnamed(args) => quote_spanned! {path.span()=>
-                    #path::Args::__new__(#instance, #args)
+                    #path::property::__new__(#args).__build__(#instance)
                 },
                 PropertyValue::Named(_, args) => {
                     let mut idents_sorted: Vec<_> = args.iter().map(|f| &f.ident).collect();
@@ -103,7 +103,7 @@ impl WgtProperty {
                             #(
                                 #path::code_gen! {
                                     if #idents {
-                                        let #idents = #path::Args::#idents(#exprs);
+                                        let #idents = #path::property::#idents(#exprs);
                                     }
                                 }
                                 #path::code_gen! {
@@ -114,8 +114,8 @@ impl WgtProperty {
                             )*
 
                             #path::code_gen! {
-                                <#path>::__new__(#instance, #(#idents_sorted),*)
-                            }
+                                <#path::property>::__new__(#(#idents_sorted),*)
+                            }.__build__(#instance)
                         }
                     }
                 }
@@ -123,7 +123,7 @@ impl WgtProperty {
         } else {
             let ident = self.ident();
             quote! {
-                #path::Args::__new__(#instance, #ident)
+                #path::property::__new__(#ident).__build__(#instance)
             }
         }
     }
@@ -369,7 +369,7 @@ impl WgtWhen {
 
         for ((property, member), var) in when_expr.inputs {
             var_decl.extend(quote! {
-                let #var = #property_mod::Args::
+                let #var = #property_mod::property::
             });
 
             let p_ident = &property.segments.last().unwrap().ident;
@@ -383,7 +383,7 @@ impl WgtWhen {
             };
             inputs.extend(quote! {
                 #property_mod::WhenInput {
-                    property: #property::Args::__id__(std::stringify!(#p_ident)),
+                    property: #property::property::__id__(std::stringify!(#p_ident)),
                     member: #property_mod::WhenInputMember::#member,
                     var: #property_mod::var::when_var_to_input(&#var),
                 },

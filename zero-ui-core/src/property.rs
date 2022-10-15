@@ -162,6 +162,24 @@ pub struct PropertyInstInfo {
     /// Property instantiation location.
     pub location: SourceLocation,
 }
+impl PropertyInstInfo {
+    /// No info.
+    pub fn none() -> Self {
+        PropertyInstInfo {
+            name: "",
+            location: SourceLocation {
+                file: "",
+                line: 0,
+                column: 0,
+            },
+        }
+    }
+
+    /// Returns `true` if there is no instance info.
+    pub fn is_none(&self) -> bool {
+        self.name.is_empty()
+    }
+}
 
 /// Property input info.
 #[derive(Debug, Clone)]

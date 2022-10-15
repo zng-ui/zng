@@ -1,6 +1,6 @@
 use std::mem;
 
-use proc_macro2::{TokenStream, TokenTree, Span};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, spanned::Spanned, *};
 
