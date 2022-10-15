@@ -1,6 +1,6 @@
 use std::mem;
 
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::{TokenStream, TokenTree, Span};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, spanned::Spanned, *};
 
@@ -167,6 +167,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let mut mod_block = quote!();
     mod_braces.surround(&mut mod_block, |t| t.extend(mod_items));
 
+    // rust-analyzer does not find the macro if we don't set the call_site here.
+    let mod_path = util::set_stream_span(mod_path, Span::call_site());
+
     let r = quote! {
         #(#attrs)*
         #vis #mod_token #ident #mod_block
@@ -176,11 +179,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         macro_rules! #macro_ident {
             ($($tt:tt)*) => {
                 {
-                    use #mod_path::*;
+                    use #mod_path::{*};
                     let mut __wgt__ = __widget__::new();
                     __widget__::widget_new! {
-                        builder { __wgt__ }
-                        instance { $($tt)* }
+                        $($tt)*
                     }
                     __widget__::build(__wgt__)
                 }
@@ -378,21 +380,9 @@ fn mod_path_slug(path: String) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs { builder, instance } = parse_macro_input!(args as NewArgs);
+    let instance = parse_macro_input!(args as Properties);
 
     let mut errors = Errors::default();
-
-    let instance = match syn::parse2::<Properties>(instance) {
-        Ok(p) => p,
-        Err(e) => {
-            errors.push_syn(e);
-            Properties {
-                errors: Errors::default(),
-                properties: vec![],
-                whens: vec![],
-            }
-        }
-    };
     errors.extend(instance.errors);
 
     let mut instance_stmts = quote!();
@@ -400,12 +390,12 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         if p.is_unset() {
             let id = p.property_id();
             instance_stmts.extend(quote! {
-                #builder.insert_unset(__widget__::property::Importance::INSTANCE, #id);
+                __wgt__.insert_unset(__widget__::property::Importance::INSTANCE, #id);
             });
         } else {
             let args = p.args_new(quote!(__widget__::property));
             instance_stmts.extend(quote! {
-                #builder.insert_property(__widget__::property::Importance::INSTANCE, #args);
+                __wgt__.insert_property(__widget__::property::Importance::INSTANCE, #args);
             });
         }
     }
@@ -413,22 +403,9 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for w in &instance.whens {
         let args = w.when_new(quote!(__widget__::property));
         instance_stmts.extend(quote! {
-            #builder.insert_when(__widget__::property::Importance::INSTANCE, #args);
+            __wgt__.insert_when(__widget__::property::Importance::INSTANCE, #args);
         });
     }
 
     instance_stmts.into()
-}
-
-struct NewArgs {
-    builder: Ident,
-    instance: TokenStream,
-}
-impl Parse for NewArgs {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        Ok(NewArgs {
-            builder: non_user_braced!(input, "builder").parse().unwrap(),
-            instance: non_user_braced!(input, "instance").parse().unwrap(),
-        })
-    }
 }
