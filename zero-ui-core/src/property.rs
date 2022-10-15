@@ -333,7 +333,7 @@ pub struct WhenInput {
     /// Property.
     pub property: PropertyId,
     /// What member and how it was accessed for this input.
-    pub property_member: WhenInputMember,
+    pub member: WhenInputMember,
     /// Property input value.
     pub var: Box<dyn AnyVar>,
 }
@@ -341,7 +341,7 @@ impl fmt::Debug for WhenInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("WhenInput")
             .field("property", &self.property)
-            .field("property_member", &self.property_member)
+            .field("member", &self.member)
             .finish_non_exhaustive()
     }
 }
@@ -598,12 +598,14 @@ pub mod expand {
         child
     }
 
+    ///
     #[zero_ui_proc_macros::property2(context, default(true))]
     pub fn basic_prop(child: impl UiNode, boo: impl IntoVar<bool>) -> impl UiNode {
         let _ = boo;
         child
     }
 
+    ///
     #[zero_ui_proc_macros::property2(context)]
     pub fn is_state(child: impl UiNode, s: StateVar) -> impl UiNode {
         let _ = s;
@@ -620,9 +622,9 @@ pub mod expand {
         properties! {
             other = true, Some(32);
 
-            //when #is_state {
-            //    basic_prop = true;
-            //}
+            when *#is_state {
+                basic_prop = true;
+            }
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {

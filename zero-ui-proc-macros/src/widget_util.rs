@@ -405,7 +405,7 @@ impl WgtWhen {
 
         for ((property, member), var) in when_expr.inputs {
             var_decl.extend(quote! {
-                let #var = #property_mod::property::
+                let #var = todo!("figure out how when input swap will work");
             });
 
             let p_ident = &property.segments.last().unwrap().ident;
@@ -442,7 +442,7 @@ impl WgtWhen {
                 #var_decl
                 #property_mod::WhenInfo {
                     inputs: std::boxed::Box::new([
-                        #inputs,
+                        #inputs
                     ]),
                     state: #property_mod::expr_var! { #expr },
                     assigns: std::boxed::Box::new([
@@ -472,7 +472,7 @@ impl WhenExpr {
         let mut expr = TokenStream::default();
 
         while !input.is_empty() {
-            if input.peek(Token![#]) && !input.peek2(Ident) {
+            if input.peek(Token![#]) && input.peek2(Ident) {
                 let tt = input.parse::<Token![#]>().unwrap();
                 let last_span = tt.span();
 
@@ -505,7 +505,7 @@ impl WhenExpr {
                 }
 
                 expr.extend(quote_spanned! {var_ident.span()=>
-                   TODO #{ #var_ident }
+                    #{ #var_ident }
                 });
 
                 inputs.insert((property, member), var_ident);

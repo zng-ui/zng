@@ -382,8 +382,6 @@ fn mod_path_slug(path: String) -> String {
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let instance = parse_macro_input!(args as Properties);
 
-    let mut errors = instance.errors;
-
     let mut r = quote!();
     for p in &instance.properties {
         if p.is_unset() {
@@ -406,7 +404,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
     }
 
-    errors.to_tokens(&mut r);
+    instance.errors.to_tokens(&mut r);
 
     r.into()
 }
