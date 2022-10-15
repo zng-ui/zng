@@ -437,6 +437,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         };
 
+        let inputs_len = inputs[1..].len();
+
         quote! {
             #cfg
             #[doc(hidden)]
@@ -518,15 +520,29 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 (if !input($other:ident) {
                     $($tt:tt)*
                 }) => {
-                    $($tt:tt)*
+                    $($tt)*
                 };
 
                 #macro_input_index
                 #macro_get_var
                 #macro_set_var
 
+                (if !inputs_len(#inputs_len) {
+                    $($tt:tt)*
+                }) => {
+                    // ignore
+                };
+                (if !inputs_len($other:tt) {
+                    $($tt:tt)*
+                }) => {
+                    $($tt)*
+                };
+
                 ({$($property:tt)*}::__new__(#($#sorted_inputs:ident),*)) => {
                     $($property)*::__new__(#($#input_idents),*)
+                };
+                ({$($property:tt)*}::__new__($($sorted_inputs:ident),*)) => {
+                    // ignore
                 };
             }
             #cfg

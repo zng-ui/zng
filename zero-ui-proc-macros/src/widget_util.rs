@@ -101,8 +101,15 @@ impl WgtProperty {
                             std::compile_error!(#msg);
                         }
                     });
+                    let inputs_len = idents_sorted.len();
+
                     quote_spanned! {path.span()=>
                         {
+                            #path::code_gen! {
+                                if !inputs_len(#inputs_len) {
+                                    std::compile_error!("incorrect inputs");
+                                }
+                            }
                             #(
                                 #path::code_gen! {
                                     if input(#idents) {
@@ -151,14 +158,14 @@ impl Parse for WgtProperty {
 
         if let Some(s) = path.segments.last_mut() {
             match mem::replace(&mut s.arguments, PathArguments::None) {
-                PathArguments::None => {},
+                PathArguments::None => {}
                 PathArguments::AngleBracketed(p) => {
                     generics = p.to_token_stream();
-                },
+                }
                 PathArguments::Parenthesized(p) => return Err(syn::Error::new(p.span(), "expected property path or generics")),
             }
         } else {
-            return Err(syn::Error::new(path.span(), "expected property ident in path"))
+            return Err(syn::Error::new(path.span(), "expected property ident in path"));
         }
 
         Ok(WgtProperty {
