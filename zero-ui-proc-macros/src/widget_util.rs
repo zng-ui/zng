@@ -1,4 +1,6 @@
-use proc_macro2::{Ident, TokenStream, TokenTree, Span};
+use std::collections::HashMap;
+
+use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::{
     ext::IdentExt,
@@ -349,5 +351,167 @@ impl WgtWhen {
             brace_token,
             assigns,
         })
+    }
+
+    /// Expand to a when struct
+    pub fn when_new(&self, property_mod: TokenStream) -> TokenStream {
+        let when_expr = match syn::parse2::<WhenExpr>(self.condition_expr.clone()) {
+            Ok(w) => w,
+            Err(e) => {
+                let mut errors = Errors::default();
+                errors.push_syn(e);
+                return errors.to_token_stream();
+            }
+        };
+
+        let mut var_decl = quote!();
+        let mut inputs = quote!();
+
+        for ((property, member), var) in when_expr.inputs {
+            var_decl.extend(quote! {
+                let #var = #property_mod::Args::
+            });
+
+            let p_ident = &property.segments.last().unwrap().ident;
+            let member = match member {
+                WhenInputMember::Named(ident) => quote! {
+                    Named(std::stringify!(#ident))
+                },
+                WhenInputMember::Index(i) => quote! {
+                    Inded(#i)
+                },
+            };
+            inputs.extend(quote! {
+                #property_mod::WhenInput {
+                    property: #property::Args::__id__(std::stringify!(#p_ident)),
+                    member: #property_mod::WhenInputMember::#member,
+                    var: #property_mod::var::when_var_to_input(&#var),
+                },
+            });
+        }
+
+        let mut assigns = quote!();
+        for a in &self.assigns {
+            let args = a.args_new(property_mod.clone());
+            assigns.extend(quote! {
+                #args,
+            });
+        }
+
+        let expr = when_expr.expr;
+        let expr_str = self.condition_expr.to_string();
+
+        quote! {
+            {
+                #var_decl
+                #property_mod::WhenInfo {
+                    inputs: std::boxed::Box::new([
+                        #inputs,
+                    ]),
+                    state: #property_mod::expr_var! { #expr },
+                    assigns: std::boxed::Box::new([
+                        #assigns
+                    ]),
+                    expr: #expr_str,
+                }
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash)]
+enum WhenInputMember {
+    Named(Ident),
+    Index(usize),
+}
+
+struct WhenExpr {
+    /// Map of `(property_path, member) => var_name`, example: `(id, 0) => __id__0__`.
+    pub inputs: HashMap<(syn::Path, WhenInputMember), Ident>,
+    pub expr: TokenStream,
+}
+impl WhenExpr {
+    fn parse_inner(input: parse::ParseStream) -> syn::Result<Self> {
+        let mut inputs = HashMap::new();
+        let mut expr = TokenStream::default();
+
+        while !input.is_empty() {
+            if input.peek(Token![#]) && !input.peek2(Ident) {
+                let tt = input.parse::<Token![#]>().unwrap();
+                let last_span = tt.span();
+
+                let property = input.parse::<Path>().map_err(|e| {
+                    if util::span_is_call_site(e.span()) {
+                        syn::Error::new(last_span, e)
+                    } else {
+                        e
+                    }
+                })?;
+
+                let path_slug = util::display_path(&property).replace("::", "_");
+
+                let mut member = WhenInputMember::Index(0);
+                let mut var_ident = ident_spanned!(property.span()=> "{path_slug}");
+                if input.peek(Token![.]) {
+                    if input.peek(Ident) {
+                        let m = input.parse::<Ident>().unwrap();
+                        var_ident = ident_spanned!(m.span()=> "{path_slug}__{m}");
+                        member = WhenInputMember::Named(m);
+                    } else {
+                        let index = input.parse::<syn::Index>().map_err(|e| {
+                            let span = if util::span_is_call_site(e.span()) { last_span } else { e.span() };
+
+                            syn::Error::new(span, "expected identifier or index")
+                        })?;
+                        member = WhenInputMember::Index(index.index as usize);
+                        var_ident = ident_spanned!(index.span()=> "{path_slug}__{}", index.index);
+                    }
+                }
+
+                expr.extend(quote_spanned! {var_ident.span()=>
+                   TODO #{ #var_ident }
+                });
+
+                inputs.insert((property, member), var_ident);
+            }
+            // recursive parse groups:
+            else if input.peek(token::Brace) {
+                let inner = WhenExpr::parse_inner(&non_user_braced!(input))?;
+                inputs.extend(inner.inputs);
+                let inner = inner.expr;
+                expr.extend(quote_spanned! {inner.span()=> { #inner } });
+            } else if input.peek(token::Paren) {
+                let inner = WhenExpr::parse_inner(&non_user_parenthesized!(input))?;
+                inputs.extend(inner.inputs);
+                let inner = inner.expr;
+                expr.extend(quote_spanned! {inner.span()=> ( #inner ) });
+            } else if input.peek(token::Bracket) {
+                let inner = WhenExpr::parse_inner(&non_user_bracketed!(input))?;
+                inputs.extend(inner.inputs);
+                let inner = inner.expr;
+                expr.extend(quote_spanned! {inner.span()=> [ #inner ] });
+            }
+            // keep other tokens the same:
+            else {
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut expr)
+            }
+        }
+
+        Ok(WhenExpr { inputs, expr })
+    }
+}
+impl Parse for WhenExpr {
+    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
+        let mut r = WhenExpr::parse_inner(input)?;
+        let expr = &mut r.expr;
+
+        // assert expression type.
+        *expr = quote_spanned! {expr.span()=>
+            let __result__: bool = { #expr };
+            __result__
+        };
+
+        Ok(r)
     }
 }

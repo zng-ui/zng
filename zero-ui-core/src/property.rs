@@ -3,7 +3,7 @@
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    mem,
+    fmt, mem,
     rc::Rc,
 };
 
@@ -18,6 +18,9 @@ use crate::{
 };
 
 pub use crate::inspector::source_location;
+
+#[doc(hidden)]
+pub use crate::var::expr_var;
 
 /// Property priority in a widget.
 ///
@@ -249,6 +252,15 @@ pub fn read_value<T: VarValue>(args: &dyn PropertyArgs, i: usize) -> BoxedVar<T>
         .boxed()
 }
 
+#[doc(hidden)]
+pub fn read_state(args: &dyn PropertyArgs, i: usize) -> StateVar {
+    args.value(i)
+        .as_any()
+        .downcast_ref::<StateVar>()
+        .expect("expected differnt arg type")
+        .clone()
+}
+
 /*
 
  WIDGET
@@ -280,7 +292,7 @@ impl_from_and_into_var! {
 
 /// Unique identifier of a property, properties with the same id override each other in a widget and are joined
 /// into a single instance is assigned in when blocks.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PropertyId {
     /// The [`PropertyInfo::unique_id`].
     pub unique_id: TypeId,
@@ -288,22 +300,36 @@ pub struct PropertyId {
     pub name: &'static str,
 }
 
+/// Represents what member and how it was accessed in a [`WhenInput`].
+#[derive(Clone, Copy, Debug)]
+pub enum WhenInputMember {
+    /// Member was accessed by name.
+    Named(&'static str),
+    /// Member was accessed by index.
+    Index(usize),
+}
+
 /// Input var read in a `when` condition expression.
+#[derive(Clone)]
 pub struct WhenInput {
-    /// Property name.
-    pub property_name: &'static str,
-    /// Id of the named property when the expression was created.
-    pub property_id: TypeId,
-    /// Property input name.
-    pub member_name: &'static str,
-    /// Property input index.
-    pub member_i: usize,
+    /// Property.
+    pub property: PropertyId,
+    /// What member and how it was accessed for this input.
+    pub property_member: WhenInputMember,
     /// Property input value.
     pub var: Box<dyn AnyVar>,
 }
+impl fmt::Debug for WhenInput {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WhenInput")
+            .field("property", &self.property)
+            .field("property_member", &self.property_member)
+            .finish_non_exhaustive()
+    }
+}
 
 /// Represents a `when` block in a widget.
-pub struct When {
+pub struct WhenInfo {
     /// Properties referenced in the when condition expression.
     ///
     /// They are type erased `RcVar<T>` instances and can be rebound, other variable references (`*#{var}`) are imbedded in
@@ -316,6 +342,9 @@ pub struct When {
     /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
     /// from other when blocks into a single property instance set to `when_var!` inputs.
     pub assigns: Box<[Box<dyn PropertyArgs>]>,
+
+    /// The condition expression code.
+    pub expr: &'static str,
 }
 
 /// Widget instance builder.
@@ -324,7 +353,7 @@ pub struct WidgetBuilder {
     child: Option<BoxedUiNode>,
     items: Vec<(Priority, WidgetItem)>,
     unset: LinearMap<PropertyId, Importance>,
-    whens: Vec<(Importance, When)>,
+    whens: Vec<(Importance, WhenInfo)>,
 }
 impl WidgetBuilder {
     /// New empty default.
@@ -417,7 +446,7 @@ impl WidgetBuilder {
     }
 
     /// Insert a `when` block.
-    pub fn insert_when(&mut self, importance: Importance, when: When) {
+    pub fn insert_when(&mut self, importance: Importance, when: WhenInfo) {
         self.whens.push((importance, when))
     }
 
@@ -551,6 +580,18 @@ pub mod expand {
         child
     }
 
+    #[zero_ui_proc_macros::property2(context, default(true))]
+    pub fn basic_prop(child: impl UiNode, boo: impl IntoVar<bool>) -> impl UiNode {
+        let _ = boo;
+        child
+    }
+
+    #[zero_ui_proc_macros::property2(context)]
+    pub fn is_state(child: impl UiNode, s: StateVar) -> impl UiNode {
+        let _ = s;
+        child
+    }
+
     /// Widget docs.
     #[zero_ui_proc_macros::widget2($crate::property::expand::bar)]
     pub mod bar {
@@ -560,6 +601,10 @@ pub mod expand {
 
         properties! {
             other = true, Some(32);
+
+            when #is_state {
+                basic_prop = true;
+            }
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {
@@ -586,7 +631,7 @@ pub mod expand {
     pub mod zap {
         use super::*;
 
-        inherit!(foo);
+        inherit!(foo); // not expanded in correct order
         inherit!(bar);
 
         properties! {
@@ -598,7 +643,7 @@ pub mod expand {
         }
     }
 
-    /// 
+    ///
     pub fn expand_instantiate() {
         let _wgt = zap! {
             boo = false, Some(45);

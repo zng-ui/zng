@@ -84,6 +84,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     }
 
+    for when in properties.iter().flat_map(|i| i.whens.iter()) {
+        let args = when.when_new(quote!(#crate_core::property));
+        intrinsic.extend(quote! {
+            __wgt__.insert_when(#crate_core::property::Importance::WIDGET, #args);
+        });
+    }
+
     let build = if let Some(build) = &build_fn {
         let out = &build.sig.output;
         let ident = &build.sig.ident;
@@ -346,11 +353,7 @@ impl Parse for Properties {
             }
         }
 
-        Ok(Properties {
-            errors,
-            properties,
-            whens,
-        })
+        Ok(Properties { errors, properties, whens })
     }
 }
 
@@ -396,6 +399,13 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 __wgt__.insert_property(#widget::__core__::property::Importance::INSTANCE, #args);
             });
         }
+    }
+
+    for w in &instance.whens {
+        let args = w.when_new(quote!(#widget::__core__::property));
+        instance_stmts.extend(quote! {
+            __wgt__.insert_when(#widget::__core__::property::Importance::WIDGET, #args);
+        });
     }
 
     let r = quote_spanned! {call_site=>

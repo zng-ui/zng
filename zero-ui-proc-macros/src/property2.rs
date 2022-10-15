@@ -89,7 +89,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let ident = &item.sig.ident;
         let generics = &item.sig.generics;
         let args_ident = ident!("{ident}_Args");
-        let macro_ident = ident!("{ident}_code_gen_{uuid}");
+        let macro_ident = ident!("{ident}_code_gen_{uuid:x}");
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
         let (default, macro_default, default_fn) = if let Some(dft) = args.default {
@@ -138,6 +138,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
         let mut input_info = quote!();
         let mut get_var = quote!();
+        let mut get_state = quote!();
         let mut get_value = quote!();
         let mut get_takeout = quote!();
 
@@ -269,6 +270,26 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         }
                     })
                 }
+                InputKind::StateVar => {
+                    input_to_storage.push(quote! {
+                        #ident
+                    });
+                    get_var.extend(quote! {
+                        #i => &self.#ident,
+                    });
+                    get_state.extend(quote! {
+                        #i => &self.#ident,
+                    });
+                    instantiate.extend(quote! {
+                        std::clone::Clone::clone(&self.#ident),
+                    });
+                    let get_ident = ident!("__{ident}_var__");
+                    get_into_var.extend(quote! {
+                        pub fn #get_ident(args: &dyn #core::property::PropertyArgs) -> #core::var::StateVar {
+                            #core::property::read_state(args, #i)
+                        }
+                    });
+                }
                 InputKind::Value => {
                     input_to_storage.push(quote! {
                         std::convert::Into::into(#ident)
@@ -350,6 +371,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     match __index__ {
                         #get_var
                         n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::Var),
+                    }
+                }
+            }
+        }
+        if !get_state.is_empty() {
+            get_state = quote! {
+                fn state_var(&self, __index__: usize) -> &#core::var::StateVar {
+                    match __index__ {
+                        #get_state
+                        n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::StateVar),
                     }
                 }
             }
@@ -462,6 +493,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 #get_var
+                #get_state
                 #get_value
                 #get_takeout
             }
@@ -589,6 +621,7 @@ impl ToTokens for Priority {
 #[derive(Clone, Copy)]
 enum InputKind {
     Var,
+    StateVar,
     Value,
     UiNode,
     Widget,
@@ -600,6 +633,7 @@ impl ToTokens for InputKind {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let kin = match self {
             InputKind::Var => ident!("Var"),
+            InputKind::StateVar => ident!("StateVar"),
             InputKind::Value => ident!("Value"),
             _ => ident!("Takeout"),
         };
@@ -643,13 +677,13 @@ impl Input {
                         errors.push("property input can only have a simple ident", p.span());
                     }
                 }
+                let core = crate_core();
 
                 match *t.ty.clone() {
                     Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
                         let bounds = it.bounds.pop().unwrap().into_value();
                         match bounds {
                             TypeParamBound::Trait(tra) if tra.lifetimes.is_none() && tra.paren_token.is_none() => {
-                                let core = crate_core();
                                 let path = tra.path;
                                 let seg = path.segments.last().unwrap();
 
@@ -719,12 +753,18 @@ impl Input {
                                 }
                             }
                             t => {
-                                errors.push("property input can only have `impl OneTrait` types", t.span());
+                                errors.push("property input can only have `impl OneTrait`", t.span());
                             }
                         }
                     }
+                    Type::Path(t) if t.path.segments.last().map(|s| s.ident == "StateVar").unwrap_or(false) => {
+                        input.kind = InputKind::StateVar;
+                        input.ty = quote_spanned!(t.span()=> #core::var::StateVar);
+                        input.info_ty = quote_spanned!(t.span()=> bool);
+                        input.storage_ty = input.ty.clone();
+                    }
                     t => {
-                        errors.push("property input can only have `impl OneTrait` types", t.span());
+                        errors.push("property input can only have `impl OneTrait` or `StateVar` types", t.span());
                     }
                 }
             }
