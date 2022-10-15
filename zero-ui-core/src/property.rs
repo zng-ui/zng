@@ -664,7 +664,10 @@ pub mod expand {
     ///
     pub fn expand_instantiate() {
         let _wgt = zap! {
-            boo = false, Some(45);
+            boo::<i32> = {
+                boo: true,
+                too: Some(32),
+            };
         };
     }
 }

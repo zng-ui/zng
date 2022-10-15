@@ -179,7 +179,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         macro_rules! #macro_ident {
             ($($tt:tt)*) => {
                 {
-                    use #mod_path::{*};
+                    use #mod_path::*;
                     let mut __wgt__ = __widget__::new();
                     __widget__::widget_new! {
                         $($tt)*

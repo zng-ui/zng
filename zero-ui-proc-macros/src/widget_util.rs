@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -18,6 +18,8 @@ pub struct WgtProperty {
     pub attrs: Vec<Attribute>,
     /// Path to property.
     pub path: Path,
+    /// The ::<T> part of the path, if present it is removed from `path`.
+    pub generics: TokenStream,
     /// Optional property rename.
     pub rename: Option<(Token![as], Ident)>,
     /// Optional value, if not defined the property must be assigned to its own name.
@@ -74,6 +76,7 @@ impl WgtProperty {
     /// Gets the property args new code.
     pub fn args_new(&self, property_mod: TokenStream) -> TokenStream {
         let path = &self.path;
+        let generics = &self.generics;
         let ident = self.ident();
         let instance = quote_spanned! {self.location_span()=>
             #property_mod::PropertyInstInfo {
@@ -85,7 +88,7 @@ impl WgtProperty {
             match val {
                 PropertyValue::Special(_, _) => quote!(),
                 PropertyValue::Unnamed(args) => quote_spanned! {path.span()=>
-                    #path::property::__new__(#args).__build__(#instance)
+                    #path::property #generics::__new__(#args).__build__(#instance)
                 },
                 PropertyValue::Named(_, args) => {
                     let mut idents_sorted: Vec<_> = args.iter().map(|f| &f.ident).collect();
@@ -102,19 +105,19 @@ impl WgtProperty {
                         {
                             #(
                                 #path::code_gen! {
-                                    if #idents {
-                                        let #idents = #path::property::#idents(#exprs);
+                                    if input(#idents) {
+                                        let #idents = #path::property #generics::#idents(#exprs);
                                     }
                                 }
                                 #path::code_gen! {
-                                    if !#idents {
+                                    if !input(#idents) {
                                         #errors
                                     }
                                 }
                             )*
 
                             #path::code_gen! {
-                                <#path::property>::__new__(#(#idents_sorted),*)
+                                {#path::property #generics}::__new__(#(#idents_sorted),*)
                             }.__build__(#instance)
                         }
                     }
@@ -123,7 +126,7 @@ impl WgtProperty {
         } else {
             let ident = self.ident();
             quote! {
-                #path::property::__new__(#ident).__build__(#instance)
+                #path::property #generics::__new__(#ident).__build__(#instance)
             }
         }
     }
@@ -131,7 +134,7 @@ impl WgtProperty {
 impl Parse for WgtProperty {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let attrs = Attribute::parse_outer(input)?;
-        let path = input.parse()?;
+        let mut path: Path = input.parse()?;
         let rename = if input.peek(Token![as]) {
             Some((input.parse()?, input.parse()?))
         } else {
@@ -142,9 +145,26 @@ impl Parse for WgtProperty {
         } else {
             None
         };
+
+        path.leading_colon = None;
+        let mut generics = quote!();
+
+        if let Some(s) = path.segments.last_mut() {
+            match mem::replace(&mut s.arguments, PathArguments::None) {
+                PathArguments::None => {},
+                PathArguments::AngleBracketed(p) => {
+                    generics = p.to_token_stream();
+                },
+                PathArguments::Parenthesized(p) => return Err(syn::Error::new(p.span(), "expected property path or generics")),
+            }
+        } else {
+            return Err(syn::Error::new(path.span(), "expected property ident in path"))
+        }
+
         Ok(WgtProperty {
             attrs,
             path,
+            generics,
             rename,
             value,
             semi: input.parse()?,
@@ -162,7 +182,17 @@ impl Parse for PropertyField {
         Ok(PropertyField {
             ident: input.parse()?,
             colon: input.parse()?,
-            expr: input.parse()?,
+            expr: {
+                let mut t = quote!();
+                while !input.is_empty() {
+                    if input.peek(Token![,]) {
+                        break;
+                    }
+                    let tt = input.parse::<TokenTree>().unwrap();
+                    tt.to_tokens(&mut t);
+                }
+                t
+            },
         })
     }
 }

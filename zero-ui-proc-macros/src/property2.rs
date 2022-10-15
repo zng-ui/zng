@@ -525,8 +525,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #macro_get_var
                 #macro_set_var
 
-                (<$Args:ty>::__new__(#($#sorted_inputs:ident),*)) => {
-                    $Args::__new__(#($#input_idents),*)
+                ({$($property:tt)*}::__new__(#($#sorted_inputs:ident),*)) => {
+                    $($property)*::__new__(#($#input_idents),*)
                 };
             }
             #cfg
