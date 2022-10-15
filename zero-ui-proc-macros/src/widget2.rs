@@ -382,19 +382,18 @@ fn mod_path_slug(path: String) -> String {
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let instance = parse_macro_input!(args as Properties);
 
-    let mut errors = Errors::default();
-    errors.extend(instance.errors);
+    let mut errors = instance.errors;
 
-    let mut instance_stmts = quote!();
+    let mut r = quote!();
     for p in &instance.properties {
         if p.is_unset() {
             let id = p.property_id();
-            instance_stmts.extend(quote! {
+            r.extend(quote! {
                 __wgt__.insert_unset(__widget__::property::Importance::INSTANCE, #id);
             });
         } else {
             let args = p.args_new(quote!(__widget__::property));
-            instance_stmts.extend(quote! {
+            r.extend(quote! {
                 __wgt__.insert_property(__widget__::property::Importance::INSTANCE, #args);
             });
         }
@@ -402,10 +401,12 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     for w in &instance.whens {
         let args = w.when_new(quote!(__widget__::property));
-        instance_stmts.extend(quote! {
+        r.extend(quote! {
             __wgt__.insert_when(__widget__::property::Importance::INSTANCE, #args);
         });
     }
 
-    instance_stmts.into()
+    errors.to_tokens(&mut r);
+
+    r.into()
 }

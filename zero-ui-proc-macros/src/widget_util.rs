@@ -155,7 +155,7 @@ impl Parse for WgtProperty {
 pub struct PropertyField {
     pub ident: Ident,
     pub colon: Token![:],
-    pub expr: Expr,
+    pub expr: TokenStream,
 }
 impl Parse for PropertyField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -172,7 +172,7 @@ pub enum PropertyValue {
     /// `unset!`.
     Special(Ident, Token![!]),
     /// `arg0, arg1,`
-    Unnamed(Punctuated<Expr, Token![,]>),
+    Unnamed(TokenStream),
     /// `{ field0: true, field1: false, }`
     Named(syn::token::Brace, Punctuated<PropertyField, Token![,]>),
 }
@@ -233,8 +233,7 @@ impl Parse for PropertyValue {
             input.parse::<TokenTree>().unwrap().to_tokens(&mut args_input);
         }
 
-        let r = util::parse_punct_terminated2(args_input).map_err(|e| e.set_recoverable())?;
-        Ok(PropertyValue::Unnamed(r))
+        Ok(PropertyValue::Unnamed(args_input))
     }
 }
 
