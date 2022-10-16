@@ -20,7 +20,14 @@ use crate::{
 pub use crate::inspector::source_location;
 
 #[doc(hidden)]
-pub use crate::var::expr_var;
+#[macro_export]
+macro_rules! when_condition_expr_var {
+    ($($tt:tt)*) => {
+        $crate::var::Var::boxed($crate::var::expr_var!{$($tt)*})
+    };
+}
+#[doc(hidden)]
+pub use when_condition_expr_var;
 
 /// Property priority in a widget.
 ///
@@ -757,11 +764,8 @@ pub mod expand {
 
     ///
     pub fn expand_instantiate() {
-        let _wgt = zap! {
-            boo::<i32> = {
-                boo: true,
-                too: Some(32),
-            };
+        let _wgt = bar! {
+            
         };
     }
 }

@@ -471,7 +471,7 @@ impl WgtWhen {
                     inputs: std::boxed::Box::new([
                         #inputs
                     ]),
-                    state: #property_mod::expr_var! { #expr },
+                    state: #property_mod::when_condition_expr_var! { #expr },
                     assigns: std::boxed::Box::new([
                         #assigns
                     ]),
