@@ -250,35 +250,6 @@ pub fn panic_input(info: &PropertyInfo, i: usize, kind: InputKind) -> ! {
     }
 }
 
-#[doc(hidden)]
-pub fn read_var<T: VarValue>(args: &dyn PropertyArgs, i: usize) -> BoxedVar<T> {
-    args.var(i)
-        .as_any()
-        .downcast_ref::<BoxedVar<T>>()
-        .expect("expected different arg type")
-        .clone()
-}
-
-#[doc(hidden)]
-pub fn read_value<T: VarValue>(args: &dyn PropertyArgs, i: usize) -> BoxedVar<T> {
-    args.value(i)
-        .as_any()
-        .downcast_ref::<T>()
-        .expect("expected diffent arg type")
-        .clone()
-        .into_var()
-        .boxed()
-}
-
-#[doc(hidden)]
-pub fn read_state(args: &dyn PropertyArgs, i: usize) -> StateVar {
-    args.value(i)
-        .as_any()
-        .downcast_ref::<StateVar>()
-        .expect("expected differnt arg type")
-        .clone()
-}
-
 /*
 
  WIDGET
@@ -334,8 +305,8 @@ pub struct WhenInput {
     pub property: PropertyId,
     /// What member and how it was accessed for this input.
     pub member: WhenInputMember,
-    /// Property input value.
-    pub var: Box<dyn AnyVar>,
+    /// Input var.
+    pub var: WhenInputVar,
 }
 impl fmt::Debug for WhenInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -343,6 +314,78 @@ impl fmt::Debug for WhenInput {
             .field("property", &self.property)
             .field("member", &self.member)
             .finish_non_exhaustive()
+    }
+}
+
+/// Represents a [`WhenInput`] variable that can be rebound.
+#[derive(Clone)]
+pub struct WhenInputVar {
+    var: Rc<RefCell<Option<Box<dyn AnyVar>>>>,
+}
+impl WhenInputVar {
+    /// New for property with `default` value.
+    pub fn new<T: VarValue>(default: T) -> (Self, BoxedVar<T>) {
+        let var = crate::var::var(default);
+        let var_r = var.read_only();
+        (
+            WhenInputVar {
+                var: Rc::new(RefCell::new(Some(Box::new(var)))),
+            },
+            var_r.boxed(),
+        )
+    }
+
+    /// New for property without default value.
+    pub fn new_no_default<T: VarValue>() -> (Self, BoxedVar<T>) {
+        let rc = Rc::new(RefCell::new(None));
+        (
+            WhenInputVar { var: rc.clone() },
+            crate::var::types::ContextualizedVar::new(Rc::new(move || match rc.borrow().as_ref() {
+                Some(var) => var
+                    .as_any()
+                    .downcast_ref::<crate::var::RcVar<T>>()
+                    .expect("incorrect when input var type")
+                    .read_only(),
+                None => panic!("cannot use when input without default or before init"),
+            }))
+            .boxed(),
+        )
+    }
+
+    /// Returns `true` if a default or bound value has inited the variable.
+    ///
+    /// Note that attempting to use the [`WhenInfo::state`] when this is `false` will cause a panic.
+    pub fn can_use(&self) -> bool {
+        self.var.borrow().is_some()
+    }
+
+    /// Assign and bind the input var from `other`.
+    ///
+    /// Returns the binding handle, after this call [`can_use`] is `true`.
+    ///
+    /// # Panics
+    ///
+    /// If `T` is not the same that was used to init the var before.
+    pub fn bind<T: VarValue>(&self, vars: impl crate::var::WithVars, other: &impl Var<T>) -> crate::var::VarHandle {
+        vars.with_vars(|vars| self.bind_impl(vars, other))
+    }
+    fn bind_impl<T: VarValue>(&self, vars: &crate::var::Vars, other: &impl Var<T>) -> crate::var::VarHandle {
+        match &mut *self.var.borrow_mut() {
+            Some(var) => {
+                let var = var
+                    .as_any()
+                    .downcast_ref::<crate::var::RcVar<T>>()
+                    .expect("incorrect when input var type");
+                var.set(vars, other.get());
+                other.bind(var)
+            }
+            v @ None => {
+                let var = crate::var::var(other.get());
+                let handle = other.bind(&var);
+                *v = Some(Box::new(var));
+                handle
+            }
+        }
     }
 }
 
@@ -355,6 +398,10 @@ pub struct WhenInfo {
     pub inputs: Box<[WhenInput]>,
 
     /// Output of the when expression.
+    ///
+    /// # Panics
+    ///
+    /// If used when [`can_use`] is `false`.
     pub state: BoxedVar<bool>,
 
     /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
@@ -363,6 +410,13 @@ pub struct WhenInfo {
 
     /// The condition expression code.
     pub expr: &'static str,
+}
+impl WhenInfo {
+    /// Returns `true` if the [`state`] var is valid because it does not depend of any property input or all
+    /// property inputs are inited with a value or have a default.
+    pub fn can_use(&self) -> bool {
+        self.inputs.iter().all(|i| i.var.can_use())
+    }
 }
 
 /// Widget instance builder.
@@ -622,9 +676,9 @@ pub mod expand {
         properties! {
             other = true, Some(32);
 
-            when *#is_state {
-                basic_prop = true;
-            }
+            // when *#is_state {
+            //     basic_prop = true;
+            // }
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {

@@ -152,7 +152,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut macro_get_var = quote!();
         let mut macro_set_var = quote!();
         let mut named_into_var = quote!();
-        let mut get_into_var = quote!();
+        let mut get_when_input = quote!();
 
         for (i, input) in inputs[1..].iter().enumerate() {
             let ident = &input.ident;
@@ -263,10 +263,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::var::Var::boxed(#core::var::IntoVar::into_var(#ident))
                         }
                     });
-                    let get_ident = ident!("__{ident}_var__");
-                    get_into_var.extend(quote! {
-                        pub fn #get_ident(args: &dyn #core::property::PropertyArgs) -> #core::var::BoxedVar<#info_ty> {
-                            #core::property::read_var(args, #i)
+                    let get_ident = ident!("__{ident}_when__");
+                    get_when_input.extend(quote! {
+                        pub fn #get_ident(&self) 
+                        -> (#core::property::WhenInputVar, #core::var::BoxedVar<#info_ty>) {
+                            todo!()
                         }
                     })
                 }
@@ -283,10 +284,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
                     });
-                    let get_ident = ident!("__{ident}_var__");
-                    get_into_var.extend(quote! {
-                        pub fn #get_ident(args: &dyn #core::property::PropertyArgs) -> #core::var::StateVar {
-                            #core::property::read_state(args, #i)
+                    let get_ident = ident!("__{ident}_when__");
+                    get_when_input.extend(quote! {
+                        pub fn #get_ident(&self) 
+                        -> (#core::property::WhenInputVar, #core::var::BoxedVar<bool>) {
+                            todo!()
                         }
                     });
                 }
@@ -300,10 +302,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
                     });
-                    let get_ident = ident!("__{ident}_var__");
-                    get_into_var.extend(quote! {
-                        pub fn #get_ident(args: &dyn #core::property::PropertyArgs) -> #core::var::BoxedVar<#info_ty> {
-                            #core::property::read_value(args, #i)
+                    let get_ident = ident!("__{ident}_when__");
+                    get_when_input.extend(quote! {
+                        pub fn #get_ident(&self) 
+                        -> (#core::property::WhenInputVar, #core::var::BoxedVar<bool>) {
+                            todo!()
                         }
                     })
                 }
@@ -473,7 +476,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #default
 
                 #named_into_var
-                #get_into_var
+                #get_when_input
             }
             #cfg
             impl #impl_gens #core::property::PropertyArgs for #args_ident #ty_gens #where_gens {
