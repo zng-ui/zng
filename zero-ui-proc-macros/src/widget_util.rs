@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem};
+use std::{collections::HashMap, fmt, mem};
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -141,7 +141,10 @@ impl WgtProperty {
 impl Parse for WgtProperty {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let attrs = Attribute::parse_outer(input)?;
-        let mut path: Path = input.parse()?;
+
+        let path: Path = input.parse()?;
+        let (path, generics) = split_path_generics(path)?;
+
         let rename = if input.peek(Token![as]) {
             Some((input.parse()?, input.parse()?))
         } else {
@@ -153,21 +156,6 @@ impl Parse for WgtProperty {
             None
         };
 
-        path.leading_colon = None;
-        let mut generics = quote!();
-
-        if let Some(s) = path.segments.last_mut() {
-            match mem::replace(&mut s.arguments, PathArguments::None) {
-                PathArguments::None => {}
-                PathArguments::AngleBracketed(p) => {
-                    generics = p.to_token_stream();
-                }
-                PathArguments::Parenthesized(p) => return Err(syn::Error::new(p.span(), "expected property path or generics")),
-            }
-        } else {
-            return Err(syn::Error::new(path.span(), "expected property ident in path"));
-        }
-
         Ok(WgtProperty {
             attrs,
             path,
@@ -176,6 +164,23 @@ impl Parse for WgtProperty {
             value,
             semi: input.parse()?,
         })
+    }
+}
+
+fn split_path_generics(mut path: Path) -> Result<(Path, TokenStream)> {
+    path.leading_colon = None;
+    if let Some(s) = path.segments.last_mut() {
+        let mut generics = quote!();
+        match mem::replace(&mut s.arguments, PathArguments::None) {
+            PathArguments::None => {}
+            PathArguments::AngleBracketed(p) => {
+                generics = p.to_token_stream();
+            }
+            PathArguments::Parenthesized(p) => return Err(syn::Error::new(p.span(), "expected property path or generics")),
+        }
+        Ok((path, generics))
+    } else {
+        Err(syn::Error::new(path.span(), "expected property ident in path"))
     }
 }
 
@@ -404,8 +409,30 @@ impl WgtWhen {
         let mut inputs = quote!();
 
         for ((property, member), var) in when_expr.inputs {
-            var_decl.extend(quote! {
-                let #var = todo!("figure out how when input swap will work");
+            let (property, generics) = split_path_generics(property).unwrap();
+            let var_input = ident!("{var}in__");
+
+            let unknwon_member_err = format!("unknown member `{}`", member);
+            let not_gettable_err = format!("member `{}` cannot be used in when", member);
+            var_decl.extend(quote_spanned! {property.span()=>
+                #property::code_gen! {
+                    if input(#member) {
+                        #property::code_gen! {
+                            if !allowed_in_when(#member) {
+                                std::compile_error!{ #not_gettable_err }
+                            }
+                        }
+
+                        let (#var_input, #var) = #property::code_gen! {
+                            {#property::property #generics}::when_input(#member)
+                        };
+                    }
+                }
+                #property::code_gen! {
+                    if !input(#member) {
+                        std::compile_error!{ #unknwon_member_err }
+                    }
+                }
             });
 
             let p_ident = &property.segments.last().unwrap().ident;
@@ -414,14 +441,14 @@ impl WgtWhen {
                     Named(std::stringify!(#ident))
                 },
                 WhenInputMember::Index(i) => quote! {
-                    Inded(#i)
+                    Index(#i)
                 },
             };
             inputs.extend(quote! {
                 #property_mod::WhenInput {
                     property: #property::property::__id__(std::stringify!(#p_ident)),
                     member: #property_mod::WhenInputMember::#member,
-                    var: #property_mod::var::when_var_to_input(&#var),
+                    var: #var_input,
                 },
             });
         }
@@ -459,6 +486,22 @@ impl WgtWhen {
 enum WhenInputMember {
     Named(Ident),
     Index(usize),
+}
+impl fmt::Display for WhenInputMember {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WhenInputMember::Named(n) => write!(f, "{n}"),
+            WhenInputMember::Index(i) => write!(f, "{i}"),
+        }
+    }
+}
+impl ToTokens for WhenInputMember {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            WhenInputMember::Named(ident) => ident.to_tokens(tokens),
+            WhenInputMember::Index(i) => i.to_tokens(tokens),
+        }
+    }
 }
 
 struct WhenExpr {

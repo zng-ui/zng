@@ -13,7 +13,7 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     inspector::SourceLocation,
-    var::{AnyVar, AnyVarValue, BoxedVar, IntoVar, StateVar, Var, VarValue},
+    var::{var, AnyVar, AnyVarValue, BoxedVar, IntoVar, RcVar, StateVar, Var, VarHandle, VarValue, Vars, WithVars},
     AdoptiveNode, BoxedUiNode, BoxedWidget, NilUiNode, UiNode, UiNodeList, Widget, WidgetList,
 };
 
@@ -317,75 +317,113 @@ impl fmt::Debug for WhenInput {
     }
 }
 
+enum WhenInputVarActual<T: VarValue> {
+    None,
+    Some { var: RcVar<T>, handle: VarHandle },
+}
+impl<T: VarValue> WhenInputVarActual<T> {
+    fn bind_init(&mut self, vars: &Vars, other: &impl Var<T>) {
+        match self {
+            WhenInputVarActual::None => {
+                let var = var(other.get());
+                *self = Self::Some {
+                    handle: other.bind(&var),
+                    var,
+                }
+            }
+            WhenInputVarActual::Some { var, handle } => {
+                var.set(vars, other.get());
+                *handle = other.bind(var);
+            }
+        }
+    }
+
+    fn bind_init_value(&mut self, vars: &Vars, value: T) {
+        match self {
+            WhenInputVarActual::None => {
+                *self = Self::Some {
+                    var: var(value),
+                    handle: VarHandle::dummy(),
+                }
+            }
+            WhenInputVarActual::Some { var, handle } => {
+                *handle = VarHandle::dummy();
+                var.set(vars, value);
+            }
+        }
+    }
+}
+trait AnyWhenInputVarActual: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_mut_any(&mut self) -> &mut dyn Any;
+    fn is_some(&self) -> bool;
+}
+impl<T: VarValue> AnyWhenInputVarActual for WhenInputVarActual<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn is_some(&self) -> bool {
+        matches!(self, Self::Some { .. })
+    }
+}
+
 /// Represents a [`WhenInput`] variable that can be rebound.
 #[derive(Clone)]
 pub struct WhenInputVar {
-    var: Rc<RefCell<Option<Box<dyn AnyVar>>>>,
+    var: Rc<RefCell<dyn AnyWhenInputVarActual>>,
 }
 impl WhenInputVar {
-    /// New for property with `default` value.
-    pub fn new<T: VarValue>(default: T) -> (Self, BoxedVar<T>) {
-        let var = crate::var::var(default);
-        let var_r = var.read_only();
-        (
-            WhenInputVar {
-                var: Rc::new(RefCell::new(Some(Box::new(var)))),
-            },
-            var_r.boxed(),
-        )
-    }
-
     /// New for property without default value.
-    pub fn new_no_default<T: VarValue>() -> (Self, BoxedVar<T>) {
-        let rc = Rc::new(RefCell::new(None));
+    pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
+        let rc: Rc<RefCell<dyn AnyWhenInputVarActual>> = Rc::new(RefCell::new(WhenInputVarActual::<T>::None));
         (
             WhenInputVar { var: rc.clone() },
-            crate::var::types::ContextualizedVar::new(Rc::new(move || match rc.borrow().as_ref() {
-                Some(var) => var
-                    .as_any()
-                    .downcast_ref::<crate::var::RcVar<T>>()
-                    .expect("incorrect when input var type")
-                    .read_only(),
-                None => panic!("cannot use when input without default or before init"),
-            }))
-            .boxed(),
+            crate::var::types::ContextualizedVar::new(Rc::new(move || {
+                match rc.borrow().as_any().downcast_ref::<WhenInputVarActual<T>>().unwrap() {
+                    WhenInputVarActual::Some { var, .. } => var.read_only(),
+                    WhenInputVarActual::None => panic!("when var input not inited"),
+                }
+            })),
         )
     }
 
-    /// Returns `true` if a default or bound value has inited the variable.
+    /// Returns `true` if a default or bound value has inited the variable and it is of type `T`.
     ///
     /// Note that attempting to use the [`WhenInfo::state`] when this is `false` will cause a panic.
     pub fn can_use(&self) -> bool {
         self.var.borrow().is_some()
     }
 
-    /// Assign and bind the input var from `other`.
-    ///
-    /// Returns the binding handle, after this call [`can_use`] is `true`.
+    /// Assign and bind the input var from `other`, after this call [`can_use`] is `true`.
     ///
     /// # Panics
     ///
-    /// If `T` is not the same that was used to init the var before.
-    pub fn bind<T: VarValue>(&self, vars: impl crate::var::WithVars, other: &impl Var<T>) -> crate::var::VarHandle {
-        vars.with_vars(|vars| self.bind_impl(vars, other))
+    /// If `T` is not the same that was used to create the input var.
+    pub fn bind<T: VarValue>(&self, vars: impl WithVars, other: &impl Var<T>) {
+        vars.with_vars(|vars| self.validate_borrow_mut::<T>().bind_init(vars, other))
     }
-    fn bind_impl<T: VarValue>(&self, vars: &crate::var::Vars, other: &impl Var<T>) -> crate::var::VarHandle {
-        match &mut *self.var.borrow_mut() {
-            Some(var) => {
-                let var = var
-                    .as_any()
-                    .downcast_ref::<crate::var::RcVar<T>>()
-                    .expect("incorrect when input var type");
-                var.set(vars, other.get());
-                other.bind(var)
+
+    /// Assigns the input var to `value` and removes any previous binding, after this call [`can_use`] is `true`.
+    ///
+    /// # Panics
+    ///
+    /// If `T` is not the same that was used to create the input var.
+    pub fn bind_value<T: VarValue>(&self, vars: impl WithVars, value: T) {
+        vars.with_vars(|vars| self.validate_borrow_mut::<T>().bind_init_value(vars, value))
+    }
+
+    fn validate_borrow_mut<T: VarValue>(&self) -> std::cell::RefMut<WhenInputVarActual<T>> {
+        std::cell::RefMut::map(self.var.borrow_mut(), |var| {
+            match var.as_mut_any().downcast_mut::<WhenInputVarActual<T>>() {
+                Some(a) => a,
+                None => panic!("incorrect when input var type"),
             }
-            v @ None => {
-                let var = crate::var::var(other.get());
-                let handle = other.bind(&var);
-                *v = Some(Box::new(var));
-                handle
-            }
-        }
+        })
     }
 }
 
@@ -676,9 +714,9 @@ pub mod expand {
         properties! {
             other = true, Some(32);
 
-            // when *#is_state {
-            //     basic_prop = true;
-            // }
+            when *#is_state {
+                basic_prop = true;
+            }
         }
 
         fn build(_: WidgetBuilder) -> NilUiNode {

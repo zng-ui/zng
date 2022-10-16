@@ -149,10 +149,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut input_to_storage = vec![];
         let mut macro_inputs = quote!();
         let mut macro_input_index = quote!();
-        let mut macro_get_var = quote!();
-        let mut macro_set_var = quote!();
+        let mut macro_allowed_in_when = quote!();
+        let mut macro_allowed_in_when_assign = quote!();
         let mut named_into_var = quote!();
         let mut get_when_input = quote!();
+        let mut macro_get_when_input = quote!();
 
         for (i, input) in inputs[1..].iter().enumerate() {
             let ident = &input.ident;
@@ -183,6 +184,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }) => {
                     // ignore
                 };
+                (if input(#i) {
+                    $($tt:tt)*
+                }) => {
+                    $($tt)*
+                };
+                (if !input(#i) {
+                    $($tt:tt)*
+                }) => {
+                    // ignore
+                };
             });
 
             macro_input_index.extend(quote! {
@@ -191,27 +202,47 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 };
             });
 
-            if matches!(kind, InputKind::Var | InputKind::Value) {
-                macro_get_var.extend(quote! {
-                    (if get_var(#ident) {
+            if matches!(kind, InputKind::Var | InputKind::StateVar | InputKind::Value) {
+                macro_allowed_in_when.extend(quote! {
+                    (if allowed_in_when(#ident) {
                         $($tt:tt)*
                     }) => {
                         $($tt)*
                     };
-                    (if !get_var(#ident) {
+                    (if !allowed_in_when(#ident) {
+                        $($tt:tt)*
+                    }) => {
+                        // ignore
+                    };
+                    (if allowed_in_when(#i) {
+                        $($tt:tt)*
+                    }) => {
+                        $($tt)*
+                    };
+                    (if !allowed_in_when(#i) {
                         $($tt:tt)*
                     }) => {
                         // ignore
                     };
                 });
             } else {
-                macro_get_var.extend(quote! {
-                    (if !get_var(#ident) {
+                macro_allowed_in_when.extend(quote! {
+                    (if !allowed_in_when(#ident) {
                         $($tt:tt)*
                     }) => {
                         $($tt)*
                     };
-                    (if get_var(#ident) {
+                    (if allowed_in_when(#ident) {
+                        $($tt:tt)*
+                    }) => {
+                        // ignore
+                    };
+                    (if !allowed_in_when(#i) {
+                        $($tt:tt)*
+                    }) => {
+                        $($tt)*
+                    };
+                    (if allowed_in_when(#i) {
                         $($tt:tt)*
                     }) => {
                         // ignore
@@ -220,26 +251,46 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
 
             if matches!(kind, InputKind::Var) {
-                macro_set_var.extend(quote! {
-                    (if set_var(boo) {
+                macro_allowed_in_when_assign.extend(quote! {
+                    (if allowed_in_when_assign(#ident) {
                         $($tt:tt)*
                     }) => {
                         $($tt)*
                     };
-                    (if !set_var(boo) {
+                    (if !allowed_in_when_assign(#ident) {
+                        $($tt:tt)*
+                    }) => {
+                        // ignore
+                    };
+                    (if allowed_in_when_assign(#i) {
+                        $($tt:tt)*
+                    }) => {
+                        $($tt)*
+                    };
+                    (if !allowed_in_when_assign(#i) {
                         $($tt:tt)*
                     }) => {
                         // ignore
                     };
                 });
             } else {
-                macro_set_var.extend(quote! {
-                    (if !set_var(boo) {
+                macro_allowed_in_when_assign.extend(quote! {
+                    (if !allowed_in_when_assign(#ident) {
                         $($tt:tt)*
                     }) => {
                         $($tt)*
                     };
-                    (if set_var(boo) {
+                    (if allowed_in_when_assign(#ident) {
+                        $($tt:tt)*
+                    }) => {
+                        // ignore
+                    };
+                    (if !allowed_in_when_assign(#i) {
+                        $($tt:tt)*
+                    }) => {
+                        $($tt)*
+                    };
+                    (if allowed_in_when_assign(#i) {
                         $($tt:tt)*
                     }) => {
                         // ignore
@@ -265,10 +316,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     let get_ident = ident!("__{ident}_when__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident(&self) 
-                        -> (#core::property::WhenInputVar, #core::var::BoxedVar<#info_ty>) {
-                            todo!()
+                        pub fn #get_ident()
+                        -> (#core::property::WhenInputVar, impl #core::var::Var<#info_ty>) {
+                            #core::property::WhenInputVar::new::<#info_ty>()
                         }
+                    });
+                    macro_get_when_input.extend(quote! {
+                        ({$($property:tt)*}::when_input(#ident)) => {
+                            $($property)* :: #get_ident()
+                        };
+                        ({$($property:tt)*}::when_input(#i)) => {
+                            $($property)* :: #get_ident()
+                        };
                     })
                 }
                 InputKind::StateVar => {
@@ -286,11 +345,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     let get_ident = ident!("__{ident}_when__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident(&self) 
-                        -> (#core::property::WhenInputVar, #core::var::BoxedVar<bool>) {
-                            todo!()
+                        pub fn #get_ident()
+                        -> (#core::property::WhenInputVar, impl #core::var::Var<bool>) {
+                            #core::property::WhenInputVar::new::<bool>()
                         }
                     });
+                    macro_get_when_input.extend(quote! {
+                        ({$($property:tt)*}::when_input(#ident)) => {
+                            $($property)* :: #get_ident()
+                        };
+                        ({$($property:tt)*}::when_input(#i)) => {
+                            $($property)* :: #get_ident()
+                        };
+                    })
                 }
                 InputKind::Value => {
                     input_to_storage.push(quote! {
@@ -304,9 +371,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     let get_ident = ident!("__{ident}_when__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident(&self) 
-                        -> (#core::property::WhenInputVar, #core::var::BoxedVar<bool>) {
-                            todo!()
+                        pub fn #get_ident()
+                        -> (#core::property::WhenInputVar, impl #core::var::Var<bool>) {
+                            #core::property::WhenInputVar::new::<#info_ty>()
                         }
                     })
                 }
@@ -527,8 +594,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 };
 
                 #macro_input_index
-                #macro_get_var
-                #macro_set_var
+                #macro_allowed_in_when
+                #macro_allowed_in_when_assign
 
                 (if !inputs_len(#inputs_len) {
                     $($tt:tt)*
@@ -546,7 +613,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 };
                 ({$($property:tt)*}::__new__($($sorted_inputs:ident),*)) => {
                     // ignore
+                    ((), ())
                 };
+
+                #macro_get_when_input
             }
             #cfg
             #[doc(hidden)]
