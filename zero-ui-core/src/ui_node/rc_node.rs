@@ -437,7 +437,8 @@ mod impls {
             }
 
             if self.is_owner() {
-                (self.delegate_init)(&mut *self.rc.item.borrow_mut(), ctx)
+                (self.delegate_init)(&mut *self.rc.item.borrow_mut(), ctx);
+                ctx.updates.info_layout_and_render();
             }
         }
 
