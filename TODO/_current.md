@@ -5,6 +5,12 @@
 
 * Implement all `todo!` code.
 
+# All Rc Rewrite
+
+* Implement `RcWidget`.
+* Implement `RcWidgetList`.
+* Refactor API to remove all return references (turn they into visitors?).
+
 # All Dyn Rewrite
 
 * Finish implementing takeout or invent another method of handling these inputs.
@@ -16,6 +22,11 @@
             - It will break some z-sorted examples.
             - But is better than rewriting it now, constrained by widget needs that may not exist after the widget rewrite.
             - lets just mockup a boxed() -> BoxedUiNode that is just a type alias for now.
+    - The entire `EditableWgtNode` + snapshots API is needed because of takeout args.
+        - If we had no take-outs we could just use `wgt.clone().build()` in stylable widgets and store the args as the "snapshot".
+        - We could turn `impl UiNode` into [`RcNode<BoxedUiNode>`] that takes on init.
+            - Even if the args are used incorrectly the node is just moved to the new parent.
+        - Can we do the same for `impl UiNodeList` and `impl WidgetHandler<A>`?.
 * Finish implementing new dynamic widget.
     - We have dynamic at the info level, need dynamic at the instantiated level?
     - Implement helper methods for doing things like moving a property to the top of the pile of its own priority.

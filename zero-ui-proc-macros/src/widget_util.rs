@@ -410,7 +410,7 @@ impl WgtWhen {
 
         for ((property, member), var) in when_expr.inputs {
             let (property, generics) = split_path_generics(property).unwrap();
-            let var_input = ident!("{var}in__");
+            let var_input = ident!("{var}_in");
 
             let unknwon_member_err = format!("unknown member `{}`", member);
             let not_gettable_err = format!("member `{}` cannot be used in when", member);
@@ -505,7 +505,7 @@ impl ToTokens for WhenInputMember {
 }
 
 struct WhenExpr {
-    /// Map of `(property_path, member) => var_name`, example: `(id, 0) => __id__0__`.
+    /// Map of `(property_path, member) => var_name`, example: `(id, 0) => __w_id__0`.
     pub inputs: HashMap<(syn::Path, WhenInputMember), Ident>,
     pub expr: TokenStream,
 }
@@ -530,11 +530,11 @@ impl WhenExpr {
                 let path_slug = util::display_path(&property).replace("::", "_");
 
                 let mut member = WhenInputMember::Index(0);
-                let mut var_ident = ident_spanned!(property.span()=> "{path_slug}");
+                let mut var_ident = ident_spanned!(property.span()=> "w_{path_slug}_m_0");
                 if input.peek(Token![.]) {
                     if input.peek(Ident) {
                         let m = input.parse::<Ident>().unwrap();
-                        var_ident = ident_spanned!(m.span()=> "{path_slug}__{m}");
+                        var_ident = ident_spanned!(m.span()=> "w_{path_slug}_m_{m}");
                         member = WhenInputMember::Named(m);
                     } else {
                         let index = input.parse::<syn::Index>().map_err(|e| {
@@ -543,7 +543,7 @@ impl WhenExpr {
                             syn::Error::new(span, "expected identifier or index")
                         })?;
                         member = WhenInputMember::Index(index.index as usize);
-                        var_ident = ident_spanned!(index.span()=> "{path_slug}__{}", index.index);
+                        var_ident = ident_spanned!(index.span()=> "w_{path_slug}_m_{}", index.index);
                     }
                 }
 

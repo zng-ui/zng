@@ -1,4 +1,4 @@
-//! Property helper types.
+//! Widget and property types.
 
 use std::{
     any::{Any, TypeId},
@@ -52,6 +52,22 @@ pub enum Priority {
     ChildContext,
     /// [Child Layout](crate::property#child-layout) property.
     ChildLayout,
+}
+impl Priority {
+    /// All priorities, from outermost([`Context`]) to innermost([`ChildLayout`]).
+    ///
+    /// [`Context`]: Priority::Context
+    /// [`ChildLayout`]: Priority::ChildLayout
+    pub const ITEMS: [Priority; 8] = [
+        Priority::Context,
+        Priority::Event,
+        Priority::Layout,
+        Priority::Size,
+        Priority::Border,
+        Priority::Fill,
+        Priority::ChildContext,
+        Priority::ChildLayout,
+    ];
 }
 
 /// Kind of property input.
@@ -501,16 +517,16 @@ impl WidgetBuilder {
             match &self.items[i].1 {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
+                        // override
                         self.items[i] = (info.priority, WidgetItem::Property { importance, args })
                     }
-                    // else already overridden
                 }
                 WidgetItem::Instrinsic(_) => unreachable!(),
             }
         } else {
             if let Some(imp) = self.unset.get(&property_id) {
                 if *imp >= importance {
-                    return; // unset overrides.
+                    return; // unset blocks.
                 }
             }
             self.items.push((info.priority, WidgetItem::Property { importance, args }))
@@ -526,34 +542,25 @@ impl WidgetBuilder {
 
     /// Insert a `name = unset!;` property.
     pub fn insert_unset(&mut self, importance: Importance, property_id: PropertyId) {
+        let check;
+
         match self.unset.entry(property_id) {
             linear_map::Entry::Occupied(mut e) => {
                 let i = e.get_mut();
-                *i = (*i).max(importance);
+                check = *i < importance;
+                *i = importance;
             }
             linear_map::Entry::Vacant(e) => {
-                let mut rmv = None;
-                for (i, (_, item)) in self.items.iter().enumerate() {
-                    match item {
-                        WidgetItem::Property { importance: imp, args, .. } => {
-                            if args.id() == property_id {
-                                if *imp <= importance {
-                                    rmv = Some(i);
-                                    break;
-                                } else {
-                                    return;
-                                }
-                            }
-                        }
-                        WidgetItem::Instrinsic(_) => {}
-                    }
-                }
-
+                check = true;
                 e.insert(importance);
-                if let Some(i) = rmv {
-                    self.items.remove(i);
-                }
             }
+        }
+
+        if check {
+            self.items.retain(|(_, it)| match it {
+                WidgetItem::Property { importance: imp, args } => args.id() != property_id || *imp > importance,
+                WidgetItem::Instrinsic(_) => true,
+            });
         }
     }
 
@@ -626,26 +633,126 @@ impl WidgetBuilder {
         child
     }
 
-    /// Build to a node type that can still be modified to an extent.
-    pub fn build_dyn(mut self) -> DynUiNode {
+    /// Build to a new editable node.
+    pub fn build_editable(mut self) -> EditableWgtNode {
         self.sort_items();
 
+        let child = self.child.unwrap_or_else(|| NilUiNode.boxed());
+        let child = Rc::new(RefCell::new(child));
+
+        let mut prev_pri = Priority::Context;
+        let mut priority_ranges = [0; Priority::ITEMS.len()];
+
+        let mut items = Vec::with_capacity(self.items.len());
+        for (i, (priority, item)) in self.items.into_iter().enumerate() {
+            if prev_pri != priority {
+                prev_pri = priority;
+                for idx in &mut priority_ranges[priority as usize..] {
+                    *idx = i;
+                }
+            }
+
+            match item {
+                WidgetItem::Instrinsic(node) => {
+                    let (child, node) = node.into_parts();
+                    let node = Rc::new(RefCell::new(node));
+                    items.push(EditableItem {
+                        child,
+                        node,
+                        snapshot_node: None,
+                        property: None,
+                    });
+                }
+                WidgetItem::Property { importance, args } => {
+                    let node = AdoptiveNode::new(|child| args.instantiate(child.boxed()));
+                    let (child, node) = node.into_parts();
+
+                    todo!("takeout")
+                }
+            }
+        }
+
+        let node = items.last().map(|it| it.node.clone()).unwrap_or_else(|| child.clone());
+
+        EditableWgtNode {
+            id: EditableWgtNodeId::new_unique(),
+            child,
+            items,
+            priority_ranges,
+            node,
+            is_inited: false,
+            is_bound: false,
+            unset: self.unset,
+        }
+    }
+
+    /// Build into an existing editable node, overrides/extends it.
+    pub fn build_into(mut self, node: &mut EditableWgtNode) {
+        for (id, imp) in self.unset {
+            let check;
+            if let Some(prev_imp) = node.unset.insert(id, imp) {
+                check = prev_imp < imp;
+            } else {
+                check = true;
+            }
+
+            if check {
+                todo!()
+            }
+        }
         todo!()
     }
 }
 
-struct DynUiNodeItem {
-    child: Rc<RefCell<BoxedUiNode>>,
-    node: Rc<RefCell<BoxedUiNode>>,
-    when: Option<()>,
+unique_id_32! {
+    struct EditableWgtNodeId;
+}
+impl fmt::Debug for EditableWgtNodeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("EditableWgtNodeId").field(&self.sequential()).finish()
+    }
 }
 
-/// Represents a built [`WidgetBuilder`] node that can still be modified to an extent when deinited.
-pub struct DynUiNode {
-    is_inited: bool,
-    is_linked: bool,
+struct EditableItem {
+    // item child, the `Rc` does not change, only the interior.
+    child: Rc<RefCell<BoxedUiNode>>,
+    // item node, the `Rc` changes, but it always points to the same node.
+    node: Rc<RefCell<BoxedUiNode>>,
+    // original `node`, preserved when parent is set, reused when unset.
+    snapshot_node: Option<Rc<RefCell<BoxedUiNode>>>,
+
+    // property source args or `None` for intrinsic.
+    property: Option<(Importance, Box<dyn PropertyArgs>)>,
 }
-impl DynUiNode {
+
+/// Represents a built [`WidgetBuilder`] node that can still be modified when deinited.
+pub struct EditableWgtNode {
+    // Unique ID used to validate snapshots.
+    id: EditableWgtNodeId,
+
+    // innermost child.
+    //
+    // The Rc changes to the `child` of the innermost property when bound and a new Rc when unbound,
+    // the interior only changes when `replace_child` is used.
+    child: Rc<RefCell<BoxedUiNode>>,
+
+    // property and intrinsic nodes from innermost to outermost.
+    items: Vec<EditableItem>,
+    // exclusive end of each priority range in `properties`
+    priority_ranges: [usize; Priority::ITEMS.len()],
+
+    // outermost node.
+    //
+    // The Rc changes to the `node` of the outermost property, the interior is not modified from here.
+    node: Rc<RefCell<BoxedUiNode>>,
+
+    is_inited: bool,
+    is_bound: bool,
+
+    // unset requests, already applied.
+    unset: LinearMap<PropertyId, Importance>,
+}
+impl EditableWgtNode {
     /// If the node is inited in a context, if `true` the node cannot be restored into a builder.
     pub fn is_inited(&self) -> bool {
         self.is_inited
@@ -654,7 +761,7 @@ impl DynUiNode {
     fn delink(&mut self) {
         assert!(!self.is_inited);
 
-        if !mem::take(&mut self.is_linked) {
+        if !mem::take(&mut self.is_bound) {
             return;
         }
 
@@ -664,7 +771,7 @@ impl DynUiNode {
     fn link(&mut self) {
         assert!(!self.is_inited);
 
-        if mem::replace(&mut self.is_linked, true) {
+        if mem::replace(&mut self.is_bound, true) {
             return;
         }
 
@@ -687,7 +794,7 @@ impl DynUiNode {
     ///
     /// Intrinsic nodes are moved in, property nodes of the same name, id and >= importance replace self, when conditions and assigns
     /// are rebuild.
-    pub fn inject(&mut self, other: DynUiNode) {
+    pub fn inject(&mut self, other: EditableWgtNode) {
         self.delink();
         todo!()
     }
