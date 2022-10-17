@@ -28,6 +28,12 @@ pub use tuples::*;
 mod z_sorted;
 pub use z_sorted::*;
 
+/// TODO
+pub type BoxedUiNodeList = UiNodeVec;
+
+/// TODO
+pub type BoxedWidgetList = WidgetVec;
+
 /// A generic view over a list of [`UiNode`] items.
 pub trait UiNodeList: 'static {
     /// Returns `true` if the list length and position of widgets does not change.
@@ -41,6 +47,14 @@ pub trait UiNodeList: 'static {
 
     /// Boxes all items.
     fn boxed_all(self) -> UiNodeVec;
+
+    /// TODO
+    fn boxed(self) -> BoxedUiNodeList
+    where
+        Self: Sized,
+    {
+        self.boxed_all()
+    }
 
     /// Creates a new list that consists of this list followed by the `other` list of nodes.
     fn chain_nodes<U>(self, other: U) -> UiNodeListChain<Self, U>
@@ -413,6 +427,14 @@ pub trait WidgetList: UiNodeList {
 
     /// Boxes all widgets and moved then to a [`WidgetVec`].
     fn boxed_widget_all(self) -> WidgetVec;
+
+    /// TODO
+    fn boxed_wgt(self) -> BoxedWidgetList
+    where
+        Self: Sized,
+    {
+        self.boxed_widget_all()
+    }
 
     /// Creates a new list that consists of this list followed by the `other` list.
     fn chain<U>(self, other: U) -> WidgetListChain<Self, U>

@@ -535,7 +535,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 pub fn __id__(name: &'static str) -> #core::property::PropertyId {
                     #core::property::PropertyId {
-                        unique_id: TypeId::of::<Self>(),
+                        unique_id: std::any::TypeId::of::<Self>(),
                         name,
                     }
                 }
@@ -618,16 +618,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 #macro_get_when_input
             }
-            #cfg
-            #[doc(hidden)]
-            pub use #macro_ident;
 
             #cfg
             #[doc(hidden)]
             #vis mod #ident {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
-                pub use super::{#macro_ident as code_gen, #args_ident as property};
+                pub use super::#args_ident as property;
+                pub use #macro_ident as code_gen;
             }
         }
     } else {

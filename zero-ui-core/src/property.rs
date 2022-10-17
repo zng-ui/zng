@@ -13,7 +13,9 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     inspector::SourceLocation,
-    var::{var, AnyVar, AnyVarValue, BoxedVar, IntoVar, RcVar, StateVar, Var, VarHandle, VarValue, Vars, WithVars},
+    ui_list::BoxedUiNodeList,
+    ui_list::BoxedWidgetList,
+    var::{var, AnyVar, AnyVarValue, BoxedVar, RcVar, StateVar, Var, VarHandle, VarValue, Vars, WithVars},
     AdoptiveNode, BoxedUiNode, BoxedWidget, NilUiNode, UiNode, UiNodeList, Widget, WidgetList,
 };
 
@@ -96,12 +98,12 @@ impl InputTakeout {
 
     /// New from `impl UiNodeList` input.
     pub fn new_ui_node_list(list: impl UiNodeList) -> Self {
-        todo!("Boxed version")
+        Self::new(Box::new(list.boxed()))
     }
 
     /// New from `impl WidgetList` input.
     pub fn new_widget_list(list: impl WidgetList) -> Self {
-        todo!("Boxed version")
+        Self::new(Box::new(list.boxed_wgt()))
     }
 
     /// If the args was not spend yet.
@@ -134,7 +136,15 @@ impl InputTakeout {
         self.take()
     }
 
-    // UiNodeList, WidgetList, don't have a boxed version.
+    /// Takes the value for an `impl UiNodeList` input.
+    pub fn take_ui_node_list(&self) -> BoxedUiNodeList {
+        self.take()
+    }
+
+    /// Takes the value for an `impl WidgetList` input.
+    pub fn take_widget_list(&self) -> BoxedWidgetList {
+        self.take()
+    }
 }
 
 /// Property info.
@@ -685,87 +695,3 @@ impl DynUiNode {
 
 /// Represents a state of a [`DynUiNode`], can be used to restore the node.
 pub struct DynUiNodeSnapshot {}
-
-pub mod expand {
-    use super::*;
-
-    /// Property docs.
-    #[zero_ui_proc_macros::property2(context, default(true, None))]
-    pub fn boo<T: VarValue>(child: impl UiNode, boo: impl IntoVar<bool>, too: impl IntoVar<Option<T>>) -> impl UiNode {
-        let _ = (boo, too);
-        tracing::error!("boo must be captured by the widget");
-        child
-    }
-
-    ///
-    #[zero_ui_proc_macros::property2(context, default(true))]
-    pub fn basic_prop(child: impl UiNode, boo: impl IntoVar<bool>) -> impl UiNode {
-        let _ = boo;
-        child
-    }
-
-    ///
-    #[zero_ui_proc_macros::property2(context)]
-    pub fn is_state(child: impl UiNode, s: StateVar) -> impl UiNode {
-        let _ = s;
-        child
-    }
-
-    /// Widget docs.
-    #[zero_ui_proc_macros::widget2($crate::property::expand::bar)]
-    pub mod bar {
-        use super::*;
-
-        pub use super::boo as other;
-
-        properties! {
-            other = true, Some(32);
-
-            when *#is_state {
-                basic_prop = true;
-            }
-        }
-
-        fn build(_: WidgetBuilder) -> NilUiNode {
-            NilUiNode
-        }
-    }
-
-    /// Widget docs.
-    #[zero_ui_proc_macros::widget2($crate::property::expand::foo)]
-    pub mod foo {
-        use super::*;
-
-        properties! {
-            boo = true, Some(32);
-        }
-
-        fn build(_: WidgetBuilder) -> NilUiNode {
-            NilUiNode
-        }
-    }
-
-    /// Widget docs.
-    #[zero_ui_proc_macros::widget2($crate::property::expand::zap)]
-    pub mod zap {
-        use super::*;
-
-        inherit!(foo); // not expanded in correct order
-        inherit!(bar);
-
-        properties! {
-            other = true, Some(33);
-        }
-
-        fn build(_: WidgetBuilder) -> NilUiNode {
-            NilUiNode
-        }
-    }
-
-    ///
-    pub fn expand_instantiate() {
-        let _wgt = bar! {
-            
-        };
-    }
-}
