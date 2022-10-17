@@ -346,9 +346,6 @@ mod impls {
             if self.take.take_on_init(ctx) {
                 self.take(ctx);
             }
-            if self.is_owner() {
-                (self.delegate_init)(&mut *self.rc.item.borrow_mut(), ctx)
-            }
         }
 
         fn on_deinit(&mut self, ctx: &mut WidgetContext) {
@@ -426,15 +423,17 @@ mod impls {
         }
 
         fn take(&mut self, ctx: &mut WidgetContext) {
-            let mut slots = self.rc.slots.borrow_mut();
-            let slots = &mut *slots;
-            if let Some((_, id, _)) = &slots.owner {
-                // currently inited in another slot, signal it to deinit.
-                slots.move_request = Some((self.slot, ctx.path.widget_id()));
-                ctx.updates.update(*id);
-            } else {
-                // no current owner, take ownership immediately.
-                slots.owner = Some((self.slot, ctx.path.widget_id(), ctx.updates.sender()));
+            {
+                let mut slots = self.rc.slots.borrow_mut();
+                let slots = &mut *slots;
+                if let Some((_, id, _)) = &slots.owner {
+                    // currently inited in another slot, signal it to deinit.
+                    slots.move_request = Some((self.slot, ctx.path.widget_id()));
+                    ctx.updates.update(*id);
+                } else {
+                    // no current owner, take ownership immediately.
+                    slots.owner = Some((self.slot, ctx.path.widget_id(), ctx.updates.sender()));
+                }
             }
 
             if self.is_owner() {
