@@ -376,7 +376,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__{ident}_when__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident()
-                        -> (#core::property::WhenInputVar, impl #core::var::Var<bool>) {
+                        -> (#core::property::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::property::WhenInputVar::new::<#info_ty>()
                         }
                     })
@@ -422,7 +422,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #i => &self.#ident,
                     });
                     instantiate.extend(quote! {
-                        std::clone::Clone::clone(&self.#ident),
+                        self.#ident.take_on_init(),
                     });
                 }
                 InputKind::WidgetHandler => {
@@ -433,7 +433,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #i => &self.#ident,
                     });
                     instantiate.extend(quote! {
-                        self.#ident.take_widget_handler(),
+                        std::clone::Clone::clone(&self.#ident),
                     });
                 }
             }
@@ -491,7 +491,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_ui_node_list.is_empty() {
             get_ui_node_list = quote! {
-                fn ui_node_list(&self, __index__: usize) -> &#core::RcNodeList<#core::BoxedUiNodeList> {
+                fn ui_node_list(&self, __index__: usize) -> &#core::RcNodeList<#core::ui_list::BoxedUiNodeList> {
                     match __index__ {
                         #get_ui_node_list
                         n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::UiNodeList),
@@ -501,7 +501,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_widget_list.is_empty() {
             get_widget_list = quote! {
-                fn widget_list(&self, __index__: usize) -> &#core::RcNodeList<#core::BoxedWidgetList> {
+                fn widget_list(&self, __index__: usize) -> &#core::RcNodeList<#core::ui_list::BoxedWidgetList> {
                     match __index__ {
                         #get_widget_list
                         n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::WidgetList),
@@ -553,16 +553,22 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let inputs_len = inputs[1..].len();
 
+        let args_reexport_vis = match vis {
+            Visibility::Inherited => quote!(pub(super)),
+            vis => vis.to_token_stream(),
+        };
+
         quote! {
             #cfg
             #[doc(hidden)]
             #[allow(non_camel_case_types)]
-            #vis struct #args_ident #generics {
+            #vis struct #args_ident #impl_gens #where_gens {
                 __instance__: #core::property::PropertyInstInfo,
                 #(#input_idents: #storage_tys),*
             }
             #cfg
             impl #impl_gens #args_ident #ty_gens #where_gens {
+                #[allow(clippy::too_many_arguments)]
                 pub fn __new__(
                     #(#input_idents: #input_tys),*
                 ) -> Self {
@@ -672,7 +678,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #vis mod #ident {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
-                pub use super::#args_ident as property;
+                #args_reexport_vis use super::#args_ident as property;
                 pub use #macro_ident as code_gen;
             }
         }
@@ -776,7 +782,11 @@ impl ToTokens for InputKind {
             InputKind::Var => ident!("Var"),
             InputKind::StateVar => ident!("StateVar"),
             InputKind::Value => ident!("Value"),
-            _ => ident!("Takeout"),
+            InputKind::UiNode => ident!("UiNode"),
+            InputKind::Widget => ident!("Widget"),
+            InputKind::WidgetHandler => ident!("WidgetHandler"),
+            InputKind::UiNodeList => ident!("UiNodeList"),
+            InputKind::WidgetList => ident!("WidgetList"),
         };
         let core = crate_core();
         tokens.extend(quote! {
@@ -861,32 +871,33 @@ impl Input {
                                     }
                                     "WidgetHandler" if !seg.arguments.is_empty() => {
                                         if ty_from_generic(&mut input, errors, &t.ty, InputKind::WidgetHandler, &seg.arguments) {
-                                            input.storage_ty = quote!(#core::property::InputTakeout);
+                                            let t = &input.info_ty;
+                                            input.storage_ty = quote!(#core::property::RcWidgetHandler<#t>);
                                         }
                                     }
                                     "UiNode" => {
                                         input.kind = InputKind::UiNode;
                                         input.ty = t.ty.to_token_stream();
                                         input.info_ty = quote_spanned!(t.ty.span()=> #core::BoxedUiNode);
-                                        input.storage_ty = quote!(#core::property::InputTakeout);
+                                        input.storage_ty = quote!(#core::RcNode<#core::BoxedUiNode>);
                                     }
                                     "Widget" => {
                                         input.kind = InputKind::Widget;
                                         input.ty = t.ty.to_token_stream();
                                         input.info_ty = quote_spanned!(t.ty.span()=> #core::BoxedWidget);
-                                        input.storage_ty = quote!(#core::property::InputTakeout)
+                                        input.storage_ty = quote!(#core::RcNode<#core::BoxedWidget>)
                                     }
                                     "UiNodeList" => {
                                         input.kind = InputKind::UiNodeList;
                                         input.ty = t.ty.to_token_stream();
-                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::BoxedUiNodeList);
-                                        input.storage_ty = quote!(#core::property::InputTakeout)
+                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::ui_list::BoxedUiNodeList);
+                                        input.storage_ty = quote!(#core::RcNodeList<#core::ui_list::BoxedUiNodeList>)
                                     }
                                     "WidgetList" => {
                                         input.kind = InputKind::WidgetList;
                                         input.ty = t.ty.to_token_stream();
-                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::BoxedWidgetList);
-                                        input.storage_ty = quote!(#core::property::InputTakeout)
+                                        input.info_ty = quote_spanned!(t.ty.span()=> #core::ui_list::BoxedWidgetList);
+                                        input.storage_ty = quote!(#core::RcNodeList<#core::ui_list::BoxedWidgetList>)
                                     }
                                     _ => {
                                         errors.push("property input can only have impl types for: IntoVar<T>, IntoValue<T>, UiNode, Widget, WidgetHandler<A>, UiNodeList, WidgetList", seg.span());

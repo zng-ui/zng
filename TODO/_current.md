@@ -27,3 +27,5 @@
 * Refactor `UiNodeList` and `WidgetList` to be actually boxable.
 
 * Merge.
+
+* Update webrender to fx-106

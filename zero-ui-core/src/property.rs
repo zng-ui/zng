@@ -78,15 +78,15 @@ pub enum InputKind {
     StateVar,
     /// Input is `impl IntoValue<T>`, build value is `T`.
     Value,
-
+    /// Input is `impl UiNode`, build value is `RcNode<BoxedUiNode>`.
     UiNode,
-
+    /// Input is `impl Widget`, build value is `RcNode<BoxedWidget>`.
     Widget,
-
+    /// Input is `impl UiNodeList`, build value is `RcNodeList<BoxedUiNodeList>`.
     UiNodeList,
-
+    /// Input is `impl WidgetList`, build value is `RcNodeList<BoxedWidgetList>`.
     WidgetList,
-
+    /// Input is `impl WidgetHandler<A>`, build value is `RcWidgetHandler<A>`.
     WidgetHandler,
 }
 
@@ -503,6 +503,9 @@ pub struct WidgetBuilder {
     items: Vec<(Priority, WidgetItem)>,
     unset: LinearMap<PropertyId, Importance>,
     whens: Vec<(Importance, WhenInfo)>,
+
+    items_sorted: bool,
+    whens_sorted: bool,
 }
 impl WidgetBuilder {
     /// New empty default.
@@ -512,6 +515,7 @@ impl WidgetBuilder {
 
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     pub fn insert_intrinsic(&mut self, priority: Priority, node: AdoptiveNode<BoxedUiNode>) {
+        self.items_sorted = false;
         self.items.push((priority, WidgetItem::Instrinsic(node)));
     }
 
@@ -524,7 +528,8 @@ impl WidgetBuilder {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
                         // override
-                        self.items[i] = (info.priority, WidgetItem::Property { importance, args })
+                        self.items[i] = (info.priority, WidgetItem::Property { importance, args });
+                        self.items_sorted = false; // TODO !!: do we really need to sort by importance?
                     }
                 }
                 WidgetItem::Instrinsic(_) => unreachable!(),
@@ -535,7 +540,8 @@ impl WidgetBuilder {
                     return; // unset blocks.
                 }
             }
-            self.items.push((info.priority, WidgetItem::Property { importance, args }))
+            self.items.push((info.priority, WidgetItem::Property { importance, args }));
+            self.items_sorted = false;
         }
     }
 
@@ -587,7 +593,8 @@ impl WidgetBuilder {
 
     /// Insert a `when` block.
     pub fn insert_when(&mut self, importance: Importance, when: WhenInfo) {
-        self.whens.push((importance, when))
+        self.whens.push((importance, when));
+        self.whens_sorted = false;
     }
 
     /// If a child not is already set in the builder.
@@ -603,23 +610,32 @@ impl WidgetBuilder {
     }
 
     fn sort_items(&mut self) {
-        self.items.sort_by(|(a_pri, a_item), (b_pri, b_item)| match a_pri.cmp(b_pri) {
-            std::cmp::Ordering::Equal => match (a_item, b_item) {
-                // INSTANCE importance is innermost of DEFAULT.
-                (WidgetItem::Property { importance: a_imp, .. }, WidgetItem::Property { importance: b_imp, .. }) => a_imp.cmp(b_imp),
-                // Intrinsic is outermost of priority items.
-                (WidgetItem::Property { .. }, WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Greater,
-                (WidgetItem::Instrinsic(_), WidgetItem::Property { .. }) => std::cmp::Ordering::Less,
-                (WidgetItem::Instrinsic(_), WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Equal,
-            },
-            ord => ord,
-        });
+        if !self.items_sorted {
+            self.items.sort_by(|(a_pri, a_item), (b_pri, b_item)| match a_pri.cmp(b_pri) {
+                std::cmp::Ordering::Equal => match (a_item, b_item) {
+                    // INSTANCE importance is innermost of DEFAULT.
+                    (WidgetItem::Property { importance: a_imp, .. }, WidgetItem::Property { importance: b_imp, .. }) => a_imp.cmp(b_imp),
+                    // Intrinsic is outermost of priority items.
+                    (WidgetItem::Property { .. }, WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Greater,
+                    (WidgetItem::Instrinsic(_), WidgetItem::Property { .. }) => std::cmp::Ordering::Less,
+                    (WidgetItem::Instrinsic(_), WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Equal,
+                },
+                ord => ord,
+            });
 
-        self.whens.sort_by_key(|(imp, _)| *imp);
+            self.items_sorted = true;
+        }
+
+        if !self.whens_sorted {
+            self.whens.sort_by_key(|(imp, _)| *imp);
+            self.whens_sorted = true;
+        }
     }
 
     /// Instantiate and link all property and intrinsic nodes, returns the outermost node.
-    pub fn build(mut self) -> BoxedUiNode {
+    /// 
+    /// Note that you can reuse the builder, but only after the previous build is deinited and dropped. 
+    pub fn build(mut self) -> BoxedUiNode { // TODO !!: &mut self, need RcNode<AdoptiveNode>.
         self.sort_items();
 
         let mut child = self.child.unwrap_or_else(|| NilUiNode.boxed());
