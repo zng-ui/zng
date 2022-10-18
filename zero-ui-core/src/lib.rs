@@ -51,17 +51,11 @@ pub mod service;
 pub mod task;
 pub mod text;
 pub mod timer;
+pub mod ui_node;
 pub mod units;
 pub mod var;
 pub mod widget_base;
 pub mod window;
-
-mod ui_node;
-pub use ui_node::*;
-
-pub mod ui_list;
-#[doc(inline)]
-pub use ui_list::{UiNodeList, WidgetList};
 
 pub mod widget_info;
 #[doc(inline)]

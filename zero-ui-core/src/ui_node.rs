@@ -1,3 +1,5 @@
+//! Widget instance types, [`UiNode`], [`UiNodeList`] and others.
+
 use std::{
     any::{Any, TypeId},
     borrow::Cow,
@@ -964,7 +966,7 @@ pub mod ui_node_util {
         render::{FrameBuilder, FrameUpdate},
         units::PxSize,
         widget_info::{WidgetInfoBuilder, WidgetLayout},
-        UiNode,
+        ui_node::UiNode,
     };
 
     pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {

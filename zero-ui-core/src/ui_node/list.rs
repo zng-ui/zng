@@ -33,7 +33,7 @@ macro_rules! ui_list {
     () => { vec![] };
     ($($node:expr),+ $(,)?) => {
         vec![
-            $($crate::UiNode::boxed($node)),*
+            $($crate::ui_node::UiNode::boxed($node)),*
         ]
     };
 }

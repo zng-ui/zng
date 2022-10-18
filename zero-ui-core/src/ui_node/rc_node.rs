@@ -533,231 +533,87 @@ mod impls {
             self.delegate_owned(UiNode::is_widget).unwrap_or(false)
         }
 
-        fn try_id(&self) -> Option<WidgetId> {
-            self.delegate_owned(UiNode::try_id).unwrap_or(None)
+        fn with_context<R, F>(&self, f: F) -> Option<R>
+        where
+            F: FnOnce(&mut WidgetNodeContext) -> R,
+        {
+            self.delegate_owned(|n| n.with_context(f)).flatten()
         }
 
-        fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
-            todo!("ref!")
-        }
-
-        fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
-            todo!("ref!")
-        }
-
-        fn try_bounds_info(&self) -> Option<&widget_info::WidgetBoundsInfo> {
-            todo!("ref!")
-        }
-
-        fn try_border_info(&self) -> Option<&widget_info::WidgetBorderInfo> {
-            todo!("ref!")
-        }
-    }
-    impl<U: Widget, T: TakeOn> Widget for TakeSlot<U, T> {
-        fn id(&self) -> WidgetId {
-            // TODO, review this, will it cause info errors.
-            self.rc.item.borrow().id()
-        }
-
-        fn state(&self) -> StateMapRef<state_map::Widget> {
-            todo!("ref!")
-        }
-
-        fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
-            todo!("ref!")
-        }
-
-        fn bounds_info(&self) -> &widget_info::WidgetBoundsInfo {
-            todo!("ref!")
-        }
-
-        fn border_info(&self) -> &widget_info::WidgetBorderInfo {
-            todo!("ref!")
+        fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
+        where
+            F: FnOnce(&mut WidgetNodeMutContext) -> R,
+        {
+            self.delegate_owned_mut(|n| n.with_context_mut(f)).flatten()
         }
     }
 
     impl<U: UiNodeList, T: TakeOn> UiNodeList for TakeSlot<U, T> {
-        fn is_fixed(&self) -> bool {
-            self.delegate_owned(UiNodeList::is_fixed).unwrap_or(false)
+        fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
+            self.delegate_owned(|l| l.with_node(index, f)).flatten()
+        }
+
+        fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R {
+            self.delegate_owned_mut(|l| l.with_node(index, f)).flatten()
+        }
+
+        fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F) {
+            self.delegate_owned(|l| l.for_each(f));
+        }
+
+        fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
+            self.delegate_owned_mut(|l| l.for_each_mut(f));
         }
 
         fn len(&self) -> usize {
-            self.delegate_owned(UiNodeList::len).unwrap_or(0)
+            self.delegate_owned(UiNodeList::len)
         }
 
-        fn is_empty(&self) -> bool {
-            self.delegate_owned(UiNodeList::is_empty).unwrap_or(true)
+        fn boxed(self) -> BoxedUiNodeList {
+            Box::new(self)
         }
 
-        fn boxed_all(self) -> ui_list::UiNodeVec {
-            todo!("actual boxing needed")
-        }
+        fn into_vec(self) -> Vec<BoxedUiNode> {
+            if !self.is_owner() {
+                return vec![];
+            }
 
-        fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            self.delegate_owned(|l| l.info_all(ctx, info));
+            match Rc::try_unwrap(self.rc) {
+                Ok(rc) => rc.item.into_inner().into_vec(),
+                Err(rc) => {
+                    tracing::error!("cannot move nodes from shared `RcNodeList`");
+                    vec![]
+                }
+            }
         }
 
         fn init_all(&mut self, ctx: &mut WidgetContext) {
-            self.on_init(ctx)
+            self.for_each_mut(|_, c| {
+                c.init(ctx);
+                true
+            });
         }
 
         fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-            self.on_deinit(ctx)
-        }
-
-        fn update_all<O: ui_list::UiListObserver>(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut O) {
-            self.on_update(ctx, updates);
-            self.delegate_owned_mut(|l| l.update_all(ctx, updates, observer));
+            self.for_each_mut(|_, c| {
+                c.deinit(ctx);
+                true
+            });
         }
 
         fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.on_event(ctx, update);
-            self.delegate_owned_mut(|l| l.event_all(ctx, update));
+            self.for_each_mut(|_, c| {
+                c.event(ctx, update);
+                true
+            });
         }
 
-        fn measure_all<C, D>(&self, ctx: &mut MeasureContext, pre_measure: C, pos_measure: D)
-        where
-            C: FnMut(&mut MeasureContext, &mut ui_list::PreMeasureArgs),
-            D: FnMut(&mut MeasureContext, ui_list::PosMeasureArgs),
-        {
-            self.delegate_owned(|l| l.measure_all(ctx, pre_measure, pos_measure));
-        }
-
-        fn item_measure(&self, index: usize, ctx: &mut MeasureContext) -> PxSize {
-            self.delegate_owned(|l| l.item_measure(index, ctx)).unwrap_or_default()
-        }
-
-        fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, pre_layout: C, pos_layout: D)
-        where
-            C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut ui_list::PreLayoutArgs),
-            D: FnMut(&mut LayoutContext, &mut WidgetLayout, ui_list::PosLayoutArgs),
-        {
-            self.delegate_owned_mut(|l| l.layout_all(ctx, wl, pre_layout, pos_layout));
-        }
-
-        fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            self.delegate_owned_mut(|l| l.item_layout(index, ctx, wl)).unwrap_or_default()
-        }
-
-        fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.delegate_owned(|l| l.render_all(ctx, frame));
-        }
-
-        fn item_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.delegate_owned(|l| l.item_render(index, ctx, frame));
-        }
-
-        fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.delegate_owned(|l| l.render_update_all(ctx, update));
-        }
-
-        fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.delegate_owned(|l| l.item_render_update(index, ctx, update));
-        }
-
-        fn try_item_id(&self, index: usize) -> Option<WidgetId> {
-            self.delegate_owned(|l| l.try_item_id(index)).unwrap_or(None)
-        }
-
-        fn try_item_state(&self, index: usize) -> Option<StateMapRef<state_map::Widget>> {
-            todo!("ref!")
-        }
-
-        fn try_item_state_mut(&mut self, index: usize) -> Option<StateMapMut<state_map::Widget>> {
-            todo!("ref!")
-        }
-
-        fn try_item_bounds_info(&self, index: usize) -> Option<&widget_info::WidgetBoundsInfo> {
-            todo!("ref!")
-        }
-
-        fn try_item_border_info(&self, index: usize) -> Option<&widget_info::WidgetBorderInfo> {
-            todo!("ref!")
-        }
-
-        fn render_node_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-        where
-            F: FnMut(ui_list::UiNodeFilterArgs) -> bool,
-        {
-            self.delegate_owned(|l| l.render_node_filtered(filter, ctx, frame));
-        }
-
-        fn try_item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> Option<R>
-        where
-            F: FnOnce(&mut widget_info::WidgetLayoutTranslation, ui_list::PosLayoutArgs) -> R,
-        {
-            self.delegate_owned_mut(|l| l.try_item_outer(index, wl, keep_previous, transform))
-                .unwrap_or(None)
-        }
-
-        fn try_outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
-        where
-            F: FnMut(&mut widget_info::WidgetLayoutTranslation, ui_list::PosLayoutArgs),
-        {
-            self.delegate_owned_mut(|l| l.try_outer_all(wl, keep_previous, transform));
-        }
-
-        fn count_nodes<F>(&self, filter: F) -> usize
-        where
-            F: FnMut(ui_list::UiNodeFilterArgs) -> bool,
-        {
-            self.delegate_owned(|l| l.count_nodes(filter)).unwrap_or(0)
-        }
-    }
-
-    impl<U: WidgetList, T: TakeOn> WidgetList for TakeSlot<U, T> {
-        fn count<F>(&self, filter: F) -> usize
-        where
-            F: FnMut(ui_list::WidgetFilterArgs) -> bool,
-        {
-            self.delegate_owned(|l| l.count(filter)).unwrap_or(0)
-        }
-
-        fn boxed_widget_all(self) -> ui_list::WidgetVec {
-            todo!("actual boxing")
-        }
-
-        fn item_id(&self, index: usize) -> WidgetId {
-            self.delegate_owned(|l| l.item_id(index))
-                .unwrap_or_else(|| panic!("index {index} out of range for length 0"))
-        }
-
-        fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget> {
-            todo!("ref")
-        }
-
-        fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget> {
-            todo!("ref")
-        }
-
-        fn item_bounds_info(&self, index: usize) -> &widget_info::WidgetBoundsInfo {
-            todo!("ref")
-        }
-
-        fn item_border_info(&self, index: usize) -> &widget_info::WidgetBorderInfo {
-            todo!("ref")
-        }
-
-        fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-        where
-            F: FnMut(ui_list::WidgetFilterArgs) -> bool,
-        {
-            self.delegate_owned(|l| l.render_filtered(filter, ctx, frame));
-        }
-
-        fn item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> R
-        where
-            F: FnOnce(&mut widget_info::WidgetLayoutTranslation, ui_list::PosLayoutArgs) -> R,
-        {
-            self.delegate_owned_mut(|l| l.item_outer(index, wl, keep_previous, transform))
-                .unwrap_or_else(|| panic!("index {index} out of range for length 0"))
-        }
-
-        fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
-        where
-            F: FnMut(&mut widget_info::WidgetLayoutTranslation, ui_list::PosLayoutArgs),
-        {
-            self.delegate_owned_mut(|l| l.outer_all(wl, keep_previous, transform));
+        fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+            let _ = observer;
+            self.for_each_mut(|_, c| {
+                c.update(ctx, updates);
+                true
+            });
         }
     }
 }

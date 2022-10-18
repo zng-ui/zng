@@ -5,7 +5,7 @@ use std::{fmt, mem};
 use crate::context::{MeasureContext, RenderContext, WidgetUpdates};
 use crate::render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId};
 use crate::widget_info::WidgetBorderInfo;
-use crate::{context_value, nodes, UiNodeList, WidgetId};
+use crate::{context_value, UiNodeList, WidgetId, ui_list};
 
 use crate::{
     color::*,
@@ -879,7 +879,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
     }
     BorderNode {
-        children: nodes![child, border_visual],
+        children: ui_list![child, border_visual],
         offsets: border_offsets.into_var(),
         layout_offsets: SideOffsets::zero(),
         render_offsets: PxSideOffsets::zero(),
