@@ -23,8 +23,6 @@ extern crate self as zero_ui_core;
 
 #[macro_use]
 mod crate_util;
-pub mod config;
-pub mod property;
 
 #[cfg(any(test, feature = "test_util"))]
 pub use crate_util::test_log;
@@ -32,18 +30,20 @@ pub use crate_util::test_log;
 #[doc(hidden)]
 pub use paste::paste;
 
+#[macro_use]
+pub mod handler;
+
 pub mod app;
 pub mod border;
 pub mod color;
+pub mod config;
 pub mod context;
 pub mod event;
-pub mod inspector;
-#[macro_use]
-pub mod handler;
 pub mod focus;
 pub mod gesture;
 pub mod gradient;
 pub mod image;
+pub mod inspector;
 pub mod keyboard;
 pub mod mouse;
 pub mod render;
@@ -51,10 +51,11 @@ pub mod service;
 pub mod task;
 pub mod text;
 pub mod timer;
-pub mod ui_node;
 pub mod units;
 pub mod var;
 pub mod widget_base;
+pub mod widget_builder;
+pub mod widget_instance;
 pub mod window;
 
 pub mod widget_info;

@@ -1,4 +1,4 @@
-//! Widget and property types.
+//! Widget and property builder types.
 
 use std::{
     any::{Any, TypeId},

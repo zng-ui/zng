@@ -16,10 +16,9 @@ use crate::{
     crate_util::IdMap,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
-    ui_list::ZIndex,
+    ui_node::{UiNode, WidgetId, ZIndex},
     units::*,
     window::WindowId,
-    UiNode, Widget, WidgetId,
 };
 
 mod tree;
