@@ -14,8 +14,7 @@
 
 # All Dyn Rewrite
 
-* Replace "takeout" with `RcNode<BoxedUiNode>`, `RcWidget`, `RcNodeList`, `Rc<RefCell<dyn WidgetHandler<A>>>`?
-    - Need to figure out the casting of handler and if async tasks work right if we are sharing it.
+* Replace "takeout" with `RcNode<BoxedUiNode>`, `RcWidget`, `RcNodeList`, `RcWidgetHandler`.
 * Finish implementing new dynamic widget.
     - We have dynamic at the info level, need dynamic at the instantiated level?
     - Implement helper methods for doing things like moving a property to the top of the pile of its own priority.

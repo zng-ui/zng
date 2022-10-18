@@ -83,6 +83,42 @@ pub enum InputKind {
     Takeout,
 }
 
+/// Represents a [`WidgetHandler<A>`] that can be reused.
+///
+/// Note that [`once_hn!`] will still only be used once, and [`async_hn!`] tasks are bound to the specific widget
+/// context that spawned then. This `struct` is cloneable to support handler properties in styleable widgets, but the
+/// general expectation is that the handler will be used on one property instance at a time.
+#[derive(Clone)]
+pub struct RcWidgetHandler<A: Clone + 'static>(Rc<RefCell<dyn WidgetHandler<A>>>);
+impl<A: Clone + 'static> RcWidgetHandler<A> {
+    /// New from `handler`.
+    pub fn new(handler: impl WidgetHandler<A>) -> Self {
+        Self(Rc::new(RefCell::new(handler)))
+    }
+
+    #[doc(hidden)]
+    pub fn for_input(self) -> InputWidgetHandler {
+        InputWidgetHandler(Box::new(self))
+    }
+}
+impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
+    fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
+        self.0.borrow_mut().event(ctx, args)
+    }
+
+    fn update(&mut self, ctx: &mut crate::context::WidgetContext) -> bool {
+        self.0.borrow_mut().update(ctx)
+    }
+}
+
+#[doc(hidden)]
+pub struct InputWidgetHandler(Box<dyn Any>);
+impl InputWidgetHandler {
+    pub fn downcast_clone<A: Clone + 'static>(&self) -> RcWidgetHandler<A> {
+        self.0.downcast_ref::<RcWidgetHandler<A>>().expect("input handler of unexpected type").clone()
+    }
+}
+
 /// Represents a value that cannot be cloned and can only be used in one instance.
 pub struct InputTakeout {
     val: Rc<RefCell<Option<Box<dyn Any>>>>,
