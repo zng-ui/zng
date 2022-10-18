@@ -561,6 +561,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         quote! {
             #cfg
             #[doc(hidden)]
+            #[derive(std::clone::Clone)]
             #[allow(non_camel_case_types)]
             #vis struct #args_ident #impl_gens #where_gens {
                 __instance__: #core::property::PropertyInstInfo,
@@ -597,6 +598,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
             #cfg
             impl #impl_gens #core::property::PropertyArgs for #args_ident #ty_gens #where_gens {
+                fn clone_boxed(&self) -> std::boxed::Box<dyn #core::property::PropertyArgs> {
+                    Box::new(std::clone::Clone::clone(self))
+                }
+
                 fn property(&self) -> #core::property::PropertyInfo {
                     #core::property::PropertyInfo {
                         priority: #priority,

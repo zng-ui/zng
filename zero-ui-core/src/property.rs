@@ -178,6 +178,9 @@ pub struct PropertyInput {
 
 /// Represents a property instantiation request.
 pub trait PropertyArgs {
+    /// Clones the arguments.
+    fn clone_boxed(&self) -> Box<dyn PropertyArgs>;
+
     /// Property info.
     fn property(&self) -> PropertyInfo;
 
@@ -295,8 +298,12 @@ pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>
 
 */
 
+#[derive(Clone)]
 enum WidgetItem {
-    Instrinsic(AdoptiveNode<BoxedUiNode>),
+    Instrinsic {
+        child: Rc<RefCell<BoxedUiNode>>,
+        node: RcNode<BoxedUiNode>,
+    },
     Property {
         importance: Importance,
         args: Box<dyn PropertyArgs>,
@@ -467,6 +474,7 @@ impl WhenInputVar {
 }
 
 /// Represents a `when` block in a widget.
+#[derive(Clone)]
 pub struct WhenInfo {
     /// Properties referenced in the when condition expression.
     ///
@@ -496,10 +504,16 @@ impl WhenInfo {
     }
 }
 
+impl Clone for Box<dyn PropertyArgs> {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
+    }
+}
+
 /// Widget instance builder.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct WidgetBuilder {
-    child: Option<BoxedUiNode>,
+    child: Option<RcNode<BoxedUiNode>>,
     items: Vec<(Priority, WidgetItem)>,
     unset: LinearMap<PropertyId, Importance>,
     whens: Vec<(Importance, WhenInfo)>,
@@ -516,7 +530,9 @@ impl WidgetBuilder {
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     pub fn insert_intrinsic(&mut self, priority: Priority, node: AdoptiveNode<BoxedUiNode>) {
         self.items_sorted = false;
-        self.items.push((priority, WidgetItem::Instrinsic(node)));
+        let (child, node) = node.into_parts();
+        let node = RcNode::new(node);
+        self.items.push((priority, WidgetItem::Instrinsic { child, node }));
     }
 
     /// Insert/override a property.
@@ -532,7 +548,7 @@ impl WidgetBuilder {
                         self.items_sorted = false; // TODO !!: do we really need to sort by importance?
                     }
                 }
-                WidgetItem::Instrinsic(_) => unreachable!(),
+                WidgetItem::Instrinsic { .. } => unreachable!(),
             }
         } else {
             if let Some(imp) = self.unset.get(&property_id) {
@@ -548,7 +564,7 @@ impl WidgetBuilder {
     fn property_position(&self, property_id: PropertyId) -> Option<usize> {
         self.items.iter().position(|(_, item)| match item {
             WidgetItem::Property { args, .. } => args.id() == property_id,
-            WidgetItem::Instrinsic(_) => false,
+            WidgetItem::Instrinsic { .. } => false,
         })
     }
 
@@ -571,7 +587,7 @@ impl WidgetBuilder {
         if check {
             self.items.retain(|(_, it)| match it {
                 WidgetItem::Property { importance: imp, args } => args.id() != property_id || *imp > importance,
-                WidgetItem::Instrinsic(_) => true,
+                WidgetItem::Instrinsic { .. } => true,
             });
         }
     }
@@ -582,7 +598,7 @@ impl WidgetBuilder {
             match self.items.remove(i).1 {
                 // can't be swap remove for ordering of equal priority.
                 WidgetItem::Property { importance, args, .. } => Some((importance, args)),
-                WidgetItem::Instrinsic(_) => unreachable!(),
+                WidgetItem::Instrinsic { .. } => unreachable!(),
             }
         } else {
             None
@@ -605,8 +621,8 @@ impl WidgetBuilder {
     }
 
     /// Set/replace the inner most node of the widget.
-    pub fn set_child(&mut self, node: BoxedUiNode) -> Option<BoxedUiNode> {
-        self.child.replace(node)
+    pub fn set_child(&mut self, node: BoxedUiNode) -> Option<RcNode<BoxedUiNode>> {
+        self.child.replace(RcNode::new(node))
     }
 
     fn sort_items(&mut self) {
@@ -616,9 +632,9 @@ impl WidgetBuilder {
                     // INSTANCE importance is innermost of DEFAULT.
                     (WidgetItem::Property { importance: a_imp, .. }, WidgetItem::Property { importance: b_imp, .. }) => a_imp.cmp(b_imp),
                     // Intrinsic is outermost of priority items.
-                    (WidgetItem::Property { .. }, WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Greater,
-                    (WidgetItem::Instrinsic(_), WidgetItem::Property { .. }) => std::cmp::Ordering::Less,
-                    (WidgetItem::Instrinsic(_), WidgetItem::Instrinsic(_)) => std::cmp::Ordering::Equal,
+                    (WidgetItem::Property { .. }, WidgetItem::Instrinsic { .. }) => std::cmp::Ordering::Greater,
+                    (WidgetItem::Instrinsic { .. }, WidgetItem::Property { .. }) => std::cmp::Ordering::Less,
+                    (WidgetItem::Instrinsic { .. }, WidgetItem::Instrinsic { .. }) => std::cmp::Ordering::Equal,
                 },
                 ord => ord,
             });
@@ -633,25 +649,28 @@ impl WidgetBuilder {
     }
 
     /// Instantiate and link all property and intrinsic nodes, returns the outermost node.
-    /// 
-    /// Note that you can reuse the builder, but only after the previous build is deinited and dropped. 
-    pub fn build(mut self) -> BoxedUiNode { // TODO !!: &mut self, need RcNode<AdoptiveNode>.
+    ///
+    /// Note that you can reuse the builder, but only after the previous build is deinited and dropped.
+    pub fn build(&mut self) -> BoxedUiNode {
         self.sort_items();
 
-        let mut child = self.child.unwrap_or_else(|| NilUiNode.boxed());
+        let mut node = self
+            .child
+            .as_ref()
+            .map(|c| c.take_on_init().boxed())
+            .unwrap_or_else(|| NilUiNode.boxed());
 
-        for (_, item) in self.items {
+        for (_, item) in &self.items {
             match item {
-                WidgetItem::Instrinsic(node) => {
-                    let (c, n) = node.into_parts();
-                    *c.borrow_mut() = mem::replace(&mut child, n);
+                WidgetItem::Instrinsic { child, node: n } => {
+                    *child.borrow_mut() = mem::replace(&mut node, n.take_on_init().boxed());
                 }
                 WidgetItem::Property { args, .. } => {
-                    child = args.instantiate(child);
+                    node = args.instantiate(node);
                 }
             }
         }
 
-        child
+        node
     }
 }
