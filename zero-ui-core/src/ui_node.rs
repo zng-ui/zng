@@ -10,7 +10,7 @@ use crate::{
     context::*,
     event::EventUpdate,
     var::impl_from_and_into_var,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout},
+    widget_info::{WidgetInfoBuilder, WidgetLayout},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -22,6 +22,9 @@ use crate::{
 
 mod rc_node;
 pub use rc_node::*;
+
+mod list;
+pub use list::*;
 
 mod trace;
 pub use trace::TraceNode;
@@ -289,51 +292,46 @@ pub trait UiNode: Any {
         self
     }
 
-    /// Gets if this node is a [`Widget`] implementer.
+    /// Gets if this node represents a full widget.
+    ///
+    /// If this is `true` the [`with_context`] method can be used to get the widget state.
+    ///
+    /// [`with_context`]: UiNode::with_context
     fn is_widget(&self) -> bool {
         false
     }
 
-    /// Gets the [`Widget::id`] if this node [`is_widget`].
+    /// Calls `f` with the widget context of the node if it [`is_widget`].
+    ///
+    /// Returns `None` if the node does not represent an widget.
     ///
     /// [`is_widget`]: UiNode::is_widget
-    fn try_id(&self) -> Option<WidgetId> {
+    fn with_context<R, F>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetNodeContext) -> R,
+    {
+        let _ = f;
         None
     }
 
-    /// Gets the [`Widget::state`] if this node [`is_widget`].
+    /// Calls `f` with the widget context of the node if it [`is_widget`].
+    ///
+    /// Returns `None` if the node does not represent an widget.
     ///
     /// [`is_widget`]: UiNode::is_widget
-    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
+    fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetNodeMutContext) -> R,
+    {
+        let _ = f;
         None
     }
 
-    /// Gets the [`Widget::state_mut`] if this node [`is_widget`].
+    /// Gets this node as a [`BoxedUiNode`], if the node [`is_widget`] this is the same node, otherwise a
+    /// new widget is generated with the node as the *inner*.
     ///
     /// [`is_widget`]: UiNode::is_widget
-    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
-        None
-    }
-
-    /// Gets the [`Widget::bounds_info`] if this node [`is_widget`].
-    ///
-    /// [`is_widget`]: UiNode::is_widget
-    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
-        None
-    }
-
-    /// Gets the [`Widget::border_info`] if this node [`is_widget`].
-    ///
-    /// [`is_widget`]: UiNode::is_widget
-    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
-        None
-    }
-
-    /// Gets this node as a [`BoxedWidget`], if the node [`is_widget`] this is the same as
-    /// [`Widget::boxed_wgt`], otherwise a new widget is generated with the node as the *inner*.
-    ///
-    /// [`is_widget`]: Self::is_widget
-    fn into_widget(self) -> BoxedWidget
+    fn into_widget(self) -> BoxedUiNode
     where
         Self: Sized,
     {
@@ -341,7 +339,7 @@ pub trait UiNode: Any {
 
         let node = nodes::inner(self.cfg_boxed());
         let wgt = nodes::widget(node, WidgetId::new_unique());
-        wgt.boxed_wgt()
+        wgt.boxed()
     }
 
     /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] that is `T`.
@@ -383,8 +381,83 @@ pub trait UiNode: Any {
     }
 }
 
+/// Represents a list of [`UiNode`] instances.
+pub trait UiNodeList: UiNodeListBoxed {
+    /// Visit the specific node, panic if `index` is out of bounds.
+    fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R;
+
+    /// Visit the specific node, panic if `index` is out of bounds.
+    fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R;
+
+    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
+    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F);
+
+    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
+    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F);
+
+    /// Gets the current number of nodes in the list.
+    fn len(&self) -> usize;
+
+    /// Boxed the list, does not double box.
+    fn boxed(self) -> BoxedUiNodeList;
+
+    /// Convert the list to a `Vec<BoxedUiNode>`.
+    ///
+    /// Note that this loses any special feature implemented by the current list type.
+    fn into_vec(self) -> Vec<BoxedUiNode>;
+
+    /// Init the list in a context, all nodes are also inited.
+    ///
+    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to init nodes is an error.
+    ///
+    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.for_each_mut(|_, c| {
+            c.init(ctx);
+            true
+        });
+    }
+
+    /// Deinit the list in a context, all nodes are also deinited.
+    ///
+    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to deinit nodes is an error.
+    ///
+    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.for_each_mut(|_, c| {
+            c.deinit(ctx);
+            true
+        });
+    }
+
+    /// Receive event for the list in a context, all nodes are also notified.
+    ///
+    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to receive events for nodes is an error.
+    ///
+    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.for_each_mut(|_, c| {
+            c.event(ctx, update);
+            true
+        });
+    }
+
+    /// Receive an update for the list in a context, all nodes are also updated.
+    ///
+    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to receive updates for nodes is an error.
+    ///
+    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        let _ = observer;
+        self.for_each_mut(|_, c| {
+            c.update(ctx, updates);
+            true
+        });
+    }
+}
+
 #[doc(hidden)]
-pub trait UiNodeBoxed: 'static {
+pub trait UiNodeBoxed: Any {
     fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
@@ -396,12 +469,9 @@ pub trait UiNodeBoxed: 'static {
     fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 
     fn is_widget_boxed(&self) -> bool;
-    fn try_id_boxed(&self) -> Option<WidgetId>;
-    fn try_state_boxed(&self) -> Option<StateMapRef<state_map::Widget>>;
-    fn try_state_mut_boxed(&mut self) -> Option<StateMapMut<state_map::Widget>>;
-    fn try_bounds_info_boxed(&self) -> Option<&WidgetBoundsInfo>;
-    fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo>;
-    fn into_widget_boxed(self: Box<Self>) -> BoxedWidget;
+    fn with_context_boxed(&self, f: &mut dyn FnMut(&mut WidgetNodeContext));
+    fn with_context_mut_boxed(&mut self, f: &mut dyn FnMut(&mut WidgetNodeMutContext));
+    fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode;
 
     fn actual_type_id_boxed(&self) -> TypeId;
     fn as_any_boxed(self: Box<Self>) -> Box<dyn Any>;
@@ -448,27 +518,7 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.is_widget()
     }
 
-    fn try_id_boxed(&self) -> Option<WidgetId> {
-        self.try_id()
-    }
-
-    fn try_state_boxed(&self) -> Option<StateMapRef<state_map::Widget>> {
-        self.try_state()
-    }
-
-    fn try_state_mut_boxed(&mut self) -> Option<StateMapMut<state_map::Widget>> {
-        self.try_state_mut()
-    }
-
-    fn try_bounds_info_boxed(&self) -> Option<&WidgetBoundsInfo> {
-        self.try_bounds_info()
-    }
-
-    fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo> {
-        self.try_border_info()
-    }
-
-    fn into_widget_boxed(self: Box<Self>) -> BoxedWidget {
+    fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode {
         self.into_widget()
     }
 
@@ -479,10 +529,76 @@ impl<U: UiNode> UiNodeBoxed for U {
     fn as_any_boxed(self: Box<Self>) -> Box<dyn Any> {
         self
     }
+
+    fn with_context_boxed(&self, f: &mut dyn FnMut(&mut WidgetNodeContext)) {
+        self.with_context(f);
+    }
+
+    fn with_context_mut_boxed(&mut self, f: &mut dyn FnMut(&mut WidgetNodeMutContext)) {
+        self.with_context_mut(f);
+    }
+}
+
+#[doc(hidden)]
+pub trait UiNodeListBoxed: Any {
+    fn with_node_boxed(&self, index: usize, f: &mut dyn FnMut(&BoxedUiNode));
+    fn with_node_mut_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode));
+    fn for_each_boxed(&self, f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool);
+    fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool);
+    fn len_boxed(&self) -> usize;
+    fn into_vec(self: Box<Self>) -> Vec<BoxedUiNode>;
+    fn init_all_boxed(&mut self, ctx: &mut WidgetContext);
+    fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext);
+    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
+    fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
+}
+impl<L: UiNodeList> UiNodeListBoxed for L {
+    fn with_node_boxed(&self, index: usize, f: &mut dyn FnMut(&BoxedUiNode)) {
+        self.with_node(index, f);
+    }
+
+    fn with_node_mut_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode)) {
+        self.with_node_mut(index, f);
+    }
+
+    fn for_each_boxed(&self, f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool) {
+        self.for_each(f);
+    }
+
+    fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool) {
+        self.for_each_mut(f);
+    }
+
+    fn len_boxed(&self) -> usize {
+        self.len()
+    }
+
+    fn into_vec(self: Box<Self>) -> Vec<BoxedUiNode> {
+        (*self).into_vec()
+    }
+
+    fn init_all_boxed(&mut self, ctx: &mut WidgetContext) {
+        self.init_all(ctx);
+    }
+
+    fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext) {
+        self.deinit_all(ctx);
+    }
+
+    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.event_all(ctx, update);
+    }
+
+    fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.update_all(ctx, updates, observer);
+    }
 }
 
 /// An [`UiNode`] in a box.
 pub type BoxedUiNode = Box<dyn UiNodeBoxed>;
+
+/// An [`UiNodeList`] in a box.
+pub type BoxedUiNodeList = Box<dyn UiNodeListBoxed>;
 
 impl UiNode for BoxedUiNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -536,31 +652,79 @@ impl UiNode for BoxedUiNode {
         self.as_ref().is_widget_boxed()
     }
 
-    fn try_id(&self) -> Option<WidgetId> {
-        self.as_ref().try_id_boxed()
+    fn with_context<R, F>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetNodeContext) -> R,
+    {
+        let mut r = None;
+        self.as_ref().with_context_boxed(&mut |ctx| r = Some(f(ctx)));
+        r
     }
 
-    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
-        self.as_ref().try_state_boxed()
+    fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetNodeMutContext) -> R,
+    {
+        let mut r = None;
+        self.as_mut().with_context_mut_boxed(&mut |ctx| r = Some(f(ctx)));
+        r
     }
 
-    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
-        self.as_mut().try_state_mut_boxed()
-    }
-
-    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
-        self.as_ref().try_bounds_info_boxed()
-    }
-
-    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
-        self.as_ref().try_border_info_boxed()
-    }
-
-    fn into_widget(self) -> BoxedWidget
+    fn into_widget(self) -> BoxedUiNode
     where
         Self: Sized,
     {
         self.into_widget_boxed()
+    }
+}
+
+impl UiNodeList for BoxedUiNodeList {
+    fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
+        let mut r = None;
+        self.as_ref().with_node_boxed(index, &mut |n| r = Some(f(r)));
+        r.unwrap()
+    }
+
+    fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R {
+        let mut r = None;
+        self.as_mut().with_node_mut_boxed(index, &mut |n| r = Some(f(r)));
+        r.unwrap()
+    }
+
+    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, mut f: F) {
+        self.as_ref().for_each(&mut f);
+    }
+
+    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&self, mut f: F) {
+        self.as_mut().for_each(&mut f)
+    }
+
+    fn len(&self) -> usize {
+        self.as_ref().len_boxed()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        self
+    }
+
+    fn into_vec(self) -> Vec<BoxedUiNode> {
+        self.into_vec_boxed()
+    }
+
+    fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().init_all_boxed(ctx);
+    }
+
+    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.as_mut().deinit_all_boxed(ctx);
+    }
+
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.as_mut().event_all_boxed(ctx, update);
+    }
+
+    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.as_mut().update_all_boxed(ctx, updates, observer);
     }
 }
 
@@ -640,42 +804,27 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn try_id(&self) -> Option<WidgetId> {
+    fn with_context<R, F>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetNodeContext) -> R,
+    {
         match self {
-            Some(node) => node.try_id(),
+            Some(node) => node.with_context(f),
             None => None,
         }
     }
 
-    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
+    fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetNodeMutContext) -> R,
+    {
         match self {
-            Some(node) => node.try_state(),
+            Some(node) => node.with_context_mut(f),
             None => None,
         }
     }
 
-    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
-        match self {
-            Some(node) => node.try_state_mut(),
-            None => None,
-        }
-    }
-
-    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
-        match self {
-            Some(node) => node.try_bounds_info(),
-            None => None,
-        }
-    }
-
-    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
-        match self {
-            Some(node) => node.try_border_info(),
-            None => None,
-        }
-    }
-
-    fn into_widget(self) -> BoxedWidget
+    fn into_widget(self) -> BoxedUiNode
     where
         Self: Sized,
     {
@@ -686,283 +835,104 @@ impl<U: UiNode> UiNode for Option<U> {
     }
 }
 
-macro_rules! declare_widget_test_calls {
-    ($(
-        $method:ident
-    ),+) => {$(paste::paste! {
-        #[doc = "Run [`UiNode::"$method "`] using the [`TestWidgetContext`]."]
-        #[cfg(any(test, doc, feature = "test_util"))]
-        #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-        fn [<test_ $method>](&mut self, ctx: &mut TestWidgetContext) {
-            // `self` already creates an `widget_context`, we assume, so this
-            // call is for a dummy parent of `self`.
-            ctx.widget_context(|ctx| {
-                self.$method(ctx);
-            });
+impl UiNodeList for Option<BoxedUiNode> {
+    fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
+        match self {
+            Some(node) => {
+                assert_bounds(1, index);
+                f(node)
+            }
+            None => {
+                assert_bounds(0, index);
+                unreachable!()
+            }
         }
-    })+};
-}
+    }
 
-/// Represents a widget [`UiNode`].
-#[cfg_attr(doc_nightly, doc(notable_trait))]
-pub trait Widget: UiNode {
-    /// Id of the widget.
-    fn id(&self) -> WidgetId;
+    fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R {
+        match self {
+            Some(node) => {
+                assert_bounds(1, index);
+                f(node)
+            }
+            None => {
+                assert_bounds(0, index);
+                unreachable!()
+            }
+        }
+    }
 
-    /// Reference the widget lazy state.
-    fn state(&self) -> StateMapRef<state_map::Widget>;
-    /// Exclusive borrow the widget lazy state.
-    fn state_mut(&mut self) -> StateMapMut<state_map::Widget>;
+    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F) {
+        if let Some(node) = self {
+            f(0, node);
+        }
+    }
 
-    /// Bounds layout information.
-    ///
-    /// The information is kept up-to-date, updating every arrange.
-    fn bounds_info(&self) -> &WidgetBoundsInfo;
+    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
+        if let Some(node) = self {
+            f(0, node);
+        }
+    }
 
-    /// Border and corner radius information.
-    ///
-    /// The information is kept up-to-date, updating every arrange.
-    fn border_info(&self) -> &WidgetBorderInfo;
+    fn len(&self) -> usize {
+        match self {
+            Some(_) => 1,
+            None => 0,
+        }
+    }
 
-    /// Box this widget node, unless it is already `BoxedWidget`.
-    fn boxed_wgt(self) -> BoxedWidget
-    where
-        Self: Sized,
-    {
+    fn boxed(self) -> BoxedUiNodeList {
         Box::new(self)
     }
 
-    /// Helper for complying with the `dyn_widget` feature, boxes the widget or just returns it depending of the
-    /// compile time feature.
-    ///
-    /// If the `dyn_widget` feature is enabled widget should be nested using [`BoxedUiNode`] instead of
-    /// generating a new type. The `#[widget(..)]` attribute macro auto-implements this for widget new functions,
-    /// other functions in the format `fn() -> impl Widget` can use this method to achieve the same.
-    #[cfg(dyn_widget)]
-    fn cfg_boxed_wgt(self) -> BoxedWidget
-    where
-        Self: Sized,
-    {
-        self.boxed_wgt()
+    fn into_vec(self) -> Vec<BoxedUiNode> {
+        match self {
+            Some(node) => vec![node],
+            None => vec![],
+        }
+    }
+}
+
+fn assert_bounds(len: usize, i: usize) {
+    if i >= len {
+        panic!("index `{i}` is >= len `{len}`")
+    }
+}
+
+impl UiNodeList for Vec<BoxedUiNode> {
+    fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
+        f(&self[index])
     }
 
-    /// Helper for complying with the `dyn_widget` feature, boxes the widget or just returns it depending of the
-    /// compile time feature.
-    ///
-    /// If the `dyn_widget` feature is enabled widget should be nested using [`BoxedUiNode`] instead of
-    /// generating a new type. The `#[widget(..)]` attribute macro auto-implements this for widget new functions,
-    /// other functions in the format `fn() -> impl Widget` can use this method to achieve the same.
-    #[cfg(not(dyn_widget))]
-    fn cfg_boxed_wgt(self) -> Self
-    where
-        Self: Sized,
-    {
-        self
+    fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R {
+        f(&mut self[index])
     }
 
-    declare_widget_test_calls! {
-        init, deinit
-    }
-
-    /// Run [`UiNode::update`] using the [`TestWidgetContext`].
-    ///
-    /// If `updates` is `None` one is generated for the widget.
-    #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_update(&mut self, ctx: &mut TestWidgetContext, updates: Option<&mut WidgetUpdates>) {
-        if let Some(updates) = updates {
-            updates.fulfill_search([&ctx.info_tree].into_iter());
-            ctx.widget_context(|ctx| self.update(ctx, updates));
-        } else {
-            let mut list = UpdateDeliveryList::new_any();
-            list.insert_path(&crate::WidgetPath::new(ctx.window_id, [self.id()]));
-            list.enter_window(ctx.window_id);
-            ctx.widget_context(|ctx| self.update(ctx, &mut WidgetUpdates::new(list)));
+    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F) {
+        for (i, node) in self.iter().enumerate() {
+            if !f(i, node) {
+                break;
+            }
         }
     }
 
-    /// Run [`UiNode::layout`] using the [`TestWidgetContext`].
-    ///
-    /// If `constrains` is set it is used for the layout context.
-    #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_layout(&mut self, ctx: &mut TestWidgetContext, constrains: Option<PxConstrains2d>) -> PxSize {
-        let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        ctx.layout_context(font_size, font_size, self.bounds_info().outer_size(), 1.0.fct(), 96.0, |ctx| {
-            ctx.with_constrains(
-                |c| constrains.unwrap_or(c),
-                |ctx| WidgetLayout::with_root_widget(ctx, 0, |ctx, wl| wl.with_inner(ctx, |ctx, wl| self.layout(ctx, wl))),
-            )
-        })
-    }
-
-    /// Run [`UiNode::info`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_info(&self, ctx: &mut TestWidgetContext, info: &mut WidgetInfoBuilder) {
-        ctx.info_context(|ctx| self.info(ctx, info));
-    }
-
-    /// Run [`UiNode::render`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_render(&self, ctx: &mut TestWidgetContext, frame: &mut FrameBuilder) {
-        let key = ctx.root_translation_key;
-        ctx.render_context(|ctx| frame.push_inner(ctx, key, false, |ctx, frame| self.render(ctx, frame)));
-    }
-
-    /// Run [`UiNode::render_update`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_render_update(&self, ctx: &mut TestWidgetContext, update: &mut FrameUpdate) {
-        let key = ctx.root_translation_key;
-        ctx.render_context(|ctx| update.update_inner(ctx, key, false, |ctx, update| self.render_update(ctx, update)));
-    }
-
-    /// Run [`UiNode::event`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_event(&mut self, ctx: &mut TestWidgetContext, update: &mut EventUpdate) {
-        if update.delivery_list().has_pending_search() {
-            update.fulfill_search(Some(&ctx.info_tree).into_iter());
+    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
+        for (i, node) in self.iter_mut().enumerate() {
+            if !f(i, node) {
+                break;
+            }
         }
-        ctx.widget_context(|ctx| self.event(ctx, update))
-    }
-}
-
-#[doc(hidden)]
-pub trait WidgetBoxed: UiNodeBoxed {
-    fn id_boxed(&self) -> WidgetId;
-    fn state_boxed(&self) -> StateMapRef<state_map::Widget>;
-    fn state_mut_boxed(&mut self) -> StateMapMut<state_map::Widget>;
-    fn bounds_info_boxed(&self) -> &WidgetBoundsInfo;
-    fn border_info_boxed(&self) -> &WidgetBorderInfo;
-}
-impl<W: Widget> WidgetBoxed for W {
-    fn id_boxed(&self) -> WidgetId {
-        self.id()
     }
 
-    fn state_boxed(&self) -> StateMapRef<state_map::Widget> {
-        self.state()
+    fn len(&self) -> usize {
+        Vec::len(self)
     }
 
-    fn state_mut_boxed(&mut self) -> StateMapMut<state_map::Widget> {
-        self.state_mut()
-    }
-
-    fn bounds_info_boxed(&self) -> &WidgetBoundsInfo {
-        self.bounds_info()
-    }
-
-    fn border_info_boxed(&self) -> &WidgetBorderInfo {
-        self.border_info()
-    }
-}
-
-/// An [`Widget`] in a box.
-pub type BoxedWidget = Box<dyn WidgetBoxed>;
-
-impl UiNode for BoxedWidget {
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.as_ref().info_boxed(ctx, info);
-    }
-
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().init_boxed(ctx);
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().deinit_boxed(ctx);
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        self.as_mut().update_boxed(ctx, updates);
-    }
-
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.as_mut().event_boxed(ctx, update);
-    }
-
-    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-        self.as_ref().measure_boxed(ctx)
-    }
-
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        self.as_mut().layout_boxed(ctx, wl)
-    }
-
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.as_ref().render_boxed(ctx, frame);
-    }
-
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.as_ref().render_update_boxed(ctx, update);
-    }
-
-    fn boxed(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
+    fn boxed(self) -> BoxedUiNodeList {
         Box::new(self)
     }
 
-    fn is_widget(&self) -> bool {
-        true
-    }
-
-    fn try_id(&self) -> Option<WidgetId> {
-        Some(self.id())
-    }
-
-    fn try_state(&self) -> Option<StateMapRef<state_map::Widget>> {
-        Some(self.state())
-    }
-
-    fn try_state_mut(&mut self) -> Option<StateMapMut<state_map::Widget>> {
-        Some(self.state_mut())
-    }
-
-    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
-        Some(self.bounds_info())
-    }
-
-    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
-        Some(self.border_info())
-    }
-
-    fn into_widget(self) -> BoxedWidget
-    where
-        Self: Sized,
-    {
-        self
-    }
-}
-impl Widget for BoxedWidget {
-    fn id(&self) -> WidgetId {
-        self.as_ref().id_boxed()
-    }
-
-    fn state(&self) -> StateMapRef<state_map::Widget> {
-        self.as_ref().state_boxed()
-    }
-
-    fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
-        self.as_mut().state_mut_boxed()
-    }
-
-    fn bounds_info(&self) -> &WidgetBoundsInfo {
-        self.as_ref().bounds_info_boxed()
-    }
-
-    fn border_info(&self) -> &WidgetBorderInfo {
-        self.as_ref().border_info_boxed()
-    }
-
-    fn boxed_wgt(self) -> BoxedWidget
-    where
-        Self: Sized,
-    {
+    fn into_vec(self) -> Vec<BoxedUiNode> {
         self
     }
 }
@@ -1115,10 +1085,10 @@ mod tests {
 
     #[test]
     pub fn downcast_unbox_widget() {
-        fn node() -> impl Widget {
+        fn node() -> BoxedUiNode {
             NilUiNode.into_widget()
         }
 
-        assert!(node().downcast_unbox::<BoxedWidget>().is_ok())
+        assert!(node().downcast_unbox::<BoxedUiNode>().is_ok())
     }
 }

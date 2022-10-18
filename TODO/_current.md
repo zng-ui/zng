@@ -11,6 +11,7 @@
     - Like `UiNode::try_state` or `UiNodeList`.
     - Implement a visitor `UiNode::with_info(f: FnOnce(&WidgetInfo) -> R) -> Option<R>` that groups every thing.
         - This lets we add stuff a lot quickly and without breaking changes too, right now we have multiple info related methods.
+    - Can we remove `Widget` trait? 
 
 # All Dyn Rewrite
 

@@ -617,6 +617,39 @@ impl<'a> WidgetHandles<'a> {
     }
 }
 
+/// Represents an widget context without parent info.
+/// 
+/// Can be accessed using [`UiNode::with_context`].
+pub struct WidgetNodeContext<'a> {
+    /// The widget ID.
+    pub id: WidgetId,
+
+    /// The widget's outer, inner, border and render info.
+    pub widget_info: &'a WidgetContextInfo,
+
+    /// State that lives for the duration of the widget.
+    pub widget_state: StateMapRef<'a, state_map::Widget>,
+}
+
+/// Represents an widget context without parent info.
+/// 
+/// Can be accessed using [`UiNode::with_context_mut`].
+pub struct WidgetNodeMutContext<'a> {
+    /// The widget ID.
+    pub id: WidgetId,
+
+    /// The widget's outer, inner, border and render info.
+    pub widget_info: &'a WidgetContextInfo,
+
+    /// State that lives for the duration of the widget.
+    pub widget_state: StateMapMut<'a, state_map::Widget>,
+
+    /// Var and event subscription handles managed by the widget.
+    ///
+    /// These handles are kept in the widget instance and are dropped on deinit.
+    pub handles: WidgetHandles<'a>,
+}
+
 /// A widget context.
 pub struct WidgetContext<'a> {
     /// Current widget path.
