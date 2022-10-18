@@ -13,10 +13,9 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     inspector::SourceLocation,
-    ui_list::BoxedUiNodeList,
-    ui_list::BoxedWidgetList,
-    var::{var, AnyVar, AnyVarValue, BoxedVar, RcVar, StateVar, Var, VarHandle, VarValue, Vars, WithVars},
-    AdoptiveNode, BoxedUiNode, BoxedWidget, NilUiNode, UiNode, UiNodeList, Widget, WidgetList,
+    ui_list::{BoxedUiNodeList, BoxedWidgetList},
+    var::{var, AnyVar, AnyVarValue, BoxedVar, IntoValue, IntoVar, RcVar, StateVar, Var, VarHandle, VarValue, Vars, WithVars},
+    AdoptiveNode, BoxedUiNode, BoxedWidget, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList, Widget, WidgetList,
 };
 
 pub use crate::inspector::source_location;
@@ -79,8 +78,16 @@ pub enum InputKind {
     StateVar,
     /// Input is `impl IntoValue<T>`, build value is `T`.
     Value,
-    /// Input is `impl UiNode`, `impl Widget`, `impl WidgetHandler<A>`, ``, build value is `InputTakeout`.
-    Takeout,
+
+    UiNode,
+
+    Widget,
+
+    UiNodeList,
+
+    WidgetList,
+
+    WidgetHandler,
 }
 
 /// Represents a [`WidgetHandler<A>`] that can be reused.
@@ -95,11 +102,6 @@ impl<A: Clone + 'static> RcWidgetHandler<A> {
     pub fn new(handler: impl WidgetHandler<A>) -> Self {
         Self(Rc::new(RefCell::new(handler)))
     }
-
-    #[doc(hidden)]
-    pub fn for_input(self) -> InputWidgetHandler {
-        InputWidgetHandler(Box::new(self))
-    }
 }
 impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
     fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
@@ -110,95 +112,6 @@ impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
         self.0.borrow_mut().update(ctx)
     }
 }
-
-#[doc(hidden)]
-pub struct InputWidgetHandler(Box<dyn Any>);
-impl InputWidgetHandler {
-    pub fn downcast_clone<A: Clone + 'static>(&self) -> RcWidgetHandler<A> {
-        self.0.downcast_ref::<RcWidgetHandler<A>>().expect("input handler of unexpected type").clone()
-    }
-}
-
-/// Represents a value that cannot be cloned and can only be used in one instance.
-pub struct InputTakeout {
-    val: Rc<RefCell<Option<Box<dyn Any>>>>,
-}
-impl InputTakeout {
-    fn new(val: Box<dyn Any>) -> Self {
-        InputTakeout {
-            val: Rc::new(RefCell::new(Some(val))),
-        }
-    }
-
-    /// New from `impl UiNode` input.
-    pub fn new_ui_node(node: impl UiNode) -> Self {
-        Self::new(Box::new(node.boxed()))
-    }
-
-    /// New from `impl Widget` input.
-    pub fn new_widget(wgt: impl Widget) -> Self {
-        Self::new(Box::new(wgt.boxed_wgt()))
-    }
-
-    /// New from `impl WidgetHandler<A>` input.
-    pub fn new_widget_handler<A>(handler: impl WidgetHandler<A>) -> Self
-    where
-        A: Clone + 'static,
-    {
-        Self::new(Box::new(handler.boxed()))
-    }
-
-    /// New from `impl UiNodeList` input.
-    pub fn new_ui_node_list(list: impl UiNodeList) -> Self {
-        Self::new(Box::new(list.boxed()))
-    }
-
-    /// New from `impl WidgetList` input.
-    pub fn new_widget_list(list: impl WidgetList) -> Self {
-        Self::new(Box::new(list.boxed_wgt()))
-    }
-
-    /// If the args was not spend yet.
-    pub fn is_available(&self) -> bool {
-        self.val.borrow().is_some()
-    }
-
-    fn take<T: Any>(&self) -> T {
-        *self
-            .val
-            .borrow_mut()
-            .take()
-            .expect("input takeout already used")
-            .downcast::<T>()
-            .expect("input takeout was of the requested type")
-    }
-
-    /// Takes the value for an `impl UiNode` input.
-    pub fn take_ui_node(&self) -> BoxedUiNode {
-        self.take()
-    }
-
-    /// Takes the value for an `impl UiNode` input.
-    pub fn take_widget(&self) -> BoxedWidget {
-        self.take()
-    }
-
-    /// Takes the value for an `impl WidgetHandler<A>` input.
-    pub fn take_widget_handler<A: Clone + 'static>(&self) -> Box<dyn WidgetHandler<A>> {
-        self.take()
-    }
-
-    /// Takes the value for an `impl UiNodeList` input.
-    pub fn take_ui_node_list(&self) -> BoxedUiNodeList {
-        self.take()
-    }
-
-    /// Takes the value for an `impl WidgetList` input.
-    pub fn take_widget_list(&self) -> BoxedWidgetList {
-        self.take()
-    }
-}
-
 /// Property info.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
@@ -279,11 +192,6 @@ pub trait PropertyArgs {
         }
     }
 
-    /// Gets a [`InputKind::Value`].
-    fn value(&self, i: usize) -> &dyn AnyVarValue {
-        panic_input(&self.property(), i, InputKind::Value)
-    }
-
     /// Gets a [`InputKind::Var`].
     ///
     /// Is a `BoxedVar<T>`.
@@ -296,9 +204,36 @@ pub trait PropertyArgs {
         panic_input(&self.property(), i, InputKind::StateVar)
     }
 
-    /// Gets a [`InputKind::Takeout`].
-    fn takeout(&self, i: usize) -> &InputTakeout {
-        panic_input(&self.property(), i, InputKind::Takeout)
+    /// Gets a [`InputKind::Value`].
+    fn value(&self, i: usize) -> &dyn AnyVarValue {
+        panic_input(&self.property(), i, InputKind::Value)
+    }
+
+    /// Gets a [`InputKind::UiNode`].
+    fn ui_node(&self, i: usize) -> &RcNode<BoxedUiNode> {
+        panic_input(&self.property(), i, InputKind::UiNode)
+    }
+
+    /// Gets a [`InputKind::Widget`].
+    fn widget(&self, i: usize) -> &RcNode<BoxedWidget> {
+        panic_input(&self.property(), i, InputKind::Widget)
+    }
+
+    /// Gets a [`InputKind::UiNodeList`].
+    fn ui_node_list(&self, i: usize) -> &RcNodeList<BoxedUiNodeList> {
+        panic_input(&self.property(), i, InputKind::UiNodeList)
+    }
+
+    /// Gets a [`InputKind::WidgetList`].
+    fn widget_list(&self, i: usize) -> &RcNodeList<BoxedWidgetList> {
+        panic_input(&self.property(), i, InputKind::WidgetList)
+    }
+
+    /// Gets a [`InputKind::WidgetHandler`].
+    ///
+    /// Is a `RcWidgetHandler<A>`.
+    fn widget_handler(&self, i: usize) -> &dyn Any {
+        panic_input(&self.property(), i, InputKind::WidgetHandler)
     }
 
     /// Create a property instance with args clone or taken.
@@ -317,6 +252,41 @@ pub fn panic_input(info: &PropertyInfo, i: usize, kind: InputKind) -> ! {
     } else {
         panic!("invalid input `{}`", info.inputs[i].name)
     }
+}
+
+#[doc(hidden)]
+pub fn var_input_to_args<T: VarValue>(var: impl IntoVar<T>) -> BoxedVar<T> {
+    var.into_var().boxed()
+}
+
+#[doc(hidden)]
+pub fn value_to_args<T: VarValue>(value: impl IntoValue<T>) -> T {
+    value.into()
+}
+
+#[doc(hidden)]
+pub fn ui_node_to_args(node: impl UiNode) -> RcNode<BoxedUiNode> {
+    RcNode::new(node.boxed())
+}
+
+#[doc(hidden)]
+pub fn widget_to_args(wgt: impl Widget) -> RcNode<BoxedWidget> {
+    RcNode::new(wgt.boxed_wgt())
+}
+
+#[doc(hidden)]
+pub fn ui_node_list_to_args(node_list: impl UiNodeList) -> RcNodeList<BoxedUiNodeList> {
+    RcNodeList::new(node_list.boxed())
+}
+
+#[doc(hidden)]
+pub fn widget_list_to_args(wgt_list: impl WidgetList) -> RcNodeList<BoxedWidgetList> {
+    RcNodeList::new(wgt_list.boxed_wgt())
+}
+
+#[doc(hidden)]
+pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>) -> RcWidgetHandler<A> {
+    RcWidgetHandler::new(handler)
 }
 
 /*
@@ -668,173 +638,4 @@ impl WidgetBuilder {
 
         child
     }
-
-    /// Build to a new editable node.
-    pub fn build_editable(mut self) -> EditableWgtNode {
-        self.sort_items();
-
-        let child = self.child.unwrap_or_else(|| NilUiNode.boxed());
-        let child = Rc::new(RefCell::new(child));
-
-        let mut prev_pri = Priority::Context;
-        let mut priority_ranges = [0; Priority::ITEMS.len()];
-
-        let mut items = Vec::with_capacity(self.items.len());
-        for (i, (priority, item)) in self.items.into_iter().enumerate() {
-            if prev_pri != priority {
-                prev_pri = priority;
-                for idx in &mut priority_ranges[priority as usize..] {
-                    *idx = i;
-                }
-            }
-
-            match item {
-                WidgetItem::Instrinsic(node) => {
-                    let (child, node) = node.into_parts();
-                    let node = Rc::new(RefCell::new(node));
-                    items.push(EditableItem {
-                        child,
-                        node,
-                        snapshot_node: None,
-                        property: None,
-                    });
-                }
-                WidgetItem::Property { importance, args } => {
-                    let node = AdoptiveNode::new(|child| args.instantiate(child.boxed()));
-                    let (child, node) = node.into_parts();
-
-                    todo!("takeout")
-                }
-            }
-        }
-
-        let node = items.last().map(|it| it.node.clone()).unwrap_or_else(|| child.clone());
-
-        EditableWgtNode {
-            id: EditableWgtNodeId::new_unique(),
-            child,
-            items,
-            priority_ranges,
-            node,
-            is_inited: false,
-            is_bound: false,
-            unset: self.unset,
-        }
-    }
-
-    /// Build into an existing editable node, overrides/extends it.
-    pub fn build_into(mut self, node: &mut EditableWgtNode) {
-        for (id, imp) in self.unset {
-            let check;
-            if let Some(prev_imp) = node.unset.insert(id, imp) {
-                check = prev_imp < imp;
-            } else {
-                check = true;
-            }
-
-            if check {
-                todo!()
-            }
-        }
-        todo!()
-    }
 }
-
-unique_id_32! {
-    struct EditableWgtNodeId;
-}
-impl fmt::Debug for EditableWgtNodeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("EditableWgtNodeId").field(&self.sequential()).finish()
-    }
-}
-
-struct EditableItem {
-    // item child, the `Rc` does not change, only the interior.
-    child: Rc<RefCell<BoxedUiNode>>,
-    // item node, the `Rc` changes, but it always points to the same node.
-    node: Rc<RefCell<BoxedUiNode>>,
-    // original `node`, preserved when parent is set, reused when unset.
-    snapshot_node: Option<Rc<RefCell<BoxedUiNode>>>,
-
-    // property source args or `None` for intrinsic.
-    property: Option<(Importance, Box<dyn PropertyArgs>)>,
-}
-
-/// Represents a built [`WidgetBuilder`] node that can still be modified when deinited.
-pub struct EditableWgtNode {
-    // Unique ID used to validate snapshots.
-    id: EditableWgtNodeId,
-
-    // innermost child.
-    //
-    // The Rc changes to the `child` of the innermost property when bound and a new Rc when unbound,
-    // the interior only changes when `replace_child` is used.
-    child: Rc<RefCell<BoxedUiNode>>,
-
-    // property and intrinsic nodes from innermost to outermost.
-    items: Vec<EditableItem>,
-    // exclusive end of each priority range in `properties`
-    priority_ranges: [usize; Priority::ITEMS.len()],
-
-    // outermost node.
-    //
-    // The Rc changes to the `node` of the outermost property, the interior is not modified from here.
-    node: Rc<RefCell<BoxedUiNode>>,
-
-    is_inited: bool,
-    is_bound: bool,
-
-    // unset requests, already applied.
-    unset: LinearMap<PropertyId, Importance>,
-}
-impl EditableWgtNode {
-    /// If the node is inited in a context, if `true` the node cannot be restored into a builder.
-    pub fn is_inited(&self) -> bool {
-        self.is_inited
-    }
-
-    fn delink(&mut self) {
-        assert!(!self.is_inited);
-
-        if !mem::take(&mut self.is_bound) {
-            return;
-        }
-
-        todo!()
-    }
-
-    fn link(&mut self) {
-        assert!(!self.is_inited);
-
-        if mem::replace(&mut self.is_bound, true) {
-            return;
-        }
-
-        todo!()
-    }
-
-    /// Take a snapshot that can be used to restore the node to a pre-injection state.
-    pub fn snapshot(&self) -> DynUiNodeSnapshot {
-        assert!(!self.is_inited);
-        todo!()
-    }
-
-    /// Restore the node properties.
-    pub fn restore(&mut self, snapshot: DynUiNodeSnapshot) {
-        self.delink();
-        todo!()
-    }
-
-    /// Insert/override nodes from `other` onto `self`.
-    ///
-    /// Intrinsic nodes are moved in, property nodes of the same name, id and >= importance replace self, when conditions and assigns
-    /// are rebuild.
-    pub fn inject(&mut self, other: EditableWgtNode) {
-        self.delink();
-        todo!()
-    }
-}
-
-/// Represents a state of a [`DynUiNode`], can be used to restore the node.
-pub struct DynUiNodeSnapshot {}

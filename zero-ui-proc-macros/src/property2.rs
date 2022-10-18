@@ -140,7 +140,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut get_var = quote!();
         let mut get_state = quote!();
         let mut get_value = quote!();
-        let mut get_takeout = quote!();
+        let mut get_ui_node = quote!();
+        let mut get_widget = quote!();
+        let mut get_ui_node_list = quote!();
+        let mut get_widget_list = quote!();
+        let mut get_widget_handler = quote!();
 
         let mut instantiate = quote!();
         let mut input_idents = vec![];
@@ -311,7 +315,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     named_into_var.extend(quote! {
                         pub fn #ident(#ident: #input_ty) -> #core::var::BoxedVar<#info_ty> {
-                            #core::var::Var::boxed(#core::var::IntoVar::into_var(#ident))
+                            #core::property::var_input_to_args(#ident)
                         }
                     });
                     let get_ident = ident!("__{ident}_when__");
@@ -361,7 +365,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
                 InputKind::Value => {
                     input_to_storage.push(quote! {
-                        std::convert::Into::into(#ident)
+                        #core::property::value_to_args(#ident)
                     });
                     get_value.extend(quote! {
                         #i => &self.#ident,
@@ -379,57 +383,57 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
                 InputKind::UiNode => {
                     input_to_storage.push(quote! {
-                        #core::property::InputTakeout::new_ui_node(#ident)
+                        #core::property::ui_node_to_args(#ident)
                     });
-                    get_takeout.extend(quote! {
+                    get_ui_node.extend(quote! {
                         #i => &self.#ident,
                     });
                     instantiate.extend(quote! {
-                        self.#ident.take_ui_node(),
+                        self.#ident.take_on_init(),
                     });
                 }
                 InputKind::Widget => {
                     input_to_storage.push(quote! {
-                        #core::property::InputTakeout::new_widget(#ident)
+                        #core::property::widget_to_args(#ident)
                     });
-                    get_takeout.extend(quote! {
+                    get_widget.extend(quote! {
                         #i => &self.#ident,
                     });
                     instantiate.extend(quote! {
-                        self.#ident.take_widget(),
-                    });
-                }
-                InputKind::WidgetHandler => {
-                    input_to_storage.push(quote! {
-                        #core::property::InputTakeout::new_widget_handler(#ident)
-                    });
-                    get_takeout.extend(quote! {
-                        #i => &self.#ident,
-                    });
-                    instantiate.extend(quote! {
-                        self.#ident.take_widget_handler(),
+                        self.#ident.take_on_init(),
                     });
                 }
                 InputKind::UiNodeList => {
                     input_to_storage.push(quote! {
-                        #core::property::InputTakeout::new_ui_node_list(#ident)
+                        #core::property::ui_node_list_to_args(#ident)
                     });
-                    get_takeout.extend(quote! {
+                    get_ui_node_list.extend(quote! {
                         #i => &self.#ident,
                     });
                     instantiate.extend(quote! {
-                        self.#ident.take_ui_node_list(),
+                        self.#ident.take_on_init(),
                     });
                 }
                 InputKind::WidgetList => {
                     input_to_storage.push(quote! {
-                        #core::property::InputTakeout::new_widget_list(#ident)
+                        #core::property::widget_list_to_args(#ident)
                     });
-                    get_takeout.extend(quote! {
+                    get_widget_list.extend(quote! {
                         #i => &self.#ident,
                     });
                     instantiate.extend(quote! {
-                        self.#ident.take_widget_list(),
+                        std::clone::Clone::clone(&self.#ident),
+                    });
+                }
+                InputKind::WidgetHandler => {
+                    input_to_storage.push(quote! {
+                        #core::property::widget_handler_to_args(#ident)
+                    });
+                    get_widget_handler.extend(quote! {
+                        #i => &self.#ident,
+                    });
+                    instantiate.extend(quote! {
+                        self.#ident.take_widget_handler(),
                     });
                 }
             }
@@ -465,12 +469,52 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
             }
         }
-        if !get_takeout.is_empty() {
-            get_takeout = quote! {
-                fn takeout(&self, __index__: usize) -> &#core::property::InputTakeout {
+        if !get_ui_node.is_empty() {
+            get_ui_node = quote! {
+                fn ui_node(&self, __index__: usize) -> &#core::RcNode<#core::BoxedUiNode> {
                     match __index__ {
-                        #get_takeout
-                        n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::Takeout),
+                        #get_ui_node
+                        n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::UiNode),
+                    }
+                }
+            }
+        }
+        if !get_widget.is_empty() {
+            get_widget = quote! {
+                fn widget(&self, __index__: usize) -> &#core::RcNode<#core::BoxedWidget> {
+                    match __index__ {
+                        #get_widget
+                        n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::Widget),
+                    }
+                }
+            }
+        }
+        if !get_ui_node_list.is_empty() {
+            get_ui_node_list = quote! {
+                fn ui_node_list(&self, __index__: usize) -> &#core::RcNodeList<#core::BoxedUiNodeList> {
+                    match __index__ {
+                        #get_ui_node_list
+                        n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::UiNodeList),
+                    }
+                }
+            }
+        }
+        if !get_widget_list.is_empty() {
+            get_widget_list = quote! {
+                fn widget_list(&self, __index__: usize) -> &#core::RcNodeList<#core::BoxedWidgetList> {
+                    match __index__ {
+                        #get_widget_list
+                        n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::WidgetList),
+                    }
+                }
+            }
+        }
+        if !get_widget_handler.is_empty() {
+            get_widget_handler = quote! {
+                fn widget_handler(&self, __index__: usize) -> &dyn std::any::Any {
+                    match __index__ {
+                        #get_widget_handler
+                        n => #core::property::panic_input(&self.property(), n, #core::property::InputKind::WidgetHandler),
                     }
                 }
             }
@@ -571,7 +615,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #get_var
                 #get_state
                 #get_value
-                #get_takeout
+                #get_ui_node
+                #get_widget
+                #get_ui_node_list
+                #get_widget_list
+                #get_widget_handler
             }
 
             #cfg
