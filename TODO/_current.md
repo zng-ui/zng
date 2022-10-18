@@ -7,10 +7,10 @@
 
 # All Rc Rewrite
 
-* Allow slots of `RcNode<impl Widget>` to impl `Widget`.
-    - Same for list.
-    - Instead of implementing two new rc types.
-* Refactor API to remove all return references (turn they into visitors?).
+* Refactor API to remove all return references.
+    - Like `UiNode::try_state` or `UiNodeList`.
+    - Implement a visitor `UiNode::with_info(f: FnOnce(&WidgetInfo) -> R) -> Option<R>` that groups every thing.
+        - This lets we add stuff a lot quickly and without breaking changes too, right now we have multiple info related methods.
 
 # All Dyn Rewrite
 

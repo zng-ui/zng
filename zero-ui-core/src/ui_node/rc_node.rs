@@ -46,7 +46,7 @@ impl<U> Default for SlotsData<U> {
     }
 }
 
-/// A reference counted [`UiNode`].
+/// A reference counted [`UiNode`] and [`Widget`].
 ///
 /// Nodes can only appear in one place of the UI tree at a time, this `struct` allows the
 /// creation of ***slots*** that are [`UiNode`] implementers that can *exclusive take* the
@@ -107,11 +107,13 @@ impl<U: UiNode> RcNode<U> {
     /// Create a *slot* node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
-    pub fn take_when(&self, var: impl IntoVar<bool>) -> impl UiNode {
-        impls::TakeOnSlot {
+    ///
+    /// The return type implements [`UiNode`] and also implements [`Widget`] if `L: Widget`.
+    pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<U, impl TakeOn> {
+        impls::TakeSlot {
             slot: self.0.slots.borrow_mut().next_slot(),
             rc: self.0.clone(),
-            take: impls::TakeOnVar { var: var.into_var() },
+            take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init(ctx),
             delegate_deinit: |n, ctx| n.deinit(ctx),
         }
@@ -120,8 +122,15 @@ impl<U: UiNode> RcNode<U> {
     /// Create a *slot* node that takes ownership of this node when `event` updates and `filter` returns `true`.
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
-    pub fn take_on<A: EventArgs>(&self, event: Event<A>, filter: impl FnMut(&A) -> bool + 'static, take_on_init: bool) -> impl UiNode {
-        impls::TakeOnSlot {
+    ///
+    /// The return type implements [`UiNode`] and also implements [`Widget`] if `L: Widget`.
+    pub fn take_on<A: EventArgs>(
+        &self,
+        event: Event<A>,
+        filter: impl FnMut(&A) -> bool + 'static,
+        take_on_init: bool,
+    ) -> TakeSlot<U, impl TakeOn> {
+        impls::TakeSlot {
             slot: self.0.slots.borrow_mut().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeOnEvent {
@@ -137,7 +146,7 @@ impl<U: UiNode> RcNode<U> {
     /// Create a *slot* node that takes ownership of this node as soon as the node is inited.
     ///
     /// This is equivalent to `self.take_when(true)`
-    pub fn take_on_init(&self) -> impl UiNode {
+    pub fn take_on_init(&self) -> TakeSlot<U, impl TakeOn> {
         self.take_when(true)
     }
 }
@@ -156,7 +165,7 @@ impl<U: UiNode> WeakNode<U> {
     }
 }
 
-/// A reference counted [`UiNodeList`].
+/// A reference counted [`UiNodeList`] or [`WidgetList`].
 ///
 /// Nodes can only appear in one place of the UI tree at a time, this `struct` allows the
 /// creation of ***slots*** that are [`UiNodeList`] implementers that can *exclusive take* the
@@ -218,11 +227,13 @@ impl<L: UiNodeList> RcNodeList<L> {
     /// Create a *slot* node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
-    pub fn take_when(&self, var: impl IntoVar<bool>) -> impl UiNodeList {
-        impls::TakeOnSlot {
+    ///
+    /// The return type implements [`UiNodeList`] and also implements [`WidgetList`] if `L: WidgetList`.
+    pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<L, impl TakeOn> {
+        impls::TakeSlot {
             slot: self.0.slots.borrow_mut().next_slot(),
             rc: self.0.clone(),
-            take: impls::TakeOnVar { var: var.into_var() },
+            take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init_all(ctx),
             delegate_deinit: |n, ctx| n.deinit_all(ctx),
         }
@@ -231,8 +242,15 @@ impl<L: UiNodeList> RcNodeList<L> {
     /// Create a *slot* node that takes ownership of this node when `event` updates and `filter` returns `true`.
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
-    pub fn take_on<A: EventArgs>(&self, event: Event<A>, filter: impl FnMut(&A) -> bool + 'static, take_on_init: bool) -> impl UiNodeList {
-        impls::TakeOnSlot {
+    ///
+    /// The return type implements [`UiNodeList`] and also implements [`WidgetList`] if `L: WidgetList`.
+    pub fn take_on<A: EventArgs>(
+        &self,
+        event: Event<A>,
+        filter: impl FnMut(&A) -> bool + 'static,
+        take_on_init: bool,
+    ) -> TakeSlot<L, impl TakeOn> {
+        impls::TakeSlot {
             slot: self.0.slots.borrow_mut().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeOnEvent {
@@ -248,7 +266,7 @@ impl<L: UiNodeList> RcNodeList<L> {
     /// Create a *slot* node list that takes ownership of this list as soon as the node is inited.
     ///
     /// This is equivalent to `self.take_when(true)`
-    pub fn take_on_init(&self) -> impl UiNodeList {
+    pub fn take_on_init(&self) -> TakeSlot<L, impl TakeOn> {
         self.take_when(true)
     }
 }
@@ -267,6 +285,8 @@ impl<L: UiNodeList> WeakNodeList<L> {
     }
 }
 
+pub use impls::*;
+
 mod impls {
     use std::rc::Rc;
 
@@ -282,7 +302,8 @@ mod impls {
 
     use super::{SlotData, SlotId};
 
-    pub(super) trait TakeOn: 'static {
+    #[doc(hidden)]
+    pub trait TakeOn: 'static {
         fn take_on_init(&mut self, ctx: &mut WidgetContext) -> bool {
             let _ = ctx;
             false
@@ -299,10 +320,10 @@ mod impls {
         }
     }
 
-    pub(super) struct TakeOnVar<V: Var<bool>> {
+    pub(super) struct TakeWhenVar<V: Var<bool>> {
         pub(super) var: V,
     }
-    impl<V: Var<bool>> TakeOn for TakeOnVar<V> {
+    impl<V: Var<bool>> TakeOn for TakeWhenVar<V> {
         fn take_on_init(&mut self, ctx: &mut WidgetContext) -> bool {
             ctx.sub_var(&self.var);
             self.var.get()
@@ -333,7 +354,8 @@ mod impls {
         }
     }
 
-    pub(super) struct TakeOnSlot<U, T: TakeOn> {
+    #[doc(hidden)]
+    pub struct TakeSlot<U, T: TakeOn> {
         pub(super) slot: SlotId,
         pub(super) rc: Rc<SlotData<U>>,
         pub(super) take: T,
@@ -341,7 +363,7 @@ mod impls {
         pub(super) delegate_init: fn(&mut U, &mut WidgetContext),
         pub(super) delegate_deinit: fn(&mut U, &mut WidgetContext),
     }
-    impl<U, T: TakeOn> TakeOnSlot<U, T> {
+    impl<U, T: TakeOn> TakeSlot<U, T> {
         fn on_init(&mut self, ctx: &mut WidgetContext) {
             if self.take.take_on_init(ctx) {
                 self.take(ctx);
@@ -468,7 +490,7 @@ mod impls {
         }
     }
 
-    impl<U: UiNode, T: TakeOn> UiNode for TakeOnSlot<U, T> {
+    impl<U: UiNode, T: TakeOn> UiNode for TakeSlot<U, T> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.on_init(ctx);
         }
@@ -531,8 +553,30 @@ mod impls {
             todo!("ref!")
         }
     }
+    impl<U: Widget, T: TakeOn> Widget for TakeSlot<U, T> {
+        fn id(&self) -> WidgetId {
+            // TODO, review this, will it cause info errors.
+            self.rc.item.borrow().id()
+        }
 
-    impl<U: UiNodeList, T: TakeOn> UiNodeList for TakeOnSlot<U, T> {
+        fn state(&self) -> StateMapRef<state_map::Widget> {
+            todo!("ref!")
+        }
+
+        fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
+            todo!("ref!")
+        }
+
+        fn bounds_info(&self) -> &widget_info::WidgetBoundsInfo {
+            todo!("ref!")
+        }
+
+        fn border_info(&self) -> &widget_info::WidgetBorderInfo {
+            todo!("ref!")
+        }
+    }
+
+    impl<U: UiNodeList, T: TakeOn> UiNodeList for TakeSlot<U, T> {
         fn is_fixed(&self) -> bool {
             self.delegate_owned(UiNodeList::is_fixed).unwrap_or(false)
         }
@@ -658,6 +702,62 @@ mod impls {
             F: FnMut(ui_list::UiNodeFilterArgs) -> bool,
         {
             self.delegate_owned(|l| l.count_nodes(filter)).unwrap_or(0)
+        }
+    }
+
+    impl<U: WidgetList, T: TakeOn> WidgetList for TakeSlot<U, T> {
+        fn count<F>(&self, filter: F) -> usize
+        where
+            F: FnMut(ui_list::WidgetFilterArgs) -> bool,
+        {
+            self.delegate_owned(|l| l.count(filter)).unwrap_or(0)
+        }
+
+        fn boxed_widget_all(self) -> ui_list::WidgetVec {
+            todo!("actual boxing")
+        }
+
+        fn item_id(&self, index: usize) -> WidgetId {
+            self.delegate_owned(|l| l.item_id(index))
+                .unwrap_or_else(|| panic!("index {index} out of range for length 0"))
+        }
+
+        fn item_state(&self, index: usize) -> StateMapRef<state_map::Widget> {
+            todo!("ref")
+        }
+
+        fn item_state_mut(&mut self, index: usize) -> StateMapMut<state_map::Widget> {
+            todo!("ref")
+        }
+
+        fn item_bounds_info(&self, index: usize) -> &widget_info::WidgetBoundsInfo {
+            todo!("ref")
+        }
+
+        fn item_border_info(&self, index: usize) -> &widget_info::WidgetBorderInfo {
+            todo!("ref")
+        }
+
+        fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+        where
+            F: FnMut(ui_list::WidgetFilterArgs) -> bool,
+        {
+            self.delegate_owned(|l| l.render_filtered(filter, ctx, frame));
+        }
+
+        fn item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> R
+        where
+            F: FnOnce(&mut widget_info::WidgetLayoutTranslation, ui_list::PosLayoutArgs) -> R,
+        {
+            self.delegate_owned_mut(|l| l.item_outer(index, wl, keep_previous, transform))
+                .unwrap_or_else(|| panic!("index {index} out of range for length 0"))
+        }
+
+        fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+        where
+            F: FnMut(&mut widget_info::WidgetLayoutTranslation, ui_list::PosLayoutArgs),
+        {
+            self.delegate_owned_mut(|l| l.outer_all(wl, keep_previous, transform));
         }
     }
 }
