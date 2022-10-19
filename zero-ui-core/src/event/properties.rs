@@ -24,9 +24,9 @@ macro_rules! __event_property {
         /// You can use async event handlers with this property.
         #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
         $vis fn [<on_ $event>](
-            child: impl $crate::UiNode,
+            child: impl $crate::widget_instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$Args>,
-        ) -> impl $crate::UiNode {
+        ) -> impl $crate::widget_instance::UiNode {
             $crate::event::on_event(child, $EVENT, $filter, handler)
         }
 
@@ -43,7 +43,7 @@ macro_rules! __event_property {
         /// subsequent code runs in widget updates.
         #[$crate::property(event, default( $crate::handler::hn!(|_, _|{}) ))]
         $vis fn [<on_pre_ $event>](
-            child: impl $crate::UiNode,
+            child: impl $crate::widget_instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$Args>,
         ) -> impl $crate::UiNode {
             $crate::event::on_pre_event(child, $EVENT, $filter, handler)

@@ -593,8 +593,10 @@ impl TestWidgetContext {
 ///
 /// You can access the widget handles for a widget in [`WidgetContext::handles`].
 pub struct WidgetHandles<'a> {
-    var_handles: &'a mut VarHandles,
-    event_handles: &'a mut EventHandles,
+    /// Var handlers collection.
+    pub var_handles: &'a mut VarHandles,
+    /// Event handles collection.
+    pub event_handles: &'a mut EventHandles,
 }
 impl<'a> WidgetHandles<'a> {
     /// Keep var subscription handle.

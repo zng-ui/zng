@@ -106,7 +106,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
-    fn for_each_mut<F>(&mut self, f: F)
+    fn for_each_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(usize, &mut BoxedUiNode) -> bool,
     {
@@ -143,11 +143,6 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
         self.0.deinit_all(ctx);
         self.1.deinit_all(ctx);
-    }
-
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.0.event_all(ctx, update);
-        self.1.event_all(ctx, update);
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -227,7 +222,7 @@ where
         self.list.with_node_mut(index, f)
     }
 
-    fn for_each<F>(&self, f: F)
+    fn for_each<F>(&self, mut f: F)
     where
         F: FnMut(usize, &BoxedUiNode) -> bool,
     {
@@ -239,7 +234,7 @@ where
         }
     }
 
-    fn for_each_mut<F>(&mut self, f: F)
+    fn for_each_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(usize, &mut BoxedUiNode) -> bool,
     {
@@ -273,10 +268,6 @@ where
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
         self.list.deinit_all(ctx);
-    }
-
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.list.event_all(ctx, update);
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {

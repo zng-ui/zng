@@ -744,7 +744,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
             ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
 
-            wl.try_with_outer(&mut self.child, true, |t, _| {
+            wl.with_outer(&mut self.child, true, |t, _| {
                 t.translate(self.offset);
             });
 
@@ -813,7 +813,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             let offsets = self.offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             ContextBorders::measure_with_border(ctx, offsets, |ctx| {
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                ctx.with_sub_size(taken_size, |ctx| self.children.item_measure(0, ctx))
+                ctx.with_sub_size(taken_size, |ctx| self.children.with_node(0, |n| n.measure(ctx)))
             })
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -842,14 +842,14 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                self.border_rect.size = ctx.with_sub_size(taken_size, |ctx| self.children.item_layout(0, ctx, wl));
+                self.border_rect.size = ctx.with_sub_size(taken_size, |ctx| self.children.with_node_mut(0, |n| n.layout(ctx, wl)));
 
                 // layout border visual
                 ctx.with_constrains(
                     |_| PxConstrains2d::new_exact_size(self.border_rect.size),
                     |ctx| {
                         ContextBorders::with_border_layout(self.border_rect, offsets, || {
-                            self.children.item_layout(1, ctx, wl);
+                            self.children.with_node_mut(1, |n| n.layout(ctx, wl));
                         });
                     },
                 );

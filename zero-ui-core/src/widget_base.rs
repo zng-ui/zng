@@ -570,6 +570,7 @@ pub fn child(_ignored: impl UiNode, child: impl UiNode) -> impl UiNode {
 /// [captured]: crate::widget#property-capture
 #[property(child_layout, default(ui_list![]))]
 pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> impl UiNode {
+    let _ = children;
     tracing::error!("property `children` must be captured");
     NilUiNode
 }
@@ -587,6 +588,7 @@ pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> impl UiNode
 /// [`base`]: mod@base
 #[property(context, default(WidgetId::new_unique()))]
 pub fn id(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
+    let _ = id;
     tracing::error!("property `id` must be captured");
     child
 }

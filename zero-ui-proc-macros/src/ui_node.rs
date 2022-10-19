@@ -415,60 +415,48 @@ fn delegate_list_absents(
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #children = {#borrow};
-            #crate_::widget_instance::UiNodeList::info_all(#deref, ctx, info);
+            #crate_::widget_instance::ui_node_list_default::info_all(#deref, ctx, info);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             #auto_init
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNodeList::init_all(#deref_mut, ctx)
+            #crate_::widget_instance::ui_node_list_default::init_all(#deref_mut, ctx);
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNodeList::deinit_all(#deref_mut, ctx)
+            #crate_::widget_instance::ui_node_list_default::deinit_all(#deref_mut, ctx);
         }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#borrow_mut};
-            let mut changed = false;
-            #crate_::widget_instance::UiNodeList::update_all(#deref_mut, ctx, updates, &mut changed);
-            if changed {
-                ctx.updates.layout_and_render();
-            }
+            #crate_::widget_instance::ui_node_list_default::update_all(#deref_mut, ctx, updates, &mut changed);
         }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNodeList::event_all(#deref_mut, ctx, update);
+            #crate_::widget_instance::ui_node_list_default::event_all(#deref_mut, ctx, update);
         }]
 
         [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
             let #children = {#borrow};
-            let mut size = #crate_::units::PxSize::zero();
-            #crate_::widget_instance::UiNodeList::measure_all(#deref, ctx, |ctx, _|{}, |_, args| {
-                size = size.max(args.size);
-            });
-            size
+            #crate_::widget_instance::ui_node_list_default::measure_all(#deref, ctx)
         }]
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let #children_mut = {#borrow_mut};
-            let mut size = #crate_::units::PxSize::zero();
-            #crate_::widget_instance::UiNodeList::layout_all(#deref_mut, ctx, wl, |ctx, _, _|{}, |_, _, args| {
-                size = size.max(args.size);
-            });
-            size
+            #crate_::widget_instance::ui_node_list_default::layout_all(#deref_mut, ctx, wl)
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let #children = {#borrow};
-            #crate_::widget_instance::UiNodeList::render_all(#deref, ctx, frame)
+            #crate_::widget_instance::ui_node_list_default::render_all(#deref, ctx, frame);
         }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
             let #children = {#borrow};
-            #crate_::widget_instance::UiNodeList::render_update_all(#deref, ctx, update)
+            #crate_::widget_instance::ui_node_list_default::render_update_all(#deref, ctx, update);
         }]
     }
 }

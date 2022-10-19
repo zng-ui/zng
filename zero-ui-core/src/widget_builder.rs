@@ -63,7 +63,7 @@ pub use when_condition_expr_var;
 macro_rules! property_id {
     ($property:path) => {{
     #[rustfmt::skip]// Rust does not expand the macro if we remove the braces.
-                            use $property::{property as p};
+                                use $property::{property as p};
 
         p::__id__($crate::widget_builder::property_id_name(stringify!($property)))
     }};
@@ -669,14 +669,14 @@ impl WidgetBuilder {
         // this method is used to remove "captures", that means we need to remove `when` assigns and a clone of the conditions too?
     }
 
-    // Remove the property and downcast the input value.
+    /// Remove the property and downcast the input value.
     pub fn capture_value<T: VarValue>(&mut self, property_id: PropertyId) -> Option<T> {
         let (_, args) = self.remove_property(property_id)?;
         let value = args.downcast_value::<T>(0).clone();
         Some(value)
     }
 
-    // Remove the property and downcast the input value.
+    /// Remove the property and downcast the input value.
     pub fn capture_var<T: VarValue>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>> {
         let (_, args) = self.remove_property(property_id)?;
         let var = args.downcast_var::<T>(0).clone();

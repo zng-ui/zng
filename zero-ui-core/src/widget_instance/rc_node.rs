@@ -605,13 +605,6 @@ mod impls {
             });
         }
 
-        fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.for_each_mut(|_, c| {
-                c.event(ctx, update);
-                true
-            });
-        }
-
         fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
             let _ = observer;
             self.for_each_mut(|_, c| {

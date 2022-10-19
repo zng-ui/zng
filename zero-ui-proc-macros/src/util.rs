@@ -231,18 +231,6 @@ macro_rules! abort_call_site {
     };
 }
 
-/// Extend a TokenStream with a `#[doc]` attribute.
-macro_rules! doc_extend {
-    ($tokens:ident, $($tt:tt)*) => {
-        {
-            let doc_comment = format!($($tt)*);
-            for line in doc_comment.lines() {
-                $tokens.extend(quote_spanned!(proc_macro2::Span::call_site()=> #[doc=#line]));
-            }
-        }
-    }
-}
-
 /// Input error not caused by the user.
 macro_rules! non_user_error {
     ($e:expr) => {
@@ -298,17 +286,6 @@ macro_rules! non_user_bracketed {
     ($input:expr) => {
         non_user_group! { bracketed, $input }
     };
-}
-
-/// Parse items of a type until the end of the parse stream or the first error.
-pub fn parse_all<T: Parse>(input: syn::parse::ParseStream) -> syn::Result<Vec<T>> {
-    let mut result = vec![];
-
-    while !input.is_empty() {
-        result.push(input.parse()?)
-    }
-
-    Ok(result)
 }
 
 /// Hashes the `tokens` to generate an "unique" id  for generated macro-rules.
@@ -422,19 +399,6 @@ impl Attributes {
     }
 }
 
-/// Gets if any of the attributes is #[doc(hidden)].
-pub fn is_doc_hidden(docs: &[Attribute]) -> bool {
-    let expected = quote! { (hidden) };
-    docs.iter()
-        .any(|a| token_stream_eq(a.tokens.clone(), expected.clone()) && a.path.get_ident().map(|id| id == "doc").unwrap_or_default())
-}
-
-/// Gets if any of the attributes in the unparsed stream is #[doc(hidden)].
-pub fn is_doc_hidden_tt(docs: TokenStream) -> bool {
-    let attrs = syn::parse2::<OuterAttrs>(docs).unwrap().attrs;
-    is_doc_hidden(&attrs)
-}
-
 /// Convert a [`Path`] to a formatted [`String`].
 pub fn display_path(path: &syn::Path) -> String {
     path.to_token_stream().to_string().replace(' ', "")
@@ -478,67 +442,6 @@ pub fn token_stream_eq(a: TokenStream, b: TokenStream) -> bool {
     }
 }
 
-/// Merges both `#[cfg]` attributes so that only if both conditions are true the item is compiled.
-pub fn cfg_attr_and(a: Option<Attribute>, b: Option<Attribute>) -> Option<TokenStream> {
-    match (a, b) {
-        (None, None) => None,
-        (None, Some(b)) => Some(b.to_token_stream()),
-        (Some(a), None) => Some(a.to_token_stream()),
-        (Some(a), Some(b)) => match (syn::parse2::<CfgCondition>(a.tokens), syn::parse2::<CfgCondition>(b.tokens)) {
-            (Ok(a), Ok(b)) => {
-                if token_stream_eq(a.tokens.clone(), b.tokens.clone()) {
-                    Some(quote! { #[cfg(#a)] })
-                } else {
-                    Some(quote! { #[cfg(all(#a, #b))] })
-                }
-            }
-            (Ok(a), Err(_)) => Some(quote! { #[cfg(#a)] }),
-            (Err(_), Ok(b)) => Some(quote! { #[cfg(#b)] }),
-            (Err(_), Err(_)) => None,
-        },
-    }
-}
-
-/// Merges both `#[cfg]` attributes so that if any of the two conditions are true the item is compiled.
-pub fn cfg_attr_or(a: Option<Attribute>, b: Option<Attribute>) -> Option<TokenStream> {
-    match (a, b) {
-        (None, _) => None,
-        (_, None) => None,
-        (Some(a), Some(b)) => match (syn::parse2::<CfgCondition>(a.tokens), syn::parse2::<CfgCondition>(b.tokens)) {
-            (Err(_), _) => None,
-            (_, Err(_)) => None,
-            (Ok(a), Ok(b)) => {
-                if token_stream_eq(a.tokens.clone(), b.tokens.clone()) {
-                    Some(quote! { #[cfg(#a)] })
-                } else {
-                    Some(quote! { #[cfg(any(all(#a), all(#b)))] })
-                }
-            }
-        },
-    }
-}
-
-/// Returns an `#[cfg(..)]` stream that is the inverse of the `cfg` condition.
-///
-/// It the `cfg` is `None` returns a cfg match to a feature that is never set.
-pub fn cfg_attr_not(cfg: Option<Attribute>) -> TokenStream {
-    match cfg {
-        Some(cfg) => {
-            if !cfg.path.get_ident().map(|id| id == "cfg").unwrap_or_default() {
-                non_user_error!("not a cfg attribute")
-            } else {
-                let span = cfg.span();
-                let condition = cfg.tokens; // note: already includes the parenthesis
-                quote_spanned! {span=>
-                    #[cfg(not #condition)]
-                }
-            }
-        }
-        None => quote! {
-            #[cfg(zero_ui_never_set)]
-        },
-    }
-}
 struct CfgCondition {
     tokens: TokenStream,
 }
@@ -587,17 +490,6 @@ impl From<OuterAttr> for Attribute {
             path: s.path,
             tokens: s.tokens,
         }
-    }
-}
-
-struct OuterAttrs {
-    attrs: Vec<Attribute>,
-}
-impl syn::parse::Parse for OuterAttrs {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(OuterAttrs {
-            attrs: Attribute::parse_outer(input)?,
-        })
     }
 }
 
@@ -842,23 +734,6 @@ impl ErrorRecoverable for syn::Error {
     }
 }
 
-/// Set `span` in all tokens of `token_stream`.
-pub fn set_span(token_stream: &mut TokenStream, span: Span) {
-    let mut r = TokenStream::default();
-    for mut tt in token_stream.clone() {
-        if let TokenTree::Group(g) = tt {
-            let mut inner = g.stream();
-            set_span(&mut inner, span);
-            let mut g = proc_macro2::Group::new(g.delimiter(), inner);
-            g.set_span(span);
-            g.to_tokens(&mut r);
-        } else {
-            tt.set_span(span);
-            tt.to_tokens(&mut r);
-        }
-    }
-    *token_stream = r;
-}
 
 // Debug tracing if it was enabled during run-time.
 //

@@ -494,6 +494,8 @@ impl WidgetLayout {
     /// layout pass by using the [`Widget`] trait to access and replace the outer transform.
     ///
     /// If `keep_previous` is `true` the new offset is *added* to the previous.
+    /// 
+    /// Returns `None` if the `widget` node is not actually an widget.
     ///
     /// [`with_child`]: Self::with_child
     pub fn with_outer<N: UiNode, R>(
@@ -501,24 +503,10 @@ impl WidgetLayout {
         widget: &mut N,
         keep_previous: bool,
         translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut N) -> R,
-    ) -> R {
-        self.with_outer_impl(widget.bounds_info().clone(), widget, keep_previous, translate)
-    }
-
-    /// Applies [`with_outer`] to the `node` if it is a full widget.
-    ///
-    /// Returns `Some(_)` if `translate` was called, or `None` if the `node` was not a full widget.
-    ///
-    /// [`with_outer`]: Self::with_outer
-    pub fn try_with_outer<N: UiNode, R>(
-        &mut self,
-        node: &mut N,
-        keep_previous: bool,
-        translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut N) -> R,
     ) -> Option<R> {
-        node.try_bounds_info()
-            .cloned()
-            .map(|info| self.with_outer_impl(info, node, keep_previous, translate))
+        let bounds = widget.with_context(|n| n.widget_info.bounds.clone())?;
+        let r = self.with_outer_impl(bounds, widget, keep_previous, translate);
+        Some(r)
     }
 
     fn with_outer_impl<T, R>(

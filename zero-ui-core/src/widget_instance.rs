@@ -408,6 +408,11 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Gets the current number of nodes in the list.
     fn len(&self) -> usize;
 
+    /// Returns `true` if the list does not contain any node.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Boxed the list, does not double box.
     fn boxed(self) -> BoxedUiNodeList;
 
@@ -438,18 +443,6 @@ pub trait UiNodeList: UiNodeListBoxed {
         });
     }
 
-    /// Receive event for the list in a context, all nodes are also notified.
-    ///
-    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to receive events for nodes is an error.
-    ///
-    /// [`for_each_mut`]: UiNodeList::for_each_mut
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.for_each_mut(|_, c| {
-            c.event(ctx, update);
-            true
-        });
-    }
-
     /// Receive an update for the list in a context, all nodes are also updated.
     ///
     /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to receive updates for nodes is an error.
@@ -459,6 +452,75 @@ pub trait UiNodeList: UiNodeListBoxed {
         let _ = observer;
         self.for_each_mut(|_, c| {
             c.update(ctx, updates);
+            true
+        });
+    }
+}
+
+#[doc(hidden)]
+pub mod ui_node_list_default {
+    use super::*;
+
+    pub fn init_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext) {
+        list.init_all(ctx);
+    }
+
+    pub fn deinit_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext) {
+        list.deinit_all(ctx);
+    }
+
+    pub fn info_all(list: &impl UiNodeList, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        list.for_each(|_, c| {
+            c.info(ctx, info);
+            true
+        });
+    }
+
+    pub fn event_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        list.for_each_mut(|_, c| {
+            c.event(ctx, update);
+            true
+        });
+    }
+
+    pub fn update_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        let mut changed = false;
+
+        list.update_all(ctx, updates, &mut changed);
+
+        if changed {
+            ctx.updates.layout_and_render();
+        }
+    }
+
+    pub fn measure_all(list: &impl UiNodeList, ctx: &mut MeasureContext) -> PxSize {
+        let mut r = PxSize::zero();
+        list.for_each(|_, n| {
+            r = r.max(n.measure(ctx));
+            true
+        });
+        r
+    }
+
+    pub fn layout_all(list: &mut impl UiNodeList, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let mut r = PxSize::zero();
+        list.for_each_mut(|_, n| {
+            r = r.max(n.layout(ctx, wl));
+            true
+        });
+        r
+    }
+
+    pub fn render_all(list: &mut impl UiNodeList, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        list.for_each(|_, n| {
+            n.render(ctx, frame);
+            true
+        });
+    }
+
+    pub fn render_update_all(list: &mut impl UiNodeList, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        list.for_each(|_, n| {
+            n.render_update(ctx, update);
             true
         });
     }
@@ -557,7 +619,6 @@ pub trait UiNodeListBoxed: Any {
     fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
     fn init_all_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext);
-    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
     fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
 }
 impl<L: UiNodeList> UiNodeListBoxed for L {
@@ -591,10 +652,6 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext) {
         self.deinit_all(ctx);
-    }
-
-    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.event_all(ctx, update);
     }
 
     fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -664,8 +721,9 @@ impl UiNode for BoxedUiNode {
     where
         F: FnOnce(&mut WidgetNodeContext) -> R,
     {
+        let mut f = Some(f);
         let mut r = None;
-        self.as_ref().with_context_boxed(&mut |ctx| r = Some(f(ctx)));
+        self.as_ref().with_context_boxed(&mut |ctx| r = Some((f.take().unwrap())(ctx)));
         r
     }
 
@@ -673,8 +731,9 @@ impl UiNode for BoxedUiNode {
     where
         F: FnOnce(&mut WidgetNodeMutContext) -> R,
     {
+        let mut f = Some(f);
         let mut r = None;
-        self.as_mut().with_context_mut_boxed(&mut |ctx| r = Some(f(ctx)));
+        self.as_mut().with_context_mut_boxed(&mut |ctx| r = Some((f.take().unwrap())(ctx)));
         r
     }
 
@@ -691,8 +750,9 @@ impl UiNodeList for BoxedUiNodeList {
     where
         F: FnOnce(&BoxedUiNode) -> R,
     {
+        let mut f = Some(f);
         let mut r = None;
-        self.as_ref().with_node_boxed(index, &mut |n| r = Some(f(n)));
+        self.as_ref().with_node_boxed(index, &mut |n| r = Some((f.take().unwrap())(n)));
         r.unwrap()
     }
 
@@ -700,8 +760,9 @@ impl UiNodeList for BoxedUiNodeList {
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
     {
+        let mut f = Some(f);
         let mut r = None;
-        self.as_mut().with_node_mut_boxed(index, &mut |n| r = Some(f(n)));
+        self.as_mut().with_node_mut_boxed(index, &mut |n| r = Some((f.take().unwrap())(n)));
         r.unwrap()
     }
 
@@ -737,10 +798,6 @@ impl UiNodeList for BoxedUiNodeList {
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
         self.as_mut().deinit_all_boxed(ctx);
-    }
-
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.as_mut().event_all_boxed(ctx, update);
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -856,7 +913,10 @@ impl<U: UiNode> UiNode for Option<U> {
 }
 
 impl UiNodeList for Option<BoxedUiNode> {
-    fn with_node<R, F: FnOnce(&BoxedUiNode) -> R>(&self, index: usize, f: F) -> R {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
         match self {
             Some(node) => {
                 assert_bounds(1, index);
@@ -869,7 +929,10 @@ impl UiNodeList for Option<BoxedUiNode> {
         }
     }
 
-    fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode) -> R>(&mut self, index: usize, f: F) -> R {
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
         match self {
             Some(node) => {
                 assert_bounds(1, index);
@@ -882,13 +945,19 @@ impl UiNodeList for Option<BoxedUiNode> {
         }
     }
 
-    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F) {
+    fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
         if let Some(node) = self {
             f(0, node);
         }
     }
 
-    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
+    fn for_each_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
         if let Some(node) = self {
             f(0, node);
         }
@@ -925,13 +994,6 @@ impl UiNodeList for Option<BoxedUiNode> {
         });
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.for_each_mut(|_, c| {
-            c.event(ctx, update);
-            true
-        });
-    }
-
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let _ = observer;
         self.for_each_mut(|_, c| {
@@ -962,7 +1024,10 @@ impl UiNodeList for Vec<BoxedUiNode> {
         f(&mut self[index])
     }
 
-    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F) {
+    fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
         for (i, node) in self.iter().enumerate() {
             if !f(i, node) {
                 break;
@@ -970,7 +1035,10 @@ impl UiNodeList for Vec<BoxedUiNode> {
         }
     }
 
-    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
+    fn for_each_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
         for (i, node) in self.iter_mut().enumerate() {
             if !f(i, node) {
                 break;
@@ -987,7 +1055,7 @@ impl UiNodeList for Vec<BoxedUiNode> {
     }
 
     fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        vec.extend(self.drain(..))
+        vec.append(self)
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
@@ -1000,13 +1068,6 @@ impl UiNodeList for Vec<BoxedUiNode> {
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
         self.for_each_mut(|_, c| {
             c.deinit(ctx);
-            true
-        });
-    }
-
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.for_each_mut(|_, c| {
-            c.event(ctx, update);
             true
         });
     }
