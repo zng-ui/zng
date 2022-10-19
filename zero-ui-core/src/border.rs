@@ -761,7 +761,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 }
             };
 
-            if self.child.try_id().is_some() {
+            if self.child.is_widget() {
                 // content is a full widget, offset already applied to outer transform.
                 render_clipped(frame);
             } else {
@@ -859,17 +859,16 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.children.item_render(0, ctx, frame);
+            self.children.with_node(0, |c| c.render(ctx, frame));
             ContextBorders::with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.item_render(1, ctx, frame);
+                self.children.with_node(1, |c| c.render(ctx, frame));
             });
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.children.item_render_update(0, ctx, update);
-
+            self.children.with_node(0, |c| c.render_update(ctx, update));
             ContextBorders::with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.item_render_update(1, ctx, update);
+                self.children.with_node(1, |c| c.render_update(ctx, update));
             })
         }
     }

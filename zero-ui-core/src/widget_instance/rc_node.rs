@@ -549,42 +549,46 @@ mod impls {
     }
 
     impl<U: UiNodeList, T: TakeOn> UiNodeList for TakeSlot<U, T> {
-        fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
-            self.delegate_owned(|l| l.with_node(index, f)).flatten()
+        fn with_node<R, F>(&self, index: usize, f: F) -> R
+        where
+            F: FnOnce(&BoxedUiNode) -> R,
+        {
+            self.delegate_owned(move |l| l.with_node(index, f))
+                .unwrap_or_else(|| panic!("index `{index}` is >= len `0`"))
         }
 
-        fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R {
-            self.delegate_owned_mut(|l| l.with_node(index, f)).flatten()
+        fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+        where
+            F: FnOnce(&mut BoxedUiNode) -> R,
+        {
+            self.delegate_owned_mut(move |l| l.with_node_mut(index, f))
+                .unwrap_or_else(|| panic!("index `{index}` is >= len `0`"))
         }
 
-        fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F) {
+        fn for_each<F>(&self, f: F)
+        where
+            F: FnMut(usize, &BoxedUiNode) -> bool,
+        {
             self.delegate_owned(|l| l.for_each(f));
         }
 
-        fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
+        fn for_each_mut<F>(&mut self, f: F)
+        where
+            F: FnMut(usize, &mut BoxedUiNode) -> bool,
+        {
             self.delegate_owned_mut(|l| l.for_each_mut(f));
         }
 
         fn len(&self) -> usize {
-            self.delegate_owned(UiNodeList::len)
+            self.delegate_owned(UiNodeList::len).unwrap_or(0)
         }
 
         fn boxed(self) -> BoxedUiNodeList {
             Box::new(self)
         }
 
-        fn into_vec(self) -> Vec<BoxedUiNode> {
-            if !self.is_owner() {
-                return vec![];
-            }
-
-            match Rc::try_unwrap(self.rc) {
-                Ok(rc) => rc.item.into_inner().into_vec(),
-                Err(rc) => {
-                    tracing::error!("cannot move nodes from shared `RcNodeList`");
-                    vec![]
-                }
-            }
+        fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+            self.delegate_owned_mut(|l| l.drain_into(vec));
         }
 
         fn init_all(&mut self, ctx: &mut WidgetContext) {

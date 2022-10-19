@@ -62,7 +62,10 @@ impl<A: UiNodeList> UiNodeListChain for A {
 /// Implements [`UiNodeListChain`].
 pub struct UiNodeListChainImpl<A: UiNodeList, B: UiNodeList>(pub A, pub B);
 impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
-    fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
         if index < self.0.len() {
             self.0.with_node(index, f)
         } else if index < self.1.len() {
@@ -73,7 +76,10 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
-    fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R {
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
         if index < self.0.len() {
             self.0.with_node_mut(index, f)
         } else if index < self.1.len() {
@@ -84,13 +90,15 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
-    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, mut f: F) {
-        let mut continue_iter = false;
-        // dyn to avoid type recursion? TODO !!:
-        let f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool = |i, n| {
+    fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        let mut continue_iter = true;
+        self.0.for_each(|i, n| {
             continue_iter = f(i, n);
-        };
-        self.0.for_each(&mut f);
+            continue_iter
+        });
 
         if continue_iter {
             let offset = self.0.len();
@@ -98,13 +106,15 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
-    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
-        let mut continue_iter = false;
-        // dyn to avoid type recursion? TODO !!:
-        let f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool = |i, n| {
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        let mut continue_iter = true;
+        self.0.for_each_mut(|i, n| {
             continue_iter = f(i, n);
-        };
-        self.0.for_each_mut(&mut f);
+            continue_iter
+        });
 
         if continue_iter {
             let offset = self.0.len();
@@ -120,10 +130,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         Box::new(self)
     }
 
-    fn into_vec(self) -> Vec<BoxedUiNode> {
-        let mut r = self.0.into_vec();
-        r.extend(self.1.into_vec());
-        r
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.0.drain_into(vec);
+        self.1.drain_into(vec);
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
@@ -183,15 +192,10 @@ where
 
         if len == 0 {
             map.clear();
-        }
-        if map.len() != len {
+        } else if map.len() != len {
             map.clear();
             map.extend(0..len);
-            map.sort_by(|a, b| {
-                self.list.with_node(a, |a| {
-                    self.list.with_node(b, |b| (self.list)(a, b));
-                })
-            })
+            map.sort_by(|&a, &b| self.list.with_node(a, |a| self.list.with_node(b, |b| (self.sort)(a, b))))
         }
     }
 
@@ -205,31 +209,43 @@ where
     L: UiNodeList,
     S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + 'static,
 {
-    fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
         self.update_map();
         let index = self.map.borrow()[index];
         self.list.with_node(index, f)
     }
 
-    fn with_node_mut<R, F: FnOnce(&mut BoxedUiNode)>(&mut self, index: usize, f: F) -> R {
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
         self.update_map();
         let index = self.map.borrow()[index];
         self.list.with_node_mut(index, f)
     }
 
-    fn for_each<F: FnMut(usize, &BoxedUiNode) -> bool>(&self, f: F) {
+    fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
         self.update_map();
         for (index, map) in self.map.borrow().iter().enumerate() {
-            if !self.list.with_node(map, |n| f(index, n)) {
+            if !self.list.with_node(*map, |n| f(index, n)) {
                 break;
             }
         }
     }
 
-    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, f: F) {
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
         self.update_map();
         for (index, map) in self.map.borrow().iter().enumerate() {
-            if !self.list.with_node_mut(map, |n| f(index, n)) {
+            if !self.list.with_node_mut(*map, |n| f(index, n)) {
                 break;
             }
         }
@@ -243,14 +259,15 @@ where
         Box::new(self)
     }
 
-    fn into_vec(self) -> Vec<BoxedUiNode> {
-        let mut r = self.list.into_vec();
-        r.sort_by(&self.map);
-        r
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        let start = vec.len();
+        self.list.drain_into(vec);
+        vec[start..].sort_by(&self.sort);
+        self.map.get_mut().clear();
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.map.borrow_mut().clear();
+        self.map.get_mut().clear();
         self.list.init_all(ctx);
     }
 
@@ -263,7 +280,11 @@ where
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.list.update_all(ctx, updates, observer);
+        let mut changed = false;
+        self.list.update_all(ctx, updates, &mut (observer, &mut changed as _));
+        if changed {
+            self.map.get_mut().clear();
+        }
     }
 }
 
@@ -308,6 +329,8 @@ impl ZSort {
             need_map |= z < prev_z;
             has_non_default_zs |= z != ZIndex::DEFAULT;
             prev_z = z;
+
+            true
         });
 
         self.naturally_sorted.set(!need_map);
@@ -319,9 +342,9 @@ impl ZSort {
                 *z &= u32::MAX as u64;
             }
 
-            self.map = z_and_i;
+            *self.map.borrow_mut() = z_and_i;
         } else {
-            self.map = vec![];
+            self.map.borrow_mut().clear();
         }
     }
 
@@ -343,7 +366,7 @@ impl ZSort {
         let mut changed = false;
 
         let resort = ZIndexContext::with(ctx.path.widget_id(), || {
-            list.update_all(ctx, updates, &mut (observer, &mut changed))
+            list.update_all(ctx, updates, &mut (observer, &mut changed as _))
         });
         if resort || (changed && self.naturally_sorted.get()) {
             self.map.get_mut().clear();
@@ -447,7 +470,7 @@ impl ZIndex {
     /// Returns `DEFAULT` if the node is not an widget.
     pub fn get(widget: &impl UiNode) -> ZIndex {
         widget
-            .with_context(|ctx| ctx.state.copy(&Z_INDEX_ID).unwrap_or_default())
+            .with_context(|ctx| ctx.widget_state.copy(&Z_INDEX_ID).unwrap_or_default())
             .unwrap_or_default()
     }
 }
@@ -610,8 +633,8 @@ impl UiNodeListObserver for bool {
 /// Represents an [`UiListObserver`] that applies an offset to all indexes.
 ///
 /// This type is useful for implementing [`UiNodeList`] that are composed of other lists.
-pub struct OffsetUiListObserver<'o, O: UiNodeListObserver>(pub usize, pub &'o mut O);
-impl<'o, O: UiNodeListObserver> UiNodeListObserver for OffsetUiListObserver<'o, O> {
+pub struct OffsetUiListObserver<'o>(pub usize, pub &'o mut dyn UiNodeListObserver);
+impl<'o> UiNodeListObserver for OffsetUiListObserver<'o> {
     fn reseted(&mut self) {
         self.1.reseted()
     }
@@ -629,11 +652,7 @@ impl<'o, O: UiNodeListObserver> UiNodeListObserver for OffsetUiListObserver<'o, 
     }
 }
 
-impl<O, T> UiNodeListObserver for (&mut O, &mut T)
-where
-    O: UiNodeListObserver,
-    T: UiNodeListObserver,
-{
+impl UiNodeListObserver for (&mut dyn UiNodeListObserver, &mut dyn UiNodeListObserver) {
     fn reseted(&mut self) {
         self.0.reseted();
         self.1.reseted();

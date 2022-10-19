@@ -457,7 +457,7 @@ pub mod nodes {
             offsets_pass: Cell::default(),
             reuse: RefCell::default(),
         }
-        .cfg_boxed_wgt()
+        .cfg_boxed()
     }
 
     /// Create a node that disables interaction for all widget inside `node` using [`BLOCKED`].
