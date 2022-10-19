@@ -18,8 +18,8 @@ use crate::{
     text::Text,
     units::*,
     var::{AnyVar, ReadOnlyRcVar},
-    window::{FrameCaptureMode, Window, WindowId, WindowVars},
     widget_instance::UiNode,
+    window::{FrameCaptureMode, Window, WindowId, WindowVars},
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImagePpi};

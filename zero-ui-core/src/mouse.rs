@@ -11,8 +11,8 @@ use crate::{
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree, WidgetPath},
-    window::{WindowId, Windows},
     widget_instance::WidgetId,
+    window::{WindowId, Windows},
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 

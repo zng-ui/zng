@@ -7,8 +7,8 @@ use crate::{
     ui_node,
     units::*,
     var::{types::WeakRcVar, *},
-    window::*,
     widget_instance::{UiNode, WidgetId},
+    window::*,
 };
 
 use super::{Image, ImageManager, ImageVar, Images};

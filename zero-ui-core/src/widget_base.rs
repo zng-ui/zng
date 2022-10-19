@@ -425,16 +425,26 @@ pub mod nodes {
             where
                 F: FnOnce(&mut WidgetNodeContext) -> R,
             {
-                f(&mut WidgetNodeContext {
-                    
-                })
+                Some(f(&mut WidgetNodeContext {
+                    id: self.id,
+                    widget_info: &self.info,
+                    widget_state: self.state.borrow(),
+                }))
             }
 
             fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
             where
                 F: FnOnce(&mut WidgetNodeMutContext) -> R,
             {
-                f(&mut WidgetNodeMutContext {})
+                Some(f(&mut WidgetNodeMutContext {
+                    id: self.id,
+                    widget_info: &self.info,
+                    widget_state: self.state.borrow_mut(),
+                    handles: WidgetHandles {
+                        var_handles: &mut self.var_handles,
+                        event_handles: &mut self.event_handles,
+                    },
+                }))
             }
 
             fn into_widget(self) -> BoxedUiNode

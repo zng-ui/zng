@@ -11,8 +11,8 @@ use crate::{
     ui_node,
     units::*,
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder},
+    widget_instance::{ui_list, BoxedUiNode, UiNode, UiNodeList},
     window::WindowId,
-    widget_instance::{ui_list, UiNode, UiNodeList, BoxedUiNode},
 };
 
 #[test]

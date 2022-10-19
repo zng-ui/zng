@@ -404,8 +404,8 @@ mod tests {
     use crate::{
         units::FactorUnits,
         widget_info::{iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
-        window::WindowId,
         widget_instance::WidgetId,
+        window::WindowId,
     };
 
     use pretty_assertions::assert_eq;

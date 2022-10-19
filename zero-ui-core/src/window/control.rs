@@ -19,8 +19,8 @@ use crate::{
     units::*,
     var::*,
     widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
-    window::AutoSize,
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
+    window::AutoSize,
 };
 
 use super::{

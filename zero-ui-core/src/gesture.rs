@@ -16,8 +16,9 @@ use crate::{
     units::DipPoint,
     var::{impl_from_and_into_var, Var},
     widget_info::{HitTestInfo, InteractionPath},
+    widget_instance::WidgetId,
     window::{WindowId, Windows},
-    widget_instance::WidgetId, WidgetPath,
+    WidgetPath,
 };
 use std::{
     cell::RefCell,

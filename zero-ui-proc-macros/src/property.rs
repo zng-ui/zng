@@ -840,7 +840,8 @@ impl Input {
                                         input.kind = InputKind::UiNodeList;
                                         input.ty = t.ty.to_token_stream();
                                         input.info_ty = quote_spanned!(t.ty.span()=> #core::widget_instance::BoxedUiNodeList);
-                                        input.storage_ty = quote!(#core::widget_instance::RcNodeList<#core::widget_instance::BoxedUiNodeList>)
+                                        input.storage_ty =
+                                            quote!(#core::widget_instance::RcNodeList<#core::widget_instance::BoxedUiNodeList>)
                                     }
                                     _ => {
                                         errors.push("property input can only have impl types for: IntoVar<T>, IntoValue<T>, UiNode, WidgetHandler<A>, UiNodeList", seg.span());

@@ -97,8 +97,8 @@ use crate::{
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, AnyVar, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
-    window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOW_FOCUS_CHANGED_EVENT},
     widget_instance::WidgetId,
+    window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOW_FOCUS_CHANGED_EVENT},
 };
 
 use std::{

@@ -1,4 +1,4 @@
-use crate::{widget_instance::ZIndex, units::*, widget_info::*, window::WindowId};
+use crate::{units::*, widget_info::*, widget_instance::ZIndex, window::WindowId};
 
 use super::*;
 

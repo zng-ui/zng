@@ -63,7 +63,7 @@ pub use when_condition_expr_var;
 macro_rules! property_id {
     ($property:path) => {{
     #[rustfmt::skip]// Rust does not expand the macro if we remove the braces.
-                        use $property::{property as p};
+                            use $property::{property as p};
 
         p::__id__($crate::widget_builder::property_id_name(stringify!($property)))
     }};
@@ -697,7 +697,7 @@ impl WidgetBuilder {
         Some(list)
     }
 
-/// Remove the property and downcast the input handler.
+    /// Remove the property and downcast the input handler.
     pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<RcWidgetHandler<A>> {
         let (_, args) = self.remove_property(property_id)?;
         let handler = args.downcast_handler::<A>(0).clone();

@@ -905,7 +905,7 @@ impl UiNodeList for Option<BoxedUiNode> {
         Box::new(self)
     }
 
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>)  {
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
         if let Some(n) = self.take() {
             vec.push(n);
         }
@@ -986,9 +986,9 @@ impl UiNodeList for Vec<BoxedUiNode> {
         Box::new(self)
     }
 
-   fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-       vec.extend(self.drain(..))
-   }
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        vec.extend(self.drain(..))
+    }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
         self.for_each_mut(|_, c| {

@@ -1,5 +1,5 @@
-use std::{rc::Rc, cell::RefCell, mem};
 use super::*;
+use std::{cell::RefCell, mem, rc::Rc};
 
 /// Represents a node setup to dynamically swap child.
 ///
