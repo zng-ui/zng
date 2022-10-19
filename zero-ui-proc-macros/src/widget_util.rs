@@ -444,7 +444,7 @@ impl WgtWhen {
                     quote! {
                         Named(#ident_str)
                     }
-                },
+                }
                 WhenInputMember::Index(i) => quote! {
                     Index(#i)
                 },

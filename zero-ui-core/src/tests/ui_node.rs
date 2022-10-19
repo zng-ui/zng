@@ -61,8 +61,8 @@ fn test_trace(node: impl UiNode) {
     let mut wgt = util::test_wgt(node);
     let mut ctx = TestWidgetContext::new();
 
-    wgt.test_init(&mut ctx);
-    assert_only_traced!(wgt.state(), "init");
+    ctx.init(&mut wgt);
+    assert_only_traced!(wgt, "init");
 
     let l_size = PxSize::new(1000.into(), 800.into());
     let window_id = WindowId::new_unique();
@@ -75,15 +75,15 @@ fn test_trace(node: impl UiNode) {
         None,
     );
 
-    wgt.test_info(&mut ctx, &mut info);
+    ctx.info(&mut wgt, &mut info);
     ctx.info_tree = info.finalize().0;
-    assert_only_traced!(wgt.state(), "info");
+    assert_only_traced!(wgt, "info");
 
-    wgt.test_update(&mut ctx, None);
-    assert_only_traced!(wgt.state(), "update");
+    ctx.update(&mut wgt, None);
+    assert_only_traced!(wgt, "update");
 
-    wgt.test_layout(&mut ctx, PxConstrains2d::new_bounded_size(l_size).into());
-    assert_only_traced!(wgt.state(), "layout");
+    ctx.layout(&mut wgt, PxConstrains2d::new_bounded_size(l_size).into());
+    assert_only_traced!(wgt, "layout");
 
     let mut frame = FrameBuilder::new_renderless(
         FrameId::INVALID,
@@ -94,25 +94,25 @@ fn test_trace(node: impl UiNode) {
         Default::default(),
         None,
     );
-    wgt.test_render(&mut ctx, &mut frame);
-    assert_only_traced!(wgt.state(), "render");
+    ctx.render(&mut wgt, &mut frame);
+    assert_only_traced!(wgt, "render");
 
     TestTraceNode::notify_render_update(&mut wgt, &mut ctx);
-    assert_only_traced!(wgt.state(), "event");
+    assert_only_traced!(wgt, "event");
 
     let mut update = FrameUpdate::new(
         FrameId::INVALID,
         ctx.root_id,
-        wgt.bounds_info().clone(),
+        wgt.with_context(|w| w.widget_info.bounds.clone()).expect("expected widget"),
         None,
         RenderColor::BLACK,
         None,
     );
-    wgt.test_render_update(&mut ctx, &mut update);
-    assert_only_traced!(wgt.state(), "render_update");
+    ctx.render_update(&mut wgt, &mut update);
+    assert_only_traced!(wgt, "render_update");
 
-    wgt.test_deinit(&mut ctx);
-    assert_only_traced!(wgt.state(), "deinit");
+    ctx.deinit(&mut wgt);
+    assert_only_traced!(wgt, "deinit");
 }
 
 #[test]
@@ -136,11 +136,11 @@ pub fn allow_missing_delegate() {
         let mut wgt = util::test_wgt(node);
         let mut ctx = TestWidgetContext::new();
 
-        wgt.test_init(&mut ctx);
-        assert_only_traced!(wgt.state(), "init");
+        ctx.init(&mut wgt);
+        assert_only_traced!(wgt, "init");
 
-        wgt.test_update(&mut ctx, None);
-        assert_did_not_trace!(wgt.state());
+        ctx.update(&mut wgt, None);
+        assert_did_not_trace!(wgt);
     }
 
     test(Node1 {
@@ -161,9 +161,9 @@ pub fn default_no_child() {
     let mut wgt = util::test_wgt(Node {});
     let mut ctx = TestWidgetContext::new();
 
-    wgt.test_init(&mut ctx);
-    wgt.test_update(&mut ctx, None);
-    wgt.test_deinit(&mut ctx);
+    ctx.init(&mut wgt);
+    ctx.update(&mut wgt, None);
+    ctx.deinit(&mut wgt);
     let (wu, u) = ctx.apply_updates();
 
     // we expect `test_init` to just be an init call, no extra flagging.
@@ -177,7 +177,7 @@ pub fn default_no_child() {
     assert!(!u.layout);
     assert!(!u.render);
 
-    wgt.test_init(&mut ctx);
+    ctx.init(&mut wgt);
 
     // we expect default to fill or collapsed depending on the
     let constrains = PxConstrains2d::new_unbounded()
@@ -185,11 +185,11 @@ pub fn default_no_child() {
         .with_max(Px(100), Px(800))
         .with_fill(true, true);
 
-    let desired_size = wgt.test_layout(&mut ctx, constrains.into());
+    let desired_size = ctx.layout(&mut wgt, constrains.into());
     assert_eq!(desired_size, constrains.max_size().unwrap());
 
     let constrains = constrains.with_fill(false, false);
-    let desired_size = wgt.test_layout(&mut ctx, constrains.into());
+    let desired_size = ctx.layout(&mut wgt, constrains.into());
     assert_eq!(desired_size, constrains.min_size());
 
     // we expect default to not render anything (except a hit-rect for the window).
@@ -203,9 +203,9 @@ pub fn default_no_child() {
         1.fct(),
         None,
     );
-    wgt.test_info(&mut ctx, &mut info);
+    ctx.info(&mut wgt, &mut info);
     let (build_info, _) = info.finalize();
-    let wgt_info = build_info.get(wgt.id()).unwrap();
+    let wgt_info = build_info.get(wgt.with_context(|w| w.id).unwrap()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
 
@@ -219,19 +219,19 @@ pub fn default_no_child() {
         None,
     );
 
-    wgt.test_render(&mut ctx, &mut frame);
+    ctx.render(&mut wgt, &mut frame);
     let (_, _) = frame.finalize(&ctx.info_tree);
 
     // and not update render.
     let mut update = FrameUpdate::new(
         FrameId::INVALID,
         ctx.root_id,
-        wgt.bounds_info().clone(),
+        wgt.with_context(|w| w.widget_info.bounds.clone()).expect("expected widget"),
         None,
         RenderColor::BLACK,
         None,
     );
-    wgt.test_render_update(&mut ctx, &mut update);
+    ctx.render_update(&mut wgt, &mut update);
     let (update, _) = update.finalize(&ctx.info_tree);
     assert!(!update.transforms.is_empty());
     assert!(update.floats.is_empty());
@@ -262,21 +262,23 @@ mod util {
     /// Asserts that only `method` was traced and clears the trace.
     #[macro_export]
     macro_rules! __ui_node_util_assert_only_traced {
-        ($state:expr, $method:expr) => {{
-            let state = $state;
+        ($wgt:ident, $method:expr) => {{
             let method = $method;
-            if let Some(db) = state.get(&util::TRACE_ID) {
-                for (i, trace_ref) in db.iter().enumerate() {
-                    let mut any = false;
-                    for trace_entry in trace_ref.borrow_mut().drain(..) {
-                        assert_eq!(trace_entry, method, "tracer_0 traced `{trace_entry}`, expected only `{method}`");
-                        any = true;
+            $wgt.with_context(|ctx| {
+                if let Some(db) = ctx.widget_state.get(&util::TRACE_ID) {
+                    for (i, trace_ref) in db.iter().enumerate() {
+                        let mut any = false;
+                        for trace_entry in trace_ref.borrow_mut().drain(..) {
+                            assert_eq!(trace_entry, method, "tracer_0 traced `{trace_entry}`, expected only `{method}`");
+                            any = true;
+                        }
+                        assert!(any, "tracer_{i} did not trace anything, expected `{method}`");
                     }
-                    assert!(any, "tracer_{i} did not trace anything, expected `{method}`");
+                } else {
+                    panic!("no trace initialized, expected `{method}`");
                 }
-            } else {
-                panic!("no trace initialized, expected `{method}`");
-            }
+            })
+            .expect("expected widget");
         }};
     }
     pub use __ui_node_util_assert_only_traced as assert_only_traced;
@@ -284,19 +286,21 @@ mod util {
     /// Asserts that no trace entry was pushed.
     #[macro_export]
     macro_rules! __ui_node_util_assert_did_not_trace {
-        ($state:expr) => {{
-            let state = $state;
-            if let Some(db) = state.get(&util::TRACE_ID) {
-                for (i, trace_ref) in db.iter().enumerate() {
-                    let mut any = false;
-                    for trace_entry in trace_ref.borrow().iter() {
-                        assert!(any, "tracer_{i} traced `{trace_entry}`, expected nothing");
-                        any = true;
+        ($wgt:ident) => {{
+            $wgt.with_context(|ctx| {
+                if let Some(db) = ctx.widget_state.get(&util::TRACE_ID) {
+                    for (i, trace_ref) in db.iter().enumerate() {
+                        let mut any = false;
+                        for trace_entry in trace_ref.borrow().iter() {
+                            assert!(any, "tracer_{i} traced `{trace_entry}`, expected nothing");
+                            any = true;
+                        }
                     }
+                } else {
+                    panic!("no trace initialized");
                 }
-            } else {
-                panic!("no trace initialized");
-            }
+            })
+            .expect("expected widget");
         }};
     }
     pub use __ui_node_util_assert_did_not_trace as assert_did_not_trace;
@@ -311,10 +315,9 @@ mod util {
         }
 
         pub fn notify_render_update(wgt: &mut impl UiNode, ctx: &mut TestWidgetContext) {
-            wgt.test_event(
-                ctx,
-                &mut RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(wgt.id()), UpdateDeliveryList::new_any()),
-            );
+            let id = wgt.with_context(|ctx| ctx.id).expect("expected widget");
+            let mut update = RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(id), UpdateDeliveryList::new_any());
+            ctx.widget_context(|ctx| wgt.event(ctx, &mut update));
         }
     }
     impl UiNode for TestTraceNode {

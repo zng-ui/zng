@@ -511,14 +511,14 @@ pub mod ui_node_list_default {
         r
     }
 
-    pub fn render_all(list: &mut impl UiNodeList, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    pub fn render_all(list: &impl UiNodeList, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         list.for_each(|_, n| {
             n.render(ctx, frame);
             true
         });
     }
 
-    pub fn render_update_all(list: &mut impl UiNodeList, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    pub fn render_update_all(list: &impl UiNodeList, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         list.for_each(|_, n| {
             n.render_update(ctx, update);
             true

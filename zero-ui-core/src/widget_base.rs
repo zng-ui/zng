@@ -27,7 +27,6 @@ pub mod base {
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
         nodes::capture_child(wgt);
-       
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl UiNode {
@@ -36,7 +35,7 @@ pub mod base {
 }
 
 /// Base mixin widget.
-/// 
+///
 /// Mix-ins are "widgets" that are just a set of item that can be `inherit!(..)` imported into a real widget.
 #[widget($crate::widget_base::mixin)]
 pub mod mixin {

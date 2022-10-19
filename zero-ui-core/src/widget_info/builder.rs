@@ -494,7 +494,7 @@ impl WidgetLayout {
     /// layout pass by using the [`Widget`] trait to access and replace the outer transform.
     ///
     /// If `keep_previous` is `true` the new offset is *added* to the previous.
-    /// 
+    ///
     /// Returns `None` if the `widget` node is not actually an widget.
     ///
     /// [`with_child`]: Self::with_child

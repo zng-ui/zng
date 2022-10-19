@@ -734,7 +734,6 @@ impl ErrorRecoverable for syn::Error {
     }
 }
 
-
 // Debug tracing if it was enabled during run-time.
 //
 // This is useful for debugging say the widget macros but only for a widget.

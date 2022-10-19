@@ -418,7 +418,10 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder};
+use crate::{
+    widget_info::{WidgetBoundsInfo, WidgetInfoBuilder},
+    widget_instance::UiNode,
+};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -584,6 +587,80 @@ impl TestWidgetContext {
         self.vars.update_animations(&mut self.loop_timer);
 
         self.loop_timer.poll()
+    }
+
+    /// Call [`UiNode::init`].
+    pub fn init(&mut self, node: &mut impl UiNode) {
+        self.widget_context(|ctx| node.init(ctx));
+    }
+
+    /// Call [`UiNode::deinit`].
+    pub fn deinit(&mut self, node: &mut impl UiNode) {
+        self.widget_context(|ctx| node.deinit(ctx));
+    }
+
+    /// Call [`UiNode::event`].
+    pub fn event(&mut self, node: &mut impl UiNode, update: &mut crate::event::EventUpdate) {
+        self.widget_context(|ctx| {
+            if update.delivery_list().has_pending_search() {
+                update.fulfill_search(Some(ctx.info_tree).into_iter());
+            }
+
+            node.event(ctx, update);
+        });
+    }
+
+    /// Call [`UiNode::update`], provides [`WidgetUpdates`] if needed.
+    pub fn update(&mut self, node: &mut impl UiNode, updates: Option<&mut WidgetUpdates>) {
+        if let Some(updates) = updates {
+            updates.fulfill_search([&self.info_tree].into_iter());
+            self.widget_context(|ctx| node.update(ctx, updates));
+        } else {
+            let id = node.with_context(|ctx| ctx.id).unwrap_or(self.root_id);
+            let mut list = UpdateDeliveryList::new_any();
+            list.insert_path(&crate::WidgetPath::new(self.window_id, [id]));
+            list.enter_window(self.window_id);
+            self.widget_context(|ctx| node.update(ctx, &mut WidgetUpdates::new(list)));
+        }
+    }
+
+    /// Call [`UiNode::info`].
+    pub fn info(&mut self, node: &impl UiNode, info: &mut WidgetInfoBuilder) {
+        self.info_context(|ctx| node.info(ctx, info))
+    }
+
+    /// Call [`UiNode::layout`].
+    pub fn layout(&mut self, node: &mut impl UiNode, constrains: Option<PxConstrains2d>) -> PxSize {
+        let font_size = Length::pt_to_px(14.0, 1.0.fct());
+
+        let viewport = node
+            .with_context(|w| w.widget_info.bounds.outer_size())
+            .unwrap_or_else(|| PxSize::new(Px(800), Px(600)));
+
+        self.layout_context(font_size, font_size, viewport, 1.0.fct(), 96.0, |ctx| {
+            ctx.with_constrains(
+                |c| constrains.unwrap_or(c),
+                |ctx| crate::widget_info::WidgetLayout::with_root_widget(ctx, 0, |ctx, wl| node.layout(ctx, wl)),
+            )
+        })
+    }
+
+    /// Call [`UiNode::render`].
+    pub fn render(&mut self, node: &impl UiNode, frame: &mut crate::render::FrameBuilder) {
+        let key = self.root_translation_key;
+        self.render_context(|ctx| {
+            frame.push_inner(ctx, key, false, |ctx, frame| node.render(ctx, frame));
+        });
+    }
+
+    /// Call [`UiNode::render_update`].
+    pub fn render_update(&mut self, node: &impl UiNode, update: &mut crate::render::FrameUpdate) {
+        let key = self.root_translation_key;
+        self.render_context(|ctx| {
+            update.update_inner(ctx, key, false, |ctx, update| {
+                node.render_update(ctx, update);
+            });
+        });
     }
 }
 

@@ -63,7 +63,7 @@ pub use when_condition_expr_var;
 macro_rules! property_id {
     ($property:path) => {{
     #[rustfmt::skip]// Rust does not expand the macro if we remove the braces.
-                                use $property::{property as p};
+                                        use $property::{property as p};
 
         p::__id__($crate::widget_builder::property_id_name(stringify!($property)))
     }};
@@ -100,7 +100,6 @@ pub mod property_args_getter {
         wgt.remove_property(id).unwrap().1
     }
 }
-
 
 /// Property priority in a widget.
 ///
@@ -624,7 +623,7 @@ impl WidgetBuilder {
     }
 
     /// Insert/override a property.
-    /// 
+    ///
     /// You can use the [`property_args!`] macro to collect args for a property.
     pub fn insert_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
         let property_id = args.id();
@@ -751,9 +750,9 @@ impl WidgetBuilder {
     }
 
     /// Iterate over the current properties.
-    /// 
+    ///
     /// The properties may not be sorted in the correct order if the builder has never built.
-    pub fn properties(&self) -> impl Iterator<Item=(Importance, &Box<dyn PropertyArgs>)> {
+    pub fn properties(&self) -> impl Iterator<Item = (Importance, &Box<dyn PropertyArgs>)> {
         self.items.iter().filter_map(|(_, it)| match it {
             WidgetItem::Instrinsic { .. } => None,
             WidgetItem::Property { importance, args } => Some((*importance, args)),

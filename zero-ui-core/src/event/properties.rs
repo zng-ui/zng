@@ -45,7 +45,7 @@ macro_rules! __event_property {
         $vis fn [<on_pre_ $event>](
             child: impl $crate::widget_instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$Args>,
-        ) -> impl $crate::UiNode {
+        ) -> impl $crate::widget_instance::UiNode {
             $crate::event::on_pre_event(child, $EVENT, $filter, handler)
         }
     } };
