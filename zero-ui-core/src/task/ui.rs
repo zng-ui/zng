@@ -7,7 +7,7 @@ use std::{
     task::{Poll, Waker},
 };
 
-use crate::{app::AppEventSender, context::*, WidgetId};
+use crate::{app::AppEventSender, context::*, widget_instance::WidgetId};
 
 impl<'a> AppContext<'a> {
     /// Create an app thread bound future executor that executes in the app context.

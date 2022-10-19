@@ -22,6 +22,9 @@ use crate::{
     ui_node,
 };
 
+mod adopt;
+pub use adopt::*;
+
 mod rc_node;
 pub use rc_node::*;
 
@@ -30,9 +33,6 @@ pub use list::*;
 
 mod trace;
 pub use trace::TraceNode;
-
-mod dynamic;
-pub use dynamic::*;
 
 unique_id_64! {
     /// Unique id of a widget.
@@ -337,7 +337,7 @@ pub trait UiNode: Any {
     where
         Self: Sized,
     {
-        use crate::widget_base::implicit_base::nodes;
+        use crate::widget_base::nodes;
 
         let node = nodes::inner(self.cfg_boxed());
         let wgt = nodes::widget(node, WidgetId::new_unique());
@@ -697,7 +697,7 @@ impl UiNodeList for BoxedUiNodeList {
         self.as_ref().for_each(&mut f);
     }
 
-    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&self, mut f: F) {
+    fn for_each_mut<F: FnMut(usize, &mut BoxedUiNode) -> bool>(&mut self, mut f: F) {
         self.as_mut().for_each(&mut f)
     }
 
@@ -957,102 +957,6 @@ pub struct FillUiNode;
 #[ui_node(none)]
 impl UiNode for FillUiNode {}
 
-// Used by #[ui_node] to implement delegate_iter.
-#[doc(hidden)]
-pub mod ui_node_util {
-    use crate::{
-        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
-        event::EventUpdate,
-        render::{FrameBuilder, FrameUpdate},
-        units::PxSize,
-        widget_info::{WidgetInfoBuilder, WidgetLayout},
-        ui_node::UiNode,
-    };
-
-    pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
-        d
-    }
-
-    pub fn delegate_iter_mut<'a>(d: impl IntoIterator<Item = &'a mut impl UiNode>) -> impl IterMutImpl {
-        d
-    }
-
-    pub trait IterMutImpl {
-        fn init_all(self, ctx: &mut WidgetContext);
-        fn deinit_all(self, ctx: &mut WidgetContext);
-        fn update_all(self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates);
-        fn event_all(self, ctx: &mut WidgetContext, update: &mut EventUpdate);
-        fn layout_all(self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
-    }
-    pub trait IterImpl {
-        fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-        fn measure_all(self, ctx: &mut MeasureContext) -> PxSize;
-        fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
-        fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate);
-    }
-
-    impl<'u, U: UiNode, I: IntoIterator<Item = &'u mut U>> IterMutImpl for I {
-        fn init_all(self, ctx: &mut WidgetContext) {
-            for child in self {
-                child.init(ctx);
-            }
-        }
-
-        fn deinit_all(self, ctx: &mut WidgetContext) {
-            for child in self {
-                child.deinit(ctx);
-            }
-        }
-
-        fn update_all(self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            for child in self {
-                child.update(ctx, updates);
-            }
-        }
-
-        fn event_all(self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            for child in self {
-                child.event(ctx, update);
-            }
-        }
-
-        fn layout_all(self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let mut size = PxSize::zero();
-            for child in self {
-                size = child.layout(ctx, wl).max(size);
-            }
-            size
-        }
-    }
-
-    impl<'u, U: UiNode, I: IntoIterator<Item = &'u U>> IterImpl for I {
-        fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            for child in self {
-                child.info(ctx, info);
-            }
-        }
-
-        fn measure_all(self, ctx: &mut MeasureContext) -> PxSize {
-            let mut size = PxSize::zero();
-            for child in self {
-                size = child.measure(ctx).max(size);
-            }
-            size
-        }
-
-        fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            for child in self {
-                child.render(ctx, frame);
-            }
-        }
-
-        fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            for child in self {
-                child.render_update(ctx, update);
-            }
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

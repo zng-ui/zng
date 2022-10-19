@@ -16,7 +16,7 @@ use crate::timer::Timers;
 use crate::units::Deadline;
 use crate::var::Vars;
 use crate::window::WindowMode;
-use crate::{context::*, WidgetId};
+use crate::{context::*, widget_instance::WidgetId};
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,

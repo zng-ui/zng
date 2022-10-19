@@ -140,10 +140,6 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
             delegate_list,
             delegate_list_mut,
         } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut, auto_init),
-        Args::DelegateIter {
-            delegate_iter,
-            delegate_iter_mut,
-        } => delegate_iter_absents(crate_.clone(), node_item_names, delegate_iter, delegate_iter_mut),
         Args::NewNode(_) => {
             unreachable!()
         }
@@ -195,7 +191,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
     // to avoid an unused import warning.
     let ui_node_path = ui_node_path
         .map(|p| p.to_token_stream())
-        .unwrap_or_else(|| quote! { #crate_::UiNode });
+        .unwrap_or_else(|| quote! { #crate_::widget_instance::UiNode });
 
     // modify impl header for new_node and collect
     let (impl_generics, self_ty, decl) = if let Some(new_node) = new_node {
@@ -355,48 +351,48 @@ fn delegate_absents(
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #child = {#borrow};
-            #crate_::UiNode::info(#deref, ctx, info);
+            #crate_::widget_instance::UiNode::info(#deref, ctx, info);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             #auto_init
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::init(#deref_mut, ctx);
+            #crate_::widget_instance::UiNode::init(#deref_mut, ctx);
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::deinit(#deref_mut, ctx);
+            #crate_::widget_instance::UiNode::deinit(#deref_mut, ctx);
         }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::update(#deref_mut, ctx, updates);
+            #crate_::widget_instance::UiNode::update(#deref_mut, ctx, updates);
         }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::event(#deref_mut, ctx, update);
+            #crate_::widget_instance::UiNode::event(#deref_mut, ctx, update);
         }]
 
         [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
             let mut #child = {#borrow};
-            #crate_::UiNode::measure(#deref, ctx)
+            #crate_::widget_instance::UiNode::measure(#deref, ctx)
         }]
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::layout(#deref_mut, ctx, wl)
+            #crate_::widget_instance::UiNode::layout(#deref_mut, ctx, wl)
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let #child = {#borrow};
-            #crate_::UiNode::render(#deref, ctx, frame);
+            #crate_::widget_instance::UiNode::render(#deref, ctx, frame);
         }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
             let #child = {#borrow};
-            #crate_::UiNode::render_update(#deref, ctx, update);
+            #crate_::widget_instance::UiNode::render_update(#deref, ctx, update);
         }]
     }
 }
@@ -419,24 +415,24 @@ fn delegate_list_absents(
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #children = {#borrow};
-            #crate_::UiNodeList::info_all(#deref, ctx, info);
+            #crate_::widget_instance::UiNodeList::info_all(#deref, ctx, info);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             #auto_init
             let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::init_all(#deref_mut, ctx)
+            #crate_::widget_instance::UiNodeList::init_all(#deref_mut, ctx)
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::deinit_all(#deref_mut, ctx)
+            #crate_::widget_instance::UiNodeList::deinit_all(#deref_mut, ctx)
         }]
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#borrow_mut};
             let mut changed = false;
-            #crate_::UiNodeList::update_all(#deref_mut, ctx, updates, &mut changed);
+            #crate_::widget_instance::UiNodeList::update_all(#deref_mut, ctx, updates, &mut changed);
             if changed {
                 ctx.updates.layout_and_render();
             }
@@ -444,13 +440,13 @@ fn delegate_list_absents(
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
             let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::event_all(#deref_mut, ctx, update);
+            #crate_::widget_instance::UiNodeList::event_all(#deref_mut, ctx, update);
         }]
 
         [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
             let #children = {#borrow};
             let mut size = #crate_::units::PxSize::zero();
-            #crate_::UiNodeList::measure_all(#deref, ctx, |ctx, _|{}, |_, args| {
+            #crate_::widget_instance::UiNodeList::measure_all(#deref, ctx, |ctx, _|{}, |_, args| {
                 size = size.max(args.size);
             });
             size
@@ -459,7 +455,7 @@ fn delegate_list_absents(
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let #children_mut = {#borrow_mut};
             let mut size = #crate_::units::PxSize::zero();
-            #crate_::UiNodeList::layout_all(#deref_mut, ctx, wl, |ctx, _, _|{}, |_, _, args| {
+            #crate_::widget_instance::UiNodeList::layout_all(#deref_mut, ctx, wl, |ctx, _, _|{}, |_, _, args| {
                 size = size.max(args.size);
             });
             size
@@ -467,74 +463,16 @@ fn delegate_list_absents(
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let #children = {#borrow};
-            #crate_::UiNodeList::render_all(#deref, ctx, frame)
+            #crate_::widget_instance::UiNodeList::render_all(#deref, ctx, frame)
         }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
             let #children = {#borrow};
-            #crate_::UiNodeList::render_update_all(#deref, ctx, update)
+            #crate_::widget_instance::UiNodeList::render_update_all(#deref, ctx, update)
         }]
     }
 }
 
-fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
-    let children = ident_spanned!(iter.span()=> "children");
-    let children_mut = ident_spanned!(iter_mut.span()=> "children");
-
-    let iter = quote_spanned! {iter.span()=>
-        #crate_::ui_node_util::delegate_iter(#iter)
-    };
-    let iter_mut = quote_spanned! {iter_mut.span()=>
-        #crate_::ui_node_util::delegate_iter_mut(#iter_mut)
-    };
-
-    make_absents! { user_mtds
-        [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
-            let #children = {#iter};
-            #crate_::ui_node_util::IterImpl::info_all(#children, ctx, info);
-        }]
-
-        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let #children_mut = {#iter_mut};
-            #crate_::ui_node_util::IterMutImpl::init_all(#children_mut, ctx);
-        }]
-
-        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-            let #children_mut = {#iter_mut};
-            #crate_::ui_node_util::IterMutImpl::deinit_all(#children_mut, ctx);
-        }]
-
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
-            let #children_mut = {#iter_mut};
-            #crate_::ui_node_util::IterMutImpl::update_all(#children_mut, ctx, updates);
-        }]
-
-        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
-            let #children_mut = {#iter_mut};
-            #crate_::ui_node_util::IterMutImpl::event_all(#children_mut, ctx, update);
-        }]
-
-        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
-            let #children = {#iter};
-            #crate_::ui_node_util::IterImpl::measure_all(#children, ctx)
-        }]
-
-        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize  {
-            let #children_mut = {#iter_mut};
-            #crate_::ui_node_util::IterMutImpl::layout_all(#children_mut, ctx, wl)
-        }]
-
-        [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
-            let #children = {#iter};
-            #crate_::ui_node_util::IterImpl::render_all(#children, ctx, frame);
-        }]
-
-        [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
-            let #children = {#iter};
-            #crate_::ui_node_util::IterImpl::render_update_all(#children, ctx, update);
-        }]
-    }
-}
 /// Parsed macro arguments.
 #[allow(clippy::large_enum_variant)]
 enum Args {
@@ -546,9 +484,6 @@ enum Args {
     /// `children` or `delegate_list=expr` and `delegate_list_mut=expr`. Impl
     /// is for an Ui that delegates each call to multiple delegates.
     DelegateList { delegate_list: Expr, delegate_list_mut: Expr },
-    /// `children_iter` or `delegate_iter=expr` and `delegate_iter_mut=expr`. Impl
-    /// is for an Ui that delegates each call to multiple delegates.
-    DelegateIter { delegate_iter: Expr, delegate_iter_mut: Expr },
     /// New node mode.
     NewNode(ArgsNewNode),
 }
@@ -570,11 +505,6 @@ impl Parse for Args {
                     delegate_list: parse_quote_spanned!(arg0.span()=> &self.children),
                     delegate_list_mut: parse_quote_spanned!(arg0.span()=> &mut self.children),
                 }
-            } else if arg0 == ident!("children_iter") {
-                Args::DelegateIter {
-                    delegate_iter: parse_quote_spanned!(arg0.span()=> self.children.iter()),
-                    delegate_iter_mut: parse_quote_spanned!(arg0.span()=> self.children.iter_mut()),
-                }
             } else if arg0 == ident!("none") {
                 Args::NoDelegate
             } else {
@@ -585,31 +515,20 @@ impl Parse for Args {
                     let (delegate, delegate_mut) = parse_delegate_pair(args, arg0, delegate, delegate_mut)?;
                     Args::Delegate { delegate, delegate_mut }
                 } else {
-                    let delegate_iter = ident!("delegate_iter");
-                    let delegate_iter_mut = ident!("delegate_iter_mut");
+                    let delegate_list = ident!("delegate_list");
+                    let delegate_list_mut = ident!("delegate_list_mut");
 
-                    if arg0 == delegate_iter || arg0 == delegate_iter_mut {
-                        let (delegate_iter, delegate_iter_mut) = parse_delegate_pair(args, arg0, delegate_iter, delegate_iter_mut)?;
-                        Args::DelegateIter {
-                            delegate_iter,
-                            delegate_iter_mut,
+                    if arg0 == delegate_list || arg0 == delegate_list_mut {
+                        let (delegate_list, delegate_list_mut) = parse_delegate_pair(args, arg0, delegate_list, delegate_list_mut)?;
+                        Args::DelegateList {
+                            delegate_list,
+                            delegate_list_mut,
                         }
                     } else {
-                        let delegate_list = ident!("delegate_list");
-                        let delegate_list_mut = ident!("delegate_list_mut");
-
-                        if arg0 == delegate_list || arg0 == delegate_list_mut {
-                            let (delegate_list, delegate_list_mut) = parse_delegate_pair(args, arg0, delegate_list, delegate_list_mut)?;
-                            Args::DelegateList {
-                                delegate_list,
-                                delegate_list_mut,
-                            }
-                        } else {
-                            return Err(Error::new(
-                                arg0.span(),
-                                "expected `child`, `children`, `children_iter`, `delegate`, `delegate_list` or `delegate_iter`",
-                            ));
-                        }
+                        return Err(Error::new(
+                            arg0.span(),
+                            "expected `child`, `children`, `delegate`, or, `delegate_list`",
+                        ));
                     }
                 }
             };
@@ -618,7 +537,7 @@ impl Parse for Args {
         } else {
             Err(Error::new(
                 Span::call_site(),
-                "missing macro argument, expected `none`, `child`, `children`, `children_iter`, `delegate`, `delegate_list`, `delegate_iter` or `struct`",
+                "missing macro argument, expected `none`, `child`, `children`, `delegate`, `delegate_list`, or `struct`",
             ))
         }
     }

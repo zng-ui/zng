@@ -7,11 +7,10 @@ use crate::{
     context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
-    ui_list::ZIndex,
     units::*,
     var::{self, impl_from_and_into_var},
     widget_info::{HitTestClips, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
-    WidgetId,
+    widget_instance::{WidgetId, ZIndex},
 };
 
 use std::{cell::Cell, marker::PhantomData, mem};

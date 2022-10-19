@@ -7,14 +7,12 @@ use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 use crate::{
     color::RenderColor,
     context::{TestWidgetContext, WidgetContext, WidgetUpdates},
-    node_vec, nodes,
     render::{FrameBuilder, FrameId, FrameUpdate},
-    ui_list::UiNodeVec,
     ui_node,
     units::*,
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder},
     window::WindowId,
-    UiNode, UiNodeList, Widget,
+    widget_instance::{ui_list, UiNode, UiNodeList, BoxedUiNode},
 };
 
 #[test]
@@ -44,7 +42,7 @@ pub fn default_children() {
     impl UiNode for Node {}
 
     test_trace(Node {
-        children: nodes![TestTraceNode::default(), TestTraceNode::default()],
+        children: ui_list![TestTraceNode::default(), TestTraceNode::default()],
     });
 }
 #[test]
@@ -56,30 +54,18 @@ pub fn default_delegate_list() {
     impl<C: UiNodeList> UiNode for Node<C> {}
 
     test_trace(Node {
-        inner: nodes![TestTraceNode::default(), TestTraceNode::default()],
+        inner: ui_list![TestTraceNode::default(), TestTraceNode::default()],
     });
 }
 #[test]
 pub fn default_children_iter() {
     #[ui_node(struct Node {
-        children: UiNodeVec,
+        children: Vec<BoxedUiNode>,
     })]
     impl UiNode for Node {}
 
     test_trace(Node {
-        children: node_vec![TestTraceNode::default(), TestTraceNode::default()],
-    })
-}
-#[test]
-pub fn default_delegate_iter() {
-    struct Node {
-        inner: UiNodeVec,
-    }
-    #[ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
-    impl UiNode for Node {}
-
-    test_trace(Node {
-        inner: node_vec![TestTraceNode::default(), TestTraceNode::default()],
+        children: ui_list![TestTraceNode::default(), TestTraceNode::default()],
     })
 }
 fn test_trace(node: impl UiNode) {
@@ -277,7 +263,7 @@ mod util {
         units::*,
         widget_base::implicit_base,
         widget_info::{WidgetInfoBuilder, WidgetLayout},
-        UiNode, Widget, WidgetId,
+        widget_instance::{UiNode, WidgetId},
     };
 
     pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();

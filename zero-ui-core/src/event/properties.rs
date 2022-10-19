@@ -1,5 +1,5 @@
 use super::*;
-use crate::{context::WidgetUpdates, handler::WidgetHandler, ui_node, UiNode};
+use crate::{context::WidgetUpdates, handler::WidgetHandler, ui_node, widget_instance::UiNode};
 
 #[doc(hidden)]
 #[macro_export]

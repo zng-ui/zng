@@ -274,7 +274,7 @@ pub use helpers::*;
 mod helpers {
     use std::cell::RefCell;
 
-    use crate::{context::*, event::*, render::*, var::*, widget_info::*, *};
+    use crate::{context::*, event::*, render::*, var::*, widget_info::*, widget_instance::*, *};
 
     /// Helper for declaring properties that sets a context var.
     ///

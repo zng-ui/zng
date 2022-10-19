@@ -17,8 +17,8 @@ use crate::{
     text::Text,
     units::*,
     var::*,
-    widget_info::WidgetInfoTree,
-    BoxedUiNode, IdNameError, UiNode, WidgetId,
+    widget_info::WidgetInfoTree, IdNameError,
+    widget_instance::{BoxedUiNode, UiNode, WidgetId},
 };
 
 pub use crate::app::view_process::{CursorIcon, EventCause, FocusIndicator, VideoMode, WindowState};
@@ -230,7 +230,7 @@ impl Window {
             render_mode,
             headless_monitor,
             start_focused,
-            crate::widget_base::implicit_base::new_border(child),
+            crate::widget_base::nodes::inner(child),
         )
     }
 

@@ -19,7 +19,7 @@ use crate::{
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
-    WidgetId,
+    widget_instance::WidgetId,
 };
 
 mod args;

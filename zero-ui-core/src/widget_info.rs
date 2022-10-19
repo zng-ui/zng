@@ -16,7 +16,7 @@ use crate::{
     crate_util::IdMap,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
-    ui_node::{UiNode, WidgetId, ZIndex},
+    widget_instance::{UiNode, WidgetId, ZIndex},
     units::*,
     window::WindowId,
 };

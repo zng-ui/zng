@@ -2,21 +2,16 @@
 
 use std::{fmt, mem};
 
-use crate::context::{MeasureContext, RenderContext, WidgetUpdates};
-use crate::render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId};
-use crate::widget_info::WidgetBorderInfo;
-use crate::{context_value, UiNodeList, WidgetId, ui_list};
-
 use crate::{
     color::*,
-    context::LayoutMetrics,
-    context::{LayoutContext, WidgetContext},
-    property, ui_node,
+    context::{LayoutContext, LayoutMetrics, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
+    context_value, property,
+    render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId},
+    ui_list, ui_node,
     units::*,
-    var::impl_from_and_into_var,
-    var::*,
-    widget_info::WidgetLayout,
-    UiNode,
+    var::{impl_from_and_into_var, *},
+    widget_info::{WidgetBorderInfo, WidgetLayout},
+    widget_instance::{UiNode, UiNodeList, WidgetId},
 };
 
 /// Orientation of a straight line.

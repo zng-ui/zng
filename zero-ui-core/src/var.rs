@@ -54,7 +54,7 @@ pub use state::*;
 pub use vars::*;
 pub use when::when_var;
 
-use crate::{context::Updates, WidgetId};
+use crate::{context::Updates, widget_instance::WidgetId};
 
 /// Other variable types.
 pub mod types {

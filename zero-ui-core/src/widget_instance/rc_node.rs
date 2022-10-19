@@ -7,7 +7,7 @@ use crate::{
     app::AppEventSender,
     event::{Event, EventArgs},
     var::*,
-    *,
+    widget_instance::*,
 };
 
 type SlotId = usize;
@@ -297,7 +297,7 @@ mod impls {
         units::PxSize,
         var::*,
         widget_info::{WidgetInfoBuilder, WidgetLayout},
-        *,
+        widget_instance::*,
     };
 
     use super::{SlotData, SlotId};

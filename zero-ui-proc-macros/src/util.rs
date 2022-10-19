@@ -458,16 +458,6 @@ pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     tokens
 }
 
-/// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`Path`].
-pub fn path_to_ident_str(path: &syn::Path) -> String {
-    tokens_to_ident_str(&path.to_token_stream())
-}
-
-/// Gets a span that best represent the path.
-pub fn path_span(path: &syn::Path) -> Span {
-    path.segments.last().map(|s| s.span()).unwrap_or_else(|| path.span())
-}
-
 /// Returns `true` if `a` and `b` have the same tokens in the same order (ignoring span).
 pub fn token_stream_eq(a: TokenStream, b: TokenStream) -> bool {
     let mut a = a.into_iter();
@@ -563,11 +553,6 @@ impl ToTokens for CfgCondition {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.tokens.to_tokens(tokens);
     }
-}
-
-/// Parse an attribute.
-pub fn parse_attr(input: TokenStream) -> Result<Attribute, syn::Error> {
-    syn::parse2::<OuterAttr>(input).map(|a| a.into())
 }
 struct OuterAttr {
     pound_token: Token![#],

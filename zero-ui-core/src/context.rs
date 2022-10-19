@@ -1,17 +1,18 @@
 //! Context information for app extensions, windows and widgets.
 
-use crate::event::{EventHandle, EventHandles};
-use crate::var::{VarHandle, VarHandles};
-use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId, WidgetPath};
-use std::cell::Cell;
-use std::rc::Rc;
-use std::{fmt, ops::Deref};
-
-use crate::app::{AppEventSender, LoopTimer};
-
-use crate::timer::Timers;
-use crate::widget_info::{WidgetContextInfo, WidgetInfoTree};
-use crate::window::WindowMode;
+use crate::{
+    app::{AppEventSender, LoopTimer},
+    event::{EventHandle, EventHandles, Events},
+    service::Services,
+    timer::Timers,
+    units::*,
+    var::{VarHandle, VarHandles, Vars},
+    widget_info::{WidgetContextInfo, WidgetInfoTree},
+    widget_instance::WidgetId,
+    window::{WindowId, WindowMode},
+    WidgetPath,
+};
+use std::{cell::Cell, fmt, ops::Deref, rc::Rc};
 
 mod contextual;
 pub use contextual::*;
@@ -618,7 +619,7 @@ impl<'a> WidgetHandles<'a> {
 }
 
 /// Represents an widget context without parent info.
-/// 
+///
 /// Can be accessed using [`UiNode::with_context`].
 pub struct WidgetNodeContext<'a> {
     /// The widget ID.
@@ -632,7 +633,7 @@ pub struct WidgetNodeContext<'a> {
 }
 
 /// Represents an widget context without parent info.
-/// 
+///
 /// Can be accessed using [`UiNode::with_context_mut`].
 pub struct WidgetNodeMutContext<'a> {
     /// The widget ID.

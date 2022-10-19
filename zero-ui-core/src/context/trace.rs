@@ -12,8 +12,8 @@ use crate::{
     app::AppExtension,
     event::{Event, EventArgs},
     var::VarValue,
+    widget_instance::{TraceNode, UiNode, WidgetId},
     window::WindowId,
-    TraceNode, UiNode, WidgetId,
 };
 
 use super::InfoContext;

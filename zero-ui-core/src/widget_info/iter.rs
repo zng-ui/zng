@@ -405,7 +405,7 @@ mod tests {
         units::FactorUnits,
         widget_info::{iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
         window::WindowId,
-        WidgetId,
+        widget_instance::WidgetId,
     };
 
     use pretty_assertions::assert_eq;

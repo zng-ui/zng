@@ -12,7 +12,7 @@ use crate::{
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree, WidgetPath},
     window::{WindowId, Windows},
-    WidgetId,
+    widget_instance::WidgetId,
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 

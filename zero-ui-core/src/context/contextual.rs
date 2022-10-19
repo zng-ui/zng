@@ -1,6 +1,6 @@
 use std::{cell::Cell, ptr, rc::Rc};
 
-use crate::{crate_util::RunOnDrop, task, window::WindowId, WidgetId};
+use crate::{crate_util::RunOnDrop, task, widget_instance::WidgetId, window::WindowId};
 
 use super::{AppContext, WidgetContext};
 

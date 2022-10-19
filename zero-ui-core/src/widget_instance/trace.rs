@@ -4,7 +4,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::*,
     widget_info::{WidgetInfoBuilder, WidgetLayout},
-    UiNode,
+    widget_instance::UiNode,
 };
 
 /// Debug helper for tracing the lifetime of [`UiNode`] method calls.

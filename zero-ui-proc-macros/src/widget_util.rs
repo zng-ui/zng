@@ -462,7 +462,7 @@ impl WgtWhen {
         }
 
         let expr = when_expr.expr;
-        let expr_str = self.condition_expr.to_string();
+        let expr_str = util::format_rust_expr(self.condition_expr.to_string());
 
         quote! {
             {

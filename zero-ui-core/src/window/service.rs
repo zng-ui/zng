@@ -24,7 +24,7 @@ use crate::{
     },
     event::Events,
 };
-use crate::{units::*, WidgetId};
+use crate::{units::*, widget_instance::WidgetId};
 
 /// Windows service.
 ///

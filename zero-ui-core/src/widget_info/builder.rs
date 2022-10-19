@@ -496,11 +496,11 @@ impl WidgetLayout {
     /// If `keep_previous` is `true` the new offset is *added* to the previous.
     ///
     /// [`with_child`]: Self::with_child
-    pub fn with_outer<W: Widget, R>(
+    pub fn with_outer<N: UiNode, R>(
         &mut self,
-        widget: &mut W,
+        widget: &mut N,
         keep_previous: bool,
-        translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut W) -> R,
+        translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut N) -> R,
     ) -> R {
         self.with_outer_impl(widget.bounds_info().clone(), widget, keep_previous, translate)
     }

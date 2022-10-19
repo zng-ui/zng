@@ -15,7 +15,7 @@ use crate::units::TimeUnits;
 use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
 use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
-use crate::{context::*, WidgetId};
+use crate::{context::*, widget_instance::WidgetId};
 
 use linear_map::set::LinearSet;
 pub use zero_ui_view_api::{Key, KeyState, ScanCode};

@@ -1126,7 +1126,7 @@ pub fn f32_cmp(a: &f32, b: &f32) -> std::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::WidgetId;
+    use crate::widget_instance::WidgetId;
     use fs2::FileExt;
 
     #[test]
@@ -1273,7 +1273,7 @@ pub mod context_value {
         render::{FrameBuilder, FrameUpdate},
         ui_node, units,
         widget_info::{WidgetInfoBuilder, WidgetLayout},
-        UiNode,
+        widget_instance::UiNode,
     };
 
     ///<span data-del-macro-root></span> Declares new thread local static that facilitates sharing *contextual* values.

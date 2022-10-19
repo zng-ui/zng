@@ -70,14 +70,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
         if prop.has_default() {
-            let args = prop.args_new(quote!(#crate_core::property));
+            let args = prop.args_new(quote!(#crate_core::widget_builder));
             intrinsic.extend(quote! {
-                __wgt__.insert_property(#crate_core::property::Importance::WIDGET, #args);
+                __wgt__.insert_property(#crate_core::widget_builder::Importance::WIDGET, #args);
             });
         } else if prop.is_unset() {
             let id = prop.property_id();
             intrinsic.extend(quote! {
-                __wgt__.insert_unset(#crate_core::property::Importance::WIDGET, #id);
+                __wgt__.insert_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
             });
         } else {
             errors.push(format!("missing property `{}` value(s)", prop.ident()), prop.path.span());
@@ -85,9 +85,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     }
 
     for when in properties.iter().flat_map(|i| i.whens.iter()) {
-        let args = when.when_new(quote!(#crate_core::property));
+        let args = when.when_new(quote!(#crate_core::widget_builder));
         intrinsic.extend(quote! {
-            __wgt__.insert_when(#crate_core::property::Importance::WIDGET, #args);
+            __wgt__.insert_when(#crate_core::widget_builder::Importance::WIDGET, #args);
         });
     }
 
@@ -96,7 +96,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let ident = &build.sig.ident;
         quote_spanned! {build.span()=>
             #[doc(hidden)]
-            pub fn __build__(__wgt__: #crate_core::property::WidgetBuilder) #out {
+            pub fn __build__(__wgt__: #crate_core::widget_builder::WidgetBuilder) #out {
                 self::#ident(__wgt__)
             }
         }
@@ -113,8 +113,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         );
         quote! {
             #[doc(hidden)]
-            pub fn __build__(_: #crate_core::property::WidgetBuilder) -> #crate_core::NilUiNode {
-                #crate_core::NilUiNode
+            pub fn __build__(_: #crate_core::widget_builder::WidgetBuilder) -> #crate_core::widget_instance::NilUiNode {
+                #crate_core::widget_instance::NilUiNode
             }
         }
     };
@@ -142,7 +142,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #intrinsic_fn
 
         #[doc(hidden)]
-        pub fn __intrinsic__(__wgt__: &mut #crate_core::property::WidgetBuilder) {
+        pub fn __intrinsic__(__wgt__: &mut #crate_core::widget_builder::WidgetBuilder) {
             #intrinsic
         }
 
@@ -151,13 +151,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         #[doc(hidden)]
         pub mod __widget__ {
-            pub use #crate_core::{widget_new2 as widget_new, property};
+            pub use #crate_core::{widget_new, widget_builder};
 
             pub use super::__intrinsic__ as intrinsic;
             pub use super::__build__ as build;
 
-            pub fn new() -> property::WidgetBuilder {
-                let mut wgt = property::WidgetBuilder::new();
+            pub fn new() -> widget_builder::WidgetBuilder {
+                let mut wgt = widget_builder::WidgetBuilder::new();
                 intrinsic(&mut wgt);
                 wgt
             }
@@ -387,20 +387,20 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         if p.is_unset() {
             let id = p.property_id();
             r.extend(quote! {
-                __wgt__.insert_unset(__widget__::property::Importance::INSTANCE, #id);
+                __wgt__.insert_unset(__widget__::widget_builder::Importance::INSTANCE, #id);
             });
         } else {
-            let args = p.args_new(quote!(__widget__::property));
+            let args = p.args_new(quote!(__widget__::widget_builder));
             r.extend(quote! {
-                __wgt__.insert_property(__widget__::property::Importance::INSTANCE, #args);
+                __wgt__.insert_property(__widget__::widget_builder::Importance::INSTANCE, #args);
             });
         }
     }
 
     for w in &instance.whens {
-        let args = w.when_new(quote!(__widget__::property));
+        let args = w.when_new(quote!(__widget__::widget_builder));
         r.extend(quote! {
-            __wgt__.insert_when(__widget__::property::Importance::INSTANCE, #args);
+            __wgt__.insert_when(__widget__::widget_builder::Importance::INSTANCE, #args);
         });
     }
 

@@ -98,7 +98,7 @@ use crate::{
     var::{var, AnyVar, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOW_FOCUS_CHANGED_EVENT},
-    WidgetId,
+    widget_instance::WidgetId,
 };
 
 use std::{

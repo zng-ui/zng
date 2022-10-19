@@ -1,6 +1,6 @@
 //! Color types, functions and macros, [`Rgba`], [`filters`], [`hex!`](crate::color::hex) and more.
 
-use crate::{units::*, var::*};
+use crate::{units::*, var::*, widget_instance::UiNode};
 use std::{fmt, ops};
 
 pub use crate::app::view_process::ColorScheme;
@@ -1162,7 +1162,7 @@ context_var! {
 
 /// Defines the preferred color scheme in the widget and descendants.
 #[crate::property(context, default(COLOR_SCHEME_VAR))]
-pub fn color_scheme(child: impl crate::UiNode, pref: impl IntoVar<ColorScheme>) -> impl crate::UiNode {
+pub fn color_scheme(child: impl UiNode, pref: impl IntoVar<ColorScheme>) -> impl UiNode {
     with_context_var(child, COLOR_SCHEME_VAR, pref)
 }
 

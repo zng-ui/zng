@@ -403,7 +403,7 @@ mod bindings {
 }
 
 mod context {
-    use crate::{app::*, context::*, text::*, var::*, *};
+    use crate::{app::*, context::*, text::*, var::*, widget_instance::*, *};
 
     context_var! {
         static TEST_VAR: Text = "";

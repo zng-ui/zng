@@ -4,7 +4,7 @@ use crate::{
     context::{WidgetContext, WidgetUpdates},
     ui_node,
     var::{IntoVar, Var, VarValue},
-    UiNode,
+    widget_instance::UiNode,
 };
 
 /// A type that can be a [`StateId`] value.

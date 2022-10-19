@@ -1,7 +1,7 @@
 use crate::{
     render::{FrameValue, FrameValueUpdate},
     units::*,
-    WidgetId,
+    widget_instance::WidgetId,
 };
 
 /// Represents hit-test regions of a widget inner.

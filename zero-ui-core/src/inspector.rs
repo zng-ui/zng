@@ -158,37 +158,8 @@ impl fmt::Debug for PropertyArg {
     }
 }
 
-/// A location in source-code.
-///
-/// Use [`source_location!`] to construct.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SourceLocation {
-    /// [`file!`]
-    pub file: &'static str,
-    /// [`line!`]
-    pub line: u32,
-    /// [`column!`]
-    pub column: u32,
-}
-impl fmt::Display for SourceLocation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}:{}", self.file, self.line, self.column)
-    }
-}
 
-///<span data-del-macro-root></span> New [`SourceLocation`] that represents the location you call this macro.
-#[macro_export]
-macro_rules! source_location {
-    () => {
-        $crate::inspector::SourceLocation {
-            file: std::file!(),
-            line: std::line!(),
-            column: std::column!(),
-        }
-    };
-}
-#[doc(inline)]
-pub use crate::source_location;
+
 
 /// Property priority in a widget.
 ///

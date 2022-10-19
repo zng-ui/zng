@@ -19,7 +19,7 @@ use crate::{
     units::*,
     var::{AnyVar, ReadOnlyRcVar},
     window::{FrameCaptureMode, Window, WindowId, WindowVars},
-    UiNode,
+    widget_instance::UiNode,
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
@@ -575,7 +575,7 @@ impl ImageSource {
             WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
             let node = render(ctx, args);
             Window::new_container(
-                crate::WidgetId::new_unique(),
+                crate::widget_instance::WidgetId::new_unique(),
                 crate::window::StartPosition::Default,
                 false,
                 true,

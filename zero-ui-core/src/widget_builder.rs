@@ -12,13 +12,41 @@ use linear_map::LinearMap;
 use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
-    inspector::SourceLocation,
-    ui_list::{BoxedUiNodeList, BoxedWidgetList},
-    var::{var, AnyVar, AnyVarValue, BoxedVar, IntoValue, IntoVar, RcVar, StateVar, Var, VarHandle, VarValue, Vars, WithVars},
-    AdoptiveNode, BoxedUiNode, BoxedWidget, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList, Widget, WidgetList,
+    var::*,
+    widget_instance::{AdoptiveNode, BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList},
 };
 
-pub use crate::inspector::source_location;
+///<span data-del-macro-root></span> New [`SourceLocation`] that represents the location you call this macro.
+#[macro_export]
+macro_rules! source_location {
+    () => {
+        $crate::widget_builder::SourceLocation {
+            file: std::file!(),
+            line: std::line!(),
+            column: std::column!(),
+        }
+    };
+}
+#[doc(inline)]
+pub use crate::source_location;
+
+/// A location in source-code.
+///
+/// Use [`source_location!`] to construct.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceLocation {
+    /// [`file!`]
+    pub file: &'static str,
+    /// [`line!`]
+    pub line: u32,
+    /// [`column!`]
+    pub column: u32,
+}
+impl fmt::Display for SourceLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}:{}", self.file, self.line, self.column)
+    }
+}
 
 #[doc(hidden)]
 #[macro_export]
@@ -29,6 +57,24 @@ macro_rules! when_condition_expr_var {
 }
 #[doc(hidden)]
 pub use when_condition_expr_var;
+
+///<span data-del-macro-root></span> New [`PropertyId`] that represents the type and name.
+#[macro_export]
+macro_rules! property_id {
+    ($property:path) => {{
+    #[rustfmt::skip]// Rust does not expand the macro if we remove the braces.
+                        use $property::{property as p};
+
+        p::__id__($crate::widget_builder::property_id_name(stringify!($property)))
+    }};
+}
+#[doc(inline)]
+pub use crate::property_id;
+
+#[doc(hidden)]
+pub fn property_id_name(path: &'static str) -> &'static str {
+    path.rsplit(':').last().unwrap_or("").trim()
+}
 
 /// Property priority in a widget.
 ///
@@ -217,19 +263,9 @@ pub trait PropertyArgs {
         panic_input(&self.property(), i, InputKind::UiNode)
     }
 
-    /// Gets a [`InputKind::Widget`].
-    fn widget(&self, i: usize) -> &RcNode<BoxedWidget> {
-        panic_input(&self.property(), i, InputKind::Widget)
-    }
-
     /// Gets a [`InputKind::UiNodeList`].
     fn ui_node_list(&self, i: usize) -> &RcNodeList<BoxedUiNodeList> {
         panic_input(&self.property(), i, InputKind::UiNodeList)
-    }
-
-    /// Gets a [`InputKind::WidgetList`].
-    fn widget_list(&self, i: usize) -> &RcNodeList<BoxedWidgetList> {
-        panic_input(&self.property(), i, InputKind::WidgetList)
     }
 
     /// Gets a [`InputKind::WidgetHandler`].
@@ -241,6 +277,42 @@ pub trait PropertyArgs {
 
     /// Create a property instance with args clone or taken.
     fn instantiate(&self, child: BoxedUiNode) -> BoxedUiNode;
+}
+
+/// Extension methods for `Box<dyn PropertyArgs>`
+pub trait PropertyArgsExt {
+    /// Gets a strongly typed [`value`].
+    ///
+    /// [`value`]: PropertyArgs::value
+    fn downcast_value<T: VarValue>(&self, i: usize) -> &T;
+    /// Gets a strongly typed [`var`].
+    ///
+    /// [`var`]: PropertyArgs::var
+    fn downcast_var<T: VarValue>(&self, i: usize) -> &BoxedVar<T>;
+
+    /// Gets a strongly typed [`widget_handler`].
+    ///
+    /// [`widget_handler`]: PropertyArgs::widget_handler
+    fn downcast_handler<A: Clone + 'static>(&self, i: usize) -> &RcWidgetHandler<A>;
+}
+
+impl PropertyArgsExt for Box<dyn PropertyArgs> {
+    fn downcast_value<T: VarValue>(&self, i: usize) -> &T {
+        self.value(i).as_any().downcast_ref::<T>().expect("cannot downcast value to type")
+    }
+
+    fn downcast_var<T: VarValue>(&self, i: usize) -> &BoxedVar<T> {
+        self.var(i)
+            .as_any()
+            .downcast_ref::<BoxedVar<T>>()
+            .expect("cannot downcast var to type")
+    }
+
+    fn downcast_handler<A: Clone + 'static>(&self, i: usize) -> &RcWidgetHandler<A> {
+        self.widget_handler(i)
+            .downcast_ref::<RcWidgetHandler<A>>()
+            .expect("cannot downcast handler to type")
+    }
 }
 
 #[doc(hidden)]
@@ -273,18 +345,8 @@ pub fn ui_node_to_args(node: impl UiNode) -> RcNode<BoxedUiNode> {
 }
 
 #[doc(hidden)]
-pub fn widget_to_args(wgt: impl Widget) -> RcNode<BoxedWidget> {
-    RcNode::new(wgt.boxed_wgt())
-}
-
-#[doc(hidden)]
 pub fn ui_node_list_to_args(node_list: impl UiNodeList) -> RcNodeList<BoxedUiNodeList> {
     RcNodeList::new(node_list.boxed())
-}
-
-#[doc(hidden)]
-pub fn widget_list_to_args(wgt_list: impl WidgetList) -> RcNodeList<BoxedWidgetList> {
-    RcNodeList::new(wgt_list.boxed_wgt())
 }
 
 #[doc(hidden)]
@@ -605,6 +667,41 @@ impl WidgetBuilder {
         }
 
         // this method is used to remove "captures", that means we need to remove `when` assigns and a clone of the conditions too?
+    }
+
+    // Remove the property and downcast the input value.
+    pub fn capture_value<T: VarValue>(&mut self, property_id: PropertyId) -> Option<T> {
+        let (_, args) = self.remove_property(property_id)?;
+        let value = args.downcast_value::<T>(0).clone();
+        Some(value)
+    }
+
+    // Remove the property and downcast the input value.
+    pub fn capture_var<T: VarValue>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>> {
+        let (_, args) = self.remove_property(property_id)?;
+        let var = args.downcast_var::<T>(0).clone();
+        Some(var)
+    }
+
+    /// Remove the property and get the input n.
+    pub fn capture_ui_node(&mut self, property_id: PropertyId) -> Option<BoxedUiNode> {
+        let (_, args) = self.remove_property(property_id)?;
+        let node = args.ui_node(0).take_on_init().boxed();
+        Some(node)
+    }
+
+    /// Remove the property and get the input list.
+    pub fn capture_ui_node_list(&mut self, property_id: PropertyId) -> Option<BoxedUiNodeList> {
+        let (_, args) = self.remove_property(property_id)?;
+        let list = args.ui_node_list(0).take_on_init().boxed();
+        Some(list)
+    }
+
+/// Remove the property and downcast the input handler.
+    pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<RcWidgetHandler<A>> {
+        let (_, args) = self.remove_property(property_id)?;
+        let handler = args.downcast_handler::<A>(0).clone();
+        Some(handler)
     }
 
     /// Insert a `when` block.

@@ -17,7 +17,7 @@ use crate::{
     var::{impl_from_and_into_var, Var},
     widget_info::{HitTestInfo, InteractionPath},
     window::{WindowId, Windows},
-    WidgetId, WidgetPath,
+    widget_instance::WidgetId, WidgetPath,
 };
 use std::{
     cell::RefCell,

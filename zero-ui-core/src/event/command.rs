@@ -13,8 +13,8 @@ use crate::{
     text::Text,
     ui_node,
     var::{types::RcCowVar, *},
+    widget_instance::{UiNode, WidgetId},
     window::WindowId,
-    UiNode, WidgetId,
 };
 
 use super::*;

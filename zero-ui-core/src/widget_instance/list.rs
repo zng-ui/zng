@@ -30,10 +30,10 @@ use super::*;
 /// `ui_list!` automatically calls [`UiNode::boxed`] for each item.
 #[macro_export]
 macro_rules! ui_list {
-    () => { vec![] };
+    () => { std::vec::Vec::<$crate::widget_instance::BoxedUiNode>::new() };
     ($($node:expr),+ $(,)?) => {
         vec![
-            $($crate::ui_node::UiNode::boxed($node)),*
+            $($crate::widget_instance::UiNode::boxed($node)),*
         ]
     };
 }
@@ -47,9 +47,9 @@ pub trait UiNodeListChain: UiNodeList {
     /// Special features of each inner list type is preserved.
     fn chain<B>(self, other: B) -> UiNodeListChainImpl<Self, B>
     where
-        B: UiNodeList;
+        B: UiNodeList,
+        Self: Sized;
 }
-
 impl<A: UiNodeList> UiNodeListChain for A {
     fn chain<B>(self, other: B) -> UiNodeListChainImpl<Self, B>
     where
@@ -156,7 +156,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
 pub struct SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering,
+    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + 'static,
 {
     list: L,
 
@@ -166,7 +166,7 @@ where
 impl<L, S> SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering,
+    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + 'static,
 {
     /// New from list and sort function.
     pub fn new(list: L, sort: S) -> Self {
@@ -203,7 +203,7 @@ where
 impl<L, S> UiNodeList for SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering,
+    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + 'static,
 {
     fn with_node<R, F: FnOnce(&BoxedUiNode)>(&self, index: usize, f: F) -> R {
         self.update_map();
@@ -326,17 +326,25 @@ impl ZSort {
     }
 
     /// Init the `list` and invalidates the sort.
-    pub fn init_all(&mut self, ctx: &mut WidgetContext, list: &mut UiNodeList) {
+    pub fn init_all(&mut self, ctx: &mut WidgetContext, list: &mut impl UiNodeList) {
         self.map.get_mut().clear();
         let resort = ZIndexContext::with(ctx.path.widget_id(), || list.init_all(ctx));
         self.naturally_sorted.set(!resort);
     }
 
     /// Update the `list` and invalidates the sort if needed.
-    pub fn update_all(&mut self, ctx: &mut WidgetContext, list: &mut UiNodeList, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    pub fn update_all(
+        &mut self,
+        ctx: &mut WidgetContext,
+        list: &mut impl UiNodeList,
+        updates: &mut WidgetUpdates,
+        observer: &mut dyn UiNodeListObserver,
+    ) {
         let mut changed = false;
 
-        let resort = ZIndexContext::with(ctx.path.widget_id(), || list.update_all(ctx, updates, &mut (observer, &mut changed)));
+        let resort = ZIndexContext::with(ctx.path.widget_id(), || {
+            list.update_all(ctx, updates, &mut (observer, &mut changed))
+        });
         if resort || (changed && self.naturally_sorted.get()) {
             self.map.get_mut().clear();
             self.naturally_sorted.set(false);

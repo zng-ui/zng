@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::{context::*, event::*, *};
+use crate::{context::*, event::*, widget_instance::*, *};
 
 /// New [`StateVar`].
 pub fn state_var() -> StateVar {

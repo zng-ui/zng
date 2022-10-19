@@ -20,7 +20,7 @@ use crate::{
     var::*,
     widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     window::AutoSize,
-    BoxedUiNode, UiNode, WidgetId,
+    widget_instance::{BoxedUiNode, UiNode, WidgetId},
 };
 
 use super::{
