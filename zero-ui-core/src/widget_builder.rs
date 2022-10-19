@@ -76,6 +76,32 @@ pub fn property_id_name(path: &'static str) -> &'static str {
     path.rsplit(':').last().unwrap_or("").trim()
 }
 
+///<span data-del-macro-root></span> New [`PropertyArgs`] box from a property and value.
+#[macro_export]
+macro_rules! property_args {
+    ($property:path $(as $rename:ident)? = $($value:tt)*) => {
+        {
+            $crate::widget_builder::property_args_getter! {
+                $property $(as $rename)? = $($value)*
+            }
+        }
+    }
+}
+#[doc(inline)]
+pub use crate::property_args;
+
+#[doc(hidden)]
+#[crate::widget($crate::widget_builder::property_args_getter)]
+pub mod property_args_getter {
+    use super::*;
+
+    fn build(mut wgt: WidgetBuilder) -> Box<dyn PropertyArgs> {
+        let id = wgt.properties().next().unwrap().1.id();
+        wgt.remove_property(id).unwrap().1
+    }
+}
+
+
 /// Property priority in a widget.
 ///
 /// See [the property doc](crate::property#priority) for more details.
@@ -598,6 +624,8 @@ impl WidgetBuilder {
     }
 
     /// Insert/override a property.
+    /// 
+    /// You can use the [`property_args!`] macro to collect args for a property.
     pub fn insert_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
         let property_id = args.id();
         let info = args.property();
@@ -720,6 +748,16 @@ impl WidgetBuilder {
     /// Set/replace the inner most node of the widget.
     pub fn set_child(&mut self, node: BoxedUiNode) -> Option<RcNode<BoxedUiNode>> {
         self.child.replace(RcNode::new(node))
+    }
+
+    /// Iterate over the current properties.
+    /// 
+    /// The properties may not be sorted in the correct order if the builder has never built.
+    pub fn properties(&self) -> impl Iterator<Item=(Importance, &Box<dyn PropertyArgs>)> {
+        self.items.iter().filter_map(|(_, it)| match it {
+            WidgetItem::Instrinsic { .. } => None,
+            WidgetItem::Property { importance, args } => Some((*importance, args)),
+        })
     }
 
     fn sort_items(&mut self) {

@@ -26,20 +26,25 @@ pub mod base {
     pub use super::{enabled, id, visibility};
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
-        let child = wgt.capture_ui_node(property_id!(child)).unwrap_or_else(|| FillUiNode.boxed());
-
-        wgt.set_child(child);
-
-        wgt.insert_intrinsic(Priority::ChildLayout, AdoptiveNode::new(|c| nodes::child_layout(c).boxed()));
-        wgt.insert_intrinsic(Priority::Border, AdoptiveNode::new(|c| nodes::inner(c).boxed()));
+        nodes::capture_child(wgt);
+       
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl UiNode {
-        let id = wgt.capture_value(property_id!(id)).unwrap_or_else(WidgetId::new_unique);
+        nodes::build(&mut wgt)
+    }
+}
 
-        let child = wgt.build();
+/// Base mixin widget.
+/// 
+/// Mix-ins are "widgets" that are just a set of item that can be `inherit!(..)` imported into a real widget.
+#[widget($crate::widget_base::mixin)]
+pub mod mixin {
+    use super::*;
 
-        nodes::widget(child, id)
+    fn build(_: WidgetBuilder) -> impl UiNode {
+        tracing::error!("cannot instantiate mixin");
+        NilUiNode
     }
 }
 
@@ -50,6 +55,25 @@ pub mod nodes {
     use std::cell::{Cell, RefCell};
 
     use super::*;
+
+    /// Capture the [`child`] property and sets it as the widget child.
+    pub fn capture_child(wgt: &mut WidgetBuilder) {
+        let child = wgt.capture_ui_node(property_id!(child)).unwrap_or_else(|| FillUiNode.boxed());
+        wgt.set_child(child);
+    }
+
+    /// Insert [`child_layout`] and [`inner`] in the widget.
+    pub fn insert_intrinsics(wgt: &mut WidgetBuilder) {
+        wgt.insert_intrinsic(Priority::ChildLayout, AdoptiveNode::new(|c| nodes::child_layout(c).boxed()));
+        wgt.insert_intrinsic(Priority::Border, AdoptiveNode::new(|c| nodes::inner(c).boxed()));
+    }
+
+    /// Capture the [`id`] property and builds the base widget.
+    pub fn build(wgt: &mut WidgetBuilder) -> impl UiNode {
+        let id = wgt.capture_value(property_id!(id)).unwrap_or_else(WidgetId::new_unique);
+        let child = wgt.build();
+        nodes::widget(child, id)
+    }
 
     /// Returns a node that wraps `panel` and applies *child_layout* transforms to it.
     ///

@@ -108,7 +108,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     } else {
         errors.push(
-            "missing `build(WidgetBuilder) -> T` function, must be provided or inherited",
+            "missing `fn build(WidgetBuilder) -> T` function, must be provided or inherited",
             ident.span(),
         );
         quote! {

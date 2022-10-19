@@ -11,7 +11,7 @@ use crate::{
     ui_node,
     units::*,
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder},
-    widget_instance::{ui_list, BoxedUiNode, UiNode, UiNodeList},
+    widget_instance::{ui_list, UiNode, UiNodeList},
     window::WindowId,
 };
 
@@ -56,17 +56,6 @@ pub fn default_delegate_list() {
     test_trace(Node {
         inner: ui_list![TestTraceNode::default(), TestTraceNode::default()],
     });
-}
-#[test]
-pub fn default_children_iter() {
-    #[ui_node(struct Node {
-        children: Vec<BoxedUiNode>,
-    })]
-    impl UiNode for Node {}
-
-    test_trace(Node {
-        children: ui_list![TestTraceNode::default(), TestTraceNode::default()],
-    })
 }
 fn test_trace(node: impl UiNode) {
     let mut wgt = util::test_wgt(node);
@@ -261,7 +250,7 @@ mod util {
         event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::*,
-        widget_base::implicit_base,
+        widget_base,
         widget_info::{WidgetInfoBuilder, WidgetLayout},
         widget_instance::{UiNode, WidgetId},
     };
@@ -321,7 +310,7 @@ mod util {
             self.trace.borrow_mut().push(method);
         }
 
-        pub fn notify_render_update(wgt: &mut impl Widget, ctx: &mut TestWidgetContext) {
+        pub fn notify_render_update(wgt: &mut impl UiNode, ctx: &mut TestWidgetContext) {
             wgt.test_event(
                 ctx,
                 &mut RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(wgt.id()), UpdateDeliveryList::new_any()),
@@ -392,13 +381,13 @@ mod util {
         static RENDER_UPDATE_EVENT: RenderUpdateArgs;
     }
 
-    pub fn test_wgt(node: impl UiNode) -> impl Widget {
+    pub fn test_wgt(node: impl UiNode) -> impl UiNode {
         let node = MinSizeNode {
             child: node,
             min_size: PxSize::new(Px(1), Px(1)),
         };
-        let node = implicit_base::nodes::inner(node);
-        implicit_base::nodes::widget(node, crate::WidgetId::new_unique())
+        let node = widget_base::nodes::inner(node);
+        widget_base::nodes::widget(node, crate::widget_instance::WidgetId::new_unique())
     }
 
     struct MinSizeNode<C> {

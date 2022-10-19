@@ -431,7 +431,7 @@ fn delegate_list_absents(
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::update_all(#deref_mut, ctx, updates, &mut changed);
+            #crate_::widget_instance::ui_node_list_default::update_all(#deref_mut, ctx, updates);
         }]
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {

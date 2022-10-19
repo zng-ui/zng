@@ -458,13 +458,12 @@ mod context {
     mod test_wgt {
         use super::*;
 
-        properties! {
-            #[allowed_in_when = false]
-            child(impl UiNode) = NilUiNode;
-        }
+        inherit!(crate::widget_base::base);
 
-        fn new_child(child: impl UiNode) -> impl UiNode {
-            child
+        pub use crate::widget_base::child;
+
+        properties! {
+            child = NilUiNode;
         }
     }
 

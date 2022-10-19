@@ -41,8 +41,9 @@ impl WgtProperty {
     pub fn property_id(&self) -> TokenStream {
         let path = &self.path;
         let ident = self.ident();
+        let ident_str = ident.to_string();
         quote! {
-            #path::property::__id__(stringify!(#ident))
+            #path::property::__id__(#ident_str)
         }
     }
 
@@ -78,9 +79,10 @@ impl WgtProperty {
         let path = &self.path;
         let generics = &self.generics;
         let ident = self.ident();
+        let ident_str = ident.to_string();
         let instance = quote_spanned! {self.location_span()=>
             #property_mod::PropertyInstInfo {
-                name: stringify!(#ident),
+                name: #ident_str,
                 location: #property_mod::source_location!(),
             }
         };
@@ -437,8 +439,11 @@ impl WgtWhen {
 
             let p_ident = &property.segments.last().unwrap().ident;
             let member = match member {
-                WhenInputMember::Named(ident) => quote! {
-                    Named(std::stringify!(#ident))
+                WhenInputMember::Named(ident) => {
+                    let ident_str = ident.to_string();
+                    quote! {
+                        Named(#ident_str)
+                    }
                 },
                 WhenInputMember::Index(i) => quote! {
                     Index(#i)
@@ -532,6 +537,7 @@ impl WhenExpr {
                 let mut member = WhenInputMember::Index(0);
                 let mut var_ident = ident_spanned!(property.span()=> "w_{path_slug}_m_0");
                 if input.peek(Token![.]) {
+                    let _: Token![.] = input.parse()?;
                     if input.peek(Ident) {
                         let m = input.parse::<Ident>().unwrap();
                         var_ident = ident_spanned!(m.span()=> "w_{path_slug}_m_{m}");

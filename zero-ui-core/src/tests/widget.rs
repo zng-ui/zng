@@ -1,13 +1,20 @@
-//! Tests for `#[widget(..)]` and `#[widget_mixin(..)]` macros.
+//! Tests for `#[widget(..)]`  macro.
 //!
 //! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
 
 use self::util::Position;
-use crate::{context::TestWidgetContext, var::Var, widget, widget_mixin, Widget, WidgetId};
+use crate::{
+    context::TestWidgetContext,
+    var::Var,
+    widget,
+    widget_instance::{UiNode, WidgetId},
+};
 
 // Used in multiple tests.
 #[widget($crate::tests::widget::empty_wgt)]
-pub mod empty_wgt {}
+pub mod empty_wgt {
+    inherit!(crate::widget_base::base);
+}
 
 /*
  * Tests the implicitly inherited properties.
@@ -23,12 +30,16 @@ pub fn implicit_inherited() {
 }
 
 // Mixin used in inherit tests.
-#[widget_mixin($crate::tests::widget::foo_mixin)]
+#[widget($crate::tests::widget::foo_mixin)]
 pub mod foo_mixin {
     use super::util;
 
+    inherit!(crate::widget_base::mixin);
+
+    pub use util::trace as foo_trace;
+
     properties! {
-        util::trace as foo_trace = "foo_mixin";
+        foo_trace = "foo_mixin";
     }
 }
 
@@ -39,10 +50,13 @@ pub mod foo_mixin {
 pub mod bar_wgt {
     use super::{foo_mixin, util};
 
+    inherit!(crate::widget_base::base);
     inherit!(foo_mixin);
 
+    pub use util::trace as bar_trace;
+
     properties! {
-        util::trace as bar_trace = "bar_wgt";
+        bar_trace = "bar_wgt";
     }
 }
 #[test]
@@ -77,6 +91,7 @@ pub fn wgt_with_mixin_assign_values() {
  */
 #[widget($crate::tests::widget::reset_wgt)]
 pub mod reset_wgt {
+    inherit!(crate::widget_base::base);
     inherit!(super::foo_mixin);
 
     properties! {
@@ -97,10 +112,13 @@ pub fn wgt_with_new_value_for_inherited() {
  */
 #[widget($crate::tests::widget::alias_inherit_wgt)]
 pub mod alias_inherit_wgt {
+    inherit!(crate::widget_base::base);
     inherit!(super::foo_mixin);
 
+    pub use foo_trace as alias_trace;
+
     properties! {
-        foo_trace as alias_trace = "alias_inherit_wgt"
+        alias_trace = "alias_inherit_wgt"
     }
 }
 #[test]
@@ -126,9 +144,9 @@ pub fn wgt_alias_inherit() {
  */
 #[widget($crate::tests::widget::property_from_path_wgt)]
 pub mod property_from_path_wgt {
-    properties! {
-        super::util::trace;
-    }
+    inherit!(crate::widget_base::base);
+
+    pub use super::util::trace;
 }
 #[test]
 pub fn wgt_property_from_path() {
@@ -141,59 +159,14 @@ pub fn wgt_property_from_path() {
 }
 
 /*
- * Tests removing inherited property.
- */
-#[widget($crate::tests::widget::remove_property_wgt)]
-pub mod remove_property_wgt {
-    inherit!(super::foo_mixin);
-
-    properties! {
-        remove { foo_trace }
-    }
-}
-#[test]
-pub fn wgt_remove_property() {
-    let mut default = remove_property_wgt!();
-    default.test_init(&mut TestWidgetContext::new());
-
-    assert!(!util::traced(&default, "foo_mixin"));
-}
-
-/*
- * Tests if a cfg removes an inherit.
- */
-#[widget($crate::tests::widget::cfg_remove_inherit_wgt)]
-pub mod cfg_remove_inherit_wgt {
-    #[cfg(never)]
-    inherit!(super::foo_mixin);
-}
-#[test]
-pub fn wgt_cfg_remove_inherit() {
-    let mut default = cfg_remove_inherit_wgt!();
-    default.test_init(&mut TestWidgetContext::new());
-
-    assert!(!util::traced(&default, "foo_mixin"));
-}
-
-#[widget($crate::tests::widget::cfg_remove_inherit2_wgt)]
-pub mod cfg_remove_inherit2_wgt {
-    #[cfg(never)]
-    inherit!(super::required_mixin);
-    inherit!(super::foo_mixin);
-}
-#[test]
-pub fn wgt_cfg_remove_inherit2() {
-    let mut default = cfg_remove_inherit2_wgt!();
-    default.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&default, "foo_mixin"));
-}
-
-/*
  * Test unsetting default value.
  */
 #[widget($crate::tests::widget::default_value_wgt)]
 pub mod default_value_wgt {
+    inherit!(crate::widget_base::base);
+
+    pub use super::util::trace;
+
     properties! {
         super::util::trace = "default_value_wgt";
     }
@@ -211,116 +184,6 @@ pub fn unset_default_value() {
     no_default.test_init(&mut TestWidgetContext::new());
 
     assert!(!util::traced(&no_default, "default_value_wgt"));
-}
-
-/*
- * Tests declaring required properties, new and inherited.
- */
-#[widget($crate::tests::widget::required_properties_wgt)]
-pub mod required_properties_wgt {
-    inherit!(super::foo_mixin);
-
-    properties! {
-        #[required]
-        super::util::trace;
-        #[required]
-        foo_trace;
-    }
-}
-#[test]
-pub fn wgt_required_property() {
-    let mut required = required_properties_wgt!(
-        trace = "required!";
-        foo_trace = "required2!"
-    );
-    required.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&required, "required!"));
-    assert!(util::traced(&required, "required2!"));
-}
-
-// Mixin used in inherit required tests.
-#[widget_mixin($crate::tests::widget::required_mixin)]
-pub mod required_mixin {
-    properties! {
-        #[required]
-        super::util::trace as required_trace;
-    }
-}
-
-/*
- * Tests inheriting a required property.
- */
-#[widget($crate::tests::widget::required_inherited_wgt)]
-pub mod required_inherited_wgt {
-    inherit!(super::required_mixin);
-}
-#[test]
-pub fn wgt_required_inherited() {
-    let mut required = required_inherited_wgt! {
-        required_trace = "required!";// removing this line must cause a compile error.
-    };
-    required.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&required, "required!"))
-}
-
-/*
- * Tests inheriting a required property and setting it with a default value.
- */
-#[widget($crate::tests::widget::required_inherited_default_wgt)]
-pub mod required_inherited_default_wgt {
-    inherit!(super::required_mixin);
-
-    properties! {
-        required_trace = "required_inherited_default_wgt";
-    }
-}
-#[widget($crate::tests::widget::required_inherited_default_depth2_wgt)]
-pub mod required_inherited_default_depth2_wgt {
-    inherit!(super::required_inherited_default_wgt);
-
-    properties! {
-        //remove { required_trace } // this line must cause a compile error.
-    }
-}
-#[test]
-pub fn wgt_required_inherited_default() {
-    let mut required = required_inherited_default_wgt! {
-        //required_trace = unset!; // uncommenting this line must cause a compile error.
-    };
-    required.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&required, "required_inherited_default_wgt"));
-
-    let mut required2 = required_inherited_default_depth2_wgt! {
-        //required_trace = unset!; // uncommenting this line must cause a compile error.
-    };
-    required2.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&required2, "required_inherited_default_wgt"));
-}
-
-/*
- * Tests inheriting a required property with default value changing to required without value.
- */
-#[widget($crate::tests::widget::required_inherited_default_required_wgt)]
-pub mod required_inherited_default_required_wgt {
-    inherit!(super::required_inherited_default_wgt);
-
-    properties! {
-        #[required]
-        required_trace;
-    }
-}
-#[test]
-pub fn wgt_required_inherited_default_required() {
-    let mut required = required_inherited_default_required_wgt! {
-        required_trace = "required!"; // commenting this line must cause a compile error.
-    };
-    required.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&required, "required!"))
 }
 
 /*
@@ -370,10 +233,10 @@ pub fn wgt_child_property_init_order() {
  */
 #[widget($crate::tests::widget::same_priority_order_wgt)]
 pub mod same_priority_order_wgt {
-    properties! {
-        super::util::count_border as border_a;
-        super::util::count_border as border_b;
-    }
+    inherit!(crate::widget_base::base);
+
+    pub use super::util::count_border as border_a;
+    pub use super::util::count_border as border_b;
 }
 #[test]
 pub fn wgt_same_priority_order() {
@@ -411,13 +274,15 @@ pub fn wgt_same_priority_order() {
  */
 #[widget($crate::tests::widget::when_wgt)]
 pub mod when_wgt {
-    use super::util::is_state;
-    use super::util::live_trace as msg;
+    inherit!(crate::widget_base::base);
+
+    pub use super::util::is_state;
+    pub use super::util::live_trace as msg;
 
     properties! {
         msg = "boo!";
 
-        when self.is_state {
+        when #is_state {
             msg = "ok.";
         }
     }
@@ -449,7 +314,7 @@ pub fn widget_user_when() {
     let mut wgt = empty_wgt! {
         util::live_trace = "A";
 
-        when self.util::is_state {
+        when #util::is_state {
             util::live_trace = "B";
         }
     };
@@ -478,13 +343,15 @@ pub fn widget_user_when() {
  */
 #[widget($crate::tests::widget::multi_when_wgt)]
 pub mod multi_when_wgt {
+    inherit!(crate::widget_base::base);
+
     use super::util::{is_state, live_trace as trace};
     properties! {
         trace = "default";
-        when self.is_state {
+        when #is_state {
             trace = "state_0";
         }
-        when self.is_state {
+        when #is_state {
             trace = "state_1";
         }
     }
@@ -517,6 +384,8 @@ pub fn wgt_multi_when() {
  */
 #[widget($crate::tests::widget::cfg_property_wgt)]
 pub mod cfg_property_wgt {
+    inherit!(crate::widget_base::base);
+
     use super::util::trace;
 
     properties! {
@@ -574,6 +443,8 @@ pub fn user_cfg_property() {
  */
 #[widget($crate::tests::widget::cfg_when_wgt)]
 pub mod cfg_when_wgt {
+    inherit!(crate::widget_base::base);
+
     use super::util::{is_state, live_trace};
 
     properties! {
@@ -581,7 +452,7 @@ pub mod cfg_when_wgt {
 
         // suppress warning in all assigns.
         #[allow(non_snake_case)]
-        when self.is_state {
+        when #is_state {
             live_trace = {
                 #[allow(clippy::needless_late_init)]
                 let weird___name;
@@ -592,7 +463,7 @@ pub mod cfg_when_wgt {
 
         // when not applied.
         #[cfg(never)]
-        when self.is_state {
+        when #is_state {
             live_trace = "is_never_state";
         }
     }
@@ -626,7 +497,7 @@ pub fn user_cfg_when() {
     let mut wgt = empty_wgt! {
         util::live_trace = "trace";
 
-        when self.util::is_state {
+        when #util::is_state {
             util::live_trace = {
                 #[allow(non_snake_case)]
                 #[allow(clippy::needless_late_init)]
@@ -637,7 +508,7 @@ pub fn user_cfg_when() {
         }
 
         #[cfg(never)]
-        when self.util::is_state {
+        when #util::is_state {
             util::live_trace = "is_never_state";
         }
     };
@@ -667,33 +538,51 @@ pub fn user_cfg_when() {
  */
 #[widget($crate::tests::widget::capture_properties_wgt)]
 pub mod capture_properties_wgt {
-    use super::util::trace;
-    use crate::{var::IntoValue, UiNode, Widget, WidgetId};
+    inherit!(crate::widget_base::base);
+
+    use crate::widget_builder::*;
+
+    pub use super::util::trace as new_child_trace;
+    pub use super::util::trace as new_trace;
+    pub use super::util::trace as property_trace;
 
     properties! {
-        trace as new_child_trace = "new-child";
-        trace as new_trace = "new";
-        trace as property_trace = "property";
+        new_child_trace = "new-child";
+        new_trace = "new";
+        property_trace = "property";
     }
 
-    fn new_child(new_child_trace: &'static str) -> impl UiNode {
-        let msg = match new_child_trace {
+    fn instrinsic(wgt: &mut WidgetBuilder) {
+        let msg: &'static str = wgt.capture_value(property_id!(new_child_trace)).umwrap();
+        let msg = match msg {
             "new-child" => "custom new_child",
             "user-new-child" => "custom new_child (user)",
             o => panic!("unexpected {o:?}"),
         };
-        let node = crate::widget_base::implicit_base::new_child();
-        trace(node, msg)
+
+        wgt.insert_property(
+            Importance::WIDGET,
+            property_args! {
+                super::util::trace as instrinsic_trace = msg;
+            },
+        );
     }
 
-    fn new(node: impl UiNode, id: impl IntoValue<WidgetId>, new_trace: &'static str) -> impl Widget {
-        let msg = match new_trace {
+    fn build(mut wgt: WidgetBuilder) {
+        let msg: &'static str = wgt.capture_value(property_id!(new_trace)).unwrap();
+        let msg = match msg {
             "new" => "custom new",
             "user-new" => "custom new (user)",
             o => panic!("unexpected {o:?}"),
         };
-        let node = trace(node, msg);
-        crate::widget_base::implicit_base::new(node, id)
+        wgt.insert_property(
+            Importance::WIDGET,
+            property_args! {
+                super::util::trace as build_trace = msg;
+            },
+        );
+
+        crate::widget_base::nodes::build(&mut wgt)
     }
 }
 #[test]
@@ -727,147 +616,6 @@ pub fn wgt_capture_properties_reassign() {
     assert!(!util::traced(&wgt, "user-new-child"));
     assert!(!util::traced(&wgt, "user-new"));
 }
-#[widget($crate::tests::widget::cfg_capture_wgt)]
-pub mod cfg_capture_wgt {
-    use super::util::trace;
-    use crate::UiNode;
-
-    properties! {
-        #[cfg(never)]
-        trace as never_trace = panic!("never_trace was not removed");
-        trace as non_never_trace = "non-never";
-    }
-
-    fn new_layout(node: impl UiNode, #[cfg(never)] never_trace: NeverTraceNotRemoved, non_never_trace: &'static str) -> impl UiNode {
-        trace(node, non_never_trace)
-    }
-}
-#[test]
-pub fn wgt_cfg_capture() {
-    let mut wgt = cfg_capture_wgt! {};
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&wgt, "non-never"));
-}
-
-/*
- * Tests capture-only property declaration in widget.
- */
-#[widget($crate::tests::widget::new_capture_property_wgt)]
-pub mod new_capture_property_wgt {
-    use super::util::trace;
-    use crate::UiNode;
-
-    properties! {
-        #[allowed_in_when = false]
-        new_capture(&'static str, u32) = "new_capture-default", 42;
-    }
-
-    fn new_child(new_capture: (&'static str, u32)) -> impl UiNode {
-        let msg = match new_capture {
-            ("new_capture-default", 42) => "captured new_capture (default)",
-            ("new_capture-user", 24) => "captured new_capture (user)",
-            o => panic!("unexpected {o:?}"),
-        };
-        let node = crate::widget_base::implicit_base::new_child();
-        trace(node, msg)
-    }
-}
-#[test]
-pub fn wgt_new_capture_property() {
-    let mut wgt = new_capture_property_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&wgt, "captured new_capture (default)"));
-}
-#[test]
-pub fn wgt_new_capture_property_reassign() {
-    let mut wgt = new_capture_property_wgt! {
-        new_capture = "new_capture-user", 24
-    };
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&wgt, "captured new_capture (user)"));
-}
-
-#[widget($crate::tests::widget::new_capture_property_named_wgt)]
-pub mod new_capture_property_named_wgt {
-    use super::util::trace;
-    use crate::UiNode;
-
-    properties! {
-        #[allowed_in_when = false]
-        new_capture(name: &'static str, age: u32) = "name", 42;
-    }
-
-    fn new_child(new_capture: (&'static str, u32)) -> impl UiNode {
-        let msg = match new_capture {
-            ("name", 42) => "captured new_capture (default)",
-            ("eman", 24) => "captured new_capture (user)",
-            o => panic!("unexpected {o:?}"),
-        };
-        let node = crate::widget_base::implicit_base::new_child();
-        trace(node, msg)
-    }
-}
-#[test]
-pub fn wgt_new_capture_property_named() {
-    let mut wgt = new_capture_property_named_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&wgt, "captured new_capture (default)"));
-}
-#[test]
-pub fn wgt_new_capture_property_named_reassign() {
-    let mut wgt = new_capture_property_named_wgt! {
-        new_capture = {
-            name: "eman",
-            age: 24
-        }
-    };
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&wgt, "captured new_capture (user)"));
-}
-
-/*
- * Tests external capture_only properties
- */
-#[widget($crate::tests::widget::captured_property_wgt)]
-pub mod captured_property_wgt {
-    use super::util::{capture_only_trace, trace};
-    use crate::UiNode;
-
-    properties! {
-        capture_only_trace = "capture-default";
-    }
-
-    fn new_child(capture_only_trace: &'static str) -> impl UiNode {
-        let msg = match capture_only_trace {
-            "capture-default" => "captured capture (default)",
-            "capture-user" => "captured capture (user)",
-            o => panic!("unexpected {o:?}"),
-        };
-        let node = crate::widget_base::implicit_base::new_child();
-        trace(node, msg)
-    }
-}
-#[test]
-pub fn wgt_captured_property() {
-    let mut wgt = captured_property_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&wgt, "captured capture (default)"));
-}
-#[test]
-pub fn wgt_captured_property_reassign() {
-    let mut wgt = captured_property_wgt! {
-        capture_only_trace = "capture-user"
-    };
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    assert!(util::traced(&wgt, "captured capture (user)"));
-}
 
 /*
  * Tests order properties are inited and applied.
@@ -875,28 +623,24 @@ pub fn wgt_captured_property_reassign() {
 
 #[widget($crate::tests::widget::property_priority_sorting_wgt)]
 pub mod property_priority_sorting_wgt {
-    use super::util::{count_border, count_child_context, count_child_layout, count_context, count_layout, count_size, on_count};
+    inherit!(crate::widget_base::base);
 
-    properties! {
-        count_border as count_border2;
-        count_size as count_size2;
-        count_layout as count_layout2;
-        on_count as count_event2;
-        count_context as count_context2;
-
-        count_border as count_border1;
-        count_size as count_size1;
-        count_layout as count_layout1;
-        on_count as count_event1;
-        count_context as count_context1;
-
-        count_child_layout as count_child_layout2;
-        count_child_context as count_child_context2;
-        count_child_layout as count_child_layout1;
-        count_child_context as count_child_context1;
-    }
+    pub use super::util::count_border as count_border2;
+    pub use super::util::count_border as count_border1;
+    pub use super::util::count_child_context as count_child_context2;
+    pub use super::util::count_child_context as count_child_context1;
+    pub use super::util::count_child_layout as count_child_layout2;
+    pub use super::util::count_child_layout as count_child_layout1;
+    pub use super::util::count_context as count_context2;
+    pub use super::util::count_context as count_context1;
+    pub use super::util::count_layout as count_layout2;
+    pub use super::util::count_layout as count_layout1;
+    pub use super::util::count_size as count_size2;
+    pub use super::util::count_size as count_size1;
+    pub use super::util::on_count as count_event2;
+    pub use super::util::on_count as count_event1;
 }
-fn property_priority_sorting_init1() -> impl Widget {
+fn property_priority_sorting_init1() -> impl UiNode {
     property_priority_sorting_wgt! {
         count_border1 = Position::next("count_border1");
         count_border2 = Position::next("count_border2");
@@ -943,7 +687,7 @@ pub fn property_priority_sorting_value_init1() {
         ]
     );
 }
-fn property_priority_sorting_init2() -> impl Widget {
+fn property_priority_sorting_init2() -> impl UiNode {
     property_priority_sorting_wgt! {
         count_child_context1 = Position::next("count_child_context1");
         count_child_context2 = Position::next("count_child_context2");
@@ -990,7 +734,7 @@ pub fn property_priority_sorting_value_init2() {
         ]
     );
 }
-fn assert_node_order(wgt: &impl Widget) {
+fn assert_node_order(wgt: &impl UiNode) {
     // assert that `UiNode::init` position is sorted by `child` and
     // property priorities, followed by the typed position.
     pretty_assertions::assert_eq!(
@@ -1065,6 +809,8 @@ pub fn property_priority_sorting_node_inherited_init() {
 
 #[widget($crate::tests::widget::property_priority_sorting_defaults_wgt)]
 pub mod property_priority_sorting_defaults_wgt {
+    inherit!(crate::widget_base::base);
+
     use super::util::Position;
     inherit!(super::property_priority_sorting_wgt);
 
@@ -1095,26 +841,6 @@ pub fn property_priority_sorting_defaults() {
     assert_node_order(&wgt);
 }
 
-#[widget($crate::tests::widget::property_priority_sorting_defaults_dyn_wgt)]
-pub mod property_priority_sorting_defaults_dyn_wgt {
-    use crate::{var::IntoValue, widget_base::implicit_base, *};
-
-    inherit!(super::property_priority_sorting_defaults_wgt);
-
-    fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>) -> impl Widget {
-        implicit_base::new(widget.into_node(true), id)
-    }
-}
-
-#[test]
-pub fn property_priority_sorting_defaults_dyn() {
-    Position::reset();
-
-    let mut wgt = property_priority_sorting_defaults_dyn_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-    assert_node_order(&wgt);
-}
-
 /*
  * Tests property member access in when
  */
@@ -1125,7 +851,7 @@ pub fn when_property_member_default() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(self.util::duo_members, "a");
+           assert_eq!(#util::duo_members, "a");
            true
        } {
            util::live_trace = "true";
@@ -1143,8 +869,8 @@ pub fn when_property_member_index() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(self.util::duo_members.0, "a");
-           assert_eq!(self.util::duo_members.1, "b");
+           assert_eq!(#util::duo_members.0, "a");
+           assert_eq!(#util::duo_members.1, "b");
            true
        } {
            util::live_trace = "true";
@@ -1162,8 +888,8 @@ pub fn when_property_member_named() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(self.util::duo_members.member_a, "a");
-           assert_eq!(self.util::duo_members.member_b, "b");
+           assert_eq!(#util::duo_members.member_a, "a");
+           assert_eq!(#util::duo_members.member_b, "b");
            true
        } {
            util::live_trace = "true";
@@ -1181,7 +907,7 @@ pub fn when_property_member_default_method() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(self.util::duo_members.len(), 1);
+           assert_eq!(#util::duo_members.len(), 1);
            true
        } {
            util::live_trace = "true";
@@ -1199,7 +925,7 @@ pub fn when_property_member_indexed_method() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(self.util::duo_members.0.len(), 1);
+           assert_eq!(#util::duo_members.0.len(), 1);
            true
        } {
            util::live_trace = "true";
@@ -1214,16 +940,20 @@ pub fn when_property_member_indexed_method() {
 /*
 * Inherit override
 */
-#[widget_mixin($crate::tests::widget::inherit_override_a)]
+#[widget($crate::tests::widget::inherit_override_a)]
 pub mod inherit_override_a {
+    inherit!(crate::widget_base::mixin);
+
     use super::util::trace;
 
     properties! {
         trace = "base_a::property";
     }
 }
-#[widget_mixin($crate::tests::widget::inherit_override_b)]
+#[widget($crate::tests::widget::inherit_override_b)]
 pub mod inherit_override_b {
+    inherit!(crate::widget_base::mixin);
+
     use super::util::trace;
 
     properties! {
@@ -1264,7 +994,7 @@ pub fn inherit_override() {
 pub fn allowed_in_when_without_wgt_assign1() {
     let mut wgt = empty_wgt! {
         // util::live_trace_default = "default-trace";
-        when self.util::is_state {
+        when #util::is_state {
             util::live_trace_default = "when-trace";
         }
     };
@@ -1284,16 +1014,16 @@ pub fn allowed_in_when_without_wgt_assign1() {
 
 #[widget($crate::tests::widget::declare_prop_with_default_wgt)]
 pub mod declare_prop_with_default_wgt {
-    properties! {
-        super::util::live_trace_default as trace;
-    }
+    inherit!(crate::widget_base::base);
+
+    pub use super::util::live_trace_default as trace;
 }
 
 #[test]
 pub fn allowed_in_when_without_wgt_assign2() {
     let mut wgt = declare_prop_with_default_wgt! {
         // live_trace_default = "default-trace";
-        when self.util::is_state {
+        when #util::is_state {
             trace = "when-trace";
         }
     };
@@ -1314,7 +1044,10 @@ pub fn allowed_in_when_without_wgt_assign2() {
 * Generated Names Don't Shadow Each Other
 */
 #[crate::property(context)]
-pub fn util_live_trace(child: impl crate::UiNode, not_str: impl crate::var::IntoVar<bool>) -> impl crate::UiNode {
+pub fn util_live_trace(
+    child: impl crate::widget_instance::UiNode,
+    not_str: impl crate::var::IntoVar<bool>,
+) -> impl crate::widget_instance::UiNode {
     let var = not_str.into_var().map(|&b| if b { "true" } else { "false" });
     util::live_trace(child, var)
 }
@@ -1337,10 +1070,10 @@ pub fn generated_name_collision() {
 pub fn generated_name_collision_in_when() {
     let mut wgt = empty_wgt! {
         util::live_trace = "1";
-        when self.util::is_state {
+        when #util::is_state {
             util::live_trace = "2";
         }
-        when self.util::is_state {
+        when #util::is_state {
             util::live_trace = "3";
         }
     };
@@ -1362,7 +1095,7 @@ pub fn generated_name_collision_in_when_assign() {
         util::live_trace = "0";
         util_live_trace = false;
 
-        when self.util::is_state {
+        when #util::is_state {
             util::live_trace = "1";
             util_live_trace = true;
         }
@@ -1386,10 +1119,10 @@ pub mod name_collision_wgt_when {
     properties! {
         live_trace = "1";
 
-        when self.is_state {
+        when #is_state {
             live_trace = "2";
         }
-        when self.is_state {
+        when #is_state {
             live_trace = "3";
         }
     }
@@ -1426,15 +1159,14 @@ mod macro_rules_generated {
             #[widget($dollar crate::tests::widget::macro_rules_generated::$name)]
             pub mod $name {
                 use crate::var::IntoVar;
-                use crate::NilUiNode;
+                use crate::widget_instance::UiNode;
 
-                properties! {
-                    margin(impl IntoVar<$crate::units::SideOffsets>);
-                }
+                inherit!($crate::widget_base::base);
 
-                fn new_child(margin: impl IntoVar<$crate::units::SideOffsets>) -> NilUiNode {
+                #[$crate::property(layout)]
+                pub fn margin(child: impl UiNode, margin: impl IntoVar<$crate::units::SideOffsets>) -> impl UiNode {
                     let _ = margin;
-                    NilUiNode
+                    child
                 }
             }
         }
@@ -1452,240 +1184,6 @@ fn macro_rules_generated() {
     };
 }
 
-#[widget($crate::tests::widget::priority_index_wgt)]
-pub mod priority_index_wgt {
-    use super::util::*;
-
-    properties! {
-        count_context as context_0 = Position::next("context_0");
-        #[priority_index = 10]
-        count_context as context_10 = Position::next("context_10");
-        #[priority_index = 5]
-        count_context as context_5 = Position::next("context_5");
-
-        #[priority_index = -10]
-        count_context as context_n10 = Position::next("context_n10");
-
-        count_layout as layout_0 = Position::next("layout_0");
-        #[priority_index = 10]
-        count_layout as layout_10 = Position::next("layout_10");
-        #[priority_index = 5]
-        count_layout as layout_5 = Position::next("layout_5");
-
-        #[priority_index = -10]
-        count_layout as layout_n10 = Position::next("layout_n10");
-    }
-}
-
-#[test]
-fn priority_index_defaults_value_order() {
-    Position::reset();
-
-    let mut wgt = priority_index_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    pretty_assertions::assert_eq!(
-        util::sorted_value_init(&wgt),
-        [
-            // value init is not sorted.
-            "context_0",
-            "context_10",
-            "context_5",
-            "context_n10",
-            "layout_0",
-            "layout_10",
-            "layout_5",
-            "layout_n10",
-        ]
-    );
-}
-
-#[test]
-fn priority_index_defaults_init_order() {
-    Position::reset();
-
-    let mut wgt = priority_index_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    pretty_assertions::assert_eq!(
-        util::sorted_node_init(&wgt),
-        [
-            // each property wraps the next one and takes a position number before
-            // delegating to the next property (child node).
-            "context_n10",
-            "context_0",
-            "context_5",
-            "context_10",
-            "layout_n10",
-            "layout_0",
-            "layout_5",
-            "layout_10",
-        ]
-    );
-}
-
-#[test]
-fn priority_index_value_order() {
-    Position::reset();
-
-    let mut wgt = priority_index_wgt! {
-        layout_10 = Position::next("local_layout_10");
-        layout_n10 = Position::next("local_layout_n10");
-        layout_0 = Position::next("local_layout_0");
-        layout_5 = Position::next("local_layout_5");
-
-        context_10 = Position::next("local_context_10");
-        context_n10 = Position::next("local_context_n10");
-        context_0 = Position::next("local_context_0");
-        context_5 = Position::next("local_context_5");
-    };
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    pretty_assertions::assert_eq!(
-        util::sorted_value_init(&wgt),
-        [
-            // value init is not sorted.
-            "local_layout_10",
-            "local_layout_n10",
-            "local_layout_0",
-            "local_layout_5",
-            "local_context_10",
-            "local_context_n10",
-            "local_context_0",
-            "local_context_5",
-        ]
-    );
-}
-
-#[test]
-fn priority_index_init_order() {
-    Position::reset();
-
-    let mut wgt = priority_index_wgt! {
-        layout_10 = Position::next("local_layout_10");
-        layout_n10 = Position::next("local_layout_n10");
-        layout_0 = Position::next("local_layout_0");
-        layout_5 = Position::next("local_layout_5");
-
-        context_10 = Position::next("local_context_10");
-        context_n10 = Position::next("local_context_n10");
-        context_0 = Position::next("local_context_0");
-        context_5 = Position::next("local_context_5");
-    };
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    pretty_assertions::assert_eq!(
-        util::sorted_node_init(&wgt),
-        [
-            // each property wraps the next one and takes a position number before
-            // delegating to the next property (child node).
-            "local_context_n10",
-            "local_context_0",
-            "local_context_5",
-            "local_context_10",
-            "local_layout_n10",
-            "local_layout_0",
-            "local_layout_5",
-            "local_layout_10",
-        ]
-    );
-}
-
-#[widget($crate::tests::widget::priority_index_inherited_wgt)]
-pub mod priority_index_inherited_wgt {
-    use super::util::*;
-
-    inherit!(super::priority_index_wgt);
-
-    properties! {
-        context_10 = Position::next("context_override_10");
-        #[priority_index = 50]
-        context_5 = Position::next("context_override_50");
-    }
-}
-
-#[test]
-fn priority_index_inherited_order() {
-    Position::reset();
-
-    let mut wgt = priority_index_inherited_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    pretty_assertions::assert_eq!(
-        util::sorted_node_init(&wgt),
-        [
-            // each property wraps the next one and takes a position number before
-            // delegating to the next property (child node).
-            "context_n10",
-            "context_0",
-            "context_override_10",
-            "context_override_50",
-            "layout_n10",
-            "layout_0",
-            "layout_5",
-            "layout_10",
-        ]
-    );
-}
-
-#[widget($crate::tests::widget::priority_index_dyn_wgt)]
-pub mod priority_index_dyn_wgt {
-    use crate::{var::IntoValue, widget_base::implicit_base, *};
-
-    inherit!(super::priority_index_wgt);
-
-    fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>) -> impl Widget {
-        implicit_base::new(widget.into_node(true), id)
-    }
-}
-
-#[test]
-fn priority_index_dyn_defaults_value_order() {
-    Position::reset();
-
-    let mut wgt = priority_index_dyn_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    pretty_assertions::assert_eq!(
-        util::sorted_value_init(&wgt),
-        [
-            // value init is not sorted.
-            "context_0",
-            "context_10",
-            "context_5",
-            "context_n10",
-            "layout_0",
-            "layout_10",
-            "layout_5",
-            "layout_n10",
-        ]
-    );
-}
-
-#[test]
-fn priority_index_dyn_defaults_init_order() {
-    Position::reset();
-
-    let mut wgt = priority_index_dyn_wgt!();
-    wgt.test_init(&mut TestWidgetContext::new());
-
-    pretty_assertions::assert_eq!(
-        util::sorted_node_init(&wgt),
-        [
-            // each property wraps the next one and takes a position number before
-            // delegating to the next property (child node).
-            "context_n10",
-            "context_0",
-            "context_5",
-            "context_10",
-            "layout_n10",
-            "layout_0",
-            "layout_5",
-            "layout_10",
-        ]
-    );
-}
-
 mod util {
     use std::{
         cell::Cell,
@@ -1695,19 +1193,23 @@ mod util {
     use crate::{
         context::{StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
         property, ui_node,
-        var::{IntoVar, StateVar, Var},
-        UiNode, Widget,
+        var::{IntoValue, IntoVar, StateVar, Var},
+        widget_instance::UiNode,
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].
-    #[property(context, allowed_in_when = false)]
-    pub fn trace(child: impl UiNode, trace: &'static str) -> impl UiNode {
-        TraceNode { child, trace }
+    #[property(context)]
+    pub fn trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+        TraceNode {
+            child,
+            trace: trace.into(),
+        }
     }
 
     /// Probe for a [`trace`] in the widget state.
-    pub fn traced(wgt: &impl Widget, trace: &'static str) -> bool {
-        wgt.state().get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default()
+    pub fn traced(wgt: &impl UiNode, trace: &'static str) -> bool {
+        wgt.with_context(|ctx| ctx.widget_state.get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
+            .expect("expected widget")
     }
 
     static TRACE_ID: StaticStateId<HashSet<&'static str>> = StaticStateId::new_unique();
@@ -1724,47 +1226,68 @@ mod util {
     }
 
     /// Insert `count` in the widget state. Can get using [`Count::get`].
-    #[property(context, allowed_in_when = false)]
-    pub fn count(child: impl UiNode, count: Position) -> impl UiNode {
-        CountNode { child, value_pos: count }
+    #[property(context)]
+    pub fn count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
     }
 
     pub use count as count_context;
 
     /// Same as [`count`] but with `child_context` priority.
-    #[property(child_context, allowed_in_when = false)]
-    pub fn count_child_context(child: impl UiNode, count: Position) -> impl UiNode {
-        CountNode { child, value_pos: count }
+    #[property(child_context)]
+    pub fn count_child_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
     }
 
     /// Same as [`count`] but with `child_layout` priority.
-    #[property(child_layout, allowed_in_when = false)]
-    pub fn count_child_layout(child: impl UiNode, count: Position) -> impl UiNode {
-        CountNode { child, value_pos: count }
+    #[property(child_layout)]
+    pub fn count_child_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
     }
 
     /// Same as [`count`] but with `border` priority.
-    #[property(border, allowed_in_when = false)]
-    pub fn count_border(child: impl UiNode, count: Position) -> impl UiNode {
-        CountNode { child, value_pos: count }
+    #[property(border)]
+    pub fn count_border(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
     }
 
     /// Same as [`count`] but with `layout` priority.
-    #[property(layout, allowed_in_when = false)]
-    pub fn count_layout(child: impl UiNode, count: Position) -> impl UiNode {
-        CountNode { child, value_pos: count }
+    #[property(layout)]
+    pub fn count_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
     }
 
     /// Same as [`count`] but with `size` priority.
-    #[property(size, allowed_in_when = false)]
-    pub fn count_size(child: impl UiNode, count: Position) -> impl UiNode {
-        CountNode { child, value_pos: count }
+    #[property(size)]
+    pub fn count_size(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
     }
 
     /// Same as [`count`] but with `event` priority.
-    #[property(event, allowed_in_when = false)]
-    pub fn on_count(child: impl UiNode, count: Position) -> impl UiNode {
-        CountNode { child, value_pos: count }
+    #[property(event)]
+    pub fn on_count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
     }
 
     /// Count adds one every [`Self::next`] call.
@@ -1804,27 +1327,27 @@ mod util {
     }
 
     /// Gets the [`Position`] tags sorted by call to [`Position::next`].
-    pub fn sorted_value_init(wgt: &impl Widget) -> Vec<&'static str> {
-        wgt.state()
-            .get(&VALUE_POSITION_ID)
-            .map(|m| {
-                let mut vec: Vec<_> = m.iter().collect();
-                vec.sort_by_key(|(_, i)| *i);
-                vec.into_iter().map(|(&t, _)| t).collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
+    pub fn sorted_value_init(wgt: &impl UiNode) -> Vec<&'static str> {
+        let mut vec = vec![];
+        wgt.with_context(|n| {
+            if let Some(m) = n.widget_state.get(&VALUE_POSITION_ID) {
+                vec.extend(m);
+            }
+        });
+        vec.sort_by_key(|(_, i)| *i);
+        vec.into_iter().map(|(&t, _)| t).collect()
     }
 
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
-    pub fn sorted_node_init(wgt: &impl Widget) -> Vec<&'static str> {
-        wgt.state()
-            .get(&NODE_POSITION_ID)
-            .map(|m| {
-                let mut vec: Vec<_> = m.iter().collect();
-                vec.sort_by_key(|(_, i)| *i);
-                vec.into_iter().map(|(&t, _)| t).collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
+    pub fn sorted_node_init(wgt: &impl UiNode) -> Vec<&'static str> {
+        let mut vec = vec![];
+        wgt.with_context(|n| {
+            if let Some(m) = n.widget_state.get(&NODE_POSITION_ID) {
+                vec.extend(m);
+            }
+        });
+        vec.sort_by_key(|(_, i)| *i);
+        vec.into_iter().map(|(&t, _)| t).collect()
     }
 
     static VALUE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
@@ -1858,9 +1381,12 @@ mod util {
     /// Sets the [`is_state`] of a widget.
     ///
     /// Note only applies after update.
-    pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl Widget, state: bool) {
-        ctx.updates.update(wgt.id());
-        *wgt.state_mut().entry(&IS_STATE_ID).or_default() = state;
+    pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl UiNode, state: bool) {
+        wgt.with_context_mut(|w_ctx| {
+            ctx.updates.update(w_ctx.id);
+            *w_ctx.widget_state.entry(&IS_STATE_ID).or_default() = state;
+        })
+        .expect("expected widget");
     }
 
     #[ui_node(struct IsStateNode {
@@ -1927,8 +1453,11 @@ mod util {
     }
 
     /// A capture_only property.
-    #[property(capture_only, allowed_in_when = false)]
-    pub fn capture_only_trace(trace: &'static str) -> ! {}
+    #[property(context)]
+    pub fn capture_only_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+        assert!(false, "capture-only property");
+        child
+    }
 
     #[property(context)]
     pub fn duo_members(child: impl UiNode, member_a: impl IntoVar<&'static str>, member_b: impl IntoVar<&'static str>) -> impl UiNode {
