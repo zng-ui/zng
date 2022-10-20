@@ -10,12 +10,12 @@ use syn::{
     *,
 };
 
-use crate::util::{self, parse_outer_attrs, parse_punct_terminated2, peek_any3, ErrorRecoverable, Errors};
+use crate::util::{self, parse_outer_attrs, parse_punct_terminated2, peek_any3, ErrorRecoverable, Errors, Attributes};
 
 /// Represents a property assign.
 pub struct WgtProperty {
     /// Attributes.
-    pub attrs: Vec<Attribute>,
+    pub attrs: Attributes,
     /// Path to property.
     pub path: Path,
     /// The ::<T> part of the path, if present it is removed from `path`.
@@ -82,18 +82,22 @@ impl WgtProperty {
             let path_str = self.path.to_token_stream().to_string().replace(' ', "").replace("::", "_i_");
             format!("__p_{path_str}_")
         };
+        let cfg = &self.attrs.cfg;
+        let lints = &self.attrs.lints;
 
         let mut r = quote!();
-        if let Some((_, val)) = &mut self.value {
+        if let Some((eq, val)) = &mut self.value {
             match val {
                 PropertyValue::Unnamed(args) => {
                     let args_exprs = mem::replace(args, quote!());
                     match syn::parse2::<UnamedArgs>(args_exprs.clone()) {
                         Ok(a) => {
                             for (i, arg) in a.args.into_iter().enumerate() {
-                                let ident = ident_spanned!(arg.span()=> "{prefix}{i}__");
+                                let ident = ident_spanned!(eq.span()=> "{prefix}{i}__");
                                 args.extend(quote!(#ident,));
                                 r.extend(quote! {
+                                    #cfg
+                                    #(#lints)*
                                     let #ident = {#arg};
                                 });
                             }
@@ -107,9 +111,11 @@ impl WgtProperty {
                 PropertyValue::Named(_, args) => {
                     for arg in args {
                         let expr = mem::replace(&mut arg.expr, quote!());
-                        let ident = ident_spanned!(expr.span()=> "{prefix}{}__", arg.ident);
+                        let ident = ident_spanned!(eq.span()=> "{prefix}{}__", arg.ident);
                         arg.expr = quote!(#ident);
                         r.extend(quote! {
+                            #cfg
+                            #(#lints)*
                             let #ident = {#expr};
                         });
                     }
@@ -118,9 +124,11 @@ impl WgtProperty {
             }
         } else if shorthand_init_enabled && self.rename.is_some() || self.path.get_ident().is_some() {
             let ident = self.ident().clone();
-            let let_ident = ident_spanned!(ident.span()=> "{prefix}0__");
+            let let_ident = ident!("{prefix}0__");
             self.value = Some((parse_quote!(=), PropertyValue::Unnamed(quote!(#let_ident))));
             r.extend(quote! {
+                #cfg
+                #(#lints)*
                 let #let_ident = #ident;
             });
         }
@@ -212,7 +220,7 @@ impl Parse for WgtProperty {
         };
 
         Ok(WgtProperty {
-            attrs,
+            attrs: Attributes::new(attrs),
             path,
             generics,
             rename,
@@ -405,7 +413,7 @@ impl WgtWhen {
 
                 match inner.parse::<WgtProperty>() {
                     Ok(mut p) => {
-                        p.attrs = attrs;
+                        p.attrs = Attributes::new(attrs);
                         if !inner.is_empty() && p.semi.is_none() {
                             errors.push("expected `,`", inner.span());
                             while !(inner.is_empty()

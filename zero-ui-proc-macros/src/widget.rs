@@ -70,13 +70,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
         if prop.has_default() {
+            let cfg = &prop.attrs.cfg;
+            let lints = &prop.attrs.lints;
             let args = prop.args_new(quote!(#crate_core::widget_builder));
             intrinsic.extend(quote! {
+                #cfg
+                #(#lints)*
                 __wgt__.insert_property(#crate_core::widget_builder::Importance::WIDGET, #args);
             });
         } else if prop.is_unset() {
+            let cfg = &prop.attrs.cfg;
             let id = prop.property_id();
             intrinsic.extend(quote! {
+                #cfg
                 __wgt__.insert_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
             });
         } else {
@@ -330,7 +336,7 @@ impl Parse for Properties {
                 // peek ident or path (including keywords because of super:: and self::). {
                 match input.parse::<WgtProperty>() {
                     Ok(mut p) => {
-                        p.attrs = attrs;
+                        p.attrs = util::Attributes::new(attrs);
                         if !input.is_empty() && p.semi.is_none() {
                             errors.push("expected `;`", input.span());
                             while !(input.is_empty()
@@ -385,14 +391,17 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut init = quote!();
     for p in &p.properties {
+        let cfg = &p.attrs.cfg;
         if p.is_unset() {
             let id = p.property_id();
             init.extend(quote! {
+                #cfg
                 __wgt__.insert_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
             });
         } else {
             let args = p.args_new(quote!(#widget::__widget__::widget_builder));
             init.extend(quote! {
+                #cfg
                 __wgt__.insert_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
             });
         }
