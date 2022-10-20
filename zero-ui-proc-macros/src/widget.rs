@@ -376,18 +376,23 @@ fn mod_path_slug(path: String) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs { widget, properties: p } = parse_macro_input!(args as NewArgs);
+    let NewArgs { widget, properties: mut p } = parse_macro_input!(args as NewArgs);
 
-    let mut r = quote!();
+    let mut pre_bind = quote!();
+    for p in &mut p.properties {
+        pre_bind.extend(p.pre_bind_args(true));
+    }
+
+    let mut init = quote!();
     for p in &p.properties {
         if p.is_unset() {
             let id = p.property_id();
-            r.extend(quote! {
+            init.extend(quote! {
                 __wgt__.insert_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
             });
         } else {
             let args = p.args_new(quote!(#widget::__widget__::widget_builder));
-            r.extend(quote! {
+            init.extend(quote! {
                 __wgt__.insert_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
             });
         }
@@ -395,20 +400,22 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     for w in &p.whens {
         let args = w.when_new(quote!(#widget::__widget__::widget_builder));
-        r.extend(quote! {
+        init.extend(quote! {
             __wgt__.insert_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
         });
     }
 
-    p.errors.to_tokens(&mut r);
+    p.errors.to_tokens(&mut init);
 
     let r = quote! {
         {
+            #pre_bind
+
             let mut __wgt__ = #widget::__widget__::new();
             {
                 #[allow(unused_imports)]
                 use #widget::*;
-                #r
+                #init
             }
             #widget::__widget__::build(__wgt__)
         }

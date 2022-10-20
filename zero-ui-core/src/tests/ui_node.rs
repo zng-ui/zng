@@ -75,7 +75,7 @@ fn test_trace(node: impl UiNode) {
         None,
     );
 
-    ctx.info(&mut wgt, &mut info);
+    ctx.info(&wgt, &mut info);
     ctx.info_tree = info.finalize().0;
     assert_only_traced!(wgt, "info");
 
@@ -94,7 +94,7 @@ fn test_trace(node: impl UiNode) {
         Default::default(),
         None,
     );
-    ctx.render(&mut wgt, &mut frame);
+    ctx.render(&wgt, &mut frame);
     assert_only_traced!(wgt, "render");
 
     TestTraceNode::notify_render_update(&mut wgt, &mut ctx);
@@ -108,7 +108,7 @@ fn test_trace(node: impl UiNode) {
         RenderColor::BLACK,
         None,
     );
-    ctx.render_update(&mut wgt, &mut update);
+    ctx.render_update(&wgt, &mut update);
     assert_only_traced!(wgt, "render_update");
 
     ctx.deinit(&mut wgt);
@@ -203,7 +203,7 @@ pub fn default_no_child() {
         1.fct(),
         None,
     );
-    ctx.info(&mut wgt, &mut info);
+    ctx.info(&wgt, &mut info);
     let (build_info, _) = info.finalize();
     let wgt_info = build_info.get(wgt.with_context(|w| w.id).unwrap()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
@@ -219,7 +219,7 @@ pub fn default_no_child() {
         None,
     );
 
-    ctx.render(&mut wgt, &mut frame);
+    ctx.render(&wgt, &mut frame);
     let (_, _) = frame.finalize(&ctx.info_tree);
 
     // and not update render.
@@ -231,7 +231,7 @@ pub fn default_no_child() {
         RenderColor::BLACK,
         None,
     );
-    ctx.render_update(&mut wgt, &mut update);
+    ctx.render_update(&wgt, &mut update);
     let (update, _) = update.finalize(&ctx.info_tree);
     assert!(!update.transforms.is_empty());
     assert!(update.floats.is_empty());

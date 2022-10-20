@@ -74,6 +74,59 @@ impl WgtProperty {
         }
     }
 
+    /// Converts values to `let` bindings that are returned.
+    pub fn pre_bind_args(&mut self, shorthand_init_enabled: bool) -> TokenStream {
+        let prefix = if let Some((_, id)) = &self.rename {
+            format!("__as_{id}_")
+        } else {
+            let path_str = self.path.to_token_stream().to_string().replace(' ', "").replace("::", "_i_");
+            format!("__p_{path_str}_")
+        };
+
+        let mut r = quote!();
+        if let Some((_, val)) = &mut self.value {
+            match val {
+                PropertyValue::Unnamed(args) => {
+                    let args_exprs = mem::replace(args, quote!());
+                    match syn::parse2::<UnamedArgs>(args_exprs.clone()) {
+                        Ok(a) => {
+                            for (i, arg) in a.args.into_iter().enumerate() {
+                                let ident = ident_spanned!(arg.span()=> "{prefix}{i}__");
+                                args.extend(quote!(#ident,));
+                                r.extend(quote! {
+                                    let #ident = {#arg};
+                                });
+                            }
+                        }
+                        Err(_) => {
+                            // let natural error happen, this helps Rust-Analyzer auto-complete.
+                            *args = args_exprs;
+                        }
+                    };
+                }
+                PropertyValue::Named(_, args) => {
+                    for arg in args {
+                        let expr = mem::replace(&mut arg.expr, quote!());
+                        let ident = ident_spanned!(expr.span()=> "{prefix}{}__", arg.ident);
+                        arg.expr = quote!(#ident);
+                        r.extend(quote! {
+                            let #ident = {#expr};
+                        });
+                    }
+                }
+                PropertyValue::Special(_, _) => {}
+            }
+        } else if shorthand_init_enabled && self.rename.is_some() || self.path.get_ident().is_some() {
+            let ident = self.ident().clone();
+            let let_ident = ident_spanned!(ident.span()=> "{prefix}0__");
+            self.value = Some((parse_quote!(=), PropertyValue::Unnamed(quote!(#let_ident))));
+            r.extend(quote! {
+                let #let_ident = #ident;
+            });
+        }
+        r
+    }
+
     /// Gets the property args new code.
     pub fn args_new(&self, property_mod: TokenStream) -> TokenStream {
         let path = &self.path;
@@ -598,5 +651,16 @@ impl Parse for WhenExpr {
         };
 
         Ok(r)
+    }
+}
+
+struct UnamedArgs {
+    args: Punctuated<Expr, Token![,]>,
+}
+impl Parse for UnamedArgs {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        Ok(Self {
+            args: Punctuated::parse_terminated(input)?,
+        })
     }
 }

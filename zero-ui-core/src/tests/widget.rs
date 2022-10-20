@@ -86,7 +86,6 @@ pub fn wgt_with_mixin_assign_values() {
     assert!(!util::traced(&default, "bar_wgt"));
 }
 
-
 /*
  * Tests changing the default value of the inherited property.
  */
@@ -553,7 +552,7 @@ pub mod capture_properties_wgt {
         property_trace = "property";
     }
 
-    fn instrinsic(wgt: &mut WidgetBuilder) {
+    fn intrinsic(wgt: &mut WidgetBuilder) {
         let msg: &'static str = wgt.capture_value(property_id!(new_child_trace)).unwrap();
         let msg = match msg {
             "new-child" => "custom new_child",
@@ -1334,11 +1333,13 @@ mod util {
         let mut vec = vec![];
         wgt.with_context(|n| {
             if let Some(m) = n.widget_state.get(&VALUE_POSITION_ID) {
-                vec.extend(m);
+                for (key, value) in m {
+                    vec.push((*key, *value));
+                }
             }
         });
         vec.sort_by_key(|(_, i)| *i);
-        vec.into_iter().map(|(&t, _)| t).collect()
+        vec.into_iter().map(|(t, _)| t).collect()
     }
 
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
@@ -1346,11 +1347,13 @@ mod util {
         let mut vec = vec![];
         wgt.with_context(|n| {
             if let Some(m) = n.widget_state.get(&NODE_POSITION_ID) {
-                vec.extend(m);
+                for (key, value) in m {
+                    vec.push((*key, *value));
+                }
             }
         });
         vec.sort_by_key(|(_, i)| *i);
-        vec.into_iter().map(|(&t, _)| t).collect()
+        vec.into_iter().map(|(t, _)| t).collect()
     }
 
     static VALUE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
@@ -1457,9 +1460,11 @@ mod util {
 
     /// A capture_only property.
     #[property(context)]
-    pub fn capture_only_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
-        assert!(false, "capture-only property");
-        child
+    #[allow(unreachable_code)]
+    pub fn capture_only_trace(_child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+        let _ = trace;
+        panic!("capture-only property");
+        _child
     }
 
     #[property(context)]
