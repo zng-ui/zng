@@ -19,3 +19,34 @@
 * Review nodes that call `(de)init(ctx)`, are they causing a widget handle collection to grow uncontrolledly?
 
 * Implement all `todo!` code.
+
+```rust
+fn main() {
+    let name = "!";
+    // let _widget = foo!{
+    //      name;
+    // };
+
+    // errors
+    //let _widget = {
+        // use foo::*;
+        //
+        // name(name);
+    //}
+    
+    // works
+    let _widget = {
+        let __name__ = name;
+        {
+            use foo::*;
+            
+            name(__name__);
+        }
+    };
+}
+
+mod foo {
+    pub fn name(_: &str) { }
+}
+
+```

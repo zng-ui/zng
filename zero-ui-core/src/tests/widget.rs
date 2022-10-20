@@ -86,30 +86,6 @@ pub fn wgt_with_mixin_assign_values() {
     assert!(!util::traced(&default, "bar_wgt"));
 }
 
-pub fn _case() {
-    let name = "!";
-    let _: &'static str = {
-        fn name() { }
-        name
-    };
-}
-
-pub fn _case2() {
-    let name = "!";
-    fn name() { }
-    let _: &'static str = {
-        name
-    };
-}
-
-pub fn _case3() {
-    let name = "!";
-    let _: &'static str = {
-        let name = name;
-        fn name() { }
-        name
-    };
-}
 
 /*
  * Tests changing the default value of the inherited property.
