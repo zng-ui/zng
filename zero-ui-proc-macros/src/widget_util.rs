@@ -75,15 +75,21 @@ impl WgtProperty {
     }
 
     /// Converts values to `let` bindings that are returned.
-    pub fn pre_bind_args(&mut self, shorthand_init_enabled: bool) -> TokenStream {
+    pub fn pre_bind_args(&mut self, shorthand_init_enabled: bool, extra_attrs: Option<&Attributes>) -> TokenStream {
         let prefix = if let Some((_, id)) = &self.rename {
             format!("__as_{id}_")
         } else {
             let path_str = self.path.to_token_stream().to_string().replace(' ', "").replace("::", "_i_");
             format!("__p_{path_str}_")
         };
-        let cfg = &self.attrs.cfg;
-        let lints = &self.attrs.lints;
+
+        let mut attrs = quote!();
+        self.attrs.cfg.to_tokens(&mut attrs);
+        self.attrs.lints.iter().for_each(|a| a.to_tokens(&mut attrs));
+        if let Some(extra) = extra_attrs {
+            extra.cfg.to_tokens(&mut attrs);
+            extra.lints.iter().for_each(|a| a.to_tokens(&mut attrs));
+        }
 
         let mut r = quote!();
         if let Some((eq, val)) = &mut self.value {
@@ -96,8 +102,7 @@ impl WgtProperty {
                                 let ident = ident_spanned!(eq.span()=> "{prefix}{i}__");
                                 args.extend(quote!(#ident,));
                                 r.extend(quote! {
-                                    #cfg
-                                    #(#lints)*
+                                    #attrs
                                     let #ident = {#arg};
                                 });
                             }
@@ -114,8 +119,7 @@ impl WgtProperty {
                         let ident = ident_spanned!(eq.span()=> "{prefix}{}__", arg.ident);
                         arg.expr = quote!(#ident);
                         r.extend(quote! {
-                            #cfg
-                            #(#lints)*
+                            #attrs
                             let #ident = {#expr};
                         });
                     }
@@ -127,8 +131,7 @@ impl WgtProperty {
             let let_ident = ident!("{prefix}0__");
             self.value = Some((parse_quote!(=), PropertyValue::Unnamed(quote!(#let_ident))));
             r.extend(quote! {
-                #cfg
-                #(#lints)*
+                #attrs
                 let #let_ident = #ident;
             });
         }
@@ -372,7 +375,7 @@ pub mod keyword {
 }
 
 pub struct WgtWhen {
-    pub attrs: Vec<Attribute>,
+    pub attrs: Attributes,
     pub when: keyword::when,
     pub condition_expr: TokenStream,
     pub brace_token: syn::token::Brace,
@@ -449,7 +452,7 @@ impl WgtWhen {
         };
 
         Some(WgtWhen {
-            attrs: vec![], // must be parsed before.
+            attrs: Attributes::new(vec![]), // must be parsed before.
             when,
             condition_expr,
             brace_token,
@@ -457,8 +460,16 @@ impl WgtWhen {
         })
     }
 
-    /// Expand to a when struct
-    pub fn when_new(&self, property_mod: TokenStream) -> TokenStream {
+    pub fn pre_bind(&mut self, shorthand_init_enabled: bool) -> TokenStream {
+        let mut r = quote!();
+        for p in &mut self.assigns {
+            r.extend(p.pre_bind_args(shorthand_init_enabled, Some(&self.attrs)));
+        }
+        r
+    }
+
+    /// Expand to a init, expects pre-bind variables.
+    pub fn when_new(&self, wgt_builder_mod: TokenStream) -> TokenStream {
         let when_expr = match syn::parse2::<WhenExpr>(self.condition_expr.clone()) {
             Ok(w) => w,
             Err(e) => {
@@ -510,10 +521,11 @@ impl WgtWhen {
                     Index(#i)
                 },
             };
+            let p_ident_str = p_ident.to_string();
             inputs.extend(quote! {
-                #property_mod::WhenInput {
-                    property: #property::property::__id__(std::stringify!(#p_ident)),
-                    member: #property_mod::WhenInputMember::#member,
+                #wgt_builder_mod::WhenInput {
+                    property: #property::property::__id__(#p_ident_str),
+                    member: #wgt_builder_mod::WhenInputMember::#member,
                     var: #var_input,
                 },
             });
@@ -521,7 +533,7 @@ impl WgtWhen {
 
         let mut assigns = quote!();
         for a in &self.assigns {
-            let args = a.args_new(property_mod.clone());
+            let args = a.args_new(wgt_builder_mod.clone());
             assigns.extend(quote! {
                 #args,
             });
@@ -533,11 +545,11 @@ impl WgtWhen {
         quote! {
             {
                 #var_decl
-                #property_mod::WhenInfo {
+                #wgt_builder_mod::WhenInfo {
                     inputs: std::boxed::Box::new([
                         #inputs
                     ]),
-                    state: #property_mod::when_condition_expr_var! { #expr },
+                    state: #wgt_builder_mod::when_condition_expr_var! { #expr },
                     assigns: std::boxed::Box::new([
                         #assigns
                     ]),

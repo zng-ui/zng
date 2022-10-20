@@ -329,7 +329,7 @@ impl Parse for Properties {
 
             if input.peek(widget_util::keyword::when) {
                 if let Some(mut when) = WgtWhen::parse(input, &mut errors) {
-                    when.attrs = attrs;
+                    when.attrs = util::Attributes::new(attrs);
                     whens.push(when);
                 }
             } else if input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self]) {
@@ -386,7 +386,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut pre_bind = quote!();
     for p in &mut p.properties {
-        pre_bind.extend(p.pre_bind_args(true));
+        pre_bind.extend(p.pre_bind_args(true, None));
     }
 
     let mut init = quote!();
@@ -408,8 +408,10 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     for w in &p.whens {
+        let cfg = &w.attrs.cfg;
         let args = w.when_new(quote!(#widget::__widget__::widget_builder));
         init.extend(quote! {
+            #cfg
             __wgt__.insert_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
         });
     }
