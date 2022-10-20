@@ -851,7 +851,7 @@ pub fn when_property_member_default() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(#util::duo_members, "a");
+           assert_eq!(*#util::duo_members, "a");
            true
        } {
            util::live_trace = "true";
@@ -869,8 +869,8 @@ pub fn when_property_member_index() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(#util::duo_members.0, "a");
-           assert_eq!(#util::duo_members.1, "b");
+           assert_eq!(*#util::duo_members.0, "a");
+           assert_eq!(*#util::duo_members.1, "b");
            true
        } {
            util::live_trace = "true";
@@ -888,8 +888,8 @@ pub fn when_property_member_named() {
        util::duo_members = "a", "b";
        util::live_trace = "";
        when {
-           assert_eq!(#util::duo_members.member_a, "a");
-           assert_eq!(#util::duo_members.member_b, "b");
+           assert_eq!(*#util::duo_members.member_a, "a");
+           assert_eq!(*#util::duo_members.member_b, "b");
            true
        } {
            util::live_trace = "true";

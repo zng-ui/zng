@@ -536,7 +536,7 @@ impl WhenExpr {
 
                 let mut member = WhenInputMember::Index(0);
                 let mut var_ident = ident_spanned!(property.span()=> "w_{path_slug}_m_0");
-                if input.peek(Token![.]) {
+                if input.peek(Token![.]) && !input.peek2(Token![await]) && !input.peek3(token::Paren) {
                     let _: Token![.] = input.parse()?;
                     if input.peek(Ident) {
                         let m = input.parse::<Ident>().unwrap();
