@@ -178,13 +178,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #[macro_export]
         macro_rules! #macro_ident {
             ($($tt:tt)*) => {
-                {
-                    use #mod_path::*;
-                    let mut __wgt__ = __widget__::new();
-                    __widget__::widget_new! {
-                        $($tt)*
-                    }
-                    __widget__::build(__wgt__)
+                #mod_path::__widget__::widget_new! {
+                    widget { #mod_path }
+                    new { $($tt)* }
                 }
             };
         }
@@ -380,31 +376,56 @@ fn mod_path_slug(path: String) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let instance = parse_macro_input!(args as Properties);
+    let NewArgs { widget, properties: p } = parse_macro_input!(args as NewArgs);
 
     let mut r = quote!();
-    for p in &instance.properties {
+    for p in &p.properties {
         if p.is_unset() {
             let id = p.property_id();
             r.extend(quote! {
-                __wgt__.insert_unset(__widget__::widget_builder::Importance::INSTANCE, #id);
+                __wgt__.insert_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
             });
         } else {
-            let args = p.args_new(quote!(__widget__::widget_builder));
+            let args = p.args_new(quote!(#widget::__widget__::widget_builder));
             r.extend(quote! {
-                __wgt__.insert_property(__widget__::widget_builder::Importance::INSTANCE, #args);
+                __wgt__.insert_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
             });
         }
     }
 
-    for w in &instance.whens {
-        let args = w.when_new(quote!(__widget__::widget_builder));
+    for w in &p.whens {
+        let args = w.when_new(quote!(#widget::__widget__::widget_builder));
         r.extend(quote! {
-            __wgt__.insert_when(__widget__::widget_builder::Importance::INSTANCE, #args);
+            __wgt__.insert_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
         });
     }
 
-    instance.errors.to_tokens(&mut r);
+    p.errors.to_tokens(&mut r);
+
+    let r = quote! {
+        {
+            let mut __wgt__ = #widget::__widget__::new();
+            {
+                #[allow(unused_imports)]
+                use #widget::*;
+                #r
+            }
+            #widget::__widget__::build(__wgt__)
+        }
+    };
 
     r.into()
+}
+
+struct NewArgs {
+    widget: TokenStream,
+    properties: Properties,
+}
+impl Parse for NewArgs {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        Ok(Self {
+            widget: non_user_braced!(input, "widget").parse().unwrap(),
+            properties: non_user_braced!(input, "new").parse()?,
+        })
+    }
 }
