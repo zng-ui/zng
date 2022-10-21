@@ -3,9 +3,12 @@
 * Finish implementing new dynamic widget.
     - Implement pre-bind for when expressions.
      - When assigns need to "import" private properties in the same properties! block.
+    - Remove handler markers, support all handler types in all properties.
+        - Widget events like `on_update` are using closure right now also need to rewrite.
+    - Use the term `child` and `children` in widgets, the rename to `content` and `items` does add value.
     - Make `styleable_mixin` now that the API supports it.
+        - Remove `element` widget (already deleted need to stop using).
         - Use the new `NestPosition` to insert the intrinsic at the outermost node should work.
-    - Make very basic `container` and `panel` widgets directly in `widget_base`?
 
 * Refactor all widgets to use the new API.
 

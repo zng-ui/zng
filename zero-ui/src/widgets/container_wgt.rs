@@ -1,72 +1,27 @@
 use crate::prelude::new_widget::*;
 
 /// Base single content container.
-///
-/// See also [`element`], it behaves like container, but supports theming.
-///
-/// [`element`]: mod@element
 #[widget($crate::widgets::container)]
 pub mod container {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
-        /// Content UI.
+        /// The content.
         ///
         /// Can be any type that implements [`UiNode`], any widget.
         ///
-        /// [`UiNode`]: zero_ui::core::UiNode
-        #[allowed_in_when = false]
-        #[required]
-        content(impl UiNode);
+        /// [`UiNode`]: zero_ui::core::widget_instance::UiNode
+        pub crate::core::widget_base::child;
 
         /// Spacing around content, inside the border.
-        padding;
+        pub padding;
 
         /// Content alignment.
-        child_align as content_align;
+        pub child_align;
 
         /// Content overflow clipping.
-        clip_to_bounds;
-    }
-
-    fn new_child(content: impl UiNode) -> impl UiNode {
-        content
-    }
-}
-
-/// Base stylable single element content container.
-///
-/// This base widget has the same function as [`container`], but is also [`stylable`].
-///
-/// [`container`]: mod@container
-/// [`stylable`]: mod@stylable
-#[widget($crate::widgets::element)]
-pub mod element {
-    use super::*;
-
-    inherit!(styleable);
-
-    properties! {
-        /// Content UI.
-        ///
-        /// Can be any type that implements [`UiNode`], any widget.
-        ///
-        /// [`UiNode`]: zero_ui::core::UiNode
-        #[allowed_in_when = false]
-        #[required]
-        content(impl UiNode);
-
-        /// Spacing around content, inside the border.
-        padding;
-
-        /// Content alignment.
-        child_align as content_align;
-
-        /// Content overflow clipping.
-        clip_to_bounds;
-    }
-
-    fn new_child(content: impl UiNode) -> impl UiNode {
-        content
+        pub clip_to_bounds;
     }
 }
