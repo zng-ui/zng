@@ -9,7 +9,7 @@ use crate::{
     app::AppEventSender,
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::EventUpdate,
-    handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
+    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     widget_info::{WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
     window::WindowId,
@@ -231,18 +231,17 @@ impl Updates {
 
     /// Schedule an *once* handler to run when these updates are applied.
     ///
-    /// The callback is any of the *once* [`AppHandler`], including async handlers. You can use [`app_hn_once!`](handler::app_hn_once!)
-    /// or [`async_app_hn_once!`](handler::async_app_hn_once!) to declare the closure. If the handler is async and does not finish in
+    /// The callback is any of the *once* [`AppHandler`], including async handlers. If the handler is async and does not finish in
     /// one call it is scheduled to update in *preview* updates.
-    pub fn run<H: AppHandler<UpdateArgs> + handler::marker::OnceHn>(&mut self, handler: H) -> OnUpdateHandle {
+    pub fn run<H: AppHandler<UpdateArgs>>(&mut self, handler: H) -> OnUpdateHandle {
         self.update = true; // in case of this was called outside of an update.
-        Self::push_handler(&mut self.pos_handlers, true, handler)
+        Self::push_handler(&mut self.pos_handlers, true, handler, true)
     }
 
     /// Create a preview update handler.
     ///
     /// The `handler` is called every time the app updates, just before the UI updates. It can be any of the non-async [`AppHandler`],
-    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. Async handlers are not allowed because UI bound async
+    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
     /// tasks cause app updates to awake, so it is very easy to lock the app in a constant sequence of updates. You can use [`run`](Self::run)
     /// to start an async app context task.
     ///
@@ -254,14 +253,17 @@ impl Updates {
     /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
     pub fn on_pre_update<H>(&mut self, handler: H) -> OnUpdateHandle
     where
-        H: AppHandler<UpdateArgs> + handler::marker::NotAsyncHn,
+        H: AppHandler<UpdateArgs>,
     {
-        Self::push_handler(&mut self.pre_handlers, true, handler)
+        Self::push_handler(&mut self.pre_handlers, true, handler, false)
     }
 
     /// Create an update handler.
     ///
-    /// The `handler` is called every time the app updates, just after the UI updates.
+    /// The `handler` is called every time the app updates, just after the UI updates. It can be any of the non-async [`AppHandler`],
+    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
+    /// tasks cause app updates to awake, so it is very easy to lock the app in a constant sequence of updates. You can use [`run`](Self::run)
+    /// to start an async app context task.
     ///
     /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
@@ -270,12 +272,12 @@ impl Updates {
     /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
     pub fn on_update<H>(&mut self, handler: H) -> OnUpdateHandle
     where
-        H: AppHandler<UpdateArgs> + handler::marker::NotAsyncHn,
+        H: AppHandler<UpdateArgs>,
     {
-        Self::push_handler(&mut self.pos_handlers, false, handler)
+        Self::push_handler(&mut self.pos_handlers, false, handler, false)
     }
 
-    fn push_handler<H>(entries: &mut Vec<UpdateHandler>, is_preview: bool, mut handler: H) -> OnUpdateHandle
+    fn push_handler<H>(entries: &mut Vec<UpdateHandler>, is_preview: bool, mut handler: H, force_once: bool) -> OnUpdateHandle
     where
         H: AppHandler<UpdateArgs>,
     {
@@ -284,7 +286,11 @@ impl Updates {
             handle: handle_owner,
             count: 0,
             handler: Box::new(move |ctx, args, handle| {
-                handler.event(ctx, args, &AppHandlerArgs { handle, is_preview });
+                let handler_args = AppHandlerArgs { handle, is_preview };
+                handler.event(ctx, args, &handler_args);
+                if force_once {
+                    handler_args.handle.unsubscribe();
+                }
             }),
         });
         handle

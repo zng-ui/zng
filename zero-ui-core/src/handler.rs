@@ -20,40 +20,6 @@ use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut}
 use crate::crate_util::{Handle, WeakHandle};
 use crate::task::ui::{AppTask, WidgetTask};
 
-/// Marker traits that can be used to constrain what [`AppHandler`] or [ `WidgetHandler`] are accepted.
-///
-/// For example a function that wants to receive only synchronous [`WidgetHandler`] handlers can use the
-/// [`NotAsyncHn`](marker::NotAsyncHn) to constrain its parameter:
-///
-/// ```
-/// # use zero_ui_core::handler::*;
-/// fn foo<H>(handler: H) where H: WidgetHandler<()> + marker::NotAsyncHn { }
-/// ```
-pub mod marker {
-    #[allow(unused_imports)] // use in doc links.
-    use super::*;
-
-    /// Represents a handler that is **not** async. Only the [`hn!`], [`hn_once!`], [`app_hn!`] and [`app_hn_once!`]
-    /// handlers implement this trait.
-    ///
-    /// When this constrain is used the [`WidgetHandler`] should not expect to be [updated](WidgetHandler::update).
-    ///
-    /// See the [module level](self) documentation for details.
-    pub trait NotAsyncHn {}
-
-    /// Represents a handler that is async. Only the [`async_hn!`], [`async_hn_once!`], [`async_app_hn!`] and [`async_hn_once!`]
-    /// handlers implement this trait.
-    ///
-    /// See the [module level](self) documentation for details.
-    pub trait AsyncHn {}
-
-    /// Represents a handler that will consume it self in the first event call. Only the [`hn_once!`], [`async_hn_once!`],
-    /// [`app_hn_once!`] and [`async_hn_once!`] handlers implement this trait.
-    ///
-    /// See the [module level](self) documentation for details.
-    pub trait OnceHn {}
-}
-
 /// Represents a handler in a widget context.
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
@@ -140,7 +106,6 @@ where
         false
     }
 }
-impl<H> marker::NotAsyncHn for FnMutWidgetHandler<H> {}
 
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
@@ -248,8 +213,6 @@ where
         false
     }
 }
-impl<H> marker::OnceHn for FnOnceWidgetHandler<H> {}
-impl<H> marker::NotAsyncHn for FnOnceWidgetHandler<H> {}
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
 pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<H>
@@ -348,7 +311,6 @@ where
         !self.tasks.is_empty()
     }
 }
-impl<H> marker::AsyncHn for AsyncFnMutWidgetHandler<H> {}
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
 pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutWidgetHandler<H>
@@ -512,8 +474,6 @@ where
         is_pending
     }
 }
-impl<H> marker::AsyncHn for AsyncFnOnceWidgetHandler<H> {}
-impl<H> marker::OnceHn for AsyncFnOnceWidgetHandler<H> {}
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
 pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<H>
@@ -700,7 +660,6 @@ where
         (self.handler)(ctx, args, handler_args.handle);
     }
 }
-impl<H> marker::NotAsyncHn for FnMutAppHandler<H> {}
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
 pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<H>
@@ -815,8 +774,6 @@ where
         }
     }
 }
-impl<H> marker::OnceHn for FnOnceAppHandler<H> {}
-impl<H> marker::NotAsyncHn for FnOnceAppHandler<H> {}
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
 pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<H>
@@ -925,7 +882,6 @@ where
         }
     }
 }
-impl<H> marker::AsyncHn for AsyncFnMutAppHandler<H> {}
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
 pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<H>
@@ -1096,8 +1052,6 @@ where
         }
     }
 }
-impl<H> marker::AsyncHn for AsyncFnOnceAppHandler<H> {}
-impl<H> marker::OnceHn for AsyncFnOnceAppHandler<H> {}
 #[doc(hidden)]
 #[cfg(not(dyn_closure))]
 pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<H>

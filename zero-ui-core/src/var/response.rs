@@ -104,7 +104,7 @@ impl<T: VarValue> ResponseVar<T> {
     /// [`responded`]: Self::responded
     pub fn on_pre_rsp<H>(&self, mut handler: H) -> VarHandle
     where
-        H: AppHandler<T> + crate::handler::marker::OnceHn,
+        H: AppHandler<T>,
     {
         if self.responded() {
             todo!()
@@ -131,7 +131,7 @@ impl<T: VarValue> ResponseVar<T> {
     /// [`responded`]: Self::responded
     pub fn on_rsp<H>(&self, mut handler: H) -> VarHandle
     where
-        H: AppHandler<T> + crate::handler::marker::OnceHn,
+        H: AppHandler<T>,
     {
         if self.responded() {
             todo!()

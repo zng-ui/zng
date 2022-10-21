@@ -2,15 +2,12 @@
 
 use std::{fmt, rc::Rc};
 
-use crate::{
-    core::{DynPropImportance, DynWidget, DynWidgetNode, DynWidgetSnapshot, NilUiNode},
-    prelude::new_widget::*,
-};
+use crate::prelude::new_widget::*;
 
 /// Represents a set of properties that can be applied to any styleable widget.
 ///
 /// This *widget* can be instantiated using the same syntax as any widget, but it produces a [`Style`]
-/// instance instead of an widget. Widgets that inherit from [`styleable`] can be modified using properties
+/// instance instead of an widget. Widgets that inherit from [`style_mixin`] can be modified using properties
 /// defined in a style, the properties are dynamically spliced into each widget instance.
 ///
 /// Styles must only visually affect the styled widget, this is a semantic distinction only, any property can be set
@@ -18,8 +15,8 @@ use crate::{
 ///
 /// # Derived Styles
 ///
-/// Note that you can declare a custom style *widget* using the same inheritance mechanism of normal widgets, all widget
-/// constructors are no-op and can be ignored, except the [`new_dyn`].
+/// Note that you can declare a custom style *widget* using the same inheritance mechanism of normal widgets, as long
+/// as any build override calls [`style::build`].
 ///
 /// [`styleable`]: mod@styleable
 #[widget($crate::widgets::style)]
@@ -29,77 +26,25 @@ pub mod style {
     #[doc(inline)]
     pub use super::{style_generator, Style, StyleGenerator};
 
-    properties! {
-        remove { id; visibility; enabled }
-    }
-
-    fn new_child() -> NilUiNode {
-        NilUiNode
-    }
-
-    fn new_child_layout(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    fn new_child_context(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    fn new_fill(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    fn new_border(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    fn new_size(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    fn new_layout(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    fn new_event(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    fn new_context(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
     /// style constructor.
-    pub fn new_dyn(widget: DynWidget) -> Style {
-        Style::from_dyn_widget(widget)
+    pub fn build(wgt: WidgetBuilder) -> Style {
+        Style::from_dyn_widget(wgt)
     }
 }
 
-/// Styleable widget base.
+/// Styleable widget mix-in.
 ///
 /// Widgets that inherit from this one have a `style` property that can be set to a [`StyleGenerator`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
-/// Styleable widgets usually have a more elaborate style setup that supports mixing multiple contextual styles, see [`styleable::with_style_extension`]
-/// for a full styleable widget example.
-///
-/// # Derived Widgets
-///
-/// Widgets that inherit from this one must delegate to [`styleable::new_dyn`], this happens automatically unless you need to override
-/// the *new* constructor.
-#[widget($crate::widgets::styleable)]
-pub mod styleable {
+/// Styleable widgets usually have a more elaborate style setup that supports mixing multiple contextual styles, see
+/// [`style_mixin::with_style_extension`] for a full styleable widget example.
+#[widget_mixin($crate::widgets::style_mixin)]
+pub mod style_mixin {
     use super::*;
 
     properties! {
-        /// Style generator used for the widget.
-        ///
-        /// Properties and `when` conditions in the generated style are applied to the widget as
-        /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
-        /// prefer property binding and `when` conditions to cause visual changes that happen often.
-        ///
-        /// Is `nil` by default.
-        style(impl IntoVar<StyleGenerator>) = StyleGenerator::nil();
+        pub self::style;
     }
 
     /// Styleable `new`, captures the `id` and `style` properties.
@@ -216,6 +161,20 @@ pub mod styleable {
                 base.clone().with_extend(over.clone())
             }),
         )
+    }
+
+    /// Style generator used for the widget.
+    ///
+    /// Properties and `when` conditions in the generated style are applied to the widget as
+    /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
+    /// prefer property binding and `when` conditions to cause visual changes that happen often.
+    ///
+    /// Is `nil` by default.
+    #[property(context, default(StyleGenerator::nil()))]
+    pub fn style(child: impl UiNode, generator: impl IntoVar<StyleGenerator>) -> impl UiNode {
+        let _ = generator;
+        tracing::error!("property `style` must be captured");
+        child
     }
 }
 

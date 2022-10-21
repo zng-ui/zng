@@ -14,7 +14,7 @@ use crate::{
     app::LoopTimer,
     context::AppContext,
     crate_util::{Handle, HandleOwner, WeakHandle},
-    handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
+    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,
     var::{types::WeakRcVar, var, ReadOnlyRcVar, Var, Vars, WeakVar},
 };
@@ -186,7 +186,7 @@ impl Timers {
     /// to drop the handle without cancelling.
     pub fn on_deadline<H>(&mut self, deadline: impl Into<Deadline>, mut handler: H) -> DeadlineHandle
     where
-        H: AppHandler<DeadlineArgs> + handler::marker::OnceHn,
+        H: AppHandler<DeadlineArgs>,
     {
         let deadline = deadline.into();
         let (handle_owner, handle) = DeadlineHandle::new(deadline);

@@ -1094,6 +1094,7 @@ pub mod prelude {
             widget_instance::{
                 ui_list, z_index, BoxedUiNode, FillUiNode, SortingList, UiNode, UiNodeList, UiNodeListObserver, WidgetId, ZIndex, ZSort,
             },
+            widget_mixin,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
@@ -1118,7 +1119,7 @@ pub mod prelude {
         };
         #[doc(no_inline)]
         pub use crate::widgets::{
-            container, element,
+            container,
             layouts::{stack_nodes, stack_nodes_layout_by},
             style,
             style::{style_generator, StyleGenerator},
