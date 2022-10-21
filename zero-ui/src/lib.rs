@@ -1092,7 +1092,8 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
             },
             widget_instance::{
-                ui_list, z_index, BoxedUiNode, FillUiNode, SortingList, UiNode, UiNodeList, UiNodeListObserver, WidgetId, ZIndex, ZSort,
+                ui_list, z_index, AdoptiveNode, BoxedUiNode, FillUiNode, SortingList, UiNode, UiNodeList, UiNodeListObserver, WidgetId,
+                ZIndex, ZSort,
             },
             widget_mixin,
         };

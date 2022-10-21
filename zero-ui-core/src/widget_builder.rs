@@ -724,36 +724,10 @@ impl WidgetBuilder {
         }
     }
 
-    /// Reference the property, if it is present.
-    pub fn property(&self, property_id: PropertyId) -> Option<(Importance, NestPosition, &dyn PropertyArgs)> {
-        match self.property_index(property_id) {
-            Some(i) => match &self.items[i].1 {
-                WidgetItem::Property { importance, args } => Some((*importance, self.items[i].0, &**args)),
-                WidgetItem::Instrinsic { .. } => unreachable!(),
-            },
-            None => None,
-        }
-    }
-
-    /// Modify the property, if it is present.
-    pub fn property_mut(&mut self, property_id: PropertyId) -> Option<(&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
-        match self.property_index(property_id) {
-            Some(i) => match &mut self.items[i] {
-                (pos, WidgetItem::Property { importance, args }) => {
-                    self.items_sorted = false;
-                    Some((importance, pos, args))
-                }
-                _ => unreachable!(),
-            },
-            None => None,
-        }
-    }
-
-    fn property_index(&self, property_id: PropertyId) -> Option<usize> {
-        self.items.iter().position(|(_, item)| match item {
-            WidgetItem::Property { args, .. } => args.id() == property_id,
-            WidgetItem::Instrinsic { .. } => false,
-        })
+    /// Insert a `when` block.
+    pub fn insert_when(&mut self, importance: Importance, when: WhenInfo) {
+        self.whens.push((importance, when));
+        self.whens_sorted = false;
     }
 
     /// Insert a `name = unset!;` property.
@@ -777,6 +751,37 @@ impl WidgetBuilder {
                 WidgetItem::Property { importance: imp, args } => args.id() != property_id || *imp > importance,
                 WidgetItem::Instrinsic { .. } => true,
             });
+        }
+    }
+
+    /// Set/replace the inner most node of the widget.
+    pub fn set_child(&mut self, node: BoxedUiNode) -> Option<RcNode<BoxedUiNode>> {
+        self.child.replace(RcNode::new(node))
+    }
+
+    /// Apply `other` over `self`.
+    pub fn extend(&mut self, other: WidgetBuilder) {
+        if let Some(child) = other.child {
+            self.child = Some(child);
+        }
+
+        for (id, imp) in other.unset {
+            self.insert_unset(imp, id);
+        }
+
+        for (position, item) in other.items {
+            match item {
+                WidgetItem::Instrinsic { child, node } => {
+                    self.items.push((position, WidgetItem::Instrinsic { child, node }));
+                }
+                WidgetItem::Property { importance, args } => {
+                    self.insert_property_positioned(importance, args, position);
+                }
+            }
+        }
+
+        for (imp, when) in other.whens {
+            self.insert_when(imp, when);
         }
     }
 
@@ -830,22 +835,34 @@ impl WidgetBuilder {
         Some(handler)
     }
 
-    /// Insert a `when` block.
-    pub fn insert_when(&mut self, importance: Importance, when: WhenInfo) {
-        self.whens.push((importance, when));
-        self.whens_sorted = false;
+    /// Take the child node, leaving the builder without child.
+    pub fn remove_child(&mut self) -> Option<RcNode<BoxedUiNode>> {
+        self.child.take()
     }
 
-    /// If a child not is already set in the builder.
-    ///
-    /// If build without child the [`NilUiNode`] is used as the innermost node.
-    pub fn has_child(&self) -> bool {
-        self.child.is_some()
+    /// Reference the property, if it is present.
+    pub fn property(&self, property_id: PropertyId) -> Option<(Importance, NestPosition, &dyn PropertyArgs)> {
+        match self.property_index(property_id) {
+            Some(i) => match &self.items[i].1 {
+                WidgetItem::Property { importance, args } => Some((*importance, self.items[i].0, &**args)),
+                WidgetItem::Instrinsic { .. } => unreachable!(),
+            },
+            None => None,
+        }
     }
 
-    /// Set/replace the inner most node of the widget.
-    pub fn set_child(&mut self, node: BoxedUiNode) -> Option<RcNode<BoxedUiNode>> {
-        self.child.replace(RcNode::new(node))
+    /// Modify the property, if it is present.
+    pub fn property_mut(&mut self, property_id: PropertyId) -> Option<(&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
+        match self.property_index(property_id) {
+            Some(i) => match &mut self.items[i] {
+                (pos, WidgetItem::Property { importance, args }) => {
+                    self.items_sorted = false;
+                    Some((importance, pos, args))
+                }
+                _ => unreachable!(),
+            },
+            None => None,
+        }
     }
 
     /// Iterate over the current properties.
@@ -867,16 +884,61 @@ impl WidgetBuilder {
         })
     }
 
-    fn sort_items(&mut self) {
-        if !self.items_sorted {
-            self.items.sort_by_key(|(pos, _)| *pos);
-            self.items_sorted = true;
-        }
+    /// If a child not is already set in the builder.
+    ///
+    /// If build without child the [`NilUiNode`] is used as the innermost node.
+    pub fn has_child(&self) -> bool {
+        self.child.is_some()
+    }
 
-        if !self.whens_sorted {
-            self.whens.sort_by_key(|(imp, _)| *imp);
-            self.whens_sorted = true;
-        }
+    /// If the builder contains any properties.
+    pub fn has_properties(&self) -> bool {
+        self.items.iter().any(|(_, it)| matches!(it, WidgetItem::Property { .. }))
+    }
+
+    /// If the builder contains any intrinsic nodes.
+    pub fn has_intrinsics(&self) -> bool {
+        self.items.iter().any(|(_, it)| matches!(it, WidgetItem::Instrinsic { .. }))
+    }
+
+    /// If the builder contains any *unset* filters.
+    pub fn has_unsets(&self) -> bool {
+        !self.unset.is_empty()
+    }
+
+    /// If the builder contains any *when* filters.
+    pub fn has_whens(&self) -> bool {
+        !self.whens.is_empty()
+    }
+
+    /// Remove all properties.
+    pub fn clear_properties(&mut self) {
+        self.items.retain(|(_, it)| !matches!(it, WidgetItem::Property { .. }))
+    }
+
+    /// Remove all intrinsic nodes.
+    pub fn clear_intrinsics(&mut self) {
+        self.items.retain(|(_, it)| !matches!(it, WidgetItem::Instrinsic { .. }))
+    }
+
+    /// Remove all *unset* filters.
+    ///
+    /// Note that unset filters are applied on insert and on property insert, this is not undone by this clear.
+    pub fn clear_unsets(&mut self) {
+        self.unset.clear()
+    }
+
+    /// Remove all *when* directives.
+    pub fn clear_whens(&mut self) {
+        self.whens.clear();
+    }
+
+    /// Full clear.
+    pub fn clear(&mut self) {
+        self.items.clear();
+        self.unset.clear();
+        self.whens.clear();
+        self.child = None;
     }
 
     /// Instantiate and link all property and intrinsic nodes, returns the outermost node.
@@ -903,5 +965,24 @@ impl WidgetBuilder {
         }
 
         node
+    }
+
+    fn property_index(&self, property_id: PropertyId) -> Option<usize> {
+        self.items.iter().position(|(_, item)| match item {
+            WidgetItem::Property { args, .. } => args.id() == property_id,
+            WidgetItem::Instrinsic { .. } => false,
+        })
+    }
+
+    fn sort_items(&mut self) {
+        if !self.items_sorted {
+            self.items.sort_by_key(|(pos, _)| *pos);
+            self.items_sorted = true;
+        }
+
+        if !self.whens_sorted {
+            self.whens.sort_by_key(|(imp, _)| *imp);
+            self.whens_sorted = true;
+        }
     }
 }

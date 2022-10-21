@@ -44,48 +44,11 @@ pub mod style_mixin {
     use super::*;
 
     properties! {
-        pub self::style;
+        pub style_property as style;
     }
 
-    /// Styleable `new`, captures the `id` and `style` properties.
-    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
-        #[ui_node(struct StyleableNode {
-            child: DynWidgetNode,
-            snapshot: Option<DynWidgetSnapshot>,
-            #[var] style: impl Var<StyleGenerator>,
-        })]
-        impl UiNode for StyleableNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
-                    self.snapshot = Some(self.child.snapshot());
-                    self.child.extend(style.into_node());
-                }
-                self.child.init(ctx);
-            }
-
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.child.deinit(ctx);
-                if let Some(snap) = self.snapshot.take() {
-                    self.child.restore(snap).unwrap();
-                }
-            }
-
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if self.style.is_new(ctx.vars) {
-                    self.deinit(ctx);
-                    self.init(ctx);
-                    ctx.updates.info_layout_and_render();
-                } else {
-                    self.child.update(ctx, updates);
-                }
-            }
-        }
-        let child = StyleableNode {
-            child: widget.into_node(true),
-            snapshot: None,
-            style: style.into_var(),
-        };
-        implicit_base::new(child, id)
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        capture_style(wgt);
     }
 
     /// Helper for declaring properties that [extend] a style set from a context var.
@@ -170,11 +133,62 @@ pub mod style_mixin {
     /// prefer property binding and `when` conditions to cause visual changes that happen often.
     ///
     /// Is `nil` by default.
+    ///
+    /// # Capture Only
+    ///
+    /// This property must be captured by [`intrinsic`] to work, widgets that implement this re-export this
+    /// property with the name `style`.
     #[property(context, default(StyleGenerator::nil()))]
-    pub fn style(child: impl UiNode, generator: impl IntoVar<StyleGenerator>) -> impl UiNode {
+    pub fn style_property(child: impl UiNode, generator: impl IntoVar<StyleGenerator>) -> impl UiNode {
         let _ = generator;
         tracing::error!("property `style` must be captured");
         child
+    }
+
+    /// Captures the `style_property as style` if present, inserts the intrinsic style loading node.
+    pub fn capture_style(wgt: &mut WidgetBuilder) {
+        if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(style_property as style)) {
+            let node = AdoptiveNode::new(|child| StyleNode {
+                child: child.boxed(),
+                builder: None,
+                style,
+            });
+            let position = NestPosition {
+                priority: Priority::Context,
+                index: 0, // outermost
+            };
+            wgt.insert_intrinsic_positioned(node, position);
+        }
+    }
+
+    #[ui_node(struct StyleNode {
+        child: Option<BoxedUiNode>,
+        builder: Option<WidgetBuilder>,
+        #[var] style: BoxedVar<StyleGenerator>,
+    })]
+    impl UiNode for StyleNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
+                self.snapshot = Some(self.child.snapshot());
+                self.child.extend(style.into_node());
+            }
+            self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            self.child = None;
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if self.style.is_new(ctx.vars) {
+                self.deinit(ctx);
+                self.init(ctx);
+                ctx.updates.info_layout_and_render();
+            } else {
+                self.child.update(ctx, updates);
+            }
+        }
     }
 }
 
@@ -185,58 +199,43 @@ pub mod style_mixin {
 /// [`style!`]: mod@style
 #[derive(Default, Debug)]
 pub struct Style {
-    node: DynWidgetNode,
+    builder: WidgetBuilder,
 }
 impl Style {
     /// Importance of style properties set by default in style widgets.
     ///
-    /// Is `DynPropImportance::WIDGET - 10`.
-    pub const WIDGET_IMPORTANCE: DynPropImportance = DynPropImportance(DynPropImportance::WIDGET.0 - 10);
+    /// Is `Importance::WIDGET - 10`.
+    pub const WIDGET_IMPORTANCE: Importance = Importance(Importance::WIDGET.0 - 10);
 
     /// Importance of style properties set in style instances.
     ///
-    /// Is `DynPropImportance::INSTANCE - 10`.
-    pub const INSTANCE_IMPORTANCE: DynPropImportance = DynPropImportance(DynPropImportance::INSTANCE.0 - 10);
+    /// Is `Importance::INSTANCE - 10`.
+    pub const INSTANCE_IMPORTANCE: Importance = Importance(Importance::INSTANCE.0 - 10);
 
-    /// Properties and when blocks of this style.
-    pub fn node(&self) -> &DynWidgetNode {
-        &self.node
-    }
-
-    /// Mutable reference to the properties and when blocks of this style.
-    pub fn node_mut(&mut self) -> &mut DynWidgetNode {
-        &mut self.node
-    }
-
-    /// Unwrap the style dynamic widget.
-    pub fn into_node(self) -> DynWidgetNode {
-        self.node
-    }
-
-    /// New style from dynamic widget input.
+    /// New style from a widget builder.
     ///
-    /// The importance index of properties is adjusted, the intrinsic constructor and child nodes are discarded.
-    pub fn from_dyn_widget(mut wgt: DynWidget) -> Style {
-        for part in &mut wgt.parts {
-            for p in &mut part.properties {
-                p.importance = match p.importance {
-                    DynPropImportance::WIDGET => Style::WIDGET_IMPORTANCE,
-                    DynPropImportance::INSTANCE => Style::INSTANCE_IMPORTANCE,
-                    custom => custom,
-                };
-            }
+    /// The importance index of properties is adjusted, any child or intrinsic node is discarded.
+    pub fn from_builder(mut wgt: WidgetBuilder) -> Style {
+        wgt.remove_child();
+        wgt.clear_intrinsics();
+        for (imp, _, _) in wgt.properties_mut() {
+            *imp = match *imp {
+                Importance::WIDGET => Style::WIDGET_IMPORTANCE,
+                Importance::INSTANCE => Style::INSTANCE_IMPORTANCE,
+                other => other,
+            };
         }
         wgt.into_node(false).into()
     }
 
-    /// New style from built dynamic widget.
-    pub fn from_node(node: DynWidgetNode) -> Style {
-        Self { node }
+    /// Unwrap the style dynamic widget.
+    pub fn into_builder(self) -> WidgetBuilder {
+        self.builder
     }
 
     /// Overrides `self` with `other`.
     pub fn extend(&mut self, other: Style) {
-        self.node.extend(other.node);
+        self.builder.extend(other.builder);
     }
 }
 #[ui_node(
@@ -244,25 +243,20 @@ impl Style {
     delegate_mut = &mut self.node,
 )]
 impl UiNode for Style {}
-impl From<Style> for DynWidgetNode {
+impl From<Style> for WidgetBuilder {
     fn from(t: Style) -> Self {
         t.into_node()
     }
 }
-impl From<DynWidgetNode> for Style {
-    fn from(p: DynWidgetNode) -> Self {
+impl From<WidgetBuilder> for Style {
+    fn from(p: WidgetBuilder) -> Self {
         Style::from_node(p)
-    }
-}
-impl From<DynWidget> for Style {
-    fn from(p: DynWidget) -> Self {
-        Style::from_dyn_widget(p)
     }
 }
 
 /// Arguments for [`StyleGenerator`] closure.
 ///
-/// Currently no arguments.
+/// Empty in this version.
 #[derive(Debug)]
 pub struct StyleArgs {}
 
