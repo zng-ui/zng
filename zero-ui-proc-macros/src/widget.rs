@@ -9,7 +9,7 @@ use crate::{
     widget_util::{self, WgtProperty, WgtWhen},
 };
 
-pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mixin: bool) -> proc_macro::TokenStream {
     // the widget mod declaration.
     let mod_ = parse_macro_input!(input as ItemMod);
 
@@ -34,6 +34,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let ident = mod_.ident;
     let mod_token = mod_.mod_token;
     let attrs = mod_.attrs;
+
+    if mixin && !ident.to_string().ends_with("_mixin") {
+        errors.push("mix-in names must end with suffix `_mixin`", ident.span());
+    }
 
     // a `$crate` path to the widget module.
     let mod_path = match syn::parse::<ArgPath>(args) {
@@ -101,7 +105,32 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         });
     }
 
-    let build = if let Some(build) = &build_fn {
+    let macro_if_mixin = if mixin {
+        quote! {
+            (>> if mixin { $($tt:tt)* }) => {
+                $($tt)*
+            };
+            (>> if !mixin { $($tt:tt)* }) => {
+                // ignore
+            };
+        }
+    } else {
+        quote! {
+            (>> if !mixin { $($tt:tt)* }) => {
+                $($tt)*
+            };
+            (>> if mixin { $($tt:tt)* }) => {
+                // ignore
+            };
+        }
+    };
+
+    let build = if mixin {
+        if let Some(build) = &build_fn {
+            errors.push("mix-ins cannot have a build function", build.sig.ident.span());
+        }
+        quote!()
+    } else if let Some(build) = &build_fn {
         let out = &build.sig.output;
         let ident = &build.sig.ident;
         quote_spanned! {build.span()=>
@@ -110,12 +139,23 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 self::#ident(__wgt__)
             }
         }
-    } else if let Some(inh) = inherits.last() {
+    } else if let Some(inh) = inherits.iter().find(|m| !m.has_mixin_suffix()) {
         let path = &inh.path;
-        quote! {
-            #[doc(hidden)]
-            #[allow(unused_imports)]
-            pub use #path::__build__;
+        let id = path.segments.last().map(|s| &s.ident).unwrap();
+        let error = format!("cannot inherit build from `{id}`, it is a mix-in\nmix-ins with suffix `_mixin` are ignored when inheriting build, but this one was renamed");
+        quote_spanned! {path.span()=>
+            #path! {
+                >> if mixin {
+                    std::compile_error!{ #error }
+                }
+            }
+            #path! {
+                >> if !mixin {
+                    #[doc(hidden)]
+                    #[allow(unused_imports)]
+                    pub use #path::__build__;
+                }
+            }
         }
     } else {
         errors.push(
@@ -127,6 +167,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             pub fn __build__(_: #crate_core::widget_builder::WidgetBuilder) -> #crate_core::widget_instance::NilUiNode {
                 #crate_core::widget_instance::NilUiNode
             }
+        }
+    };
+    let build_final_export = if mixin {
+        quote!()
+    } else {
+        quote! {
+            pub use super::__build__ as build;
         }
     };
 
@@ -192,7 +239,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             pub use #crate_core::{widget_new, widget_builder};
 
             pub use super::__intrinsic__ as intrinsic;
-            pub use super::__build__ as build;
+            #build_final_export
 
             pub fn new() -> widget_builder::WidgetBuilder {
                 let mut wgt = widget_builder::WidgetBuilder::new();
@@ -215,6 +262,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #macro_ident {
+            #macro_if_mixin
+
             ($($tt:tt)*) => {
                 #mod_path::__widget__::widget_new! {
                     widget { #mod_path }
@@ -336,6 +385,15 @@ impl WidgetItems {
 struct Inherit {
     attrs: Vec<Attribute>,
     path: Path,
+}
+impl Inherit {
+    fn has_mixin_suffix(&self) -> bool {
+        self.path
+            .segments
+            .last()
+            .map(|s| s.ident.to_string().ends_with("_mixin"))
+            .unwrap_or(false)
+    }
 }
 impl Parse for Inherit {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {

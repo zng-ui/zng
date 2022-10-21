@@ -278,6 +278,11 @@ pub use zero_ui_proc_macros::property;
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 
+/// Expands a module to a widget mix-in module and macro.
+/// TODO !!:
+#[doc(inline)]
+pub use zero_ui_proc_macros::widget_mixin;
+
 mod tests;
 
 mod private {

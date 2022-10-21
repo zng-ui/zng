@@ -37,19 +37,6 @@ pub mod base {
     }
 }
 
-/// Base mixin widget.
-///
-/// Mix-ins are "widgets" that are just a set of item that can be `inherit!(..)` imported into a real widget.
-#[widget($crate::widget_base::mixin)]
-pub mod mixin {
-    use super::*;
-
-    fn build(_: WidgetBuilder) -> impl UiNode {
-        tracing::error!("cannot instantiate mixin");
-        NilUiNode
-    }
-}
-
 /// Nodes used in [`base`].
 ///
 /// [`base`]: mod@base

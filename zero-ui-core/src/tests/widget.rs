@@ -8,6 +8,7 @@ use crate::{
     var::Var,
     widget,
     widget_instance::{UiNode, WidgetId},
+    widget_mixin,
 };
 
 // Used in multiple tests.
@@ -30,11 +31,9 @@ pub fn implicit_inherited() {
 }
 
 // Mixin used in inherit tests.
-#[widget($crate::tests::widget::foo_mixin)]
+#[widget_mixin($crate::tests::widget::foo_mixin)]
 pub mod foo_mixin {
     use super::util;
-
-    inherit!(crate::widget_base::mixin);
 
     properties! {
         pub util::trace as foo_trace = "foo_mixin";
@@ -936,7 +935,7 @@ pub fn when_property_member_indexed_method() {
 */
 #[widget($crate::tests::widget::inherit_override_a)]
 pub mod inherit_override_a {
-    inherit!(crate::widget_base::mixin);
+    inherit!(crate::widget_base::base);
 
     use super::util::trace;
 
@@ -946,7 +945,7 @@ pub mod inherit_override_a {
 }
 #[widget($crate::tests::widget::inherit_override_b)]
 pub mod inherit_override_b {
-    inherit!(crate::widget_base::mixin);
+    inherit!(crate::widget_base::base);
 
     use super::util::trace;
 
