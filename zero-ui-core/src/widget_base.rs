@@ -22,8 +22,11 @@ use crate::{
 pub mod base {
     use super::*;
 
-    #[doc(no_inline)]
-    pub use super::{enabled, id, visibility};
+    properties! {
+        pub id;
+        pub enabled;
+        pub visibility;
+    }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
         nodes::capture_child(wgt);

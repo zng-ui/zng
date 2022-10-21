@@ -53,27 +53,29 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         others,
     } = WidgetItems::new(items, &mut errors);
 
-    let mut intrinsic = quote!();
+    let mut intrinsic_item_imports = quote!();
 
     for Inherit { attrs, path } in &inherits {
-        intrinsic.extend(quote_spanned! {path.span()=>
+        intrinsic_item_imports.extend(quote_spanned! {path.span()=>
             #(#attrs)*
             #path::__intrinsic__(__wgt__);
         });
     }
 
     if let Some(int) = &intrinsic_fn {
-        intrinsic.extend(quote_spanned! {int.span()=>
+        intrinsic_item_imports.extend(quote_spanned! {int.span()=>
             self::intrinsic(__wgt__);
         })
     }
+
+    let mut intrinsic_items = quote!();
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
         if prop.has_default() {
             let cfg = &prop.attrs.cfg;
             let lints = &prop.attrs.lints;
             let args = prop.args_new(quote!(#crate_core::widget_builder));
-            intrinsic.extend(quote! {
+            intrinsic_items.extend(quote! {
                 #cfg
                 #(#lints)*
                 __wgt__.insert_property(#crate_core::widget_builder::Importance::WIDGET, #args);
@@ -81,18 +83,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         } else if prop.is_unset() {
             let cfg = &prop.attrs.cfg;
             let id = prop.property_id();
-            intrinsic.extend(quote! {
+            intrinsic_items.extend(quote! {
                 #cfg
                 __wgt__.insert_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
             });
-        } else {
-            errors.push(format!("missing property `{}` value(s)", prop.ident()), prop.path.span());
         }
     }
 
     for when in properties.iter().flat_map(|i| i.whens.iter()) {
+        let cfg = &when.attrs.cfg;
+        let lints = &when.attrs.lints;
         let args = when.when_new(quote!(#crate_core::widget_builder));
-        intrinsic.extend(quote! {
+        intrinsic_items.extend(quote! {
+            #cfg
+            #(#lints)*
             __wgt__.insert_when(#crate_core::widget_builder::Importance::WIDGET, #args);
         });
     }
@@ -126,12 +130,26 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     };
 
     let mut inherit_export = quote!();
+    let mut intrinsic_imports = quote!();
 
     for Inherit { attrs, path } in inherits {
+        let extra_super = if path.segments[0].ident == "super" {
+            let sup = &path.segments[0].ident;
+            quote_spanned!(sup.span()=> #sup::)
+        } else {
+            quote!()
+        };
         inherit_export.extend(quote_spanned! {path.span()=>
             #(#attrs)*
-            pub use #path::*;
+            pub use #extra_super #path::__properties__::*;
         });
+        intrinsic_imports.extend(quote! {
+            #(#attrs)*
+            use #path::__properties__::*;
+        });
+    }
+    for p in properties.iter().flat_map(|p| p.properties.iter()) {
+        inherit_export.extend(p.reexport());
     }
 
     let macro_ident = ident!("__wgt_{}__", mod_path_slug(mod_path.to_string()));
@@ -143,13 +161,23 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         // use items (after custom items in case of custom macro_rules re-export)
         #(#uses)*
 
-        #inherit_export
+        #[doc(hidden)]
+        #[allow(unused_imports)]
+        pub mod __properties__ {
+            use super::*;
+
+            #inherit_export
+        }
 
         #intrinsic_fn
 
         #[doc(hidden)]
         pub fn __intrinsic__(__wgt__: &mut #crate_core::widget_builder::WidgetBuilder) {
-            #intrinsic
+            #intrinsic_item_imports
+            {
+                #intrinsic_imports
+                #intrinsic_items
+            }
         }
 
         #build_fn
@@ -332,7 +360,12 @@ impl Parse for Properties {
                     when.attrs = util::Attributes::new(attrs);
                     whens.push(when);
                 }
-            } else if input.peek(Ident) || input.peek(Token![crate]) || input.peek(Token![super]) || input.peek(Token![self]) {
+            } else if input.peek(Token![pub])
+                || input.peek(Ident)
+                || input.peek(Token![crate])
+                || input.peek(Token![super])
+                || input.peek(Token![self])
+            {
                 // peek ident or path (including keywords because of super:: and self::). {
                 match input.parse::<WgtProperty>() {
                     Ok(mut p) => {
@@ -362,7 +395,7 @@ impl Parse for Properties {
                     }
                 }
             } else {
-                errors.push("expected `when`, `child`, `remove` or a property declaration", input.span());
+                errors.push("expected `when` or a property declaration", input.span());
 
                 // suppress the "unexpected token" error from syn parse.
                 let _ = input.parse::<TokenStream>();
@@ -385,8 +418,12 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let NewArgs { widget, properties: mut p } = parse_macro_input!(args as NewArgs);
 
     let mut pre_bind = quote!();
-    for p in &mut p.properties {
-        pre_bind.extend(p.pre_bind_args(true, None));
+    for prop in &mut p.properties {
+        pre_bind.extend(prop.pre_bind_args(true, None));
+
+        if !matches!(&prop.vis, Visibility::Inherited) {
+            p.errors.push("cannot reexport property from instance", prop.vis.span());
+        }
     }
 
     let mut init = quote!();
@@ -425,7 +462,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let mut __wgt__ = #widget::__widget__::new();
             {
                 #[allow(unused_imports)]
-                use #widget::*;
+                use #widget::__properties__::*;
                 #init
             }
             #widget::__widget__::build(__wgt__)

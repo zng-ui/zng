@@ -36,10 +36,8 @@ pub mod foo_mixin {
 
     inherit!(crate::widget_base::mixin);
 
-    pub use util::trace as foo_trace;
-
     properties! {
-        foo_trace = "foo_mixin";
+        pub util::trace as foo_trace = "foo_mixin";
     }
 }
 
@@ -53,10 +51,8 @@ pub mod bar_wgt {
     inherit!(crate::widget_base::base);
     inherit!(foo_mixin);
 
-    pub use util::trace as bar_trace;
-
     properties! {
-        bar_trace = "bar_wgt";
+        pub util::trace as bar_trace = "bar_wgt";
     }
 }
 #[test]
@@ -115,10 +111,8 @@ pub mod alias_inherit_wgt {
     inherit!(crate::widget_base::base);
     inherit!(super::foo_mixin);
 
-    pub use foo_trace as alias_trace;
-
     properties! {
-        alias_trace = "alias_inherit_wgt"
+        pub foo_trace as alias_trace = "alias_inherit_wgt"
     }
 }
 #[test]
@@ -146,7 +140,9 @@ pub fn wgt_alias_inherit() {
 pub mod property_from_path_wgt {
     inherit!(crate::widget_base::base);
 
-    pub use super::util::trace;
+    properties! {
+        pub super::util::trace;
+    }
 }
 #[test]
 pub fn wgt_property_from_path() {
@@ -165,10 +161,8 @@ pub fn wgt_property_from_path() {
 pub mod default_value_wgt {
     inherit!(crate::widget_base::base);
 
-    pub use super::util::trace;
-
     properties! {
-        super::util::trace = "default_value_wgt";
+        pub super::util::trace = "default_value_wgt";
     }
 }
 #[test]
@@ -235,8 +229,10 @@ pub fn wgt_child_property_init_order() {
 pub mod same_priority_order_wgt {
     inherit!(crate::widget_base::base);
 
-    pub use super::util::count_border as border_a;
-    pub use super::util::count_border as border_b;
+    properties! {
+        pub super::util::count_border as border_a;
+        pub super::util::count_border as border_b;
+    }
 }
 #[test]
 pub fn wgt_same_priority_order() {
@@ -395,7 +391,6 @@ pub mod cfg_property_wgt {
 
         // suppress warning.
         #[allow(non_snake_case)]
-        #[allow(clippy::needless_late_init)]
         trace as always_trace = {
             #[allow(clippy::needless_late_init)]
             let weird___name;
@@ -540,20 +535,17 @@ pub fn user_cfg_when() {
 pub mod capture_properties_wgt {
     inherit!(crate::widget_base::base);
 
+    use super::util::trace;
     use crate::widget_builder::*;
 
-    pub use super::util::trace as new_child_trace;
-    pub use super::util::trace as new_trace;
-    pub use super::util::trace as property_trace;
-
     properties! {
-        new_child_trace = "new-child";
-        new_trace = "new";
-        property_trace = "property";
+        pub trace as new_child_trace = "new-child";
+        pub trace as new_trace = "new";
+        pub trace as property_trace = "property";
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
-        let msg: &'static str = wgt.capture_value(property_id!(new_child_trace)).unwrap();
+        let msg: &'static str = wgt.capture_value(property_id!(trace as new_child_trace)).unwrap();
         let msg = match msg {
             "new-child" => "custom new_child",
             "user-new-child" => "custom new_child (user)",
@@ -569,7 +561,7 @@ pub mod capture_properties_wgt {
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl crate::widget_instance::UiNode {
-        let msg: &'static str = wgt.capture_value(property_id!(new_trace)).unwrap();
+        let msg: &'static str = wgt.capture_value(property_id!(trace as new_trace)).unwrap();
         let msg = match msg {
             "new" => "custom new",
             "user-new" => "custom new (user)",
@@ -625,20 +617,22 @@ pub fn wgt_capture_properties_reassign() {
 pub mod property_priority_sorting_wgt {
     inherit!(crate::widget_base::base);
 
-    pub use super::util::count_border as count_border2;
-    pub use super::util::count_border as count_border1;
-    pub use super::util::count_child_context as count_child_context2;
-    pub use super::util::count_child_context as count_child_context1;
-    pub use super::util::count_child_layout as count_child_layout2;
-    pub use super::util::count_child_layout as count_child_layout1;
-    pub use super::util::count_context as count_context2;
-    pub use super::util::count_context as count_context1;
-    pub use super::util::count_layout as count_layout2;
-    pub use super::util::count_layout as count_layout1;
-    pub use super::util::count_size as count_size2;
-    pub use super::util::count_size as count_size1;
-    pub use super::util::on_count as count_event2;
-    pub use super::util::on_count as count_event1;
+    properties! {
+        pub super::util::count_border as count_border2;
+        pub super::util::count_border as count_border1;
+        pub super::util::count_child_context as count_child_context2;
+        pub super::util::count_child_context as count_child_context1;
+        pub super::util::count_child_layout as count_child_layout2;
+        pub super::util::count_child_layout as count_child_layout1;
+        pub super::util::count_context as count_context2;
+        pub super::util::count_context as count_context1;
+        pub super::util::count_layout as count_layout2;
+        pub super::util::count_layout as count_layout1;
+        pub super::util::count_size as count_size2;
+        pub super::util::count_size as count_size1;
+        pub super::util::on_count as count_event2;
+        pub super::util::on_count as count_event1;
+    }
 }
 fn property_priority_sorting_init1() -> impl UiNode {
     property_priority_sorting_wgt! {
@@ -1016,7 +1010,9 @@ pub fn allowed_in_when_without_wgt_assign1() {
 pub mod declare_prop_with_default_wgt {
     inherit!(crate::widget_base::base);
 
-    pub use super::util::live_trace_default as trace;
+    properties! {
+        pub super::util::live_trace_default as trace;
+    }
 }
 
 #[test]
@@ -1169,6 +1165,10 @@ mod macro_rules_generated {
                 pub fn margin(child: impl UiNode, margin: impl IntoVar<$crate::units::SideOffsets>) -> impl UiNode {
                     let _ = margin;
                     child
+                }
+
+                properties! {
+                    pub margin;
                 }
             }
         }

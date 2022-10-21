@@ -1,15 +1,8 @@
 # All Dyn Rewrite
 
 * Finish implementing new dynamic widget.
-    - Apply lints from property assign to init expr in args.
     - Implement pre-bind for when blocks.
         - And cfg, lints.
-    - Rethink what gets re-exported by widget modules now that the widget imports don't apply to values anyway.
-        - Trying to re-export the same imported property is an error?
-        - What if we implement syntax `pub foo = 32;` to export `foo`.
-            - No we can insert properties in implicit to have private, `properties!` is just public.
-        - Implement `cfg` support again.
-
     - Implement helper methods for doing things like moving a property to the top of the pile of its own priority.
 * Refactor all widgets to use the new API.
 * Reimplement inspector.

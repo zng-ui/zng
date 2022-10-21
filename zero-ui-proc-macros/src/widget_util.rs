@@ -10,12 +10,14 @@ use syn::{
     *,
 };
 
-use crate::util::{self, parse_outer_attrs, parse_punct_terminated2, peek_any3, ErrorRecoverable, Errors, Attributes};
+use crate::util::{self, parse_outer_attrs, parse_punct_terminated2, peek_any3, Attributes, ErrorRecoverable, Errors};
 
 /// Represents a property assign.
 pub struct WgtProperty {
     /// Attributes.
     pub attrs: Attributes,
+    /// Reexport visibility.
+    pub vis: Visibility,
     /// Path to property.
     pub path: Path,
     /// The ::<T> part of the path, if present it is removed from `path`.
@@ -42,7 +44,7 @@ impl WgtProperty {
         let path = &self.path;
         let ident = self.ident();
         let ident_str = ident.to_string();
-        quote! {
+        quote_spanned! {path.span()=>
             #path::property::__id__(#ident_str)
         }
     }
@@ -138,23 +140,58 @@ impl WgtProperty {
         r
     }
 
-    /// Gets the property args new code.
-    pub fn args_new(&self, property_mod: TokenStream) -> TokenStream {
+    pub fn reexport(&self) -> TokenStream {
+        let vis = &self.vis;
         let path = &self.path;
+        let extra_super = if path.segments[0].ident == "super" {
+            let sup = &path.segments[0].ident;
+            quote_spanned!(sup.span()=> #sup::)
+        } else {
+            quote!()
+        };
+        let name = match &self.rename {
+            Some((as_, id_)) => quote!(#as_ #id_),
+            None => {
+                let id_ = self.ident();
+                quote_spanned!(id_.span()=> as #id_)
+            }
+        };
+        let cfg = &self.attrs.cfg;
+        let lints = &self.attrs.lints;
+        let docs = &self.attrs.docs;
+        let clippy_nag = if !lints.is_empty() {
+            quote!(#[allow(clippy::useless_attribute)])
+        } else {
+            quote!()
+        };
+
+        quote_spanned! {path.span()=>
+            #(#docs)*
+            #cfg
+            #clippy_nag
+            #(#lints)*
+            #vis use #extra_super #path::export #name;
+        }
+    }
+
+    /// Gets the property args new code.
+    pub fn args_new(&self, wgt_builder_mod: TokenStream) -> TokenStream {
+        let path = &self.path;
+        let property_path = quote_spanned!(path.span()=> #path::property);
         let generics = &self.generics;
         let ident = self.ident();
         let ident_str = ident.to_string();
         let instance = quote_spanned! {self.location_span()=>
-            #property_mod::PropertyInstInfo {
+            #wgt_builder_mod::PropertyInstInfo {
                 name: #ident_str,
-                location: #property_mod::source_location!(),
+                location: #wgt_builder_mod::source_location!(),
             }
         };
         if let Some((_, val)) = &self.value {
             match val {
                 PropertyValue::Special(_, _) => quote!(),
                 PropertyValue::Unnamed(args) => quote_spanned! {path.span()=>
-                    #path::property #generics::__new__(#args).__build__(#instance)
+                    #property_path #generics::__new__(#args).__build__(#instance)
                 },
                 PropertyValue::Named(_, args) => {
                     let mut idents_sorted: Vec<_> = args.iter().map(|f| &f.ident).collect();
@@ -179,7 +216,7 @@ impl WgtProperty {
                             #(
                                 #path::code_gen! {
                                     if input(#idents) {
-                                        let #idents = #path::property #generics::#idents(#exprs);
+                                        let #idents = #property_path #generics::#idents(#exprs);
                                     }
                                 }
                                 #path::code_gen! {
@@ -190,7 +227,7 @@ impl WgtProperty {
                             )*
 
                             #path::code_gen! {
-                                {#path::property #generics}::__new__(#(#idents_sorted),*)
+                                {#property_path #generics}::__new__(#(#idents_sorted),*)
                             }.__build__(#instance)
                         }
                     }
@@ -199,7 +236,7 @@ impl WgtProperty {
         } else {
             let ident = self.ident();
             quote! {
-                #path::property #generics::__new__(#ident).__build__(#instance)
+                #property_path #generics::__new__(#ident).__build__(#instance)
             }
         }
     }
@@ -208,6 +245,7 @@ impl Parse for WgtProperty {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let attrs = Attribute::parse_outer(input)?;
 
+        let vis = input.parse()?;
         let path: Path = input.parse()?;
         let (path, generics) = split_path_generics(path)?;
 
@@ -224,6 +262,7 @@ impl Parse for WgtProperty {
 
         Ok(WgtProperty {
             attrs: Attributes::new(attrs),
+            vis,
             path,
             generics,
             rename,
@@ -332,7 +371,7 @@ impl Parse for PropertyValue {
 
         // only valid option left is a sequence of "{expr},", we want to parse
         // in a recoverable way, so first we take raw token trees until we find the
-        // end "`;` | EOF" or we find the start of a new property, when or remove item.
+        // end "`;` | EOF" or we find the start of a new property or when item.
         let mut args_input = TokenStream::new();
         while !input.is_empty() && !input.peek(Token![;]) {
             if peek_next_wgt_item(&input.fork()) {
@@ -353,15 +392,15 @@ fn peek_next_wgt_item(lookahead: parse::ParseStream) -> bool {
     if lookahead.peek(keyword::when) {
         return true; // when ..
     }
+
+    if lookahead.peek(Token![pub]) {
+        let _ = lookahead.parse::<Visibility>();
+    }
     if lookahead.peek(Ident) {
         if lookahead.peek2(Token![::]) {
             let _ = lookahead.parse::<Path>();
         } else {
-            let ident = lookahead.parse::<Ident>().unwrap();
-
-            if lookahead.peek(token::Brace) {
-                return ident == "remove"; // remove { .. }
-            }
+            let _ = lookahead.parse::<Ident>().unwrap();
         }
 
         return lookahead.peek(Token![=]) && !lookahead.peek(Token![==]);

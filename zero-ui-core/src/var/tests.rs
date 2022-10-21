@@ -460,10 +460,8 @@ mod context {
 
         inherit!(crate::widget_base::base);
 
-        pub use crate::widget_base::child;
-
         properties! {
-            child = NilUiNode;
+            pub crate::widget_base::child = NilUiNode;
         }
     }
 

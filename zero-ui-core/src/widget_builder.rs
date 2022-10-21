@@ -62,10 +62,16 @@ pub use when_condition_expr_var;
 #[macro_export]
 macro_rules! property_id {
     ($property:path) => {{
-    #[rustfmt::skip]// Rust does not expand the macro if we remove the braces.
-                                                use $property::{property as p};
+        // Rust does not expand the macro if we remove the braces.
+        #[rustfmt::skip] use $property::{property as p};
 
         p::__id__($crate::widget_builder::property_id_name(stringify!($property)))
+    }};
+    ($property:path as $rename:ident) => {{
+        // Rust does not expand the macro if we remove the braces.
+        #[rustfmt::skip] use $property::{property as p};
+
+        p::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
 }
 #[doc(inline)]
