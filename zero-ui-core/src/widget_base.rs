@@ -18,6 +18,11 @@ use crate::{
 };
 
 /// Base widget that implements the necessary core API.
+///
+/// The base widget does [`nodes::insert_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
+///
+/// The base widget also provides a default function that captures the [`id`] and handles missing child node by capturing
+/// [`child`] or falling back to [`FillUiNode`].
 #[widget($crate::widget_base::base)]
 pub mod base {
     use super::*;
@@ -29,15 +34,22 @@ pub mod base {
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
-        nodes::capture_child(wgt);
+        nodes::insert_intrinsics(wgt);
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl UiNode {
+        if !wgt.has_child() {
+            nodes::capture_child(&mut wgt);
+            if !wgt.has_child() {
+                wgt.set_child(FillUiNode.boxed());
+            }
+        }
+
         nodes::build(&mut wgt)
     }
 }
 
-/// Nodes used in [`base`].
+/// Basic nodes for widgets, some used in [`base`].
 ///
 /// [`base`]: mod@base
 pub mod nodes {
@@ -46,9 +58,15 @@ pub mod nodes {
     use super::*;
 
     /// Capture the [`child`] property and sets it as the widget child.
+    ///
+    /// The [`base`] widget calls this on build if not other child was set.
+    ///
+    /// [`base`]: mode@base
     pub fn capture_child(wgt: &mut WidgetBuilder) {
-        let child = wgt.capture_ui_node(property_id!(child)).unwrap_or_else(|| FillUiNode.boxed());
-        wgt.set_child(child);
+        let child = wgt.capture_ui_node(property_id!(child));
+        if let Some(child) = child {
+            wgt.set_child(child.boxed());
+        }
     }
 
     /// Insert [`child_layout`] and [`inner`] in the widget.
@@ -58,6 +76,9 @@ pub mod nodes {
     }
 
     /// Capture the [`id`] property and builds the base widget.
+    ///
+    /// Note that this function does not handle missing child node, it falls back to [`NilUiNode`]. The [`base`]
+    /// widget uses [`capture_child`] and falls-back to [`FillUiNode`].
     pub fn build(wgt: &mut WidgetBuilder) -> impl UiNode {
         let id = wgt.capture_value(property_id!(id)).unwrap_or_else(WidgetId::new_unique);
         let child = wgt.build();
@@ -563,8 +584,7 @@ context_var! {
 ///
 /// # Capture Only
 ///
-/// This property must be [captured] during widget build and redirected to [`WidgetBuilder::set_child`].
-/// The [`base`] widget captures this property if present.
+/// This property must be [captured] during widget build and redirected to [`WidgetBuilder::set_child`] in the container widget.
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base

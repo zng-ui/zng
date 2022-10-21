@@ -802,9 +802,8 @@ pub fn property_priority_sorting_node_inherited_init() {
 
 #[widget($crate::tests::widget::property_priority_sorting_defaults_wgt)]
 pub mod property_priority_sorting_defaults_wgt {
-    inherit!(crate::widget_base::base);
-
     use super::util::Position;
+
     inherit!(super::property_priority_sorting_wgt);
 
     properties! {
@@ -933,20 +932,16 @@ pub fn when_property_member_indexed_method() {
 /*
 * Inherit override
 */
-#[widget($crate::tests::widget::inherit_override_a)]
-pub mod inherit_override_a {
-    inherit!(crate::widget_base::base);
-
+#[widget_mixin($crate::tests::widget::inherit_override_a_mixin)]
+pub mod inherit_override_a_mixin {
     use super::util::trace;
 
     properties! {
         trace = "base_a::property";
     }
 }
-#[widget($crate::tests::widget::inherit_override_b)]
-pub mod inherit_override_b {
-    inherit!(crate::widget_base::base);
-
+#[widget_mixin($crate::tests::widget::inherit_override_b_mixin)]
+pub mod inherit_override_b_mixin {
     use super::util::trace;
 
     properties! {
@@ -955,13 +950,15 @@ pub mod inherit_override_b {
 }
 #[widget($crate::tests::widget::inherit_override_wgt1)]
 pub mod inherit_override_wgt1 {
-    inherit!(super::inherit_override_a);
-    inherit!(super::inherit_override_b);
+    inherit!(crate::widget_base::base);
+    inherit!(super::inherit_override_a_mixin);
+    inherit!(super::inherit_override_b_mixin);
 }
 #[widget($crate::tests::widget::inherit_override_wgt2)]
 pub mod inherit_override_wgt2 {
-    inherit!(super::inherit_override_b);
-    inherit!(super::inherit_override_a);
+    inherit!(crate::widget_base::base);
+    inherit!(super::inherit_override_b_mixin);
+    inherit!(super::inherit_override_a_mixin);
 }
 #[test]
 pub fn inherit_override() {

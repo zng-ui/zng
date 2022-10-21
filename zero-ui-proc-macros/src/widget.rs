@@ -59,7 +59,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     let mut intrinsic_item_imports = quote!();
 
-    for Inherit { attrs, path } in &inherits {
+    let mut has_parent = false;
+
+    for inh in &inherits {
+        let is_parent = !inh.has_mixin_suffix();
+        if has_parent && is_parent {
+            errors.push("can only inherit from one widget and multiple mix-ins", inh.path.span());
+            continue;
+        }
+
+        has_parent |= is_parent;
+        let attrs = &inh.attrs;
+        let path = &inh.path;
         intrinsic_item_imports.extend(quote_spanned! {path.span()=>
             #(#attrs)*
             #path::__intrinsic__(__wgt__);

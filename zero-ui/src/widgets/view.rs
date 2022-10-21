@@ -1,6 +1,6 @@
 use std::{any::type_name, fmt, rc::Rc};
 
-use zero_ui_core::{BoxedUiNode, NilUiNode};
+use zero_ui_core::widget_instance::{BoxedUiNode, NilUiNode};
 
 use crate::prelude::new_widget::*;
 
@@ -104,7 +104,7 @@ where
     V: Var<D>,
     P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
 {
-    use crate::core::widget_base::implicit_base::nodes;
+    use crate::core::widget_base::nodes;
 
     let node = nodes::inner(view_node(data, initial_ui, presenter));
     nodes::widget(node, WidgetId::new_unique()).cfg_boxed_wgt()
