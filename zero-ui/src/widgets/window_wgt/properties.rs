@@ -243,7 +243,7 @@ impl_from_and_into_var! {
 ///
 /// This property is enabled by default in the `window!` widget, it is recommended to open the window with a name if
 /// the app can open more than one window.
-#[property(context, allowed_in_when = false, default(SaveState::Disabled))]
+#[property(context, default(SaveState::Disabled))]
 pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
     enum Task {
         None,

@@ -7,10 +7,9 @@ use crate::{
     timer::Timers,
     units::*,
     var::{VarHandle, VarHandles, Vars},
-    widget_info::{WidgetContextInfo, WidgetInfoTree},
+    widget_info::{WidgetContextInfo, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, WindowMode},
-    WidgetPath,
 };
 use std::{cell::Cell, fmt, ops::Deref, rc::Rc};
 
@@ -25,6 +24,9 @@ pub use state::*;
 
 mod trace;
 pub use trace::*;
+
+mod value;
+pub use value::*;
 
 /// Owner of [`AppContext`] objects.
 ///
@@ -618,7 +620,7 @@ impl TestWidgetContext {
         } else {
             let id = node.with_context(|ctx| ctx.id).unwrap_or(self.root_id);
             let mut list = UpdateDeliveryList::new_any();
-            list.insert_path(&crate::WidgetPath::new(self.window_id, [id]));
+            list.insert_path(&crate::widget_info::WidgetPath::new(self.window_id, [id]));
             list.enter_window(self.window_id);
             self.widget_context(|ctx| node.update(ctx, &mut WidgetUpdates::new(list)));
         }

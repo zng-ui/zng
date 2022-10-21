@@ -15,10 +15,9 @@ use crate::{
     service::ServiceTuple,
     units::DipPoint,
     var::{impl_from_and_into_var, Var},
-    widget_info::{HitTestInfo, InteractionPath},
+    widget_info::{HitTestInfo, InteractionPath, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, Windows},
-    WidgetPath,
 };
 use std::{
     cell::RefCell,

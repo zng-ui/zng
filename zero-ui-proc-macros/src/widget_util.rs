@@ -77,12 +77,12 @@ impl WgtProperty {
     }
 
     /// Converts values to `let` bindings that are returned.
-    pub fn pre_bind_args(&mut self, shorthand_init_enabled: bool, extra_attrs: Option<&Attributes>) -> TokenStream {
+    pub fn pre_bind_args(&mut self, shorthand_init_enabled: bool, extra_attrs: Option<&Attributes>, extra_prefix: &str) -> TokenStream {
         let prefix = if let Some((_, id)) = &self.rename {
-            format!("__as_{id}_")
+            format!("__{extra_prefix}as_{id}_")
         } else {
             let path_str = self.path.to_token_stream().to_string().replace(' ', "").replace("::", "_i_");
-            format!("__p_{path_str}_")
+            format!("__{extra_prefix}p_{path_str}_")
         };
 
         let mut attrs = quote!();
@@ -170,6 +170,7 @@ impl WgtProperty {
             #cfg
             #clippy_nag
             #(#lints)*
+            #[allow(unused_imports)]
             #vis use #extra_super #path::export #name;
         }
     }
@@ -469,6 +470,9 @@ impl WgtWhen {
                                 let _ = inner.parse::<TokenTree>();
                             }
                         }
+                        if !matches!(p.vis, Visibility::Inherited) {
+                            errors.push("cannot reexport property from when assign", p.vis.span());
+                        }
                         assigns.push(p);
                     }
                     Err(e) => {
@@ -499,10 +503,11 @@ impl WgtWhen {
         })
     }
 
-    pub fn pre_bind(&mut self, shorthand_init_enabled: bool) -> TokenStream {
+    pub fn pre_bind(&mut self, shorthand_init_enabled: bool, when_index: usize) -> TokenStream {
+        let prefix = format!("w{}_", when_index);
         let mut r = quote!();
         for p in &mut self.assigns {
-            r.extend(p.pre_bind_args(shorthand_init_enabled, Some(&self.attrs)));
+            r.extend(p.pre_bind_args(shorthand_init_enabled, Some(&self.attrs), &prefix));
         }
         r
     }

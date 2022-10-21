@@ -55,12 +55,9 @@ pub mod units;
 pub mod var;
 pub mod widget_base;
 pub mod widget_builder;
+pub mod widget_info;
 pub mod widget_instance;
 pub mod window;
-
-pub mod widget_info;
-#[doc(inline)]
-pub use widget_info::WidgetPath;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
@@ -278,9 +275,8 @@ pub use zero_ui_proc_macros::property;
 
 /// Expands a module to a widget module and macro.
 /// TODO !!:
+#[doc(inline)]
 pub use zero_ui_proc_macros::widget;
-
-pub use crate_util::{context_value::*, IdNameError};
 
 mod tests;
 

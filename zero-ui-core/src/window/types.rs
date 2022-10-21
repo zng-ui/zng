@@ -18,8 +18,7 @@ use crate::{
     units::*,
     var::*,
     widget_info::WidgetInfoTree,
-    widget_instance::{BoxedUiNode, UiNode, WidgetId},
-    IdNameError,
+    widget_instance::{BoxedUiNode, IdNameError, UiNode, WidgetId},
 };
 
 pub use crate::app::view_process::{CursorIcon, EventCause, FocusIndicator, VideoMode, WindowState};

@@ -10,10 +10,9 @@ use crate::{
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::EventUpdate,
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
-    widget_info::WidgetInfoTree,
+    widget_info::{WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
     window::WindowId,
-    WidgetPath,
 };
 
 use super::{AppContext, UpdatesTrace};

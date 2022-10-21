@@ -358,7 +358,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
 ///
 /// If the image widget is in the initial window content a [`WindowLoadingHandle`] is used to delay the window
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
-#[property(layout, allowed_in_when = false, default(false))]
+#[property(layout, default(false))]
 pub fn image_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
     #[ui_node(struct ImageBlockWindowLoadNode {
         child: impl UiNode,

@@ -114,6 +114,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let path = &inh.path;
         quote! {
             #[doc(hidden)]
+            #[allow(unused_imports)]
             pub use #path::__build__;
         }
     } else {
@@ -141,10 +142,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
         inherit_export.extend(quote_spanned! {path.span()=>
             #(#attrs)*
+            #[allow(unused_imports)]
             pub use #extra_super #path::__properties__::*;
         });
         intrinsic_imports.extend(quote! {
             #(#attrs)*
+            #[allow(unused_imports)]
             use #path::__properties__::*;
         });
     }
@@ -184,6 +187,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #build
 
         #[doc(hidden)]
+        #[allow(unused_imports)]
         pub mod __widget__ {
             pub use #crate_core::{widget_new, widget_builder};
 
@@ -219,6 +223,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             };
         }
         #[doc(hidden)]
+        #[allow(unused_imports)]
         #vis use #macro_ident as #ident;
 
         #errors
@@ -419,11 +424,14 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut pre_bind = quote!();
     for prop in &mut p.properties {
-        pre_bind.extend(prop.pre_bind_args(true, None));
+        pre_bind.extend(prop.pre_bind_args(true, None, ""));
 
         if !matches!(&prop.vis, Visibility::Inherited) {
             p.errors.push("cannot reexport property from instance", prop.vis.span());
         }
+    }
+    for (i, when) in p.whens.iter_mut().enumerate() {
+        pre_bind.extend(when.pre_bind(true, i));
     }
 
     let mut init = quote!();

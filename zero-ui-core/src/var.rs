@@ -154,7 +154,7 @@ impl<T: VarValue> AnyVarValue for T {
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::IntoValue};
 /// #
-/// #[property(context, allowed_in_when = false)]
+/// #[property(context)]
 /// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl Into<bool>) -> impl UiNode {
 ///     #[ui_node(struct FooNode {
 ///         child: impl UiNode,

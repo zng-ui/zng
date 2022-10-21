@@ -13,7 +13,6 @@ use crate::{
     event::EventUpdate,
     var::impl_from_and_into_var,
     widget_info::{WidgetInfoBuilder, WidgetLayout},
-    IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
 use crate::{
@@ -33,6 +32,8 @@ pub use list::*;
 
 mod trace;
 pub use trace::TraceNode;
+
+pub use crate::crate_util::IdNameError;
 
 unique_id_64! {
     /// Unique id of a widget.

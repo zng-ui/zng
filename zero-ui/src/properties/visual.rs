@@ -31,7 +31,7 @@ use super::hit_test_mode;
 /// ```
 ///
 /// The example renders a custom text background.
-#[property(fill, allowed_in_when = false, default(crate::core::NilUiNode))]
+#[property(fill, default(crate::core::widget_instance::NilUiNode))]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     #[ui_node(struct BackgroundNode {
         children: impl UiNodeList,
@@ -56,7 +56,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     let background = fill_node(background);
 
     BackgroundNode {
-        children: nodes![background, child],
+        children: ui_list![background, child],
     }
 }
 
@@ -151,7 +151,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// ```
 ///
 /// The example renders a custom see-through text overlay.
-#[property(fill, allowed_in_when = false, default(crate::core::NilUiNode))]
+#[property(fill, default(crate::core::widget_instance::NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     #[ui_node(struct ForegroundNode {
         children: impl UiNodeList,
@@ -177,7 +177,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
 
     ForegroundNode {
-        children: nodes![child, foreground],
+        children: ui_list![child, foreground],
     }
 }
 

@@ -68,4 +68,6 @@ pub use window_wgt::window;
 /// You can use this to shape a custom widget that will only
 /// be used once. Instead of declaring a new widget type.
 #[crate::core::widget($crate::widgets::blank)]
-pub mod blank {}
+pub mod blank {
+    inherit!(zero_ui_core::widget_base::base);
+}

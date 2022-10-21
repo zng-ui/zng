@@ -5,12 +5,15 @@
 
 use std::mem;
 
-use crate::core::handler::*;
-use crate::core::render::FrameBuilder;
-use crate::core::units::*;
-use crate::core::widget_info::WidgetLayout;
-use crate::core::*;
-use crate::core::{context::*, render::FrameUpdate};
+use crate::core::{
+    context::*,
+    handler::*,
+    render::{FrameBuilder, FrameUpdate},
+    units::*,
+    widget_info::WidgetLayout,
+    widget_instance::*,
+    *,
+};
 
 /// Arguments for the [`on_init`](fn@on_init) event.
 #[derive(Clone, Debug, Copy)]

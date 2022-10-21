@@ -294,7 +294,7 @@ pub mod properties {
     ///
     /// This property interacts with the contextual [`selection`], when the widget is clicked or the `value` variable changes
     /// the contextual [`Selector`] is used to implement the behavior.
-    #[property(context, allowed_in_when = false)]
+    #[property(context)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
         #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
             child: impl UiNode,
@@ -465,7 +465,7 @@ pub mod properties {
     /// property only works if a contextual selection is present.
     ///
     /// [`value`]: fn@value
-    #[property(context, allowed_in_when = false, default(NilSel))]
+    #[property(context, default(NilSel))]
     pub fn selection(child: impl UiNode, selector: impl Selector) -> impl UiNode {
         with_context_value(child, SELECTOR, Box::new(selector) as SelectorInstance)
     }

@@ -904,7 +904,6 @@ pub mod prelude {
         image::ImageSource,
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
         mouse::{ButtonState, MouseButton, MouseMoveArgs},
-        node_vec, nodes,
         render::RenderMode,
         service::{ServiceTuple, Services},
         task::{self, rayon::prelude::*},
@@ -916,7 +915,6 @@ pub mod prelude {
             formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text,
             TextAlign, TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak,
         },
-        ui_list::{z_index, SortedWidgetVec, SortedWidgetVecRef, WidgetVec, WidgetVecRef, ZIndex},
         units::{
             rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Align, AngleUnits,
             ByteUnits, EasingStep, EasingTime, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px,
@@ -927,14 +925,13 @@ pub mod prelude {
             expr_var, merge_var, state_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, VarValue, Vars,
         },
         widget_base::HitTestMode,
-        widget_info::{InteractionPath, Visibility},
-        widget_vec, widgets,
+        widget_info::{InteractionPath, Visibility, WidgetPath},
+        widget_instance::{ui_list, z_index, FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, WidgetId, ZIndex},
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, Window,
             WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVars,
             Windows, WIDGET_INFO_CHANGED_EVENT,
         },
-        FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
     };
 
     #[doc(no_inline)]
@@ -1032,14 +1029,12 @@ pub mod prelude {
         pub use crate::core::window::{WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            context_value, node_vec, nodes, property,
-            ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
-            ui_node, widget,
-            widget_base::interactive_node,
+            property, ui_node, widget, widget_base,
+            widget_base::nodes::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
             },
-            widget_mixin, widget_vec, widgets, with_context_value, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
+            widget_instance::{ui_list, BoxedUiNode, FillUiNode, SortingList, UiNode, UiNodeList, UiNodeListObserver, WidgetId},
         };
         #[doc(no_inline)]
         pub use crate::widgets::{layouts::stack_nodes, view_generator, DataUpdate, ViewGenerator};
@@ -1089,18 +1084,14 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            context_value, node_vec, nodes, property,
-            ui_list::{
-                z_index, SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef, ZIndex,
-                ZSortedWidgetList,
-            },
-            ui_node, widget,
-            widget_base::{implicit_base, HitTestMode},
+            property, ui_node, widget,
+            widget_base::{self, HitTestMode},
             widget_info::{
-                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,
+                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
             },
-            widget_mixin, widget_vec, widgets, with_context_value, BoxedUiNode, BoxedWidget, DynWidget, FillUiNode, UiNode, Widget,
-            WidgetId,
+            widget_instance::{
+                ui_list, z_index, BoxedUiNode, FillUiNode, SortingList, UiNode, UiNodeList, UiNodeListObserver, WidgetId, ZIndex, ZSort,
+            },
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
