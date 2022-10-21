@@ -102,8 +102,61 @@ pub mod property_args_getter {
     use super::*;
 
     fn build(mut wgt: WidgetBuilder) -> Box<dyn PropertyArgs> {
-        let id = wgt.properties().next().unwrap().1.id();
-        wgt.remove_property(id).unwrap().1
+        let id = wgt.properties().next().unwrap().2.id();
+        wgt.remove_property(id).unwrap().2
+    }
+}
+
+/// Represents the sort index of a property or intrinsic node in a widget instance.
+///
+/// Each node "wraps" the next one, so the sort defines `(context#0 (context#1 (event (size (border..)))))`.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NestPosition {
+    /// The priority, all items of the same priority are "grouped" together.
+    pub priority: Priority,
+    /// Extra sorting within items of the same priority.
+    pub index: u16,
+}
+impl NestPosition {
+    /// Default index used for intrinsic nodes, is `u16::MAX / 3`.
+    pub const INTRINSIC_INDEX: u16 = u16::MAX / 3;
+
+    /// Default index used for properties, is `INTRINSIC_INDEX * 2`.
+    pub const PROPERTY_INDEX: u16 = Self::INTRINSIC_INDEX * 2;
+
+    /// New position for property.
+    pub fn property(priority: Priority) -> Self {
+        NestPosition {
+            priority,
+            index: Self::PROPERTY_INDEX,
+        }
+    }
+
+    /// New position for intrinsic node.
+    pub fn intrinsic(priority: Priority) -> Self {
+        NestPosition {
+            priority,
+            index: Self::INTRINSIC_INDEX,
+        }
+    }
+}
+impl fmt::Debug for NestPosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct IndexName(u16);
+        impl fmt::Debug for IndexName {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self.0 {
+                    NestPosition::INTRINSIC_INDEX => write!(f, "INTRINSIC_INDEX"),
+                    NestPosition::PROPERTY_INDEX => write!(f, "PROPERTY_INDEX"),
+                    i => write!(f, "{i}"),
+                }
+            }
+        }
+
+        f.debug_struct("NestPosition")
+            .field("priority", &self.priority)
+            .field("index", &IndexName(self.index))
+            .finish()
     }
 }
 
@@ -111,6 +164,7 @@ pub mod property_args_getter {
 ///
 /// See [the property doc](crate::property#priority) for more details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
 pub enum Priority {
     /// [Context](crate::property#context) property.
     Context,
@@ -607,7 +661,7 @@ impl Clone for Box<dyn PropertyArgs> {
 #[derive(Default, Clone)]
 pub struct WidgetBuilder {
     child: Option<RcNode<BoxedUiNode>>,
-    items: Vec<(Priority, WidgetItem)>,
+    items: Vec<(NestPosition, WidgetItem)>,
     unset: LinearMap<PropertyId, Importance>,
     whens: Vec<(Importance, WhenInfo)>,
 
@@ -622,25 +676,39 @@ impl WidgetBuilder {
 
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     pub fn insert_intrinsic(&mut self, priority: Priority, node: AdoptiveNode<BoxedUiNode>) {
-        self.items_sorted = false;
-        let (child, node) = node.into_parts();
-        let node = RcNode::new(node);
-        self.items.push((priority, WidgetItem::Instrinsic { child, node }));
+        self.insert_intrinsic_positioned(node, NestPosition::intrinsic(priority));
     }
 
     /// Insert/override a property.
     ///
     /// You can use the [`property_args!`] macro to collect args for a property.
     pub fn insert_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
+        let pos = NestPosition::property(args.property().priority);
+        self.insert_property_positioned(importance, args, pos);
+    }
+
+    /// Insert intrinsic node with custom nest position.
+    pub fn insert_intrinsic_positioned(&mut self, node: AdoptiveNode<BoxedUiNode>, position: NestPosition) {
+        self.items_sorted = false;
+        let (child, node) = node.into_parts();
+        let node = RcNode::new(node);
+        self.items.push((position, WidgetItem::Instrinsic { child, node }));
+    }
+
+    /// Insert property with custom nest position.
+    pub fn insert_property_positioned(&mut self, importance: Importance, args: Box<dyn PropertyArgs>, position: NestPosition) {
         let property_id = args.id();
-        let info = args.property();
-        if let Some(i) = self.property_position(property_id) {
+        if let Some(i) = self.property_index(property_id) {
             match &self.items[i].1 {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
                         // override
-                        self.items[i] = (info.priority, WidgetItem::Property { importance, args });
-                        self.items_sorted = false; // TODO !!: do we really need to sort by importance?
+
+                        if self.items[i].0 != position {
+                            self.items_sorted = false;
+                        }
+
+                        self.items[i] = (position, WidgetItem::Property { importance, args });
                     }
                 }
                 WidgetItem::Instrinsic { .. } => unreachable!(),
@@ -651,12 +719,37 @@ impl WidgetBuilder {
                     return; // unset blocks.
                 }
             }
-            self.items.push((info.priority, WidgetItem::Property { importance, args }));
+            self.items.push((position, WidgetItem::Property { importance, args }));
             self.items_sorted = false;
         }
     }
 
-    fn property_position(&self, property_id: PropertyId) -> Option<usize> {
+    /// Reference the property, if it is present.
+    pub fn property(&self, property_id: PropertyId) -> Option<(Importance, NestPosition, &dyn PropertyArgs)> {
+        match self.property_index(property_id) {
+            Some(i) => match &self.items[i].1 {
+                WidgetItem::Property { importance, args } => Some((*importance, self.items[i].0, &**args)),
+                WidgetItem::Instrinsic { .. } => unreachable!(),
+            },
+            None => None,
+        }
+    }
+
+    /// Modify the property, if it is present.
+    pub fn property_mut(&mut self, property_id: PropertyId) -> Option<(&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
+        match self.property_index(property_id) {
+            Some(i) => match &mut self.items[i] {
+                (pos, WidgetItem::Property { importance, args }) => {
+                    self.items_sorted = false;
+                    Some((importance, pos, args))
+                }
+                _ => unreachable!(),
+            },
+            None => None,
+        }
+    }
+
+    fn property_index(&self, property_id: PropertyId) -> Option<usize> {
         self.items.iter().position(|(_, item)| match item {
             WidgetItem::Property { args, .. } => args.id() == property_id,
             WidgetItem::Instrinsic { .. } => false,
@@ -688,12 +781,12 @@ impl WidgetBuilder {
     }
 
     /// Remove the property that matches the `property_id!(..)`.
-    pub fn remove_property(&mut self, property_id: PropertyId) -> Option<(Importance, Box<dyn PropertyArgs>)> {
-        if let Some(i) = self.property_position(property_id) {
-            match self.items.remove(i).1 {
+    pub fn remove_property(&mut self, property_id: PropertyId) -> Option<(Importance, NestPosition, Box<dyn PropertyArgs>)> {
+        if let Some(i) = self.property_index(property_id) {
+            match self.items.remove(i) {
                 // can't be swap remove for ordering of equal priority.
-                WidgetItem::Property { importance, args, .. } => Some((importance, args)),
-                WidgetItem::Instrinsic { .. } => unreachable!(),
+                (pos, WidgetItem::Property { importance, args, .. }) => Some((importance, pos, args)),
+                (_, WidgetItem::Instrinsic { .. }) => unreachable!(),
             }
         } else {
             None
@@ -704,35 +797,35 @@ impl WidgetBuilder {
 
     /// Remove the property and downcast the input value.
     pub fn capture_value<T: VarValue>(&mut self, property_id: PropertyId) -> Option<T> {
-        let (_, args) = self.remove_property(property_id)?;
+        let (_, _, args) = self.remove_property(property_id)?;
         let value = args.downcast_value::<T>(0).clone();
         Some(value)
     }
 
     /// Remove the property and downcast the input value.
     pub fn capture_var<T: VarValue>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>> {
-        let (_, args) = self.remove_property(property_id)?;
+        let (_, _, args) = self.remove_property(property_id)?;
         let var = args.downcast_var::<T>(0).clone();
         Some(var)
     }
 
     /// Remove the property and get the input n.
     pub fn capture_ui_node(&mut self, property_id: PropertyId) -> Option<BoxedUiNode> {
-        let (_, args) = self.remove_property(property_id)?;
+        let (_, _, args) = self.remove_property(property_id)?;
         let node = args.ui_node(0).take_on_init().boxed();
         Some(node)
     }
 
     /// Remove the property and get the input list.
     pub fn capture_ui_node_list(&mut self, property_id: PropertyId) -> Option<BoxedUiNodeList> {
-        let (_, args) = self.remove_property(property_id)?;
+        let (_, _, args) = self.remove_property(property_id)?;
         let list = args.ui_node_list(0).take_on_init().boxed();
         Some(list)
     }
 
     /// Remove the property and downcast the input handler.
     pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<RcWidgetHandler<A>> {
-        let (_, args) = self.remove_property(property_id)?;
+        let (_, _, args) = self.remove_property(property_id)?;
         let handler = args.downcast_handler::<A>(0).clone();
         Some(handler)
     }
@@ -758,27 +851,25 @@ impl WidgetBuilder {
     /// Iterate over the current properties.
     ///
     /// The properties may not be sorted in the correct order if the builder has never built.
-    pub fn properties(&self) -> impl Iterator<Item = (Importance, &Box<dyn PropertyArgs>)> {
-        self.items.iter().filter_map(|(_, it)| match it {
+    pub fn properties(&self) -> impl Iterator<Item = (Importance, NestPosition, &dyn PropertyArgs)> {
+        self.items.iter().filter_map(|(pos, it)| match it {
             WidgetItem::Instrinsic { .. } => None,
-            WidgetItem::Property { importance, args } => Some((*importance, args)),
+            WidgetItem::Property { importance, args } => Some((*importance, *pos, &**args)),
+        })
+    }
+
+    /// iterate over mutable references to the current properties.
+    pub fn properties_mut(&mut self) -> impl Iterator<Item = (&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
+        self.items_sorted = false;
+        self.items.iter_mut().filter_map(|(pos, it)| match it {
+            WidgetItem::Instrinsic { .. } => None,
+            WidgetItem::Property { importance, args } => Some((importance, pos, args)),
         })
     }
 
     fn sort_items(&mut self) {
         if !self.items_sorted {
-            self.items.sort_by(|(a_pri, a_item), (b_pri, b_item)| match a_pri.cmp(b_pri) {
-                std::cmp::Ordering::Equal => match (a_item, b_item) {
-                    // INSTANCE importance is innermost of DEFAULT.
-                    (WidgetItem::Property { importance: a_imp, .. }, WidgetItem::Property { importance: b_imp, .. }) => a_imp.cmp(b_imp),
-                    // Intrinsic is outermost of priority items.
-                    (WidgetItem::Property { .. }, WidgetItem::Instrinsic { .. }) => std::cmp::Ordering::Greater,
-                    (WidgetItem::Instrinsic { .. }, WidgetItem::Property { .. }) => std::cmp::Ordering::Less,
-                    (WidgetItem::Instrinsic { .. }, WidgetItem::Instrinsic { .. }) => std::cmp::Ordering::Equal,
-                },
-                ord => ord,
-            });
-
+            self.items.sort_by_key(|(pos, _)| *pos);
             self.items_sorted = true;
         }
 

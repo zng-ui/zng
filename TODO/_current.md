@@ -3,7 +3,12 @@
 * Finish implementing new dynamic widget.
     - Implement pre-bind for when expressions.
      - When assigns need to "import" private properties in the same properties! block.
-    - Implement helper methods for doing things like moving a property to the top of the pile of its own priority.
+    - Implement a way to generate a compile error when inheriting build from mixin.
+        - Maybe widgets can define a macro that is called when inherited?
+    - Can we make `styleable_mixin` now that everything is dynamic?
+        - It works as a node that is immediate child of another, make build accept intrinsic "outer-most".
+            - Use the new `NestPosition` to insert the intrinsic at the outermost node should work.
+    - Make very basic `container` and `panel` widgets directly in `widget_base`?
 
 * Refactor all widgets to use the new API.
 
