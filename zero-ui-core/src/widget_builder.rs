@@ -157,11 +157,11 @@ pub enum InputKind {
     Value,
     /// Input is `impl UiNode`, build value is `RcNode<BoxedUiNode>`.
     UiNode,
-    /// Input is `impl Widget`, build value is `RcNode<BoxedWidget>`.
+    /// Input is `impl UiNode`, build value is `RcNode<BoxedWidget>`.
     Widget,
     /// Input is `impl UiNodeList`, build value is `RcNodeList<BoxedUiNodeList>`.
     UiNodeList,
-    /// Input is `impl WidgetList`, build value is `RcNodeList<BoxedWidgetList>`.
+    /// Input is `impl UiNodeList`, build value is `RcNodeList<BoxedWidgetList>`.
     WidgetList,
     /// Input is `impl WidgetHandler<A>`, build value is `RcWidgetHandler<A>`.
     WidgetHandler,

@@ -22,7 +22,7 @@ fn main() {
             content = v_stack! {
                 spacing = 5;
                 items_align = Align::TOP;
-                items = widgets![
+                items = ui_list![
                     text(
                         "The renderer and OS windows are created in another process, the `view-process`,\n\
                         it automatically respawns in case of a graphics driver crash or other similar fatal error.\n"
@@ -39,7 +39,7 @@ fn main() {
     });
 }
 
-fn respawn() -> impl Widget {
+fn respawn() -> impl UiNode {
     button! {
         content = text("Respawn (F5)");
         on_click = hn!(|ctx, _| {
@@ -49,7 +49,7 @@ fn respawn() -> impl Widget {
 }
 
 #[cfg(debug_assertions)]
-fn crash_respawn() -> impl Widget {
+fn crash_respawn() -> impl UiNode {
     button! {
         content = text("Crash View-Process");
         on_click = hn!(|ctx, _| {
@@ -58,7 +58,7 @@ fn crash_respawn() -> impl Widget {
     }
 }
 
-fn click_counter() -> impl Widget {
+fn click_counter() -> impl UiNode {
     let t = var_from("Click Me!");
     let mut count = 0;
 
@@ -72,17 +72,17 @@ fn click_counter() -> impl Widget {
     }
 }
 
-fn image() -> impl Widget {
+fn image() -> impl UiNode {
     v_stack! {
         spacing = 3;
-        items = widgets![
+        items = ui_list![
             strong("Image:"),
             image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
         ];
     }
 }
 
-fn window_status(ctx: &mut WindowContext) -> impl Widget {
+fn window_status(ctx: &mut WindowContext) -> impl UiNode {
     let vars = WindowVars::req(ctx);
 
     macro_rules! status {
@@ -98,7 +98,7 @@ fn window_status(ctx: &mut WindowContext) -> impl Widget {
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         font_family = "monospace";
         opacity = 80.pct();
-        items = widgets![
+        items = ui_list![
             status!(actual_position),
             status!(actual_size),
             status!(restore_state),
@@ -107,7 +107,7 @@ fn window_status(ctx: &mut WindowContext) -> impl Widget {
     }
 }
 
-fn icon() -> impl Widget {
+fn icon() -> impl UiNode {
     container! {
         size = (36, 36);
         background_gradient = Line::to_bottom_right(), stops![colors::ORANGE_RED, 70.pct(), colors::DARK_RED];

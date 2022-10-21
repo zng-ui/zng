@@ -54,7 +54,7 @@ fn headless_example() {
 }
 
 // A 800x600 "Hello World!" with a fancy background.
-fn image() -> impl Widget {
+fn image() -> impl UiNode {
     container! {
         size = (800, 600);
 
@@ -65,7 +65,7 @@ fn image() -> impl Widget {
                 linear_gradient(angle.deg(), stops)
             }
 
-            nodes![
+            ui_list![
                 flood(colors::WHITE),
                 gradient(0, colors::RED),
                 gradient(20, colors::RED),

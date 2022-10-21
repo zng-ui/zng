@@ -30,7 +30,7 @@ fn app_main() {
             padding = 5;
             content = v_stack! {
                 spacing = 5;
-                items = widgets![
+                items = ui_list![
                     text! {
                         text = calc.map_ref(|c| c.text());
                         align = Align::RIGHT;
@@ -47,7 +47,7 @@ fn app_main() {
     })
 }
 
-fn controls(calc: RcVar<Calculator>) -> impl Widget {
+fn controls(calc: RcVar<Calculator>) -> impl UiNode {
     let bn = |c| btn(calc.clone(), c);
     let b_squre = btn_square(calc.clone());
     let b_sroot = btn_square_root(calc.clone());
@@ -59,7 +59,7 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
         spacing = 2;
         columns = 4;
         font_size = 14.pt();
-        items = widgets![
+        items = ui_list![
             b_squre,  b_sroot,  b_clear,  b_back,
             bn('7'),  bn('8'),  bn('9'),  bn('/'),
             bn('4'),  bn('5'),  bn('6'),  bn('*'),
@@ -69,21 +69,21 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
     }
 }
 
-fn btn_square(calc: RcVar<Calculator>) -> impl Widget {
+fn btn_square(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square()));
         content = text("x²");
     }
 }
 
-fn btn_square_root(calc: RcVar<Calculator>) -> impl Widget {
+fn btn_square_root(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square_root()));
         content = text("√x");
     }
 }
 
-fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
+fn btn_clear(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().clear()));
         click_shortcut = shortcut!(Escape);
@@ -91,7 +91,7 @@ fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
     }
 }
 
-fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
+fn btn_backspace(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
@@ -99,7 +99,7 @@ fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
     }
 }
 
-fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
+fn btn(calc: RcVar<Calculator>, c: char) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| {
             calc.modify(ctx.vars, move |b| b.get_mut().push(c))
@@ -113,7 +113,7 @@ fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
     }
 }
 
-fn btn_eval(calc: RcVar<Calculator>) -> impl Widget {
+fn btn_eval(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];

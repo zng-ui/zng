@@ -28,13 +28,13 @@ fn app_main() {
             enabled = window_enabled.clone();
             background = commands();
             content = v_stack! {
-                items = widgets![
+                items = ui_list![
                     alt_scope(),
                     h_stack! {
                         margin = (50, 0, 0, 0);
                         align = Align::CENTER;
                         spacing = 10;
-                        items = widgets![
+                        items = ui_list![
                             tab_index(),
                             functions(window_enabled),
                             delayed_focus(),
@@ -50,25 +50,25 @@ fn app_main() {
     })
 }
 
-fn alt_scope() -> impl Widget {
+fn alt_scope() -> impl UiNode {
     h_stack! {
         alt_focus_scope = true;
         button::vis::extend_style = style_generator!(|_, _| style! {
             border = unset!;
             corner_radius = unset!;
         });
-        items = widgets![
+        items = ui_list![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),
         ];
     }
 }
 
-fn tab_index() -> impl Widget {
+fn tab_index() -> impl UiNode {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(T);
-        items = widgets![
+        items = ui_list![
             title("TabIndex (T)"),
             button("Button A5", 5),
             button("Button A4", 3),
@@ -79,11 +79,11 @@ fn tab_index() -> impl Widget {
     }
 }
 
-fn functions(window_enabled: RcVar<bool>) -> impl Widget {
+fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(F);
-        items = widgets![
+        items = ui_list![
             title("Functions (F)"),
             // New Window
             button! {
@@ -97,7 +97,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                             content = v_stack! {
                                 align = Align::CENTER;
                                 spacing = 5;
-                                items = widgets![
+                                items = ui_list![
                                     title("Other Window (W)"),
                                     button("Button B5", 5),
                                     button("Button B4", 3),
@@ -144,7 +144,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
         ]
     }
 }
-fn disable_window(window_enabled: RcVar<bool>) -> impl Widget {
+fn disable_window(window_enabled: RcVar<bool>) -> impl UiNode {
     button! {
         content = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
@@ -155,7 +155,7 @@ fn disable_window(window_enabled: RcVar<bool>) -> impl Widget {
         });
     }
 }
-fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
+fn overlay(window_enabled: RcVar<bool>) -> impl UiNode {
     container! {
         id = "overlay";
         modal = true;
@@ -169,14 +169,14 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
             padding = 2;
             content = v_stack! {
                 items_align = Align::RIGHT;
-                items = widgets![
+                items = ui_list![
                     text! {
                         text = "Window scope is disabled so the overlay scope is the root scope.";
                         margin = 15;
                     },
                     h_stack! {
                         spacing = 2;
-                        items = widgets![
+                        items = ui_list![
                         disable_window(window_enabled),
                         button! {
                                 content = text("Close");
@@ -192,11 +192,11 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
     }
 }
 
-fn delayed_focus() -> impl Widget {
+fn delayed_focus() -> impl UiNode {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(D);
-        items = widgets![
+        items = ui_list![
             title("Delayed 4s (D)"),
 
             delayed_btn("Force Focus", |ctx| {
@@ -234,7 +234,7 @@ fn delayed_focus() -> impl Widget {
                 background_color = color_scheme_map(rgb(30, 30, 30), rgb(225, 225, 225));
 
                 focusable = true;
-                when self.is_focused {
+                when *#is_focused {
                     text = "focused";
                     background_color = color_scheme_map(colors::DARK_GREEN, colors::LIGHT_GREEN);
                 }
@@ -242,7 +242,7 @@ fn delayed_focus() -> impl Widget {
         ]
     }
 }
-fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetContext) + 'static) -> impl Widget {
+fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
     let on_timeout = std::rc::Rc::new(std::cell::RefCell::new(Box::new(on_timeout)));
     let enabled = var(true);
     button! {
@@ -260,11 +260,11 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
     }
 }
 
-fn title(text: impl IntoVar<Text>) -> impl Widget {
+fn title(text: impl IntoVar<Text>) -> impl UiNode {
     text! { text; font_weight = FontWeight::BOLD; align = Align::CENTER; }
 }
 
-fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widget {
+fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl UiNode {
     let content = content.into();
     let tab_index = tab_index.into();
     button! {
@@ -276,7 +276,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widg
     }
 }
 
-fn commands() -> impl Widget {
+fn commands() -> impl UiNode {
     use zero_ui::core::focus::commands::*;
 
     let cmds = [
@@ -332,7 +332,7 @@ fn trace_focus() {
         .perm();
 }
 
-fn nested_focusables() -> impl Widget {
+fn nested_focusables() -> impl UiNode {
     button! {
         content = text("Nested Focusables");
 
@@ -349,7 +349,7 @@ fn nested_focusables() -> impl Widget {
                     content_align = Align::CENTER;
                     content = v_stack! {
                         spacing = 10;
-                        items = widgets![
+                        items = ui_list![
                             nested_focusables_group('a'),
                             nested_focusables_group('b'),
                         ];
@@ -359,14 +359,14 @@ fn nested_focusables() -> impl Widget {
         })
     }
 }
-fn nested_focusables_group(g: char) -> impl Widget {
+fn nested_focusables_group(g: char) -> impl UiNode {
     h_stack! {
         align = Align::TOP;
         spacing = 10;
         items = (0..5).map(|n| nested_focusable(g, n, 0).boxed_wgt()).collect::<WidgetVec>()
     }
 }
-fn nested_focusable(g: char, column: u8, row: u8) -> impl Widget {
+fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
     let nested = text! {
         text = format!("Focusable {column}, {row}");
         margin = 5;
@@ -389,10 +389,10 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl Widget {
         corner_radius = 5;
         border = 1, colors::RED.with_alpha(30.pct());
         background_color = colors::RED.with_alpha(20.pct());
-        when self.is_focused {
+        when *#is_focused {
             background_color = colors::GREEN;
         }
-        when self.is_return_focus {
+        when *#is_return_focus {
             border = 1, colors::LIME_GREEN;
         }
     }

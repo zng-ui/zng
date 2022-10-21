@@ -15,7 +15,7 @@ use super::hit_test_mode;
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// # fn foo() -> impl Widget { blank!() }
+/// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
 ///     content = foo();
@@ -80,7 +80,7 @@ pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// # fn foo() -> impl Widget { blank!() }
+/// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
 ///     content = foo();
@@ -103,7 +103,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// # fn foo() -> impl Widget { blank!() }
+/// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
 ///     content = foo();
@@ -134,7 +134,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// # fn foo() -> impl Widget { blank!() }
+/// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
 ///     content = foo();
@@ -189,7 +189,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// # fn foo() -> impl Widget { blank!() }
+/// # fn foo() -> impl UiNode { blank!() }
 /// container! {
 ///     content = foo();
 ///     foreground_highlight = {
@@ -286,7 +286,7 @@ pub fn foreground_highlight(
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// # fn foo() -> impl Widget { blank!() }
+/// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
 ///     content = foo();
@@ -311,7 +311,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// # fn foo() -> impl Widget { blank!() }
+/// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
 ///     content = foo();

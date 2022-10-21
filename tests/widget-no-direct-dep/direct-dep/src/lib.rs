@@ -7,7 +7,7 @@ pub mod test_widget {}
 ///
 /// In the `no-direct-dep` crate we don't have direct access to the `zero-ui` types.
 /// So the type-assert function is declared here.
-pub fn is_test_widget(_: impl Widget) -> bool {
+pub fn is_test_widget(_: impl UiNode) -> bool {
     true
 }
 

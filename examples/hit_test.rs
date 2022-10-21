@@ -12,7 +12,7 @@ fn main() {
             content_align = Align::CENTER;
             content = h_stack! {
                 spacing = 14;
-                items = widgets![
+                items = ui_list![
                     example(HitTestMode::Visual),
                     example(HitTestMode::RoundedBounds),
                     example(HitTestMode::Bounds),
@@ -22,7 +22,7 @@ fn main() {
     })
 }
 
-fn example(mode: HitTestMode) -> impl Widget {
+fn example(mode: HitTestMode) -> impl UiNode {
     container! {
         hit_test_mode = mode;
 
@@ -36,7 +36,7 @@ fn example(mode: HitTestMode) -> impl Widget {
         // background_color = colors::GRAY;
 
         border = 5, colors::RED;
-        when self.is_hovered {
+        when *#is_hovered {
             border = 5, colors::GREEN;
         }
     }

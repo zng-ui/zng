@@ -18,7 +18,7 @@ use super::*;
 /// ```
 /// # use zero_ui_core::{ui_list, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
+/// # fn text(fake: &str) -> impl UiNode { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
 /// # use text as foo;
 /// # use text as bar;
 /// let widgets = ui_list![

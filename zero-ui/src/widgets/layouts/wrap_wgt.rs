@@ -9,13 +9,13 @@ pub mod wrap {
     properties! {
         /// Widget items.
         #[allowed_in_when = false]
-        items(impl WidgetList) = widgets![];
+        items(impl UiNodeList) = ui_list![];
 
         /// Space in-between items.
         spacing(impl IntoVar<GridSpacing>) = 0.0;
     }
 
-    fn new_child(items: impl WidgetList, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
+    fn new_child(items: impl UiNodeList, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
         let node = WrapNode {
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
@@ -24,7 +24,7 @@ pub mod wrap {
     }
 
     #[ui_node(struct WrapNode {
-        children: impl WidgetList,
+        children: impl UiNodeList,
         #[var] spacing: impl Var<GridSpacing>,
     })]
     impl UiNode for WrapNode {

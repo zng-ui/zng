@@ -103,7 +103,7 @@ pub mod styleable {
     }
 
     /// Styleable `new`, captures the `id` and `style` properties.
-    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl Widget {
+    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
         #[ui_node(struct StyleableNode {
             child: DynWidgetNode,
             snapshot: Option<DynWidgetSnapshot>,

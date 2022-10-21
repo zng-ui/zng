@@ -14,7 +14,7 @@ use crate::prelude::new_widget::*;
 /// # use zero_ui::prelude::*;
 /// let text = v_stack! {
 ///     spacing = 5.0;
-///     items = widgets![
+///     items = ui_list![
 ///         text("1. Hello"),
 ///         text("2. World"),
 ///     ];
@@ -35,7 +35,7 @@ pub mod h_stack {
     properties! {
         /// Widget items.
         #[allowed_in_when = false]
-        items(impl WidgetList) = widgets![];
+        items(impl UiNodeList) = ui_list![];
 
         /// Space in-between items.
         spacing(impl IntoVar<Length>) = 0.0;
@@ -52,7 +52,7 @@ pub mod h_stack {
         items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
     }
 
-    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
+    fn new_child(items: impl UiNodeList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         let node = HStackNode {
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
@@ -62,7 +62,7 @@ pub mod h_stack {
     }
 
     #[ui_node(struct HStackNode {
-        children: impl WidgetList,
+        children: impl UiNodeList,
 
         #[var] spacing: impl Var<Length>,
         #[var] align: impl Var<Align>,
@@ -255,7 +255,7 @@ pub mod h_stack {
 /// # use zero_ui::prelude::*;
 /// let text = h_stack! {
 ///     spacing = 5.0;
-///     items = widgets![
+///     items = ui_list![
 ///         text("Hello"),
 ///         text("World"),
 ///     ];
@@ -278,7 +278,7 @@ pub mod v_stack {
 
         /// Widget items.
         #[allowed_in_when = false]
-        items(impl WidgetList) = widgets![];
+        items(impl UiNodeList) = ui_list![];
 
         /// Spacing around the items stack, inside the border.
         padding;
@@ -292,7 +292,7 @@ pub mod v_stack {
         items_align(impl IntoVar<Align>) = Align::FILL_TOP;
     }
 
-    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
+    fn new_child(items: impl UiNodeList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         let node = VStackNode {
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
@@ -302,7 +302,7 @@ pub mod v_stack {
     }
 
     #[ui_node(struct VStackNode {
-        children: impl WidgetList,
+        children: impl UiNodeList,
 
         #[var] spacing: impl Var<Length>,
         #[var] align: impl Var<Align>,
@@ -488,7 +488,7 @@ pub mod v_stack {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = h_stack(widgets![
+/// let text = h_stack(ui_list![
 ///     text("Hello "),
 ///     text("World"),
 /// ]);
@@ -498,7 +498,7 @@ pub mod v_stack {
 ///
 /// This function is just a shortcut for [`h_stack!`](module@v_stack). Use the full widget
 /// to better configure the horizontal stack widget.
-pub fn h_stack(items: impl WidgetList) -> impl Widget {
+pub fn h_stack(items: impl UiNodeList) -> impl UiNode {
     h_stack! {
         items;
     }
@@ -510,7 +510,7 @@ pub fn h_stack(items: impl WidgetList) -> impl Widget {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = v_stack(widgets![
+/// let text = v_stack(ui_list![
 ///     text("1. Hello"),
 ///     text("2. World"),
 /// ]);
@@ -520,7 +520,7 @@ pub fn h_stack(items: impl WidgetList) -> impl Widget {
 ///
 /// This function is just a shortcut for [`v_stack!`](module@v_stack). Use the full widget
 /// to better configure the vertical stack widget.
-pub fn v_stack(items: impl WidgetList) -> impl Widget {
+pub fn v_stack(items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         items;
     }
@@ -539,7 +539,7 @@ pub fn v_stack(items: impl WidgetList) -> impl Widget {
 /// # use zero_ui::prelude::*;
 /// let text = z_stack! {
 ///     padding = 5.0;
-///     items = widgets![
+///     items = ui_list![
 ///         text("one"),
 ///         text! { text = "three"; z_index = ZIndex::DEFAULT + 1; },
 ///         text("two"),
@@ -565,7 +565,7 @@ pub mod z_stack {
     properties! {
         /// Widget items.
         #[allowed_in_when = false]
-        items(impl WidgetList) = widgets![];
+        items(impl UiNodeList) = ui_list![];
 
         /// Spacing around the items stack, inside the border.
         padding;
@@ -578,7 +578,7 @@ pub mod z_stack {
         items_align(impl IntoVar<Align>) = Align::FILL;
     }
 
-    fn new_child(items: impl WidgetList, items_align: impl IntoVar<Align>) -> impl UiNode {
+    fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Align>) -> impl UiNode {
         let node = ZStackNode {
             children: ZSortedWidgetList::new(items),
             align: items_align.into_var(),
@@ -587,7 +587,7 @@ pub mod z_stack {
     }
 
     #[ui_node(struct ZStackNode {
-        children: impl WidgetList,
+        children: impl UiNodeList,
         #[var] align: impl Var<Align>,
     })]
     impl UiNode for ZStackNode {
@@ -714,7 +714,7 @@ pub mod z_stack {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = z_stack(widgets![
+/// let text = z_stack(ui_list![
 ///     text("back"),
 ///     text("front"),
 /// ]);
@@ -724,7 +724,7 @@ pub mod z_stack {
 ///
 /// This function is just a shortcut for [`z_stack!`](module@z_stack). Use the full widget
 /// to better configure the layering stack widget.
-pub fn z_stack(items: impl WidgetList) -> impl Widget {
+pub fn z_stack(items: impl UiNodeList) -> impl UiNode {
     z_stack! { items; }
 }
 

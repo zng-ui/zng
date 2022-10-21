@@ -16,7 +16,7 @@ use crate::prelude::new_widget::*;
 /// let grid = uniform_grid!{
 ///     columns = 3;
 ///     rows = 2;
-///     items = widgets![
+///     items = ui_list![
 ///         text("0,0"), text("1,0"), text("2,0"),
 ///         text("0,1"), text("1,1")
 ///     ];
@@ -39,7 +39,7 @@ pub mod uniform_grid {
     properties! {
         /// Widget items.
         #[allowed_in_when = false]
-        items(impl WidgetList) = widgets![];
+        items(impl UiNodeList) = ui_list![];
 
         /// Number of columns.
         ///
@@ -62,7 +62,7 @@ pub mod uniform_grid {
         ///     columns = 3;
         ///     rows = 2;
         ///     first_column = 1;
-        ///     items = widgets![
+        ///     items = ui_list![
         ///                      text("1,0"), text("2,0"),
         ///         text("0,1"), text("1,1"), text("2,1")
         ///     ];
@@ -86,7 +86,7 @@ pub mod uniform_grid {
 
     /// New uniform grid layout.
     fn new_child(
-        items: impl WidgetList,
+        items: impl UiNodeList,
         columns: impl IntoVar<u32>,
         rows: impl IntoVar<u32>,
         first_column: impl IntoVar<u32>,
@@ -104,7 +104,7 @@ pub mod uniform_grid {
     }
 
     #[ui_node(struct UniformGridNode {
-        children: impl WidgetList,
+        children: impl UiNodeList,
         #[var] columns: impl Var<u32>,
         #[var] rows: impl Var<u32>,
         #[var] first_column: impl Var<u32>,
@@ -358,7 +358,7 @@ pub mod uniform_grid {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let grid = uniform_grid(widgets![
+/// let grid = uniform_grid(ui_list![
 ///     text("0,0"), text("1,0"),
 ///     text("0,1"), text("1,1"),
 /// ]);
@@ -375,6 +375,6 @@ pub mod uniform_grid {
 ///
 /// This function is just a shortcut for [`uniform_grid!`](module@uniform_grid). Use the full widget
 /// to better configure the grid widget.
-pub fn uniform_grid(items: impl WidgetList) -> impl Widget {
+pub fn uniform_grid(items: impl UiNodeList) -> impl UiNode {
     uniform_grid! { items; }
 }

@@ -633,7 +633,7 @@ pub mod state_map {
 /// // after the property is used and the widget initializes:
 ///
 /// /// Get the value from outside the widget.
-/// fn get_foo_outer(widget: &impl Widget) -> u32 {
+/// fn get_foo_outer(widget: &impl UiNode) -> u32 {
 ///     widget.state().get(&FOO_ID).copied().unwrap_or_default()
 /// }
 ///

@@ -40,16 +40,16 @@ fn app_main() {
             "Image Example",
             h_stack! {
                 spacing = 30;
-                items = widgets![
+                items = ui_list![
                     section(
                         "Sources",
-                        widgets![
+                        ui_list![
                             sub_title("File"),
                             uniform_grid! {
                                 columns = 4;
                                 spacing = 2;
                                 align = Align::CENTER;
-                                items = widgets![
+                                items = ui_list![
                                     image("examples/res/image/Luma8.png"),
                                     image("examples/res/image/Luma16.png"),
                                     image("examples/res/image/LumaA8.png"),
@@ -88,7 +88,7 @@ fn app_main() {
 
                     section(
                         "Fit",
-                        widgets![
+                        ui_list![
                             img_fit(ImageFit::None),
                             img_fit(ImageFit::Fill),
                             img_fit(ImageFit::Contain),
@@ -99,7 +99,7 @@ fn app_main() {
 
                     section(
                         "Filter",
-                        widgets![
+                        ui_list![
                             img_filter(filters::grayscale(true)),
                             img_filter(filters::sepia(true)),
                             img_filter(filters::opacity(50.pct())),
@@ -116,11 +116,11 @@ fn app_main() {
 
                     v_stack! {
                         spacing = 30;
-                        items = widgets![
+                        items = ui_list![
                             section(
                                 "Errors",
 
-                                widgets![
+                                ui_list![
                                     sub_title("File"),
                                     image("404.png"),
 
@@ -130,11 +130,11 @@ fn app_main() {
                             ),
                             section(
                                 "Sprite",
-                                widgets![sprite(ctx.timers)]
+                                ui_list![sprite(ctx.timers)]
                             ),
                             section(
                                 "Window",
-                                widgets![
+                                ui_list![
                                     panorama_image(),
                                     block_window_load_image(),
                                     large_image(),
@@ -148,14 +148,14 @@ fn app_main() {
     })
 }
 
-fn img_fit(fit: impl IntoVar<ImageFit>) -> impl Widget {
+fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
     let fit = fit.into_var();
 
     v_stack! {
         items_align = Align::TOP_LEFT;
         spacing = 5;
 
-        items = widgets![
+        items = ui_list![
             sub_title(fit.map_debug()),
             image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
@@ -166,14 +166,14 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl Widget {
     }
 }
 
-fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl Widget {
+fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
     let filter = filter.into_var();
 
     v_stack! {
         items_align = Align::TOP_LEFT;
         spacing = 2;
 
-        items = widgets![
+        items = ui_list![
             sub_title(filter.map(|f| {
                 let s = format!("{f:?}");
                 if s.starts_with("color_matrix") {
@@ -191,13 +191,13 @@ fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl Widget {
     }
 }
 
-fn sprite(timers: &mut Timers) -> impl Widget {
+fn sprite(timers: &mut Timers) -> impl UiNode {
     let timer = timers.interval((1.0 / 24.0).secs(), true);
     let label = var_from("play");
 
     v_stack! {
         align = Align::CENTER;
-        items = widgets![
+        items = ui_list![
             button! {
                 content = text(label.clone());
                 align = Align::CENTER;
@@ -232,7 +232,7 @@ fn sprite(timers: &mut Timers) -> impl Widget {
     }
 }
 
-fn large_image() -> impl Widget {
+fn large_image() -> impl UiNode {
     button! {
         content = text("Large Image (205MB download)");
         on_click = hn!(|ctx, _| {
@@ -251,7 +251,7 @@ fn large_image() -> impl Widget {
     }
 }
 
-fn panorama_image() -> impl Widget {
+fn panorama_image() -> impl UiNode {
     button! {
         content = text("Panorama Image (100MB download)");
         on_click = hn!(|ctx, _| {
@@ -273,7 +273,7 @@ fn panorama_image() -> impl Widget {
     }
 }
 
-fn block_window_load_image() -> impl Widget {
+fn block_window_load_image() -> impl UiNode {
     let enabled = var(true);
     button! {
         content = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
@@ -319,7 +319,7 @@ fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
     http::CacheMode::default()
 }
 
-fn center_viewport(msg: impl Widget) -> impl Widget {
+fn center_viewport(msg: impl UiNode) -> impl UiNode {
     container! {
         // center the message on the scroll viewport:
         //
@@ -410,12 +410,12 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
     img_window!(title; content)
 }
 
-fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
+fn section(title: impl IntoVar<Text>, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
         items_align = Align::TOP_LEFT;
 
-        items = widgets![
+        items = ui_list![
             self::title(title),
             v_stack! {
                 spacing = 5;
@@ -427,7 +427,7 @@ fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
     }
 }
 
-fn title(text: impl IntoVar<Text>) -> impl Widget {
+fn title(text: impl IntoVar<Text>) -> impl UiNode {
     text! {
         text;
         font_size = 20;
@@ -436,7 +436,7 @@ fn title(text: impl IntoVar<Text>) -> impl Widget {
     }
 }
 
-fn sub_title(text: impl IntoVar<Text>) -> impl Widget {
+fn sub_title(text: impl IntoVar<Text>) -> impl UiNode {
     text! {
         text;
 

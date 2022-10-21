@@ -94,9 +94,9 @@ impl PropertyValue {
         if self.type_name.contains("::WidgetNode") {
             Text::from_static("<widget!>")
         } else if self.type_name.contains("::WidgetVec") || self.type_name.contains("::WidgetList") {
-            Text::from_static("<[widgets!]>")
+            Text::from_static("<[ui_list!]>")
         } else if self.type_name.contains("::UiNodeVec") || self.type_name.contains("::UiNodeList") {
-            Text::from_static("<[nodes!]>")
+            Text::from_static("<[ui_list!]>")
         } else if self.type_name.ends_with("{{closure}}") {
             Text::from_static("<{{closure}}>")
         } else if self.type_name.contains("::FnMutWidgetHandler<") {

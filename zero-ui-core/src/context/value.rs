@@ -75,6 +75,8 @@ macro_rules! context_value {
     $vis static $NAME: $crate::context::ContextValue<$Type> = paste::paste! { $crate::context::ContextValue::new(&[<$NAME _LOCAL>]) };
 )+}
 }
+#[doc(inline)]
+pub use context_value;
 
 #[doc(hidden)]
 pub struct ContextValueData<T: Any> {

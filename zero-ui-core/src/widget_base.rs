@@ -1031,7 +1031,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// ```
 /// # macro_rules! container { ($($tt:tt)*) => { widget_base::implicit_base::nodes::widget(FillUiNode, WidgetId::new_unique()) } }
 /// # use zero_ui_core::*;
-/// fn center_viewport(content: impl Widget) -> impl Widget {
+/// fn center_viewport(content: impl UiNode) -> impl UiNode {
 ///     container! {
 ///         zero_ui::core::widget_base::can_auto_hide = false;
 ///

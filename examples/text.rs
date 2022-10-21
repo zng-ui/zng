@@ -23,21 +23,21 @@ fn app_main() {
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             font_size = fs.easing(150.ms(), easing::linear);
-            content = z_stack(widgets![
+            content = z_stack(ui_list![
                 h_stack! {
                     align = Align::CENTER;
                     spacing = 40;
-                    items = widgets![
+                    items = ui_list![
                         v_stack! {
                             spacing = 20;
-                            items = widgets![
+                            items = ui_list![
                                 basic(),
                                 defaults(ctx),
                             ];
                         },
                         v_stack! {
                             spacing = 20;
-                            items = widgets![
+                            items = ui_list![
                                 line_height(),
                                 line_spacing(),
                                 word_spacing(),
@@ -46,7 +46,7 @@ fn app_main() {
                         },
                         v_stack! {
                             spacing = 20;
-                            items = widgets![
+                            items = ui_list![
                                 decoration_lines(),
                             ]
                         }
@@ -62,7 +62,7 @@ fn app_main() {
     })
 }
 
-fn font_size(font_size: RcVar<Length>) -> impl Widget {
+fn font_size(font_size: RcVar<Length>) -> impl UiNode {
     fn change_size(font_size: &RcVar<Length>, change: f32, ctx: &mut WidgetContext) {
         font_size.modify(ctx, move |s| {
             *s.get_mut() += Length::Pt(change);
@@ -76,7 +76,7 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         corner_radius = 4;
         background_color = color_scheme_map(rgba(0, 0, 0, 40.pct()), rgba(1., 1., 1., 40.pct()));
         padding = 4;
-        items = widgets![
+        items = ui_list![
             button! {
                 content = text("-");
                 font_family = FontName::monospace();
@@ -102,10 +102,10 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
     }
 }
 
-fn basic() -> impl Widget {
+fn basic() -> impl UiNode {
     section(
         "basic",
-        widgets![
+        ui_list![
             text("Basic Text"),
             strong("Strong Text"),
             em("Emphasis Text"),
@@ -113,7 +113,7 @@ fn basic() -> impl Widget {
                 color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
                 text = "Colored Text";
 
-                when self.is_hovered {
+                when *#is_hovered {
                     color = color_scheme_map(colors::YELLOW, colors::BROWN);
                 }
             },
@@ -121,10 +121,10 @@ fn basic() -> impl Widget {
     )
 }
 
-fn line_height() -> impl Widget {
+fn line_height() -> impl UiNode {
     section(
         "line_height",
-        widgets![
+        ui_list![
             text! {
                 text = "Default: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
@@ -140,15 +140,15 @@ fn line_height() -> impl Widget {
     )
 }
 
-fn line_spacing() -> impl Widget {
+fn line_spacing() -> impl UiNode {
     section(
         "line_spacing",
-        widgets![container! {
+        ui_list![container! {
             content = text! {
                 text = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
-                when self.is_hovered {
+                when *#is_hovered {
                     line_spacing = 30.pct();
                 }
             };
@@ -158,38 +158,38 @@ fn line_spacing() -> impl Widget {
     )
 }
 
-fn word_spacing() -> impl Widget {
+fn word_spacing() -> impl UiNode {
     section(
         "word_spacing",
-        widgets![text! {
+        ui_list![text! {
             text = "Word spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
-            when self.is_hovered {
+            when *#is_hovered {
                 word_spacing = 100.pct();
             }
         }],
     )
 }
 
-fn letter_spacing() -> impl Widget {
+fn letter_spacing() -> impl UiNode {
     section(
         "letter_spacing",
-        widgets![text! {
+        ui_list![text! {
             text = "Letter spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
-            when self.is_hovered {
+            when *#is_hovered {
                 letter_spacing = 30.pct();
             }
         }],
     )
 }
 
-fn decoration_lines() -> impl Widget {
+fn decoration_lines() -> impl UiNode {
     section(
         "Decorations",
-        widgets![
+        ui_list![
             text! {
                 text = "Overline, 1, Dotted,\ndefault color";
                 overline = 1, LineStyle::Dotted;
@@ -247,8 +247,8 @@ fn decoration_lines() -> impl Widget {
     )
 }
 
-fn defaults(ctx: &mut WindowContext) -> impl Widget {
-    fn demo(ctx: &mut WindowContext, title: &str, font_family: impl Into<FontNames>) -> impl Widget {
+fn defaults(ctx: &mut WindowContext) -> impl UiNode {
+    fn demo(ctx: &mut WindowContext, title: &str, font_family: impl Into<FontNames>) -> impl UiNode {
         let font_family = font_family.into();
 
         let font = Fonts::req(ctx.services).list(
@@ -261,7 +261,7 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
 
         h_stack! {
             items_align = Align::BASELINE_LEFT;
-            items = widgets![
+            items = ui_list![
                 text(if title.is_empty() {
                     formatx!("{font_family}: ")
                 } else {
@@ -277,7 +277,7 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
 
     section(
         "defaults",
-        widgets![
+        ui_list![
             // Generic
             demo(ctx, "", FontName::serif()),
             demo(ctx, "", FontName::sans_serif()),
@@ -290,10 +290,10 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
     )
 }
 
-fn section(header: &'static str, items: impl WidgetList) -> impl Widget {
+fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
-        items = widgets![text! {
+        items = ui_list![text! {
             text = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

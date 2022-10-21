@@ -47,17 +47,17 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         content_align = Align::CENTER;
         content = h_stack! {
             spacing = 40;
-            items = widgets![
+            items = ui_list![
                 v_stack! {
                     spacing = 20;
-                    items = widgets![
+                    items = ui_list![
                         state_commands(window_id),
                         focus_control(),
                     ]
                 },
                 v_stack! {
                     spacing = 20;
-                    items = widgets![
+                    items = ui_list![
                         state(window_vars),
                         visibility(window_vars),
                         chrome(window_vars),
@@ -65,14 +65,14 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                 },
                 v_stack! {
                     spacing = 20;
-                    items = widgets![
+                    items = ui_list![
                         icon(window_vars),
                         background_color(background),
                     ];
                 },
                 v_stack! {
                     spacing = 20;
-                    items = widgets![
+                    items = ui_list![
                         screenshot(),
                         misc(window_id, window_vars),
                     ];
@@ -82,15 +82,15 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     }
 }
 
-fn background_color(color: impl Var<Rgba>) -> impl Widget {
-    fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl Widget {
+fn background_color(color: impl Var<Rgba>) -> impl UiNode {
+    fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl UiNode {
         toggle! {
             value<Rgba> = c.clone();
             select_on_init;
             content = h_stack! {
                 spacing = 4;
                 items_align = Align::LEFT;
-                items = widgets![
+                items = ui_list![
                     blank! {
                         background_color = c.clone();
                         size = (16, 16);
@@ -100,7 +100,7 @@ fn background_color(color: impl Var<Rgba>) -> impl Widget {
             };
         }
     }
-    fn primary_color(c: Rgba) -> impl Widget {
+    fn primary_color(c: Rgba) -> impl UiNode {
         let c = c.desaturate(50.pct());
         let c = color_scheme_map(rgba(0, 0, 0, 20.pct()).mix_normal(c), rgba(255, 255, 255, 20.pct()).mix_normal(c));
         color_btn(c, false)
@@ -109,7 +109,7 @@ fn background_color(color: impl Var<Rgba>) -> impl Widget {
     select(
         "Background Color",
         color,
-        widgets![
+        ui_list![
             color_btn(color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9)), true),
             primary_color(rgb(1.0, 0.0, 0.0)),
             primary_color(rgb(0.0, 0.8, 0.0)),
@@ -119,8 +119,8 @@ fn background_color(color: impl Var<Rgba>) -> impl Widget {
     )
 }
 
-fn screenshot() -> impl Widget {
-    fn of_window() -> impl Widget {
+fn screenshot() -> impl UiNode {
+    fn of_window() -> impl UiNode {
         use std::time::Instant;
         let enabled = var(true);
         button! {
@@ -162,7 +162,7 @@ fn screenshot() -> impl Widget {
         }
     }
 
-    fn of_headless_temp() -> impl Widget {
+    fn of_headless_temp() -> impl UiNode {
         use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs};
 
         let enabled = var(true);
@@ -206,10 +206,10 @@ fn screenshot() -> impl Widget {
         }
     }
 
-    section("Screenshot", widgets![of_window(), of_headless_temp(),])
+    section("Screenshot", ui_list![of_window(), of_headless_temp(),])
 }
 
-fn icon(window_vars: &WindowVars) -> impl Widget {
+fn icon(window_vars: &WindowVars) -> impl UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
         toggle! {
             content = text(label);
@@ -219,7 +219,7 @@ fn icon(window_vars: &WindowVars) -> impl Widget {
     select(
         "Icon",
         window_vars.icon().clone(),
-        widgets![
+        ui_list![
             icon_btn("Default", WindowIcon::Default),
             icon_btn("Png File", "examples/res/window/icon-file.png".into()),
             icon_btn("Png Bytes", include_bytes!("res/window/icon-bytes.png").into()),
@@ -252,7 +252,7 @@ fn icon(window_vars: &WindowVars) -> impl Widget {
     )
 }
 
-fn chrome(window_vars: &WindowVars) -> impl Widget {
+fn chrome(window_vars: &WindowVars) -> impl UiNode {
     let chrome_btn = |c: WindowChrome| {
         toggle! {
             content = text(formatx!("{c:?}"));
@@ -262,7 +262,7 @@ fn chrome(window_vars: &WindowVars) -> impl Widget {
     select(
         "Chrome",
         window_vars.chrome().clone(),
-        widgets![
+        ui_list![
             chrome_btn(WindowChrome::Default),
             chrome_btn(WindowChrome::None),
             text("TODO custom"),
@@ -270,12 +270,12 @@ fn chrome(window_vars: &WindowVars) -> impl Widget {
     )
 }
 
-fn state_commands(window_id: WindowId) -> impl Widget {
+fn state_commands(window_id: WindowId) -> impl UiNode {
     use zero_ui::widgets::window::commands::*;
 
     section(
         "Commands",
-        widgets![
+        ui_list![
             cmd_btn(MINIMIZE_CMD.scoped(window_id)),
             separator(),
             cmd_btn(RESTORE_CMD.scoped(window_id)),
@@ -290,7 +290,7 @@ fn state_commands(window_id: WindowId) -> impl Widget {
     )
 }
 
-fn focus_control() -> impl Widget {
+fn focus_control() -> impl UiNode {
     let enabled = var(true);
     let focus_btn = button! {
         enabled = enabled.clone();
@@ -336,10 +336,10 @@ fn focus_control() -> impl Widget {
         });
     };
 
-    section("Focus", widgets![focus_btn, critical_btn, info_btn,])
+    section("Focus", ui_list![focus_btn, critical_btn, info_btn,])
 }
 
-fn state(window_vars: &WindowVars) -> impl Widget {
+fn state(window_vars: &WindowVars) -> impl UiNode {
     let state_btn = |s: WindowState| {
         toggle! {
             content = text(formatx!("{s:?}"));
@@ -350,7 +350,7 @@ fn state(window_vars: &WindowVars) -> impl Widget {
     select(
         "State",
         window_vars.state().clone(),
-        widgets![
+        ui_list![
             state_btn(WindowState::Minimized),
             separator(),
             state_btn(WindowState::Normal),
@@ -363,7 +363,7 @@ fn state(window_vars: &WindowVars) -> impl Widget {
     )
 }
 
-fn visibility(window_vars: &WindowVars) -> impl Widget {
+fn visibility(window_vars: &WindowVars) -> impl UiNode {
     let visible = window_vars.visible();
     let btn = button! {
         enabled = visible.clone();
@@ -377,14 +377,14 @@ fn visibility(window_vars: &WindowVars) -> impl Widget {
         });
     };
 
-    section("Visibility", widgets![btn])
+    section("Visibility", ui_list![btn])
 }
 
-fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
+fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
     let can_open_windows = window_vars.state().map(|&s| s != WindowState::Exclusive);
     section(
         "Misc.",
-        widgets![
+        ui_list![
             toggle! {
                 content = text("Taskbar Visible");
                 checked = window_vars.taskbar_visible().clone();
@@ -467,7 +467,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     })
 }
 
-fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget {
+fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl UiNode {
     container! {
         id = "close-dialog";
         modal = true;
@@ -490,7 +490,7 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
 
             content = v_stack! {
                 items_align = Align::RIGHT;
-                items = widgets![
+                items = ui_list![
                     text! {
                         text = match windows.len() {
                             1 => "Close Confirmation\n\nClose 1 window?".to_text(),
@@ -500,7 +500,7 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
                     },
                     h_stack! {
                         spacing = 4;
-                        items = widgets![
+                        items = ui_list![
                             button! {
                                 content = strong("Close");
                                 on_click = hn_once!(state, |ctx, _| {
@@ -523,7 +523,7 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl Widget
     }
 }
 
-fn cmd_btn(cmd: Command) -> impl Widget {
+fn cmd_btn(cmd: Command) -> impl UiNode {
     button! {
         content = text(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
@@ -534,10 +534,10 @@ fn cmd_btn(cmd: Command) -> impl Widget {
     }
 }
 
-fn section(header: &'static str, items: impl WidgetList) -> impl Widget {
+fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
-        items = widgets![text! {
+        items = ui_list![text! {
             text = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
@@ -545,11 +545,11 @@ fn section(header: &'static str, items: impl WidgetList) -> impl Widget {
     }
 }
 
-fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl WidgetList) -> impl Widget {
+fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
         toggle::selection = toggle::SingleSel::new(selection);
-        items = widgets![text! {
+        items = ui_list![text! {
             text = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
@@ -557,7 +557,7 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>,
     }
 }
 
-fn separator() -> impl Widget {
+fn separator() -> impl UiNode {
     hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);

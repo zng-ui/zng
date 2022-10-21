@@ -33,7 +33,7 @@ impl WindowLayers {
     ///
     /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
     /// are inserted in the same layer the later inserts are on top of the previous.
-    pub fn insert(ctx: &mut WidgetContext, layer: impl IntoVar<LayerIndex>, widget: impl Widget) {
+    pub fn insert(ctx: &mut WidgetContext, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
         struct LayeredWidget<L, W> {
             layer: L,
             widget: W,
@@ -103,7 +103,7 @@ impl WindowLayers {
         anchor: impl IntoVar<WidgetId>,
         mode: impl IntoVar<AnchorMode>,
 
-        widget: impl Widget,
+        widget: impl UiNode,
     ) {
         struct AnchoredWidget<A, M, W> {
             anchor: A,
@@ -502,7 +502,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
     let layered = layers_vec.reference();
 
     LayersNode {
-        children: nodes![child].chain_nodes(layers_vec),
+        children: ui_list![child].chain_nodes(layers_vec),
         layered,
     }
     .cfg_boxed()

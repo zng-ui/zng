@@ -30,7 +30,7 @@ const FROM_COLOR: Rgba = colors::RED;
 const TO_COLOR: Rgba = colors::GREEN;
 const FPS: u32 = 60;
 
-fn example(vars: &Vars) -> impl Widget {
+fn example(vars: &Vars) -> impl UiNode {
     // vars.animation_time_scale().set(vars, 0.5.fct());
     vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
 
@@ -48,7 +48,7 @@ fn example(vars: &Vars) -> impl Widget {
     v_stack! {
         spacing = 10;
         items_align = Align::TOP;
-        items = widgets![
+        items = ui_list![
             container! {
                 id = "demo";
                 width = 301;
@@ -63,7 +63,7 @@ fn example(vars: &Vars) -> impl Widget {
 
                     x = x.map(|x| x.clone() - 20.dip());
 
-                    when self.is_hovered {
+                    when *#is_hovered {
                         background_color = colors::LIME;
                     }
                 };
@@ -77,7 +77,7 @@ fn example(vars: &Vars) -> impl Widget {
                         content = text(m.to_text());
                         value = m;
                     };
-                    widgets![
+                    ui_list![
                         mode(EaseIn),
                         mode(EaseOut),
                         mode(EaseInOut),
@@ -92,7 +92,7 @@ fn example(vars: &Vars) -> impl Widget {
                 button::vis::extend_style = style_generator!(|_, _| style! {
                     padding = 3;
                 });
-                items = widgets![
+                items = ui_list![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
                     ease_btn(&x, &color, "cubic", easing::cubic, &easing_mod),
@@ -132,7 +132,7 @@ fn ease_btn(
     name: impl Into<Text>,
     easing: impl Fn(EasingTime) -> EasingStep + Copy + 'static,
     easing_mod: &RcVar<easing::EasingModifierFn>,
-) -> impl Widget {
+) -> impl UiNode {
     let in_plot = plot(easing);
     let out_plot = plot(move |t| easing::ease_out(easing, t));
     let in_out_plot = plot(move |t| easing::ease_in_out(easing, t));
@@ -144,7 +144,7 @@ fn ease_btn(
         content = v_stack! {
             spacing = 2;
             items_align = Align::TOP;
-            items = widgets![
+            items = ui_list![
                 text(name.into()),
                 image! {
                     scale_ppi = true;
@@ -225,7 +225,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     )
 }
 
-fn ruler() -> impl Widget {
+fn ruler() -> impl UiNode {
     z_stack! {
         items_align = Align::LEFT;
         items = (0..=300).step_by(10)

@@ -48,7 +48,7 @@ fn app_main() {
             content = v_stack! {
                 align = Align::CENTER;
                 spacing = 5;
-                items = widgets![
+                items = ui_list![
                     toggle! {
                         content = text(checked.map(|c| formatx!("Checked: {c:?}")));
                         checked = checked.clone();
@@ -107,7 +107,7 @@ fn app_main() {
     })
 }
 
-fn separator() -> impl Widget {
+fn separator() -> impl UiNode {
     hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);

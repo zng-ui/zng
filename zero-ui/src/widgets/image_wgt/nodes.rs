@@ -191,7 +191,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
         |view| with_context_value(view, IN_ERROR_VIEW, true),
     );
 
-    stack_nodes_layout_by(nodes![view, child], 1, |constrains, _, img_size| {
+    stack_nodes_layout_by(ui_list![view, child], 1, |constrains, _, img_size| {
         if img_size == PxSize::zero() {
             constrains
         } else {
@@ -248,7 +248,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
         |view| with_context_value(view, IN_LOADING_VIEW, true),
     );
 
-    stack_nodes_layout_by(nodes![view, child], 1, |constrains, _, img_size| {
+    stack_nodes_layout_by(ui_list![view, child], 1, |constrains, _, img_size| {
         if img_size == PxSize::zero() {
             constrains
         } else {

@@ -137,7 +137,7 @@ pub mod toggle {
         ///
         ///     content = text("Toggle Background");
         ///     background_color = colors::RED;
-        ///     when self.is_checked {
+        ///     when *#is_checked {
         ///         background_color = colors::GREEN;
         ///     }
         /// }
@@ -824,7 +824,7 @@ pub mod vis {
             properties::is_checked;
 
             /// When the toggle is checked.
-            when self.is_checked  {
+            when *#is_checked  {
                 background_color = crate::widgets::button::vis::color_scheme_pressed(btn_vis::BASE_COLORS_VAR);
                 border = {
                     widths: 1,

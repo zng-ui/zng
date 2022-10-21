@@ -29,7 +29,7 @@ fn app_main() {
             content = v_stack! {
                 align = Align::CENTER;
                 spacing = 20;
-                items = widgets![
+                items = ui_list![
                     widgets::mr_borders! {
                         border_align = 0.pct();
                         content = text("border_align = 0.pct();");
@@ -63,7 +63,7 @@ fn app_main() {
     })
 }
 
-fn clip_to_bounds_demo() -> impl Widget {
+fn clip_to_bounds_demo() -> impl UiNode {
     let clip = var(true);
     container! {
         content_align = Align::FILL;

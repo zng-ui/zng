@@ -73,7 +73,7 @@ fn app_main() {
 
             content_align = Align::CENTER;
             content = v_stack! {
-                items = widgets![
+                items = ui_list![
                     text!{
                         align = Align::CENTER;
                         font_size = 18.pt();

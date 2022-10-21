@@ -9,11 +9,13 @@ pub mod checkerboard {
     use super::*;
     pub use super::{node, properties};
 
+    inherit!(widget_base::base);
+
     properties! {
         /// The two checkerboard colors.
         ///
         /// Default is black and white.
-        properties::checkerboard_colors as colors = color_scheme_map(
+        pub properties::checkerboard_colors as colors = color_scheme_map(
             (rgb(20, 20, 20), rgb(40, 40, 40)),
             (rgb(202, 202, 204), rgb(253, 253, 253))
         );
@@ -23,16 +25,16 @@ pub mod checkerboard {
         /// Note, not to be confused with the [`size`] property that sets the widget dimensions.
         ///
         /// Default is `(20, 20)`.
-        properties::checkerboard_size as cb_size;
+        pub properties::checkerboard_size as cb_size;
 
         /// An offset applied to the checkerboard pattern.
         ///
         /// Default is `(0, 0)`.
-        properties::checkerboard_offset as cb_offset;
+        pub properties::checkerboard_offset as cb_offset;
     }
 
-    fn new_child() -> impl UiNode {
-        self::node()
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        wgt.set_child(self::node());
     }
 }
 

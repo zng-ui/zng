@@ -179,7 +179,7 @@ pub mod text {
 /// [`font_size`]: fn@crate::widgets::text::properties::font_size
 /// [`text_color`]: fn@crate::widgets::text::properties::text_color
 /// [`text!`]: mod@text
-pub fn text(text: impl IntoVar<Text>) -> impl Widget {
+pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
     text! { text; }
 }
 
@@ -204,7 +204,7 @@ mod strong {
 /// # Configure
 ///
 /// Apart from the font weight this widget can be configured with contextual properties like [`text`](function@text).
-pub fn strong(text: impl IntoVar<Text> + 'static) -> impl Widget {
+pub fn strong(text: impl IntoVar<Text> + 'static) -> impl UiNode {
     strong! { text; }
 }
 
@@ -229,7 +229,7 @@ mod em {
 /// # Configure
 ///
 /// Apart from the font style this widget can be configured with contextual properties like [`text`](function@text).
-pub fn em(text: impl IntoVar<Text> + 'static) -> impl Widget {
+pub fn em(text: impl IntoVar<Text> + 'static) -> impl UiNode {
     em! { text; }
 }
 
@@ -262,7 +262,7 @@ pub mod text_input {
     }
 
     /// Styleable `new`, captures the `id` and `style` properties.
-    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl Widget {
+    pub fn new_dyn(widget: DynWidget, id: impl IntoValue<WidgetId>, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
         styleable::new_dyn(widget, id, style)
     }
 
@@ -354,7 +354,7 @@ pub mod text_input_vis {
             };
 
             /// When the pointer device is over this text input or it is the return focus.
-            when self.is_cap_hovered || self.is_return_focus {
+            when *#is_cap_hovered || self.is_return_focus {
                 border = {
                     widths: 1,
                     sides: border_color_hovered().map_into(),
@@ -362,7 +362,7 @@ pub mod text_input_vis {
             }
 
             /// When the text input has keyboard focus.
-            when self.is_focused {
+            when *#is_focused {
                 border = {
                     widths: 1,
                     sides: border_color_focused().map_into(),
@@ -370,7 +370,7 @@ pub mod text_input_vis {
             }
 
             /// When the text input is disabled.
-            when self.is_disabled {
+            when *#is_disabled {
                 saturate = false;
                 child_opacity = 50.pct();
                 cursor = CursorIcon::NotAllowed;

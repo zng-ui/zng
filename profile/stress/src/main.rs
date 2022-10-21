@@ -41,7 +41,7 @@ fn text_change_all(ctx: &mut WindowContext) -> Window {
         texts.push(text! {
             text = msg.clone();
             width = 80;
-            when self.is_hovered {
+            when *#is_hovered {
                 color = colors::RED;
             }
         });
@@ -66,7 +66,7 @@ fn text_change_one(_ctx: &mut WindowContext) -> Window {
             width = 80;
             font_size = 16;
             font_weight = FontWeight::BOLD;
-            when self.is_hovered {
+            when *#is_hovered {
                 text = "HOT";
                 color = colors::RED;
             }
@@ -105,7 +105,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
             texts.push(text! {
                 text = msg.clone();
                 width = 80;
-                when self.is_hovered {
+                when *#is_hovered {
                     color = colors::RED;
                 }
             });

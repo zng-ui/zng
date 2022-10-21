@@ -187,7 +187,7 @@ pub mod image {
 ///
 /// [`image!`]: mod@image
 /// [`source`]: mod@image#wp-source
-pub fn image(source: impl IntoVar<ImageSource>) -> impl Widget {
+pub fn image(source: impl IntoVar<ImageSource>) -> impl UiNode {
     image! { source }
 }
 

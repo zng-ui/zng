@@ -33,7 +33,7 @@ properties! {
         left: 0,
     }
 
-    when self.is_hovered { // properties switch with ease defined on-top.
+    when *#is_hovered { // properties switch with ease defined on-top.
         background_color = colors::GREEN;
         margin = 10;
     }

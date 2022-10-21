@@ -95,12 +95,12 @@ pub mod thumb {
         capture_mouse = true;
 
         /// When the pointer device is over this thumb.
-        when self.is_hovered {
+        when *#is_hovered {
             background_color = vis::hovered::BACKGROUND_VAR;
         }
 
         /// When the thumb is pressed.
-        when self.is_cap_pressed  {
+        when *#is_cap_pressed  {
             background_color = vis::pressed::BACKGROUND_VAR;
         }
     }

@@ -47,7 +47,7 @@ fn app_main() {
             content_align = Align::CENTER;
             content = v_stack! {
                 spacing = 5;
-                items = widgets![
+                items = ui_list![
                     overlay_example(),
                     layer_index_example(),
                     anchor_example(),
@@ -58,7 +58,7 @@ fn app_main() {
     })
 }
 
-fn overlay_example() -> impl Widget {
+fn overlay_example() -> impl UiNode {
     button! {
         content = text("TOP_MOST");
         on_click = hn!(|ctx, _| {
@@ -66,7 +66,7 @@ fn overlay_example() -> impl Widget {
         });
     }
 }
-fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
+fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
     let id = id.into();
     container! {
         id;
@@ -88,14 +88,14 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
             padding = 2;
             content = v_stack! {
                 items_align = Align::RIGHT;
-                items = widgets![
+                items = ui_list![
                     text! {
                         text = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
                     },
                     h_stack! {
                         spacing = 2;
-                        items = widgets![
+                        items = ui_list![
                             button! {
                                 visibility = offset < 50;
                                 content = text("Open Another");
@@ -117,18 +117,18 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
     }
 }
 
-fn layer_index_example() -> impl Widget {
+fn layer_index_example() -> impl UiNode {
     // demonstrates that the z-order is not affected by the order of insertion.
     h_stack! {
         spacing = 5;
-        items = widgets![
+        items = ui_list![
             layer_n_btn(7, colors::DARK_GREEN),
             layer_n_btn(8, colors::DARK_BLUE),
             layer_n_btn(9, colors::DARK_RED),
         ]
     }
 }
-fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
+fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
     let label = formatx!("Layer {n}");
     button! {
         content = text(label.clone());
@@ -159,7 +159,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
     }
 }
 
-fn anchor_example() -> impl Widget {
+fn anchor_example() -> impl UiNode {
     let points = [
         Point::top_left(),
         Point::top(),
@@ -218,7 +218,7 @@ fn anchor_example() -> impl Widget {
     }
 }
 
-fn transform_anchor_example() -> impl Widget {
+fn transform_anchor_example() -> impl UiNode {
     let mut insert = true;
     button! {
         id = "t-anchor";

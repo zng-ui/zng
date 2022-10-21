@@ -6,10 +6,10 @@ mod center {
 
     properties! {
         #[allowed_in_when = false]
-        content(impl Widget);
+        content(impl UiNode);
     }
 
-    fn new_child(content: impl Widget) -> impl UiNode {
+    fn new_child(content: impl UiNode) -> impl UiNode {
         align(content, Align::CENTER)
     }
 }
@@ -17,6 +17,6 @@ mod center {
 /// Centralizes the content in the available space.
 ///
 /// This is the equivalent of setting [`align`](fn@align) to [`Align::CENTER`], but as a widget.
-pub fn center(content: impl Widget) -> impl Widget {
+pub fn center(content: impl UiNode) -> impl UiNode {
     center! { content; }
 }

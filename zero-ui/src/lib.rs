@@ -124,7 +124,7 @@
 //!         background_color = colors::RED.darken(50.pct());
 //!         text_color = colors::WHITE;
 //!       
-//!         when self.is_pressed {
+//!         when *#is_pressed {
 //!             background_color = colors::RED.darken(30.pct());
 //!         }
 //!     }
@@ -151,7 +151,7 @@
 //! #
 //! let menu = v_stack! {
 //!     spacing = 5;
-//!     items = widgets![
+//!     items = ui_list![
 //!         button! { content = text("New") },
 //!         button! { content = text("Load") },
 //!         button! { content = text("Save") },
@@ -1080,6 +1080,8 @@ pub mod prelude {
         pub use crate::core::units::*;
         #[doc(no_inline)]
         pub use crate::core::var::*;
+        #[doc(no_inline)]
+        pub use crate::core::widget_builder::*;
         #[doc(no_inline)]
         pub use crate::core::window::{CursorIcon, WindowId, WIDGET_INFO_CHANGED_EVENT};
         #[doc(no_inline)]

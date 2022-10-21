@@ -151,6 +151,6 @@ pub mod vis {
 /// Short form [`icon!`].
 ///
 /// [`icon!`]: mod@icon
-pub fn icon(ico: impl IntoVar<icon::GlyphIcon>) -> impl Widget {
+pub fn icon(ico: impl IntoVar<icon::GlyphIcon>) -> impl UiNode {
     icon!(icon = ico)
 }

@@ -19,7 +19,7 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Scroll Example";
-            content = z_stack(widgets![
+            content = z_stack(ui_list![
                 scroll! {
                     id = "scroll";
                     padding = 20;
@@ -30,7 +30,7 @@ fn app_main() {
                     // smooth_scrolling = false;
                     content = v_stack!{
                         items_align = Align::LEFT;
-                        items = widgets![
+                        items = ui_list![
                             text! {
                                 id = "Lorem 1";
                                 text = "Lorem 1";
@@ -52,7 +52,7 @@ fn app_main() {
     })
 }
 
-fn commands() -> impl Widget {
+fn commands() -> impl UiNode {
     use zero_ui::widgets::scroll::commands::*;
 
     let show = var(false);
@@ -64,12 +64,12 @@ fn commands() -> impl Widget {
         corner_radius = (0, 0, 8, 8);
         alt_focus_scope = true;
 
-        items = widgets![
+        items = ui_list![
             v_stack! {
                 visibility = show.map_into();
                 spacing = 3;
 
-                items = widgets![
+                items = ui_list![
                     cmd_btn(SCROLL_UP_CMD),
                     cmd_btn(SCROLL_DOWN_CMD),
                     cmd_btn(SCROLL_LEFT_CMD),
@@ -103,7 +103,7 @@ fn commands() -> impl Widget {
         ];
     }
 }
-fn cmd_btn(cmd: Command) -> impl Widget {
+fn cmd_btn(cmd: Command) -> impl UiNode {
     let cmd = cmd.scoped(WidgetId::named("scroll"));
     button! {
         content = text(cmd.name_with_shortcut());
@@ -117,7 +117,7 @@ fn cmd_btn(cmd: Command) -> impl Widget {
         padding = 4;
     }
 }
-fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl Widget {
+fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     use zero_ui::widgets::scroll::commands;
 
     let scroll = WidgetId::named("scroll");
@@ -133,7 +133,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl Widget {
         padding = 4;
     }
 }
-fn separator() -> impl Widget {
+fn separator() -> impl UiNode {
     blank! {
         size = (8, 8);
     }

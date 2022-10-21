@@ -24,7 +24,7 @@ fn app_main() {
             resizable = false;
             auto_size = true;
             padding = 20;
-            content = v_stack(widgets![
+            content = v_stack(ui_list![
                 uniform_grid! {
                     columns = 5;
                     items = demos;
@@ -35,7 +35,7 @@ fn app_main() {
     })
 }
 
-fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl Widget {
+fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
     container! {
         cursor = icon.map(|i| i.0);
 
@@ -54,7 +54,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl Widget {
 
         text_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
 
-        when self.is_hovered {
+        when *#is_hovered {
             text_color = color_scheme_map(colors::WHITE, colors::BLACK);
         }
 

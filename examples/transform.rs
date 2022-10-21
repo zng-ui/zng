@@ -22,11 +22,11 @@ fn app_main() {
             content_align = Align::CENTER;
             content = h_stack! {
                 spacing = 40;
-                items = widgets![
+                items = ui_list![
                     v_stack! {
                         spacing = 25;
                         items_align = Align::TOP;
-                        items = widgets![
+                        items = ui_list![
                             transformed("Translate -10", translate(-10, -10)),
                             transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
                             transformed("Rotate 10º", rotate(10.deg())),
@@ -37,7 +37,7 @@ fn app_main() {
                     },
                     v_stack! {
                         spacing = 40;
-                        items = widgets![
+                        items = ui_list![
                             transform_stack(),
                             transform_order(),
                         ]
@@ -48,7 +48,7 @@ fn app_main() {
     })
 }
 
-fn transformed(label: impl Into<Text>, transform: Transform) -> impl Widget {
+fn transformed(label: impl Into<Text>, transform: Transform) -> impl UiNode {
     container! {
         content = container! {
             transform;
@@ -59,7 +59,7 @@ fn transformed(label: impl Into<Text>, transform: Transform) -> impl Widget {
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
-fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Into<Point>) -> impl Widget {
+fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
     container! {
         content = container! {
             transform;
@@ -72,12 +72,12 @@ fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Int
     }
 }
 
-fn transform_stack() -> impl Widget {
+fn transform_stack() -> impl UiNode {
     // the panel widget uses its child transform to position the widget for performance reasons,
     // the widget transform does not affect.
     v_stack! {
         spacing = 5;
-        items = widgets![
+        items = ui_list![
             container! {
                 content = text("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
@@ -90,7 +90,7 @@ fn transform_stack() -> impl Widget {
                 background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 padding = 10;
 
-                when self.is_hovered {
+                when *#is_hovered {
                     z_index = ZIndex::DEFAULT + 1;
                 }
             },
@@ -103,10 +103,10 @@ fn transform_stack() -> impl Widget {
     }
 }
 
-fn transform_order() -> impl Widget {
+fn transform_order() -> impl UiNode {
     // transform created using a single property or two properties generate the same transform because
     // are in the same order.
-    z_stack(widgets![
+    z_stack(ui_list![
         blank! {
             // single property
             transform = rotate(10.deg()).translate(50, 30);
@@ -114,7 +114,7 @@ fn transform_order() -> impl Widget {
             size = (60, 60);
             background_color = colors::BLUE.lighten(50.pct());
 
-            when self.is_hovered {
+            when *#is_hovered {
                 z_index = ZIndex::DEFAULT + 1;
             }
         },
@@ -126,7 +126,7 @@ fn transform_order() -> impl Widget {
             size = (60, 60);
             background_color = colors::GREEN;
 
-            when self.is_hovered {
+            when *#is_hovered {
                 z_index = ZIndex::DEFAULT - 1;
             }
         },

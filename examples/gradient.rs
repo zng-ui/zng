@@ -21,7 +21,7 @@ fn app_main() {
                 padding = 20;
                 content = v_stack! {
                     spacing = 20;
-                    items = widgets![
+                    items = ui_list![
                         title("Linear"),
                         linear_angle(),
                         linear_points(),
@@ -35,15 +35,15 @@ fn app_main() {
     });
 }
 
-fn title(title: &'static str) -> impl Widget {
+fn title(title: &'static str) -> impl UiNode {
     text! {
         text = title;
         font_size = 18.pt();
     }
 }
 
-fn linear_angle() -> impl Widget {
-    sample_line(widgets![
+fn linear_angle() -> impl UiNode {
+    sample_line(ui_list![
         sample("90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE])),
         sample("45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE])),
         sample("0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN])),
@@ -51,8 +51,8 @@ fn linear_angle() -> impl Widget {
     ])
 }
 
-fn linear_points() -> impl Widget {
-    sample_line(widgets![
+fn linear_points() -> impl UiNode {
+    sample_line(ui_list![
         sample(
             "(30, 30) to (90, 90) clamp",
             linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]),
@@ -72,9 +72,9 @@ fn linear_points() -> impl Widget {
     ])
 }
 
-fn linear_tile() -> impl Widget {
+fn linear_tile() -> impl UiNode {
     let w = 180 / 5;
-    sample_line(widgets![
+    sample_line(ui_list![
         sample(
             "tiles",
             linear_gradient_full(45.deg(), [colors::GREEN, colors::YELLOW], ExtendMode::Clamp, (w, w), (0, 0)),
@@ -96,18 +96,18 @@ fn linear_tile() -> impl Widget {
     ])
 }
 
-fn stack_linear() -> impl Widget {
-    sample_line(widgets![
+fn stack_linear() -> impl UiNode {
+    sample_line(ui_list![
         sample(
             "background",
-            stack_nodes(nodes![
+            stack_nodes(ui_list![
                 linear_gradient(45.deg(), [colors::RED, colors::GREEN]),
                 linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)]),
             ]),
         ),
         sample(
             "over color",
-            stack_nodes(nodes![
+            stack_nodes(ui_list![
                 flood(colors::WHITE),
                 linear_gradient(0.deg(), stops![colors::RED, (colors::RED.transparent(), 50.pct())]),
                 linear_gradient(120.deg(), stops![colors::GREEN, (colors::GREEN.transparent(), 50.pct())]),
@@ -131,7 +131,7 @@ fn stack_linear() -> impl Widget {
                 );
                 let mut cross_rainbow = rainbow.clone();
                 cross_rainbow.set_alpha(0.5);
-                nodes![
+                ui_list![
                     linear_gradient(Line::to_right(), rainbow),
                     linear_gradient(Line::to_bottom(), cross_rainbow),
                 ]
@@ -146,7 +146,7 @@ fn stack_linear() -> impl Widget {
                     linear_gradient(angle.deg(), stops)
                 }
 
-                nodes![
+                ui_list![
                     flood(colors::WHITE),
                     gradient(0, colors::RED),
                     gradient(20, colors::RED),
@@ -163,11 +163,11 @@ fn stack_linear() -> impl Widget {
     ])
 }
 
-fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
+fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
     let name = name.to_text();
     v_stack! {
         spacing = 5;
-        items = widgets![
+        items = ui_list![
             text(name),
             container! {
                 size = (180, 180);
@@ -177,14 +177,14 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
     }
 }
 
-fn sample_line(items: impl WidgetList) -> impl Widget {
+fn sample_line(items: impl UiNodeList) -> impl UiNode {
     h_stack! {
         spacing = 5;
         items;
     }
 }
 
-fn icon() -> impl Widget {
+fn icon() -> impl UiNode {
     container! {
         size = (36, 36);
         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];

@@ -254,7 +254,7 @@ pub mod scroll {
 
         use crate::core::context::UpdatesTraceUiNodeExt;
         ScrollNode {
-            children: nodes![
+            children: ui_list![
                 clip_to_bounds(
                     nodes::viewport(child, mode.into_var()).instrument("viewport"),
                     clip_to_viewport.into_var()
@@ -297,6 +297,6 @@ pub mod scroll {
 /// Shorthand [`scroll!`] with default properties.
 ///
 /// [`scroll!`]: mod@scroll
-pub fn scroll(content: impl UiNode) -> impl Widget {
+pub fn scroll(content: impl UiNode) -> impl UiNode {
     scroll!(content)
 }

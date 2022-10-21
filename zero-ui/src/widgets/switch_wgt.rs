@@ -5,7 +5,7 @@ use std::{cell::Cell, mem};
 /// Switch visibility of children nodes using an index variable.
 ///
 /// This is a shorthand call to [`switch!`](mod@switch).
-pub fn switch<I: Var<usize>, W: UiNodeList>(index: I, options: W) -> impl Widget {
+pub fn switch<I: Var<usize>, W: UiNodeList>(index: I, options: W) -> impl UiNode {
     switch!(index; options)
 }
 

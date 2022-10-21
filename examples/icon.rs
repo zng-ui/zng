@@ -35,15 +35,15 @@ fn app_main() {
     })
 }
 
-fn icons() -> impl Widget {
+fn icons() -> impl UiNode {
     let selected_font = var("outlined");
-    fn select_font(key: &'static str) -> impl Widget {
+    fn select_font(key: &'static str) -> impl UiNode {
         toggle! {
             content = text(key);
             value<&'static str> = key;
         }
     }
-    fn show_font(icons: Vec<MaterialIcon>) -> impl Widget {
+    fn show_font(icons: Vec<MaterialIcon>) -> impl UiNode {
         // let start = std::time::Instant::now();
         wrap! {
             spacing = 5;
@@ -60,11 +60,11 @@ fn icons() -> impl Widget {
         padding = (20, 5, 5, 5);
         spacing = 20;
         items_align = Align::TOP;
-        items = widgets![
+        items = ui_list![
             h_stack! {
                 toggle::selection = toggle::SingleSel::new(selected_font.clone());
                 spacing = 5;
-                items = widgets![
+                items = ui_list![
                     select_font("filled"),
                     select_font("outlined"),
                     select_font("rounded"),
@@ -87,14 +87,14 @@ fn icons() -> impl Widget {
     }
 }
 
-fn icon_btn(ico: icons::MaterialIcon) -> impl Widget {
+fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
     button! {
         padding = 2;
         size = (80, 80);
         content = v_stack! {
             spacing = 2;
             items_align = Align::CENTER;
-            items = widgets![
+            items = ui_list![
                 icon! {
                     icon = ico.clone();
                 },
@@ -114,7 +114,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl Widget {
     }
 }
 
-fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
+fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
     container! {
         id = "expanded-icon";
         modal = true;
@@ -133,12 +133,12 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
-            content = z_stack(widgets![
+            content = z_stack(ui_list![
                 v_stack! {
                     spacing = 5;
                     padding = 10;
                     items_align = Align::TOP_LEFT;
-                    items = widgets![
+                    items = ui_list![
                         title(formatx!("{ico}")),
                         text! {
                             text = ico.name;
@@ -152,7 +152,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                             items = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
                                 v_stack! {
                                     spacing = 3;
-                                    items = widgets![
+                                    items = ui_list![
                                         size_label(formatx!("{size}")),
                                         icon! {
                                             icon = ico.clone();
@@ -177,7 +177,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                             items = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
                                 v_stack! {
                                     spacing = 3;
-                                    items = widgets![
+                                    items = ui_list![
                                         size_label(formatx!("{size}")),
                                         text! {
                                             text = ico.code;
@@ -214,20 +214,20 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
     }
 }
 
-fn title(title: Text) -> impl Widget {
+fn title(title: Text) -> impl UiNode {
     text! {
         text = title;
         font_size = 24;
         text_align = TextAlign::CENTER;
     }
 }
-fn sub_title(title: impl Into<Text>) -> impl Widget {
+fn sub_title(title: impl Into<Text>) -> impl UiNode {
     text! {
         text = title.into();
         font_size = 16;
     }
 }
-fn size_label(size: Text) -> impl Widget {
+fn size_label(size: Text) -> impl UiNode {
     text! {
         text = size;
         font_size = 10;

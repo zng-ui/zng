@@ -139,7 +139,7 @@ fn listener_window(focused_wgt: bool) -> Window {
     }
 
     window! {
-        content = v_stack(widgets![
+        content = v_stack(ui_list![
             container! {
                 id = "test-widget";
                 size = (100, 100);

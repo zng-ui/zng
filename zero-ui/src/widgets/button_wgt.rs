@@ -9,8 +9,8 @@ pub mod button {
     #[doc(inline)]
     pub use super::vis;
 
-    inherit!(focusable_mixin);
     inherit!(element);
+    inherit!(focusable_mixin);
 
     properties! {
         /// Button click event.
@@ -127,7 +127,7 @@ pub mod vis {
             };
 
             /// When the pointer device is over this button.
-            when self.is_cap_hovered {
+            when *#is_cap_hovered {
                 background_color = color_scheme_hovered(BASE_COLORS_VAR);
                 border = {
                     widths: 1,
@@ -136,12 +136,12 @@ pub mod vis {
             }
 
             /// When the button is pressed in a way that press release will cause a button click.
-            when self.is_pressed  {
+            when *#is_pressed  {
                 background_color = color_scheme_pressed(BASE_COLORS_VAR);
             }
 
             /// When the button is disabled.
-            when self.is_disabled {
+            when *#is_disabled {
                 saturate = false;
                 child_opacity = 50.pct();
                 cursor = CursorIcon::NotAllowed;

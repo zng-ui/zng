@@ -97,7 +97,7 @@ impl<U: UiNode> View<U> {
 ///     })
 /// }
 /// ```
-pub fn view<D, U, V, P>(data: V, initial_ui: U, presenter: P) -> impl Widget
+pub fn view<D, U, V, P>(data: V, initial_ui: U, presenter: P) -> impl UiNode
 where
     D: VarValue,
     U: UiNode,
