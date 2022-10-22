@@ -149,7 +149,7 @@ pub mod style_mixin {
     pub fn capture_style(wgt: &mut WidgetBuilder) {
         if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(style_property as style)) {
             let node = AdoptiveNode::new(|child| StyleNode {
-                child: child.boxed(),
+                child: None,
                 builder: None,
                 style,
             });
@@ -161,16 +161,44 @@ pub mod style_mixin {
         }
     }
 
+    ///Gets the custom build that is set on intrinsic by the mix-in.
+    pub fn custom_build() -> Box<dyn CustomWidgetBuild> {
+        Box::new(CustomBuild)
+    }
+
+    struct CustomBuild;
+    impl CustomWidgetBuild for CustomBuild {
+        fn clone_boxed(&self) -> Box<dyn CustomWidgetBuild> {
+            custom_build()
+        }
+
+        fn build(wgt: &mut WidgetBuilder) -> BoxedUiNode {
+            if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(style_property as style)) {
+                StyleNode {
+                    child: None,
+                    builder: wgt.clone(),
+                    style,
+                }
+                .boxed()
+            } else {
+                wgt.build()
+            }
+        }
+    }
+
     #[ui_node(struct StyleNode {
         child: Option<BoxedUiNode>,
-        builder: Option<WidgetBuilder>,
+        builder: WidgetBuilder,
         #[var] style: BoxedVar<StyleGenerator>,
     })]
     impl UiNode for StyleNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
-                self.snapshot = Some(self.child.snapshot());
-                self.child.extend(style.into_node());
+                let mut builder = self.builder.clone();
+                builder.extend(style.into_builder());
+                self.child = Some(builder.build_default());
+            } else {
+                self.child = Some(self.builder.build_default());
             }
             self.child.init(ctx);
         }
@@ -237,6 +265,11 @@ impl Style {
     pub fn extend(&mut self, other: Style) {
         self.builder.extend(other.builder);
     }
+
+    /// If the style does nothing.
+    pub fn is_empty(&self) -> bool {
+        !self.builder.has_whens() && !self.builder.has_unsets() && !self.builder.has_properties()
+    }
 }
 #[ui_node(
     delegate = &self.node,
@@ -288,11 +321,17 @@ impl StyleGenerator {
 
     /// Generate a style for the styleable widget in the context.
     ///
-    /// Returns `None` if [`is_nil`], otherwise returns the style.
+    /// Returns `None` if [`is_nil`] or empty, otherwise returns the style.
     ///
     /// [`is_nil`]: Self::is_nil
     pub fn generate(&self, ctx: &mut WidgetContext, args: &StyleArgs) -> Option<Style> {
-        self.0.as_ref().map(|g| g(ctx, args))
+        if let Some(g) = &self.0 {
+            let style = g(ctx, args);
+            if !style.is_empty() {
+                return Some(style);
+            }
+        }
+        None
     }
 
     /// New style generator that generates `self` and `other` and then [`extend`] `self` with `other`.

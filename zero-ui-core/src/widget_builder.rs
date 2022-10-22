@@ -664,6 +664,7 @@ pub struct WidgetBuilder {
     items: Vec<(NestPosition, WidgetItem)>,
     unset: LinearMap<PropertyId, Importance>,
     whens: Vec<(Importance, WhenInfo)>,
+    custom_build: Option<Box<dyn CustomWidgetBuild>>,
 
     items_sorted: bool,
     whens_sorted: bool,
@@ -933,18 +934,60 @@ impl WidgetBuilder {
         self.whens.clear();
     }
 
+    /// Remove the custom build.
+    pub fn clear_custom_build(&mut self) {
+        self.custom_build = None;
+    }
+
     /// Full clear.
     pub fn clear(&mut self) {
         self.items.clear();
         self.unset.clear();
         self.whens.clear();
         self.child = None;
+        self.custom_build = None;
+    }
+
+    /// If a custom builder closure is set.
+    pub fn is_custom_build(&self) -> bool {
+        self.custom_build.is_some()
+    }
+
+    /// Set a custom `build` closure that gets called on [`build`] instead of the default implementation.
+    ///
+    /// The [`build`] is not recursive, if called again inside `build` it will use the default implementation,
+    /// unless another custom build was set during build. If another custom build is set after `build` it is discarded.
+    ///
+    /// [`build`]: Self::build
+    /// [`build_default`]: Self::build_default
+    pub fn set_custom_build(&mut self, build: impl CustomWidgetBuild) {
+        self.custom_build = Some(Box::new(build))
     }
 
     /// Instantiate and link all property and intrinsic nodes, returns the outermost node.
     ///
     /// Note that you can reuse the builder, but only after the previous build is deinited and dropped.
+    ///
+    /// Note that the build process can be replaced with a custom implementation using [`set_custom_build`], if set
+    /// the custom implementation is called instead.
+    ///
+    /// [`set_custom_build`]: Self::set_custom_build
     pub fn build(&mut self) -> BoxedUiNode {
+        if let Some(mut custom) = self.custom_build.take() {
+            let r = custom.build(self);
+            if self.custom_build.is_none() {
+                self.custom_build = Some(custom);
+            }
+            r
+        } else {
+            self.build_default()
+        }
+    }
+
+    /// Default [`build`] action.
+    ///
+    /// [`build`]: Self::build
+    pub fn build_default(&mut self) -> BoxedUiNode {
         self.sort_items();
 
         let mut node = self
@@ -984,5 +1027,22 @@ impl WidgetBuilder {
             self.whens.sort_by_key(|(imp, _)| *imp);
             self.whens_sorted = true;
         }
+    }
+}
+
+/// Represents a custom widget build process.
+pub trait CustomWidgetBuild: Any {
+    /// Clone the build.
+    ///
+    /// This is called every time the [`WidgetBuilder`] is cloned.
+    fn clone_boxed(&self) -> Box<dyn CustomWidgetBuild>;
+    /// Apply the custom build.
+    ///
+    /// This is called every time the [`WidgetBuilder::build`] is called.
+    fn build(&mut self, wgt: &mut WidgetBuilder) -> BoxedUiNode;
+}
+impl Clone for Box<dyn CustomWidgetBuild> {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
     }
 }
