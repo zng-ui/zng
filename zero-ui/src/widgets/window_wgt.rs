@@ -1,8 +1,5 @@
 use crate::core::focus::*;
-use crate::core::{
-    render::RenderMode,
-    window::{HeadlessMonitor, StartPosition, Window},
-};
+use crate::core::window::Window;
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
 
@@ -42,25 +39,24 @@ pub mod window {
 
     properties! {
         /// Window title.
-        properties::title;
+        pub properties::title;
 
         /// Window icon.
         ///
         /// See [`WindowIcon`] for details.
         ///
         /// [`WindowIcon`]: crate::core::window::WindowIcon
-        properties::icon;
+        pub properties::icon;
 
         /// Window chrome, the non-client area of the window.
         ///
         /// See [`WindowChrome`] for details.
         ///
         /// [`WindowChrome`]: crate::core::window::WindowChrome
-        properties::chrome;
+        pub properties::chrome;
 
         /// Window position when it opens.
-        #[allowed_in_when = false]
-        start_position(impl IntoValue<StartPosition>) = StartPosition::Default;
+        pub properties::start_position;
 
         /// Window state.
         ///
@@ -69,7 +65,7 @@ pub mod window {
         /// See [`WindowState`] for details.
         ///
         /// [`WindowState`]: crate::core::window::WindowState
-        properties::state;
+        pub properties::state;
 
         /// Window position (*x*, *y*).
         ///
@@ -81,64 +77,64 @@ pub mod window {
         /// to get the computed position.
         ///
         /// You can also set [`x`](#wp-x) and [`y`](#wp-y) as independent properties.
-        properties::position;
+        pub properties::position;
 
         /// Window position *x*.
         ///
         /// This property value is the same as the [`position.x`](#wp-position) value.
-        properties::x;
+        pub properties::x;
 
         /// Window position *y*.
         ///
         /// This property value is the same as the [`position.y`](#wp-position) value.
-        properties::y;
+        pub properties::y;
 
         /// Window size (*width*, *height*).
         ///
         /// Does not include the OS window border.
         ///
         /// You can also set the [`width`](#wp-width) and [`height`](#wp-height) as independent properties.
-        properties::size;
+        pub properties::size;
 
         /// Window size *width*.
         ///
         /// This property value is the same as the [`size.width`](#wp-size) value.
-        properties::width;
+        pub properties::width;
 
         /// Window size *height*.
         ///
         /// This property value is the same as the [`size.height`](#wp-size) value.
-        properties::height;
+        pub properties::height;
 
         /// Window minimum size.
         ///
         /// You can also set the [`min_width`](#wp-min_width) and [`min_height`](#wp-min_height) as independent properties.
-        properties::min_size;
+        pub properties::min_size;
 
         /// Window minimum width.
         ///
         /// This property value is the same as the [`min_size.width`](#wp-min_size) value.
-        properties::min_width;
+        pub properties::min_width;
 
         /// Window minimum height.
         ///
         /// This property value is the same as the [`min_size.height`](#wp-min_size) value.
-        properties::min_height;
+        pub properties::min_height;
 
         /// Window maximum size.
         ///
         /// You can also set the [`max_width`](#wp-max_width) and [`max_height`](#wp-max_height) as independent properties.
-        properties::max_size;
+        pub properties::max_size;
 
         /// Window maximum width.
         ///
         /// This property value is the same as the [`max_size.width`](#wp-max_size) value.
-        properties::max_width;
+        pub properties::max_width;
 
         /// Window maximum height.
         ///
         /// This property value is the same as the [`max_size.height`](#wp-max_size) value.
-        properties::max_height;
+        pub properties::max_height;
 
         /// Window auto-size to content.
         ///
@@ -148,7 +144,7 @@ pub mod window {
         /// The default value is [`AutoSize::DISABLED`].
         ///
         /// [`AutoSize::DISABLED`]: crate::prelude::AutoSize::DISABLED
-        properties::auto_size;
+        pub properties::auto_size;
 
         /// The point in the window content that does not move when the window is resized by [`auto_size`].
         ///
@@ -163,7 +159,7 @@ pub mod window {
         ///
         /// [`auto_size`]: #wp-auto_size
         /// [`start_position`]: #wp-start_position
-        properties::auto_size_origin;
+        pub properties::auto_size_origin;
 
         /// Parent window ID.
         ///
@@ -182,15 +178,15 @@ pub mod window {
         /// [`modal`]: Self::modal
         /// [`color_scheme`]: Self::color_scheme
         /// [`scale_factor`]: WindowVars::scale_factor
-        properties::parent;
+        pub properties::parent;
 
         /// Window background color.
-        background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+        pub background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Window text color.
-        text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
+        pub text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
 
-        focus_highlight = {
+        pub focus_highlight = {
             offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
             widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
             sides: color_scheme_map(
@@ -205,53 +201,49 @@ pub mod window {
         /// It is visible if window content does not completely fill the content area, this
         /// can happen if you do not set a background or the background is semi-transparent, also
         /// can happen during very fast resizes.
-        properties::clear_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
-
-        /// Unique identifier of the window root widget.
-        #[allowed_in_when = false]
-        root_id(impl IntoValue<WidgetId>) = WidgetId::new_unique();
+        pub properties::clear_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Windows are focus scopes by default.
         focus_scope = true;
 
         /// Windows cycle TAB navigation by default.
-        tab_nav = TabNav::Cycle;
+        pub tab_nav = TabNav::Cycle;
 
         /// Windows cycle arrow navigation by default.
-        directional_nav = DirectionalNav::Cycle;
+        pub directional_nav = DirectionalNav::Cycle;
 
         /// Windows remember the last focused widget and return focus when the window is focused.
-        focus_scope_behavior = FocusScopeOnFocus::LastFocused;
+        pub focus_scope_behavior = FocusScopeOnFocus::LastFocused;
 
         /// If the user can resize the window.
         ///
         /// Note that the window can still change size, this only disables
         /// the OS window frame controls that change size.
-        properties::resizable;
+        pub properties::resizable;
 
         /// If the window is visible.
         ///
         /// When set to `false` the window and its *taskbar* icon are not visible, that is different
         /// from a minimized window where the icon is still visible.
-        properties::visible;
+        pub properties::visible;
 
         /// Whether the window should always stay on top of other windows.
         ///
         /// Note this only applies to other windows that are not also "always-on-top".
         ///
         /// The default value is `false`.
-        properties::always_on_top;
+        pub properties::always_on_top;
 
         /// If the window is visible in the task-bar.
         ///
         /// The default value is `true`.
-        properties::taskbar_visible;
+        pub properties::taskbar_visible;
 
         /// If the Inspector can be opened for this window.
         ///
         /// The default value is `true`, but only applies if built with the `inspector` feature.
         #[cfg(inspector)]
-        can_inspect(impl IntoVar<bool>) = true;
+        pub properties::can_inspect;
 
         /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
         ///
@@ -268,27 +260,25 @@ pub mod window {
         /// [`size`]: #wp-size
         /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
         /// [`MonitorQuery::Primary`]: crate::core::window::MonitorQuery::Primary
-        properties::monitor;
+        pub properties::monitor;
 
         /// Frame image capture mode.
         ///
         /// This property is specially useful headless windows that are used to render.
-        properties::frame_capture_mode;
+        pub properties::frame_capture_mode;
 
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
         /// is taken from the monitor. In headless mode these values can be configured manually.
-        #[allowed_in_when = false]
-        headless_monitor(impl IntoValue<HeadlessMonitor>) = HeadlessMonitor::default();
+        pub properties::headless_monitor;
 
         /// If the window is forced to be the foreground keyboard focus after opening.
         ///
         /// By default the windows manager decides if the window will receive focus after opening, usually it is focused
         /// only if the process that started the window already has focus. Setting the property to `true` ensures that focus
         /// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
-        #[allowed_in_when = false]
-        start_focused(bool) = false;
+        pub properties::start_focused;
 
         /// Lock-in kiosk mode.
         ///
@@ -298,8 +288,7 @@ pub mod window {
         /// Note that this does not configure the windows manager,
         /// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
         /// app itself from accidentally exiting kiosk mode.
-        #[allowed_in_when = false]
-        kiosk(bool) = false;
+        pub properties::kiosk;
 
         /// If semi-transparent content is "see-through", mixin with the OS pixels "behind" the window.
         ///
@@ -312,8 +301,7 @@ pub mod window {
         ///
         /// [`clear_color`]: #wp-clear_color
         /// [`background_color`]: #wp-background_color
-        #[allowed_in_when = false]
-        allow_transparency(bool) = true;
+        pub properties::allow_transparency;
 
         /// Render performance mode overwrite for this window, if set to `None` the [`Windows::default_render_mode`] is used.
         ///
@@ -338,21 +326,20 @@ pub mod window {
         /// see [`RenderMode`] for more details about each mode and fallbacks.
         ///
         /// [`Windows::default_render_mode`]: crate::core::window::Windows::default_render_mode
-        #[allowed_in_when = false]
-        render_mode(impl IntoValue<Option<RenderMode>>) = None;
+        pub properties::render_mode;
 
         /// Override the preferred color scheme for this window.
-        properties::color_scheme;
+        pub properties::color_scheme;
 
         /// Save and restore the window state.
-        properties::save_state = properties::SaveState::enabled();
+        pub properties::save_state = properties::SaveState::enabled();
 
         /// Event just after the window opens.
         ///
         /// This event notifies once per window, after the window content is inited.
         ///
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
-        on_pre_window_open as on_open;
+        pub on_pre_window_open as on_open;
 
         /// Event just after the window loads.
         ///
@@ -363,18 +350,18 @@ pub mod window {
         /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
         ///
         /// This property is the [`on_pre_window_load`](fn@on_pre_window_load) so window handlers see it first.
-        on_pre_window_load as on_load;
+        pub on_pre_window_load as on_load;
 
         /// On window close requested.
         ///
         /// This event notifies every time the user or the app tries to close the window, you can call
         /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
-        on_window_close_requested as on_close_requested;
+        pub on_window_close_requested as on_close_requested;
 
         /// On window deinited.
         ///
         /// This event notifies once after the window content is deinited because it is closing.
-        crate::properties::events::widget::on_deinit as on_close;
+        pub crate::properties::events::widget::on_deinit as on_close;
 
         /// On window position changed.
         ///
@@ -385,7 +372,7 @@ pub mod window {
         ///
         /// [`actual_position`]: WindowVars::actual_position
         /// [`on_pre_window_moved`]: fn@on_pre_window_moved
-        on_pre_window_moved as on_moved;
+        pub on_pre_window_moved as on_moved;
 
         /// On window size changed.
         ///
@@ -396,7 +383,7 @@ pub mod window {
         ///
         /// [`actual_size`]: WindowVars::actual_size
         /// [`on_pre_window_resized`]: fn@on_pre_window_resized
-        on_pre_window_resized as on_resized;
+        pub on_pre_window_resized as on_resized;
 
         /// On window state changed.
         ///
@@ -407,7 +394,7 @@ pub mod window {
         ///
         /// [`state`]: #wp-state
         /// [`on_pre_window_state_changed`]: fn@on_pre_window_state_changed
-        on_pre_window_state_changed as on_state_changed;
+        pub on_pre_window_state_changed as on_state_changed;
 
         /// On window maximized.
         ///
@@ -416,7 +403,7 @@ pub mod window {
         /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
         ///
         /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
-        on_pre_window_maximized as on_maximized;
+        pub on_pre_window_maximized as on_maximized;
 
         /// On window exited the maximized state.
         ///
@@ -425,7 +412,7 @@ pub mod window {
         /// This property is the [`on_pre_window_unmaximized`] so window handlers see it first.
         ///
         /// [`on_pre_window_unmaximized`]: fn@on_pre_window_unmaximized
-        on_pre_window_unmaximized as on_unmaximized;
+        pub on_pre_window_unmaximized as on_unmaximized;
 
         /// On window minimized.
         ///
@@ -434,7 +421,7 @@ pub mod window {
         /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
         ///
         /// [`on_pre_window_minimized`]: fn@on_pre_window_minimized
-        on_pre_window_minimized as on_minimized;
+        pub on_pre_window_minimized as on_minimized;
 
         /// On window exited the minimized state.
         ///
@@ -443,7 +430,7 @@ pub mod window {
         /// This property is the [`on_pre_window_unminimized`] so window handlers see it first.
         ///
         /// [`on_pre_window_unminimized`]: fn@on_pre_window_unminimized
-        on_pre_window_unminimized as on_unminimized;
+        pub on_pre_window_unminimized as on_unminimized;
 
         /// On window state changed to [`Normal`].
         ///
@@ -453,7 +440,7 @@ pub mod window {
         ///
         /// [`Normal`]: WindowState::Normal
         /// [`on_pre_window_restored`]: fn@on_pre_window_restored
-        on_pre_window_restored as on_restored;
+        pub on_pre_window_restored as on_restored;
 
         /// On window enter one of the fullscreen states.
         ///
@@ -464,7 +451,7 @@ pub mod window {
         /// [`Fullscreen`]: WindowState::Fullscreen
         /// [`Exclusive`]: WindowState::Exclusive
         /// [`on_pre_window_fullscreen`]: fn@on_pre_window_fullscreen
-        on_pre_window_fullscreen as on_fullscreen;
+        pub on_pre_window_fullscreen as on_fullscreen;
 
         /// On window is no longer fullscreen.
         ///
@@ -473,48 +460,45 @@ pub mod window {
         /// This property is the [`on_pre_window_exited_fullscreen`] so window handlers see it first.
         ///
         /// [`on_pre_window_exited_fullscreen`]: fn@on_pre_window_exited_fullscreen
-        on_pre_window_exited_fullscreen as on_exited_fullscreen;
+        pub on_pre_window_exited_fullscreen as on_exited_fullscreen;
 
         /// On window frame rendered.
         ///
         /// If [`frame_image_capture`](#wp-frame_image_capture) is set
-        on_pre_frame_image_ready as on_frame_image_ready;
-
-        remove {
-            // replaced with `root_id` to more clearly indicate that it is not the window ID.
-            id;
-            // replaced with `visible` because Visibility::Hidden is not a thing for windows.
-            visibility
-        }
+        pub on_pre_frame_image_ready as on_frame_image_ready;
     }
 
-    fn new_event(child: impl UiNode, #[cfg(inspector)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
+    fn intrinsic(wgt: &mut WidgetBuilder) {
         #[cfg(inspector)]
-        let child = commands::inspect_node(child, can_inspect);
-        nodes::layers(child)
+        {
+            let can_inspect = wgt
+                .capture_var::<bool>(property_id!(properties::can_inspect))
+                .unwrap_or_else(|| true.into_var().boxed());
+
+            wgt.insert_intrinsic(
+                Priority::Event,
+                AdoptiveNode::new(|child| commands::inspect_node(child, can_inspect)),
+            );
+        }
+
+        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(nodes::layers))
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        child: impl UiNode,
-        root_id: impl IntoValue<WidgetId>,
-        start_position: impl IntoValue<StartPosition>,
-        kiosk: bool,
-        allow_transparency: bool,
-        render_mode: impl IntoValue<Option<RenderMode>>,
-        headless_monitor: impl IntoValue<HeadlessMonitor>,
-        start_focused: bool,
-    ) -> Window {
+    fn build(mut wgt: WidgetBuilder) -> Window {
+        use crate::core::widget_base::{child, id};
+        use properties::*;
+
+        let child = wgt.capture_ui_node(property_id!(child)).unwrap_or_else(|| FillUiNode.boxed());
         let child = nodes::color_scheme(child);
 
         Window::new_root(
-            root_id,
-            start_position,
-            kiosk,
-            allow_transparency,
-            render_mode,
-            headless_monitor,
-            start_focused,
+            wgt.capture_value(property_id!(id)).unwrap_or_else(WidgetId::new_unique),
+            wgt.capture_value(property_id!(start_position)).unwrap_or_default(),
+            wgt.capture_value(property_id!(kiosk)).unwrap_or_default(),
+            wgt.capture_value(property_id!(allow_transparency)).unwrap_or(true),
+            wgt.capture_value(property_id!(render_mode)).unwrap_or(None),
+            wgt.capture_value(property_id!(render_mode)).unwrap_or_default(),
+            wgt.capture_value(property_id!(start_focused)).unwrap_or_default(),
             child,
         )
     }

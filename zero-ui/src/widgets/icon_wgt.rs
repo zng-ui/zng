@@ -12,41 +12,46 @@ use std::fmt;
 pub mod icon {
     use super::*;
 
+    inherit!(widget_base::base);
+
     #[doc(inline)]
     pub use super::vis;
 
     properties! {
         /// The glyph icon.
-        icon(impl IntoVar<GlyphIcon>);
+        pub vis::icon_property as icon;
 
         /// Icon size, best sizes are 18, 24, 36 or 48dip, default is 24dip.
         ///
         /// This is a single [`Length`] value that sets the "font size" of the icon glyph.
-        vis::icon_size;
+        pub vis::icon_size;
 
         /// Icon color.
-        vis::icon_color as color;
+        pub vis::icon_color as color;
 
         /// Spacing in between the icon and background edges or border.
         ///
         /// Set to `0` by default.
-        text::properties::text_padding as padding = 0;
+        pub text::properties::text_padding as padding;
     }
 
-    fn new_child() -> impl UiNode {
-        text::nodes::render_text()
-    }
-
-    fn new_fill(child: impl UiNode) -> impl UiNode {
-        text::nodes::layout_text(child)
-    }
-
-    fn new_event(child: impl UiNode, icon: impl IntoVar<GlyphIcon>) -> impl UiNode {
-        let icon = icon.into_var();
-        let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
-        let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
-        let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);
-        text::properties::text_color(node, vis::ICON_COLOR_VAR)
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(vis::icon_property as icon)) {
+            icon
+        } else {
+            tracing::error!("missing `icon` property");
+            return;
+        };
+        
+        wgt.set_child(text::nodes::render_text());
+        wgt.insert_intrinsic(Priority::Fill, AdoptiveNode::new(text::nodes::layout_text));
+        
+        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(|child| {
+            let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
+            let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
+            let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);
+            text::properties::text_color(node, vis::ICON_COLOR_VAR)
+        }));
     }
 
     /// Identifies an icon glyph in the font set.
@@ -133,6 +138,18 @@ pub mod vis {
         ///
         /// Inherits from [`TEXT_COLOR_VAR`].
         pub static ICON_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
+    }
+
+    /// The glyph icon.
+    /// 
+    /// # Capture Only
+    /// 
+    /// This property is re-exported by the widget as `icon` and does not work stand-alone.
+    #[property(context)]
+    pub fn icon_property(child: impl UiNode, generator: impl IntoVar<icon::GlyphIcon>) -> impl UiNode {
+        let _ = generator;
+        tracing::error!("property `icon` must be captured");
+        child
     }
 
     /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.

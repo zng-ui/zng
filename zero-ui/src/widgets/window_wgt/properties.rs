@@ -15,6 +15,7 @@ use crate::core::window::{
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
+use zero_ui_core::window::{HeadlessMonitor, StartPosition};
 
 fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
 where
@@ -244,7 +245,7 @@ impl_from_and_into_var! {
 /// This property is enabled by default in the `window!` widget, it is recommended to open the window with a name if
 /// the app can open more than one window.
 #[property(context, default(SaveState::Disabled))]
-pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
+pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
     enum Task {
         None,
         Read {
@@ -350,4 +351,137 @@ pub fn save_state(child: impl UiNode, enabled: SaveState) -> impl UiNode {
 struct WindowStateCfg {
     state: WindowState,
     restore_rect: euclid::Rect<f32, Dip>,
+}
+
+/// Window position when it opens.
+///
+/// # Capture Only
+///
+/// This property is not standalone, the value is captured on build.
+#[property(context, default(StartPosition::Default))]
+pub fn start_position(child: impl UiNode, position: impl IntoValue<StartPosition>) -> impl UiNode {
+    let _ = position;
+    tracing::error!("property `start_position` must be captured");
+    child
+}
+
+/// If the Inspector can be opened for this window.
+///
+/// The default value is `true`, but only applies if built with the `inspector` feature.
+///
+/// # Capture Only
+///
+/// This property is not standalone, the value is captured on build.
+#[cfg(inspector)]
+#[property(context, default(true))]
+pub fn can_inspect(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    let _ = enabled;
+    tracing::error!("property `can_inspect` must be captured");
+    child
+}
+
+/// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
+///
+/// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
+/// is taken from the monitor. In headless mode these values can be configured manually.
+///
+/// # Capture Only
+///
+/// This property is not standalone, the value is captured on build.
+#[property(context, default(HeadlessMonitor::default()))]
+pub fn headless_monitor(child: impl UiNode, enabled: impl IntoValue<HeadlessMonitor>) -> impl UiNode {
+    let _ = enabled;
+    tracing::error!("property `headless_monitor` must be captured");
+    child
+}
+
+/// If the window is forced to be the foreground keyboard focus after opening.
+///
+/// By default the windows manager decides if the window will receive focus after opening, usually it is focused
+/// only if the process that started the window already has focus. Setting the property to `true` ensures that focus
+/// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
+///
+/// # Capture Only
+///
+/// This property is not standalone, the value is captured on build.
+#[property(context, default(false))]
+pub fn start_focused(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {
+    let _ = enabled;
+    tracing::error!("property `start_focused` must be captured");
+    child
+}
+
+/// Lock-in kiosk mode.
+///
+/// In kiosk mode the only window states allowed are full-screen or full-screen exclusive, and
+/// all subsequent windows opened are child of the kiosk window.
+///
+/// Note that this does not configure the windows manager,
+/// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
+/// app itself from accidentally exiting kiosk mode.
+///
+/// # Capture Only
+///
+/// This property is not standalone, the value is captured on build.
+#[property(context, default(false))]
+pub fn kiosk(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {
+    let _ = enabled;
+    tracing::error!("property `kiosk` must be captured");
+    child
+}
+
+/// If semi-transparent content is "see-through", mixin with the OS pixels "behind" the window.
+///
+/// This is `true` by default, as it avoids the screen flashing black for windows opening in maximized or fullscreen modes
+/// in the Microsoft Windows OS.
+///
+/// Note that to make use of this feature you must unset the [`clear_color`] and [`background_color`] or set then to
+/// a semi-transparent color. The composition is a simple alpha blend, effects like blur do not apply to
+/// the pixels "behind" the window.
+///
+/// [`clear_color`]: #wp-clear_color
+/// [`background_color`]: #wp-background_color
+///
+/// # Capture Only
+///
+/// This property is not standalone, the value is captured on build.
+#[property(context, default(true))]
+pub fn allow_transparency(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {
+    let _ = enabled;
+    tracing::error!("property `allow_transparency` must be captured");
+    child
+}
+
+/// Render performance mode overwrite for this window, if set to `None` the [`Windows::default_render_mode`] is used.
+///
+/// # Examples
+///
+/// Prefer `Dedicated` renderer backend for just this window:
+///
+/// ```no_run
+/// use zero_ui::prelude::*;
+///
+/// fn example(ctx: &mut WindowContext) -> Window {
+///     let selected_mode = WindowVars::req(ctx).render_mode();
+///     window! {
+///         title = "Render Mode";
+///         render_mode = RenderMode::Dedicated;
+///         content = text(selected_mode.map(|m| formatx!("Preference: Dedicated\nActual: {m:?}")));
+///     }
+/// }
+/// ```
+///
+/// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
+/// see [`RenderMode`] for more details about each mode and fallbacks.
+///
+/// [`Windows::default_render_mode`]: crate::core::window::Windows::default_render_mode
+///
+/// # Capture Only
+///
+/// This property is not standalone, the value is captured on build.
+#[property(context, default(None))]
+pub fn render_mode(child: impl UiNode, enabled: impl IntoValue<Option<RenderMode>>) -> impl UiNode {
+    let _ = enabled;
+    tracing::error!("property `render_mode` must be captured");
+    child
 }

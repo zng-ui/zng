@@ -39,7 +39,7 @@ pub mod style {
 ///
 /// Styleable widgets usually have a more elaborate style setup that supports mixing multiple contextual styles, see
 /// [`style_mixin::with_style_extension`] for a full styleable widget example.
-#[widget_mixin($crate::widgets::style_mixin)]
+#[widget_mixin($crate::widgets::mixins::style_mixin)]
 pub mod style_mixin {
     use super::*;
 
@@ -48,7 +48,7 @@ pub mod style_mixin {
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
-        capture_style(wgt);
+        wgt.set_custom_build(custom_build())
     }
 
     /// Helper for declaring properties that [extend] a style set from a context var.
@@ -143,22 +143,6 @@ pub mod style_mixin {
         let _ = generator;
         tracing::error!("property `style` must be captured");
         child
-    }
-
-    /// Captures the `style_property as style` if present, inserts the intrinsic style loading node.
-    pub fn capture_style(wgt: &mut WidgetBuilder) {
-        if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(style_property as style)) {
-            let node = AdoptiveNode::new(|child| StyleNode {
-                child: None,
-                builder: None,
-                style,
-            });
-            let position = NestPosition {
-                priority: Priority::Context,
-                index: 0, // outermost
-            };
-            wgt.insert_intrinsic_positioned(node, position);
-        }
     }
 
     ///Gets the custom build that is set on intrinsic by the mix-in.

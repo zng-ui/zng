@@ -1,6 +1,11 @@
 # All Dyn Rewrite
 
+* `#[ui_node(..)]` tries to validate `with_context` overrides.
+    - Need a list of all delegates, only validate those, we have other methods in `UiNode`.
+* Re-implement `SortedWidgetVecRef` for use in window layers.
 * Finish implementing new dynamic widget.
+    - Use pre-bind in widget intrinsics.
+        - This will fix the when assign on renamed properties and import conflicts like the `style` property in button.
     - Implement pre-bind for when expressions.
     - When assigns need to "import" private properties in the same properties! block.
     - Use the term `child` and `children` in widgets, the rename to `content` and `items` does add value.

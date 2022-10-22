@@ -1,7 +1,7 @@
-use crate::core::widget;
+use crate::core::widget_mixin;
 
 /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused highlight visual.
-#[widget($crate::widgets::mixins::focusable_mixin)]
+#[widget_mixin($crate::widgets::mixins::focusable_mixin)]
 pub mod focusable_mixin {
     use crate::core::border::BorderStyle;
     use crate::properties::{
@@ -9,17 +9,15 @@ pub mod focusable_mixin {
         foreground_highlight,
     };
 
-    inherit!(crate::core::widget_base::mixin);
-
     #[doc(inline)]
     pub use super::vis;
 
     properties! {
         /// Enables keyboard focusing in the widget.
-        focusable = true;
+        pub focusable = true;
 
         /// A border overlay that is visible when the widget is focused.
-        foreground_highlight as focus_highlight = {
+        pub foreground_highlight as focus_highlight = {
             offsets: 0,
             widths: 0,
             sides: BorderStyle::Hidden,

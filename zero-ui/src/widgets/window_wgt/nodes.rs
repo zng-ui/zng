@@ -126,7 +126,7 @@ impl WindowLayers {
         where
             A: Var<WidgetId>,
             M: Var<AnchorMode>,
-            W: Widget,
+            W: UiNode,
         {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
@@ -391,28 +391,21 @@ impl WindowLayers {
                     }
                 }
             }
-        }
-        impl<A: Var<WidgetId>, M: Var<AnchorMode>, W: Widget> Widget for AnchoredWidget<A, M, W> {
-            fn id(&self) -> WidgetId {
-                self.widget.id()
+
+            fn with_context<R, F>(&self, f: F) -> Option<R>
+            where
+                F: FnOnce(&mut WidgetNodeContext) -> R,
+            {
+                self.widget.with_context(f)
             }
 
-            fn state(&self) -> StateMapRef<state_map::Widget> {
-                self.widget.state()
+            fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
+            where
+                F: FnOnce(&mut WidgetNodeMutContext) -> R,
+            {
+                self.with_context_mut(f)
             }
-
-            fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
-                self.widget.state_mut()
-            }
-
-            fn bounds_info(&self) -> &WidgetBoundsInfo {
-                self.widget.bounds_info()
-            }
-
-            fn border_info(&self) -> &WidgetBorderInfo {
-                self.widget.border_info()
-            }
-        }
+        }        
 
         Self::insert(
             ctx,

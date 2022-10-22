@@ -53,7 +53,7 @@ pub use toggle_wgt::{checkbox, toggle};
 
 mod styleable_wgt;
 #[doc(inline)]
-pub use styleable_wgt::{style, styleable};
+pub use styleable_wgt::style;
 
 mod view;
 #[doc(inline)]

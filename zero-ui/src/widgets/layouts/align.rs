@@ -4,19 +4,24 @@ use crate::prelude::new_widget::*;
 mod center {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
-        #[allowed_in_when = false]
-        content(impl UiNode);
+        pub widget_base::child;
     }
 
-    fn new_child(content: impl UiNode) -> impl UiNode {
-        align(content, Align::CENTER)
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        let child = wgt.capture_ui_node(property_id!(widget_base::child));
+        if let Some(child) = child {
+            let child = align(child, Align::CENTER);
+            wgt.set_child(child.boxed());
+        }
     }
 }
 
 /// Centralizes the content in the available space.
 ///
 /// This is the equivalent of setting [`align`](fn@align) to [`Align::CENTER`], but as a widget.
-pub fn center(content: impl UiNode) -> impl UiNode {
-    center! { content; }
+pub fn center(child: impl UiNode) -> impl UiNode {
+    center! { child; }
 }

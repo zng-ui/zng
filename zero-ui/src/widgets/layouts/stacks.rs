@@ -41,7 +41,7 @@ pub mod h_stack {
         spacing(impl IntoVar<Length>) = 0.0;
 
         /// Spacing around the items stack, inside the border.
-        padding;
+        pub padding;
 
         /// Items alignment.
         ///

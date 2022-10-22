@@ -1122,9 +1122,10 @@ pub mod prelude {
         pub use crate::widgets::{
             container,
             layouts::{stack_nodes, stack_nodes_layout_by},
+            mixins::style_mixin,
             style,
             style::{style_generator, StyleGenerator},
-            styleable, view_generator, DataUpdate, ViewGenerator,
+            view_generator, DataUpdate, ViewGenerator,
         };
     }
 }

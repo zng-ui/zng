@@ -81,7 +81,7 @@ pub mod uniform_grid {
         spacing(impl IntoVar<GridSpacing>) = 0.0;
 
         /// Spacing around the items grid, inside the border.
-        padding;
+        pub padding;
     }
 
     /// New uniform grid layout.

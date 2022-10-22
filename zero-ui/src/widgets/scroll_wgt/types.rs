@@ -1,12 +1,11 @@
 use std::{cell::Cell, fmt, rc::Rc, time::Duration};
 
 use crate::core::{
-    context::StaticStateId,
-    context_value,
+    context::{context_value, with_context_value, StaticStateId},
     units::*,
     var::{animation::*, *},
     widget_info::WidgetInfo,
-    with_context_value, UiNode,
+    widget_instance::UiNode,
 };
 use bitflags::bitflags;
 use zero_ui_core::var::animation::ChaseAnimation;

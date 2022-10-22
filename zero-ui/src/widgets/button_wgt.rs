@@ -9,8 +9,9 @@ pub mod button {
     #[doc(inline)]
     pub use super::vis;
 
-    inherit!(element);
+    inherit!(container);
     inherit!(focusable_mixin);
+    inherit!(style_mixin);
 
     properties! {
         /// Button click event.
@@ -29,7 +30,7 @@ pub mod button {
         /// }
         /// # ;
         /// ```
-        on_click;
+        pub on_click;
 
         /// If pointer interaction with other widgets is blocked while the button is pressed.
         ///
@@ -76,7 +77,7 @@ pub mod vis {
     /// `style` override the parent style.
     #[property(context, default(StyleGenerator::nil()))]
     pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
-        styleable::with_style_extension(child, STYLE_VAR, style)
+        style_mixin::with_style_extension(child, STYLE_VAR, style)
     }
 
     /// Create a [`color_scheme_highlight`] of `0.08`.

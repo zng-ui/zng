@@ -12,6 +12,8 @@ pub mod image {
     use super::*;
     pub use super::{nodes, properties};
 
+    inherit!(widget_base::base);
+
     properties! {
         /// The image source.
         ///
@@ -23,7 +25,7 @@ pub mod image {
         /// By default the [`Contain`] mode is used.
         ///
         /// [`Contain`]: ImageFit::Contain
-        properties::image_fit as fit;
+        pub properties::image_fit as fit;
 
         /// Align of the image after the final size is calculated.
         ///
@@ -37,7 +39,7 @@ pub mod image {
         /// [`CENTER`]: Align::CENTER
         /// [`BASELINE`]: Align::BASELINE
         /// [`BOTTOM`]: Align::BOTTOM
-        properties::image_align;
+        pub properties::image_align;
 
         /// Offset applied to the image after the final size and alignment.
         ///
@@ -47,7 +49,7 @@ pub mod image {
         /// By default no offset is applied.
         ///
         /// [`offset`]: crate::properties::offset
-        properties::image_offset;
+        pub properties::image_offset;
 
         /// Simple clip rectangle applied to the image before all layout.
         ///
@@ -59,7 +61,7 @@ pub mod image {
         ///
         /// [`scale_ppi`]: #wp-scale_ppi
         /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas
-        properties::image_crop as crop;
+        pub properties::image_crop as crop;
 
         /// Scale applied to the image desired size.
         ///
@@ -68,7 +70,7 @@ pub mod image {
         /// By default not scaling is done.
         ///
         /// [`scale_ppi`]: #wp-scale_ppi
-        properties::image_scale;
+        pub properties::image_scale;
 
         /// Sets the image scaling algorithm used to rescale the image in the renderer.
         ///
@@ -83,7 +85,7 @@ pub mod image {
         /// size at different DPIs using mipmaps.
         ///
         /// This is [`ImageRendering::Auto`] by default.
-        properties::image_rendering as rendering;
+        pub properties::image_rendering as rendering;
 
         /// Sets if the [`source`] is cached.
         ///
@@ -95,7 +97,7 @@ pub mod image {
         ///
         /// [`source`]: #wp-source
         /// [`Images`]: zero_ui::core::image::Images
-        properties::image_cache as cache;
+        pub properties::image_cache as cache;
 
         /// If the image desired size is scaled by the screen scale factor.
         ///
@@ -106,7 +108,7 @@ pub mod image {
         /// This is enabled by default.
         ///
         /// [`crop`]: #wp-crop
-        properties::image_scale_factor as scale_factor;
+        pub properties::image_scale_factor as scale_factor;
 
         /// If the image desired size is scaled by PPI.
         ///
@@ -118,18 +120,18 @@ pub mod image {
         ///
         /// [`crop`]: #wp-crop
         /// [`Monitors`]: zero_ui::core::window::Monitors
-        properties::image_scale_ppi as scale_ppi;
+        pub properties::image_scale_ppi as scale_ppi;
 
         /// View generator that creates the loading content.
-        properties::image_loading_view as loading_view;
+        pub properties::image_loading_view as loading_view;
 
         /// View generator that creates the error content when the image failed to load.
-        properties::image_error_view as error_view;
+        pub properties::image_error_view as error_view;
 
         /// Sets custom image load and decode limits.
         ///
         /// If not set or set to `None` the [`Images::limits`] is used.
-        properties::image_limits as limits;
+        pub properties::image_limits as limits;
 
         /// Block window load until the image loads.
         ///
@@ -138,25 +140,32 @@ pub mod image {
         ///
         /// You can enable this behavior by setting this to `true` for a timeout of `1.secs()`, or you can set it to a
         /// timeout duration directly. Note that the input is a fixed value, not a variable.
-        properties::image_block_window_load as block_window_load;
+        pub properties::image_block_window_load as block_window_load;
 
         /// If the image successfully loaded.
-        properties::is_loaded;
+        pub properties::is_loaded;
 
         /// Event called when the images successfully loads.
-        properties::on_load;
+        pub properties::on_load;
 
         /// If the image failed to load.
-        properties::is_error;
+        pub properties::is_error;
 
         /// Event called when the image fails to load.
-        properties::on_error;
+        pub properties::on_error;
+    }
+
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        let node = nodes::image_presenter();
+        let node = nodes::image_error_presenter(node);
+        let node = nodes::image_loading_presenter(node);
+        wgt.set_child(node);
+
+        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(|child| nodes::image_source(child, source)));
     }
 
     fn new_child() -> impl UiNode {
-        let node = nodes::image_presenter();
-        let node = nodes::image_error_presenter(node);
-        nodes::image_loading_presenter(node)
+        
     }
 
     fn new_event(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {

@@ -14,7 +14,12 @@ command! {
 }
 
 #[cfg(inspector)]
-pub(super) fn inspect_node(child: impl crate::core::UiNode, can_inspect: impl crate::core::var::IntoVar<bool>) -> impl crate::core::UiNode {
+pub(super) fn inspect_node(
+    child: impl crate::core::widget_instance::UiNode,
+    can_inspect: impl crate::core::var::IntoVar<bool>,
+) -> impl crate::core::widget_instance::UiNode {
+    /*
+    TODO !!: after inspector re-impl
     use crate::core::inspector::prompt::{write_tree, WriteTreeState};
     use crate::core::{handler::hn, task};
 
@@ -46,4 +51,7 @@ pub(super) fn inspect_node(child: impl crate::core::UiNode, can_inspect: impl cr
             });
         }),
     )
+    */
+
+    child
 }
