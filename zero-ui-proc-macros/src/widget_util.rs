@@ -20,6 +20,7 @@ pub struct WgtProperty {
     pub vis: Visibility,
     /// Path to property.
     pub path: Path,
+    pub capture_decl: Option<CaptureDeclaration>,
     /// The ::<T> part of the path, if present it is removed from `path`.
     pub generics: TokenStream,
     /// Optional property rename.
@@ -175,6 +176,74 @@ impl WgtProperty {
         }
     }
 
+    /// Declares capture property if it is one, replaces path to new property.
+    pub fn declare_capture(&mut self) -> TokenStream {
+        if let Some(decl) = self.capture_decl.take() {
+            let mut errors = Errors::default();
+            if !self.generics.is_empty() {
+                errors.push("new capture shorthand cannot have explicit generics", self.generics.span());
+            }
+            if let Some((as_, _)) = &self.rename {
+                errors.push("new capture properties cannot be renamed", as_.span());
+            }
+            if self.path.get_ident().is_none() {
+                errors.push("new capture properties must have a single ident", self.path.span());
+            }
+            let default_args = match &self.value {
+                Some((_, val)) => match val {
+                    PropertyValue::Unnamed(a) => Some(a),
+                    PropertyValue::Special(id, _) => {
+                        errors.push("cannot `{id}` new capture property", id.span());
+                        None
+                    }
+                    PropertyValue::Named(brace, _) => {
+                        errors.push("expected unnamed default", brace.span);
+                        None
+                    }
+                },
+                None => None,
+            };
+
+            if errors.is_empty() {
+                let ident = self.path.get_ident().unwrap().clone();
+                let decl_ident = ident_spanned!(ident.span()=> "__{ident}__");
+                self.path = parse_quote!(#decl_ident);
+                self.rename = Some((parse_quote!(as), ident.clone()));
+
+                let ty = decl.ty;
+                let vis = match &self.vis {
+                    Visibility::Inherited => {
+                        // so at least the widget can get the `property_id!`.
+                        self.vis = parse_quote!(pub(super));
+                        &self.vis
+                    }
+                    vis => vis,
+                };
+                let core = util::crate_core();
+
+                let default = if let Some(default_args) = default_args {
+                    quote! {
+                        , default(#default_args)
+                    }
+                } else {
+                    quote!()
+                };
+
+                quote_spanned! {decl_ident.span()=>
+                    #[doc(hidden)]
+                    #[#core::property(context, capture #default)]
+                    #vis fn #decl_ident(__child__: impl #core::widget_instance::UiNode, #ident: #ty) -> impl #core::widget_instance::UiNode {
+                        __child__
+                    }
+                }
+            } else {
+                errors.to_token_stream()
+            }
+        } else {
+            quote!()
+        }
+    }
+
     /// Gets the property args new code.
     pub fn args_new(&self, wgt_builder_mod: TokenStream) -> TokenStream {
         let path = &self.path;
@@ -250,6 +319,8 @@ impl Parse for WgtProperty {
         let path: Path = input.parse()?;
         let (path, generics) = split_path_generics(path)?;
 
+        let capture_decl = if input.peek(token::Paren) { Some(input.parse()?) } else { None };
+
         let rename = if input.peek(Token![as]) {
             Some((input.parse()?, input.parse()?))
         } else {
@@ -265,6 +336,7 @@ impl Parse for WgtProperty {
             attrs: Attributes::new(attrs),
             vis,
             path,
+            capture_decl,
             generics,
             rename,
             value,
@@ -312,6 +384,18 @@ impl Parse for PropertyField {
                 t
             },
         })
+    }
+}
+
+/// Property assign declares a new capture-only.
+pub struct CaptureDeclaration {
+    ty: Type,
+}
+impl Parse for CaptureDeclaration {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        let inner;
+        parenthesized!(inner in input);
+        Ok(Self { ty: inner.parse()? })
     }
 }
 

@@ -544,7 +544,7 @@ pub mod capture_properties_wgt {
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
-        let msg: &'static str = wgt.capture_value(property_id!(trace as new_child_trace)).unwrap();
+        let msg: &'static str = wgt.capture_value(property_id!(self.new_child_trace)).unwrap();
         let msg = match msg {
             "new-child" => "custom new_child",
             "user-new-child" => "custom new_child (user)",
@@ -560,7 +560,7 @@ pub mod capture_properties_wgt {
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl crate::widget_instance::UiNode {
-        let msg: &'static str = wgt.capture_value(property_id!(trace as new_trace)).unwrap();
+        let msg: &'static str = wgt.capture_value(property_id!(self.new_trace)).unwrap();
         let msg = match msg {
             "new" => "custom new",
             "user-new" => "custom new (user)",

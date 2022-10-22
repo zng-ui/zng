@@ -18,7 +18,7 @@ pub mod image {
         /// The image source.
         ///
         /// Can be a file path, an URI, binary included in the app and more.
-        source(impl IntoVar<ImageSource>);
+        pub source(impl IntoVar<ImageSource>);
 
         /// Sets the image final size mode.
         ///
@@ -161,11 +161,10 @@ pub mod image {
         let node = nodes::image_loading_presenter(node);
         wgt.set_child(node);
 
-        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(|child| nodes::image_source(child, source)));
-    }
-
-    fn new_child() -> impl UiNode {
-        
+        wgt.insert_intrinsic(
+            Priority::Event,
+            AdoptiveNode::new(|child| nodes::image_source(child, property_id!(self.source))),
+        );
     }
 
     fn new_event(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
@@ -218,7 +217,7 @@ mod tests {
         let ok = Rc::new(Cell::new(false));
         let window_id = app.open_window(clone_move!(ok, |_| {
             window! {
-                content = image! {
+                child = image! {
                     source = img.clone();
                     error_view = view_generator!(ok, |_, _| {
                         ok.set(true);

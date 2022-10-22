@@ -1,5 +1,5 @@
 use crate::core::focus::*;
-use crate::core::window::Window;
+use crate::core::window::{Window, StartPosition, HeadlessMonitor};
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
 
@@ -56,7 +56,7 @@ pub mod window {
         pub properties::chrome;
 
         /// Window position when it opens.
-        pub properties::start_position;
+        pub start_position(impl IntoValue<StartPosition>);
 
         /// Window state.
         ///
@@ -243,7 +243,7 @@ pub mod window {
         ///
         /// The default value is `true`, but only applies if built with the `inspector` feature.
         #[cfg(inspector)]
-        pub properties::can_inspect;
+        pub can_inspect(impl IntoVar<bool>);
 
         /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
         ///
@@ -271,14 +271,14 @@ pub mod window {
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
         /// is taken from the monitor. In headless mode these values can be configured manually.
-        pub properties::headless_monitor;
+        pub headless_monitor(impl IntoValue<HeadlessMonitor>);
 
         /// If the window is forced to be the foreground keyboard focus after opening.
         ///
         /// By default the windows manager decides if the window will receive focus after opening, usually it is focused
         /// only if the process that started the window already has focus. Setting the property to `true` ensures that focus
         /// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
-        pub properties::start_focused;
+        pub start_focused(impl IntoValue<bool>);
 
         /// Lock-in kiosk mode.
         ///
@@ -288,7 +288,7 @@ pub mod window {
         /// Note that this does not configure the windows manager,
         /// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
         /// app itself from accidentally exiting kiosk mode.
-        pub properties::kiosk;
+        pub kiosk(impl IntoValue<bool>);
 
         /// If semi-transparent content is "see-through", mixin with the OS pixels "behind" the window.
         ///
@@ -301,7 +301,7 @@ pub mod window {
         ///
         /// [`clear_color`]: #wp-clear_color
         /// [`background_color`]: #wp-background_color
-        pub properties::allow_transparency;
+        pub allow_transparency(impl IntoValue<bool>);
 
         /// Render performance mode overwrite for this window, if set to `None` the [`Windows::default_render_mode`] is used.
         ///
@@ -326,7 +326,7 @@ pub mod window {
         /// see [`RenderMode`] for more details about each mode and fallbacks.
         ///
         /// [`Windows::default_render_mode`]: crate::core::window::Windows::default_render_mode
-        pub properties::render_mode;
+        pub render_mode(impl IntoValue<Option<RenderMode>>);
 
         /// Override the preferred color scheme for this window.
         pub properties::color_scheme;
@@ -472,7 +472,7 @@ pub mod window {
         #[cfg(inspector)]
         {
             let can_inspect = wgt
-                .capture_var::<bool>(property_id!(properties::can_inspect))
+                .capture_var::<bool>(property_id!(self.can_inspect))
                 .unwrap_or_else(|| true.into_var().boxed());
 
             wgt.insert_intrinsic(
@@ -485,20 +485,17 @@ pub mod window {
     }
 
     fn build(mut wgt: WidgetBuilder) -> Window {
-        use crate::core::widget_base::{child, id};
-        use properties::*;
-
-        let child = wgt.capture_ui_node(property_id!(child)).unwrap_or_else(|| FillUiNode.boxed());
+        let child = wgt.capture_ui_node(property_id!(self.child)).unwrap_or_else(|| FillUiNode.boxed());
         let child = nodes::color_scheme(child);
 
         Window::new_root(
-            wgt.capture_value(property_id!(id)).unwrap_or_else(WidgetId::new_unique),
-            wgt.capture_value(property_id!(start_position)).unwrap_or_default(),
-            wgt.capture_value(property_id!(kiosk)).unwrap_or_default(),
-            wgt.capture_value(property_id!(allow_transparency)).unwrap_or(true),
-            wgt.capture_value(property_id!(render_mode)).unwrap_or(None),
-            wgt.capture_value(property_id!(render_mode)).unwrap_or_default(),
-            wgt.capture_value(property_id!(start_focused)).unwrap_or_default(),
+            wgt.capture_value(property_id!(self.id)).unwrap_or_else(WidgetId::new_unique),
+            wgt.capture_value(property_id!(self.start_position)).unwrap_or_default(),
+            wgt.capture_value(property_id!(self.kiosk)).unwrap_or_default(),
+            wgt.capture_value(property_id!(self.allow_transparency)).unwrap_or(true),
+            wgt.capture_value(property_id!(self.render_mode)).unwrap_or(None),
+            wgt.capture_value(property_id!(self.headless_monitor)).unwrap_or_default(),
+            wgt.capture_value(property_id!(self.start_focused)).unwrap_or_default(),
             child,
         )
     }

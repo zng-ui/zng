@@ -15,6 +15,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             errors.push_syn(e);
             Args {
                 priority: ident!("context"),
+                capture: false,
                 default: None,
             }
         }
@@ -25,6 +26,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     } else {
         Priority::Context
     };
+    let capture = args.capture;
 
     let item = match parse::<ItemFn>(input.clone()) {
         Ok(i) => i,
@@ -68,6 +70,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             errors.push("first input must be `impl UiNode`", inputs[0].ty.span());
         }
     }
+
+    let mut item = item;
+    if capture {
+        let child = &inputs[0].ident;
+        let inputs = inputs[1..].iter().map(|i| &i.ident);
+        item.block.stmts.clear();
+        item.block.stmts.push(parse_quote! {
+            let _ = (#(#inputs,)*);
+        });
+        item.block.stmts.push(Stmt::Expr(parse_quote! {
+            #child
+        }));
+    }
+    let item = item;
 
     let _output_span = match &item.sig.output {
         ReturnType::Default => {
@@ -561,6 +577,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 fn property(&self) -> #core::widget_builder::PropertyInfo {
                     #core::widget_builder::PropertyInfo {
                         priority: #priority,
+                        capture: #capture,
                         unique_id: std::any::TypeId::of::<Self>(),
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
@@ -656,12 +673,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
 struct Args {
     priority: Ident,
+    capture: bool,
     default: Option<Default>,
 }
 impl Parse for Args {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(Args {
             priority: input.parse()?,
+            capture: if input.peek(Token![,]) && input.peek2(keyword::capture) {
+                let _: Token![,] = input.parse()?;
+                let _: keyword::capture = input.parse()?;
+                true
+            } else {
+                false
+            },
             default: if input.peek(Token![,]) && input.peek2(Token![default]) {
                 Some(input.parse()?)
             } else {
@@ -868,4 +893,8 @@ impl Input {
         }
         input
     }
+}
+
+pub mod keyword {
+    syn::custom_keyword!(capture);
 }

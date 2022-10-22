@@ -44,7 +44,19 @@ pub mod style_mixin {
     use super::*;
 
     properties! {
-        pub style_property as style;
+        /// Style generator used for the widget.
+        ///
+        /// Properties and `when` conditions in the generated style are applied to the widget as
+        /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
+        /// prefer property binding and `when` conditions to cause visual changes that happen often.
+        ///
+        /// Is `nil` by default.
+        ///
+        /// # Capture Only
+        ///
+        /// This property must be captured by [`intrinsic`] to work, widgets that implement this re-export this
+        /// property with the name `style`.
+        pub style(impl IntoVar<StyleGenerator>);
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
@@ -126,25 +138,6 @@ pub mod style_mixin {
         )
     }
 
-    /// Style generator used for the widget.
-    ///
-    /// Properties and `when` conditions in the generated style are applied to the widget as
-    /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
-    /// prefer property binding and `when` conditions to cause visual changes that happen often.
-    ///
-    /// Is `nil` by default.
-    ///
-    /// # Capture Only
-    ///
-    /// This property must be captured by [`intrinsic`] to work, widgets that implement this re-export this
-    /// property with the name `style`.
-    #[property(context, default(StyleGenerator::nil()))]
-    pub fn style_property(child: impl UiNode, generator: impl IntoVar<StyleGenerator>) -> impl UiNode {
-        let _ = generator;
-        tracing::error!("property `style` must be captured");
-        child
-    }
-
     ///Gets the custom build that is set on intrinsic by the mix-in.
     pub fn custom_build() -> Box<dyn CustomWidgetBuild> {
         Box::new(CustomBuild)
@@ -157,7 +150,7 @@ pub mod style_mixin {
         }
 
         fn build(wgt: &mut WidgetBuilder) -> BoxedUiNode {
-            if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(style_property as style)) {
+            if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(self.style)) {
                 StyleNode {
                     child: None,
                     builder: wgt.clone(),

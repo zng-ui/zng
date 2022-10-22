@@ -405,7 +405,7 @@ impl WindowLayers {
             {
                 self.with_context_mut(f)
             }
-        }        
+        }
 
         Self::insert(
             ctx,

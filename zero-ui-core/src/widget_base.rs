@@ -588,10 +588,9 @@ context_var! {
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base
-#[property(child_layout, default(FillUiNode))]
-pub fn child(_ignored: impl UiNode, child: impl UiNode) -> impl UiNode {
-    tracing::error!("property `child` must be captured");
-    child
+#[property(child_layout, capture, default(FillUiNode))]
+pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
+    _child
 }
 
 /// Defines the panel widget innermost nodes.
@@ -601,11 +600,9 @@ pub fn child(_ignored: impl UiNode, child: impl UiNode) -> impl UiNode {
 /// This property must be [captured] during widget build and used directly in the panel node.
 ///
 /// [captured]: crate::widget#property-capture
-#[property(child_layout, default(ui_list![]))]
-pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> impl UiNode {
-    let _ = children;
-    tracing::error!("property `children` must be captured");
-    NilUiNode
+#[property(child_layout, capture, default(ui_list![]))]
+pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
+    _child
 }
 
 /// Defines the unique ID for the widget instance.
@@ -619,11 +616,9 @@ pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> impl UiNode
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base
-#[property(context, default(WidgetId::new_unique()))]
-pub fn id(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
-    let _ = id;
-    tracing::error!("property `id` must be captured");
-    child
+#[property(context, capture, default(WidgetId::new_unique()))]
+pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
+    _child
 }
 
 /// If default interaction is allowed in the widget and its descendants.

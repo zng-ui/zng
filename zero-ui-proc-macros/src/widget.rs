@@ -51,7 +51,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let WidgetItems {
         uses,
         inherits,
-        properties,
+        mut properties,
         intrinsic_fn,
         build_fn,
         others,
@@ -81,6 +81,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         intrinsic_item_imports.extend(quote_spanned! {int.span()=>
             self::intrinsic(__wgt__);
         })
+    }
+
+    let mut capture_decl = quote!();
+    for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
+        capture_decl.extend(prop.declare_capture());
     }
 
     let mut intrinsic_items = quote!();
@@ -241,6 +246,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             }
         }
 
+        #capture_decl
         #build_fn
         #build
 

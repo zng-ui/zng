@@ -19,7 +19,7 @@ pub mod icon {
 
     properties! {
         /// The glyph icon.
-        pub vis::icon_property as icon;
+        pub icon(impl IntoVar<icon::GlyphIcon>);
 
         /// Icon size, best sizes are 18, 24, 36 or 48dip, default is 24dip.
         ///
@@ -36,22 +36,25 @@ pub mod icon {
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
-        let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(vis::icon_property as icon)) {
+        let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(self.icon)) {
             icon
         } else {
             tracing::error!("missing `icon` property");
             return;
         };
-        
+
         wgt.set_child(text::nodes::render_text());
         wgt.insert_intrinsic(Priority::Fill, AdoptiveNode::new(text::nodes::layout_text));
-        
-        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(|child| {
-            let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
-            let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
-            let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);
-            text::properties::text_color(node, vis::ICON_COLOR_VAR)
-        }));
+
+        wgt.insert_intrinsic(
+            Priority::Event,
+            AdoptiveNode::new(|child| {
+                let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
+                let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
+                let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);
+                text::properties::text_color(node, vis::ICON_COLOR_VAR)
+            }),
+        );
     }
 
     /// Identifies an icon glyph in the font set.
@@ -138,18 +141,6 @@ pub mod vis {
         ///
         /// Inherits from [`TEXT_COLOR_VAR`].
         pub static ICON_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
-    }
-
-    /// The glyph icon.
-    /// 
-    /// # Capture Only
-    /// 
-    /// This property is re-exported by the widget as `icon` and does not work stand-alone.
-    #[property(context)]
-    pub fn icon_property(child: impl UiNode, generator: impl IntoVar<icon::GlyphIcon>) -> impl UiNode {
-        let _ = generator;
-        tracing::error!("property `icon` must be captured");
-        child
     }
 
     /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.

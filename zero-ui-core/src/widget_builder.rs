@@ -59,19 +59,54 @@ macro_rules! when_condition_expr_var {
 pub use when_condition_expr_var;
 
 ///<span data-del-macro-root></span> New [`PropertyId`] that represents the type and name.
+///
+/// # Syntax
+///
+/// * `property::path`: Gets the ID for the standalone property function.
+/// * `property::path as rename`: Gets the ID, but with the new name.
+/// * `widget::path.property`: Gets the ID for the property re-exported by the widget.
+/// * `widget::path.property as rename`: Gets the ID for widget property, but with the new name.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::{property, widget_builder::property_id};
+/// # pub mod path {
+/// #   #[property(context)]
+/// #   pub fn foo(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
+/// #     child
+/// #   }
+/// # }
+/// # fn main() {
+/// let foo_id = property_id!(path::foo);
+/// let renamed_id = property_id!(path::foo as bar);
+///
+/// assert_ne!(foo_id, renamed_id);
+/// assert_eq!(foo_id.unique_id, renamed_id.unique_id);
+/// assert_ne!(foo_id.name, renamed_id.name);
+/// # }
+/// ```
 #[macro_export]
 macro_rules! property_id {
-    ($property:path) => {{
+    ($($property:ident)::+) => {{
         // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $property::{property as p};
+        #[rustfmt::skip] use $($property)::+::{property};
 
-        p::__id__($crate::widget_builder::property_id_name(stringify!($property)))
+        property::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
     }};
-    ($property:path as $rename:ident) => {{
+    ($($property:ident)::+ as $rename:ident) => {{
         // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $property::{property as p};
+        #[rustfmt::skip] use $($property)::+::{property};
 
-        p::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+    }};
+    ($($widget:ident)::+ . $property:ident) => {{
+        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property}}};
+        property::__id__($crate::widget_builder::property_id_name(stringify!($property)))
+    }};
+    ($($widget:ident)::+ . $property:ident as $rename:ident) => {{
+        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property}}};
+        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
 }
 #[doc(inline)]
@@ -83,15 +118,38 @@ pub fn property_id_name(path: &'static str) -> &'static str {
 }
 
 ///<span data-del-macro-root></span> New [`PropertyArgs`] box from a property and value.
+///
+/// # Syntax
+///
+/// The syntax is similar to a property assign in a widget, with some extra means to reference widget properties.
+///
+/// * `property::path = <value>;`: Args for the standalone property function.
+/// * `property::path as rename = <value>;`: Args for the standalone property, but the ID is renamed.
+/// * `widget::path.property = <value>;`: Args for a property re-exported by the widget.
+/// * `widget::path.property as rename = <value>;`: Args for the widget property, but the ID renamed.
+///
+/// In all of these the `<value>` is the standard property init expression or named fields patterns that are used in widget assigns.
+///
+/// * `property = "value-0", "value-1";`: Unnamed args.
+/// * `property = { value_0: "value-0", value_1: "value-1" }`: Named args.
+///
+/// Note that `unset!` is not a property arg, trying to use it will cause a panic.
 #[macro_export]
 macro_rules! property_args {
-    ($property:path $(as $rename:ident)? = $($value:tt)*) => {
+    ($($property:ident)::+ $(as $rename:ident)? = $($value:tt)*) => {
         {
             $crate::widget_builder::property_args_getter! {
-                $property $(as $rename)? = $($value)*
+                $($property)::+ $(as $rename)? = $($value)*
             }
         }
-    }
+    };
+    ($($widget:ident)::+ . $property:ident $(as $rename:ident)? = $($value:tt)*) => {
+        {
+            $crate::widget_builder::property_args_getter! {
+                $($widget)::+::__properties__::$property $(as $rename)? = $($value)*
+            }
+        }
+    };
 }
 #[doc(inline)]
 pub use crate::property_args;
@@ -248,6 +306,10 @@ impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
 pub struct PropertyInfo {
     /// Property insert order.
     pub priority: Priority,
+    /// Property is "capture-only", no standalone implementation is provided, instantiating does not add a node, just returns the child.
+    ///
+    /// Note that all properties can be captured, but if this is `false` they provide an implementation that works standalone.
+    pub capture: bool,
 
     /// Unique type ID that identifies the property.
     pub unique_id: TypeId,
@@ -361,6 +423,8 @@ pub trait PropertyArgs {
     }
 
     /// Create a property instance with args clone or taken.
+    ///
+    /// If the property is [`PropertyInfo::capture`] the `child` is returned.
     fn instantiate(&self, child: BoxedUiNode) -> BoxedUiNode;
 }
 
