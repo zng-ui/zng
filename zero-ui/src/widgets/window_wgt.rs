@@ -1,5 +1,5 @@
 use crate::core::focus::*;
-use crate::core::window::{Window, StartPosition, HeadlessMonitor};
+use crate::core::window::{HeadlessMonitor, StartPosition, Window};
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
 

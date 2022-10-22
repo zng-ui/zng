@@ -129,7 +129,7 @@ impl WgtProperty {
                 }
                 PropertyValue::Special(_, _) => {}
             }
-        } else if shorthand_init_enabled && self.rename.is_some() || self.path.get_ident().is_some() {
+        } else if shorthand_init_enabled && (self.rename.is_some() || self.path.get_ident().is_some()) {
             let ident = self.ident().clone();
             let let_ident = ident!("{prefix}0__");
             self.value = Some((parse_quote!(=), PropertyValue::Unnamed(quote!(#let_ident))));
@@ -142,7 +142,19 @@ impl WgtProperty {
     }
 
     pub fn reexport(&self) -> TokenStream {
-        let vis = &self.vis;
+        let vis = match self.vis.clone() {
+            Visibility::Inherited => {
+                if self.rename.is_some() || self.path.get_ident().is_none() {
+                    // so at least the widget can use it after pre-bind.
+                    parse_quote!(pub(super))
+                } else {
+                    // already in context
+                    return quote!()
+                }
+            }
+            vis => vis,
+        };
+
         let path = &self.path;
         let extra_super = if path.segments[0].ident == "super" {
             let sup = &path.segments[0].ident;
@@ -557,6 +569,10 @@ impl WgtWhen {
                         if !matches!(p.vis, Visibility::Inherited) {
                             errors.push("cannot reexport property from when assign", p.vis.span());
                         }
+                        if let Some(decl) = &p.capture_decl {
+                            errors.push("cannot declare capture property in when assign", decl.ty.span());
+                        }
+
                         assigns.push(p);
                     }
                     Err(e) => {

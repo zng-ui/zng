@@ -17,9 +17,8 @@
 
 * Finish implementing new dynamic widget.
     - Fix intrinsics.
-    - Improve "capture-only" properties.
-    - Use pre-bind in widget intrinsics.
-        - This will fix the when assign on renamed properties and import conflicts like the `style` property in button.
+    - Fix `button.style` property name conflict.
+        - Pre-bind did not fix this bug.
     - Implement pre-bind for when expressions.
     - When assigns need to "import" private properties in the same properties! block.
     - Use the term `child` and `children` in widgets, the rename to `content` and `items` does add value.

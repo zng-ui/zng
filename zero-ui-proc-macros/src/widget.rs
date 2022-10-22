@@ -84,8 +84,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
 
     let mut capture_decl = quote!();
+    let mut pre_bind = quote!();
+
     for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
         capture_decl.extend(prop.declare_capture());
+        pre_bind.extend(prop.pre_bind_args(false, None, ""));
+    }
+    for (i, when) in properties.iter_mut().flat_map(|i| i.whens.iter_mut()).enumerate() {
+        pre_bind.extend(when.pre_bind(false, i));
     }
 
     let mut intrinsic_items = quote!();
@@ -194,7 +200,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     };
 
     let mut inherit_export = quote!();
-    let mut intrinsic_imports = quote!();
 
     for Inherit { attrs, path } in inherits {
         let extra_super = if path.segments[0].ident == "super" {
@@ -207,11 +212,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             #(#attrs)*
             #[allow(unused_imports)]
             pub use #extra_super #path::__properties__::*;
-        });
-        intrinsic_imports.extend(quote! {
-            #(#attrs)*
-            #[allow(unused_imports)]
-            use #path::__properties__::*;
         });
     }
     for p in properties.iter().flat_map(|p| p.properties.iter()) {
@@ -240,8 +240,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #[doc(hidden)]
         pub fn __intrinsic__(__wgt__: &mut #crate_core::widget_builder::WidgetBuilder) {
             #intrinsic_item_imports
+            #pre_bind
             {
-                #intrinsic_imports
+                use self::__properties__::*;
                 #intrinsic_items
             }
         }
