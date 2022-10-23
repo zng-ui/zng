@@ -556,13 +556,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     Box::new(self)
                 }
 
-                pub fn __id__(name: &'static str) -> #core::widget_builder::PropertyId {
-                    #core::widget_builder::PropertyId {
-                        unique_id: std::any::TypeId::of::<Self>(),
-                        name,
-                    }
-                }
-
                 #default
 
                 #named_into_var
@@ -578,7 +571,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #core::widget_builder::PropertyInfo {
                         priority: #priority,
                         capture: #capture,
-                        unique_id: std::any::TypeId::of::<Self>(),
+                        impl_id: #ident::property_id("").impl_id,
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
                         default: #default_fn,
@@ -657,6 +650,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #args_reexport_vis use super::#args_ident as property;
                 #args_reexport_vis use super::#ident as export;
                 pub use #macro_ident as code_gen;
+
+                #[doc(hidden)]
+                pub fn property_id(name: &'static str) -> #core::widget_builder::PropertyId {
+                    static impl_id: #core::widget_builder::StaticPropertyImplId = #core::widget_builder::StaticPropertyImplId::new_unique();
+
+                    #core::widget_builder::PropertyId {
+                        impl_id: impl_id.get(),
+                        name,
+                    }
+                }
             }
         }
     } else {

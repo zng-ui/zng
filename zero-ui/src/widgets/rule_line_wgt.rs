@@ -50,7 +50,7 @@ pub mod rule_line {
 
             style: wgt
                 .capture_var(property_id!(self.line_style))
-                .unwrap_or_else(||  LineStyle::Solid.into_var().boxed()),
+                .unwrap_or_else(|| LineStyle::Solid.into_var().boxed()),
         };
         wgt.set_child(child.boxed());
     }

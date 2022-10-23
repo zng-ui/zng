@@ -90,23 +90,21 @@ pub use when_condition_expr_var;
 macro_rules! property_id {
     ($($property:ident)::+) => {{
         // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+::{property};
-
-        property::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
+        #[rustfmt::skip] use $($property)::+::{property_id};
+        property_id($crate::widget_builder::property_id_name(stringify!($($property)::+)))
     }};
     ($($property:ident)::+ as $rename:ident) => {{
         // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+::{property};
-
-        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+        #[rustfmt::skip] use $($property)::+::{property_id};
+        property_id($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
     ($($widget:ident)::+ . $property:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property}}};
-        property::__id__($crate::widget_builder::property_id_name(stringify!($property)))
+        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property_id}}};
+        property_id($crate::widget_builder::property_id_name(stringify!($property)))
     }};
     ($($widget:ident)::+ . $property:ident as $rename:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property}}};
-        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property_id}}};
+        property_id($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
 }
 #[doc(inline)]
@@ -311,8 +309,8 @@ pub struct PropertyInfo {
     /// Note that all properties can be captured, but if this is `false` they provide an implementation that works standalone.
     pub capture: bool,
 
-    /// Unique type ID that identifies the property.
-    pub unique_id: TypeId,
+    /// Unique type ID that identifies the property implementation.
+    pub impl_id: PropertyImplId,
     /// Property original name.
     pub name: &'static str,
 
@@ -383,7 +381,7 @@ pub trait PropertyArgs {
     /// Unique ID.
     fn id(&self) -> PropertyId {
         PropertyId {
-            unique_id: self.property().unique_id,
+            impl_id: self.property().impl_id,
             name: self.instance().name,
         }
     }
@@ -536,12 +534,27 @@ impl_from_and_into_var! {
     }
 }
 
+unique_id_32! {
+    /// Unique ID of a property implementation.
+    ///
+    /// This ID identifies a property implementation, disregarding renames. Properties are identified
+    /// by this ID and a name string, see [`PropertyId`].
+    ///
+    /// [`name`]: WidgetId::name
+    pub struct PropertyImplId;
+}
+impl fmt::Debug for PropertyImplId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("PropertyImplId").field(&self.get()).finish()
+    }
+}
+
 /// Unique identifier of a property, properties with the same id override each other in a widget and are joined
 /// into a single instance is assigned in when blocks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PropertyId {
     /// The [`PropertyInfo::unique_id`].
-    pub unique_id: TypeId,
+    pub impl_id: PropertyImplId,
     /// The [`PropertyInstInfo::name`].
     pub name: &'static str,
 }

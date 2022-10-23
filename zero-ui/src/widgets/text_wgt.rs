@@ -206,7 +206,6 @@ pub fn em(text: impl IntoVar<Text> + 'static) -> impl UiNode {
 pub mod text_input {
     use super::*;
 
-
     inherit!(super::text);
     inherit!(style_mixin);
 
@@ -228,7 +227,6 @@ pub mod text_input {
         /// see [`vis::replace_style`] and [`vis::extend_style`] for other ways of modifying the style.
         style = vis::STYLE_VAR;
     }
-
 
     #[doc(inline)]
     pub use super::text_input_vis as vis;

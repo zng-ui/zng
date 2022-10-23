@@ -160,7 +160,6 @@ pub mod toggle {
         if let Some((_, pos, _)) = wgt.property_mut(super::property_id!(self.value)) {
             pos.index = 999; // force property to be inside select_on_init and others.
         }
-
     }
 }
 

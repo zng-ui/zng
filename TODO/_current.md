@@ -10,9 +10,6 @@
 
 * Re-implement `SortedWidgetVecRef` for use in window layers.
 
-* Implement generics support for `property_id!`.
-    - Or remove generic from id?
-
 * Implement `widget::path.property` syntax support in widget instantiation and `when` expressions.
     - in when expressions: `when #foo.foo.1`, has ambiguity with `when #foo.foo`.
         - Mostly want it to support `#self.exported_prop`, nice callback to the previous syntax.

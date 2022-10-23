@@ -46,7 +46,7 @@ impl WgtProperty {
         let ident = self.ident();
         let ident_str = ident.to_string();
         quote_spanned! {path.span()=>
-            #path::property::__id__(#ident_str)
+            #path::property_id(#ident_str)
         }
     }
 
@@ -668,7 +668,7 @@ impl WgtWhen {
             let p_ident_str = p_ident.to_string();
             inputs.extend(quote! {
                 #wgt_builder_mod::WhenInput {
-                    property: #property::property::__id__(#p_ident_str),
+                    property: #property::property_id(#p_ident_str),
                     member: #wgt_builder_mod::WhenInputMember::#member,
                     var: #var_input,
                 },
