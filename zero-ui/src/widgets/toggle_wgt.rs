@@ -18,6 +18,7 @@ pub mod toggle {
     pub use super::vis;
 
     inherit!(crate::widgets::button);
+    inherit!(super::style_mixin);
 
     properties! {
         /// Toggle cycles between `true` and `false`, updating the variable.
@@ -41,7 +42,7 @@ pub mod toggle {
         /// Note that you can read the checked state of the widget using [`is_checked`].
         ///
         /// [`is_checked`]: #wp-is_checked
-        properties::checked;
+        pub properties::checked;
 
         /// Toggle cycles between `Some(true)` and `Some(false)` and accepts `None`, if the
         /// widget is `tristate` also sets to `None` in the toggle cycle.
@@ -62,8 +63,7 @@ pub mod toggle {
         /// }
         /// # ;
         /// ```
-        #[priority_index = 999] // force property to be inside tristate.
-        properties::checked_opt;
+        pub properties::checked_opt;
 
         /// Values that is selected in the contextual [`selection`].
         ///
@@ -100,8 +100,7 @@ pub mod toggle {
         ///
         /// [`is_checked`]: #wp-is_checked
         /// [`selection`]: fn@selection
-        #[priority_index = 999] // force property to be inside select_on_init and others.
-        properties::value;
+        pub properties::value;
 
         /// Enables `None` as an input value.
         ///
@@ -110,12 +109,12 @@ pub mod toggle {
         /// this config is ignored.
         ///
         /// This is not enabled by default.
-        properties::tristate;
+        pub properties::tristate;
 
         /// If [`value`] is selected when the widget is inited.
         ///
         /// [`value`]: #wp-value
-        properties::select_on_init;
+        pub properties::select_on_init;
 
         /// If the toggle is checked from any of the three primary properties.
         ///
@@ -145,12 +144,23 @@ pub mod toggle {
         /// [`checked`]: #wp-checked
         /// [`checked_opt`]: #wp-checked_opt
         /// [`value`]: #wp-value
-        properties::is_checked;
+        pub properties::is_checked;
 
         /// Toggle style.
         ///
         /// Set to [`vis::STYLE_VAR`] by default.
         style = vis::STYLE_VAR;
+    }
+
+    fn intrinsic(wgt: &mut super::WidgetBuilder) {
+        // TODO !!: move this to a build action, same problem as capture here.
+        if let Some((_, pos, _)) = wgt.property_mut(super::property_id!(self.checked_opt)) {
+            pos.index = 999; // force property to be inside tristate.
+        }
+        if let Some((_, pos, _)) = wgt.property_mut(super::property_id!(self.value)) {
+            pos.index = 999; // force property to be inside select_on_init and others.
+        }
+
     }
 }
 
@@ -803,7 +813,7 @@ pub mod vis {
     /// `style` override the parent style.
     #[property(context, default(StyleGenerator::nil()))]
     pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
-        styleable::with_style_extension(child, STYLE_VAR, style)
+        style_mixin::with_style_extension(child, STYLE_VAR, style)
     }
 
     /// Default toggle style.
@@ -843,7 +853,7 @@ pub mod checkbox {
     use super::*;
 
     properties! {
-        content_align = Align::LEFT;
+        child_align = Align::LEFT;
         padding = 0;
     }
 

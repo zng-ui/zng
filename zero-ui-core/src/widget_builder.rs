@@ -820,8 +820,8 @@ impl WidgetBuilder {
     }
 
     /// Set/replace the inner most node of the widget.
-    pub fn set_child(&mut self, node: BoxedUiNode) -> Option<RcNode<BoxedUiNode>> {
-        self.child.replace(RcNode::new(node))
+    pub fn set_child(&mut self, node: impl UiNode) -> Option<RcNode<BoxedUiNode>> {
+        self.child.replace(RcNode::new(node.boxed()))
     }
 
     /// Apply `other` over `self`.

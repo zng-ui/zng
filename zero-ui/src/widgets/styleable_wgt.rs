@@ -30,6 +30,15 @@ pub mod style {
     pub fn build(wgt: WidgetBuilder) -> Style {
         Style::from_dyn_widget(wgt)
     }
+
+    // make `style` be a capture-only property too, this avoids import bugs caused by the same module name.
+    #[doc(hidden)]
+    #[property(context, capture, default(StyleGenerator::nil()))]
+    pub fn style_property(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+        child
+    }
+    #[doc(hidden)]
+    pub use style_property::*;
 }
 
 /// Styleable widget mix-in.
@@ -56,7 +65,7 @@ pub mod style_mixin {
         ///
         /// This property must be captured by [`intrinsic`] to work, widgets that implement this re-export this
         /// property with the name `style`.
-        pub style(impl IntoVar<StyleGenerator>);
+        pub style;
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {

@@ -25,7 +25,7 @@ pub mod rule_line {
         pub length(impl IntoVar<Length>) = Length::Default;
 
         /// Line style.
-        pub style(impl IntoVar<LineStyle>) = LineStyle::Solid;
+        pub line_style(impl IntoVar<LineStyle>) = LineStyle::Solid;
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
@@ -49,7 +49,7 @@ pub mod rule_line {
                 .unwrap_or_else(|| rgb(0, 0, 0).into_var().boxed()),
 
             style: wgt
-                .capture_var(property_id!(self.style))
+                .capture_var(property_id!(self.line_style))
                 .unwrap_or_else(||  LineStyle::Solid.into_var().boxed()),
         };
         wgt.set_child(child.boxed());
@@ -138,7 +138,7 @@ pub mod hr {
         stroke_thickness  = vis::STROKE_THICKNESS_VAR;
 
         /// Line style.
-        style = vis::STYLE_VAR;
+        line_style = vis::LINE_STYLE_VAR;
     }
 
     /// Context variables and properties that affect the horizontal rule line appearance from parent widgets.
@@ -154,7 +154,7 @@ pub mod hr {
             pub static STROKE_THICKNESS_VAR: Length = 1.dip();
 
             /// Line style, default is `Solid`.
-            pub static STYLE_VAR: LineStyle = LineStyle::Solid;
+            pub static LINE_STYLE_VAR: LineStyle = LineStyle::Solid;
         }
 
         /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
@@ -170,9 +170,9 @@ pub mod hr {
         }
 
         /// Sets the [`STYLE_VAR`] that affects all horizontal rules inside the widget.
-        #[property(context, default(STYLE_VAR))]
-        pub fn style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
-            with_context_var(child, STYLE_VAR, style)
+        #[property(context, default(LINE_STYLE_VAR))]
+        pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
+            with_context_var(child, LINE_STYLE_VAR, style)
         }
     }
 }

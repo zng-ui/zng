@@ -10,6 +10,9 @@
 
 * Re-implement `SortedWidgetVecRef` for use in window layers.
 
+* Implement generics support for `property_id!`.
+    - Or remove generic from id?
+
 * Implement `widget::path.property` syntax support in widget instantiation and `when` expressions.
     - in when expressions: `when #foo.foo.1`, has ambiguity with `when #foo.foo`.
         - Mostly want it to support `#self.exported_prop`, nice callback to the previous syntax.
@@ -17,8 +20,6 @@
 
 * Finish implementing new dynamic widget.
     - Fix intrinsics.
-    - Fix `button.style` property name conflict.
-        - Pre-bind did not fix this bug.
     - Implement pre-bind for when expressions.
     - When assigns need to "import" private properties in the same properties! block.
     - Use the term `child` and `children` in widgets, the rename to `content` and `items` does add value.

@@ -42,7 +42,7 @@ impl WindowLayers {
                 delegate = &self.widget,
                 delegate_mut = &mut self.widget,
             )]
-        impl<L: Var<LayerIndex>, W: Widget> UiNode for LayeredWidget<L, W> {
+        impl<L: Var<LayerIndex>, W: UiNode> UiNode for LayeredWidget<L, W> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.widget.state_mut().set(&LAYER_INDEX_ID, self.layer.get());
                 self.widget.init(ctx);
@@ -58,26 +58,19 @@ impl WindowLayers {
                 }
                 self.widget.update(ctx, updates);
             }
-        }
-        impl<L: Var<LayerIndex>, W: Widget> Widget for LayeredWidget<L, W> {
-            fn id(&self) -> WidgetId {
-                self.widget.id()
+
+            fn with_context<R, F>(&self, f: F) -> Option<R>
+            where
+                F: FnOnce(&mut WidgetNodeContext) -> R,
+            {
+                self.widget.with_context(f)
             }
 
-            fn state(&self) -> StateMapRef<state_map::Widget> {
-                self.widget.state()
-            }
-
-            fn state_mut(&mut self) -> StateMapMut<state_map::Widget> {
-                self.widget.state_mut()
-            }
-
-            fn bounds_info(&self) -> &WidgetBoundsInfo {
-                self.widget.bounds_info()
-            }
-
-            fn border_info(&self) -> &WidgetBorderInfo {
-                self.widget.border_info()
+            fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
+            where
+                F: FnOnce(&mut WidgetNodeMutContext) -> R,
+            {
+                self.widget.with_context_mut(f)
             }
         }
 
