@@ -461,7 +461,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.children.item_measure(0, ctx)
+            self.children.with_node(0, |n| n.measure(ctx))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();

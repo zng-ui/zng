@@ -6,6 +6,8 @@ use crate::prelude::new_widget::*;
 pub mod wrap {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
         /// Widget items.
         #[allowed_in_when = false]
@@ -20,7 +22,7 @@ pub mod wrap {
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
         };
-        implicit_base::nodes::children_layout(node)
+        widget_base::nodes::children_layout(node)
     }
 
     #[ui_node(struct WrapNode {
@@ -43,27 +45,27 @@ pub mod wrap {
             ctx.with_constrains(
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
-                    self.children.measure_all(
-                        ctx,
-                        |_, _| {},
-                        |_, a| {
-                            if a.size == PxSize::zero() {
-                                return;
+                    self.children.for_each(|_, n| {
+                        let s = n.measure(ctx);
+                        if s == PxSize::zero() {
+                            return true;
+                        }
+
+                        let width = row_size.width + s.width + spacing.column;
+                        if width < max_width {
+                            row_size.width = width;
+                            row_size.height = row_size.height.max(s.height);
+                        } else {
+                            if row_size.width > Px(0) {
+                                row_size.width -= spacing.column;
                             }
-                            let width = row_size.width + a.size.width + spacing.column;
-                            if width < max_width {
-                                row_size.width = width;
-                                row_size.height = row_size.height.max(a.size.height);
-                            } else {
-                                if row_size.width > Px(0) {
-                                    row_size.width -= spacing.column;
-                                }
-                                panel_size.width = panel_size.width.max(row_size.width);
-                                panel_size.height += row_size.height + spacing.row;
-                                row_size = PxSize::zero();
-                            }
-                        },
-                    );
+                            panel_size.width = panel_size.width.max(row_size.width);
+                            panel_size.height += row_size.height + spacing.row;
+                            row_size = PxSize::zero();
+                        }
+
+                        true
+                    });
                 },
             );
 
@@ -91,35 +93,33 @@ pub mod wrap {
             ctx.with_constrains(
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
-                    self.children.layout_all(
-                        ctx,
-                        wl,
-                        |_, _, _| {},
-                        |_, wl, a| {
-                            if a.size == PxSize::zero() {
-                                return;
+                    self.children.for_each_mut(|_, n| {
+                        let s = n.layout(ctx, wl);
+                        if s == PxSize::zero() {
+                            return true;
+                        }
+
+                        let new_width = row_size.width + s.width;
+                        if new_width <= max_width {
+                            wl.translate(PxVector::new(row_size.width, panel_size.height));
+
+                            row_size.width = new_width + spacing.column;
+                            row_size.height = row_size.height.max(s.height);
+                        } else {
+                            if row_size.width > Px(0) {
+                                row_size.width -= spacing.column;
                             }
+                            panel_size.width = panel_size.width.max(row_size.width);
+                            panel_size.height += row_size.height + spacing.row;
 
-                            let new_width = row_size.width + a.size.width;
-                            if new_width <= max_width {
-                                wl.translate(PxVector::new(row_size.width, panel_size.height));
+                            row_size = s;
+                            row_size.width += spacing.column;
 
-                                row_size.width = new_width + spacing.column;
-                                row_size.height = row_size.height.max(a.size.height);
-                            } else {
-                                if row_size.width > Px(0) {
-                                    row_size.width -= spacing.column;
-                                }
-                                panel_size.width = panel_size.width.max(row_size.width);
-                                panel_size.height += row_size.height + spacing.row;
+                            wl.translate(PxVector::new(Px(0), panel_size.height));
+                        }
 
-                                row_size = a.size;
-                                row_size.width += spacing.column;
-
-                                wl.translate(PxVector::new(Px(0), panel_size.height));
-                            }
-                        },
-                    );
+                        true
+                    });
                 },
             );
 

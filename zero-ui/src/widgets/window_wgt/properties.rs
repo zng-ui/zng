@@ -340,7 +340,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
     }
     SaveStateNode {
         child,
-        enabled,
+        enabled: enabled.into(),
         handles: None,
         task: Task::None,
     }

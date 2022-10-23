@@ -59,7 +59,7 @@ pub mod h_stack {
             spacing: spacing.into_var(),
             align: items_align.into_var(),
         };
-        implicit_base::nodes::children_layout(node)
+        widget_base::nodes::children_layout(node)
     }
 
     #[ui_node(struct HStackNode {
@@ -92,16 +92,14 @@ pub mod h_stack {
             ctx.with_constrains(
                 |c| align.child_constrains(c).with_unbounded_x(),
                 |ctx| {
-                    self.children.measure_all(
-                        ctx,
-                        |_, _| {},
-                        |_, a| {
-                            size.height = size.height.max(a.size.height);
-                            if a.size.width > Px(0) {
-                                size.width += a.size.width + spacing;
-                            }
-                        },
-                    );
+                    self.children.for_each(|_, n| {
+                        let s = n.measure(ctx);
+                        size.height = size.height.max(s.height);
+                        if s.width > Px(0) {
+                            size.width += s.width + spacing;
+                        }
+                        true
+                    });
                 },
             );
 
@@ -128,13 +126,11 @@ pub mod h_stack {
                 ctx.as_measure().with_constrains(
                     |c| align.child_constrains(c).with_unbounded_x(),
                     |ctx| {
-                        self.children.measure_all(
-                            ctx,
-                            |_, _| {},
-                            |_, a| {
-                                max_h = max_h.max(a.size.height);
-                            },
-                        );
+                        self.children.for_each(|_, n| {
+                            let s = n.measure(ctx);
+                            max_h = max_h.max(s.height);
+                            true
+                        });
                     },
                 );
                 panel_height = Some(constrains.y.fill_or(max_h));
@@ -156,20 +152,18 @@ pub mod h_stack {
                             .with_unbounded_x()
                     },
                     |ctx| {
-                        self.children.layout_all(
-                            ctx,
-                            wl,
-                            |_, _, _| {},
-                            |_, wl, a| {
-                                let y = (panel_height - a.size.height) * align_y;
-                                wl.translate(PxVector::new(x, y));
-                                wl.translate_baseline(align_baseline);
+                        self.children.for_each_mut(|_, n| {
+                            let s = n.layout(ctx, wl);
 
-                                if a.size.width > Px(0) {
-                                    x += a.size.width + spacing;
-                                }
-                            },
-                        );
+                            let y = (panel_height - s.height) * align_y;
+                            wl.translate(PxVector::new(x, y));
+                            wl.translate_baseline(align_baseline);
+
+                            if s.width > Px(0) {
+                                x += s.width + spacing;
+                            }
+                            true
+                        });
                     },
                 );
 
@@ -183,8 +177,12 @@ pub mod h_stack {
                 let extra_x = (panel_width - x) * align_x;
 
                 if extra_x != Px(0) {
-                    self.children.outer_all(wl, true, |wlt, _| {
-                        wlt.translate(PxVector::new(extra_x, Px(0)));
+                    self.children.for_each_mut(|_, n| {
+                        wl.with_outer(n, true, |wlt, _| {
+                            wlt.translate(PxVector::new(extra_x, Px(0)));
+                        });
+
+                        true
                     });
                 }
 
@@ -195,21 +193,19 @@ pub mod h_stack {
                 ctx.with_constrains(
                     |c| c.with_unbounded_x(),
                     |ctx| {
-                        self.children.layout_all(
-                            ctx,
-                            wl,
-                            |_, _, _| {},
-                            |_, wl, a| {
-                                wl.translate(PxVector::new(x, Px(0)));
-                                wl.translate_baseline(align_baseline);
+                        self.children.for_each_mut(|_, n| {
+                            let s = n.layout(ctx, wl);
 
-                                max_height = max_height.max(a.size.height);
+                            wl.translate(PxVector::new(x, Px(0)));
+                            wl.translate_baseline(align_baseline);
 
-                                if a.size.width > Px(0) {
-                                    x += a.size.width + spacing;
-                                }
-                            },
-                        )
+                            max_height = max_height.max(s.height);
+                            if s.width > Px(0) {
+                                x += s.width + spacing;
+                            }
+
+                            true
+                        });
                     },
                 );
 
@@ -231,9 +227,13 @@ pub mod h_stack {
                     align.y
                 };
 
-                self.children.outer_all(wl, true, |wlt, a| {
-                    let y = (panel_height - a.size.height) * align_y;
-                    wlt.translate(PxVector::new(extra_x, y));
+                self.children.for_each_mut(|_, n| {
+                    wl.with_outer(n, true, |wlt, n| {
+                        let node_size = n.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap();
+                        let y = (panel_height - node_size.height) * align_y;
+                        wlt.translate(PxVector::new(extra_x, y));
+                    });
+                    true
                 });
 
                 PxSize::new(panel_width, panel_height)
@@ -273,6 +273,8 @@ pub mod h_stack {
 pub mod v_stack {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
         /// Space in-between items.
         spacing(impl IntoVar<Length>) = 0.0;
@@ -299,7 +301,7 @@ pub mod v_stack {
             spacing: spacing.into_var(),
             align: items_align.into_var(),
         };
-        implicit_base::nodes::children_layout(node)
+        widget_base::nodes::children_layout(node)
     }
 
     #[ui_node(struct VStackNode {
@@ -332,16 +334,15 @@ pub mod v_stack {
             ctx.with_constrains(
                 |c| align.child_constrains(c).with_unbounded_y(),
                 |ctx| {
-                    self.children.measure_all(
-                        ctx,
-                        |_, _| {},
-                        |_, a| {
-                            size.width = size.width.max(a.size.width);
-                            if a.size.height > Px(0) {
-                                size.height += a.size.height + spacing;
-                            }
-                        },
-                    );
+                    self.children.for_each(|_, n| {
+                        let s = n.measure(ctx);
+
+                        size.width = size.width.max(s.width);
+                        if s.height > Px(0) {
+                            size.height += s.height + spacing;
+                        }
+                        true
+                    });
                 },
             );
 
@@ -369,13 +370,11 @@ pub mod v_stack {
                 ctx.as_measure().with_constrains(
                     |c| align.child_constrains(c).with_unbounded_y(),
                     |ctx| {
-                        self.children.measure_all(
-                            ctx,
-                            |_, _| {},
-                            |_, a| {
-                                max_w = max_w.max(a.size.width);
-                            },
-                        );
+                        self.children.for_each(|_, n| {
+                            let s = n.measure(ctx);
+                            max_w = max_w.max(s.width);
+                            true
+                        });
                     },
                 );
                 panel_width = Some(constrains.x.fill_or(max_w));
@@ -391,20 +390,19 @@ pub mod v_stack {
                             .with_unbounded_y()
                     },
                     |ctx| {
-                        self.children.layout_all(
-                            ctx,
-                            wl,
-                            |_, _, _| {},
-                            |_, wl, a| {
-                                let x = (panel_width - a.size.width) * align_x;
-                                wl.translate(PxVector::new(x, y));
-                                wl.translate_baseline(align_baseline);
+                        self.children.for_each_mut(|_, n| {
+                            let s = n.layout(ctx, wl);
 
-                                if a.size.height > Px(0) {
-                                    y += a.size.height + spacing;
-                                }
-                            },
-                        );
+                            let x = (panel_width - s.width) * align_x;
+                            wl.translate(PxVector::new(x, y));
+                            wl.translate_baseline(align_baseline);
+
+                            if s.height > Px(0) {
+                                y += s.height + spacing;
+                            }
+
+                            true
+                        });
                     },
                 );
 
@@ -424,8 +422,11 @@ pub mod v_stack {
                 let extra_y = (panel_height - y) * align_y;
 
                 if extra_y != Px(0) {
-                    self.children.outer_all(wl, true, |wlt, _| {
-                        wlt.translate(PxVector::new(Px(0), extra_y));
+                    self.children.for_each_mut(|_, n| {
+                        wl.with_outer(n, true, |wlt, _| {
+                            wlt.translate(PxVector::new(Px(0), extra_y));
+                        });
+                        true
                     });
                 }
 
@@ -436,21 +437,20 @@ pub mod v_stack {
                 ctx.with_constrains(
                     |c| c.with_unbounded_y(),
                     |ctx| {
-                        self.children.layout_all(
-                            ctx,
-                            wl,
-                            |_, _, _| {},
-                            |_, wl, a| {
-                                wl.translate(PxVector::new(Px(0), y));
-                                wl.translate_baseline(align_baseline);
+                        self.children.for_each_mut(|_, n| {
+                            let s = n.layout(ctx, wl);
 
-                                max_width = max_width.max(a.size.width);
+                            wl.translate(PxVector::new(Px(0), y));
+                            wl.translate_baseline(align_baseline);
 
-                                if a.size.height > Px(0) {
-                                    y += a.size.height + spacing;
-                                }
-                            },
-                        )
+                            max_width = max_width.max(s.width);
+
+                            if s.height > Px(0) {
+                                y += s.height + spacing;
+                            }
+
+                            true
+                        });
                     },
                 );
 
@@ -472,9 +472,13 @@ pub mod v_stack {
 
                 let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
 
-                self.children.outer_all(wl, true, |wlt, a| {
-                    let x = (panel_width - a.size.width) * align_x;
-                    wlt.translate(PxVector::new(x, extra_y));
+                self.children.for_each_mut(|_, n| {
+                    wl.with_outer(n, true, |wlt, n| {
+                        let node_size = n.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap();
+                        let x = (panel_width - node_size.width) * align_x;
+                        wlt.translate(PxVector::new(x, extra_y));
+                    });
+                    true
                 });
 
                 PxSize::new(panel_width, panel_height)
@@ -563,20 +567,21 @@ pub fn v_stack(items: impl UiNodeList) -> impl UiNode {
 pub mod z_stack {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
         /// Widget items.
-        #[allowed_in_when = false]
-        items(impl UiNodeList) = ui_list![];
+        pub items(impl UiNodeList) = ui_list![];
 
         /// Spacing around the items stack, inside the border.
-        padding;
+        pub padding;
 
         /// Items alignment.
         ///
         /// Align applies to each item individually. The default is [`FILL`].
         ///
         /// [`FILL`]: Align::FILL
-        items_align(impl IntoVar<Align>) = Align::FILL;
+        pub items_align(impl IntoVar<Align>) = Align::FILL;
     }
 
     fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Align>) -> impl UiNode {
@@ -584,7 +589,7 @@ pub mod z_stack {
             children: ZSortedWidgetList::new(items),
             align: items_align.into_var(),
         };
-        implicit_base::nodes::children_layout(node)
+        widget_base::nodes::children_layout(node)
     }
 
     #[ui_node(struct ZStackNode {
@@ -612,14 +617,12 @@ pub mod z_stack {
             ctx.with_constrains(
                 |c| align.child_constrains(c),
                 |ctx| {
-                    self.children.measure_all(
-                        ctx,
-                        |_, _| {},
-                        |_, args| {
-                            let child_size = align.measure(args.size, constrains);
-                            size = size.max(child_size);
-                        },
-                    );
+                    self.children.for_each(|_, n| {
+                        let s = n.measure(ctx);
+                        let child_size = align.measure(s, constrains);
+                        size = size.max(child_size);
+                        true
+                    });
                 },
             );
 
@@ -640,13 +643,11 @@ pub mod z_stack {
                 ctx.as_measure().with_constrains(
                     |c| align.child_constrains(c),
                     |ctx| {
-                        self.children.measure_all(
-                            ctx,
-                            |_, _| {},
-                            |_, a| {
-                                max_size = max_size.max(a.size);
-                            },
-                        );
+                        self.children.for_each(|_, n| {
+                            let s = n.measure(ctx);
+                            max_size = max_size.max(s);
+                            true
+                        });
                     },
                 );
 
@@ -657,14 +658,11 @@ pub mod z_stack {
                 ctx.with_constrains(
                     |_| align.child_constrains(PxConstrains2d::new_fill_size(size)),
                     |ctx| {
-                        self.children.layout_all(
-                            ctx,
-                            wl,
-                            |_, _, _| {},
-                            |_, wl, args| {
-                                align.layout(args.size, constrains, wl);
-                            },
-                        );
+                        self.children.for_each_mut(|_, n| {
+                            let s = n.layout(ctx, wl);
+                            align.layout(s, constrains, wl);
+                            true
+                        });
                     },
                 );
 
@@ -674,15 +672,12 @@ pub mod z_stack {
                 ctx.with_constrains(
                     |c| align.child_constrains(c),
                     |ctx| {
-                        self.children.layout_all(
-                            ctx,
-                            wl,
-                            |_, _, _| {},
-                            |_, wl, args| {
-                                let child_size = align.layout(args.size, constrains, wl);
-                                size = size.max(child_size);
-                            },
-                        );
+                        self.children.for_each_mut(|_, n| {
+                            let s = n.layout(ctx, wl);
+                            let child_size = align.layout(s, constrains, wl);
+                            size = size.max(child_size);
+                            true
+                        });
                     },
                 );
 
@@ -697,10 +692,14 @@ pub mod z_stack {
                     align.y
                 };
 
-                self.children.outer_all(wl, false, |wlt, a| {
-                    let x = (size.width - a.size.width) * align_x;
-                    let y = (size.height - a.size.height) * align_y;
-                    wlt.translate(PxVector::new(x, y));
+                self.children.for_each_mut(|_, n| {
+                    wl.with_outer(n, false, |wlt, n| {
+                        let s = n.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap();
+                        let x = (size.width - s.width) * align_x;
+                        let y = (size.height - s.height) * align_y;
+                        wlt.translate(PxVector::new(x, y));
+                    });
+                    true
                 });
 
                 size
@@ -782,19 +781,24 @@ pub fn stack_nodes_layout_by(
                     ctx.path
                 );
                 let mut size = PxSize::zero();
-                self.children.measure_all(ctx, |_, _| {}, |_, args| size = size.max(args.size));
+                self.children.for_each(|_, n| {
+                    let s = n.measure(ctx);
+                    size = size.max(s);
+                    true
+                });
                 size
             } else {
-                let mut size = self.children.item_measure(index, ctx);
+                let mut size = self.children.with_node(index, |n| n.measure(ctx));
                 let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
                 ctx.with_constrains(
                     |_| constrains,
                     |ctx| {
-                        for i in 0..len {
+                        self.children.for_each(|i, n| {
                             if i != index {
-                                size = size.max(self.children.item_measure(i, ctx));
+                                size = size.max(n.measure(ctx));
                             }
-                        }
+                            true
+                        });
                     },
                 );
                 size
@@ -811,20 +815,25 @@ pub fn stack_nodes_layout_by(
                     ctx.path
                 );
                 let mut size = PxSize::zero();
-                self.children
-                    .layout_all(ctx, wl, |_, _, _| {}, |_, _, args| size = size.max(args.size));
+                self.children.for_each_mut(|_, n| {
+                    let s = n.layout(ctx, wl);
+                    size = size.max(s);
+                    true
+                });
                 size
             } else {
-                let mut size = self.children.item_layout(index, ctx, wl);
+                let mut size = self.children.with_node_mut(index, |n| n.layout(ctx, wl));
                 let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
                 ctx.with_constrains(
                     |_| constrains,
                     |ctx| {
-                        for i in 0..len {
+                        self.children.for_each_mut(|i, n| {
                             if i != index {
-                                size = size.max(self.children.item_layout(i, ctx, wl));
+                                let s = n.layout(ctx, wl);
+                                size = size.max(s);
                             }
-                        }
+                            true
+                        });
                     },
                 );
                 size

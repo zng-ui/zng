@@ -5,6 +5,8 @@ use crate::prelude::new_widget::*;
 pub mod scrollbar {
     use super::*;
 
+    inherit!(widget_base::base);
+
     #[doc(inline)]
     pub use super::thumb;
 
@@ -15,17 +17,15 @@ pub mod scrollbar {
         /// thumb behavior and tags it-self in the frame.
         ///
         /// [`thumb!`]: mod@thumb
-        #[required]
-        #[allowed_in_when = false]
-        thumb(impl UiNode);
+        pub thumb;
 
         /// Fills the track with [`vis::BACKGROUND_VAR`]
-        background_color = vis::BACKGROUND_VAR;
+        pub background_color = vis::BACKGROUND_VAR;
 
         /// Scrollbar orientation.
         ///
         /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
-        orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
+        pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
     }
 
     fn new_child(thumb: impl UiNode) -> impl UiNode {
@@ -69,25 +69,25 @@ pub mod thumb {
     use super::*;
     use crate::core::mouse::*;
 
+    inherit!(widget_base::base);
+
     properties! {
         /// Scrollbar orientation.
-        orientation(impl IntoVar<scrollbar::Orientation>) = scrollbar::Orientation::Vertical;
+        pub orientation(impl IntoVar<scrollbar::Orientation>) = scrollbar::Orientation::Vertical;
 
         /// Viewport/content ratio.
         ///
         /// This becomes the height for vertical and width for horizontal.
-        #[required]
-        viewport_ratio(impl IntoVar<Factor>);
+        pub viewport_ratio(impl IntoVar<Factor>);
 
         /// Content offset.
-        #[required]
-        offset(impl IntoVar<Factor>);
+        pub offset(impl IntoVar<Factor>);
 
         /// Width if orientation is vertical, otherwise height if orientation is horizontal.
-        cross_length(impl IntoVar<Length>) = 16;
+        pub cross_length(impl IntoVar<Length>) = 16;
 
         /// Fills the thumb with [`vis::BACKGROUND_VAR`].
-        background_color = vis::BACKGROUND_VAR;
+        pub background_color = vis::BACKGROUND_VAR;
 
         /// Enabled by default.
         ///
@@ -272,4 +272,12 @@ pub mod thumb {
             }
         }
     }
+
+    #[doc(hidden)]
+    #[property(context, capture, default(thumb!()))]
+    pub fn thumb_property(child: impl UiNode, thumb: impl UiNode) -> impl UiNode {
+        child
+    }
+    #[doc(hidden)]
+    pub use thumb_property::*;
 }

@@ -36,6 +36,8 @@ use crate::prelude::new_widget::*;
 pub mod uniform_grid {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
         /// Widget items.
         #[allowed_in_when = false]
@@ -100,7 +102,7 @@ pub mod uniform_grid {
             first_column: first_column.into_var(),
             spacing: spacing.into_var(),
         };
-        implicit_base::nodes::children_layout(node)
+        widget_base::nodes::children_layout(node)
     }
 
     #[ui_node(struct UniformGridNode {
@@ -169,16 +171,14 @@ pub mod uniform_grid {
 
             let mut count = 0;
             let mut cell_size = PxSize::zero();
-            self.children.measure_all(
-                ctx,
-                |_, _| {},
-                |_, a| {
-                    if a.size != PxSize::zero() {
-                        count += 1;
-                        cell_size = cell_size.max(a.size);
-                    }
-                },
-            );
+            self.children.for_each(|i, n| {
+                let s = n.measure(ctx);
+                if s != PxSize::zero() {
+                    count += 1;
+                    cell_size = cell_size.max(s);
+                }
+                true
+            });
 
             if count == 0 {
                 return constrains.min_size();
@@ -211,7 +211,15 @@ pub mod uniform_grid {
 
                 final_panel_size = panel_size;
 
-                let count = match self.children.count(|c| c.bounds_info.outer_size() != PxSize::zero()) {
+                let mut count = 0;
+                self.children.for_each(|_, n| {
+                    let s = n.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
+                    if s != PxSize::zero() {
+                        count += 1;
+                    }
+                    true
+                });
+                let count = match count {
                     0 => self.children.len(),
                     n => n,
                 };
@@ -226,16 +234,13 @@ pub mod uniform_grid {
                 ctx.with_constrains(
                     |_| PxConstrains2d::new_fill_size(cell_size),
                     |ctx| {
-                        self.children.layout_all(
-                            ctx,
-                            wl,
-                            |_, _, _| {},
-                            |_, _, a| {
-                                if a.size != PxSize::zero() {
-                                    actual_count += 1;
-                                }
-                            },
-                        );
+                        self.children.for_each_mut(|_, n| {
+                            let s = n.layout(ctx, wl);
+                            if s != PxSize::zero() {
+                                actual_count += 1;
+                            }
+                            true
+                        });
                     },
                 );
 
@@ -261,7 +266,12 @@ pub mod uniform_grid {
                     if final_cell_size != cell_size {
                         ctx.with_constrains(
                             |_| PxConstrains2d::new_fill_size(final_cell_size),
-                            |ctx| self.children.layout_all(ctx, wl, |_, _, _| {}, |_, _, _| {}),
+                            |ctx| {
+                                self.children.for_each_mut(|_, n| {
+                                    n.layout(ctx, wl);
+                                    true
+                                });
+                            },
                         );
                     }
                 }
@@ -270,16 +280,14 @@ pub mod uniform_grid {
 
                 let mut count = 0;
                 let mut cell_size = PxSize::zero();
-                self.children.measure_all(
-                    &mut ctx.as_measure(),
-                    |_, _| {},
-                    |_, a| {
-                        if a.size != PxSize::zero() {
-                            count += 1;
-                            cell_size = cell_size.max(a.size);
-                        }
-                    },
-                );
+                self.children.for_each(|_, n| {
+                    let s = n.measure(&mut ctx.as_measure());
+                    if s != PxSize::zero() {
+                        count += 1;
+                        cell_size = cell_size.max(s);
+                    }
+                    true
+                });
 
                 if count == 0 {
                     return constrains.min_size();
@@ -306,17 +314,26 @@ pub mod uniform_grid {
 
                 ctx.with_constrains(
                     |_| PxConstrains2d::new_fill_size(final_cell_size),
-                    |ctx| self.children.layout_all(ctx, wl, |_, _, _| {}, |_, _, _| {}),
+                    |ctx| {
+                        self.children.for_each_mut(|_, n| {
+                            n.layout(ctx, wl);
+                            true
+                        });
+                    },
                 );
             }
             let mut cells = CellsIter::new(final_cell_size, final_columns, final_first_column, spacing);
 
-            self.children.outer_all(wl, false, |wlt, a| {
-                if a.size != PxSize::zero() {
+            self.children.for_each_mut(|_, n| {
+                let s = n.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
+                if s != PxSize::zero() {
                     if let Some(offset) = cells.next() {
-                        wlt.translate(offset);
+                        wl.with_outer(n, false, |wlt, _| {
+                            wlt.translate(offset);
+                        });
                     }
                 }
+                true
             });
 
             final_panel_size

@@ -47,6 +47,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             quote! { $crate::missing_widget_path}
         }
     };
+    let mod_path_slug = mod_path_slug(mod_path.to_string());
 
     let WidgetItems {
         uses,
@@ -87,7 +88,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let mut pre_bind = quote!();
 
     for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
-        capture_decl.extend(prop.declare_capture());
+        capture_decl.extend(prop.declare_capture(&mod_path_slug));
         pre_bind.extend(prop.pre_bind_args(false, None, ""));
     }
     for (i, when) in properties.iter_mut().flat_map(|i| i.whens.iter_mut()).enumerate() {
@@ -218,7 +219,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         inherit_export.extend(p.reexport());
     }
 
-    let macro_ident = ident!("__wgt_{}__", mod_path_slug(mod_path.to_string()));
+    let macro_ident = ident!("__wgt_{}__", mod_path_slug);
 
     let mod_items = quote! {
         // custom items
