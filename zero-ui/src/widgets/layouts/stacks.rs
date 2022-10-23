@@ -32,13 +32,14 @@ use crate::prelude::new_widget::*;
 pub mod h_stack {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
         /// Widget items.
-        #[allowed_in_when = false]
-        items(impl UiNodeList) = ui_list![];
+        pub items(impl UiNodeList) = ui_list![];
 
         /// Space in-between items.
-        spacing(impl IntoVar<Length>) = 0.0;
+        pub spacing(impl IntoVar<Length>) = 0.0;
 
         /// Spacing around the items stack, inside the border.
         pub padding;
@@ -49,7 +50,7 @@ pub mod h_stack {
         /// item individually. The default is [`FILL_LEFT`].
         ///
         /// [`FILL_LEFT`]: Align::FILL_LEFT
-        items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
+        pub items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
     }
 
     fn new_child(items: impl UiNodeList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {

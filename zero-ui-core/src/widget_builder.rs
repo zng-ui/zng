@@ -866,14 +866,20 @@ impl WidgetBuilder {
     }
 
     /// Remove the property and downcast the input value.
-    pub fn capture_value<T: VarValue>(&mut self, property_id: PropertyId) -> Option<T> {
+    pub fn capture_value<T>(&mut self, property_id: PropertyId) -> Option<T>
+    where
+        T: VarValue,
+    {
         let (_, _, args) = self.remove_property(property_id)?;
         let value = args.downcast_value::<T>(0).clone();
         Some(value)
     }
 
-    /// Remove the property and downcast the input value.
-    pub fn capture_var<T: VarValue>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>> {
+    /// Remove the property and downcast the input var.
+    pub fn capture_var<T>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>>
+    where
+        T: VarValue,
+    {
         let (_, _, args) = self.remove_property(property_id)?;
         let var = args.downcast_var::<T>(0).clone();
         Some(var)

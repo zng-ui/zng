@@ -13,6 +13,8 @@ pub mod scroll {
     use super::*;
     use properties::*;
 
+    inherit!(container);
+
     #[doc(inline)]
     pub use super::{
         commands, nodes,
@@ -22,61 +24,8 @@ pub mod scroll {
     };
 
     properties! {
-        /// Content UI.
-        ///
-        /// Can be any type that implements [`UiNode`](zero_ui::core::UiNode), any widget.
-        #[allowed_in_when = false]
-        #[required]
-        content(impl UiNode);
-
-        /// Spacing around content, inside the scroll area.
-        padding;
-
         /// Content alignment when it is smaller then the viewport.
-        child_align as content_align = Align::CENTER;
-
-        /// Scroll mode.
-        ///
-        /// By default scrolls in both dimensions.
-        mode(impl IntoVar<ScrollMode>) = ScrollMode::ALL;
-
-        /// Scrollbar widget generator for both orientations.
-        ///
-        /// This property sets both [`v_scrollbar_view`] and [`h_scrollbar_view`] to the same `generator`.
-        ///
-        /// [`v_scrollbar_view`]: #wp-v_scrollbar_view
-        /// [`h_scrollbar_view`]: #wp-h_scrollbar_view
-        scrollbar_view;
-
-        /// Horizontal scrollbar widget generator.
-        h_scrollbar_view;
-        /// Vertical scrollbar widget generator.
-        v_scrollbar_view;
-
-        /// Horizontal and vertical offsets used when scrolling.
-        ///
-        /// This property sets the [`h_line_unit`] and [`v_line_unit`].
-        ///
-        /// [`h_line_unit`]: #wp-h_line_unit
-        /// [`v_line_unit`]: #wp-v_line_unit
-        line_units;
-        h_line_unit;
-        v_line_unit;
-
-        /// Horizontal and vertical offsets used when page-scrolling.
-        ///
-        /// This property sets the [`h_page_unit`] and [`v_page_unit`].
-        ///
-        /// [`h_page_unit`]: fn@h_page_unit
-        /// [`v_page_unit`]: fn@v_page_unit
-        page_units;
-        h_page_unit;
-        v_page_unit;
-
-        /// Scroll unit multiplier used when alternate scrolling.
-        ///
-        /// This value is used, for example, when `ALT` is pressed during an scroll-wheel event,
-        alt_factor;
+        child_align = Align::CENTER;
 
         /// Clip content to only be visible within the scroll bounds, including under scrollbars.
         ///
@@ -86,13 +35,56 @@ pub mod scroll {
         /// Clip content to only be visible within the viewport, not under scrollbars.
         ///
         /// Disabled by default.
-        clip_to_viewport(impl IntoVar<bool>) = false;
+        pub clip_to_viewport(impl IntoVar<bool>) = false;
+
+        /// Scroll mode.
+        ///
+        /// By default scrolls in both dimensions.
+        pub mode(impl IntoVar<ScrollMode>) = ScrollMode::ALL;
+
+        /// Scrollbar widget generator for both orientations.
+        ///
+        /// This property sets both [`v_scrollbar_view`] and [`h_scrollbar_view`] to the same `generator`.
+        ///
+        /// [`v_scrollbar_view`]: #wp-v_scrollbar_view
+        /// [`h_scrollbar_view`]: #wp-h_scrollbar_view
+        pub scrollbar_view;
+
+        /// Horizontal scrollbar widget generator.
+        pub h_scrollbar_view;
+        /// Vertical scrollbar widget generator.
+        pub v_scrollbar_view;
+
+        /// Horizontal and vertical offsets used when scrolling.
+        ///
+        /// This property sets the [`h_line_unit`] and [`v_line_unit`].
+        ///
+        /// [`h_line_unit`]: #wp-h_line_unit
+        /// [`v_line_unit`]: #wp-v_line_unit
+        pub line_units;
+        pub h_line_unit;
+        pub v_line_unit;
+
+        /// Horizontal and vertical offsets used when page-scrolling.
+        ///
+        /// This property sets the [`h_page_unit`] and [`v_page_unit`].
+        ///
+        /// [`h_page_unit`]: fn@h_page_unit
+        /// [`v_page_unit`]: fn@v_page_unit
+        pub page_units;
+        pub h_page_unit;
+        pub v_page_unit;
+
+        /// Scroll unit multiplier used when alternate scrolling.
+        ///
+        /// This value is used, for example, when `ALT` is pressed during an scroll-wheel event,
+        pub alt_factor;
 
         /// Enables keyboard controls.
         focusable = true;
 
         /// Smooth scrolling configuration.
-        smooth_scrolling;
+        pub smooth_scrolling;
 
         /// If the viewport size is used as the [`LayoutMetrics::viewport`] for the scrollable content.
         ///
@@ -100,14 +92,55 @@ pub mod scroll {
         /// this is the case in the normal usage where the scroll fills the parent or when it has an exact size.
         ///
         /// This is enabled by default.
-        define_viewport_unit;
+        pub define_viewport_unit;
     }
 
-    fn new_child(content: impl UiNode) -> impl UiNode {
-        content
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        let mode = wgt
+            .capture_var(property_id!(self.mode))
+            .unwrap_or_else(|| ScrollMode::ALL.into_var().boxed());
+
+        let clip_to_viewport = wgt
+            .capture_var(property_id!(self.clip_to_viewport))
+            .unwrap_or_else(|| false.into_var().boxed());
+
+        wgt.insert_intrinsic(
+            Priority::ChildLayout,
+            AdoptiveNode::new(|child| {
+                let child = scroll_node(child, mode, clip_to_viewport);
+                child.boxed()
+            }),
+        );
+
+        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(|child| {
+            let child = nodes::scroll_to_node(child);
+            let child = nodes::scroll_commands_node(child);
+            let child = nodes::page_commands_node(child);
+            let child = nodes::scroll_to_edge_commands_node(child);
+            let child = nodes::scroll_wheel_node(child);
+            child.boxed()
+        }));
+
+        wgt.insert_intrinsic(Priority::Context, AdoptiveNode::new(|child| {
+            let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
+            let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
+    
+            let child = with_context_var(child, SCROLL_VERTICAL_RATIO_VAR, var(0.fct()));
+            let child = with_context_var(child, SCROLL_HORIZONTAL_RATIO_VAR, var(0.fct()));
+    
+            let child = with_context_var(child, SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR, var(false));
+            let child = with_context_var(child, SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR, var(false));
+    
+            let child = ScrollContext::config_node(child);
+    
+            let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
+            let child = with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()));
+
+            child.boxed()
+        }));
     }
 
-    fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
+    fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
         #[ui_node(struct ScrollNode {
             children: impl UiNodeList,
             viewport: PxSize,
@@ -268,35 +301,11 @@ pub mod scroll {
             spatial_id: SpatialFrameId::new_unique(),
         }
     }
-
-    fn new_event(child: impl UiNode) -> impl UiNode {
-        let child = nodes::scroll_to_node(child);
-        let child = nodes::scroll_commands_node(child);
-        let child = nodes::page_commands_node(child);
-        let child = nodes::scroll_to_edge_commands_node(child);
-        nodes::scroll_wheel_node(child)
-    }
-
-    fn new_context(child: impl UiNode) -> impl UiNode {
-        let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
-        let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
-
-        let child = with_context_var(child, SCROLL_VERTICAL_RATIO_VAR, var(0.fct()));
-        let child = with_context_var(child, SCROLL_HORIZONTAL_RATIO_VAR, var(0.fct()));
-
-        let child = with_context_var(child, SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR, var(false));
-        let child = with_context_var(child, SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR, var(false));
-
-        let child = ScrollContext::config_node(child);
-
-        let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
-        with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
-    }
 }
 
 /// Shorthand [`scroll!`] with default properties.
 ///
 /// [`scroll!`]: mod@scroll
-pub fn scroll(content: impl UiNode) -> impl UiNode {
-    scroll!(content)
+pub fn scroll(child: impl UiNode) -> impl UiNode {
+    scroll!(child)
 }

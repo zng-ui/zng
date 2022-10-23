@@ -149,7 +149,7 @@ impl WgtProperty {
                     parse_quote!(pub(super))
                 } else {
                     // already in context
-                    return quote!()
+                    return quote!();
                 }
             }
             vis => vis,

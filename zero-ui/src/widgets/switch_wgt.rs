@@ -18,6 +18,8 @@ pub fn switch<I: Var<usize>, W: UiNodeList>(index: I, options: W) -> impl UiNode
 pub mod switch {
     use super::*;
 
+    inherit!(widget_base::base);
+
     struct SwitchNode<I, W> {
         index: I,
         options: W,
@@ -42,7 +44,7 @@ pub mod switch {
                     index: usize,
                     touched: bool,
                 }
-                impl UiListObserver for TouchedIndex {
+                impl UiNodeListObserver for TouchedIndex {
                     fn reseted(&mut self) {
                         self.touched = true;
                     }
@@ -124,14 +126,15 @@ pub mod switch {
 
     properties! {
         /// Index of the active child.
-        index(impl Var<usize>);
+        pub index(impl IntoVar<usize>);
 
         /// List of nodes that can be switched too.
-        #[allowed_in_when = false]
-        options(impl UiNodeList);
+        pub options(impl UiNodeList);
     }
 
-    fn new_child(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        let index = wgt.capture_var(property_id!(self.index)).unwrap_or_else(|| 0.into_var().boxed());
+        let options = wgt.capture_ui_node_list(property_id!(self.options)).unwrap_or_else(None.boxed());
         self::new_node(index, options)
     }
 }

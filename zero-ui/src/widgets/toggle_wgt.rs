@@ -20,8 +20,6 @@ pub mod toggle {
     inherit!(crate::widgets::button);
 
     properties! {
-        remove { on_click }
-
         /// Toggle cycles between `true` and `false`, updating the variable.
         ///
         /// # Examples

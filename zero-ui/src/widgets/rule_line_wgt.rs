@@ -5,42 +5,54 @@ use crate::prelude::new_widget::*;
 pub mod rule_line {
     use super::*;
 
+    inherit!(widget_base::base);
+
     properties! {
         /// Line orientation.
-        orientation(impl IntoVar<LineOrientation>) = LineOrientation::Horizontal;
+        pub orientation(impl IntoVar<LineOrientation>) = LineOrientation::Horizontal;
 
         /// Line color.
-        color(impl IntoVar<Rgba>) = rgb(0, 0, 0);
+        pub color(impl IntoVar<Rgba>) = rgb(0, 0, 0);
 
         /// Line stroke thickness.
-        stroke_thickness(impl IntoVar<Length>) = 1;
+        pub stroke_thickness(impl IntoVar<Length>) = 1;
 
         /// Line length.
         ///
         /// Set to [`Default`] to fill available length without requesting any length.
         ///
         /// [`Default`]: Length::Default
-        length(impl IntoVar<Length>) = Length::Default;
+        pub length(impl IntoVar<Length>) = Length::Default;
 
         /// Line style.
-        style(impl IntoVar<LineStyle>) = LineStyle::Solid;
+        pub style(impl IntoVar<LineStyle>) = LineStyle::Solid;
     }
 
-    fn new_child(
-        orientation: impl IntoVar<LineOrientation>,
-        length: impl IntoVar<Length>,
-        stroke_thickness: impl IntoVar<Length>,
-        color: impl IntoVar<Rgba>,
-        style: impl IntoVar<LineStyle>,
-    ) -> impl UiNode {
-        LineNode {
+    fn intrinsic(wgt: &mut WidgetBuilder) {
+        let child = LineNode {
             bounds: PxSize::zero(),
-            orientation: orientation.into_var(),
-            length: length.into_var(),
-            stroke_thickness: stroke_thickness.into_var(),
-            color: color.into_var(),
-            style: style.into_var(),
-        }
+
+            orientation: wgt
+                .capture_var(property_id!(self.orientation))
+                .unwrap_or_else(|| LineOrientation::Horizontal.into_var().boxed()),
+
+            length: wgt
+                .capture_var(property_id!(self.length))
+                .unwrap_or_else(|| Length::Default.into_var().boxed()),
+
+            stroke_thickness: wgt
+                .capture_var(property_id!(self.stroke_thickness))
+                .unwrap_or_else(|| 1.into_var().boxed()),
+
+            color: wgt
+                .capture_var(property_id!(self.color))
+                .unwrap_or_else(|| rgb(0, 0, 0).into_var().boxed()),
+
+            style: wgt
+                .capture_var(property_id!(self.style))
+                .unwrap_or_else(||  LineStyle::Solid.into_var().boxed()),
+        };
+        wgt.set_child(child.boxed());
     }
 
     #[ui_node(struct LineNode {
