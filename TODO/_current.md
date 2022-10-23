@@ -5,9 +5,6 @@
     - We need to resolve all property overrides and unsets first, then generate the intrinsics.
         - Two step intrinsics, remove captures, generate node.
 
-* `#[ui_node(..)]` tries to validate `with_context` overrides.
-    - Need a list of all delegates, only validate those, we have other methods in `UiNode`.
-
 * Re-implement `SortedWidgetVecRef` for use in window layers.
 
 * Implement `widget::path.property` syntax support in widget instantiation and `when` expressions.

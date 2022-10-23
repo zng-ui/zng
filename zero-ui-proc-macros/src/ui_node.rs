@@ -146,14 +146,24 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
     };
 
     if validate_manual_delegate {
-        let skip = vec![ident!("boxed"), ident!("measure")];
+        let validate = vec![
+            ident!("init"),
+            ident!("deinit"),
+            ident!("info"),
+            ident!("event"),
+            ident!("update"),
+            // ident!("measure"), // very common to avoid delegating
+            ident!("layout"),
+            ident!("render"),
+            ident!("render_update"),
+        ];
 
         // validate that manually implemented UiNode methods call the expected method in the struct child or children.
 
         for (manual_impl, level) in node_items.iter().zip(node_items_missing_del_level.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);
 
-            if level == util::LintLevel::Allow || skip.contains(validator.ident) {
+            if level == util::LintLevel::Allow || !validate.contains(validator.ident) {
                 continue;
             }
 
