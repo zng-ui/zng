@@ -228,9 +228,7 @@ impl Style {
                 other => other,
             };
         }
-        Style {
-            builder: wgt,
-        }
+        Style { builder: wgt }
     }
 
     /// Unwrap the style dynamic widget.

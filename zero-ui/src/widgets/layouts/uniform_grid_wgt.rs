@@ -85,7 +85,6 @@ pub mod uniform_grid {
         pub padding;
     }
 
-
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             let children = wgt.capture_ui_node_list(property_id!(self.children));
@@ -96,7 +95,7 @@ pub mod uniform_grid {
 
             let node = UniformGridNode {
                 children: ZSortedWidgetList::new(children),
-    
+
                 columns: columns.into_var(),
                 rows: rows.into_var(),
                 first_column: first_column.into_var(),

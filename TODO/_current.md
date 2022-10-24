@@ -1,7 +1,11 @@
 # All Dyn Rewrite
 
-* Re-implement `SortedWidgetVecRef` for use in window layers.
+* Implement way to invalidate `SortingList`.
+    - `WindowLayers` needs this.
 * Simplify ZSorted as a wrapper.
+* Fix toggle selector.
+    - Needs to be standard `IntoValue` input.
+    - Need to fix/review subscriptions.
 
 * Implement `widget::path.property` syntax support in widget instantiation and `when` expressions.
     - in when expressions: `when #foo.foo.1`, has ambiguity with `when #foo.foo`.

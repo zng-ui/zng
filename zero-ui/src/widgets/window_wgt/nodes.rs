@@ -26,7 +26,7 @@ use crate::crate_util::RunOnDrop;
 /// [`WindowContext`]: crate::core::context::WindowContext
 /// [`insert_anchored`]: Self::insert_anchored
 pub struct WindowLayers {
-    items: SortedWidgetVecRef,
+    items: EditableUiNodeListRef,
 }
 impl WindowLayers {
     /// Insert the `widget` in the layer identified by a [`LayerIndex`].
@@ -78,7 +78,7 @@ impl WindowLayers {
             }
         }
 
-        ctx.window_state.req(&WINDOW_LAYERS_ID).items.insert(
+        ctx.window_state.req(&WINDOW_LAYERS_ID).items.push(
             ctx.updates,
             LayeredWidget {
                 layer: layer.into_var(),
@@ -127,24 +127,25 @@ impl WindowLayers {
         {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
-                    let anchor = self.anchor.get();
-                    let widget = self.widget.id();
-                    let querying = Cell::new(false);
-                    info.push_interactivity_filter(move |args| {
-                        if args.info.widget_id() == widget {
-                            if querying.replace(true) {
-                                return Interactivity::ENABLED; // avoid recursion.
+                    if let Some(widget) = self.widget.with_context(|ctx| ctx.id) {
+                        let anchor = self.anchor.get();
+                        let querying = Cell::new(false);
+                        info.push_interactivity_filter(move |args| {
+                            if args.info.widget_id() == widget {
+                                if querying.replace(true) {
+                                    return Interactivity::ENABLED; // avoid recursion.
+                                }
+                                let _q = RunOnDrop::new(|| querying.set(false));
+                                args.info
+                                    .tree()
+                                    .get(anchor)
+                                    .map(|a| a.interactivity())
+                                    .unwrap_or(Interactivity::BLOCKED)
+                            } else {
+                                Interactivity::ENABLED
                             }
-                            let _q = RunOnDrop::new(|| querying.set(false));
-                            args.info
-                                .tree()
-                                .get(anchor)
-                                .map(|a| a.interactivity())
-                                .unwrap_or(Interactivity::BLOCKED)
-                        } else {
-                            Interactivity::ENABLED
-                        }
-                    });
+                        });
+                    }                    
                 }
                 self.widget.info(ctx, info)
             }
@@ -440,7 +441,7 @@ static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 pub fn layers(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct LayersNode {
         children: impl UiNodeList,
-        layered: SortedWidgetVecRef,
+        layered: EditableUiNodeListRef,
     })]
     impl UiNode for LayersNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -480,7 +481,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         }
     }
 
-    let layers = ui_list![];
+    let layers = EditableUiNodeList::new();
     let layered = layers.reference();
 
     let sorting_layers = SortingList::new(layers, |a, b| {

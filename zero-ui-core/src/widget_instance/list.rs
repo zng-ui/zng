@@ -1,7 +1,8 @@
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
-    ops,
+    mem, ops,
+    rc::Rc,
 };
 
 use crate::{
@@ -662,5 +663,417 @@ impl UiNodeListObserver for (&mut dyn UiNodeListObserver, &mut dyn UiNodeListObs
     fn moved(&mut self, removed_index: usize, inserted_index: usize) {
         self.0.moved(removed_index, inserted_index);
         self.1.moved(removed_index, inserted_index);
+    }
+}
+
+/// Represents an [`UiNodeList`] that can be modified using a connected sender.
+pub struct EditableUiNodeList {
+    vec: Vec<BoxedUiNode>,
+    ctrl: EditableUiNodeListRef,
+}
+impl Default for EditableUiNodeList {
+    fn default() -> Self {
+        Self {
+            vec: vec![],
+            ctrl: EditableUiNodeListRef::new(),
+        }
+    }
+}
+impl Drop for EditableUiNodeList {
+    fn drop(&mut self) {
+        self.ctrl.0.borrow_mut().alive = false;
+    }
+}
+impl EditableUiNodeList {
+    /// New default empty.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// New from an already allocated vec.
+    pub fn from_vec(vec: Vec<BoxedUiNode>) -> Self {
+        let mut s = Self::new();
+        s.vec = vec;
+        s
+    }
+
+    /// Create a sender that can edit this list.
+    pub fn reference(&self) -> EditableUiNodeListRef {
+        self.ctrl.clone()
+    }
+
+    fn fullfill_requests(&mut self, ctx: &mut WidgetContext, observer: &mut dyn UiNodeListObserver) {
+        if let Some(r) = self.ctrl.take_requests() {
+            if r.clear {
+                // if reset
+                self.clear();
+                observer.reseted();
+
+                for (i, mut wgt) in r.insert {
+                    wgt.init(ctx);
+                    ctx.updates.info();
+                    if i < self.len() {
+                        self.insert(i, wgt);
+                    } else {
+                        self.push(wgt);
+                    }
+                }
+                for mut wgt in r.push {
+                    wgt.init(ctx);
+                    ctx.updates.info();
+                    self.push(wgt);
+                }
+                for (r, i) in r.move_index {
+                    if r < self.len() {
+                        let wgt = self.vec.remove(r);
+
+                        if i < self.len() {
+                            self.vec.insert(i, wgt);
+                        } else {
+                            self.vec.push(wgt);
+                        }
+
+                        ctx.updates.info();
+                    }
+                }
+                for (id, to) in r.move_id {
+                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
+                        let i = to(r, self.len());
+
+                        if r != i {
+                            let wgt = self.vec.remove(r);
+
+                            if i < self.len() {
+                                self.vec.insert(i, wgt);
+                            } else {
+                                self.vec.push(wgt);
+                            }
+
+                            ctx.updates.info();
+                        }
+                    }
+                }
+            } else {
+                for id in r.remove {
+                    if let Some(i) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
+                        let mut wgt = self.vec.remove(i);
+                        wgt.deinit(ctx);
+                        ctx.updates.info();
+
+                        observer.removed(i);
+                    }
+                }
+
+                for (i, mut wgt) in r.insert {
+                    wgt.init(ctx);
+                    ctx.updates.info();
+
+                    if i < self.len() {
+                        self.insert(i, wgt);
+                        observer.inserted(i);
+                    } else {
+                        observer.inserted(self.len());
+                        self.push(wgt);
+                    }
+                }
+
+                for mut wgt in r.push {
+                    wgt.init(ctx);
+                    ctx.updates.info();
+
+                    observer.inserted(self.len());
+                    self.push(wgt);
+                }
+
+                for (r, i) in r.move_index {
+                    if r < self.len() {
+                        let wgt = self.vec.remove(r);
+
+                        if i < self.len() {
+                            self.vec.insert(i, wgt);
+
+                            observer.moved(r, i);
+                        } else {
+                            let i = self.vec.len();
+
+                            self.vec.push(wgt);
+
+                            observer.moved(r, i);
+                        }
+
+                        ctx.updates.info();
+                    }
+                }
+
+                for (id, to) in r.move_id {
+                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
+                        let i = to(r, self.len());
+
+                        if r != i {
+                            let wgt = self.vec.remove(r);
+
+                            if i < self.len() {
+                                self.vec.insert(i, wgt);
+                                observer.moved(r, i);
+                            } else {
+                                let i = self.vec.len();
+                                self.vec.push(wgt);
+                                observer.moved(r, i);
+                            }
+
+                            ctx.updates.info();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+impl ops::Deref for EditableUiNodeList {
+    type Target = Vec<BoxedUiNode>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.vec
+    }
+}
+impl ops::DerefMut for EditableUiNodeList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.vec
+    }
+}
+impl UiNodeList for EditableUiNodeList {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        self.vec.with_node(index, f)
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.vec.with_node_mut(index, f)
+    }
+
+    fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        self.vec.for_each(f)
+    }
+
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        self.vec.for_each_mut(f)
+    }
+
+    fn len(&self) -> usize {
+        self.vec.len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        vec.append(&mut self.vec)
+    }
+
+    fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.ctrl.0.borrow_mut().target = Some(ctx.path.widget_id());
+        self.vec.init_all(ctx);
+    }
+
+    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.ctrl.0.borrow_mut().target = None;
+        self.vec.deinit_all(ctx);
+    }
+
+    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.fullfill_requests(ctx, observer);
+        self.vec.update_all(ctx, updates, observer);
+    }
+}
+
+/// See [`WidgetVecRef::move_to`] for more details
+type NodeMoveToFn = fn(usize, usize) -> usize;
+
+/// Represents a sender to an [`EditableUiNodeList`].
+#[derive(Clone)]
+pub struct EditableUiNodeListRef(Rc<RefCell<EditRequests>>);
+struct EditRequests {
+    target: Option<WidgetId>,
+    insert: Vec<(usize, BoxedUiNode)>,
+    push: Vec<BoxedUiNode>,
+    remove: Vec<WidgetId>,
+    move_index: Vec<(usize, usize)>,
+    move_id: Vec<(WidgetId, NodeMoveToFn)>,
+    clear: bool,
+
+    alive: bool,
+}
+impl EditableUiNodeListRef {
+    fn new() -> Self {
+        Self(Rc::new(RefCell::new(EditRequests {
+            target: None,
+            insert: vec![],
+            push: vec![],
+            remove: vec![],
+            move_index: vec![],
+            move_id: vec![],
+            clear: false,
+            alive: true,
+        })))
+    }
+
+    /// Returns `true` if the [`WidgetVec`] still exists.
+    pub fn alive(&self) -> bool {
+        self.0.borrow().alive
+    }
+
+    /// Request an update for the insertion of the `widget`.
+    ///
+    /// The `index` is resolved after all [`remove`] requests, if it is out-of-bounds the widget is pushed.
+    ///
+    /// The `widget` will be initialized, inserted and the info tree updated.
+    ///
+    /// [`remove`]: Self::remove
+    pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl UiNode) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.insert.push((index, widget.boxed()));
+            u.update(s.target);
+        })
+    }
+
+    /// Request an update for the insertion of the `widget` at the end of the list.
+    ///
+    /// The widget will be pushed after all [`insert`] requests.
+    ///
+    /// The `widget` will be initialized, inserted and the info tree updated.
+    ///
+    /// [`insert`]: Self::insert
+    pub fn push(&self, updates: &mut impl WithUpdates, widget: impl UiNode) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.push.push(widget.boxed());
+            u.update(s.target);
+        })
+    }
+
+    /// Request an update for the removal of the widget identified by `id`.
+    ///
+    /// The widget will be deinitialized, dropped and the info tree will update, nothing happens
+    /// if the widget is not found.
+    pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.remove.push(id.into());
+            u.update(s.target);
+        })
+    }
+
+    /// Request a widget remove and re-insert.
+    ///
+    /// If the `remove_index` is out of bounds nothing happens, if the `insert_index` is out-of-bounds
+    /// the widget is pushed to the end of the vector, if `remove_index` and `insert_index` are equal nothing happens.
+    ///
+    /// Move requests happen after all other requests.
+    pub fn move_index(&self, updates: &mut impl WithUpdates, remove_index: usize, insert_index: usize) {
+        if remove_index != insert_index {
+            updates.with_updates(|u| {
+                let mut s = self.0.borrow_mut();
+                s.move_index.push((remove_index, insert_index));
+                u.update(s.target);
+            })
+        }
+    }
+
+    /// Request a widget move, the widget is searched by `id`, if found `get_move_to` id called with the index of the widget and length
+    /// of the vector, it must return the index the widget is inserted after it is removed.
+    ///
+    /// If the widget is not found nothing happens, if the returned index is the same nothing happens, if the returned index
+    /// is out-of-bounds the widget if pushed to the end of the vector.
+    ///
+    /// Move requests happen after all other requests.
+    ///
+    /// # Examples
+    ///
+    /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
+    ///
+    /// ```
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
+    /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_sub(1));
+    /// # }
+    /// ```
+    ///
+    /// And to move *down* stopping at the bottom:
+    ///
+    /// ```
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
+    /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_add(1));
+    /// # }
+    /// ```
+    ///
+    /// Note that if the returned index overflows the length the widget is
+    /// pushed as the last item.
+    ///
+    /// The length can be used for implementing wrapping move *down*:
+    ///
+    /// ```
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
+    /// items.move_id(ctx.updates, "my-widget", |i, len| {
+    ///     let next = i.saturating_add(1);
+    ///     if next < len { next } else { 0 }
+    /// });
+    /// # }
+    /// ```
+    pub fn move_id(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>, get_move_to: NodeMoveToFn) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.move_id.push((id.into(), get_move_to));
+            u.update(s.target);
+        })
+    }
+
+    /// Request a removal of all current widgets.
+    ///
+    /// All other requests will happen after the clear.
+    pub fn clear(&self, updates: &mut impl WithUpdates) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.clear = true;
+            u.update(s.target);
+        })
+    }
+
+    fn take_requests(&self) -> Option<EditRequests> {
+        let mut s = self.0.borrow_mut();
+
+        if s.clear
+            || !s.insert.is_empty()
+            || !s.push.is_empty()
+            || !s.remove.is_empty()
+            || !s.move_index.is_empty()
+            || !s.move_id.is_empty()
+        {
+            let empty = EditRequests {
+                target: s.target,
+                alive: s.alive,
+
+                insert: vec![],
+                push: vec![],
+                remove: vec![],
+                move_index: vec![],
+                move_id: vec![],
+                clear: false,
+            };
+            Some(mem::replace(&mut *s, empty))
+        } else {
+            None
+        }
     }
 }

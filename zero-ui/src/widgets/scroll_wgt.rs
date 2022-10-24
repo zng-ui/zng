@@ -99,11 +99,9 @@ pub mod scroll {
         wgt.push_build_action(on_build);
     }
     fn on_build(wgt: &mut WidgetBuilding) {
-        let mode = wgt
-            .capture_var_or_else(property_id!(self.mode), || ScrollMode::ALL);
+        let mode = wgt.capture_var_or_else(property_id!(self.mode), || ScrollMode::ALL);
 
-        let clip_to_viewport = wgt
-            .capture_var_or_default(property_id!(self.clip_to_viewport));
+        let clip_to_viewport = wgt.capture_var_or_default(property_id!(self.clip_to_viewport));
 
         wgt.push_intrinsic(Priority::ChildLayout, |child| scroll_node(child, mode, clip_to_viewport));
 
@@ -115,24 +113,21 @@ pub mod scroll {
             nodes::scroll_wheel_node(child)
         });
 
-        wgt.push_intrinsic(
-            Priority::Context,
-            |child| {
-                let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
-                let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
+        wgt.push_intrinsic(Priority::Context, |child| {
+            let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
+            let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
 
-                let child = with_context_var(child, SCROLL_VERTICAL_RATIO_VAR, var(0.fct()));
-                let child = with_context_var(child, SCROLL_HORIZONTAL_RATIO_VAR, var(0.fct()));
+            let child = with_context_var(child, SCROLL_VERTICAL_RATIO_VAR, var(0.fct()));
+            let child = with_context_var(child, SCROLL_HORIZONTAL_RATIO_VAR, var(0.fct()));
 
-                let child = with_context_var(child, SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR, var(false));
-                let child = with_context_var(child, SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR, var(false));
+            let child = with_context_var(child, SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR, var(false));
+            let child = with_context_var(child, SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR, var(false));
 
-                let child = ScrollContext::config_node(child);
+            let child = ScrollContext::config_node(child);
 
-                let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
-                with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
-            },
-        );
+            let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
+            with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
+        });
     }
 
     fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
