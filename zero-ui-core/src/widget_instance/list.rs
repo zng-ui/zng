@@ -152,6 +152,29 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 }
 
+/// Represents the contextual parent [`SortingList`] during a list.
+pub struct SortingListParent {}
+impl SortingListParent {
+    /// If the current call has a parent list.
+    pub fn is_inside_list() -> bool {
+        SORTING_LIST_PARENT.with_opt(|_| true).unwrap_or(false)
+    }
+
+    /// Calls [`SortingList::invalidate_sort`] on the parent list.
+    pub fn invalidate_sort() {
+        SORTING_LIST_PARENT.with_mut_opt(|s| *s = true);
+    }
+
+    fn with<R>(action: impl FnOnce() -> R) -> (R, bool) {
+        let mut resort = Some(false);
+        let r = SORTING_LIST_PARENT.with_context_opt(&mut resort, action);
+        (r, resort.unwrap())
+    }
+}
+context_value! {
+    static SORTING_LIST_PARENT: Option<bool> = false;
+}
+
 /// Represents a sorted view into an [`UiNodeList`] that is not changed.
 ///
 /// Note that the `*_all` methods are not sorted, only the other accessors map to the sorted position of nodes. The sorting is lazy
@@ -195,9 +218,55 @@ where
         }
     }
 
-    /// Reference the inner list.
+    /// Borrow the inner list.
     pub fn list(&self) -> &L {
         &self.list
+    }
+
+    /// Mutable borrow the inner list.
+    ///
+    /// You must call [`invalidate_sort`] if any modification may have affected sort without changing the list length.
+    ///
+    /// [`invalidate_sort`]: Self::invalidate_sort
+    pub fn list_mut(&mut self) -> &mut L {
+        &mut self.list
+    }
+
+    /// Invalidate the sort, the list will resort on the nest time the sorted positions are needed.
+    ///
+    /// Note that you can also invalidate sort from the inside using [`SortingListParent::invalidate_sort`].
+    pub fn invalidate_sort(&self) {
+        self.map.borrow_mut().clear()
+    }
+
+    fn with_map<R>(&self, f: impl FnOnce(&[usize], &L) -> R) -> R {
+        self.update_map();
+
+        let (r, resort) = SortingListParent::with(|| {
+            let map = self.map.borrow();
+            f(&map, &self.list)
+        });
+
+        if resort {
+            self.invalidate_sort();
+        }
+
+        r
+    }
+
+    fn with_map_mut<R>(&mut self, f: impl FnOnce(&[usize], &mut L) -> R) -> R {
+        self.update_map();
+
+        let (r, resort) = SortingListParent::with(|| {
+            let map = self.map.borrow();
+            f(&map, &mut self.list)
+        });
+
+        if resort {
+            self.invalidate_sort();
+        }
+
+        r
     }
 }
 impl<L, S> UiNodeList for SortingList<L, S>
@@ -209,42 +278,40 @@ where
     where
         F: FnOnce(&BoxedUiNode) -> R,
     {
-        self.update_map();
-        let index = self.map.borrow()[index];
-        self.list.with_node(index, f)
+        self.with_map(|map, list| list.with_node(map[index], f))
     }
 
     fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
     {
-        self.update_map();
-        let index = self.map.borrow()[index];
-        self.list.with_node_mut(index, f)
+        self.with_map_mut(|map, list| list.with_node_mut(map[index], f))
     }
 
     fn for_each<F>(&self, mut f: F)
     where
         F: FnMut(usize, &BoxedUiNode) -> bool,
     {
-        self.update_map();
-        for (index, map) in self.map.borrow().iter().enumerate() {
-            if !self.list.with_node(*map, |n| f(index, n)) {
-                break;
+        self.with_map(|map, list| {
+            for (index, map) in map.iter().enumerate() {
+                if !list.with_node(*map, |n| f(index, n)) {
+                    break;
+                }
             }
-        }
+        });
     }
 
     fn for_each_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(usize, &mut BoxedUiNode) -> bool,
     {
-        self.update_map();
-        for (index, map) in self.map.borrow().iter().enumerate() {
-            if !self.list.with_node_mut(*map, |n| f(index, n)) {
-                break;
+        self.with_map_mut(|map, list| {
+            for (index, map) in map.iter().enumerate() {
+                if !list.with_node_mut(*map, |n| f(index, n)) {
+                    break;
+                }
             }
-        }
+        });
     }
 
     fn len(&self) -> usize {
@@ -263,19 +330,20 @@ where
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.map.get_mut().clear();
-        self.list.init_all(ctx);
+        let _ = SortingListParent::with(|| self.list.init_all(ctx));
+        self.invalidate_sort();
     }
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.list.deinit_all(ctx);
+        let _ = SortingListParent::with(|| self.list.deinit_all(ctx));
+        self.invalidate_sort();
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut changed = false;
-        self.list.update_all(ctx, updates, &mut (observer, &mut changed as _));
-        if changed {
-            self.map.get_mut().clear();
+        let (_, resort) = SortingListParent::with(|| self.list.update_all(ctx, updates, &mut (observer, &mut changed as _)));
+        if changed || resort {
+            self.invalidate_sort();
         }
     }
 }

@@ -1,8 +1,7 @@
 # All Dyn Rewrite
 
-* Implement way to invalidate `SortingList`.
-    - `WindowLayers` needs this.
 * Simplify ZSorted as a wrapper.
+
 * Fix toggle selector.
     - Needs to be standard `IntoValue` input.
     - Need to fix/review subscriptions.

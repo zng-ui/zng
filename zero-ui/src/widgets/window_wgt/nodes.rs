@@ -55,10 +55,7 @@ impl WindowLayers {
                     self.widget.with_context_mut(|ctx| {
                         ctx.widget_state.set(&LAYER_INDEX_ID, index);
                     });
-                    ctx.window_state
-                        .req(&WINDOW_LAYERS_ID)
-                        .items
-                        .sort(ctx.updates, ctx.path.widget_id());
+                    SortingListParent::invalidate_sort();
                 }
                 self.widget.update(ctx, updates);
             }
@@ -145,7 +142,7 @@ impl WindowLayers {
                                 Interactivity::ENABLED
                             }
                         });
-                    }                    
+                    }
                 }
                 self.widget.info(ctx, info)
             }

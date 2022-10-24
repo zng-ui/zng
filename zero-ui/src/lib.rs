@@ -1035,8 +1035,8 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
             },
             widget_instance::{
-                ui_list, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList, UiNode, UiNodeList,
-                UiNodeListChain, UiNodeListObserver, WidgetId,
+                ui_list, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList, SortingListParent, UiNode,
+                UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId,
             },
         };
         #[doc(no_inline)]
@@ -1095,8 +1095,8 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
             },
             widget_instance::{
-                ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList, UiNode,
-                UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, ZIndex, ZSort,
+                ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList,
+                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, ZIndex, ZSort,
             },
             widget_mixin,
         };
