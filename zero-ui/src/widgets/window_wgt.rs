@@ -468,34 +468,30 @@ pub mod window {
         pub on_pre_frame_image_ready as on_frame_image_ready;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
-        #[cfg(inspector)]
-        {
-            let can_inspect = wgt
-                .capture_var::<bool>(property_id!(self.can_inspect))
-                .unwrap_or_else(|| true.into_var().boxed());
-
-            wgt.insert_intrinsic(
-                Priority::Event,
-                AdoptiveNode::new(|child| commands::inspect_node(child, can_inspect)),
-            );
-        }
-
-        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(nodes::layers))
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            #[cfg(inspector)]
+            {
+                let can_inspect = wgt.capture_var_or_default(property_id!(self.can_inspect));
+                wgt.push_intrinsic(Priority::Event, |child| commands::inspect_node(child, can_inspect));
+            }
+    
+            wgt.push_intrinsic(Priority::Event, nodes::layers);
+        });        
     }
 
     fn build(mut wgt: WidgetBuilder) -> Window {
-        let child = wgt.capture_ui_node(property_id!(self.child)).unwrap_or_else(|| FillUiNode.boxed());
+        let child = wgt.capture_ui_node_or_else(property_id!(self.child), || FillUiNode);
         let child = nodes::color_scheme(child);
 
         Window::new_root(
-            wgt.capture_value(property_id!(self.id)).unwrap_or_else(WidgetId::new_unique),
-            wgt.capture_value(property_id!(self.start_position)).unwrap_or_default(),
-            wgt.capture_value(property_id!(self.kiosk)).unwrap_or_default(),
-            wgt.capture_value(property_id!(self.allow_transparency)).unwrap_or(true),
-            wgt.capture_value(property_id!(self.render_mode)).unwrap_or(None),
-            wgt.capture_value(property_id!(self.headless_monitor)).unwrap_or_default(),
-            wgt.capture_value(property_id!(self.start_focused)).unwrap_or_default(),
+            wgt.capture_value_or_else(property_id!(self.id), WidgetId::new_unique),
+            wgt.capture_value_or_default::<StartPosition>(property_id!(self.start_position)),
+            wgt.capture_value_or_default(property_id!(self.kiosk)),
+            wgt.capture_value_or_else(property_id!(self.allow_transparency), || true),
+            wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(self.render_mode)),
+            wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(self.headless_monitor)),
+            wgt.capture_value_or_default(property_id!(self.start_focused)),
             child,
         )
     }

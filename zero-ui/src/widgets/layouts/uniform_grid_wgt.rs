@@ -40,17 +40,16 @@ pub mod uniform_grid {
 
     properties! {
         /// Widget items.
-        #[allowed_in_when = false]
-        items(impl UiNodeList) = ui_list![];
+        pub widget_base::children;
 
         /// Number of columns.
         ///
         /// Set to zero (`0`) for auto.
-        columns(impl IntoVar<u32>) = 0;
+        pub columns(impl IntoVar<u32>);
         /// Number of rows.
         ///
         /// Set to zero (`0`) for auto.
-        rows(impl IntoVar<u32>) = 0;
+        pub rows(impl IntoVar<u32>);
         /// Number of empty cells in the first row.
         ///
         /// Value clamped to `columns` if `columns` is not auto and `first_column >= columns`. If `rows` is not
@@ -77,32 +76,36 @@ pub mod uniform_grid {
         /// ----|-----|----
         /// 0,1 | 1,1 | 2,1
         /// ```
-        first_column(impl IntoVar<u32>) = 0;
+        pub first_column(impl IntoVar<u32>);
 
         /// Space in-between items.
-        spacing(impl IntoVar<GridSpacing>) = 0.0;
+        pub spacing(impl IntoVar<GridSpacing>);
 
         /// Spacing around the items grid, inside the border.
         pub padding;
     }
 
-    /// New uniform grid layout.
-    fn new_child(
-        items: impl UiNodeList,
-        columns: impl IntoVar<u32>,
-        rows: impl IntoVar<u32>,
-        first_column: impl IntoVar<u32>,
-        spacing: impl IntoVar<GridSpacing>,
-    ) -> impl UiNode {
-        let node = UniformGridNode {
-            children: ZSortedWidgetList::new(items),
 
-            columns: columns.into_var(),
-            rows: rows.into_var(),
-            first_column: first_column.into_var(),
-            spacing: spacing.into_var(),
-        };
-        widget_base::nodes::children_layout(node)
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let children = wgt.capture_ui_node_list(property_id!(self.children));
+            let columns = wgt.capture_var_or_default(property_id!(self.columns));
+            let rows = wgt.capture_var_or_default(property_id!(self.rows));
+            let first_column = wgt.capture_var_or_default(property_id!(self.first_column));
+            let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
+
+            let node = UniformGridNode {
+                children: ZSortedWidgetList::new(children),
+    
+                columns: columns.into_var(),
+                rows: rows.into_var(),
+                first_column: first_column.into_var(),
+                spacing: spacing.into_var(),
+            };
+            let child = widget_base::nodes::children_layout(node);
+
+            wgt.set_child(child);
+        });
     }
 
     #[ui_node(struct UniformGridNode {
@@ -392,6 +395,6 @@ pub mod uniform_grid {
 ///
 /// This function is just a shortcut for [`uniform_grid!`](module@uniform_grid). Use the full widget
 /// to better configure the grid widget.
-pub fn uniform_grid(items: impl UiNodeList) -> impl UiNode {
-    uniform_grid! { items; }
+pub fn uniform_grid(children: impl UiNodeList) -> impl UiNode {
+    uniform_grid! { children; }
 }

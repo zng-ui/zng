@@ -24,4 +24,12 @@ pub mod container {
         /// Content overflow clipping.
         pub clip_to_bounds;
     }
+
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            if let Some(child) = wgt.capture_ui_node(property_id!(self.child)) {
+                wgt.set_child(child);
+            }
+        });
+    }
 }

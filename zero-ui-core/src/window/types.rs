@@ -180,22 +180,22 @@ impl Window {
     /// * `root` - The root widget's context priority node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
     pub fn new_root(
-        root_id: impl IntoValue<WidgetId>,
-        start_position: impl IntoValue<StartPosition>,
+        root_id: WidgetId,
+        start_position: StartPosition,
         kiosk: bool,
         transparent: bool,
-        render_mode: impl IntoValue<Option<RenderMode>>,
-        headless_monitor: impl IntoValue<HeadlessMonitor>,
+        render_mode: Option<RenderMode>,
+        headless_monitor: HeadlessMonitor,
         start_focused: bool,
         root: impl UiNode,
     ) -> Self {
         Window {
-            id: root_id.into(),
-            start_position: start_position.into(),
+            id: root_id,
+            start_position,
             kiosk,
             transparent,
-            render_mode: render_mode.into(),
-            headless_monitor: headless_monitor.into(),
+            render_mode,
+            headless_monitor,
             start_focused,
             child: root.boxed(),
         }
@@ -213,12 +213,12 @@ impl Window {
     /// [`Widget`]: crate::Widget
     #[allow(clippy::too_many_arguments)]
     pub fn new_container(
-        root_id: impl IntoValue<WidgetId>,
-        start_position: impl IntoValue<StartPosition>,
+        root_id: WidgetId,
+        start_position: StartPosition,
         kiosk: bool,
         transparent: bool,
-        render_mode: impl IntoValue<Option<RenderMode>>,
-        headless_monitor: impl IntoValue<HeadlessMonitor>,
+        render_mode: Option<RenderMode>,
+        headless_monitor: HeadlessMonitor,
         start_focused: bool,
         child: impl UiNode,
     ) -> Self {

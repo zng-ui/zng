@@ -95,38 +95,29 @@ pub mod scroll {
         pub define_viewport_unit;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(on_build);
+    }
+    fn on_build(wgt: &mut WidgetBuilding) {
         let mode = wgt
-            .capture_var(property_id!(self.mode))
-            .unwrap_or_else(|| ScrollMode::ALL.into_var().boxed());
+            .capture_var_or_else(property_id!(self.mode), || ScrollMode::ALL);
 
         let clip_to_viewport = wgt
-            .capture_var(property_id!(self.clip_to_viewport))
-            .unwrap_or_else(|| false.into_var().boxed());
+            .capture_var_or_default(property_id!(self.clip_to_viewport));
 
-        wgt.insert_intrinsic(
-            Priority::ChildLayout,
-            AdoptiveNode::new(|child| {
-                let child = scroll_node(child, mode, clip_to_viewport);
-                child.boxed()
-            }),
-        );
+        wgt.push_intrinsic(Priority::ChildLayout, |child| scroll_node(child, mode, clip_to_viewport));
 
-        wgt.insert_intrinsic(
-            Priority::Event,
-            AdoptiveNode::new(|child| {
-                let child = nodes::scroll_to_node(child);
-                let child = nodes::scroll_commands_node(child);
-                let child = nodes::page_commands_node(child);
-                let child = nodes::scroll_to_edge_commands_node(child);
-                let child = nodes::scroll_wheel_node(child);
-                child.boxed()
-            }),
-        );
+        wgt.push_intrinsic(Priority::Event, |child| {
+            let child = nodes::scroll_to_node(child);
+            let child = nodes::scroll_commands_node(child);
+            let child = nodes::page_commands_node(child);
+            let child = nodes::scroll_to_edge_commands_node(child);
+            nodes::scroll_wheel_node(child)
+        });
 
-        wgt.insert_intrinsic(
+        wgt.push_intrinsic(
             Priority::Context,
-            AdoptiveNode::new(|child| {
+            |child| {
                 let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
                 let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
 
@@ -139,10 +130,8 @@ pub mod scroll {
                 let child = ScrollContext::config_node(child);
 
                 let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
-                let child = with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()));
-
-                child.boxed()
-            }),
+                with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()))
+            },
         );
     }
 

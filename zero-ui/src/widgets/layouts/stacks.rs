@@ -36,10 +36,10 @@ pub mod h_stack {
 
     properties! {
         /// Widget items.
-        pub items(impl UiNodeList) = ui_list![];
+        pub widget_base::children;
 
         /// Space in-between items.
-        pub spacing(impl IntoVar<Length>) = 0.0;
+        pub spacing(impl IntoVar<Length>);
 
         /// Spacing around the items stack, inside the border.
         pub padding;
@@ -50,16 +50,25 @@ pub mod h_stack {
         /// item individually. The default is [`FILL_LEFT`].
         ///
         /// [`FILL_LEFT`]: Align::FILL_LEFT
-        pub items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
+        pub children_align(impl IntoVar<Align>) = Align::FILL_LEFT;
     }
 
-    fn new_child(items: impl UiNodeList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
-        let node = HStackNode {
-            children: ZSortedWidgetList::new(items),
-            spacing: spacing.into_var(),
-            align: items_align.into_var(),
-        };
-        widget_base::nodes::children_layout(node)
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
+            let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
+            let padding = wgt.capture_var_or_default(property_id!(self.padding));
+            let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL_LEFT);
+
+            let node = HStackNode {
+                children: ZSortedWidgetList::new(items),
+                spacing: spacing.into_var(),
+                align: children_align.into_var(),
+            };
+            let child = widget_base::nodes::children_layout(node);
+
+            wgt.set_child(child);
+        });
     }
 
     #[ui_node(struct HStackNode {
@@ -276,15 +285,14 @@ pub mod v_stack {
     inherit!(widget_base::base);
 
     properties! {
-        /// Space in-between items.
-        spacing(impl IntoVar<Length>) = 0.0;
-
         /// Widget items.
-        #[allowed_in_when = false]
-        items(impl UiNodeList) = ui_list![];
+        pub widget_base::children;
+
+        /// Space in-between items.
+        pub spacing(impl IntoVar<Length>);
 
         /// Spacing around the items stack, inside the border.
-        padding;
+        pub padding;
 
         /// Items alignment.
         ///
@@ -292,16 +300,25 @@ pub mod v_stack {
         /// item individually. The default is [`FILL_TOP`].
         ///
         /// [`FILL_TOP`]: Align::FILL_TOP
-        items_align(impl IntoVar<Align>) = Align::FILL_TOP;
+        pub children_align(impl IntoVar<Align>) = Align::FILL_TOP;
     }
 
-    fn new_child(items: impl UiNodeList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
-        let node = VStackNode {
-            children: ZSortedWidgetList::new(items),
-            spacing: spacing.into_var(),
-            align: items_align.into_var(),
-        };
-        widget_base::nodes::children_layout(node)
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
+            let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
+            let padding = wgt.capture_var_or_default(property_id!(self.padding));
+            let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL_LEFT);
+
+            let node = VStackNode {
+                children: ZSortedWidgetList::new(children),
+                spacing: spacing.into_var(),
+                align: children_align.into_var(),
+            };
+            let child = widget_base::nodes::children_layout(node);
+
+            wgt.set_child(child);
+        });
     }
 
     #[ui_node(struct VStackNode {
@@ -503,9 +520,9 @@ pub mod v_stack {
 ///
 /// This function is just a shortcut for [`h_stack!`](module@v_stack). Use the full widget
 /// to better configure the horizontal stack widget.
-pub fn h_stack(items: impl UiNodeList) -> impl UiNode {
+pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
     h_stack! {
-        items;
+        children;
     }
 }
 
@@ -525,9 +542,9 @@ pub fn h_stack(items: impl UiNodeList) -> impl UiNode {
 ///
 /// This function is just a shortcut for [`v_stack!`](module@v_stack). Use the full widget
 /// to better configure the vertical stack widget.
-pub fn v_stack(items: impl UiNodeList) -> impl UiNode {
+pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
     v_stack! {
-        items;
+        children;
     }
 }
 
@@ -571,7 +588,7 @@ pub mod z_stack {
 
     properties! {
         /// Widget items.
-        pub items(impl UiNodeList) = ui_list![];
+        pub widget_base::children;
 
         /// Spacing around the items stack, inside the border.
         pub padding;
@@ -581,15 +598,22 @@ pub mod z_stack {
         /// Align applies to each item individually. The default is [`FILL`].
         ///
         /// [`FILL`]: Align::FILL
-        pub items_align(impl IntoVar<Align>) = Align::FILL;
+        pub children_align(impl IntoVar<Align>) = Align::FILL;
     }
 
-    fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Align>) -> impl UiNode {
-        let node = ZStackNode {
-            children: ZSortedWidgetList::new(items),
-            align: items_align.into_var(),
-        };
-        widget_base::nodes::children_layout(node)
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
+            let padding = wgt.capture_var_or_default(property_id!(self.padding));
+            let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL);
+            let node = ZStackNode {
+                children: ZSortedWidgetList::new(children),
+                align: children_align.into_var(),
+            };
+            let child = widget_base::nodes::children_layout(node);
+
+            wgt.set_child(child);
+        });
     }
 
     #[ui_node(struct ZStackNode {
@@ -724,8 +748,8 @@ pub mod z_stack {
 ///
 /// This function is just a shortcut for [`z_stack!`](module@z_stack). Use the full widget
 /// to better configure the layering stack widget.
-pub fn z_stack(items: impl UiNodeList) -> impl UiNode {
-    z_stack! { items; }
+pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
+    z_stack! { children; }
 }
 
 /// Creates a node that updates and layouts the `nodes` in the logical order they appear in the list

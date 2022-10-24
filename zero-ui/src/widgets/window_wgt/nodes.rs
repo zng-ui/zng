@@ -44,13 +44,17 @@ impl WindowLayers {
             )]
         impl<L: Var<LayerIndex>, W: UiNode> UiNode for LayeredWidget<L, W> {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.widget.state_mut().set(&LAYER_INDEX_ID, self.layer.get());
+                self.widget.with_context_mut(|ctx| {
+                    ctx.widget_state.set(&LAYER_INDEX_ID, self.layer.get());
+                });
                 self.widget.init(ctx);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(index) = self.layer.get_new(ctx) {
-                    self.widget.state_mut().set(&LAYER_INDEX_ID, index);
+                    self.widget.with_context_mut(|ctx| {
+                        ctx.widget_state.set(&LAYER_INDEX_ID, index);
+                    });
                     ctx.window_state
                         .req(&WINDOW_LAYERS_ID)
                         .items
@@ -78,7 +82,7 @@ impl WindowLayers {
             ctx.updates,
             LayeredWidget {
                 layer: layer.into_var(),
-                widget: widget.cfg_boxed_wgt(),
+                widget: widget.cfg_boxed(),
             },
         );
     }
@@ -406,7 +410,7 @@ impl WindowLayers {
             AnchoredWidget {
                 anchor: anchor.into_var(),
                 mode: mode.into_var(),
-                widget: widget.cfg_boxed_wgt(),
+                widget: widget.cfg_boxed(),
                 info_changed_handle: None,
 
                 anchor_info: None,
@@ -465,30 +469,33 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
-            self.children.layout_all(
-                ctx,
-                wl,
-                |_, _, _| {},
-                |_, _, args| {
-                    if args.index == 0 {
-                        size = args.size;
-                    }
-                },
-            );
+            self.children.for_each_mut(|i, n| {
+                let s = n.layout(ctx, wl);
+                if i == 0 {
+                    size = s;
+                }
+                true
+            });
             size
         }
     }
 
-    let layers_vec = SortedWidgetVec::new(|a, b| {
-        let a = a.state().req(&LAYER_INDEX_ID);
-        let b = b.state().req(&LAYER_INDEX_ID);
+    let layers = ui_list![];
+    let layered = layers.reference();
 
-        a.cmp(b)
+    let sorting_layers = SortingList::new(layers, |a, b| {
+        let a = a
+            .with_context(|ctx| *ctx.widget_state.req(&LAYER_INDEX_ID))
+            .unwrap_or(LayerIndex::DEFAULT);
+        let b = b
+            .with_context(|ctx| *ctx.widget_state.req(&LAYER_INDEX_ID))
+            .unwrap_or(LayerIndex::DEFAULT);
+
+        a.cmp(&b)
     });
-    let layered = layers_vec.reference();
 
     LayersNode {
-        children: ui_list![child].chain_nodes(layers_vec),
+        children: ui_list![child].chain(sorting_layers),
         layered,
     }
     .cfg_boxed()

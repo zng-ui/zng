@@ -28,7 +28,7 @@ pub mod style {
 
     /// style constructor.
     pub fn build(wgt: WidgetBuilder) -> Style {
-        Style::from_dyn_widget(wgt)
+        Style::from_builder(wgt)
     }
 
     // make `style` be a capture-only property too, this avoids import bugs caused by the same module name.
@@ -68,8 +68,8 @@ pub mod style_mixin {
         pub style;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
-        wgt.set_custom_build(custom_build())
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.set_custom_build(custom_build);
     }
 
     /// Helper for declaring properties that [extend] a style set from a context var.
@@ -148,27 +148,16 @@ pub mod style_mixin {
     }
 
     ///Gets the custom build that is set on intrinsic by the mix-in.
-    pub fn custom_build() -> Box<dyn CustomWidgetBuild> {
-        Box::new(CustomBuild)
-    }
-
-    struct CustomBuild;
-    impl CustomWidgetBuild for CustomBuild {
-        fn clone_boxed(&self) -> Box<dyn CustomWidgetBuild> {
-            custom_build()
-        }
-
-        fn build(wgt: &mut WidgetBuilder) -> BoxedUiNode {
-            if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(self.style)) {
-                StyleNode {
-                    child: None,
-                    builder: wgt.clone(),
-                    style,
-                }
-                .boxed()
-            } else {
-                wgt.build()
+    pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
+        if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(self.style)) {
+            StyleNode {
+                child: None,
+                builder: wgt.clone(),
+                style,
             }
+            .boxed()
+        } else {
+            wgt.build()
         }
     }
 
@@ -182,9 +171,9 @@ pub mod style_mixin {
             if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
                 let mut builder = self.builder.clone();
                 builder.extend(style.into_builder());
-                self.child = Some(builder.build_default());
+                self.child = Some(builder.default_build());
             } else {
-                self.child = Some(self.builder.build_default());
+                self.child = Some(self.builder.default_build());
             }
             self.child.init(ctx);
         }
@@ -228,10 +217,10 @@ impl Style {
 
     /// New style from a widget builder.
     ///
-    /// The importance index of properties is adjusted, any child or intrinsic node is discarded.
+    /// The importance index of properties is adjusted, any custom build or build action is ignored.
     pub fn from_builder(mut wgt: WidgetBuilder) -> Style {
-        wgt.remove_child();
-        wgt.clear_intrinsics();
+        wgt.clear_build_actions();
+        wgt.clear_custom_build();
         for (imp, _, _) in wgt.properties_mut() {
             *imp = match *imp {
                 Importance::WIDGET => Style::WIDGET_IMPORTANCE,
@@ -239,7 +228,9 @@ impl Style {
                 other => other,
             };
         }
-        wgt.into_node(false).into()
+        Style {
+            builder: wgt,
+        }
     }
 
     /// Unwrap the style dynamic widget.
@@ -254,22 +245,17 @@ impl Style {
 
     /// If the style does nothing.
     pub fn is_empty(&self) -> bool {
-        !self.builder.has_whens() && !self.builder.has_unsets() && !self.builder.has_properties()
+        !self.builder.has_properties() && !self.builder.has_whens() && !self.builder.has_unsets()
     }
 }
-#[ui_node(
-    delegate = &self.node,
-    delegate_mut = &mut self.node,
-)]
-impl UiNode for Style {}
 impl From<Style> for WidgetBuilder {
     fn from(t: Style) -> Self {
-        t.into_node()
+        t.into_builder()
     }
 }
 impl From<WidgetBuilder> for Style {
     fn from(p: WidgetBuilder) -> Self {
-        Style::from_node(p)
+        Style::from_builder(p)
     }
 }
 

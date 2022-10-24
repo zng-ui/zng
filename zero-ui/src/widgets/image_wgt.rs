@@ -155,20 +155,22 @@ pub mod image {
         pub properties::on_error;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(on_build);
+    }
+
+    fn on_build(wgt: &mut WidgetBuilding) {
         let node = nodes::image_presenter();
         let node = nodes::image_error_presenter(node);
         let node = nodes::image_loading_presenter(node);
         wgt.set_child(node);
 
-        wgt.insert_intrinsic(
-            Priority::Event,
-            AdoptiveNode::new(|child| nodes::image_source(child, property_id!(self.source))),
-        );
-    }
-
-    fn new_event(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
-        nodes::image_source(child, source)
+        let source = wgt.capture_var::<ImageSource>(property_id!(self.source)).unwrap_or_else(|| {
+            let error = Image::dummy(Some("no source".to_owned()));
+            let error = ImageSource::Image(var(error).read_only());
+            LocalVar(error).boxed()
+        });
+        wgt.push_intrinsic(Priority::Event, |child| nodes::image_source(child, source));
     }
 }
 

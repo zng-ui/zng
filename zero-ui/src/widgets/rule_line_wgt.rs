@@ -28,7 +28,10 @@ pub mod rule_line {
         pub line_style(impl IntoVar<LineStyle>) = LineStyle::Solid;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(on_build);
+    }
+    fn on_build(wgt: &mut WidgetBuilding) {
         let child = LineNode {
             bounds: PxSize::zero(),
 
@@ -38,21 +41,21 @@ pub mod rule_line {
 
             length: wgt
                 .capture_var(property_id!(self.length))
-                .unwrap_or_else(|| Length::Default.into_var().boxed()),
+                .unwrap_or_else(|| LocalVar(Length::Default).boxed()),
 
             stroke_thickness: wgt
                 .capture_var(property_id!(self.stroke_thickness))
-                .unwrap_or_else(|| 1.into_var().boxed()),
+                .unwrap_or_else(|| LocalVar(Length::from(1)).boxed()),
 
             color: wgt
                 .capture_var(property_id!(self.color))
-                .unwrap_or_else(|| rgb(0, 0, 0).into_var().boxed()),
+                .unwrap_or_else(|| LocalVar(rgb(0, 0, 0)).boxed()),
 
             style: wgt
                 .capture_var(property_id!(self.line_style))
                 .unwrap_or_else(|| LineStyle::Solid.into_var().boxed()),
         };
-        wgt.set_child(child.boxed());
+        wgt.set_child(child);
     }
 
     #[ui_node(struct LineNode {

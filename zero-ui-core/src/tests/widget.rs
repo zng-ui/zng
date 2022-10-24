@@ -543,7 +543,7 @@ pub mod capture_properties_wgt {
         pub trace as property_trace = "property";
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
+    fn include(wgt: &mut WidgetBuilder) {
         let msg: &'static str = wgt.capture_value(property_id!(self.new_child_trace)).unwrap();
         let msg = match msg {
             "new-child" => "custom new_child",
@@ -551,7 +551,7 @@ pub mod capture_properties_wgt {
             o => panic!("unexpected {o:?}"),
         };
 
-        wgt.insert_property(
+        wgt.push_property(
             Importance::WIDGET,
             property_args! {
                 super::util::trace as instrinsic_trace = msg;
@@ -566,14 +566,14 @@ pub mod capture_properties_wgt {
             "user-new" => "custom new (user)",
             o => panic!("unexpected {o:?}"),
         };
-        wgt.insert_property(
+        wgt.push_property(
             Importance::WIDGET,
             property_args! {
                 super::util::trace as build_trace = msg;
             },
         );
 
-        crate::widget_base::nodes::build(&mut wgt)
+        crate::widget_base::nodes::build(wgt)
     }
 }
 #[test]

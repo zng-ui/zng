@@ -10,12 +10,13 @@ mod center {
         pub widget_base::child;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
-        let child = wgt.capture_ui_node(property_id!(widget_base::child));
-        if let Some(child) = child {
-            let child = align(child, Align::CENTER);
-            wgt.set_child(child.boxed());
-        }
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            if let Some(child) = wgt.capture_ui_node(property_id!(self.child)) {
+                let child = align(child, Align::CENTER);
+                wgt.set_child(child.boxed());
+            }
+        });
     }
 }
 

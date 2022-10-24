@@ -1,10 +1,7 @@
 # All Dyn Rewrite
 
-* Intrinsic problems:
-    - Rename `intrinsic` function to `inherit`.
-    - Have the `WidgetBuilding` as args in the `build` function.
-
 * Re-implement `SortedWidgetVecRef` for use in window layers.
+* Simplify ZSorted as a wrapper.
 
 * Implement `widget::path.property` syntax support in widget instantiation and `when` expressions.
     - in when expressions: `when #foo.foo.1`, has ambiguity with `when #foo.foo`.

@@ -33,8 +33,8 @@ pub mod checkerboard {
         pub properties::checkerboard_offset as cb_offset;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
-        wgt.set_child(self::node());
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| wgt.set_child(self::node()))
     }
 }
 

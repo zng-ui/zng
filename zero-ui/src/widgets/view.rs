@@ -107,7 +107,7 @@ where
     use crate::core::widget_base::nodes;
 
     let node = nodes::inner(view_node(data, initial_ui, presenter));
-    nodes::widget(node, WidgetId::new_unique()).cfg_boxed_wgt()
+    nodes::widget(node, WidgetId::new_unique()).cfg_boxed()
 }
 
 /// Node only [`view`].

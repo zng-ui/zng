@@ -10,19 +10,25 @@ pub mod wrap {
 
     properties! {
         /// Widget items.
-        #[allowed_in_when = false]
-        items(impl UiNodeList) = ui_list![];
+        pub widget_base::children;
 
         /// Space in-between items.
-        spacing(impl IntoVar<GridSpacing>) = 0.0;
+        pub spacing(impl IntoVar<GridSpacing>);
     }
 
-    fn new_child(items: impl UiNodeList, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
-        let node = WrapNode {
-            children: ZSortedWidgetList::new(items),
-            spacing: spacing.into_var(),
-        };
-        widget_base::nodes::children_layout(node)
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
+            let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
+
+            let node = WrapNode {
+                children: ZSortedWidgetList::new(children),
+                spacing: spacing.into_var(),
+            };
+            let child = widget_base::nodes::children_layout(node);
+
+            wgt.set_child(child);
+        });
     }
 
     #[ui_node(struct WrapNode {

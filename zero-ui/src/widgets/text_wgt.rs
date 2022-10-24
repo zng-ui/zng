@@ -136,18 +136,20 @@ pub mod text {
         pub properties::text_editable as editable;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
-        let child = nodes::render_text();
-        let child = nodes::render_caret(child);
-        let child = nodes::render_overlines(child);
-        let child = nodes::render_strikethroughs(child);
-        let child = nodes::render_underlines(child);
-        wgt.set_child(child.boxed());
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let child = nodes::render_text();
+            let child = nodes::render_caret(child);
+            let child = nodes::render_overlines(child);
+            let child = nodes::render_strikethroughs(child);
+            let child = nodes::render_underlines(child);
+            wgt.set_child(child.boxed());
 
-        wgt.insert_intrinsic(Priority::Fill, AdoptiveNode::new(nodes::layout_text));
+            wgt.push_intrinsic(Priority::Fill, nodes::layout_text);
 
-        let text = wgt.capture_var(property_id!(self.text)).unwrap_or_else(|| "".into_var().boxed());
-        wgt.insert_intrinsic(Priority::Event, AdoptiveNode::new(|child| nodes::resolve_text(child, text)));
+            let text = wgt.capture_var_or_default(property_id!(self.text));
+            wgt.push_intrinsic(Priority::Event, |child| nodes::resolve_text(child, text));
+        });
     }
 }
 
@@ -316,7 +318,7 @@ pub mod text_input_vis {
             };
 
             /// When the pointer device is over this text input or it is the return focus.
-            when *#is_cap_hovered || #is_return_focus {
+            when *#is_cap_hovered || *#is_return_focus {
                 border = {
                     widths: 1,
                     sides: border_color_hovered().map_into(),

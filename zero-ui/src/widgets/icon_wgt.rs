@@ -35,7 +35,11 @@ pub mod icon {
         pub text::properties::text_padding as padding;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(on_build);
+    }
+
+    fn on_build(wgt: &mut WidgetBuilding) {
         let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(self.icon)) {
             icon
         } else {
@@ -44,17 +48,14 @@ pub mod icon {
         };
 
         wgt.set_child(text::nodes::render_text());
-        wgt.insert_intrinsic(Priority::Fill, AdoptiveNode::new(text::nodes::layout_text));
 
-        wgt.insert_intrinsic(
-            Priority::Event,
-            AdoptiveNode::new(|child| {
-                let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
-                let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
-                let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);
-                text::properties::text_color(node, vis::ICON_COLOR_VAR)
-            }),
-        );
+        wgt.push_intrinsic(Priority::Fill, text::nodes::layout_text);
+        wgt.push_intrinsic(Priority::Event, |child| {
+            let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
+            let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
+            let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);
+            text::properties::text_color(node, vis::ICON_COLOR_VAR)
+        });
     }
 
     /// Identifies an icon glyph in the font set.

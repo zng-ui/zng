@@ -37,8 +37,6 @@ pub mod switch {
                 self.collapse = true;
 
                 self.options.update_all(ctx, updates, &mut ());
-            } else if self.options.is_fixed() {
-                self.options.update_all(ctx, updates, &mut ());
             } else {
                 struct TouchedIndex {
                     index: usize,
@@ -74,7 +72,7 @@ pub mod switch {
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.item_measure(index, ctx)
+                self.options.with_node(index, |n| n.measure(ctx))
             } else {
                 PxSize::zero()
             }
@@ -87,7 +85,7 @@ pub mod switch {
 
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.item_layout(index, ctx, wl)
+                self.options.with_node_mut(index, |n| n.layout(ctx, wl))
             } else {
                 PxSize::zero()
             }
@@ -99,13 +97,13 @@ pub mod switch {
             }
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.item_render(index, ctx, frame)
+                self.options.with_node(index, |n| n.render(ctx, frame))
             }
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.item_render_update(index, ctx, update)
+                self.options.with_node(index, |n| n.render_update(ctx, update));
             }
         }
     }
@@ -132,9 +130,12 @@ pub mod switch {
         pub options(impl UiNodeList);
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
-        let index = wgt.capture_var(property_id!(self.index)).unwrap_or_else(|| 0.into_var().boxed());
-        let options = wgt.capture_ui_node_list(property_id!(self.options)).unwrap_or_else(None.boxed());
-        self::new_node(index, options)
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let index = wgt.capture_var_or_else(property_id!(self.index), || 0);
+            let options = wgt.capture_ui_node_list_or_empty(property_id!(self.options));
+            let child = self::new_node(index, options);
+            wgt.set_child(child);
+        });
     }
 }

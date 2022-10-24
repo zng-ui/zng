@@ -53,12 +53,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         uses,
         inherits,
         mut properties,
-        intrinsic_fn,
+        include_fn,
         build_fn,
         others,
     } = WidgetItems::new(items, &mut errors);
 
-    let mut intrinsic_item_imports = quote!();
+    let mut include_item_imports = quote!();
 
     let mut has_parent = false;
 
@@ -72,15 +72,15 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         has_parent |= is_parent;
         let attrs = &inh.attrs;
         let path = &inh.path;
-        intrinsic_item_imports.extend(quote_spanned! {path.span()=>
+        include_item_imports.extend(quote_spanned! {path.span()=>
             #(#attrs)*
-            #path::__intrinsic__(__wgt__);
+            #path::__include__(__wgt__);
         });
     }
 
-    if let Some(int) = &intrinsic_fn {
-        intrinsic_item_imports.extend(quote_spanned! {int.span()=>
-            self::intrinsic(__wgt__);
+    if let Some(int) = &include_fn {
+        include_item_imports.extend(quote_spanned! {int.span()=>
+            self::include(__wgt__);
         })
     }
 
@@ -95,14 +95,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         pre_bind.extend(when.pre_bind(false, i));
     }
 
-    let mut intrinsic_items = quote!();
+    let mut include_items = quote!();
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
         if prop.has_default() {
             let cfg = &prop.attrs.cfg;
             let lints = &prop.attrs.lints;
             let args = prop.args_new(quote!(#crate_core::widget_builder));
-            intrinsic_items.extend(quote! {
+            include_items.extend(quote! {
                 #cfg
                 #(#lints)*
                 __wgt__.push_property(#crate_core::widget_builder::Importance::WIDGET, #args);
@@ -110,7 +110,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         } else if prop.is_unset() {
             let cfg = &prop.attrs.cfg;
             let id = prop.property_id();
-            intrinsic_items.extend(quote! {
+            include_items.extend(quote! {
                 #cfg
                 __wgt__.push_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
             });
@@ -121,7 +121,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let cfg = &when.attrs.cfg;
         let lints = &when.attrs.lints;
         let args = when.when_new(quote!(#crate_core::widget_builder));
-        intrinsic_items.extend(quote! {
+        include_items.extend(quote! {
             #cfg
             #(#lints)*
             __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #args);
@@ -236,15 +236,15 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             #inherit_export
         }
 
-        #intrinsic_fn
+        #include_fn
 
         #[doc(hidden)]
-        pub fn __intrinsic__(__wgt__: &mut #crate_core::widget_builder::WidgetBuilder) {
-            #intrinsic_item_imports
+        pub fn __include__(__wgt__: &mut #crate_core::widget_builder::WidgetBuilder) {
+            #include_item_imports
             #pre_bind
             {
                 use self::__properties__::*;
-                #intrinsic_items
+                #include_items
             }
         }
 
@@ -257,12 +257,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         pub mod __widget__ {
             pub use #crate_core::{widget_new, widget_builder};
 
-            pub use super::__intrinsic__ as intrinsic;
+            pub use super::__include__ as include;
             #build_final_export
 
             pub fn new() -> widget_builder::WidgetBuilder {
                 let mut wgt = widget_builder::WidgetBuilder::new();
-                intrinsic(&mut wgt);
+                include(&mut wgt);
                 wgt
             }
         }
@@ -338,7 +338,7 @@ struct WidgetItems {
     uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
-    intrinsic_fn: Option<ItemFn>,
+    include_fn: Option<ItemFn>,
     build_fn: Option<ItemFn>,
     others: Vec<Item>,
 }
@@ -347,7 +347,7 @@ impl WidgetItems {
         let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
-        let mut intrinsic_fn = None;
+        let mut include_fn = None;
         let mut build_fn = None;
         let mut others = vec![];
 
@@ -377,9 +377,9 @@ impl WidgetItems {
                     Err(e) => errors.push_syn(e),
                 },
 
-                // match fn intrinsic(..)
-                Item::Fn(fn_) if fn_.sig.ident == "intrinsic" => {
-                    intrinsic_fn = Some(fn_);
+                // match fn include(..)
+                Item::Fn(fn_) if fn_.sig.ident == "include" => {
+                    include_fn = Some(fn_);
                 }
                 // match fn build(..)
                 Item::Fn(fn_) if fn_.sig.ident == "build" => {
@@ -394,7 +394,7 @@ impl WidgetItems {
             uses,
             inherits,
             properties,
-            intrinsic_fn,
+            include_fn,
             build_fn,
             others,
         }

@@ -579,7 +579,7 @@ impl ImageSource {
                 crate::window::StartPosition::Default,
                 false,
                 true,
-                render_mode,
+                Some(render_mode),
                 crate::window::HeadlessMonitor::default(),
                 false,
                 node,

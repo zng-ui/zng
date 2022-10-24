@@ -152,7 +152,7 @@ pub mod toggle {
         style = vis::STYLE_VAR;
     }
 
-    fn intrinsic(wgt: &mut super::WidgetBuilder) {
+    fn include(wgt: &mut super::WidgetBuilder) {
         // TODO !!: move this to a build action, same problem as capture here.
         if let Some((_, pos, _)) = wgt.property_mut(super::property_id!(self.checked_opt)) {
             pos.index = 999; // force property to be inside tristate.

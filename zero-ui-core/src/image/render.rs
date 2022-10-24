@@ -70,7 +70,7 @@ impl Images {
                 StartPosition::Default,
                 false,
                 true,
-                render_mode,
+                Some(render_mode),
                 HeadlessMonitor::new_scale(scale_factor),
                 false,
                 node,

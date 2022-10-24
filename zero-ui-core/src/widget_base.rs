@@ -33,19 +33,17 @@ pub mod base {
         pub visibility;
     }
 
-    fn intrinsic(wgt: &mut WidgetBuilder) {
-        nodes::push_intrinsics(wgt);
+    fn include(wgt: &mut WidgetBuilder) {
+        nodes::include_intrinsics(wgt);
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl UiNode {
         wgt.push_build_action(|wgt| {
             if !wgt.has_child() {
-                if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
-                    wgt.set_child(child.boxed());
-                }
+                wgt.set_child(FillUiNode);
             }
         });
-        nodes::build(&mut wgt)
+        nodes::build(wgt)
     }
 }
 
@@ -58,7 +56,7 @@ pub mod nodes {
     use super::*;
 
     /// Insert [`child_layout`] and [`inner`] in the widget.
-    pub fn push_intrinsics(wgt: &mut WidgetBuilder) {
+    pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             wgt.push_intrinsic(Priority::ChildLayout, |c| nodes::child_layout(c).boxed());
             wgt.push_intrinsic(Priority::Border, |c| nodes::inner(c).boxed());
@@ -68,9 +66,9 @@ pub mod nodes {
     /// Capture the [`id`] property and builds the base widget.
     ///
     /// Note that this function does not handle missing child node, it falls back to [`NilUiNode`]. The [`base`]
-    /// widget uses [`capture_child`] and falls-back to [`FillUiNode`].
-    pub fn build(wgt: &mut WidgetBuilder) -> impl UiNode {
-        let id = wgt.capture_value(property_id!(id)).unwrap_or_else(WidgetId::new_unique);
+    /// widget uses the [`FillUiNode`] if none was set.
+    pub fn build(mut wgt: WidgetBuilder) -> impl UiNode {
+        let id = wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique);
         let child = wgt.build();
         nodes::widget(child, id)
     }
@@ -574,7 +572,7 @@ context_var! {
 ///
 /// # Capture Only
 ///
-/// This property must be [captured] during widget build and redirected to [`WidgetBuilder::set_child`] in the container widget.
+/// This property must be [captured] during widget build and redirected to [`WidgetBuilding::set_child`] in the container widget.
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base
