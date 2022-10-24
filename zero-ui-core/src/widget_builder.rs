@@ -3,7 +3,7 @@
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    fmt, mem,
+    fmt,
     rc::Rc,
 };
 
@@ -13,7 +13,7 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     var::*,
-    widget_instance::{AdoptiveNode, BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList},
+    widget_instance::{BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList},
 };
 
 ///<span data-del-macro-root></span> New [`SourceLocation`] that represents the location you call this macro.
@@ -158,8 +158,10 @@ pub mod property_args_getter {
     use super::*;
 
     fn build(mut wgt: WidgetBuilder) -> Box<dyn PropertyArgs> {
-        let id = wgt.properties().next().unwrap().2.id();
-        wgt.remove_property(id).unwrap().2
+        match wgt.properties[0].1 {
+            WidgetItem::Property { args, .. } => args,
+            WidgetItem::Intrinsic { .. } => unreachable!(),
+        }
     }
 }
 
@@ -507,18 +509,6 @@ pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>
 
 */
 
-#[derive(Clone)]
-enum WidgetItem {
-    Instrinsic {
-        child: Rc<RefCell<BoxedUiNode>>,
-        node: RcNode<BoxedUiNode>,
-    },
-    Property {
-        importance: Importance,
-        args: Box<dyn PropertyArgs>,
-    },
-}
-
 /// Value that indicates the override importance of a property instance, higher overrides lower.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct Importance(pub usize);
@@ -734,17 +724,35 @@ impl Clone for Box<dyn PropertyArgs> {
     }
 }
 
+enum WidgetItem {
+    Property {
+        importance: Importance,
+        args: Box<dyn PropertyArgs>,
+    },
+    Intrinsic {
+        new: Box<dyn FnOnce(BoxedUiNode) -> BoxedUiNode>,
+    },
+}
+impl Clone for WidgetItem {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Property { importance, args } => Self::Property {
+                importance: *importance,
+                args: args.clone(),
+            },
+            Self::Intrinsic { .. } => unreachable!("only WidgetBuilder clones, and it does not insert intrinsic"),
+        }
+    }
+}
+
 /// Widget instance builder.
-#[derive(Default, Clone)]
+#[derive(Clone, Default)]
 pub struct WidgetBuilder {
-    child: Option<RcNode<BoxedUiNode>>,
-    items: Vec<(NestPosition, WidgetItem)>,
+    properties: Vec<(NestPosition, WidgetItem)>,
     unset: LinearMap<PropertyId, Importance>,
     whens: Vec<(Importance, WhenInfo)>,
-    custom_build: Option<Box<dyn CustomWidgetBuild>>,
-
-    items_sorted: bool,
-    whens_sorted: bool,
+    build_actions: Vec<Rc<RefCell<dyn FnMut(&mut WidgetBuilding)>>>,
+    custom_build: Option<Rc<RefCell<dyn FnMut(WidgetBuilder) -> BoxedUiNode>>>,
 }
 impl WidgetBuilder {
     /// New empty default.
@@ -752,44 +760,26 @@ impl WidgetBuilder {
         Self::default()
     }
 
-    /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
-    pub fn insert_intrinsic(&mut self, priority: Priority, node: AdoptiveNode<BoxedUiNode>) {
-        self.insert_intrinsic_positioned(node, NestPosition::intrinsic(priority));
-    }
-
     /// Insert/override a property.
     ///
     /// You can use the [`property_args!`] macro to collect args for a property.
-    pub fn insert_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
+    pub fn push_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
         let pos = NestPosition::property(args.property().priority);
-        self.insert_property_positioned(importance, args, pos);
-    }
-
-    /// Insert intrinsic node with custom nest position.
-    pub fn insert_intrinsic_positioned(&mut self, node: AdoptiveNode<BoxedUiNode>, position: NestPosition) {
-        self.items_sorted = false;
-        let (child, node) = node.into_parts();
-        let node = RcNode::new(node);
-        self.items.push((position, WidgetItem::Instrinsic { child, node }));
+        self.push_property_positioned(importance, args, pos);
     }
 
     /// Insert property with custom nest position.
-    pub fn insert_property_positioned(&mut self, importance: Importance, args: Box<dyn PropertyArgs>, position: NestPosition) {
+    pub fn push_property_positioned(&mut self, importance: Importance, args: Box<dyn PropertyArgs>, position: NestPosition) {
         let property_id = args.id();
-        if let Some(i) = self.property_index(property_id) {
-            match &self.items[i].1 {
+        if let Some(i) = property_index(&self.properties, property_id) {
+            match &self.properties[i].1 {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
                         // override
-
-                        if self.items[i].0 != position {
-                            self.items_sorted = false;
-                        }
-
-                        self.items[i] = (position, WidgetItem::Property { importance, args });
+                        self.properties[i] = (position, WidgetItem::Property { importance, args });
                     }
                 }
-                WidgetItem::Instrinsic { .. } => unreachable!(),
+                WidgetItem::Intrinsic { .. } => unreachable!(),
             }
         } else {
             if let Some(imp) = self.unset.get(&property_id) {
@@ -797,19 +787,17 @@ impl WidgetBuilder {
                     return; // unset blocks.
                 }
             }
-            self.items.push((position, WidgetItem::Property { importance, args }));
-            self.items_sorted = false;
+            self.properties.push((position, WidgetItem::Property { importance, args }));
         }
     }
 
     /// Insert a `when` block.
-    pub fn insert_when(&mut self, importance: Importance, when: WhenInfo) {
+    pub fn push_when(&mut self, importance: Importance, when: WhenInfo) {
         self.whens.push((importance, when));
-        self.whens_sorted = false;
     }
 
     /// Insert a `name = unset!;` property.
-    pub fn insert_unset(&mut self, importance: Importance, property_id: PropertyId) {
+    pub fn push_unset(&mut self, importance: Importance, property_id: PropertyId) {
         let check;
 
         match self.unset.entry(property_id) {
@@ -825,51 +813,148 @@ impl WidgetBuilder {
         }
 
         if check {
-            self.items.retain(|(_, it)| match it {
-                WidgetItem::Property { importance: imp, args } => args.id() != property_id || *imp > importance,
-                WidgetItem::Instrinsic { .. } => true,
-            });
+            if let Some(i) = property_index(&self.properties, property_id) {
+                match &self.properties[i].1 {
+                    WidgetItem::Property { importance: imp, .. } => {
+                        if *imp <= importance {
+                            self.properties.remove(i);
+                        }
+                    }
+                    WidgetItem::Intrinsic { .. } => unreachable!(),
+                }
+            }
         }
     }
 
-    /// Set/replace the inner most node of the widget.
-    pub fn set_child(&mut self, node: impl UiNode) -> Option<RcNode<BoxedUiNode>> {
-        self.child.replace(RcNode::new(node.boxed()))
+    /// Add an `action` closure that is called every time this builder or a clone of it builds a widget instance.
+    pub fn push_build_action(&mut self, action: impl FnMut(&mut WidgetBuilding) + 'static) {
+        self.build_actions.push(Rc::new(RefCell::new(action)))
+    }
+
+    /// Remove all registered build actions.
+    pub fn clear_build_actions(&mut self) {
+        self.build_actions.clear();
+    }
+
+    /// Returns `true` if a custom build handler is registered.
+    pub fn is_custom_build(&self) -> bool {
+        self.custom_build.is_some()
+    }
+
+    /// Set a `build` closure to run instead of [`default_build`] when [`build`] is called.
+    ///
+    /// Overrides the previous custom build, if any was set.
+    pub fn set_custom_build(&mut self, build: impl FnMut(WidgetBuilder) -> BoxedUiNode + 'static) {
+        self.custom_build = Some(Rc::new(RefCell::new(build)));
+    }
+
+    /// Remove the custom build handler, if any was set.
+    pub fn clear_custom_build(&mut self) {
+        self.custom_build = None;
     }
 
     /// Apply `other` over `self`.
     pub fn extend(&mut self, other: WidgetBuilder) {
-        if let Some(child) = other.child {
-            self.child = Some(child);
-        }
-
         for (id, imp) in other.unset {
-            self.insert_unset(imp, id);
+            self.push_unset(imp, id);
         }
 
-        for (position, item) in other.items {
-            match item {
-                WidgetItem::Instrinsic { child, node } => {
-                    self.items.push((position, WidgetItem::Instrinsic { child, node }));
-                }
+        for (imp, p) in other.properties {
+            match p {
                 WidgetItem::Property { importance, args } => {
-                    self.insert_property_positioned(importance, args, position);
+                    self.push_property(importance, args);
                 }
+                WidgetItem::Intrinsic { .. } => unreachable!(),
             }
         }
 
         for (imp, when) in other.whens {
-            self.insert_when(imp, when);
+            self.push_when(imp, when);
         }
+
+        for act in other.build_actions {
+            self.build_actions.push(act);
+        }
+
+        if let Some(c) = other.custom_build {
+            self.custom_build = Some(c);
+        }
+    }
+
+    /// Instantiate the widget.
+    ///
+    /// If a custom build is set it is run, unless it is already running, otherwise the [`default_build`] is called.
+    ///
+    /// [`default_build`]: Self::default_build
+    pub fn build(self) -> BoxedUiNode {
+        if let Some(cust) = self.custom_build.clone() {
+            match cust.try_borrow_mut() {
+                Ok(mut c) => c(self),
+                Err(_) => self.default_build(),
+            }
+        } else {
+            self.default_build()
+        }
+    }
+
+    /// Instantiate the widget.
+    ///
+    /// Runs all build actions
+    pub fn default_build(self) -> BoxedUiNode {
+        let mut building = WidgetBuilding {
+            items: self.properties,
+            whens: self.whens,
+            child: None,
+        };
+
+        for action in self.build_actions {
+            (action.borrow_mut())(&mut building);
+        }
+
+        building.build()
+    }
+}
+
+/// Represents a finalizing [`WidgetBuilder`].
+///
+/// Widgets can register a [`build_action`] to get access to this, it provides an opportunity
+/// to remove or capture the final properties of an widget, after they have all been resolved as well as define
+/// the child node, intrinsic nodes and a custom builder.
+pub struct WidgetBuilding {
+    items: Vec<(NestPosition, WidgetItem)>,
+    whens: Vec<(Importance, WhenInfo)>,
+    child: Option<BoxedUiNode>,
+}
+impl WidgetBuilding {
+    /// If an innermost node is defined.
+    ///
+    /// If `false` by the end of build the [`NilUiNode`] is used as the innermost node.
+    pub fn has_child(&self) -> bool {
+        self.child.is_some()
+    }
+
+    /// Set/replace the innermost node of the widget.
+    pub fn set_child(&mut self, node: impl UiNode) {
+        self.child = Some(node.boxed());
+    }
+
+    /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
+    pub fn push_intrinsic(&mut self, priority: Priority, intrinsic: impl FnOnce(BoxedUiNode) -> BoxedUiNode + 'static) {
+        self.push_intrinsic_positioned(intrinsic, NestPosition::intrinsic(priority))
+    }
+
+    /// Insert intrinsic node with custom nest position.
+    pub fn push_intrinsic_positioned(&mut self, intrinsic: impl FnOnce(BoxedUiNode) -> BoxedUiNode + 'static, position: NestPosition) {
+        self.items.push((position, WidgetItem::Intrinsic { new: Box::new(intrinsic) }));
     }
 
     /// Remove the property that matches the `property_id!(..)`.
     pub fn remove_property(&mut self, property_id: PropertyId) -> Option<(Importance, NestPosition, Box<dyn PropertyArgs>)> {
-        if let Some(i) = self.property_index(property_id) {
+        if let Some(i) = property_index(&self.items, property_id) {
             match self.items.remove(i) {
                 // can't be swap remove for ordering of equal priority.
                 (pos, WidgetItem::Property { importance, args, .. }) => Some((importance, pos, args)),
-                (_, WidgetItem::Instrinsic { .. }) => unreachable!(),
+                (_, WidgetItem::Intrinsic { .. }) => unreachable!(),
             }
         } else {
             None
@@ -919,17 +1004,12 @@ impl WidgetBuilder {
         Some(handler)
     }
 
-    /// Take the child node, leaving the builder without child.
-    pub fn remove_child(&mut self) -> Option<RcNode<BoxedUiNode>> {
-        self.child.take()
-    }
-
     /// Reference the property, if it is present.
     pub fn property(&self, property_id: PropertyId) -> Option<(Importance, NestPosition, &dyn PropertyArgs)> {
-        match self.property_index(property_id) {
+        match property_index(&self.items, property_id) {
             Some(i) => match &self.items[i].1 {
                 WidgetItem::Property { importance, args } => Some((*importance, self.items[i].0, &**args)),
-                WidgetItem::Instrinsic { .. } => unreachable!(),
+                WidgetItem::Intrinsic { .. } => unreachable!(),
             },
             None => None,
         }
@@ -937,12 +1017,9 @@ impl WidgetBuilder {
 
     /// Modify the property, if it is present.
     pub fn property_mut(&mut self, property_id: PropertyId) -> Option<(&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
-        match self.property_index(property_id) {
+        match property_index(&self.items, property_id) {
             Some(i) => match &mut self.items[i] {
-                (pos, WidgetItem::Property { importance, args }) => {
-                    self.items_sorted = false;
-                    Some((importance, pos, args))
-                }
+                (pos, WidgetItem::Property { importance, args }) => Some((importance, pos, args)),
                 _ => unreachable!(),
             },
             None => None,
@@ -954,163 +1031,44 @@ impl WidgetBuilder {
     /// The properties may not be sorted in the correct order if the builder has never built.
     pub fn properties(&self) -> impl Iterator<Item = (Importance, NestPosition, &dyn PropertyArgs)> {
         self.items.iter().filter_map(|(pos, it)| match it {
-            WidgetItem::Instrinsic { .. } => None,
+            WidgetItem::Intrinsic { .. } => None,
             WidgetItem::Property { importance, args } => Some((*importance, *pos, &**args)),
         })
     }
 
     /// iterate over mutable references to the current properties.
     pub fn properties_mut(&mut self) -> impl Iterator<Item = (&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
-        self.items_sorted = false;
         self.items.iter_mut().filter_map(|(pos, it)| match it {
-            WidgetItem::Instrinsic { .. } => None,
+            WidgetItem::Intrinsic { .. } => None,
             WidgetItem::Property { importance, args } => Some((importance, pos, args)),
         })
     }
 
-    /// If a child not is already set in the builder.
-    ///
-    /// If build without child the [`NilUiNode`] is used as the innermost node.
-    pub fn has_child(&self) -> bool {
-        self.child.is_some()
-    }
+    fn build(mut self) -> BoxedUiNode {
+        self.items.sort_by_key(|(k, _)| *k);
 
-    /// If the builder contains any properties.
-    pub fn has_properties(&self) -> bool {
-        self.items.iter().any(|(_, it)| matches!(it, WidgetItem::Property { .. }))
-    }
+        // TODO !!: when
 
-    /// If the builder contains any intrinsic nodes.
-    pub fn has_intrinsics(&self) -> bool {
-        self.items.iter().any(|(_, it)| matches!(it, WidgetItem::Instrinsic { .. }))
-    }
-
-    /// If the builder contains any *unset* filters.
-    pub fn has_unsets(&self) -> bool {
-        !self.unset.is_empty()
-    }
-
-    /// If the builder contains any *when* filters.
-    pub fn has_whens(&self) -> bool {
-        !self.whens.is_empty()
-    }
-
-    /// Remove all properties.
-    pub fn clear_properties(&mut self) {
-        self.items.retain(|(_, it)| !matches!(it, WidgetItem::Property { .. }))
-    }
-
-    /// Remove all intrinsic nodes.
-    pub fn clear_intrinsics(&mut self) {
-        self.items.retain(|(_, it)| !matches!(it, WidgetItem::Instrinsic { .. }))
-    }
-
-    /// Remove all *unset* filters.
-    ///
-    /// Note that unset filters are applied on insert and on property insert, this is not undone by this clear.
-    pub fn clear_unsets(&mut self) {
-        self.unset.clear()
-    }
-
-    /// Remove all *when* directives.
-    pub fn clear_whens(&mut self) {
-        self.whens.clear();
-    }
-
-    /// Remove the custom build.
-    pub fn clear_custom_build(&mut self) {
-        self.custom_build = None;
-    }
-
-    /// Full clear.
-    pub fn clear(&mut self) {
-        self.items.clear();
-        self.unset.clear();
-        self.whens.clear();
-        self.child = None;
-        self.custom_build = None;
-    }
-
-    /// If a custom builder closure is set.
-    pub fn is_custom_build(&self) -> bool {
-        self.custom_build.is_some()
-    }
-
-    /// Set a custom `build` closure that gets called on [`build`] instead of the default implementation.
-    ///
-    /// The [`build`] is not recursive, if called again inside `build` it will use the default implementation,
-    /// unless another custom build was set during build. If another custom build is set after `build` it is discarded.
-    ///
-    /// [`build`]: Self::build
-    /// [`build_default`]: Self::build_default
-    pub fn set_custom_build(&mut self, build: impl CustomWidgetBuild) {
-        self.custom_build = Some(Box::new(build))
-    }
-
-    /// Instantiate and link all property and intrinsic nodes, returns the outermost node.
-    ///
-    /// Note that you can reuse the builder, but only after the previous build is deinited and dropped.
-    ///
-    /// Note that the build process can be replaced with a custom implementation using [`set_custom_build`], if set
-    /// the custom implementation is called instead.
-    ///
-    /// [`set_custom_build`]: Self::set_custom_build
-    pub fn build(&mut self) -> BoxedUiNode {
-        if let Some(mut custom) = self.custom_build.take() {
-            let r = custom.build(self);
-            if self.custom_build.is_none() {
-                self.custom_build = Some(custom);
-            }
-            r
-        } else {
-            self.build_default()
-        }
-    }
-
-    /// Default [`build`] action.
-    ///
-    /// [`build`]: Self::build
-    pub fn build_default(&mut self) -> BoxedUiNode {
-        self.sort_items();
-
-        let mut node = self
-            .child
-            .as_ref()
-            .map(|c| c.take_on_init().boxed())
-            .unwrap_or_else(|| NilUiNode.boxed());
-
-        for (_, item) in &self.items {
+        let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());
+        for (_, item) in self.items {
             match item {
-                WidgetItem::Instrinsic { child, node: n } => {
-                    *child.borrow_mut() = mem::replace(&mut node, n.take_on_init().boxed());
-                }
                 WidgetItem::Property { args, .. } => {
                     node = args.instantiate(node);
+                }
+                WidgetItem::Intrinsic { new } => {
+                    node = new(node);
                 }
             }
         }
 
         node
     }
-
-    fn property_index(&self, property_id: PropertyId) -> Option<usize> {
-        self.items.iter().position(|(_, item)| match item {
-            WidgetItem::Property { args, .. } => args.id() == property_id,
-            WidgetItem::Instrinsic { .. } => false,
-        })
-    }
-
-    fn sort_items(&mut self) {
-        if !self.items_sorted {
-            self.items.sort_by_key(|(pos, _)| *pos);
-            self.items_sorted = true;
-        }
-
-        if !self.whens_sorted {
-            self.whens.sort_by_key(|(imp, _)| *imp);
-            self.whens_sorted = true;
-        }
-    }
+}
+fn property_index(items: &[(NestPosition, WidgetItem)], property_id: PropertyId) -> Option<usize> {
+    items.iter().position(|(_, item)| match item {
+        WidgetItem::Property { args, .. } => args.id() == property_id,
+        WidgetItem::Intrinsic { .. } => false,
+    })
 }
 
 /// Represents a custom widget build process.

@@ -105,14 +105,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             intrinsic_items.extend(quote! {
                 #cfg
                 #(#lints)*
-                __wgt__.insert_property(#crate_core::widget_builder::Importance::WIDGET, #args);
+                __wgt__.push_property(#crate_core::widget_builder::Importance::WIDGET, #args);
             });
         } else if prop.is_unset() {
             let cfg = &prop.attrs.cfg;
             let id = prop.property_id();
             intrinsic_items.extend(quote! {
                 #cfg
-                __wgt__.insert_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
+                __wgt__.push_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
             });
         }
     }
@@ -124,7 +124,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         intrinsic_items.extend(quote! {
             #cfg
             #(#lints)*
-            __wgt__.insert_when(#crate_core::widget_builder::Importance::WIDGET, #args);
+            __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #args);
         });
     }
 
@@ -518,13 +518,13 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let id = p.property_id();
             init.extend(quote! {
                 #cfg
-                __wgt__.insert_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
+                __wgt__.push_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
             });
         } else {
             let args = p.args_new(quote!(#widget::__widget__::widget_builder));
             init.extend(quote! {
                 #cfg
-                __wgt__.insert_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
+                __wgt__.push_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
             });
         }
     }
@@ -534,7 +534,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let args = w.when_new(quote!(#widget::__widget__::widget_builder));
         init.extend(quote! {
             #cfg
-            __wgt__.insert_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
+            __wgt__.push_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
         });
     }
 

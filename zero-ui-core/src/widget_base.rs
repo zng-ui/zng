@@ -34,17 +34,17 @@ pub mod base {
     }
 
     fn intrinsic(wgt: &mut WidgetBuilder) {
-        nodes::insert_intrinsics(wgt);
+        nodes::push_intrinsics(wgt);
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl UiNode {
-        if !wgt.has_child() {
-            nodes::capture_child(&mut wgt);
+        wgt.push_build_action(|wgt| {
             if !wgt.has_child() {
-                wgt.set_child(FillUiNode.boxed());
+                if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
+                    wgt.set_child(child.boxed());
+                }
             }
-        }
-
+        });
         nodes::build(&mut wgt)
     }
 }
@@ -57,22 +57,12 @@ pub mod nodes {
 
     use super::*;
 
-    /// Capture the [`child`] property and sets it as the widget child.
-    ///
-    /// The [`base`] widget calls this on build if not other child was set.
-    ///
-    /// [`base`]: mode@base
-    pub fn capture_child(wgt: &mut WidgetBuilder) {
-        let child = wgt.capture_ui_node(property_id!(child));
-        if let Some(child) = child {
-            wgt.set_child(child.boxed());
-        }
-    }
-
     /// Insert [`child_layout`] and [`inner`] in the widget.
-    pub fn insert_intrinsics(wgt: &mut WidgetBuilder) {
-        wgt.insert_intrinsic(Priority::ChildLayout, AdoptiveNode::new(|c| nodes::child_layout(c).boxed()));
-        wgt.insert_intrinsic(Priority::Border, AdoptiveNode::new(|c| nodes::inner(c).boxed()));
+    pub fn push_intrinsics(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            wgt.push_intrinsic(Priority::ChildLayout, |c| nodes::child_layout(c).boxed());
+            wgt.push_intrinsic(Priority::Border, |c| nodes::inner(c).boxed());
+        });
     }
 
     /// Capture the [`id`] property and builds the base widget.

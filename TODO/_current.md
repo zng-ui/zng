@@ -1,9 +1,8 @@
 # All Dyn Rewrite
 
 * Intrinsic problems:
-    - If we capture a property it is removed, a derived widget can add the same property again after.
-    - We need to resolve all property overrides and unsets first, then generate the intrinsics.
-        - Two step intrinsics, remove captures, generate node.
+    - Rename `intrinsic` function to `inherit`.
+    - Have the `WidgetBuilding` as args in the `build` function.
 
 * Re-implement `SortedWidgetVecRef` for use in window layers.
 
