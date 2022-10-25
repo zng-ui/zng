@@ -150,6 +150,16 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         self.0.update_all(ctx, updates, observer);
         self.1.update_all(ctx, updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
+
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.0.render_all(ctx, frame);
+        self.1.render_all(ctx, frame);
+    }
+
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.0.render_update_all(ctx, update);
+        self.1.render_update_all(ctx, update);
+    }
 }
 
 /// Represents the contextual parent [`SortingList`] during a list.
@@ -346,21 +356,31 @@ where
             self.invalidate_sort();
         }
     }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
-/// Represents a [`z_index`] map that panel widgets can use to render in the configured order.
-#[derive(Default)]
-pub struct ZSort {
+/// Represents a [`z_index`] sorting list.
+///
+/// Note, unlike [`SortingList`], this list only sorts the render methods.
+pub struct ZSortingList<L: UiNodeList> {
+    list: L,
     map: RefCell<Vec<u64>>,
     naturally_sorted: Cell<bool>,
 }
-impl ZSort {
-    /// New default.
-    pub fn new() -> Self {
-        Self::default()
+impl<L: UiNodeList> ZSortingList<L> {
+    /// New from list.
+    pub fn new(list: L) -> Self {
+        ZSortingList {
+            list,
+            map: RefCell::new(vec![]),
+            naturally_sorted: Cell::new(false),
+        }
     }
 
-    fn sort(&self, list: &impl UiNodeList) {
+    fn sort(&self) {
         // We pack *z* and *i* as u32s in one u64 then create the sorted lookup table if
         // observed `[I].Z < [I-1].Z`, also records if any `Z != DEFAULT`:
         //
@@ -374,7 +394,7 @@ impl ZSort {
         // - Only supports u32::MAX widgets.
         // - Uses 64-bit indexes in 32-bit builds.
 
-        let len = list.len();
+        let len = self.list.len();
         assert!(len <= u32::MAX as usize);
 
         let mut prev_z = ZIndex::BACK;
@@ -382,7 +402,7 @@ impl ZSort {
         let mut z_and_i = Vec::with_capacity(len);
         let mut has_non_default_zs = false;
 
-        list.for_each(|i, node| {
+        self.list.for_each(|i, node| {
             let z = ZIndex::get(node);
             z_and_i.push(((z.0 as u64) << 32) | i as u64);
 
@@ -408,25 +428,111 @@ impl ZSort {
         }
     }
 
-    /// Init the `list` and invalidates the sort.
-    pub fn init_all(&mut self, ctx: &mut WidgetContext, list: &mut impl UiNodeList) {
+    /// Gets the `index` sorted in the `list`.
+    pub fn map(&self, index: usize) -> usize {
+        if self.naturally_sorted.get() {
+            return index;
+        }
+
+        if self.map.borrow().len() != self.list.len() {
+            self.sort();
+        }
+
+        self.map.borrow()[index] as usize
+    }
+
+    /// Iterate over the list in the Z order.
+    pub fn for_each_sorted(&self, mut f: impl FnMut(usize, &BoxedUiNode) -> bool) {
+        if self.naturally_sorted.get() {
+            self.list.for_each(f)
+        } else {
+            if self.map.borrow().len() != self.list.len() {
+                self.sort();
+            }
+
+            for (index, &map) in self.map.borrow().iter().enumerate() {
+                if !self.list.with_node(map as usize, |node| f(index, node)) {
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Iterate over mutable `list` sorted.
+    pub fn for_each_sorted_mut(&mut self, mut f: impl FnMut(usize, &mut BoxedUiNode) -> bool) {
+        if self.naturally_sorted.get() {
+            self.list.for_each_mut(f)
+        } else {
+            if self.map.borrow().len() != self.list.len() {
+                self.sort();
+            }
+
+            for (index, &map) in self.map.borrow().iter().enumerate() {
+                if !self.list.with_node_mut(map as usize, |node| f(index, node)) {
+                    break;
+                }
+            }
+        }
+    }
+}
+impl<L: UiNodeList> UiNodeList for ZSortingList<L> {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        self.list.with_node(index, f)
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.list.with_node_mut(index, f)
+    }
+
+    fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        self.list.for_each(f)
+    }
+
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        self.list.for_each_mut(f)
+    }
+
+    fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.list.drain_into(vec);
         self.map.get_mut().clear();
-        let resort = ZIndexContext::with(ctx.path.widget_id(), || list.init_all(ctx));
+        self.naturally_sorted.set(true);
+    }
+
+    fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.map.get_mut().clear();
+        let resort = ZIndexContext::with(ctx.path.widget_id(), || self.list.init_all(ctx));
         self.naturally_sorted.set(!resort);
     }
 
-    /// Update the `list` and invalidates the sort if needed.
-    pub fn update_all(
-        &mut self,
-        ctx: &mut WidgetContext,
-        list: &mut impl UiNodeList,
-        updates: &mut WidgetUpdates,
-        observer: &mut dyn UiNodeListObserver,
-    ) {
+    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.list.deinit_all(ctx);
+    }
+
+    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut changed = false;
 
         let resort = ZIndexContext::with(ctx.path.widget_id(), || {
-            list.update_all(ctx, updates, &mut (observer, &mut changed as _))
+            self.list.update_all(ctx, updates, &mut (observer, &mut changed as _))
         });
         if resort || (changed && self.naturally_sorted.get()) {
             self.map.get_mut().clear();
@@ -435,17 +541,18 @@ impl ZSort {
         }
     }
 
-    /// Gets the `index` sorted in the `list`.
-    pub fn map(&self, list: &impl UiNodeList, index: usize) -> usize {
-        if self.naturally_sorted.get() {
-            return index;
-        }
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.for_each_sorted(|_, c| {
+            c.render(ctx, frame);
+            true
+        })
+    }
 
-        if self.map.borrow().len() != list.len() {
-            self.sort(list);
-        }
-
-        self.map.borrow()[index] as usize
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.for_each_sorted(|_, c| {
+            c.render_update(ctx, update);
+            true
+        })
     }
 }
 
@@ -591,7 +698,7 @@ impl_from_and_into_var! {
 /// they will render according to the order defined by the [`ZIndex`] value.
 ///
 /// Layout panels that support this property should mention it in their documentation, implementers
-/// see [`ZSorted`] for more details.
+/// see [`ZSortingList`] for more details.
 #[property(context, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     #[ui_node(struct ZIndexNode {

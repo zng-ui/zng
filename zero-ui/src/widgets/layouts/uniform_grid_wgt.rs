@@ -87,14 +87,14 @@ pub mod uniform_grid {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let children = wgt.capture_ui_node_list(property_id!(self.children));
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
             let columns = wgt.capture_var_or_default(property_id!(self.columns));
             let rows = wgt.capture_var_or_default(property_id!(self.rows));
             let first_column = wgt.capture_var_or_default(property_id!(self.first_column));
             let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
 
             let node = UniformGridNode {
-                children: ZSortedWidgetList::new(children),
+                children: ZSortingList::new(children),
 
                 columns: columns.into_var(),
                 rows: rows.into_var(),

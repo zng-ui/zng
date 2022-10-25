@@ -1096,7 +1096,7 @@ pub mod prelude {
             },
             widget_instance::{
                 ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList,
-                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, ZIndex, ZSort,
+                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, ZIndex, ZSortingList,
             },
             widget_mixin,
         };

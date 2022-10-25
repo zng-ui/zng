@@ -1,7 +1,5 @@
 # All Dyn Rewrite
 
-* Simplify ZSorted as a wrapper.
-
 * Fix toggle selector.
     - Needs to be standard `IntoValue` input.
     - Need to fix/review subscriptions.

@@ -385,6 +385,21 @@ pub trait UiNode: Any {
 }
 
 /// Represents a list of [`UiNode`] instances.
+///
+/// Panel implementers must delegate every [`UiNode`] method to every node in the children list, in particular the
+/// [`init_all`], [`deinit_all`] and [`update_all`] methods must be used to support reactive lists, and the [`render_all`]
+/// and [`render_update_all`] must be used to render, to support the [`ZSortingList`]. Other [`UiNode`] methods must
+/// be delegated using [`for_each`] and [`for_each_mut`].
+///
+/// The [`#[ui_node(children)]`] attribute macro auto-generates delegations for each method.
+///
+/// [`init_all`]: UiNodeList::init_all
+/// [`deinit_all`]: UiNodeList::deinit_all
+/// [`update_all`]: UiNodeList::update_all
+/// [`render_all`]: UiNodeList::render_all
+/// [`render_update_all`]: UiNodeList::render_update_all
+/// [`for_each`]: UiNodeList::for_each
+/// [`for_each_mut`]: UiNodeList::for_each_mut
 pub trait UiNodeList: UiNodeListBoxed {
     /// Visit the specific node, panic if `index` is out of bounds.
     fn with_node<R, F>(&self, index: usize, f: F) -> R
@@ -446,7 +461,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Receive an update for the list in a context, all nodes are also updated.
     ///
-    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to receive updates for nodes is an error.
+    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to update nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -455,6 +470,32 @@ pub trait UiNodeList: UiNodeListBoxed {
             c.update(ctx, updates);
             true
         });
+    }
+
+    /// Render all nodes.
+    ///
+    /// The correct functionality of some list implementations depend on this call, using [`for_each`] to render nodes can
+    /// break then, for example, the [`ZSortingList`] render nodes in a different order.
+    ///
+    /// [`for_each`]: UiNodeList::for_each
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.for_each(|_, c| {
+            c.render(ctx, frame);
+            true
+        })
+    }
+
+    /// Render all nodes.
+    ///
+    /// The correct functionality of some list implementations depend on this call, using [`for_each`] to render nodes can
+    /// break then, for example, the [`ZSortingList`] render nodes in a different order.
+    ///
+    /// [`for_each`]: UiNodeList::for_each
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.for_each(|_, c| {
+            c.render_update(ctx, update);
+            true
+        })
     }
 }
 
@@ -513,17 +554,11 @@ pub mod ui_node_list_default {
     }
 
     pub fn render_all(list: &impl UiNodeList, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        list.for_each(|_, n| {
-            n.render(ctx, frame);
-            true
-        });
+        list.render_all(ctx, frame);
     }
 
     pub fn render_update_all(list: &impl UiNodeList, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        list.for_each(|_, n| {
-            n.render_update(ctx, update);
-            true
-        });
+        list.render_update_all(ctx, update)
     }
 }
 
@@ -621,6 +656,8 @@ pub trait UiNodeListBoxed: Any {
     fn init_all_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext);
     fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
+    fn render_all_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+    fn render_update_all_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
 impl<L: UiNodeList> UiNodeListBoxed for L {
     fn with_node_boxed(&self, index: usize, f: &mut dyn FnMut(&BoxedUiNode)) {
@@ -657,6 +694,14 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.update_all(ctx, updates, observer);
+    }
+
+    fn render_all_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.render_all(ctx, frame);
+    }
+
+    fn render_update_all_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.render_update_all(ctx, update);
     }
 }
 
@@ -803,6 +848,14 @@ impl UiNodeList for BoxedUiNodeList {
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.as_mut().update_all_boxed(ctx, updates, observer);
+    }
+
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.as_ref().render_all_boxed(ctx, frame);
+    }
+
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.as_ref().render_update_all_boxed(ctx, update);
     }
 }
 
@@ -980,28 +1033,6 @@ impl UiNodeList for Option<BoxedUiNode> {
             vec.push(n);
         }
     }
-
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.for_each_mut(|_, c| {
-            c.init(ctx);
-            true
-        });
-    }
-
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.for_each_mut(|_, c| {
-            c.deinit(ctx);
-            true
-        });
-    }
-
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        let _ = observer;
-        self.for_each_mut(|_, c| {
-            c.update(ctx, updates);
-            true
-        });
-    }
 }
 
 fn assert_bounds(len: usize, i: usize) {
@@ -1057,28 +1088,6 @@ impl UiNodeList for Vec<BoxedUiNode> {
 
     fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
         vec.append(self)
-    }
-
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.for_each_mut(|_, c| {
-            c.init(ctx);
-            true
-        });
-    }
-
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.for_each_mut(|_, c| {
-            c.deinit(ctx);
-            true
-        });
-    }
-
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        let _ = observer;
-        self.for_each_mut(|_, c| {
-            c.update(ctx, updates);
-            true
-        });
     }
 }
 

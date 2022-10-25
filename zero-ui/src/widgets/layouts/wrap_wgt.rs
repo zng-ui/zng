@@ -22,7 +22,7 @@ pub mod wrap {
             let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
 
             let node = WrapNode {
-                children: ZSortedWidgetList::new(children),
+                children: ZSortingList::new(children),
                 spacing: spacing.into_var(),
             };
             let child = widget_base::nodes::children_layout(node);

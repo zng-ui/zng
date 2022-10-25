@@ -57,11 +57,10 @@ pub mod h_stack {
         wgt.push_build_action(|wgt| {
             let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
             let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
-            let padding = wgt.capture_var_or_default(property_id!(self.padding));
             let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL_LEFT);
 
             let node = HStackNode {
-                children: ZSortedWidgetList::new(items),
+                children: ZSortingList::new(children),
                 spacing: spacing.into_var(),
                 align: children_align.into_var(),
             };
@@ -307,11 +306,10 @@ pub mod v_stack {
         wgt.push_build_action(|wgt| {
             let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
             let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
-            let padding = wgt.capture_var_or_default(property_id!(self.padding));
             let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL_LEFT);
 
             let node = VStackNode {
-                children: ZSortedWidgetList::new(children),
+                children: ZSortingList::new(children),
                 spacing: spacing.into_var(),
                 align: children_align.into_var(),
             };
@@ -604,10 +602,9 @@ pub mod z_stack {
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
-            let padding = wgt.capture_var_or_default(property_id!(self.padding));
             let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL);
             let node = ZStackNode {
-                children: ZSortedWidgetList::new(children),
+                children: ZSortingList::new(children),
                 align: children_align.into_var(),
             };
             let child = widget_base::nodes::children_layout(node);
