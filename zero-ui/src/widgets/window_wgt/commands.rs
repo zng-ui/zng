@@ -18,12 +18,10 @@ pub(super) fn inspect_node(
     child: impl crate::core::widget_instance::UiNode,
     can_inspect: impl crate::core::var::IntoVar<bool>,
 ) -> impl crate::core::widget_instance::UiNode {
-    /*
-    TODO !!: after inspector re-impl
     use crate::core::inspector::prompt::{write_tree, WriteTreeState};
     use crate::core::{handler::hn, task};
 
-    let mut state = WriteTreeState::none();
+    let mut state = WriteTreeState::new();
 
     let can_inspect = can_inspect.into_var();
 
@@ -39,9 +37,7 @@ pub(super) fn inspect_node(
             args.propagation().stop();
 
             let mut buffer = vec![];
-            write_tree(ctx.vars, ctx.info_tree, &state, &mut buffer);
-
-            state = WriteTreeState::new(ctx.info_tree);
+            state.write_update(ctx.info_tree, &mut buffer);
 
             task::spawn_wait(move || {
                 use std::io::*;
@@ -51,7 +47,4 @@ pub(super) fn inspect_node(
             });
         }),
     )
-    */
-
-    child
 }

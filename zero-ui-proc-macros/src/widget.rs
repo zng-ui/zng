@@ -47,7 +47,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             quote! { $crate::missing_widget_path}
         }
     };
-    let mod_path_slug = mod_path_slug(mod_path.to_string());
+    let mod_path_str = mod_path.to_string();
+    let mod_path_slug = mod_path_slug(&mod_path_str);
 
     let WidgetItems {
         uses,
@@ -260,8 +261,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             pub use super::__include__ as include;
             #build_final_export
 
+            pub fn mod_info() -> widget_builder::WidgetMod {
+                static impl_id: widget_builder::StaticWidgetImplId = widget_builder::StaticWidgetImplId::new_unique();
+
+                widget_builder::WidgetMod {
+                    impl_id: impl_id.get(),
+                    path: #mod_path_str,
+                    location: widget_builder::source_location!(),
+                }
+            }
+
             pub fn new() -> widget_builder::WidgetBuilder {
-                let mut wgt = widget_builder::WidgetBuilder::new();
+                let mut wgt = widget_builder::WidgetBuilder::new(mod_info());
                 include(&mut wgt);
                 wgt
             }
@@ -488,7 +499,7 @@ impl Parse for Properties {
     }
 }
 
-fn mod_path_slug(path: String) -> String {
+fn mod_path_slug(path: &str) -> String {
     path.replace("crate", "").replace(':', "").replace('$', "").trim().replace(' ', "_")
 }
 

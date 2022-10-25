@@ -402,13 +402,11 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
 mod inspect {
     use super::*;
     use zero_ui::core::focus::WidgetInfoFocusExt;
-    // use zero_ui::core::inspector::WidgetInfoInspectorExt;
+    use zero_ui::core::inspector::WidgetInfoInspectorExt;
 
     pub fn focus(services: &mut Services, path: &Option<InteractionPath>) -> String {
-        todo!()
-        /*
         path.as_ref()
-        .map(|p| {
+            .map(|p| {
                 let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
                     w
                 } else {
@@ -419,43 +417,37 @@ mod inspect {
                 } else {
                     return format!("<{p}>");
                 };
-                let info = widget.instance().expect("expected debug info");
+                let wgt_mod = if let Some(b) = widget.builder() {
+                    b.widget_mod()
+                } else {
+                    return format!("<{p}>");
+                };
+                if wgt_mod.path.ends_with("button") {
+                    let txt = widget
+                        .inspect_descendant("text")
+                        .expect("expected text in button")
+                        .inspect_property("text")
+                        .expect("expected text property in text")
+                        .live_debug(0)
+                        .get();
 
-                if info.meta.widget_name == "button" {
-                    format!(
-                        "button({:?})",
-                        widget
-                            .descendant_instance("text")
-                            .expect("expected text in button")
-                            .instance()
-                            .unwrap()
-                            .property("text")
-                            .expect("expected text property")
-                            .arg(0)
-                            .value
-                            .get()
-                    )
-                } else if info.meta.widget_name == "window" {
-                    let title = info
-                        .properties
-                        .iter()
-                        .find(|p| p.meta.property_name == "title")
-                        .map(|p| format!("{:?}", p.args[0].value.get()))
-                        .unwrap_or_default();
+                    format!("button({txt})")
+                } else if wgt_mod.path.ends_with("window") {
+                    let title = widget.inspect_property("title").map(|p| p.live_debug(0).get()).unwrap_or_default();
+
                     format!("window({title})")
                 } else {
                     let focus_info = widget.as_focus_info(true, true);
                     if focus_info.is_alt_scope() {
-                        format!("{}(is_alt_scope)", info.meta.widget_name)
+                        format!("{}(is_alt_scope)", wgt_mod.name())
                     } else if focus_info.is_scope() {
-                        format!("{}(is_scope)", info.meta.widget_name)
+                        format!("{}(is_scope)", wgt_mod.name())
                     } else {
-                        format!("{}({})", info.meta.widget_name, p.widget_id())
+                        format!("{}({})", wgt_mod.name(), p.widget_id())
                     }
                 }
             })
             .unwrap_or_else(|| "<none>".to_owned())
-            */
     }
 }
 

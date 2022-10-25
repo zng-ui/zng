@@ -2,6 +2,7 @@
 
 use std::{fmt, rc::Rc};
 
+use crate::core::widget_builder::widget_mod;
 use crate::prelude::new_widget::*;
 
 /// Represents a set of properties that can be applied to any styleable widget.
@@ -200,9 +201,16 @@ pub mod style_mixin {
 /// Use the [`style!`] *widget* to instantiate.
 ///
 /// [`style!`]: mod@style
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Style {
     builder: WidgetBuilder,
+}
+impl Default for Style {
+    fn default() -> Self {
+        Self {
+            builder: WidgetBuilder::new(widget_mod!(style)),
+        }
+    }
 }
 impl Style {
     /// Importance of style properties set by default in style widgets.

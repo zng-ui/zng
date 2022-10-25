@@ -1,232 +1,122 @@
 //! A simple command line based UI inspector.
 
-use std::borrow::Cow;
+use rustc_hash::FxHashMap;
 
-use linear_map::LinearMap;
+use crate::{
+    var::VarUpdateId,
+    widget_builder::{Importance, InputKind, PropertyArgs, PropertyId},
+    widget_info::{WidgetInfo, WidgetInfoTree},
+    widget_instance::WidgetId,
+};
 
-use crate::crate_util::IdMap;
-use crate::widget_info::WidgetInfoTree;
-
-use super::*;
+use super::WidgetInfoInspectorExt;
 
 /// State for tracking updates in [`write_tree`].
+#[derive(Default, Clone)]
 pub struct WriteTreeState {
-    #[allow(clippy::type_complexity)]
-    widgets: IdMap<WidgetInstanceId, WriteWidgetState>,
-}
-struct WriteWidgetState {
-    /// [(property_name, arg_name) => (value_version, value)]
-    properties: LinearMap<(&'static str, &'static str), (VarUpdateId, Text)>,
+    state: FxHashMap<(WidgetId, PropertyId, usize), PropertyState>,
 }
 impl WriteTreeState {
-    /// No property update.
-    pub fn none() -> Self {
-        WriteTreeState {
-            widgets: Default::default(),
-        }
+    /// New default empty.
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    /// State represents no property update.
-    pub fn is_none(&self) -> bool {
-        self.widgets.is_empty()
+    /// Update the state, flagging changes for highlight in the next print, then prints the tree.
+    pub fn write_update(&mut self, tree: &WidgetInfoTree, out: &mut impl std::io::Write) {
+        let mut fmt = print_fmt::Fmt::new(out);
+        self.write_widget(tree.root(), &mut fmt);
+
+        fmt.write_legend();
     }
 
-    /// State from `tree` that can be compared to future trees.
-    pub fn new(tree: &WidgetInfoTree) -> Self {
-        let mut widgets = IdMap::default();
+    fn write_widget(&mut self, info: WidgetInfo, fmt: &mut print_fmt::Fmt) {
+        let mut wgt_name = "<widget>";
+        if let Some(bu) = info.builder() {
+            wgt_name = bu.widget_mod().name();
+            fmt.open_widget(wgt_name, "", "");
 
-        for w in tree.all_widgets() {
-            if let Some(info) = w.instance() {
-                let mut properties = LinearMap::new();
-                for ctor in &info.constructors {
-                    for p in ctor.captures.iter() {
-                        for arg in p.args.iter() {
-                            properties.insert((p.property_name, arg.name), (arg.value.last_update(), arg.value.get_debug()));
-                        }
-                    }
-                }
-                for p in info.properties.iter() {
-                    for arg in p.args.iter() {
-                        properties.insert((p.meta.property_name, arg.name), (arg.value.last_update(), arg.value.get_debug()));
-                    }
-                }
+            let mut properties: Vec<_> = bu.properties().collect();
+            properties.sort_by_key(|(_, pos, _)| *pos);
+            let widget_id = info.widget_id();
 
-                widgets.insert(info.meta.instance_id, WriteWidgetState { properties });
-            }
-        }
+            for (imp, _, args) in properties {
+                let info = args.property();
+                let inst = args.instance();
+                let group = info.priority.name();
+                let name = inst.name;
+                let user_assigned = imp == Importance::INSTANCE;
 
-        WriteTreeState { widgets }
-    }
-
-    /// Gets property argument and if it changed.
-    pub fn arg_diff(&self, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArg) -> WriteArgDiff {
-        if !self.is_none() {
-            if let Some(wgt_state) = self.widgets.get(&widget_id) {
-                if let Some((value_version, value)) = wgt_state.properties.get(&(property_name, arg.name)) {
-                    let mut r = WriteArgDiff {
-                        value: Cow::Borrowed(value),
-                        changed_version: false,
-                        changed_value: false,
+                if info.inputs.len() == 1 {
+                    let version = match info.inputs[0].kind {
+                        InputKind::Var | InputKind::StateVar => Some(args.var(0).last_update()),
+                        _ => None,
                     };
-
-                    let arg_version = arg.value.last_update();
-                    if *value_version != arg_version {
-                        r.changed_version = true;
-                        let arg_value = arg.value.get_debug();
-                        if &arg_value != value {
-                            r.value = Cow::Owned(arg_value.into());
-                            r.changed_value = true;
-                        }
+                    let value = print_fmt::Diff {
+                        value: args.debug(0),
+                        changed_version: version.map(|ver| self.update((widget_id, args.id(), 0), ver)).unwrap_or(false),
+                    };
+                    fmt.write_property(group, name, user_assigned, version.is_some(), value);
+                } else {
+                    fmt.open_property(group, name, user_assigned);
+                    for (i, input) in info.inputs.iter().enumerate() {
+                        let version = match input.kind {
+                            InputKind::Var | InputKind::StateVar => Some(args.var(i).last_update()),
+                            _ => None,
+                        };
+                        let value = print_fmt::Diff {
+                            value: args.debug(i),
+                            changed_version: version.map(|ver| self.update((widget_id, args.id(), i), ver)).unwrap_or(false),
+                        };
+                        fmt.write_property_arg(name, user_assigned, version.is_some(), value);
                     }
-
-                    return r;
+                    fmt.close_property(user_assigned);
                 }
             }
+        } else {
+            fmt.open_widget(wgt_name, "", "");
         }
 
-        WriteArgDiff {
-            value: Cow::Owned(arg.value.get_debug().into()),
-            changed_value: false,
-            changed_version: false,
+        for c in info.children() {
+            self.write_widget(c, fmt);
+        }
+
+        fmt.close_widget(wgt_name)
+    }
+
+    fn update(&mut self, key: (WidgetId, PropertyId, usize), version: VarUpdateId) -> bool {
+        match self.state.entry(key) {
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                let changed = e.get().last_update != version;
+                e.get_mut().last_update = version;
+                changed
+            }
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(PropertyState { last_update: version });
+                false
+            }
         }
     }
 }
 
-/// Represents the value of a property that may have changed.
-pub struct WriteArgDiff<'a> {
-    /// Value, is borrowed if it is the same as before.
-    pub value: Cow<'a, str>,
-    /// If the variable version changed since last read.
-    pub changed_version: bool,
-    /// If var version changed and the debug print is different.
-    pub changed_value: bool,
-}
-impl<'a> WriteArgDiff<'a> {
-    fn from_info(value: &dyn fmt::Debug) -> Self {
-        WriteArgDiff {
-            value: Cow::Owned(format!("{value:?}")),
-            changed_version: false,
-            changed_value: false,
-        }
-    }
+#[derive(Clone)]
+struct PropertyState {
+    last_update: VarUpdateId,
 }
 
-/// Writes the widget `tree` to `out`.
-///
-/// When writing to a terminal the text is color coded and a legend is printed. The coloring
-/// can be configured using environment variables, see [colored](https://github.com/mackwic/colored#features)
-/// for details.
-pub fn write_tree<W: std::io::Write>(vars: &Vars, tree: &WidgetInfoTree, updates_from: &WriteTreeState, out: &mut W) {
-    let mut fmt = print_fmt::Fmt::new(out);
-    write_impl(vars, updates_from, tree.root(), "", &mut fmt);
-    fmt.write_legend();
-}
-fn write_impl(vars: &Vars, updates_from: &WriteTreeState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt) {
-    if let Some(info) = widget.instance() {
-        fmt.open_widget(info.meta.widget_name, parent_name, info.parent_name.as_str());
-
-        let mut write_property = |prop: PropertyOrCapture, group: &'static str| {
-            let property_name = prop.property_name();
-            let args = prop.args();
-
-            if args.len() == 1 {
-                let value = updates_from.arg_diff(info.meta.instance_id, property_name, &args[0]);
-                fmt.write_property(
-                    group,
-                    property_name,
-                    prop.user_assigned(),
-                    args[0].value.capabilities().contains(VarCapabilities::NEW),
-                    value,
-                );
-            } else {
-                let user_assigned = prop.user_assigned();
-                fmt.open_property(group, property_name, user_assigned);
-                for arg in args.iter() {
-                    fmt.write_property_arg(
-                        arg.name,
-                        user_assigned,
-                        arg.value.capabilities().contains(VarCapabilities::NEW),
-                        updates_from.arg_diff(info.meta.instance_id, property_name, arg),
-                    );
-                }
-                fmt.close_property(user_assigned);
-            }
-        };
-
-        if let Some(ctor) = info.constructor("new") {
-            for cap in ctor.captures.iter() {
-                write_property(PropertyOrCapture::Capture(cap), "new");
-            }
-        }
-        for &priority in PropertyPriority::context_to_child_layout() {
-            if let Some(ctor) = info.constructor(priority.name_constructor()) {
-                for cap in ctor.captures.iter() {
-                    write_property(PropertyOrCapture::Capture(cap), ctor.fn_name);
-                }
-            }
-
-            let group = priority.name();
-            for prop in info.properties.iter().filter(|p| p.meta.priority == priority) {
-                write_property(PropertyOrCapture::Property(prop), group);
-            }
-        }
-        if let Some(ctor) = info.constructor("new_child") {
-            for cap in ctor.captures.iter() {
-                write_property(PropertyOrCapture::Capture(cap), "new_child");
-            }
-        }
-
-        write_info(widget, fmt);
-
-        // fmt.writeln();
-
-        for child in widget.children() {
-            write_impl(vars, updates_from, child, info.meta.widget_name, fmt);
-        }
-
-        fmt.close_widget(info.meta.widget_name);
-    } else {
-        fmt.open_widget("<unknown>", "", "");
-
-        fmt.write_property("<info>", "id", false, false, WriteArgDiff::from_info(&widget.widget_id()));
-        write_info(widget, fmt);
-
-        for child in widget.children() {
-            write_impl(vars, updates_from, child, "<unknown>", fmt);
-        }
-        fmt.close_widget("<unknown>");
-    }
-
-    fn write_info(widget: WidgetInfo, fmt: &mut print_fmt::Fmt) {
-        fmt.write_property(
-            "<info>",
-            "outer_bounds",
-            false,
-            false,
-            WriteArgDiff::from_info(&widget.outer_bounds()),
-        );
-        fmt.write_property(
-            "<info>",
-            "inner_bounds",
-            false,
-            false,
-            WriteArgDiff::from_info(&widget.inner_bounds()),
-        );
-        fmt.write_property("<info>", "visibility", false, false, WriteArgDiff::from_info(&widget.visibility()));
-        fmt.write_property(
-            "<info>",
-            "interactivity",
-            false,
-            false,
-            WriteArgDiff::from_info(&widget.interactivity()),
-        );
-    }
-}
 mod print_fmt {
-    use super::WriteArgDiff;
+    pub struct Diff {
+        /// Debug value.
+        pub value: Text,
+        /// If the variable version changed since last read.
+        pub changed_version: bool,
+    }
+
     use colored::*;
     use std::fmt::Display;
     use std::io::Write;
+
+    use crate::text::Text;
 
     pub struct Fmt<'w> {
         depth: u32,
@@ -302,7 +192,7 @@ mod print_fmt {
             self.writeln();
         }
 
-        fn write_property_value(&mut self, value: WriteArgDiff, can_update: bool) {
+        fn write_property_value(&mut self, value: Diff, can_update: bool) {
             let mut l0 = true;
             for line in value.value.lines() {
                 if l0 {
@@ -312,10 +202,8 @@ mod print_fmt {
                     self.write_tabs();
                 }
 
-                if value.changed_value {
+                if value.changed_version {
                     self.write(line.truecolor(150, 255, 150).bold())
-                } else if value.changed_version {
-                    self.write(line.truecolor(100, 150, 100))
                 } else if can_update {
                     self.write(line.truecolor(200, 150, 150));
                 } else {
@@ -324,7 +212,7 @@ mod print_fmt {
             }
         }
 
-        pub fn write_property(&mut self, group: &'static str, name: &str, user_assigned: bool, can_update: bool, value: WriteArgDiff) {
+        pub fn write_property(&mut self, group: &'static str, name: &str, user_assigned: bool, can_update: bool, value: Diff) {
             self.write_property_header(group, name, user_assigned);
             self.write_property_value(value, can_update);
             self.write_property_end(user_assigned);
@@ -341,7 +229,7 @@ mod print_fmt {
             self.depth += 1;
         }
 
-        pub fn write_property_arg(&mut self, name: &str, user_assigned: bool, can_update: bool, value: WriteArgDiff) {
+        pub fn write_property_arg(&mut self, name: &str, user_assigned: bool, can_update: bool, value: Diff) {
             self.write_tabs();
             if user_assigned {
                 self.write(name.blue().bold());
@@ -404,11 +292,7 @@ mod print_fmt {
             self.writeln();
 
             self.write("▉".truecolor(150, 255, 150));
-            self.write("  - updated, new value");
-            self.writeln();
-
-            self.write("▉".truecolor(100, 150, 100));
-            self.write("  - updated, same value");
+            self.write("  - updated");
             self.writeln();
 
             self.writeln();
