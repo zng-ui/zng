@@ -422,7 +422,7 @@ mod helpers {
             }
         }
         WithContextVarNode {
-            child,
+            child: child.cfg_boxed(),
             context_var,
             value: RefCell::new(Some(value.into_var().boxed())),
         }

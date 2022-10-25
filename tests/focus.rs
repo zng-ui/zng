@@ -570,9 +570,9 @@ pub fn tab_inner_container() {
         v_stack(inner_buttons),
         button! { child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     assert_eq!(Some(item_ids[0]), app.focused());
     app.press_tab();
@@ -606,9 +606,9 @@ pub fn tab_skip_inner_container() {
         },
         button! { child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     // assert skipped inner.
     assert_eq!(Some(item_ids[0]), app.focused());
@@ -659,9 +659,9 @@ pub fn tab_inner_scope_continue() {
         },
         button! { id = "Button 3"; child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     assert_eq!(Some(item_ids[0]), app.focused());
     app.press_tab();
@@ -701,9 +701,9 @@ pub fn tab_skip_inner_scope_continue() {
         },
         button! { id = "Button 3"; child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     // assert skipped inner.
     assert_eq!(Some(item_ids[0]), app.focused());
@@ -750,9 +750,9 @@ pub fn tab_inner_scope_cycle() {
         },
         button! { child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     // focus starts outside of inner cycle.
     assert_eq!(Some(item_ids[0]), app.focused());
@@ -792,9 +792,9 @@ pub fn tab_inner_scope_contained() {
         },
         button! { child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     // focus starts outside of inner container.
     assert_eq!(Some(item_ids[0]), app.focused());
@@ -834,9 +834,9 @@ pub fn tab_inner_scope_once() {
         },
         button! { child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     // focus starts outside of inner scope.
     assert_eq!(Some(item_ids[0]), app.focused());
@@ -874,9 +874,9 @@ pub fn tab_inner_scope_none() {
         },
         button! { id = "btn-3"; child = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
-    let mut app = TestApp::new(v_stack(items));
+    let mut app = TestApp::new(v_stack(children));
 
     // focus starts outside of inner scope.
     assert_eq!(Some(item_ids[0]), app.focused());
@@ -1531,8 +1531,8 @@ struct TestApp {
     return_focus_changed: EventBuffer<ReturnFocusChangedArgs>,
 }
 impl TestApp {
-    pub fn new(content: impl UiNode) -> Self {
-        Self::new_w(window!(content; root_id = "window root"))
+    pub fn new(child: impl UiNode) -> Self {
+        Self::new_w(window!(child; id = "window root"))
     }
     pub fn new_w(window: Window) -> Self {
         let mut app = App::default().run_headless(false);
@@ -1562,10 +1562,10 @@ impl TestApp {
         assert!(closed);
     }
 
-    pub fn open_window(&mut self, content: impl UiNode) -> WindowId {
+    pub fn open_window(&mut self, child: impl UiNode) -> WindowId {
         let id = self.app.open_window(|_| {
             window! {
-                content
+                child
             }
         });
         let _ = self.app.update(false);
@@ -1653,13 +1653,13 @@ impl TestApp {
     pub fn blur_window(&mut self) {
         self.app.blur_window(self.window_id)
     }
+}
 
-    #[allow(unused)]
-    pub fn write_tree(&mut self) {
-        use zero_ui::core::inspector::prompt::*;
-
-        let ctx = self.app.ctx();
-        let tree = Windows::req(ctx.services).widget_tree(self.window_id).unwrap();
-        write_tree(ctx.vars, tree, &WriteTreeState::none(), &mut std::io::stdout());
+trait TestList {
+    fn item_id(&self, i: usize) -> WidgetId;
+}
+impl<L: UiNodeList> TestList for L {
+    fn item_id(&self, i: usize) -> WidgetId {
+        self.with_node(i, |n| n.with_context(|ctx| ctx.id).unwrap())
     }
 }
