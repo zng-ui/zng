@@ -1,8 +1,5 @@
 # All Dyn Rewrite
 
-* Refactor `Selector` and `SelectorInstance` so that we can just create `Selector::single(var)`, etc. leaving only
-    `Selector::custom(impl SelectorImpl)` as the long form.
-
 * If `ui_list![]` auto boxes in the macro params, but the returned type does not auto-boxes on `.push`.
     - Before refactor we had `WidgetVec(pub Vec<BoxedWidget>)`.
 

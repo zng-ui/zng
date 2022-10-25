@@ -38,13 +38,16 @@ fn text_change_all(ctx: &mut WindowContext) -> Window {
 
     let mut texts = ui_list![];
     for _ in 0..2000 {
-        texts.push(text! {
-            text = msg.clone();
-            width = 80;
-            when *#is_hovered {
-                color = colors::RED;
+        texts.push(
+            text! {
+                text = msg.clone();
+                width = 80;
+                when *#is_hovered {
+                    color = colors::RED;
+                }
             }
-        }.boxed());
+            .boxed(),
+        );
     }
 
     window! {
@@ -61,16 +64,19 @@ fn text_change_one(_ctx: &mut WindowContext) -> Window {
     let mut texts = ui_list![];
 
     for _ in 0..2000 {
-        texts.push(text! {
-            text = "RED";
-            width = 80;
-            font_size = 16;
-            font_weight = FontWeight::BOLD;
-            when *#is_hovered {
-                text = "HOT";
-                color = colors::RED;
+        texts.push(
+            text! {
+                text = "RED";
+                width = 80;
+                font_size = 16;
+                font_weight = FontWeight::BOLD;
+                when *#is_hovered {
+                    text = "HOT";
+                    color = colors::RED;
+                }
             }
-        }.boxed());
+            .boxed(),
+        );
     }
 
     window! {
@@ -102,13 +108,16 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
     for i in 0..10 {
         let mut texts = ui_list![];
         for _ in 0..200 {
-            texts.push(text! {
-                text = msg.clone();
-                width = 80;
-                when *#is_hovered {
-                    color = colors::RED;
+            texts.push(
+                text! {
+                    text = msg.clone();
+                    width = 80;
+                    when *#is_hovered {
+                        color = colors::RED;
+                    }
                 }
-            }.boxed());
+                .boxed(),
+            );
         }
 
         wns.push(window! {

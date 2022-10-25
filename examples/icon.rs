@@ -62,7 +62,7 @@ fn icons() -> impl UiNode {
         children_align = Align::TOP;
         children = ui_list![
             h_stack! {
-                toggle::selection = toggle::properties::SelectorInstance::new(toggle::SingleSel::new(selected_font.clone()));
+                toggle::selection = toggle::Selector::single(selected_font.clone());
                 spacing = 5;
                 children = ui_list![
                     select_font("filled"),

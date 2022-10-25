@@ -13,7 +13,7 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::toggle)]
 pub mod toggle {
     #[doc(inline)]
-    pub use super::properties::{self, selection, SingleOptSel, SingleSel, IS_CHECKED_VAR};
+    pub use super::properties::{self, selection, Selector, IS_CHECKED_VAR};
     #[doc(inline)]
     pub use super::vis;
 
@@ -465,15 +465,15 @@ pub mod properties {
 
     /// Sets the contextual selection target that all inner widgets will target from the [`value`] property.
     ///
-    /// All [`value`] properties declared in widgets inside `child` will call the methods of the [`Selector`] interface to manipulate
-    /// the selection, some common selection patterns are provided, see [`SingleSel`], [`SingleOptSel`].
+    /// All [`value`] properties declared in widgets inside `child` will use the [`Selector`] to manipulate
+    /// the selection.
     ///
-    /// Selection in a context can be blocked by setting the selector to [`NilSel`], this is also the default selector so the [`value`]
+    /// Selection in a context can be blocked by setting the selector to [`Selector::nil()`], this is also the default selector so the [`value`]
     /// property only works if a contextual selection is present.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(SelectorInstance::new(NilSel)))]
-    pub fn selection(child: impl UiNode, selector: impl IntoValue<SelectorInstance>) -> impl UiNode {
+    #[property(context, default(Selector::nil()))]
+    pub fn selection(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
         with_context_value(child, SELECTOR, selector)
     }
 
@@ -510,7 +510,7 @@ pub mod properties {
     }
 
     context_value! {
-        static SELECTOR: SelectorInstance = NilSel;
+        static SELECTOR: Selector = Selector::nil();
     }
 
     context_var! {
@@ -547,13 +547,8 @@ pub mod properties {
         pub static DESELECT_ON_NEW_VAR: bool = false;
     }
 
-    /// Represents the contextual selection behavior of [`value`] selection.
-    ///
-    /// A selector can be set using [`selection`], all [`value`] widgets in context will target it.
-    ///
-    /// [`value`]: fn@value
-    /// [`selection`]: fn@selection
-    pub trait Selector: 'static {
+    /// Represents a [`Selector`] implementation.
+    pub trait SelectorImpl: 'static {
         /// Add the selector subscriptions for a widget.
         fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles);
 
@@ -567,13 +562,170 @@ pub mod properties {
         fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool;
     }
 
-    /// Represents a [`Selector`].
+    /// Represents the contextual selection behavior of [`value`] selection.
+    ///
+    /// A selector can be set using [`selection`], all [`value`] widgets in context will target it.
+    ///
+    /// [`value`]: fn@value
+    /// [`selection`]: fn@selection
     #[derive(Clone)]
-    pub struct SelectorInstance(Rc<RefCell<dyn Selector>>);
-    impl SelectorInstance {
-        /// New selector.
-        pub fn new(selector: impl Selector) -> Self {
+    pub struct Selector(Rc<RefCell<dyn SelectorImpl>>);
+    impl Selector {
+        /// New custom selector.
+        pub fn new(selector: impl SelectorImpl) -> Self {
             Self(Rc::new(RefCell::new(selector)))
+        }
+
+        /// Represents no selection and the inability to select any item.
+        pub fn nil() -> Self {
+            struct NilSel;
+            impl SelectorImpl for NilSel {
+                fn subscribe(&self, _: WidgetId, _: &mut WidgetHandles) {}
+
+                fn select(&mut self, _: &mut WidgetContext, _: Box<dyn Any>) -> Result<(), SelectorError> {
+                    Err(SelectorError::custom_str("no contextual `selection`"))
+                }
+
+                fn deselect(&mut self, _: &mut WidgetContext, _: &dyn Any) -> Result<(), SelectorError> {
+                    Ok(())
+                }
+
+                fn is_selected(&self, _: &mut InfoContext, __r: &dyn Any) -> bool {
+                    false
+                }
+            }
+            Self::new(NilSel)
+        }
+
+        /// Represents the "radio" selection of a single item.
+        pub fn single<T>(target: impl IntoVar<T>) -> Self
+        where
+            T: VarValue + PartialEq,
+        {
+            struct SingleSel<T, S> {
+                target: S,
+                _type: PhantomData<T>,
+            }
+            impl<T, S> SelectorImpl for SingleSel<T, S>
+            where
+                T: VarValue + PartialEq,
+                S: Var<T>,
+            {
+                fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
+                    handles.push_var(self.target.subscribe(widget_id));
+                }
+
+                fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
+                    match value.downcast::<T>() {
+                        Ok(value) => match self.target.set_ne(ctx, *value) {
+                            Ok(_) => Ok(()),
+                            Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
+                        },
+                        Err(_) => Err(SelectorError::WrongType),
+                    }
+                }
+
+                fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
+                    if self.is_selected(&mut ctx.as_info(), value) {
+                        Err(SelectorError::CannotClear)
+                    } else {
+                        Ok(())
+                    }
+                }
+
+                fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
+                    match value.downcast_ref::<T>() {
+                        Some(value) => self.target.with(|t| t == value),
+                        None => false,
+                    }
+                }
+            }
+            Self::new(SingleSel {
+                target: target.into_var(),
+                _type: PhantomData,
+            })
+        }
+
+        /// Represents the "radio" selection of a single item that is optional.
+        pub fn single_opt<T>(target: impl IntoVar<Option<T>>) -> Self
+        where
+            T: VarValue + PartialEq,
+        {
+            struct SingleOptSel<T, S> {
+                target: S,
+                _type: PhantomData<T>,
+            }
+            impl<T, S> SelectorImpl for SingleOptSel<T, S>
+            where
+                T: VarValue + PartialEq,
+                S: Var<Option<T>>,
+            {
+                fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
+                    handles.push_var(self.target.subscribe(widget_id));
+                }
+
+                fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
+                    match value.downcast::<T>() {
+                        Ok(value) => match self.target.set_ne(ctx, Some(*value)) {
+                            Ok(_) => Ok(()),
+                            Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
+                        },
+                        Err(value) => match value.downcast::<Option<T>>() {
+                            Ok(value) => match self.target.set_ne(ctx, *value) {
+                                Ok(_) => Ok(()),
+                                Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
+                            },
+                            Err(_) => Err(SelectorError::WrongType),
+                        },
+                    }
+                }
+
+                fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
+                    match value.downcast_ref::<T>() {
+                        Some(value) => {
+                            if self.target.with(|t| t.as_ref() == Some(value)) {
+                                match self.target.set(ctx, None) {
+                                    Ok(_) => Ok(()),
+                                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
+                                }
+                            } else {
+                                Ok(())
+                            }
+                        }
+                        None => match value.downcast_ref::<Option<T>>() {
+                            Some(value) => {
+                                if self.target.with(|t| t == value) {
+                                    if value.is_none() {
+                                        Ok(())
+                                    } else {
+                                        match self.target.set(ctx, None) {
+                                            Ok(_) => Ok(()),
+                                            Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
+                                        }
+                                    }
+                                } else {
+                                    Ok(())
+                                }
+                            }
+                            None => Ok(()),
+                        },
+                    }
+                }
+
+                fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
+                    match value.downcast_ref::<T>() {
+                        Some(value) => self.target.with(|t| t.as_ref() == Some(value)),
+                        None => match value.downcast_ref::<Option<T>>() {
+                            Some(value) => self.target.with(|t| t == value),
+                            None => false,
+                        },
+                    }
+                }
+            }
+            Self::new(SingleOptSel {
+                target: target.into_var(),
+                _type: PhantomData,
+            })
         }
 
         /// Add the selector subscriptions for a widget.
@@ -596,14 +748,14 @@ pub mod properties {
             self.0.borrow().is_selected(ctx, value)
         }
     }
-    impl<S: Selector> From<S> for SelectorInstance {
+    impl<S: SelectorImpl> From<S> for Selector {
         fn from(sel: S) -> Self {
-            SelectorInstance::new(sel)
+            Selector::new(sel)
         }
     }
-    impl fmt::Debug for SelectorInstance {
+    impl fmt::Debug for Selector {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "SelectorInstance(_)")
+            write!(f, "Selector(_)")
         }
     }
 
@@ -651,176 +803,6 @@ pub mod properties {
     impl From<VarIsReadOnlyError> for SelectorError {
         fn from(_: VarIsReadOnlyError) -> Self {
             SelectorError::ReadOnly
-        }
-    }
-
-    /// Represents no selection and the inability to select any item.
-    ///  
-    /// See [`selection`] for more details.
-    ///
-    /// [`selection`]: fn@selection
-    pub struct NilSel;
-
-    impl Selector for NilSel {
-        fn subscribe(&self, _: WidgetId, _: &mut WidgetHandles) {}
-
-        fn select(&mut self, _: &mut WidgetContext, _: Box<dyn Any>) -> Result<(), SelectorError> {
-            Err(SelectorError::custom_str("no contextual `selection`"))
-        }
-
-        fn deselect(&mut self, _: &mut WidgetContext, _: &dyn Any) -> Result<(), SelectorError> {
-            Ok(())
-        }
-
-        fn is_selected(&self, _: &mut InfoContext, __r: &dyn Any) -> bool {
-            false
-        }
-    }
-
-    /// Represents the "radio" selection of a single item.
-    ///
-    /// See [`selection`] for more details.
-    ///
-    /// [`selection`]: fn@selection
-    pub struct SingleSel<T, S> {
-        target: S,
-        _type: PhantomData<T>,
-    }
-    impl<T, S> SingleSel<T, S>
-    where
-        T: VarValue + PartialEq,
-        S: Var<T>,
-    {
-        /// New single selector that sets a `target` var with the selected value.
-        pub fn new(target: S) -> Self {
-            SingleSel {
-                target,
-                _type: PhantomData,
-            }
-        }
-    }
-    impl<T, S> Selector for SingleSel<T, S>
-    where
-        T: VarValue + PartialEq,
-        S: Var<T>,
-    {
-        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
-            handles.push_var(self.target.subscribe(widget_id));
-        }
-
-        fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
-            match value.downcast::<T>() {
-                Ok(value) => match self.target.set_ne(ctx, *value) {
-                    Ok(_) => Ok(()),
-                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
-                },
-                Err(_) => Err(SelectorError::WrongType),
-            }
-        }
-
-        fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
-            if self.is_selected(&mut ctx.as_info(), value) {
-                Err(SelectorError::CannotClear)
-            } else {
-                Ok(())
-            }
-        }
-
-        fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
-            match value.downcast_ref::<T>() {
-                Some(value) => self.target.with(|t| t == value),
-                None => false,
-            }
-        }
-    }
-
-    /// Represents the "radio" selection of a single item that is optional.
-    ///
-    /// See [`selection`] for more details.
-    ///
-    /// [`selection`]: fn@selection
-    pub struct SingleOptSel<T, S> {
-        target: S,
-        _type: PhantomData<T>,
-    }
-    impl<T, S> SingleOptSel<T, S>
-    where
-        T: VarValue + PartialEq,
-        S: Var<Option<T>>,
-    {
-        /// New single selector that sets a `target` var with the selected value or `None`.
-        pub fn new(target: S) -> Self {
-            SingleOptSel {
-                target,
-                _type: PhantomData,
-            }
-        }
-    }
-    impl<T, S> Selector for SingleOptSel<T, S>
-    where
-        T: VarValue + PartialEq,
-        S: Var<Option<T>>,
-    {
-        fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
-            handles.push_var(self.target.subscribe(widget_id));
-        }
-
-        fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
-            match value.downcast::<T>() {
-                Ok(value) => match self.target.set_ne(ctx, Some(*value)) {
-                    Ok(_) => Ok(()),
-                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
-                },
-                Err(value) => match value.downcast::<Option<T>>() {
-                    Ok(value) => match self.target.set_ne(ctx, *value) {
-                        Ok(_) => Ok(()),
-                        Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
-                    },
-                    Err(_) => Err(SelectorError::WrongType),
-                },
-            }
-        }
-
-        fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
-            match value.downcast_ref::<T>() {
-                Some(value) => {
-                    if self.target.with(|t| t.as_ref() == Some(value)) {
-                        match self.target.set(ctx, None) {
-                            Ok(_) => Ok(()),
-                            Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
-                        }
-                    } else {
-                        Ok(())
-                    }
-                }
-                None => match value.downcast_ref::<Option<T>>() {
-                    Some(value) => {
-                        if self.target.with(|t| t == value) {
-                            if value.is_none() {
-                                Ok(())
-                            } else {
-                                match self.target.set(ctx, None) {
-                                    Ok(_) => Ok(()),
-                                    Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
-                                }
-                            }
-                        } else {
-                            Ok(())
-                        }
-                    }
-                    None => Ok(()),
-                },
-            }
-        }
-
-        fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
-            match value.downcast_ref::<T>() {
-                Some(value) => self.target.with(|t| t.as_ref() == Some(value)),
-                None => match value.downcast_ref::<Option<T>>() {
-                    Some(value) => self.target.with(|t| t == value),
-                    None => false,
-                },
-            }
         }
     }
 }

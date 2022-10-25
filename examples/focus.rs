@@ -406,7 +406,7 @@ mod inspect {
 
     pub fn focus(services: &mut Services, path: &Option<InteractionPath>) -> String {
         todo!()
-        /* 
+        /*
         path.as_ref()
         .map(|p| {
                 let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
@@ -456,7 +456,7 @@ mod inspect {
             })
             .unwrap_or_else(|| "<none>".to_owned())
             */
-        }
+    }
 }
 
 #[cfg(not(debug_assertions))]

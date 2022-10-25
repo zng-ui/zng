@@ -71,7 +71,7 @@ fn example(vars: &Vars) -> impl UiNode {
             h_stack! {
                 id = "mod-menu";
                 spacing = 2;
-                toggle::selection = toggle::properties::SelectorInstance::new(toggle::SingleSel::new(easing_mod.clone()));
+                toggle::selection = toggle::Selector::single(easing_mod.clone());
                 children = {
                     let mode = |m: easing::EasingModifierFn| toggle! {
                         child = text(m.to_text());
@@ -182,13 +182,16 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 let y_fct = easing(EasingTime::new(x_fct));
                 let y = size.1 * (1.fct() - y_fct);
 
-                children.push(blank! {
-                    offset = (x, y);
-                    size = (3, 3);
-                    corner_radius = 2;
-                    translate = -1.5, -1.5;
-                    background_color = color_t.sample(y_fct);
-                }.boxed())
+                children.push(
+                    blank! {
+                        offset = (x, y);
+                        size = (3, 3);
+                        corner_radius = 2;
+                        translate = -1.5, -1.5;
+                        background_color = color_t.sample(y_fct);
+                    }
+                    .boxed(),
+                )
             }
 
             zero_ui::core::image::ImageRenderVars::req(&ctx.window_state)
@@ -200,20 +203,26 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
             });
 
             #[allow(clippy::precedence)]
-            children.push(text! {
-                text = "v";
-                font_size = 12;
-                font_style = FontStyle::Italic;
-                color = meta_color.clone();
-                offset = (-3.dip() - 100.pct(), -3.dip());
-            }.boxed());
-            children.push(text! {
-                text = "t";
-                font_size = 12;
-                font_style = FontStyle::Italic;
-                color = meta_color.clone();
-                offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
-            }.boxed());
+            children.push(
+                text! {
+                    text = "v";
+                    font_size = 12;
+                    font_style = FontStyle::Italic;
+                    color = meta_color.clone();
+                    offset = (-3.dip() - 100.pct(), -3.dip());
+                }
+                .boxed(),
+            );
+            children.push(
+                text! {
+                    text = "t";
+                    font_size = 12;
+                    font_style = FontStyle::Italic;
+                    color = meta_color.clone();
+                    offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
+                }
+                .boxed(),
+            );
             z_stack! {
                 children_align = Align::TOP_LEFT;
                 children;
