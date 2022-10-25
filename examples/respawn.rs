@@ -18,11 +18,11 @@ fn main() {
                 }
             });
             foreground = window_status(ctx);
-            content_align = Align::CENTER;
-            content = v_stack! {
+            child_align = Align::CENTER;
+            child = v_stack! {
                 spacing = 5;
-                items_align = Align::TOP;
-                items = ui_list![
+                children_align = Align::TOP;
+                children = ui_list![
                     text(
                         "The renderer and OS windows are created in another process, the `view-process`,\n\
                         it automatically respawns in case of a graphics driver crash or other similar fatal error.\n"
@@ -41,7 +41,7 @@ fn main() {
 
 fn respawn() -> impl UiNode {
     button! {
-        content = text("Respawn (F5)");
+        child = text("Respawn (F5)");
         on_click = hn!(|ctx, _| {
             ViewProcess::req(ctx.services).respawn();
         });
@@ -51,7 +51,7 @@ fn respawn() -> impl UiNode {
 #[cfg(debug_assertions)]
 fn crash_respawn() -> impl UiNode {
     button! {
-        content = text("Crash View-Process");
+        child = text("Crash View-Process");
         on_click = hn!(|ctx, _| {
             ViewProcess::req(ctx.services).crash_view_process();
         });
@@ -68,14 +68,14 @@ fn click_counter() -> impl UiNode {
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(ctx, new_txt);
         });
-        content = text(t);
+        child = text(t);
     }
 }
 
 fn image() -> impl UiNode {
     v_stack! {
         spacing = 3;
-        items = ui_list![
+        children = ui_list![
             strong("Image:"),
             image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
         ];
@@ -98,7 +98,7 @@ fn window_status(ctx: &mut WindowContext) -> impl UiNode {
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         font_family = "monospace";
         opacity = 80.pct();
-        items = ui_list![
+        children = ui_list![
             status!(actual_position),
             status!(actual_size),
             status!(restore_state),
@@ -114,7 +114,7 @@ fn icon() -> impl UiNode {
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;
-        content_align = Align::CENTER;
-        content = text("R");
+        child_align = Align::CENTER;
+        child = text("R");
     }
 }

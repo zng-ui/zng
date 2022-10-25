@@ -36,7 +36,7 @@ fn text_change_all(ctx: &mut WindowContext) -> Window {
         formatx!("loading{:.^dots_count$}", "")
     });
 
-    let mut texts = widget_vec![];
+    let mut texts = ui_list![];
     for _ in 0..2000 {
         texts.push(text! {
             text = msg.clone();
@@ -44,21 +44,21 @@ fn text_change_all(ctx: &mut WindowContext) -> Window {
             when *#is_hovered {
                 color = colors::RED;
             }
-        });
+        }.boxed());
     }
 
     window! {
         title = "stress - text_change_all";
         state = WindowState::Maximized;
-        content = uniform_grid! {
+        child = uniform_grid! {
             columns = 30;
-            items = texts;
+            children = texts;
         };
     }
 }
 
 fn text_change_one(_ctx: &mut WindowContext) -> Window {
-    let mut texts = widget_vec![];
+    let mut texts = ui_list![];
 
     for _ in 0..2000 {
         texts.push(text! {
@@ -70,15 +70,15 @@ fn text_change_one(_ctx: &mut WindowContext) -> Window {
                 text = "HOT";
                 color = colors::RED;
             }
-        });
+        }.boxed());
     }
 
     window! {
         title = "stress - text_change_one";
         state = WindowState::Maximized;
-        content = uniform_grid! {
+        child = uniform_grid! {
             columns = 30;
-            items = texts;
+            children = texts;
         };
     }
 }
@@ -100,7 +100,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
 
     let mut wns = vec![];
     for i in 0..10 {
-        let mut texts = widget_vec![];
+        let mut texts = ui_list![];
         for _ in 0..200 {
             texts.push(text! {
                 text = msg.clone();
@@ -108,7 +108,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
                 when *#is_hovered {
                     color = colors::RED;
                 }
-            });
+            }.boxed());
         }
 
         wns.push(window! {
@@ -120,9 +120,9 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
                     Windows::req(ctx.services).close_all();
                 }
             });
-            content = uniform_grid! {
+            child = uniform_grid! {
                 columns = 6;
-                items = texts;
+                children = texts;
             };
         });
 

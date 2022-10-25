@@ -26,9 +26,9 @@ fn app_main() {
                 color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;
             });
-            content = scroll! {
+            child = scroll! {
                 mode = ScrollMode::VERTICAL;
-                content = icons();
+                child = icons();
             };
             // zero_ui::properties::inspector::show_hit_test = true;
         }
@@ -39,8 +39,8 @@ fn icons() -> impl UiNode {
     let selected_font = var("outlined");
     fn select_font(key: &'static str) -> impl UiNode {
         toggle! {
-            content = text(key);
-            value<&'static str> = key;
+            child = text(key);
+            value::<&'static str> = key;
         }
     }
     fn show_font(icons: Vec<MaterialIcon>) -> impl UiNode {
@@ -51,20 +51,20 @@ fn icons() -> impl UiNode {
             //     println!("INIT: {:?}", start.elapsed());
             // });
             icon::vis::icon_size = 48;
-            items = icons.into_iter()
-                    .map(|i| icon_btn(i).boxed_wgt())
-                    .collect::<WidgetVec>(),
+            children = icons.into_iter()
+                    .map(|i| icon_btn(i).boxed())
+                    .collect::<Vec<_>>(),
         }
     }
     v_stack! {
         padding = (20, 5, 5, 5);
         spacing = 20;
-        items_align = Align::TOP;
-        items = ui_list![
+        children_align = Align::TOP;
+        children = ui_list![
             h_stack! {
-                toggle::selection = toggle::SingleSel::new(selected_font.clone());
+                toggle::selection = toggle::properties::SelectorInstance::new(toggle::SingleSel::new(selected_font.clone()));
                 spacing = 5;
-                items = ui_list![
+                children = ui_list![
                     select_font("filled"),
                     select_font("outlined"),
                     select_font("rounded"),
@@ -91,10 +91,10 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
     button! {
         padding = 2;
         size = (80, 80);
-        content = v_stack! {
+        child = v_stack! {
             spacing = 2;
-            items_align = Align::CENTER;
-            items = ui_list![
+            children_align = Align::CENTER;
+            children = ui_list![
                 icon! {
                     icon = ico.clone();
                 },
@@ -119,26 +119,26 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
         id = "expanded-icon";
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
-        content_align = Align::CENTER;
+        child_align = Align::CENTER;
         on_click = hn!(|ctx, args: &ClickArgs| {
             if ctx.path.widget_id() == args.target.widget_id() {
                 WindowLayers::remove(ctx, "expanded-icon");
                 args.propagation().stop();
             }
         });
-        content = container! {
+        child = container! {
             id = "panel";
             background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
-            content = z_stack(ui_list![
+            child = z_stack(ui_list![
                 v_stack! {
                     spacing = 5;
                     padding = 10;
-                    items_align = Align::TOP_LEFT;
-                    items = ui_list![
+                    children_align = Align::TOP_LEFT;
+                    children = ui_list![
                         title(formatx!("{ico}")),
                         text! {
                             text = ico.name;
@@ -148,11 +148,11 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                         sub_title("Using `icon!`:"),
                         h_stack! {
                             spacing = 5;
-                            items_align = Align::TOP_LEFT;
-                            items = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
+                            children_align = Align::TOP_LEFT;
+                            children = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
                                 v_stack! {
                                     spacing = 3;
-                                    items = ui_list![
+                                    children = ui_list![
                                         size_label(formatx!("{size}")),
                                         icon! {
                                             icon = ico.clone();
@@ -166,18 +166,18 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                                             padding = 2;
                                         }
                                     ]
-                                }.boxed_wgt()
-                            })).collect::<WidgetVec>()
+                                }.boxed()
+                            })).collect::<Vec<_>>()
                         },
 
                         sub_title("Using `text!`:"),
                         h_stack! {
                             spacing = 5;
-                            items_align = Align::TOP_LEFT;
-                            items = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
+                            children_align = Align::TOP_LEFT;
+                            children = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
                                 v_stack! {
                                     spacing = 3;
-                                    items = ui_list![
+                                    children = ui_list![
                                         size_label(formatx!("{size}")),
                                         text! {
                                             text = ico.code;
@@ -192,15 +192,15 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                                             padding = 2;
                                         }
                                     ]
-                                }.boxed_wgt()
-                            })).collect::<WidgetVec>()
+                                }.boxed()
+                            })).collect::<Vec<_>>()
                         }
                     ]
                 },
                 button! {
                     id = "close-btn";
                     icon::vis::icon_size = 14;
-                    content = icon(icons::filled::CLOSE);
+                    child = icon(icons::filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;

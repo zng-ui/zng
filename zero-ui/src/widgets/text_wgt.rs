@@ -31,7 +31,7 @@ pub mod text {
         /// The [`Text`](crate::core::types::Text) value.
         ///
         /// Set to an empty string (`""`) by default.
-        pub text(impl IntoVar<Text>) = "";
+        pub text_property as text;
 
         /// Spacing in between the text and background edges or border.
         pub properties::text_padding as padding;
@@ -151,6 +151,14 @@ pub mod text {
             wgt.push_intrinsic(Priority::Event, |child| nodes::resolve_text(child, text));
         });
     }
+
+    #[doc(hidden)]
+    #[property(context, capture, default(""))]
+    pub fn text_property(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
+        child
+    }
+    #[doc(hidden)]
+    pub use text_property::*;
 }
 
 /// Simple text run.

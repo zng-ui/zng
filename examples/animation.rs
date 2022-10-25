@@ -20,8 +20,8 @@ fn app_main() {
         window! {
             title = "Animation Example";
             padding = 10;
-            content_align = Align::CENTER;
-            content = example(ctx.vars);
+            child_align = Align::CENTER;
+            child = example(ctx.vars);
         }
     })
 }
@@ -47,15 +47,15 @@ fn example(vars: &Vars) -> impl UiNode {
 
     v_stack! {
         spacing = 10;
-        items_align = Align::TOP;
-        items = ui_list![
+        children_align = Align::TOP;
+        children = ui_list![
             container! {
                 id = "demo";
                 width = 301;
                 background = ruler();
                 margin = (0, 0, 40, 0);
-                content_align = Align::LEFT;
-                content = blank! {
+                child_align = Align::LEFT;
+                child = blank! {
                     id = "ball";
                     size = (40, 40);
                     corner_radius = 20;
@@ -71,10 +71,10 @@ fn example(vars: &Vars) -> impl UiNode {
             h_stack! {
                 id = "mod-menu";
                 spacing = 2;
-                toggle::selection = toggle::SingleSel::new(easing_mod.clone());
-                items = {
+                toggle::selection = toggle::properties::SelectorInstance::new(toggle::SingleSel::new(easing_mod.clone()));
+                children = {
                     let mode = |m: easing::EasingModifierFn| toggle! {
-                        content = text(m.to_text());
+                        child = text(m.to_text());
                         value = m;
                     };
                     ui_list![
@@ -92,7 +92,7 @@ fn example(vars: &Vars) -> impl UiNode {
                 button::vis::extend_style = style_generator!(|_, _| style! {
                     padding = 3;
                 });
-                items = ui_list![
+                children = ui_list![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
                     ease_btn(&x, &color, "cubic", easing::cubic, &easing_mod),
@@ -110,7 +110,7 @@ fn example(vars: &Vars) -> impl UiNode {
                 ]
             },
             button! {
-                content = text("reset");
+                child = text("reset");
                 foreground_highlight = {
                     offsets: -2,
                     widths: 1,
@@ -141,10 +141,10 @@ fn ease_btn(
     use easing::EasingModifierFn::*;
 
     button! {
-        content = v_stack! {
+        child = v_stack! {
             spacing = 2;
-            items_align = Align::TOP;
-            items = ui_list![
+            children_align = Align::TOP;
+            children = ui_list![
                 text(name.into()),
                 image! {
                     scale_ppi = true;
@@ -172,7 +172,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     ImageSource::render_node(
         RenderMode::Software,
         clone_move!(size, |ctx, _| {
-            let mut items = widget_vec![];
+            let mut children = ui_list![];
             let color_t = animation::Transition::new(FROM_COLOR, TO_COLOR);
             let fps_f = FPS as f32;
             for i in 0..=FPS {
@@ -182,13 +182,13 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 let y_fct = easing(EasingTime::new(x_fct));
                 let y = size.1 * (1.fct() - y_fct);
 
-                items.push(blank! {
+                children.push(blank! {
                     offset = (x, y);
                     size = (3, 3);
                     corner_radius = 2;
                     translate = -1.5, -1.5;
                     background_color = color_t.sample(y_fct);
-                })
+                }.boxed())
             }
 
             zero_ui::core::image::ImageRenderVars::req(&ctx.window_state)
@@ -200,23 +200,23 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
             });
 
             #[allow(clippy::precedence)]
-            items.push(text! {
+            children.push(text! {
                 text = "v";
                 font_size = 12;
                 font_style = FontStyle::Italic;
                 color = meta_color.clone();
                 offset = (-3.dip() - 100.pct(), -3.dip());
-            });
-            items.push(text! {
+            }.boxed());
+            children.push(text! {
                 text = "t";
                 font_size = 12;
                 font_style = FontStyle::Italic;
                 color = meta_color.clone();
                 offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
-            });
+            }.boxed());
             z_stack! {
-                items_align = Align::TOP_LEFT;
-                items;
+                children_align = Align::TOP_LEFT;
+                children;
                 size;
                 border = (0, 0, 1, 1), meta_color.map_into();
                 margin = 10;
@@ -227,15 +227,15 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
 
 fn ruler() -> impl UiNode {
     z_stack! {
-        items_align = Align::LEFT;
-        items = (0..=300).step_by(10)
+        children_align = Align::LEFT;
+        children = (0..=300).step_by(10)
             .map(|x| rule_line! {
                 orientation = LineOrientation::Vertical;
                 color = TEXT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
                 x = x.dip();
                 height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
             }
-            .boxed_wgt())
-            .collect::<WidgetVec>(),
+            .boxed())
+            .collect::<Vec<_>>(),
     }
 }

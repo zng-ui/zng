@@ -926,7 +926,10 @@ pub mod prelude {
         },
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility, WidgetPath},
-        widget_instance::{ui_list, z_index, FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, UiNodeListChain, WidgetId, ZIndex},
+        widget_instance::{
+            ui_list, z_index, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList,
+            UiNodeListChain, WidgetId, ZIndex,
+        },
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, Window,
             WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVars,
@@ -1095,7 +1098,7 @@ pub mod prelude {
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
             },
             widget_instance::{
-                ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList,
+                ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, SortingList,
                 SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, ZIndex, ZSortingList,
             },
             widget_mixin,

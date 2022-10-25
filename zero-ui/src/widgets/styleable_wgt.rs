@@ -173,7 +173,7 @@ pub mod style_mixin {
                 builder.extend(style.into_builder());
                 self.child = Some(builder.default_build());
             } else {
-                self.child = Some(self.builder.default_build());
+                self.child = Some(self.builder.clone().default_build());
             }
             self.child.init(ctx);
         }

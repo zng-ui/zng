@@ -19,10 +19,10 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Button Example";
-            content = v_stack! {
+            child = v_stack! {
                 align = Align::CENTER;
                 spacing = 5;
-                items = ui_list![
+                children = ui_list![
                     example(),
                     example(),
                     disabled(),
@@ -49,7 +49,7 @@ fn example() -> impl UiNode {
         on_double_click = hn!(|_, _| println!("double click!"));
         on_triple_click = hn!(|_, _| println!("triple click!"));
         on_context_click = hn!(|_, _| println!("context click!"));
-        content = text(t);
+        child = text(t);
     }
 }
 
@@ -57,7 +57,7 @@ fn disabled() -> impl UiNode {
     button! {
         on_click = hn!(|_, _| panic!("disabled button"));
         enabled = false;
-        content = text("Disabled");
+        child = text("Disabled");
         id = "disabled-btn"
     }
 }
@@ -66,9 +66,9 @@ fn image_button() -> impl UiNode {
     button! {
         id = "img-btn";
         on_click = hn!(|_, _| println!("Clicked image button"));
-        content = h_stack! {
-            items_align = Align::CENTER;
-            items = ui_list![
+        child = h_stack! {
+            children_align = Align::CENTER;
+            children = ui_list![
                 image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
                 text("Click Me!")
             ];
@@ -78,20 +78,20 @@ fn image_button() -> impl UiNode {
 }
 
 fn dyn_buttons() -> impl UiNode {
-    let dyn_items = widget_vec![separator()];
-    let items_ref = dyn_items.reference();
+    let dyn_children = EditableUiNodeList::from_vec(ui_list![separator()]);
+    let children_ref = dyn_children.reference();
     let mut btn = 'A';
 
     v_stack! {
         spacing = 5;
-        items = dyn_items.chain(ui_list![
+        children = dyn_children.chain(ui_list![
             button! {
-                content = text("Add Button");
+                child = text("Add Button");
                 on_click = hn!(|ctx, _| {
-                    items_ref.push(ctx, button! {
-                        content = text(formatx!("Remove {}", btn));
-                        on_click = hn!(items_ref, |ctx, _| {
-                            items_ref.remove(ctx.updates, ctx.path.widget_id());
+                    children_ref.push(ctx, button! {
+                        child = text(formatx!("Remove {}", btn));
+                        on_click = hn!(children_ref, |ctx, _| {
+                            children_ref.remove(ctx.updates, ctx.path.widget_id());
                         })
                     });
 
@@ -110,33 +110,33 @@ fn separator() -> impl UiNode {
     hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
-        style = LineStyle::Dashed;
+        line_style = LineStyle::Dashed;
     }
 }
 
 fn toggle_buttons() -> impl UiNode {
     v_stack! {
         spacing = 5;
-        items = ui_list![
+        children = ui_list![
             toggle! {
-                content = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
+                child = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
                 checked = var(false);
             },
             toggle! {
-                content = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
+                child = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(None);
             },
             toggle! {
-                content = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
+                child = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(Some(false));
                 tristate = true;
             },
             checkbox! {
-                content = text("Checkbox");
+                child = text("Checkbox");
                 checked = var(false);
             },
             checkbox! {
-                content = text("Checkbox Tristate");
+                child = text("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
             },

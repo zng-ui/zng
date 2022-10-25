@@ -26,34 +26,34 @@ fn app_main() {
 
             color_scheme = ColorScheme::Dark;
 
-            content = v_stack! {
+            child = v_stack! {
                 align = Align::CENTER;
                 spacing = 20;
-                items = ui_list![
+                children = ui_list![
                     widgets::mr_borders! {
                         border_align = 0.pct();
-                        content = text("border_align = 0.pct();");
+                        child = text("border_align = 0.pct();");
                     },
                     widgets::mr_borders! {
                         border_align = (1.0 / 3.0).fct();
-                        content = text("border_align = (1.0 / 3.0).fct();");
+                        child = text("border_align = (1.0 / 3.0).fct();");
                     },
                     widgets::mr_borders! {
                         border_align = 50.pct();
-                        content = text("border_align = 50.pct();");
+                        child = text("border_align = 50.pct();");
                     },
                     widgets::mr_borders! {
                         border_align = 100.pct();
-                        content = text("border_align = 100.pct();");
+                        child = text("border_align = 100.pct();");
                     },
                     clip_to_bounds_demo(),
                     widgets::mr_borders! {
                         border_align = 100.pct();
-                        content = widgets::mr_borders! {
+                        child = widgets::mr_borders! {
                             border_align = 100.pct();
-                            content = widgets::mr_borders! {
+                            child = widgets::mr_borders! {
                                 border_align = 100.pct();
-                                content = text("Nested");
+                                child = text("Nested");
                             },
                         },
                     },
@@ -66,14 +66,14 @@ fn app_main() {
 fn clip_to_bounds_demo() -> impl UiNode {
     let clip = var(true);
     container! {
-        content_align = Align::FILL;
+        child_align = Align::FILL;
         corner_radius = 10;
         border = 0.5, colors::RED.darken(20.pct());
         clip_to_bounds = clip.clone();
         on_click = hn!(clip, |ctx, _| {
             clip.modify(ctx, |c| *c.get_mut() = !*c.get())
         });
-        content = text! {
+        child = text! {
             corner_radius = 0;
             background_color = colors::GREEN.darken(40.pct());
             padding = 3;
@@ -96,7 +96,7 @@ mod widgets {
         properties! {
             padding = 20;
 
-            content_align = Align::CENTER;
+            child_align = Align::CENTER;
 
             background_color = colors::GREEN.darken(40.pct());
 

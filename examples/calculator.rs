@@ -28,9 +28,9 @@ fn app_main() {
             resizable = false;
             auto_size = true;
             padding = 5;
-            content = v_stack! {
+            child = v_stack! {
                 spacing = 5;
-                items = ui_list![
+                children = ui_list![
                     text! {
                         text = calc.map_ref(|c| c.text());
                         align = Align::RIGHT;
@@ -59,7 +59,7 @@ fn controls(calc: RcVar<Calculator>) -> impl UiNode {
         spacing = 2;
         columns = 4;
         font_size = 14.pt();
-        items = ui_list![
+        children = ui_list![
             b_squre,  b_sroot,  b_clear,  b_back,
             bn('7'),  bn('8'),  bn('9'),  bn('/'),
             bn('4'),  bn('5'),  bn('6'),  bn('*'),
@@ -72,14 +72,14 @@ fn controls(calc: RcVar<Calculator>) -> impl UiNode {
 fn btn_square(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square()));
-        content = text("x²");
+        child = text("x²");
     }
 }
 
 fn btn_square_root(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square_root()));
-        content = text("√x");
+        child = text("√x");
     }
 }
 
@@ -87,7 +87,7 @@ fn btn_clear(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().clear()));
         click_shortcut = shortcut!(Escape);
-        content = text("C");
+        child = text("C");
     }
 }
 
@@ -95,7 +95,7 @@ fn btn_backspace(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
-        content = text("⌫");
+        child = text("⌫");
     }
 }
 
@@ -109,7 +109,7 @@ fn btn(calc: RcVar<Calculator>, c: char) -> impl UiNode {
             assert!(!shortcuts.0.is_empty());
             shortcuts
         };
-        content = text(c.to_string());
+        child = text(c.to_string());
     }
 }
 
@@ -117,7 +117,7 @@ fn btn_eval(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
-        content = text("=");
+        child = text("=");
     }
 }
 

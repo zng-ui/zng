@@ -23,21 +23,21 @@ fn app_main() {
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             font_size = fs.easing(150.ms(), easing::linear);
-            content = z_stack(ui_list![
+            child = z_stack(ui_list![
                 h_stack! {
                     align = Align::CENTER;
                     spacing = 40;
-                    items = ui_list![
+                    children = ui_list![
                         v_stack! {
                             spacing = 20;
-                            items = ui_list![
+                            children = ui_list![
                                 basic(),
                                 defaults(ctx),
                             ];
                         },
                         v_stack! {
                             spacing = 20;
-                            items = ui_list![
+                            children = ui_list![
                                 line_height(),
                                 line_spacing(),
                                 word_spacing(),
@@ -46,7 +46,7 @@ fn app_main() {
                         },
                         v_stack! {
                             spacing = 20;
-                            items = ui_list![
+                            children = ui_list![
                                 decoration_lines(),
                             ]
                         }
@@ -55,7 +55,7 @@ fn app_main() {
                 container! {
                     align = Align::TOP;
                     margin = 10;
-                    content = font_size(fs);
+                    child = font_size(fs);
                 },
             ])
         }
@@ -76,9 +76,9 @@ fn font_size(font_size: RcVar<Length>) -> impl UiNode {
         corner_radius = 4;
         background_color = color_scheme_map(rgba(0, 0, 0, 40.pct()), rgba(1., 1., 1., 40.pct()));
         padding = 4;
-        items = ui_list![
+        children = ui_list![
             button! {
-                content = text("-");
+                child = text("-");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
@@ -90,7 +90,7 @@ fn font_size(font_size: RcVar<Length>) -> impl UiNode {
                 text = font_size.map(|s| formatx!("{s}"));
             },
             button! {
-                content = text("+");
+                child = text("+");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
@@ -144,7 +144,7 @@ fn line_spacing() -> impl UiNode {
     section(
         "line_spacing",
         ui_list![container! {
-            content = text! {
+            child = text! {
                 text = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
@@ -152,7 +152,7 @@ fn line_spacing() -> impl UiNode {
                     line_spacing = 30.pct();
                 }
             };
-            content_align = Align::TOP;
+            child_align = Align::TOP;
             min_height = 1.7.em() * 3.fct();
         }],
     )
@@ -260,8 +260,8 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
         );
 
         h_stack! {
-            items_align = Align::BASELINE_LEFT;
-            items = ui_list![
+            children_align = Align::BASELINE_LEFT;
+            children = ui_list![
                 text(if title.is_empty() {
                     formatx!("{font_family}: ")
                 } else {
@@ -293,7 +293,7 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
 fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
-        items = ui_list![text! {
+        children = ui_list![text! {
             text = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

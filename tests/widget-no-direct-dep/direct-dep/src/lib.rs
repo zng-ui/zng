@@ -1,7 +1,9 @@
-use zero_ui_renamed::core::{widget, Widget};
+use zero_ui_renamed::core::{widget, widget_base, widget_instance::UiNode};
 
 #[widget($crate::test_widget)]
-pub mod test_widget {}
+pub mod test_widget {
+    inherit!(super::widget_base::base);
+}
 
 /// Test util.
 ///

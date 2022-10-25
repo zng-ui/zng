@@ -40,7 +40,7 @@ fn app_main() {
             "Image Example",
             h_stack! {
                 spacing = 30;
-                items = ui_list![
+                children = ui_list![
                     section(
                         "Sources",
                         ui_list![
@@ -49,7 +49,7 @@ fn app_main() {
                                 columns = 4;
                                 spacing = 2;
                                 align = Align::CENTER;
-                                items = ui_list![
+                                children = ui_list![
                                     image("examples/res/image/Luma8.png"),
                                     image("examples/res/image/Luma16.png"),
                                     image("examples/res/image/LumaA8.png"),
@@ -79,8 +79,8 @@ fn app_main() {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     font_size = 24;
-                                    content_align = Align::CENTER;
-                                    content = text("Rendered!");
+                                    child_align = Align::CENTER;
+                                    child = text("Rendered!");
                                 })
                             }
                         ]
@@ -116,7 +116,7 @@ fn app_main() {
 
                     v_stack! {
                         spacing = 30;
-                        items = ui_list![
+                        children = ui_list![
                             section(
                                 "Errors",
 
@@ -152,10 +152,10 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
     let fit = fit.into_var();
 
     v_stack! {
-        items_align = Align::TOP_LEFT;
+        children_align = Align::TOP_LEFT;
         spacing = 5;
 
-        items = ui_list![
+        children = ui_list![
             sub_title(fit.map_debug()),
             image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
@@ -170,10 +170,10 @@ fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
     let filter = filter.into_var();
 
     v_stack! {
-        items_align = Align::TOP_LEFT;
+        children_align = Align::TOP_LEFT;
         spacing = 2;
 
-        items = ui_list![
+        children = ui_list![
             sub_title(filter.map(|f| {
                 let s = format!("{f:?}");
                 if s.starts_with("color_matrix") {
@@ -197,9 +197,9 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
 
     v_stack! {
         align = Align::CENTER;
-        items = ui_list![
+        children = ui_list![
             button! {
-                content = text(label.clone());
+                child = text(label.clone());
                 align = Align::CENTER;
                 padding = (2, 3);
                 on_click = hn!(timer, |ctx, _| {
@@ -234,7 +234,7 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
 
 fn large_image() -> impl UiNode {
     button! {
-        content = text("Large Image (205MB download)");
+        child = text("Large Image (205MB download)");
         on_click = hn!(|ctx, _| {
             Windows::req(ctx.services).open(|_|img_window(
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
@@ -253,13 +253,13 @@ fn large_image() -> impl UiNode {
 
 fn panorama_image() -> impl UiNode {
     button! {
-        content = text("Panorama Image (100MB download)");
+        child = text("Panorama Image (100MB download)");
         on_click = hn!(|ctx, _| {
             Windows::req(ctx.services).open(|_|img_window(
                 "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
                 scroll! {
                     mode = ScrollMode::HORIZONTAL;
-                    content = image! {
+                    child = image! {
                         fit = ImageFit::Fill;
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
                         limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
@@ -276,7 +276,7 @@ fn panorama_image() -> impl UiNode {
 fn block_window_load_image() -> impl UiNode {
     let enabled = var(true);
     button! {
-        content = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
+        child = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
         enabled = enabled.clone();
         on_click = hn!(|ctx, _| {
             enabled.set(ctx, false);
@@ -284,8 +284,8 @@ fn block_window_load_image() -> impl UiNode {
                 title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
                 state = WindowState::Normal;
 
-                content = scroll! {
-                    content = image! {
+                child = scroll! {
+                    child = image! {
 
                         // block window load until the image is ready to present or 5 minutes have elapsed.
                         // usually you want to set a shorter deadline, `true` converts to 1 second.
@@ -330,9 +330,9 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         y = zero_ui::widgets::scroll::SCROLL_VERTICAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vh() * fct);
         zero_ui::core::widget_base::can_auto_hide = false;
         max_size = (1.vw(), 1.vh());
-        content_align = Align::CENTER;
+        child_align = Align::CENTER;
 
-        content = msg;
+        child = msg;
     }
 }
 
@@ -343,7 +343,7 @@ pub mod img_window {
     inherit!(zero_ui::widgets::window);
 
     properties! {
-        content_align = Align::CENTER;
+        child_align = Align::CENTER;
 
         // render_mode = RenderMode::Software;
 
@@ -406,22 +406,22 @@ pub mod img_window {
         colors::RED
     }
 }
-fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
-    img_window!(title; content)
+fn img_window(title: impl IntoVar<Text>, child: impl UiNode) -> Window {
+    img_window!(title; child)
 }
 
-fn section(title: impl IntoVar<Text>, items: impl UiNodeList) -> impl UiNode {
+fn section(title: impl IntoVar<Text>, children: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
-        items_align = Align::TOP_LEFT;
+        children_align = Align::TOP_LEFT;
 
-        items = ui_list![
+        children = ui_list![
             self::title(title),
             v_stack! {
                 spacing = 5;
-                items_align = Align::TOP_LEFT;
+                children_align = Align::TOP_LEFT;
 
-                items;
+                children;
             }
         ]
     }

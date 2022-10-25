@@ -28,19 +28,22 @@ pub mod scrollbar {
         pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
     }
 
-    fn new_child(thumb: impl UiNode) -> impl UiNode {
-        thumb
-    }
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let thumb = wgt.capture_ui_node_or_else(property_id!(self.thumb), || NilUiNode);
+            wgt.set_child(thumb);
 
-    fn new_layout(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {
-        let orientation = orientation.into_var();
-        align(
-            child,
-            orientation.map(|o| match o {
-                Orientation::Vertical => Align::FILL_RIGHT,
-                Orientation::Horizontal => Align::FILL_BOTTOM,
-            }),
-        )
+            let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || Orientation::Vertical);
+            wgt.push_intrinsic(Priority::Layout, move |child| {
+                align(
+                    child,
+                    orientation.map(|o| match o {
+                        Orientation::Vertical => Align::FILL_RIGHT,
+                        Orientation::Horizontal => Align::FILL_BOTTOM,
+                    }),
+                )
+            });
+        });
     }
 
     /// Style variables and properties.
@@ -105,24 +108,37 @@ pub mod thumb {
         }
     }
 
-    fn new_size(child: impl UiNode, cross_length: impl IntoVar<Length>) -> impl UiNode {
-        size(
-            child,
-            merge_var!(
-                THUMB_ORIENTATION_VAR,
-                THUMB_VIEWPORT_RATIO_VAR,
-                cross_length.into_var(),
-                |o, r, l| {
+    fn include(wgt: &mut WidgetBuilder) {
+        wgt.push_build_action(on_build);
+    }
+    fn on_build(wgt: &mut WidgetBuilding) {
+        let cross_length = wgt.capture_var_or_default::<Length>(property_id!(self.cross_length));
+        wgt.push_intrinsic(Priority::Size, move |child| {
+            size(
+                child,
+                merge_var!(THUMB_ORIENTATION_VAR, THUMB_VIEWPORT_RATIO_VAR, cross_length, |o, r, l| {
                     match o {
                         scrollbar::Orientation::Vertical => Size::new(l.clone(), *r),
                         scrollbar::Orientation::Horizontal => Size::new(*r, l.clone()),
                     }
-                }
-            ),
-        )
+                }),
+            )
+        });
+
+        wgt.push_intrinsic(Priority::Layout, thumb_layout);
+
+        let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || scrollbar::Orientation::Vertical);
+        let viewport_ratio = wgt.capture_var_or_else(property_id!(self.viewport_ratio), || 1.fct());
+        let offset = wgt.capture_var_or_else(property_id!(self.offset), || 0.fct());
+
+        wgt.push_intrinsic(Priority::Context, move |child| {
+            let child = with_context_var(child, THUMB_ORIENTATION_VAR, orientation);
+            let child = with_context_var(child, THUMB_VIEWPORT_RATIO_VAR, viewport_ratio);
+            with_context_var(child, THUMB_OFFSET_VAR, offset)
+        });
     }
 
-    fn new_layout(child: impl UiNode) -> impl UiNode {
+    fn thumb_layout(child: impl UiNode) -> impl UiNode {
         #[ui_node(struct DragNode {
             child: impl UiNode,
             content_length: Px,
@@ -224,17 +240,6 @@ pub mod thumb {
 
             mouse_down: None,
         }
-    }
-
-    fn new_context(
-        child: impl UiNode,
-        orientation: impl IntoVar<scrollbar::Orientation>,
-        viewport_ratio: impl IntoVar<Factor>,
-        offset: impl IntoVar<Factor>,
-    ) -> impl UiNode {
-        let child = with_context_var(child, THUMB_ORIENTATION_VAR, orientation);
-        let child = with_context_var(child, THUMB_VIEWPORT_RATIO_VAR, viewport_ratio);
-        with_context_var(child, THUMB_OFFSET_VAR, offset)
     }
 
     context_var! {

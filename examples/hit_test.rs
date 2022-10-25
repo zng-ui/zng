@@ -9,10 +9,10 @@ fn main() {
         window! {
             title = "Hit-Test Example";
 
-            content_align = Align::CENTER;
-            content = h_stack! {
+            child_align = Align::CENTER;
+            child = h_stack! {
                 spacing = 14;
-                items = ui_list![
+                children = ui_list![
                     example(HitTestMode::Visual),
                     example(HitTestMode::RoundedBounds),
                     example(HitTestMode::Bounds),
@@ -30,7 +30,7 @@ fn example(mode: HitTestMode) -> impl UiNode {
             println!("Clicked {:?}", mode);
         });
 
-        content = text(formatx!("{:#?}", mode));
+        child = text(formatx!("{:#?}", mode));
         padding = 40;
         corner_radius = 40;
         // background_color = colors::GRAY;

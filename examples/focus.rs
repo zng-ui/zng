@@ -27,14 +27,14 @@ fn app_main() {
             title = "Focus Example";
             enabled = window_enabled.clone();
             background = commands();
-            content = v_stack! {
-                items = ui_list![
+            child = v_stack! {
+                children = ui_list![
                     alt_scope(),
                     h_stack! {
                         margin = (50, 0, 0, 0);
                         align = Align::CENTER;
                         spacing = 10;
-                        items = ui_list![
+                        children = ui_list![
                             tab_index(),
                             functions(window_enabled),
                             delayed_focus(),
@@ -57,7 +57,7 @@ fn alt_scope() -> impl UiNode {
             border = unset!;
             corner_radius = unset!;
         });
-        items = ui_list![
+        children = ui_list![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),
         ];
@@ -68,7 +68,7 @@ fn tab_index() -> impl UiNode {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(T);
-        items = ui_list![
+        children = ui_list![
             title("TabIndex (T)"),
             button("Button A5", 5),
             button("Button A4", 3),
@@ -83,21 +83,21 @@ fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(F);
-        items = ui_list![
+        children = ui_list![
             title("Functions (F)"),
             // New Window
             button! {
-                content = text("New Window");
+                child = text("New Window");
                 on_click = hn!(|ctx, _| {
                     Windows::req(ctx.services).open(|ctx| {
                         let _ = ctx.window_id.set_name("other");
                         window! {
                             title = "Other Window";
                             focus_shortcut = shortcut!(W);
-                            content = v_stack! {
+                            child = v_stack! {
                                 align = Align::CENTER;
                                 spacing = 5;
-                                items = ui_list![
+                                children = ui_list![
                                     title("Other Window (W)"),
                                     button("Button B5", 5),
                                     button("Button B4", 3),
@@ -114,15 +114,15 @@ fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
             {
                 let detach_focused = RcNode::new_cyclic(|wk| {
                     let btn = button! {
-                        content = text("Detach Button");
+                        child = text("Detach Button");
                         // focus_on_init = true;
                         on_click = hn!(|ctx, _| {
                             let wwk = wk.clone();
                             Windows::req(ctx.services).open(move |_| {
                                 window! {
                                     title = "Detached Button";
-                                    content_align = Align::CENTER;
-                                    content = wwk.upgrade().unwrap().take_when(true);
+                                    child_align = Align::CENTER;
+                                    child = wwk.upgrade().unwrap().take_when(true);
                                 }
                             });
                         });
@@ -135,7 +135,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
             disable_window(window_enabled.clone()),
             // Overlay Scope
             button! {
-                content = text("Overlay Scope");
+                child = text("Overlay Scope");
                 on_click = hn!(|ctx, _| {
                     WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
@@ -146,7 +146,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
 }
 fn disable_window(window_enabled: RcVar<bool>) -> impl UiNode {
     button! {
-        content = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
+        child = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
         on_click = async_hn!(window_enabled, |ctx, _| {
             window_enabled.set(&ctx, false);
@@ -159,27 +159,27 @@ fn overlay(window_enabled: RcVar<bool>) -> impl UiNode {
     container! {
         id = "overlay";
         modal = true;
-        content_align = Align::CENTER;
-        content = container! {
+        child_align = Align::CENTER;
+        child = container! {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
-            content = v_stack! {
-                items_align = Align::RIGHT;
-                items = ui_list![
+            child = v_stack! {
+                children_align = Align::RIGHT;
+                children = ui_list![
                     text! {
                         text = "Window scope is disabled so the overlay scope is the root scope.";
                         margin = 15;
                     },
                     h_stack! {
                         spacing = 2;
-                        items = ui_list![
+                        children = ui_list![
                         disable_window(window_enabled),
                         button! {
-                                content = text("Close");
+                                child = text("Close");
                                 on_click = hn!(|ctx, _| {
                                     WindowLayers::remove(ctx, "overlay");
                                 })
@@ -196,7 +196,7 @@ fn delayed_focus() -> impl UiNode {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(D);
-        items = ui_list![
+        children = ui_list![
             title("Delayed 4s (D)"),
 
             delayed_btn("Force Focus", |ctx| {
@@ -246,7 +246,7 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
     let on_timeout = std::rc::Rc::new(std::cell::RefCell::new(Box::new(on_timeout)));
     let enabled = var(true);
     button! {
-        content = text(content.into());
+        child = text(content.into());
         on_click = async_hn!(enabled, on_timeout, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(4.secs()).await;
@@ -268,7 +268,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl UiNo
     let content = content.into();
     let tab_index = tab_index.into();
     button! {
-        content = text(content.clone());
+        child = text(content.clone());
         tab_index;
         on_click = hn!(|_, _| {
             println!("Clicked {content} {tab_index:?}")
@@ -295,20 +295,20 @@ fn commands() -> impl UiNode {
         align = Align::BOTTOM_RIGHT;
         padding = 10;
         spacing = 8;
-        items_align = Align::RIGHT;
+        children_align = Align::RIGHT;
 
         font_family = FontName::monospace();
         text_color = colors::GRAY;
 
-        items = cmds.into_iter().map(|cmd| {
+        children = cmds.into_iter().map(|cmd| {
             text! {
                 text = cmd.name_with_shortcut();
 
                 when *#{cmd.is_enabled()} {
                     color = color_scheme_map(colors::WHITE, colors::BLACK);
                 }
-            }.boxed_wgt()
-        }).collect::<WidgetVec>();
+            }.boxed()
+        }).collect::<Vec<_>>();
     }
 }
 
@@ -334,7 +334,7 @@ fn trace_focus() {
 
 fn nested_focusables() -> impl UiNode {
     button! {
-        content = text("Nested Focusables");
+        child = text("Nested Focusables");
 
         on_click = hn!(|ctx, args: &ClickArgs| {
             args.propagation().stop();
@@ -346,10 +346,10 @@ fn nested_focusables() -> impl UiNode {
                     background_color = colors::DIM_GRAY;
 
                     // zero_ui::properties::inspector::show_center_points = true;
-                    content_align = Align::CENTER;
-                    content = v_stack! {
+                    child_align = Align::CENTER;
+                    child = v_stack! {
                         spacing = 10;
-                        items = ui_list![
+                        children = ui_list![
                             nested_focusables_group('a'),
                             nested_focusables_group('b'),
                         ];
@@ -363,7 +363,7 @@ fn nested_focusables_group(g: char) -> impl UiNode {
     h_stack! {
         align = Align::TOP;
         spacing = 10;
-        items = (0..5).map(|n| nested_focusable(g, n, 0).boxed_wgt()).collect::<WidgetVec>()
+        children = (0..5).map(|n| nested_focusable(g, n, 0).boxed()).collect::<Vec<_>>()
     }
 }
 fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
@@ -375,10 +375,10 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
         id = formatx!("focusable-{g}-{column}-{row}");
         padding = 2;
 
-        items = if row == 5 {
-            widget_vec![nested]
+        children = if row == 5 {
+            ui_list![nested]
         } else {
-            widget_vec![
+            ui_list![
                 nested,
                 nested_focusable(g, column, row + 1),
             ]
@@ -402,11 +402,13 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
 mod inspect {
     use super::*;
     use zero_ui::core::focus::WidgetInfoFocusExt;
-    use zero_ui::core::inspector::WidgetInfoInspectorExt;
+    // use zero_ui::core::inspector::WidgetInfoInspectorExt;
 
     pub fn focus(services: &mut Services, path: &Option<InteractionPath>) -> String {
+        todo!()
+        /* 
         path.as_ref()
-            .map(|p| {
+        .map(|p| {
                 let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
                     w
                 } else {
@@ -453,7 +455,8 @@ mod inspect {
                 }
             })
             .unwrap_or_else(|| "<none>".to_owned())
-    }
+            */
+        }
 }
 
 #[cfg(not(debug_assertions))]

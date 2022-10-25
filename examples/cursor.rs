@@ -14,9 +14,9 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|_| {
-        let mut demos = widget_vec![];
+        let mut demos = ui_list![];
         for icon in CURSORS {
-            demos.push(cursor_demo(Some(*icon)));
+            demos.push(cursor_demo(Some(*icon)).boxed());
         }
 
         window! {
@@ -24,10 +24,10 @@ fn app_main() {
             resizable = false;
             auto_size = true;
             padding = 20;
-            content = v_stack(ui_list![
+            child = v_stack(ui_list![
                 uniform_grid! {
                     columns = 5;
-                    items = demos;
+                    children = demos;
                 },
                 center(cursor_demo(None)),
             ])
@@ -58,10 +58,10 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
             text_color = color_scheme_map(colors::WHITE, colors::BLACK);
         }
 
-        content_align = Align::TOP_LEFT;
+        child_align = Align::TOP_LEFT;
         padding = (2, 5);
 
-        content = text! {
+        child = text! {
             text = match icon {
                 Some((ico, _)) => formatx!("{ico:?}"),
                 None => Text::from_static("<none>"),

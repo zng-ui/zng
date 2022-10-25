@@ -35,11 +35,11 @@ fn app_main() {
             color_scheme = ColorScheme::Dark;
 
             font_size = 42.pt();
-            content_align = Align::CENTER;
+            child_align = Align::CENTER;
 
             background_color = bkg.easing(150.ms(), easing::linear);
 
-            content = text(count.map(|&n| {
+            child = text(count.map(|&n| {
                 let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
                 println!("{r}");
                 r
@@ -52,11 +52,11 @@ fn app_main() {
                 corner_radius = 8;
                 font_size = 28;
                 font_weight = FontWeight::BOLD;
-                content_align = Align::CENTER;
+                child_align = Align::CENTER;
 
                 background_color = bkg.clone();
 
-                content = text(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
+                child = text(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
             });
         }
     })

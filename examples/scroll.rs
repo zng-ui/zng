@@ -19,7 +19,7 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Scroll Example";
-            content = z_stack(ui_list![
+            child = z_stack(ui_list![
                 scroll! {
                     id = "scroll";
                     padding = 20;
@@ -28,9 +28,9 @@ fn app_main() {
                         colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                     );
                     // smooth_scrolling = false;
-                    content = v_stack!{
-                        items_align = Align::LEFT;
-                        items = ui_list![
+                    child = v_stack!{
+                        children_align = Align::LEFT;
+                        children = ui_list![
                             text! {
                                 id = "Lorem 1";
                                 text = "Lorem 1";
@@ -64,12 +64,12 @@ fn commands() -> impl UiNode {
         corner_radius = (0, 0, 8, 8);
         alt_focus_scope = true;
 
-        items = ui_list![
+        children = ui_list![
             v_stack! {
                 visibility = show.map_into();
                 spacing = 3;
 
-                items = ui_list![
+                children = ui_list![
                     cmd_btn(SCROLL_UP_CMD),
                     cmd_btn(SCROLL_DOWN_CMD),
                     cmd_btn(SCROLL_LEFT_CMD),
@@ -91,7 +91,7 @@ fn commands() -> impl UiNode {
                 ]
             },
             button! {
-                content = text(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
+                child = text(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
                 margin = show.map(|s| if !s { 0.into() } else { (3, 0, 0, 0).into() });
                 on_click = hn!(|ctx, _| {
                     show.modify(ctx, |s| *s.get_mut() = !*s.get());
@@ -106,7 +106,7 @@ fn commands() -> impl UiNode {
 fn cmd_btn(cmd: Command) -> impl UiNode {
     let cmd = cmd.scoped(WidgetId::named("scroll"));
     button! {
-        content = text(cmd.name_with_shortcut());
+        child = text(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         // visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
@@ -123,7 +123,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
     button! {
-        content = text(formatx!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" }));
+        child = text(formatx!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" }));
         enabled = cmd.is_enabled();
         on_click = hn!(|ctx, _| {
             commands::scroll_to(ctx, scroll, target, mode.clone());

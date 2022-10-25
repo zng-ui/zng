@@ -17,11 +17,11 @@ fn app_main() {
             title = "Gradient Example";
             auto_size = true;
             icon = WindowIcon::render(|_| icon());
-            content = scroll! {
+            child = scroll! {
                 padding = 20;
-                content = v_stack! {
+                child = v_stack! {
                     spacing = 20;
-                    items = ui_list![
+                    children = ui_list![
                         title("Linear"),
                         linear_angle(),
                         linear_points(),
@@ -167,20 +167,20 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
     let name = name.to_text();
     v_stack! {
         spacing = 5;
-        items = ui_list![
+        children = ui_list![
             text(name),
             container! {
                 size = (180, 180);
-                content = gradient;
+                child = gradient;
             }
         ];
     }
 }
 
-fn sample_line(items: impl UiNodeList) -> impl UiNode {
+fn sample_line(children: impl UiNodeList) -> impl UiNode {
     h_stack! {
         spacing = 5;
-        items;
+        children;
     }
 }
 
@@ -191,7 +191,7 @@ fn icon() -> impl UiNode {
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;
-        content_align = Align::CENTER;
-        content = text("G");
+        child_align = Align::CENTER;
+        child = text("G");
     }
 }

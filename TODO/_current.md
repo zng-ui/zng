@@ -1,8 +1,10 @@
 # All Dyn Rewrite
 
-* Fix toggle selector.
-    - Needs to be standard `IntoValue` input.
-    - Need to fix/review subscriptions.
+* Refactor `Selector` and `SelectorInstance` so that we can just create `Selector::single(var)`, etc. leaving only
+    `Selector::custom(impl SelectorImpl)` as the long form.
+
+* If `ui_list![]` auto boxes in the macro params, but the returned type does not auto-boxes on `.push`.
+    - Before refactor we had `WidgetVec(pub Vec<BoxedWidget>)`.
 
 * Implement `widget::path.property` syntax support in widget instantiation and `when` expressions.
     - in when expressions: `when #foo.foo.1`, has ambiguity with `when #foo.foo`.

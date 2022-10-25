@@ -71,9 +71,9 @@ fn app_main() {
             padding = 50;
             start_position = StartPosition::CenterMonitor;
 
-            content_align = Align::CENTER;
-            content = v_stack! {
-                items = ui_list![
+            child_align = Align::CENTER;
+            child = v_stack! {
+                children = ui_list![
                     text!{
                         align = Align::CENTER;
                         font_size = 18.pt();

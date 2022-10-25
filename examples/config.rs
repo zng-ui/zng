@@ -45,16 +45,16 @@ fn app_main() {
                     color = colors::RED;
                 }
             };
-            content = v_stack! {
+            child = v_stack! {
                 align = Align::CENTER;
                 spacing = 5;
-                items = ui_list![
+                children = ui_list![
                     toggle! {
-                        content = text(checked.map(|c| formatx!("Checked: {c:?}")));
+                        child = text(checked.map(|c| formatx!("Checked: {c:?}")));
                         checked = checked.clone();
                     },
                     button! {
-                        content = text(count.map(|c| formatx!("Count: {c:?}")));
+                        child = text(count.map(|c| formatx!("Count: {c:?}")));
                         on_click = hn!(count, |ctx, _| {
                             count.modify(ctx, |c| *c.get_mut() += 1).unwrap();
                         })
@@ -66,7 +66,7 @@ fn app_main() {
                     },
                     separator(),
                     button! {
-                        content = text("Reset");
+                        child = text("Reset");
                         on_click = hn!(|ctx, _| {
                             checked.set_ne(ctx, false).unwrap();
                             count.set_ne(ctx, 0).unwrap();
@@ -74,7 +74,7 @@ fn app_main() {
                         })
                     },
                     button! {
-                        content = text("Open Another Instance");
+                        child = text("Open Another Instance");
                         on_click = hn!(|ctx, _| {
                             let offset= Dip::new(30);
                             let pos = WindowVars::req(ctx).actual_position().get() + DipVector::new(offset, offset);
@@ -111,7 +111,7 @@ fn separator() -> impl UiNode {
     hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
-        style = LineStyle::Dashed;
+        line_style = LineStyle::Dashed;
     }
 }
 

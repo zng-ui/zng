@@ -398,7 +398,7 @@ impl WindowLayers {
             where
                 F: FnOnce(&mut WidgetNodeMutContext) -> R,
             {
-                self.with_context_mut(f)
+                self.widget.with_context_mut(f)
             }
         }
 

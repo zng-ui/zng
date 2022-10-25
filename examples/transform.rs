@@ -19,14 +19,14 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Transform Example";
-            content_align = Align::CENTER;
-            content = h_stack! {
+            child_align = Align::CENTER;
+            child = h_stack! {
                 spacing = 40;
-                items = ui_list![
+                children = ui_list![
                     v_stack! {
                         spacing = 25;
-                        items_align = Align::TOP;
-                        items = ui_list![
+                        children_align = Align::TOP;
+                        children = ui_list![
                             transformed("Translate -10", translate(-10, -10)),
                             transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
                             transformed("Rotate 10º", rotate(10.deg())),
@@ -37,7 +37,7 @@ fn app_main() {
                     },
                     v_stack! {
                         spacing = 40;
-                        items = ui_list![
+                        children = ui_list![
                             transform_stack(),
                             transform_order(),
                         ]
@@ -50,9 +50,9 @@ fn app_main() {
 
 fn transformed(label: impl Into<Text>, transform: Transform) -> impl UiNode {
     container! {
-        content = container! {
+        child = container! {
             transform;
-            content = text(label.into());
+            child = text(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
         };
@@ -61,10 +61,10 @@ fn transformed(label: impl Into<Text>, transform: Transform) -> impl UiNode {
 }
 fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
     container! {
-        content = container! {
+        child = container! {
             transform;
             transform_origin = origin.into();
-            content = text(label.into());
+            child = text(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
         };
@@ -77,16 +77,16 @@ fn transform_stack() -> impl UiNode {
     // the widget transform does not affect.
     v_stack! {
         spacing = 5;
-        items = ui_list![
+        children = ui_list![
             container! {
-                content = text("Identity");
+                child = text("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },
             container! {
                 id = "in-stack";
                 transform = rotate(45.deg());
-                content = text("Rotated 45º");
+                child = text("Rotated 45º");
                 background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 padding = 10;
 
@@ -95,7 +95,7 @@ fn transform_stack() -> impl UiNode {
                 }
             },
             container! {
-                content = text("Identity");
+                child = text("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },

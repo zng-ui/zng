@@ -173,7 +173,7 @@ pub mod uniform_grid {
 
             let mut count = 0;
             let mut cell_size = PxSize::zero();
-            self.children.for_each(|i, n| {
+            self.children.for_each(|_, n| {
                 let s = n.measure(ctx);
                 if s != PxSize::zero() {
                     count += 1;

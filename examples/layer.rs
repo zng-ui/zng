@@ -44,10 +44,10 @@ fn app_main() {
                 })
             });
 
-            content_align = Align::CENTER;
-            content = v_stack! {
+            child_align = Align::CENTER;
+            child = v_stack! {
                 spacing = 5;
-                items = ui_list![
+                children = ui_list![
                     overlay_example(),
                     layer_index_example(),
                     anchor_example(),
@@ -60,7 +60,7 @@ fn app_main() {
 
 fn overlay_example() -> impl UiNode {
     button! {
-        content = text("TOP_MOST");
+        child = text("TOP_MOST");
         on_click = hn!(|ctx, _| {
             WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay("overlay", 0));
         });
@@ -72,8 +72,8 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
         id;
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
-        content_align = Align::CENTER;
-        content = container! {
+        child_align = Align::CENTER;
+        child = container! {
             offset = (offset, offset);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
@@ -86,25 +86,25 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 corner_radius = unset!;
             });
             padding = 2;
-            content = v_stack! {
-                items_align = Align::RIGHT;
-                items = ui_list![
+            child = v_stack! {
+                children_align = Align::RIGHT;
+                children = ui_list![
                     text! {
                         text = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
                     },
                     h_stack! {
                         spacing = 2;
-                        items = ui_list![
+                        children = ui_list![
                             button! {
                                 visibility = offset < 50;
-                                content = text("Open Another");
+                                child = text("Open Another");
                                 on_click = hn!(|ctx, _| {
                                     WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
                                 })
                             },
                             button! {
-                                content = text("Remove");
+                                child = text("Remove");
                                 on_click = hn!(|ctx, _| {
                                     WindowLayers::remove(ctx, id);
                                 })
@@ -121,7 +121,7 @@ fn layer_index_example() -> impl UiNode {
     // demonstrates that the z-order is not affected by the order of insertion.
     h_stack! {
         spacing = 5;
-        items = ui_list![
+        children = ui_list![
             layer_n_btn(7, colors::DARK_GREEN),
             layer_n_btn(8, colors::DARK_BLUE),
             layer_n_btn(9, colors::DARK_RED),
@@ -131,12 +131,12 @@ fn layer_index_example() -> impl UiNode {
 fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
     let label = formatx!("Layer {n}");
     button! {
-        content = text(label.clone());
+        child = text(label.clone());
         on_click = async_hn!(label, |ctx, _| {
             let id = WidgetId::new_unique();
             ctx.with(|ctx| WindowLayers::insert(ctx, n, container! {
                 id;
-                content = text! {
+                child = text! {
                     text = label.clone();
                     color = rgb(0.92, 0.92, 0.92);
                     font_size = 16;
@@ -191,7 +191,7 @@ fn anchor_example() -> impl UiNode {
 
     button! {
         id = "anchor";
-        content = text("Anchored");
+        child = text("Anchored");
 
         margin = (60, 0);
         align = Align::CENTER;
@@ -222,7 +222,7 @@ fn transform_anchor_example() -> impl UiNode {
     let mut insert = true;
     button! {
         id = "t-anchor";
-        content = text("Transform Anchored");
+        child = text("Transform Anchored");
 
         rotate = 20.deg();
         scale = 110.pct();
@@ -231,10 +231,10 @@ fn transform_anchor_example() -> impl UiNode {
             if insert {
                 WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
                     id = "t-anchored";
-                    content_align = Align::TOP_LEFT;
+                    child_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
                     hit_test_mode = HitTestMode::Disabled;
-                    content = text! {
+                    child = text! {
                         y = -(2.dip() + 100.pct());
                         text = "example";
                         font_weight = FontWeight::BOLD;

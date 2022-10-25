@@ -44,20 +44,20 @@ fn main_window(ctx: &mut WindowContext) -> Window {
             println!("state: {:?}", args.new_state().unwrap());
         });
         on_close_requested = confirm_close();
-        content_align = Align::CENTER;
-        content = h_stack! {
+        child_align = Align::CENTER;
+        child = h_stack! {
             spacing = 40;
-            items = ui_list![
+            children = ui_list![
                 v_stack! {
                     spacing = 20;
-                    items = ui_list![
+                    children = ui_list![
                         state_commands(window_id),
                         focus_control(),
                     ]
                 },
                 v_stack! {
                     spacing = 20;
-                    items = ui_list![
+                    children = ui_list![
                         state(window_vars),
                         visibility(window_vars),
                         chrome(window_vars),
@@ -65,14 +65,14 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                 },
                 v_stack! {
                     spacing = 20;
-                    items = ui_list![
+                    children = ui_list![
                         icon(window_vars),
                         background_color(background),
                     ];
                 },
                 v_stack! {
                     spacing = 20;
-                    items = ui_list![
+                    children = ui_list![
                         screenshot(),
                         misc(window_id, window_vars),
                     ];
@@ -85,12 +85,12 @@ fn main_window(ctx: &mut WindowContext) -> Window {
 fn background_color(color: impl Var<Rgba>) -> impl UiNode {
     fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl UiNode {
         toggle! {
-            value<Rgba> = c.clone();
+            value::<Rgba> = c.clone();
             select_on_init;
-            content = h_stack! {
+            child = h_stack! {
                 spacing = 4;
-                items_align = Align::LEFT;
-                items = ui_list![
+                children_align = Align::LEFT;
+                children = ui_list![
                     blank! {
                         background_color = c.clone();
                         size = (16, 16);
@@ -124,7 +124,7 @@ fn screenshot() -> impl UiNode {
         use std::time::Instant;
         let enabled = var(true);
         button! {
-            content = text(enabled.map(|&enabled| {
+            child = text(enabled.map(|&enabled| {
                 if enabled {
                     "screenshot".to_text()
                 } else {
@@ -167,7 +167,7 @@ fn screenshot() -> impl UiNode {
 
         let enabled = var(true);
         button! {
-            content = text(enabled.map(|&enabled| {
+            child = text(enabled.map(|&enabled| {
                 if enabled {
                     "headless".to_text()
                 } else {
@@ -183,8 +183,8 @@ fn screenshot() -> impl UiNode {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
-                        content_align = Align::CENTER;
-                        content = text("No Head!");
+                        child_align = Align::CENTER;
+                        child = text("No Head!");
 
                         frame_capture_mode = FrameCaptureMode::Next;
                         on_frame_image_ready = async_hn_once!(|ctx, args: FrameImageReadyArgs| {
@@ -212,7 +212,7 @@ fn screenshot() -> impl UiNode {
 fn icon(window_vars: &WindowVars) -> impl UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
         toggle! {
-            content = text(label);
+            child = text(label);
             value = ico;
         }
     };
@@ -255,7 +255,7 @@ fn icon(window_vars: &WindowVars) -> impl UiNode {
 fn chrome(window_vars: &WindowVars) -> impl UiNode {
     let chrome_btn = |c: WindowChrome| {
         toggle! {
-            content = text(formatx!("{c:?}"));
+            child = text(formatx!("{c:?}"));
             value = c;
         }
     };
@@ -294,7 +294,7 @@ fn focus_control() -> impl UiNode {
     let enabled = var(true);
     let focus_btn = button! {
         enabled = enabled.clone();
-        content = text("Focus in 5s");
+        child = text("Focus in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(5.secs()).await;
@@ -309,7 +309,7 @@ fn focus_control() -> impl UiNode {
     let enabled = var(true);
     let critical_btn = button! {
         enabled = enabled.clone();
-        content = text("Critical Alert in 5s");
+        child = text("Critical Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(5.secs()).await;
@@ -324,7 +324,7 @@ fn focus_control() -> impl UiNode {
     let enabled = var(true);
     let info_btn = button! {
         enabled = enabled.clone();
-        content = text("Info Alert in 5s");
+        child = text("Info Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(5.secs()).await;
@@ -342,7 +342,7 @@ fn focus_control() -> impl UiNode {
 fn state(window_vars: &WindowVars) -> impl UiNode {
     let state_btn = |s: WindowState| {
         toggle! {
-            content = text(formatx!("{s:?}"));
+            child = text(formatx!("{s:?}"));
             value = s;
         }
     };
@@ -367,7 +367,7 @@ fn visibility(window_vars: &WindowVars) -> impl UiNode {
     let visible = window_vars.visible();
     let btn = button! {
         enabled = visible.clone();
-        content = text("Hide for 1s");
+        child = text("Hide for 1s");
         on_click = async_hn!(visible, |ctx, _| {
             visible.set(&ctx, false);
             println!("visible=false");
@@ -386,11 +386,11 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
         "Misc.",
         ui_list![
             toggle! {
-                content = text("Taskbar Visible");
+                child = text("Taskbar Visible");
                 checked = window_vars.taskbar_visible().clone();
             },
             toggle! {
-                content = text("Always on Top");
+                child = text("Always on Top");
                 checked = window_vars.always_on_top().clone();
             },
             separator(),
@@ -399,7 +399,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
             {
                 let mut child_count = 0;
                 button! {
-                    content = text("Open Child Window");
+                    child = text("Open Child Window");
                     enabled = can_open_windows.clone();
                     on_click = hn!(|ctx, _| {
                         child_count += 1;
@@ -409,9 +409,9 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                             title = formatx!("Window Example - Child {child_count}");
                             size = (400, 300);
                             parent;
-                            content_align = Align::CENTER;
+                            child_align = Align::CENTER;
                             start_position = StartPosition::CenterParent;
-                            content = text! {
+                            child = text! {
                                 text = formatx!("Child {child_count}");
                                 font_size = 20;
                             };
@@ -422,7 +422,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
             {
                 let mut other_count = 0;
                 button! {
-                    content = text("Open Other Window");
+                    child = text("Open Other Window");
                     enabled = can_open_windows;
                     on_click = hn!(|ctx, _| {
                         other_count += 1;
@@ -430,8 +430,8 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                         Windows::req(ctx.services).open(move |_| window! {
                             title = formatx!("Window Example - Other {other_count}");
                             size = (400, 300);
-                            content_align = Align::CENTER;
-                            content = text! {
+                            child_align = Align::CENTER;
+                            child = text! {
                                 text = formatx!("Other {other_count}");
                                 font_size = 20;
                             };
@@ -472,8 +472,8 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl UiNode
         id = "close-dialog";
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
-        content_align = Align::CENTER;
-        content = container! {
+        child_align = Align::CENTER;
+        child = container! {
             background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
@@ -488,9 +488,9 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl UiNode
                 }
             });
 
-            content = v_stack! {
-                items_align = Align::RIGHT;
-                items = ui_list![
+            child = v_stack! {
+                children_align = Align::RIGHT;
+                children = ui_list![
                     text! {
                         text = match windows.len() {
                             1 => "Close Confirmation\n\nClose 1 window?".to_text(),
@@ -500,16 +500,16 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl UiNode
                     },
                     h_stack! {
                         spacing = 4;
-                        items = ui_list![
+                        children = ui_list![
                             button! {
-                                content = strong("Close");
+                                child = strong("Close");
                                 on_click = hn_once!(state, |ctx, _| {
                                     state.set(ctx, CloseState::Close);
                                     Windows::req(ctx.services).close_together(windows).unwrap();
                                 })
                             },
                             button! {
-                                content = text("Cancel");
+                                child = text("Cancel");
                                 on_click = hn!(state, |ctx, _| {
                                     state.set(ctx, CloseState::Ask);
                                     WindowLayers::remove(ctx, "close-dialog");
@@ -525,7 +525,7 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl UiNode
 
 fn cmd_btn(cmd: Command) -> impl UiNode {
     button! {
-        content = text(cmd.name_with_shortcut());
+        child = text(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
@@ -537,7 +537,7 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
 fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
-        items = ui_list![text! {
+        children = ui_list![text! {
             text = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
@@ -548,8 +548,8 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
 fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
-        toggle::selection = toggle::SingleSel::new(selection);
-        items = ui_list![text! {
+        toggle::selection = toggle::properties::SelectorInstance::new(toggle::SingleSel::new(selection));
+        children = ui_list![text! {
             text = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
@@ -561,6 +561,6 @@ fn separator() -> impl UiNode {
     hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
-        style = LineStyle::Dashed;
+        line_style = LineStyle::Dashed;
     }
 }

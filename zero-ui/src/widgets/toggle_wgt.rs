@@ -165,7 +165,7 @@ pub mod toggle {
 
 /// Properties used in the toggle widget.
 pub mod properties {
-    use std::{any::Any, error::Error, fmt, marker::PhantomData, rc::Rc};
+    use std::{any::Any, cell::RefCell, error::Error, fmt, marker::PhantomData, rc::Rc};
 
     use crate::prelude::new_property::*;
 
@@ -472,9 +472,9 @@ pub mod properties {
     /// property only works if a contextual selection is present.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(NilSel))]
-    pub fn selection(child: impl UiNode, selector: impl Selector) -> impl UiNode {
-        with_context_value(child, SELECTOR, Box::new(selector) as SelectorInstance)
+    #[property(context, default(SelectorInstance::new(NilSel)))]
+    pub fn selection(child: impl UiNode, selector: impl IntoValue<SelectorInstance>) -> impl UiNode {
+        with_context_value(child, SELECTOR, selector)
     }
 
     /// If [`value`] is selected when the widget that has the value is inited.
@@ -509,10 +509,8 @@ pub mod properties {
         with_context_var(child, DESELECT_ON_NEW_VAR, enabled)
     }
 
-    type SelectorInstance = Box<dyn Selector>;
-
     context_value! {
-        static SELECTOR: SelectorInstance = Box::new(NilSel) as SelectorInstance;
+        static SELECTOR: SelectorInstance = NilSel;
     }
 
     context_var! {
@@ -567,6 +565,46 @@ pub mod properties {
 
         /// Returns `true` if the `value` is selected.
         fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool;
+    }
+
+    /// Represents a [`Selector`].
+    #[derive(Clone)]
+    pub struct SelectorInstance(Rc<RefCell<dyn Selector>>);
+    impl SelectorInstance {
+        /// New selector.
+        pub fn new(selector: impl Selector) -> Self {
+            Self(Rc::new(RefCell::new(selector)))
+        }
+
+        /// Add the selector subscriptions for a widget.
+        pub fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
+            self.0.borrow().subscribe(widget_id, handles);
+        }
+
+        /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
+        fn select(&self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
+            self.0.borrow_mut().select(ctx, value)
+        }
+
+        /// Remove the `value` from the selection, returns `Ok(())` if the value was removed or was not selected.
+        fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
+            self.0.borrow_mut().deselect(ctx, value)
+        }
+
+        /// Returns `true` if the `value` is selected.
+        fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
+            self.0.borrow().is_selected(ctx, value)
+        }
+    }
+    impl<S: Selector> From<S> for SelectorInstance {
+        fn from(sel: S) -> Self {
+            SelectorInstance::new(sel)
+        }
+    }
+    impl fmt::Debug for SelectorInstance {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "SelectorInstance(_)")
+        }
     }
 
     /// Error for [`Selector`] operations.
@@ -854,9 +892,5 @@ pub mod checkbox {
     properties! {
         child_align = Align::LEFT;
         padding = 0;
-    }
-
-    fn new_child(content: impl UiNode) -> impl UiNode {
-        content
     }
 }

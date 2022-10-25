@@ -23,7 +23,7 @@ fn headless_example() {
     app.run_window(|_| {
         window! {
             // the window content is the image.
-            content = image();
+            child = image();
             auto_size = true;
 
             // use the CPU only backend if available, by default the
@@ -79,7 +79,7 @@ fn image() -> impl UiNode {
             ]
         });
 
-        content = text! {
+        child = text! {
             align = Align::CENTER;
             text = "Hello World!";
             font_size = 72;
