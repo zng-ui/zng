@@ -13,7 +13,7 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     text::{formatx, Text},
-    var::*,
+    var::{*, types::AnyWhenVarBuilder},
     widget_instance::{BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList},
 };
 
@@ -346,6 +346,12 @@ pub struct PropertyInfo {
 
     /// Property inputs info, always at least one.
     pub inputs: Box<[PropertyInput]>,
+}
+impl PropertyInfo {
+    /// Gets the index that can be used to get a property value in [`PropertyArgs`].
+    pub fn input_idx(&self, name: &str) -> Option<usize> {
+        self.inputs.iter().position(|i| i.name == name)
+    }    
 }
 
 /// Property instance info.
@@ -1186,10 +1192,112 @@ impl WidgetBuilding {
         ));
     }
 
-    fn build(mut self) -> BoxedUiNode {
-        self.items.sort_by_key(|(k, _)| *k);
+    fn build_whens(&mut self) {
+        self.whens.sort_by_key(|(i, _)| *i);
 
-        // TODO !!: when
+        struct Input<'a> {
+            input: &'a WhenInput,
+            item_idx: usize,
+        }
+        let mut inputs = vec![];
+
+        struct Assign {
+            item_idx: usize,
+            builder: Box<[AnyWhenVarBuilder]>,
+        }
+        let mut assigns = LinearMap::new();        
+
+        'when: for (_, when) in &self.whens {
+            // bind inputs.
+            let valid_inputs = inputs.len();
+            for input in when.inputs.iter() {
+                if let Some(i) = self.property_index(input.property) {
+                    inputs.push(Input {
+                        input,
+                        item_idx: i,
+                    })
+                } else {
+                    // TODO !!: try property default (cannot get from ID, need another member)
+                    inputs.truncate(valid_inputs);
+                    continue 'when;
+                }
+            }
+
+            let mut any_assign = false;
+            // collect assigns.
+            for assign in when.assigns.iter() {
+                let id = assign.id();
+                if let Some(i) = self.property_index(id) {
+                    any_assign = true;
+
+                    let args = match &self.items[i].1 {
+                        WidgetItem::Property { args, .. } => args,
+                        WidgetItem::Intrinsic { .. } => unreachable!(),
+                    };
+                    let info = args.property();
+
+                    let entry = match assigns.entry(id) {
+                        linear_map::Entry::Occupied(e) => e.into_mut(),
+                        linear_map::Entry::Vacant(e) => {
+                            e.insert(Assign {
+                                item_idx: i,
+                                builder: info.inputs.iter().enumerate().map(|(i, input)| {
+                                    match input.kind {
+                                        InputKind::Var | InputKind::StateVar => AnyWhenVarBuilder::new_any(args.var(i).clone_any()),
+                                        InputKind::Value => AnyWhenVarBuilder::new_any(args.value(i).clone_boxed_var()),
+                                        _ => panic!("when expr referende not var or value"),
+                                    }
+                                }).collect(),
+                            })
+                        },
+                    };
+
+                    for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
+                        let value = match input.kind {
+                            InputKind::Var | InputKind::StateVar => args.var(i).clone_any(),
+                            InputKind::Value => args.value(i).clone_boxed_var(),
+                            _ => panic!("when expr referende not var or value"),
+                        };
+                        entry.push_any(when.state.clone(), value);
+                    }
+                }                
+            }
+
+            if !any_assign {
+                inputs.truncate(valid_inputs);
+            }
+        }
+        
+        for Input { input, item_idx  } in inputs {
+            let p = match &self.items[item_idx].1 {
+                WidgetItem::Property { args, .. } => args,
+                WidgetItem::Intrinsic { .. } => unreachable!(),
+            };
+            let info = p.property();
+
+            let member_i = match input.member {
+                WhenInputMember::Named(name) => info.input_idx(name).expect("when ref named input not found"),
+                WhenInputMember::Index(i) => i,
+            };
+
+            todo!()
+        }
+
+        for (_, Assign { item_idx, builder }) in assigns {
+            let p = match &self.items[item_idx].1 {
+                WidgetItem::Property { args, .. } => args,
+                WidgetItem::Intrinsic { .. } => unreachable!(),
+            };
+            
+        }
+    }
+
+    fn build(mut self) -> BoxedUiNode {      
+        if !self.whens.is_empty() {
+            self.build_whens();
+        }
+        
+        self.items.sort_by_key(|(k, _)| *k);
 
         let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());
         for (_, item) in self.p.items.into_iter().rev() {

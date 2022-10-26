@@ -120,6 +120,9 @@ pub trait AnyVarValue: fmt::Debug + Any {
 
     /// Clone the value.
     fn clone_boxed(&self) -> Box<dyn AnyVarValue>;
+
+    /// Clone the value into a new boxed [`LocalVar<Self>`].
+    fn clone_boxed_var(&self) -> BoxedAnyVar;
 }
 
 impl<T: VarValue> AnyVarValue for T {
@@ -129,6 +132,10 @@ impl<T: VarValue> AnyVarValue for T {
 
     fn clone_boxed(&self) -> Box<dyn AnyVarValue> {
         Box::new(self.clone())
+    }
+
+    fn clone_boxed_var(&self) -> BoxedAnyVar {
+        Box::new(LocalVar(self.clone()))
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {

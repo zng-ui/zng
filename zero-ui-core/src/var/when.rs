@@ -196,14 +196,13 @@ impl AnyWhenVarBuilder {
     }
 
     /// Push a when condition.
-    pub fn push<C: Var<bool>, O: VarValue, V: IntoVar<O>>(self, condition: C, value: V) -> Self {
+    pub fn push<C: Var<bool>, O: VarValue, V: IntoVar<O>>(&mut self, condition: C, value: V) {
         self.push_any(condition.boxed(), Box::new(value.into_var()))
     }
 
     /// Push a when condition already boxed and type erased.
-    pub fn push_any(mut self, condition: BoxedVar<bool>, value: BoxedAnyVar) -> Self {
+    pub fn push_any(&mut self, condition: BoxedVar<bool>, value: BoxedAnyVar) {
         self.conditions.push((condition, value));
-        self
     }
 
     /// Replace the default value if `other` has default and extend the conditions with clones of `other`.

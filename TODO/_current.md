@@ -1,6 +1,8 @@
 # All Dyn Rewrite
 
 * Implement "when" instantiation.
+    - Need to be able to generate default property from when.
+    - Need to be able change property arg values from type erased stuff?
 * Review "!!:"
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
