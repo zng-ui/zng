@@ -7,7 +7,7 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [features]
-default = ["ipc", "dyn_widget", "http", "debug_default"]
+default = ["ipc", "http", "debug_default"]
 
 # Enables pre-build views and connecting to views running in another process.
 # 
@@ -29,14 +29,6 @@ debug_default = ["zero-ui-core/debug_default"]
 # This speeds-up compilation time at the cost of runtime.
 dyn_node = ["zero-ui-core/dyn_node"]
 
-# Use dynamic dispatch at the widget level by enabling `Widget::cfg_boxed_wgt` and boxing the child node of widget's new function.
-#
-# This does not cost as much runtime as `dyn_node` and is the only way of getting sane build times
-# in most desktop machines. Without this feature build time and memory grows exponentially or worst, a similar
-# effect that can be observed in nested async code. Only enable this if you have build server that can handle it,
-# the result is as optimized as it gets with some event handlers compiling down to an almost direct call.
-dyn_widget = ["zero-ui-core/dyn_widget"]
-
 # Instrument each property and widget instance with "Inspector" nodes.
 inspector = ["zero-ui-core/inspector"]
 
@@ -57,6 +49,14 @@ dyn_closure = ["zero-ui-core/dyn_closure"]
 # Build with this feature to use the core test helper types that show
 # in the documentation.
 test_util = ["zero-ui-core/test_util"]
+
+# Instrument every widget outer-most node to trace UI methods.
+trace_widget = ["zero-ui-core/trace_widget"]
+
+# Instrument every property node to trace UI methods.
+#
+# Note that this can cause very large trace files and bad performance.
+trace_property = ["zero-ui-core/trace_property"]
 
 # # Other Features
 #

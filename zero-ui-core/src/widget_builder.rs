@@ -1100,6 +1100,16 @@ impl WidgetBuilder {
         let builder = self.clone();
 
         let mut building = WidgetBuilding {
+            #[cfg(trace_widget)]
+            widget_id: {
+                use crate::widget_instance::WidgetId;
+
+                self.property(property_id!(crate::widget_base::id))
+                    .map(|(_, _, args)| *args.downcast_value::<WidgetId>(0))
+                    .unwrap_or_else(|| WidgetId::named("<unkdown>"))
+            },
+
+            widget_mod: self.widget_mod,
             p: self.p,
             whens: self.whens,
             child: None,
@@ -1136,11 +1146,19 @@ impl ops::DerefMut for WidgetBuilder {
 /// to remove or capture the final properties of an widget, after they have all been resolved as well as define
 /// the child node, intrinsic nodes and a custom builder.
 pub struct WidgetBuilding {
+    #[cfg(trace_widget)]
+    widget_id: crate::widget_instance::WidgetId,
+    widget_mod: WidgetMod,
     p: WidgetBuilderProperties,
     whens: Vec<(Importance, WhenInfo)>,
     child: Option<BoxedUiNode>,
 }
 impl WidgetBuilding {
+    /// The widget that started this builder.
+    pub fn widget_mod(&self) -> WidgetMod {
+        self.widget_mod
+    }
+
     /// If an innermost node is defined.
     ///
     /// If `false` by the end of build the [`NilUiNode`] is used as the innermost node.
@@ -1178,11 +1196,25 @@ impl WidgetBuilding {
             match item {
                 WidgetItem::Property { args, .. } => {
                     node = args.instantiate(node);
+                    #[cfg(trace_property)]
+                    {
+                        let name = args.instance().name;
+                        node = node.trace(|_, mtd| crate::context::UpdatesTrace::property_span(name, mtd));
+                    }
                 }
                 WidgetItem::Intrinsic { new } => {
                     node = new(node);
                 }
             }
+        }
+
+        #[cfg(trace_widget)]
+        {
+            let id = self.widget_id;
+            let name = self.widget_mod.name();
+            node = node
+                .trace(move |_, mtd| crate::context::UpdatesTrace::widget_span(id, name, mtd))
+                .boxed();
         }
 
         node

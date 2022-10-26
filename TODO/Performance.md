@@ -49,7 +49,7 @@
   - debug + trace-json.gz (default) changes in 8s.
   - release-lto + "inspector" changes in 390ms.
   - release-lto + "inspector" + trace changes in 1.6s.
-  - release-lto + "dyn_widget" (default) changes in 180ms. 
+  - release-lto (default) changes in 180ms. 
   - release-lto + "dyn_node" changes in 181ms.
 
 Need to optimize the inspector nodes a bit, maybe some lazy stuff?

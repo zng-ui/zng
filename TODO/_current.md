@@ -1,20 +1,11 @@
 # All Dyn Rewrite
 
-* Finish implementing new dynamic widget.
-    - Implement when instantiation.
-
-* Tracing nodes?
-    - Maybe just trace at the widget level by default, property trace level was to verbose.
-
+* Implement "when" instantiation.
 * Review "!!:"
-
-* Remove custom docs stuff?
-    - Refactor to minimal docs generation that does not require custom post-processing.
-
+* Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
-
 * Test all.
-
+* Test build all.
 * Merge.
 
 # Other

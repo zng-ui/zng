@@ -235,21 +235,15 @@ impl UpdatesTrace {
     }
 
     /// Opens a widget span.
-    #[cfg(inspector)]
+    #[cfg(trace_widget)]
     pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
     }
 
     /// Opens a property span.
-    #[cfg(inspector)]
+    #[cfg(trace_property)]
     pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
-    }
-
-    /// Opens a new widget constructor span.
-    #[cfg(inspector)]
-    pub fn constructor_span(fn_name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "constructor", name = %fn_name, %node_mtd).entered()
     }
 
     /// Opens a custom named span.
