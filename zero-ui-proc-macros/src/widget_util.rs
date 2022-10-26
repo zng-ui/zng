@@ -60,7 +60,7 @@ impl WgtProperty {
     }
 
     /// Gets if this property has args.
-    pub fn has_default(&self) -> bool {
+    pub fn has_args(&self) -> bool {
         matches!(&self.value, Some((_, PropertyValue::Unnamed(_) | PropertyValue::Named(_, _))))
     }
 
@@ -672,6 +672,9 @@ impl WgtWhen {
                     property: #property::property_id(#p_ident_str),
                     member: #wgt_builder_mod::WhenInputMember::#member,
                     var: #var_input,
+                    property_default: #property::code_gen! {
+                        {#property::property #generics}::__default__()
+                    }
                 },
             });
         }

@@ -1,9 +1,21 @@
 # All Dyn Rewrite
 
 * Implement "when" instantiation.
-    - Need to be able to generate default property from when.
+    - WhenInputVar sticks to the actual var at moment of first use, resetting only after clone.
+        - Review if the eval var resets all inputs on clone too.
+    - Implement default property for when expression.
+    - Implement default property for when?
+        - Can access from the args of one of the values.
     - Need to be able change property arg values from type erased stuff?
+        - Maybe a type erased constructor actually.
+    - Do we auto-generate default for state properties?
+        - Nope, previous API did, we need to do this.
+        - We can provide a default for all kinds except `Var` and `Value`.
+
 * Review "!!:"
+* Review property macro, remove matchers that are not used.
+    - if (!)generics.
+
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
 * Test all.

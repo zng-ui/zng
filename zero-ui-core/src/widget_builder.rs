@@ -13,7 +13,7 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     text::{formatx, Text},
-    var::{*, types::AnyWhenVarBuilder},
+    var::{types::AnyWhenVarBuilder, *},
     widget_instance::{BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList},
 };
 
@@ -351,7 +351,7 @@ impl PropertyInfo {
     /// Gets the index that can be used to get a property value in [`PropertyArgs`].
     pub fn input_idx(&self, name: &str) -> Option<usize> {
         self.inputs.iter().position(|i| i.name == name)
-    }    
+    }
 }
 
 /// Property instance info.
@@ -687,6 +687,8 @@ pub struct WhenInput {
     pub member: WhenInputMember,
     /// Input var.
     pub var: WhenInputVar,
+    /// Constructor that generates the default property instance.
+    pub property_default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
 }
 impl fmt::Debug for WhenInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -699,111 +701,71 @@ impl fmt::Debug for WhenInput {
 
 enum WhenInputVarActual<T: VarValue> {
     None,
-    Some { var: RcVar<T>, handle: VarHandle },
+    Some(BoxedVar<T>),
 }
-impl<T: VarValue> WhenInputVarActual<T> {
-    fn bind_init(&mut self, vars: &Vars, other: &impl Var<T>) {
-        match self {
-            WhenInputVarActual::None => {
-                let var = var(other.get());
-                *self = Self::Some {
-                    handle: other.bind(&var),
-                    var,
-                }
-            }
-            WhenInputVarActual::Some { var, handle } => {
-                var.set(vars, other.get());
-                *handle = other.bind(var);
-            }
-        }
+trait AnyWhenInputVarInner: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn is_some(&self) -> bool;
+    fn set(&mut self, var: BoxedAnyVar);
+}
+impl<T: VarValue> AnyWhenInputVarInner for WhenInputVarActual<T> {
+    fn set(&mut self, var: BoxedAnyVar) {
+        let var = var
+            .double_boxed_any()
+            .downcast::<BoxedVar<T>>()
+            .expect("incorrect when input var type");
+        *self = Self::Some(var);
     }
 
-    fn bind_init_value(&mut self, vars: &Vars, value: T) {
-        match self {
-            WhenInputVarActual::None => {
-                *self = Self::Some {
-                    var: var(value),
-                    handle: VarHandle::dummy(),
-                }
-            }
-            WhenInputVarActual::Some { var, handle } => {
-                *handle = VarHandle::dummy();
-                var.set(vars, value);
-            }
-        }
-    }
-}
-trait AnyWhenInputVarActual: Any {
-    fn as_any(&self) -> &dyn Any;
-    fn as_mut_any(&mut self) -> &mut dyn Any;
-    fn is_some(&self) -> bool;
-}
-impl<T: VarValue> AnyWhenInputVarActual for WhenInputVarActual<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn is_some(&self) -> bool {
-        matches!(self, Self::Some { .. })
+        matches!(self, Self::Some(_))
     }
 }
 
 /// Represents a [`WhenInput`] variable that can be rebound.
 #[derive(Clone)]
 pub struct WhenInputVar {
-    var: Rc<RefCell<dyn AnyWhenInputVarActual>>,
+    var: Rc<RefCell<dyn AnyWhenInputVarInner>>,
 }
 impl WhenInputVar {
-    /// New for property without default value.
+    /// New input setter and input var.
+    ///
+    /// Trying to use the input var before [`can_use`] is `true` will panic. The input var will pull
+    /// the actual var on first use of each instance, that means you can *refresh* the input var by cloning.
+    ///
+    /// [`can_use`]: Self::can_use
     pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
-        let rc: Rc<RefCell<dyn AnyWhenInputVarActual>> = Rc::new(RefCell::new(WhenInputVarActual::<T>::None));
+        let rc: Rc<RefCell<dyn AnyWhenInputVarInner>> = Rc::new(RefCell::new(WhenInputVarActual::<T>::None));
         (
             WhenInputVar { var: rc.clone() },
             crate::var::types::ContextualizedVar::new(Rc::new(move || {
                 match rc.borrow().as_any().downcast_ref::<WhenInputVarActual<T>>().unwrap() {
-                    WhenInputVarActual::Some { var, .. } => var.read_only(),
-                    WhenInputVarActual::None => panic!("when var input not inited"),
+                    WhenInputVarActual::Some(var) => var.read_only(),
+                    WhenInputVarActual::None => panic!("when expr input not inited"),
                 }
             })),
         )
     }
 
-    /// Returns `true` if a default or bound value has inited the variable and it is of type `T`.
-    ///
-    /// Note that attempting to use the [`WhenInfo::state`] when this is `false` will cause a panic.
+    /// Returns `true` an actual var is configured, trying to use the input var when this is `false` panics.
     pub fn can_use(&self) -> bool {
         self.var.borrow().is_some()
     }
 
-    /// Assign and bind the input var from `other`, after this call [`can_use`] is `true`.
+    /// Set the actual input var.
     ///
-    /// # Panics
+    /// After this call [`can_use`] is `true`. Note that if the input was already set and used that instance of the
+    /// var will not be replaced, input vars pull the `var` on the first use of the instance, that means that a new
+    /// clone of the input var must be made to
     ///
-    /// If `T` is not the same that was used to create the input var.
-    pub fn bind<T: VarValue>(&self, vars: impl WithVars, other: &impl Var<T>) {
-        vars.with_vars(|vars| self.validate_borrow_mut::<T>().bind_init(vars, other))
-    }
-
-    /// Assigns the input var to `value` and removes any previous binding, after this call [`can_use`] is `true`.
-    ///
-    /// # Panics
-    ///
-    /// If `T` is not the same that was used to create the input var.
-    pub fn bind_value<T: VarValue>(&self, vars: impl WithVars, value: T) {
-        vars.with_vars(|vars| self.validate_borrow_mut::<T>().bind_init_value(vars, value))
-    }
-
-    fn validate_borrow_mut<T: VarValue>(&self) -> std::cell::RefMut<WhenInputVarActual<T>> {
-        std::cell::RefMut::map(self.var.borrow_mut(), |var| {
-            match var.as_mut_any().downcast_mut::<WhenInputVarActual<T>>() {
-                Some(a) => a,
-                None => panic!("incorrect when input var type"),
-            }
-        })
+    /// [`can_use`]: Self::can_use
+    /// [`new`]: Self::new
+    pub fn set(&self, var: BoxedAnyVar) {
+        self.var.borrow_mut().set(var);
     }
 }
 
@@ -812,8 +774,9 @@ impl WhenInputVar {
 pub struct WhenInfo {
     /// Properties referenced in the when condition expression.
     ///
-    /// They are type erased `RcVar<T>` instances and can be rebound, other variable references (`*#{var}`) are imbedded in
-    /// the build expression and cannot be modified.
+    /// They are type erased `BoxedVar<T>` instances that are *late-inited*, other variable references (`*#{var}`) are imbedded in
+    /// the build expression and cannot be modified. Note that the [`state`] sticks to the first *late-inited* vars that it uses,
+    /// the variable only updates after clone, this cloning happens naturally when instantiating a widget more then once.
     pub inputs: Box<[WhenInput]>,
 
     /// Output of the when expression.
@@ -1205,19 +1168,16 @@ impl WidgetBuilding {
             item_idx: usize,
             builder: Box<[AnyWhenVarBuilder]>,
         }
-        let mut assigns = LinearMap::new();        
+        let mut assigns = LinearMap::new();
 
         'when: for (_, when) in &self.whens {
             // bind inputs.
             let valid_inputs = inputs.len();
             for input in when.inputs.iter() {
                 if let Some(i) = self.property_index(input.property) {
-                    inputs.push(Input {
-                        input,
-                        item_idx: i,
-                    })
+                    inputs.push(Input { input, item_idx: i })
                 } else {
-                    // TODO !!: try property default (cannot get from ID, need another member)
+                    todo!("instantiate default if property has it");
                     inputs.truncate(valid_inputs);
                     continue 'when;
                 }
@@ -1238,65 +1198,69 @@ impl WidgetBuilding {
 
                     let entry = match assigns.entry(id) {
                         linear_map::Entry::Occupied(e) => e.into_mut(),
-                        linear_map::Entry::Vacant(e) => {
-                            e.insert(Assign {
-                                item_idx: i,
-                                builder: info.inputs.iter().enumerate().map(|(i, input)| {
-                                    match input.kind {
-                                        InputKind::Var | InputKind::StateVar => AnyWhenVarBuilder::new_any(args.var(i).clone_any()),
-                                        InputKind::Value => AnyWhenVarBuilder::new_any(args.value(i).clone_boxed_var()),
-                                        _ => panic!("when expr referende not var or value"),
-                                    }
-                                }).collect(),
-                            })
-                        },
+                        linear_map::Entry::Vacant(e) => e.insert(Assign {
+                            item_idx: i,
+                            builder: info
+                                .inputs
+                                .iter()
+                                .enumerate()
+                                .map(|(i, input)| match input.kind {
+                                    InputKind::Var => AnyWhenVarBuilder::new_any(args.var(i).clone_any()),
+                                    _ => panic!("can only assign vars in when blocks"),
+                                })
+                                .collect(),
+                        }),
                     };
 
                     for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
                         let value = match input.kind {
-                            InputKind::Var | InputKind::StateVar => args.var(i).clone_any(),
-                            InputKind::Value => args.value(i).clone_boxed_var(),
-                            _ => panic!("when expr referende not var or value"),
+                            InputKind::Var => args.var(i).clone_any(),
+                            _ => panic!("can only assign vars in when blocks"),
                         };
                         entry.push_any(when.state.clone(), value);
                     }
-                }                
+                }
             }
 
             if !any_assign {
                 inputs.truncate(valid_inputs);
             }
         }
-        
-        for Input { input, item_idx  } in inputs {
-            let p = match &self.items[item_idx].1 {
+
+        for Input { input, item_idx } in inputs {
+            let args = match &self.items[item_idx].1 {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
-            let info = p.property();
+            let info = args.property();
 
             let member_i = match input.member {
                 WhenInputMember::Named(name) => info.input_idx(name).expect("when ref named input not found"),
                 WhenInputMember::Index(i) => i,
             };
 
-            todo!()
+            let actual = match info.inputs[member_i].kind {
+                InputKind::Var => args.var(member_i).clone_any(),
+                InputKind::StateVar => args.state_var(member_i).clone_any(),
+                InputKind::Value => args.value(member_i).clone_boxed_var(),
+                _ => panic!("can only ref var, state-var or values in when expr"),
+            };
+            input.var.set(actual);
         }
 
         for (_, Assign { item_idx, builder }) in assigns {
-            let p = match &self.items[item_idx].1 {
+            let args = match &self.items[item_idx].1 {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
-            
         }
     }
 
-    fn build(mut self) -> BoxedUiNode {      
+    fn build(mut self) -> BoxedUiNode {
         if !self.whens.is_empty() {
             self.build_whens();
         }
-        
+
         self.items.sort_by_key(|(k, _)| *k);
 
         let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());

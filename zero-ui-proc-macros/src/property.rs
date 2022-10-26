@@ -108,7 +108,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let macro_ident = ident!("{ident}_code_gen_{uuid:x}");
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
-        let (default, macro_default, default_fn) = if let Some(dft) = args.default {
+        let (default, macro_default_fn, default_fn) = if let Some(dft) = args.default {
             let args = dft.args;
             (
                 quote! {
@@ -117,15 +117,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     }
                 },
                 quote! {
-                    (if default {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if !default {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
+                    ({$($property:tt)*}::__default__()) => {
+                        Some($($property)*::__default__)
                     };
                 },
                 quote! {
@@ -136,15 +129,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             (
                 quote!(),
                 quote! {
-                    (if !default {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if default {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
+                    ({$($property:tt)*}::__default__()) => {
+                        None
                     };
                 },
                 quote! {
@@ -601,7 +587,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[doc(hidden)]
             #[macro_export]
             macro_rules! #macro_ident {
-                #macro_default
                 #macro_generics
 
                 #macro_inputs
@@ -638,6 +623,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     // ignore
                     ((), ())
                 };
+
+                #macro_default_fn
 
                 #macro_get_when_input
             }

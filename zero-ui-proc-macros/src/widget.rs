@@ -99,7 +99,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let mut include_items = quote!();
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
-        if prop.has_default() {
+        if prop.has_args() {
             let cfg = &prop.attrs.cfg;
             let lints = &prop.attrs.lints;
             let args = prop.args_new(quote!(#crate_core::widget_builder));
