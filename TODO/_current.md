@@ -3,13 +3,8 @@
 * Finish implementing new dynamic widget.
     - Implement when instantiation.
 
-* Reimplement inspector.
-    - Prompt print.
-    - Tracing nodes?
-        - Maybe just trace at the widget level by default, property trace level was to verbose.
-    - Can we inspect capture?
-    - Avoid intermediary debug alloc.
-        - Need to move `Var::debug` to `VarAny`.
+* Tracing nodes?
+    - Maybe just trace at the widget level by default, property trace level was to verbose.
 
 * Review "!!:"
 

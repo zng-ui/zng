@@ -18,7 +18,7 @@ pub(super) fn inspect_node(
     child: impl crate::core::widget_instance::UiNode,
     can_inspect: impl crate::core::var::IntoVar<bool>,
 ) -> impl crate::core::widget_instance::UiNode {
-    use crate::core::inspector::prompt::{write_tree, WriteTreeState};
+    use crate::core::inspector::prompt::WriteTreeState;
     use crate::core::{handler::hn, task};
 
     let mut state = WriteTreeState::new();

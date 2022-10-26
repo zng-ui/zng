@@ -3,9 +3,11 @@
 use rustc_hash::FxHashMap;
 
 use crate::{
+    text::formatx,
+    units::PxRect,
     var::VarUpdateId,
-    widget_builder::{Importance, InputKind, PropertyArgs, PropertyId},
-    widget_info::{WidgetInfo, WidgetInfoTree},
+    widget_builder::{property_id, Importance, InputKind, PropertyId},
+    widget_info::{Interactivity, Visibility, WidgetInfo, WidgetInfoTree},
     widget_instance::WidgetId,
 };
 
@@ -15,6 +17,9 @@ use super::WidgetInfoInspectorExt;
 #[derive(Default, Clone)]
 pub struct WriteTreeState {
     state: FxHashMap<(WidgetId, PropertyId, usize), PropertyState>,
+    computed_state: FxHashMap<(WidgetId, &'static str), ComputedState>,
+    widget_len: usize,
+    fresh: u8,
 }
 impl WriteTreeState {
     /// New default empty.
@@ -24,21 +29,34 @@ impl WriteTreeState {
 
     /// Update the state, flagging changes for highlight in the next print, then prints the tree.
     pub fn write_update(&mut self, tree: &WidgetInfoTree, out: &mut impl std::io::Write) {
+        self.fresh = self.fresh.wrapping_add(1);
+
         let mut fmt = print_fmt::Fmt::new(out);
         self.write_widget(tree.root(), &mut fmt);
-
         fmt.write_legend();
+
+        if tree.len() != self.widget_len && self.widget_len > 0 {
+            self.state.retain(|_, s| s.fresh == self.fresh);
+            self.computed_state.retain(|_, s| s.fresh == self.fresh);
+        }
+        self.widget_len = tree.len();
     }
 
     fn write_widget(&mut self, info: WidgetInfo, fmt: &mut print_fmt::Fmt) {
         let mut wgt_name = "<widget>";
         if let Some(bu) = info.builder() {
             wgt_name = bu.widget_mod().name();
-            fmt.open_widget(wgt_name, "", "");
+
+            let widget_id = info.widget_id();
+            let (parent_name, parent_prop) = match info.parent_property() {
+                Some((p, _)) => (info.parent().unwrap().builder().unwrap().widget_mod().name(), p.name),
+                None => ("", ""),
+            };
+
+            fmt.open_widget(wgt_name, parent_name, parent_prop);
 
             let mut properties: Vec<_> = bu.properties().collect();
             properties.sort_by_key(|(_, pos, _)| *pos);
-            let widget_id = info.widget_id();
 
             for (imp, _, args) in properties {
                 let info = args.property();
@@ -54,7 +72,7 @@ impl WriteTreeState {
                     };
                     let value = print_fmt::Diff {
                         value: args.debug(0),
-                        changed_version: version.map(|ver| self.update((widget_id, args.id(), 0), ver)).unwrap_or(false),
+                        changed: version.map(|ver| self.update((widget_id, args.id(), 0), ver)).unwrap_or(false),
                     };
                     fmt.write_property(group, name, user_assigned, version.is_some(), value);
                 } else {
@@ -66,7 +84,7 @@ impl WriteTreeState {
                         };
                         let value = print_fmt::Diff {
                             value: args.debug(i),
-                            changed_version: version.map(|ver| self.update((widget_id, args.id(), i), ver)).unwrap_or(false),
+                            changed: version.map(|ver| self.update((widget_id, args.id(), i), ver)).unwrap_or(false),
                         };
                         fmt.write_property_arg(name, user_assigned, version.is_some(), value);
                     }
@@ -76,6 +94,65 @@ impl WriteTreeState {
         } else {
             fmt.open_widget(wgt_name, "", "");
         }
+
+        let widget_id = info.widget_id();
+
+        if info.inspect_property(property_id!(crate::widget_base::id).impl_id).is_none() {
+            fmt.write_property(
+                "computed",
+                "widget_id",
+                false,
+                false,
+                print_fmt::Diff {
+                    value: formatx!("{:?}", widget_id),
+                    changed: false,
+                },
+            );
+        }
+        let outer_bounds = info.outer_bounds();
+        fmt.write_property(
+            "computed",
+            "outer_bounds",
+            false,
+            true,
+            print_fmt::Diff {
+                value: formatx!("{:?}", outer_bounds),
+                changed: self.update_computed((widget_id, "outer_bounds"), outer_bounds),
+            },
+        );
+        let inner_bounds = info.inner_bounds();
+        fmt.write_property(
+            "computed",
+            "inner_bounds",
+            false,
+            true,
+            print_fmt::Diff {
+                value: formatx!("{:?}", inner_bounds),
+                changed: self.update_computed((widget_id, "inner_bounds"), inner_bounds),
+            },
+        );
+        let visibility = info.visibility();
+        fmt.write_property(
+            "computed",
+            "visibility",
+            false,
+            true,
+            print_fmt::Diff {
+                value: formatx!("{:?}", visibility),
+                changed: self.update_computed((widget_id, "visibility"), visibility),
+            },
+        );
+        let interactivity = info.interactivity();
+        fmt.write_property(
+            "computed",
+            "interactivity",
+            false,
+            true,
+            print_fmt::Diff {
+                value: formatx!("{:?}", interactivity),
+                changed: self.update_computed((widget_id, "interactivity"), interactivity),
+            },
+        );
 
         for c in info.children() {
             self.write_widget(c, fmt);
@@ -89,10 +166,30 @@ impl WriteTreeState {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 let changed = e.get().last_update != version;
                 e.get_mut().last_update = version;
+                e.get_mut().fresh = self.fresh;
                 changed
             }
             std::collections::hash_map::Entry::Vacant(e) => {
-                e.insert(PropertyState { last_update: version });
+                e.insert(PropertyState {
+                    last_update: version,
+                    fresh: self.fresh,
+                });
+                false
+            }
+        }
+    }
+
+    fn update_computed(&mut self, key: (WidgetId, &'static str), value: impl Into<ComputedValue>) -> bool {
+        let value = value.into();
+        match self.computed_state.entry(key) {
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                let changed = value != e.get().value;
+                e.get_mut().value = value;
+                e.get_mut().fresh = self.fresh;
+                changed
+            }
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(ComputedState { value, fresh: self.fresh });
                 false
             }
         }
@@ -102,6 +199,34 @@ impl WriteTreeState {
 #[derive(Clone)]
 struct PropertyState {
     last_update: VarUpdateId,
+    fresh: u8,
+}
+
+#[derive(Clone)]
+struct ComputedState {
+    value: ComputedValue,
+    fresh: u8,
+}
+#[derive(Clone, Copy, PartialEq)]
+enum ComputedValue {
+    PxRect(PxRect),
+    Visibility(Visibility),
+    Interactivity(Interactivity),
+}
+impl From<Interactivity> for ComputedValue {
+    fn from(v: Interactivity) -> Self {
+        Self::Interactivity(v)
+    }
+}
+impl From<Visibility> for ComputedValue {
+    fn from(v: Visibility) -> Self {
+        Self::Visibility(v)
+    }
+}
+impl From<PxRect> for ComputedValue {
+    fn from(v: PxRect) -> Self {
+        Self::PxRect(v)
+    }
 }
 
 mod print_fmt {
@@ -109,7 +234,7 @@ mod print_fmt {
         /// Debug value.
         pub value: Text,
         /// If the variable version changed since last read.
-        pub changed_version: bool,
+        pub changed: bool,
     }
 
     use colored::*;
@@ -155,10 +280,10 @@ mod print_fmt {
             self.writeln();
         }
 
-        pub fn open_widget(&mut self, name: &str, parent_name: &str, parent_scope: &str) {
-            if !parent_scope.is_empty() {
+        pub fn open_widget(&mut self, name: &str, parent_name: &str, parent_property: &str) {
+            if !parent_property.is_empty() {
                 self.writeln();
-                self.write_comment(format_args!("in {parent_name}::{parent_scope}"));
+                self.write_comment(format_args!("in {parent_name}.{parent_property}"));
             }
             self.write_tabs();
             self.write(name.yellow());
@@ -202,7 +327,7 @@ mod print_fmt {
                     self.write_tabs();
                 }
 
-                if value.changed_version {
+                if value.changed {
                     self.write(line.truecolor(150, 255, 150).bold())
                 } else if can_update {
                     self.write(line.truecolor(200, 150, 150));

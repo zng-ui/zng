@@ -149,6 +149,16 @@ impl<U: UiNode> RcNode<U> {
     pub fn take_on_init(&self) -> TakeSlot<U, impl TakeOn> {
         self.take_when(true)
     }
+
+    /// Calls `f` in the context of the node, it it can be borrowed and is a full widget.
+    pub fn try_context<R>(&self, f: impl FnOnce(&mut WidgetNodeContext) -> R) -> Option<R> {
+        self.0.item.try_borrow().ok()?.with_context(f)
+    }
+
+    /// Calls `f` in the context of the node, it it can be borrowed and is a full widget.
+    pub fn try_context_mut<R>(&self, f: impl FnOnce(&mut WidgetNodeMutContext) -> R) -> Option<R> {
+        self.0.item.try_borrow_mut().ok()?.with_context_mut(f)
+    }
 }
 
 /// `Weak` reference to a [`RcNode<U>`].
@@ -180,7 +190,6 @@ impl<L: UiNodeList> Clone for RcNodeList<L> {
         Self(self.0.clone())
     }
 }
-
 impl<L: UiNodeList> RcNodeList<L> {
     /// New list.
     pub fn new(list: L) -> Self {
@@ -268,6 +277,20 @@ impl<L: UiNodeList> RcNodeList<L> {
     /// This is equivalent to `self.take_when(true)`
     pub fn take_on_init(&self) -> TakeSlot<L, impl TakeOn> {
         self.take_when(true)
+    }
+
+    /// Iterate over node contexts, if the list can be borrowed and the node is a full widget.
+    pub fn for_each_ctx(&self, mut f: impl FnMut(usize, &mut WidgetNodeContext) -> bool) {
+        if let Ok(list) = self.0.item.try_borrow() {
+            list.for_each(|i, n| n.with_context(|ctx| f(i, ctx)).unwrap_or(true))
+        }
+    }
+
+    /// Iterate over node contexts, if the list can be borrowed and the node is a full widget.
+    pub fn for_each_ctx_mut(&self, mut f: impl FnMut(usize, &mut WidgetNodeMutContext) -> bool) {
+        if let Ok(mut list) = self.0.item.try_borrow_mut() {
+            list.for_each_mut(|i, n| n.with_context_mut(|ctx| f(i, ctx)).unwrap_or(true))
+        }
     }
 }
 

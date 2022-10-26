@@ -217,6 +217,14 @@ impl WidgetInfoTree {
         self.0.spatial_bounds.get().to_rect()
     }
 
+    /// Total number of widgets in the tree.
+    ///
+    /// Is never zero, every tree has at least the root widget.
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.0.lookup.len()
+    }
+
     fn bounds_changed(&self) {
         self.0.stats_update.borrow_mut().bounds_updated += 1;
     }

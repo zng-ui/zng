@@ -39,7 +39,7 @@ use std::rc::Rc;
 
 use crate::{
     context::StaticStateId,
-    widget_builder::{PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
+    widget_builder::{InputKind, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
     widget_info::WidgetInfo,
 };
 
@@ -103,6 +103,9 @@ pub trait WidgetInfoInspectorExt<'a> {
     /// }
     /// ```
     fn inspect_property<P: InspectPropertyPattern>(self, pattern: P) -> Option<&'a dyn PropertyArgs>;
+
+    /// Gets the parent property that has this widget as an input.
+    fn parent_property(self) -> Option<(PropertyId, usize)>;
 }
 impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
     fn builder(self) -> Option<Rc<WidgetBuilder>> {
@@ -139,6 +142,36 @@ impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
             .get(&WIDGET_BUILDER_ID)?
             .properties()
             .find_map(|(_, _, args)| if pattern.matches(args) { Some(args) } else { None })
+    }
+
+    fn parent_property(self) -> Option<(PropertyId, usize)> {
+        self.parent()?.meta().get(&WIDGET_BUILDER_ID)?.properties().find_map(|(_, _, p)| {
+            let id = self.widget_id();
+            let info = p.property();
+            for (i, input) in info.inputs.iter().enumerate() {
+                match input.kind {
+                    InputKind::UiNode => {
+                        let node = p.ui_node(i);
+                        if let Some(true) = node.try_context(|ctx| ctx.id == id) {
+                            return Some((p.id(), i));
+                        }
+                    }
+                    InputKind::UiNodeList => {
+                        let list = p.ui_node_list(i);
+                        let mut found = false;
+                        list.for_each_ctx(|_, ctx| {
+                            found = ctx.id == id;
+                            !found
+                        });
+                        if found {
+                            return Some((p.id(), i));
+                        }
+                    }
+                    _ => continue,
+                }
+            }
+            None
+        })
     }
 }
 
