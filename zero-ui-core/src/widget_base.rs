@@ -176,10 +176,10 @@ pub mod nodes {
     /// [`base`]: mod@base
     pub fn inner(child: impl UiNode) -> impl UiNode {
         #[ui_node(struct InnerNode {
-                child: impl UiNode,
-                transform_key: FrameValueKey<PxTransform>,
-                hits_clip: (PxSize, PxCornerRadius),
-            })]
+            child: impl UiNode,
+            transform_key: FrameValueKey<PxTransform>,
+            hits_clip: (PxSize, PxCornerRadius),
+        })]
         impl UiNode for InnerNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.sub_var(&HitTestMode::var());

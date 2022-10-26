@@ -1192,7 +1192,7 @@ impl WidgetBuilding {
         // TODO !!: when
 
         let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());
-        for (_, item) in self.p.items {
+        for (_, item) in self.p.items.into_iter().rev() {
             match item {
                 WidgetItem::Property { args, .. } => {
                     node = args.instantiate(node);

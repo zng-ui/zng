@@ -472,18 +472,16 @@ pub mod window {
         wgt.push_build_action(|wgt| {
             #[cfg(inspector)]
             {
-                let can_inspect = wgt.capture_var_or_default(property_id!(self.can_inspect));
+                let can_inspect = wgt.capture_var_or_else(property_id!(self.can_inspect), || true);
                 wgt.push_intrinsic(Priority::Event, |child| commands::inspect_node(child, can_inspect));
             }
 
             wgt.push_intrinsic(Priority::Event, nodes::layers);
+            wgt.push_intrinsic(Priority::Context, nodes::color_scheme);
         });
     }
 
     fn build(mut wgt: WidgetBuilder) -> Window {
-        let child = wgt.capture_ui_node_or_else(property_id!(self.child), || FillUiNode);
-        let child = nodes::color_scheme(child);
-
         Window::new_root(
             wgt.capture_value_or_else(property_id!(self.id), WidgetId::new_unique),
             wgt.capture_value_or_default::<StartPosition>(property_id!(self.start_position)),
@@ -492,7 +490,7 @@ pub mod window {
             wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(self.render_mode)),
             wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(self.headless_monitor)),
             wgt.capture_value_or_default(property_id!(self.start_focused)),
-            child,
+            wgt.build(),
         )
     }
 }

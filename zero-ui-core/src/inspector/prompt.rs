@@ -100,7 +100,7 @@ impl WriteTreeState {
         if info.inspect_property(property_id!(crate::widget_base::id).impl_id).is_none() {
             fmt.write_property(
                 "computed",
-                "widget_id",
+                "id",
                 false,
                 false,
                 print_fmt::Diff {
