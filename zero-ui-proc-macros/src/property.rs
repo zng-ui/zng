@@ -537,6 +537,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     }
                 }
 
+                pub fn __new_dyn__(
+                    __instance__: #core::widget_builder::PropertyInstInfo,
+                    inputs: std::vec::Vec<std::boxed::Box<dyn std::any::Any>>
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    let mut inputs = inputs.into_iter();
+
+                    Box::new(Self {
+                        __instance__,
+                        #(#input_idents: #core::widget_builder::new_dyn_downcast(&mut inputs),)*
+                    })
+                }
+
                 pub fn __build__(mut self, info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     self.__instance__ = info;
                     Box::new(self)
@@ -561,6 +573,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
                         default: #default_fn,
+                        new: Self::__new_dyn__,
                         inputs: std::boxed::Box::new([
                             #input_info
                         ]),

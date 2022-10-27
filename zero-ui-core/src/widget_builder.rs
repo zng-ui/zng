@@ -323,6 +323,7 @@ impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
         self.0.borrow_mut().update(ctx)
     }
 }
+
 /// Property info.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
@@ -343,6 +344,36 @@ pub struct PropertyInfo {
 
     /// Function that constructs the default args for the property.
     pub default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
+
+    /// New property args from dynamically typed args.
+    ///
+    /// The args vec must have a value for each input in the same order they appear in [`inputs`], type types must match
+    /// the input kind and type, the function panics if the types don't match or not all inputs are provided.
+    ///
+    /// The expected types for each [`InputKind`] are:
+    ///
+    /// | Kind                | Expected Type
+    /// |---------------------|----------------------
+    /// | [`Var`]             | `Box<BoxedVar<T>>`
+    /// | [`StateVar`]        | `Box<StateVar>`
+    /// | [`Value`]           | `Box<T>`
+    /// | [`UiNode`]          | `Box<RcNode<BoxedUiNode>>`
+    /// | [`UiNodeList`]      | `Box<RcNodeList<BoxedUiNodeList>>`
+    /// | [`WidgetHandler`]   | `Box<RcWidgetHandler<A>>`
+    ///
+    /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
+    ///
+    /// You can use [`PropertyArgs::instantiate`] on the output to generate a property node from the args. If the
+    /// property is known at compile time you can use [`property_args!`] to generate args instead, and you can just
+    /// call the property function directly to instantiate a node.
+    ///
+    /// [`Var`]: InputKind::Var
+    /// [`StateVar`]: InputKind::StateVar
+    /// [`Value`]: InputKind::Value
+    /// [`UiNode`]: InputKind::UiNode
+    /// [`UiNodeList`]: InputKind::UiNodeList
+    /// [`WidgetHandler`]: InputKind::WidgetHandler
+    pub new: fn(PropertyInstInfo, Vec<Box<dyn Any>>) -> Box<dyn PropertyArgs>,
 
     /// Property inputs info, always at least one.
     pub inputs: Box<[PropertyInput]>,
@@ -574,6 +605,15 @@ pub fn ui_node_list_to_args(node_list: impl UiNodeList) -> RcNodeList<BoxedUiNod
 #[doc(hidden)]
 pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>) -> RcWidgetHandler<A> {
     RcWidgetHandler::new(handler)
+}
+
+#[doc(hidden)]
+pub fn new_dyn_downcast<T: Any>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> T {
+    *inputs
+        .next()
+        .expect("missing input")
+        .downcast::<T>()
+        .expect("input did not match expected var type")
 }
 
 /*
@@ -1173,7 +1213,8 @@ impl WidgetBuilding {
         }
         let mut assigns = LinearMap::new();
 
-        'when: for (_, when) in &self.whens {
+        // rev so that the last when overrides others, the WhenVar returns the first true condition.
+        'when: for (_, when) in self.whens.iter().rev() {
             // bind inputs.
             let valid_inputs = inputs.len();
             let valid_items = self.p.items.len();
@@ -1254,6 +1295,7 @@ impl WidgetBuilding {
 
             if !any_assign {
                 inputs.truncate(valid_inputs);
+                self.p.items.truncate(valid_items);
             }
         }
 
@@ -1279,11 +1321,16 @@ impl WidgetBuilding {
         }
 
         for (_, Assign { item_idx, builder }) in assigns {
-            let args = match &self.items[item_idx].1 {
+            let args = match &mut self.items[item_idx].1 {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
-            
+            let new = args.property().new;
+            let inputs: Vec<Box<dyn Any>> = builder
+                .iter()
+                .map(|b| Box::new(b.build::<bool>().expect("when build failed").boxed()) as _) // TODO !!: T
+                .collect();
+            *args = new(args.instance(), inputs);
         }
     }
 
