@@ -702,6 +702,7 @@ impl WgtWhen {
                         #assigns
                     ]),
                     expr: #expr_str,
+                    location: #wgt_builder_mod::source_location!(),
                 }
             }
         }

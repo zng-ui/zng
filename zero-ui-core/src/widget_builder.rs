@@ -792,6 +792,9 @@ pub struct WhenInfo {
 
     /// The condition expression code.
     pub expr: &'static str,
+
+    /// When declaration location.
+    pub location: SourceLocation,
 }
 impl WhenInfo {
     /// Returns `true` if the [`state`] var is valid because it does not depend of any property input or all
@@ -1173,12 +1176,25 @@ impl WidgetBuilding {
         'when: for (_, when) in &self.whens {
             // bind inputs.
             let valid_inputs = inputs.len();
+            let valid_items = self.p.items.len();
             for input in when.inputs.iter() {
                 if let Some(i) = self.property_index(input.property) {
                     inputs.push(Input { input, item_idx: i })
+                } else if let Some(default) = input.property_default {
+                    let args = default(PropertyInstInfo {
+                        name: input.property.name,
+                        location: when.location,
+                    });
+                    self.p.items.push((
+                        NestPosition::property(args.property().priority),
+                        WidgetItem::Property {
+                            importance: Importance::WIDGET,
+                            args,
+                        },
+                    ));
                 } else {
-                    todo!("instantiate default if property has it");
                     inputs.truncate(valid_inputs);
+                    self.p.items.truncate(valid_items);
                     continue 'when;
                 }
             }
@@ -1187,38 +1203,52 @@ impl WidgetBuilding {
             // collect assigns.
             for assign in when.assigns.iter() {
                 let id = assign.id();
-                if let Some(i) = self.property_index(id) {
-                    any_assign = true;
+                let i = if let Some(i) = self.property_index(id) {
+                    i
+                } else if let Some(default) = assign.property().default {
+                    let args = default(assign.instance());
+                    self.p.items.push((
+                        NestPosition::property(args.property().priority),
+                        WidgetItem::Property {
+                            importance: Importance::WIDGET,
+                            args,
+                        },
+                    ));
+                    self.p.items.len() - 1
+                } else {
+                    continue;
+                };
 
-                    let args = match &self.items[i].1 {
-                        WidgetItem::Property { args, .. } => args,
-                        WidgetItem::Intrinsic { .. } => unreachable!(),
+                any_assign = true;
+
+                let args = match &self.items[i].1 {
+                    WidgetItem::Property { args, .. } => args,
+                    WidgetItem::Intrinsic { .. } => unreachable!(),
+                };
+                let info = args.property();
+
+                let entry = match assigns.entry(id) {
+                    linear_map::Entry::Occupied(e) => e.into_mut(),
+                    linear_map::Entry::Vacant(e) => e.insert(Assign {
+                        item_idx: i,
+                        builder: info
+                            .inputs
+                            .iter()
+                            .enumerate()
+                            .map(|(i, input)| match input.kind {
+                                InputKind::Var => AnyWhenVarBuilder::new_any(args.var(i).clone_any()),
+                                _ => panic!("can only assign vars in when blocks"),
+                            })
+                            .collect(),
+                    }),
+                };
+
+                for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
+                    let value = match input.kind {
+                        InputKind::Var => args.var(i).clone_any(),
+                        _ => panic!("can only assign vars in when blocks"),
                     };
-                    let info = args.property();
-
-                    let entry = match assigns.entry(id) {
-                        linear_map::Entry::Occupied(e) => e.into_mut(),
-                        linear_map::Entry::Vacant(e) => e.insert(Assign {
-                            item_idx: i,
-                            builder: info
-                                .inputs
-                                .iter()
-                                .enumerate()
-                                .map(|(i, input)| match input.kind {
-                                    InputKind::Var => AnyWhenVarBuilder::new_any(args.var(i).clone_any()),
-                                    _ => panic!("can only assign vars in when blocks"),
-                                })
-                                .collect(),
-                        }),
-                    };
-
-                    for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
-                        let value = match input.kind {
-                            InputKind::Var => args.var(i).clone_any(),
-                            _ => panic!("can only assign vars in when blocks"),
-                        };
-                        entry.push_any(when.state.clone(), value);
-                    }
+                    entry.push_any(when.state.clone(), value);
                 }
             }
 
@@ -1253,6 +1283,7 @@ impl WidgetBuilding {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
+            
         }
     }
 
