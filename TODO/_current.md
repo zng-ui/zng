@@ -3,26 +3,7 @@
 * Implement "when" instantiation.
     - WhenInputVar sticks to the actual var at moment of first use, resetting only after clone.
         - Review if the eval var resets all inputs on clone too.
-    - AnyWhenVarBuilder::build_any.
-        - Need `T` in AnyWhenVarBuilder::build.
-```rust
-    // in PropertyArgs
-    // pub build_when: fn(index, AnyWhenVarBuilder) -> Box<dyn Any>,
-
-    struct PropertyArgsImpl {
-        member0: BoxedVar<bool>,
-    }
-    impl PropertyArgsImpl {
-        pub fn build_when(member: usize, builder: AnyWhenVarBuilder) -> Box<dyn Any> {
-            match member {
-                0 => Box::new(builder.build::<bool>().expect("").boxed()),
-                n => panic_input(todo!(), n, InputKind::Var),
-            }
-        }
-        
-    }
-```
-
+    - Validate when assign at compile time.
     - Do we auto-generate default for state properties?
         - Nope, previous API did, we need to do this.
         - We can provide a default for all kinds except `Var` and `Value`.

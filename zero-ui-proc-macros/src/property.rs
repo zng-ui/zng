@@ -154,10 +154,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut macro_inputs = quote!();
         let mut macro_input_index = quote!();
         let mut macro_allowed_in_when = quote!();
-        let mut macro_allowed_in_when_assign = quote!();
         let mut named_into_var = quote!();
         let mut get_when_input = quote!();
         let mut macro_get_when_input = quote!();
+
+        let mut allowed_in_when_assign = true;
 
         for (i, input) in inputs[1..].iter().enumerate() {
             let ident = &input.ident;
@@ -254,53 +255,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 });
             }
 
-            if matches!(kind, InputKind::Var) {
-                macro_allowed_in_when_assign.extend(quote! {
-                    (if allowed_in_when_assign(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if !allowed_in_when_assign(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                    (if allowed_in_when_assign(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if !allowed_in_when_assign(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                });
-            } else {
-                macro_allowed_in_when_assign.extend(quote! {
-                    (if !allowed_in_when_assign(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if allowed_in_when_assign(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                    (if !allowed_in_when_assign(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if allowed_in_when_assign(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                });
-            }
+            if !matches!(kind, InputKind::Var) {
+               allowed_in_when_assign = false;
+            } 
 
             match kind {
                 InputKind::Var => {
@@ -415,6 +372,51 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                 }
             }
+        }
+
+        let macro_allowed_in_when_assign;
+        let new_when;
+        let new_when_fn;
+        if allowed_in_when_assign {
+            macro_allowed_in_when_assign = quote! {
+                (if allowed_in_when_assign { $($tt:tt)* }) => {
+                    $($tt)*
+                };
+                (if !allowed_in_when_assign { $($tt:tt)* }) => {
+                    // ignore
+                };
+            };
+
+            new_when = quote! {
+                pub fn __new_when__(
+                    __instance__: #core::widget_builder::PropertyInstInfo,
+                    inputs: std::vec::Vec<#core::var::types::AnyWhenVarBuilder>,
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    let mut inputs = inputs.into_iter();
+
+                    Box::new(Self {
+                        __instance__,
+                        #(#input_idents: #core::widget_builder::new_when_build(&mut inputs),)*
+                    })
+                }
+            };
+
+            new_when_fn = quote! {
+                Some(Self::__new_when__)
+            };
+        } else {
+            macro_allowed_in_when_assign = quote! {
+                (if !allowed_in_when_assign { $($tt:tt)* }) => {
+                    $($tt)*
+                };
+                (if allowed_in_when_assign { $($tt:tt)* }) => {
+                    // ignore
+                };
+            };
+            new_when = quote!();
+            new_when_fn = quote! {
+                None
+            };
         }
 
         if !get_var.is_empty() {
@@ -549,6 +551,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     })
                 }
 
+                #new_when
+
                 pub fn __build__(mut self, info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     self.__instance__ = info;
                     Box::new(self)
@@ -574,6 +578,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         location: #core::widget_builder::source_location!(),
                         default: #default_fn,
                         new: Self::__new_dyn__,
+                        new_when: #new_when_fn,
                         inputs: std::boxed::Box::new([
                             #input_info
                         ]),

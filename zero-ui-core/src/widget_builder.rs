@@ -342,7 +342,9 @@ pub struct PropertyInfo {
     /// Property declaration location.
     pub location: SourceLocation,
 
-    /// Function that constructs the default args for the property.
+    /// New default property args.
+    ///
+    /// This is `Some(_)` only if the `#[property(_, default(..))]` was set in the property declaration.
     pub default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
 
     /// New property args from dynamically typed args.
@@ -367,6 +369,7 @@ pub struct PropertyInfo {
     /// property is known at compile time you can use [`property_args!`] to generate args instead, and you can just
     /// call the property function directly to instantiate a node.
     ///
+    /// [`inputs`]: Self::inputs
     /// [`Var`]: InputKind::Var
     /// [`StateVar`]: InputKind::StateVar
     /// [`Value`]: InputKind::Value
@@ -374,6 +377,13 @@ pub struct PropertyInfo {
     /// [`UiNodeList`]: InputKind::UiNodeList
     /// [`WidgetHandler`]: InputKind::WidgetHandler
     pub new: fn(PropertyInstInfo, Vec<Box<dyn Any>>) -> Box<dyn PropertyArgs>,
+
+    /// New property args from all the `when` assigns that affect this property.
+    ///
+    /// This is `Some(_)` only if all [`inputs`] are [`InputKind::Var`].
+    ///
+    /// [`inputs`]: Self::inputs
+    pub new_when: Option<fn(PropertyInstInfo, Vec<AnyWhenVarBuilder>) -> Box<dyn PropertyArgs>>,
 
     /// Property inputs info, always at least one.
     pub inputs: Box<[PropertyInput]>,
@@ -614,6 +624,16 @@ pub fn new_dyn_downcast<T: Any>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -
         .expect("missing input")
         .downcast::<T>()
         .expect("input did not match expected var type")
+}
+
+#[doc(hidden)]
+pub fn new_when_build<T: VarValue>(inputs: &mut std::vec::IntoIter<AnyWhenVarBuilder>) -> BoxedVar<T> {
+    inputs
+        .next()
+        .expect("missing input")
+        .build::<T>()
+        .expect("invalid when builder")
+        .boxed()
 }
 
 /*
@@ -1209,7 +1229,7 @@ impl WidgetBuilding {
 
         struct Assign {
             item_idx: usize,
-            builder: Box<[AnyWhenVarBuilder]>,
+            builder: Vec<AnyWhenVarBuilder>,
         }
         let mut assigns = LinearMap::new();
 
@@ -1325,12 +1345,8 @@ impl WidgetBuilding {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
-            let new = args.property().new;
-            let inputs: Vec<Box<dyn Any>> = builder
-                .iter()
-                .map(|b| Box::new(b.build::<bool>().expect("when build failed").boxed()) as _) // TODO !!: T
-                .collect();
-            *args = new(args.instance(), inputs);
+            let new_when = args.property().new_when.unwrap();
+            *args = new_when(args.instance(), builder);
         }
     }
 
