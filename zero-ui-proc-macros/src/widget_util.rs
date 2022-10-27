@@ -673,17 +673,28 @@ impl WgtWhen {
                     member: #wgt_builder_mod::WhenInputMember::#member,
                     var: #var_input,
                     property_default: #property::code_gen! {
-                        {#property::property #generics}::__default__()
+                        {#property::property #generics}::__default__
                     }
                 },
             });
         }
 
         let mut assigns = quote!();
+        let mut assigns_error = quote!();
         for a in &self.assigns {
             let args = a.args_new(wgt_builder_mod.clone());
             assigns.extend(quote! {
                 #args,
+            });
+
+            let path = &a.path;
+            let error = format!("property `{}` cannot be assigned in when", a.ident());
+            assigns_error.extend(quote_spanned! {path.span()=>
+                #path::code_gen! {
+                    if !allowed_in_when_assign {
+                        std::compile_error!(#error);
+                    }
+                }
             });
         }
 
@@ -693,6 +704,7 @@ impl WgtWhen {
         quote! {
             {
                 #var_decl
+                #assigns_error
                 #wgt_builder_mod::WhenInfo {
                     inputs: std::boxed::Box::new([
                         #inputs

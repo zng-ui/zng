@@ -1,13 +1,18 @@
 # All Dyn Rewrite
 
 * Implement "when" instantiation.
+    - Property `path::code_gen!` resolution fails in places `path::property` works.
+        - `property` is the Args struct, apparently it is better then a macro.
+        - We could replace the macro with const functions that panic.
+            - The const panic error is not as nice as compile_error!.
+    - Auto generate defaults for StateVar.
+        - Auto generate default handler, node an list too?
+    - When generated properties are not visible in inspector.
+        - Can't really just clone the builder, need a struct that collects a clone of all final properties.
+    - Allow when assign for node, list and handler?
+        - It is possible to implement something that switches between the values.
     - WhenInputVar sticks to the actual var at moment of first use, resetting only after clone.
         - Review if the eval var resets all inputs on clone too.
-    - Validate when assign at compile time.
-    - Do we auto-generate default for state properties?
-        - Nope, previous API did, we need to do this.
-        - We can provide a default for all kinds except `Var` and `Value`.
-    - When generated defaults are not visible in inspector.
 
 * Review "!!:"
 * Review property macro, remove matchers that are not used.

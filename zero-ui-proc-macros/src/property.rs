@@ -108,36 +108,37 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let macro_ident = ident!("{ident}_code_gen_{uuid:x}");
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
-        let (default, macro_default_fn, default_fn) = if let Some(dft) = args.default {
+        let default;
+        let macro_default_fn;
+        let default_fn;
+        if let Some(dft) = args.default {
             let args = dft.args;
-            (
-                quote! {
-                    pub fn __default__(info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                        Self::__new__(#args).__build__(info)
-                    }
-                },
-                quote! {
-                    ({$($property:tt)*}::__default__()) => {
-                        Some($($property)*::__default__)
-                    };
-                },
-                quote! {
-                    Some(Self::__default__)
-                },
-            )
+
+            default = quote! {
+                pub fn __default__(info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    Self::__new__(#args).__build__(info)
+                }
+            };
+            macro_default_fn = quote! {
+                ({$($property:tt)*}::__default__) => {
+                    Some($($property)*::__default__)
+                };
+            };
+            default_fn = quote! {
+                Some(Self::__default__)
+            };
         } else {
-            (
-                quote!(),
-                quote! {
-                    ({$($property:tt)*}::__default__()) => {
-                        None
-                    };
-                },
-                quote! {
+            default = quote!();
+            macro_default_fn = quote! {
+                ({$($property:tt)*}::__default__
+            ) => {
                     None
-                },
-            )
-        };
+                };
+            };
+            default_fn = quote! {
+                None
+            };
+        }
         let mut input_info = quote!();
         let mut get_var = quote!();
         let mut get_state = quote!();
@@ -256,8 +257,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
 
             if !matches!(kind, InputKind::Var) {
-               allowed_in_when_assign = false;
-            } 
+                allowed_in_when_assign = false;
+            }
 
             match kind {
                 InputKind::Var => {
