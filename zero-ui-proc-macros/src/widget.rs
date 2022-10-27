@@ -5,7 +5,7 @@ use quote::{quote, ToTokens};
 use syn::{parse::Parse, spanned::Spanned, *};
 
 use crate::{
-    util::{self, parse_outer_attrs, ErrorRecoverable, Errors},
+    util::{self, parse_outer_attrs, path_span, ErrorRecoverable, Errors},
     widget_util::{self, WgtProperty, WgtWhen},
 };
 
@@ -73,7 +73,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         has_parent |= is_parent;
         let attrs = &inh.attrs;
         let path = &inh.path;
-        include_item_imports.extend(quote_spanned! {path.span()=>
+        include_item_imports.extend(quote_spanned! {path_span(path)=>
             #(#attrs)*
             #path::__include__(__wgt__);
         });
@@ -167,7 +167,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let path = &inh.path;
         let id = path.segments.last().map(|s| &s.ident).unwrap();
         let error = format!("cannot inherit build from `{id}`, it is a mix-in\nmix-ins with suffix `_mixin` are ignored when inheriting build, but this one was renamed");
-        quote_spanned! {path.span()=>
+        quote_spanned! {path_span(path)=>
             #path! {
                 >> if mixin {
                     std::compile_error!{ #error }
@@ -210,7 +210,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         } else {
             quote!()
         };
-        inherit_export.extend(quote_spanned! {path.span()=>
+        inherit_export.extend(quote_spanned! {path_span(&path)=>
             #(#attrs)*
             #[allow(unused_imports)]
             pub use #extra_super #path::__properties__::*;

@@ -375,19 +375,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         }
 
-        let macro_allowed_in_when_assign;
         let new_when;
         let new_when_fn;
         if allowed_in_when_assign {
-            macro_allowed_in_when_assign = quote! {
-                (if allowed_in_when_assign { $($tt:tt)* }) => {
-                    $($tt)*
-                };
-                (if !allowed_in_when_assign { $($tt:tt)* }) => {
-                    // ignore
-                };
-            };
-
             new_when = quote! {
                 pub fn __new_when__(
                     __instance__: #core::widget_builder::PropertyInstInfo,
@@ -406,14 +396,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 Some(Self::__new_when__)
             };
         } else {
-            macro_allowed_in_when_assign = quote! {
-                (if !allowed_in_when_assign { $($tt:tt)* }) => {
-                    $($tt)*
-                };
-                (if allowed_in_when_assign { $($tt:tt)* }) => {
-                    // ignore
-                };
-            };
             new_when = quote!();
             new_when_fn = quote! {
                 None
@@ -481,38 +463,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         }
 
-        let mut sorted_inputs: Vec<_> = inputs[1..].iter().map(|i| &i.ident).collect();
-        sorted_inputs.sort();
-
-        let macro_generics = if generics.params.empty_or_trailing() {
-            quote! {
-                (if !generics {
-                    $($tt:tt)*
-                }) => {
-                    $($tt)*
-                };
-                (if generics {
-                    $($tt:tt)*
-                }) => {
-                    // ignore
-                };
-            }
-        } else {
-            quote! {
-                (if generics {
-                    $($tt:tt)*
-                }) => {
-                    $($tt)*
-                };
-                (if !generics {
-                    $($tt:tt)*
-                }) => {
-                    // ignore
-                };
-            }
-        };
-
-        let inputs_len = inputs[1..].len();
+        let mut sorted_inputs: Vec<_> = inputs[1..].iter().collect();
+        sorted_inputs.sort_by_key(|i| &i.ident);
+        let sorted_idents = sorted_inputs.iter().map(|i| &i.ident);
+        let sorted_tys = sorted_inputs.iter().map(|i| &i.ty);
 
         let args_reexport_vis = match vis {
             Visibility::Inherited => quote!(pub(super)),
@@ -538,6 +492,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         __instance__: #core::widget_builder::PropertyInstInfo::none(),
                         #(#input_idents: #input_to_storage),*
                     }
+                }
+
+                #[allow(clippy::too_many_arguments)]
+                pub fn __new_sorted__(#(#sorted_idents: #sorted_tys),*) -> Self {
+                    Self::__new__(#(#input_idents),*)
                 }
 
                 pub fn __new_dyn__(
@@ -606,8 +565,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[doc(hidden)]
             #[macro_export]
             macro_rules! #macro_ident {
-                #macro_generics
-
                 #macro_inputs
                 (if input($other:ident) {
                     $($tt:tt)*
@@ -622,26 +579,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 #macro_input_index
                 #macro_allowed_in_when
-                #macro_allowed_in_when_assign
-
-                (if !inputs_len(#inputs_len) {
-                    $($tt:tt)*
-                }) => {
-                    // ignore
-                };
-                (if !inputs_len($other:tt) {
-                    $($tt:tt)*
-                }) => {
-                    $($tt)*
-                };
-
-                ({$($property:tt)*}::__new__(#($#sorted_inputs:ident),*)) => {
-                    $($property)*::__new__(#($#input_idents),*)
-                };
-                ({$($property:tt)*}::__new__($($sorted_inputs:ident),*)) => {
-                    // ignore
-                    ((), ())
-                };
 
                 #macro_default_fn
 
@@ -656,6 +593,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #args_reexport_vis use super::#args_ident as property;
                 #args_reexport_vis use super::#ident as export;
                 pub use #macro_ident as code_gen;
+
+                pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
 
                 #[doc(hidden)]
                 pub fn property_id(name: &'static str) -> #core::widget_builder::PropertyId {

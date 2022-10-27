@@ -10,7 +10,7 @@ use syn::{
     *,
 };
 
-use crate::util::{self, parse_outer_attrs, parse_punct_terminated2, peek_any3, Attributes, ErrorRecoverable, Errors};
+use crate::util::{self, parse_outer_attrs, parse_punct_terminated2, path_span, peek_any3, Attributes, ErrorRecoverable, Errors};
 
 /// Represents a property assign.
 pub struct WgtProperty {
@@ -45,7 +45,7 @@ impl WgtProperty {
         let path = &self.path;
         let ident = self.ident();
         let ident_str = ident.to_string();
-        quote_spanned! {path.span()=>
+        quote_spanned! {path_span(path)=>
             #path::property_id(#ident_str)
         }
     }
@@ -178,7 +178,7 @@ impl WgtProperty {
             quote!()
         };
 
-        quote_spanned! {path.span()=>
+        quote_spanned! {path_span(path)=>
             #(#docs)*
             #cfg
             #clippy_nag
@@ -260,7 +260,7 @@ impl WgtProperty {
     /// Gets the property args new code.
     pub fn args_new(&self, wgt_builder_mod: TokenStream) -> TokenStream {
         let path = &self.path;
-        let property_path = quote_spanned!(path.span()=> #path::property);
+        let property_path = quote_spanned!(path_span(path)=> #path::property);
         let generics = &self.generics;
         let ident = self.ident();
         let ident_str = ident.to_string();
@@ -273,7 +273,7 @@ impl WgtProperty {
         if let Some((_, val)) = &self.value {
             match val {
                 PropertyValue::Special(_, _) => quote!(),
-                PropertyValue::Unnamed(args) => quote_spanned! {path.span()=>
+                PropertyValue::Unnamed(args) => quote_spanned! {path_span(path)=>
                     #property_path #generics::__new__(#args).__build__(#instance)
                 },
                 PropertyValue::Named(_, args) => {
@@ -281,37 +281,13 @@ impl WgtProperty {
                     idents_sorted.sort();
                     let idents = args.iter().map(|f| &f.ident);
                     let exprs = args.iter().map(|f| &f.expr);
-                    let errors = args.iter().map(|f| {
-                        let msg = format!("unknown input `{}`", f.ident);
-                        quote_spanned! {f.ident.span()=>
-                            std::compile_error!(#msg);
-                        }
-                    });
-                    let inputs_len = idents_sorted.len();
-
-                    quote_spanned! {path.span()=>
+                    quote_spanned! {path_span(path)=>
                         {
-                            #path::code_gen! {
-                                if !inputs_len(#inputs_len) {
-                                    std::compile_error!("incorrect inputs");
-                                }
-                            }
                             #(
-                                #path::code_gen! {
-                                    if input(#idents) {
-                                        let #idents = #property_path #generics::#idents(#exprs);
-                                    }
-                                }
-                                #path::code_gen! {
-                                    if !input(#idents) {
-                                        #errors
-                                    }
-                                }
+                                let #idents = #property_path #generics::#idents(#exprs);
                             )*
 
-                            #path::code_gen! {
-                                {#property_path #generics}::__new__(#(#idents_sorted),*)
-                            }.__build__(#instance)
+                            #property_path #generics::__new_sorted__(#(#idents_sorted),*).__build__(#instance)
                         }
                     }
                 }
@@ -633,7 +609,7 @@ impl WgtWhen {
 
             let unknwon_member_err = format!("unknown member `{}`", member);
             let not_gettable_err = format!("member `{}` cannot be used in when", member);
-            var_decl.extend(quote_spanned! {property.span()=>
+            var_decl.extend(quote_spanned! {path_span(&property)=>
                 #property::code_gen! {
                     if input(#member) {
                         #property::code_gen! {
@@ -689,12 +665,10 @@ impl WgtWhen {
 
             let path = &a.path;
             let error = format!("property `{}` cannot be assigned in when", a.ident());
-            assigns_error.extend(quote_spanned! {path.span()=>
-                #path::code_gen! {
-                    if !allowed_in_when_assign {
-                        std::compile_error!(#error);
-                    }
-                }
+            assigns_error.extend(quote_spanned! {path_span(path)=>
+                const _: () = if !#path::ALLOWED_IN_WHEN_ASSIGN {
+                    panic!(#error);
+                };
             });
         }
 
@@ -769,7 +743,7 @@ impl WhenExpr {
                 let path_slug = util::display_path(&property).replace("::", "_");
 
                 let mut member = WhenInputMember::Index(0);
-                let mut var_ident = ident_spanned!(property.span()=> "w_{path_slug}_m_0");
+                let mut var_ident = ident_spanned!(path_span(&property)=> "w_{path_slug}_m_0");
                 if input.peek(Token![.]) && !input.peek2(Token![await]) && !input.peek3(token::Paren) {
                     let _: Token![.] = input.parse()?;
                     if input.peek(Ident) {

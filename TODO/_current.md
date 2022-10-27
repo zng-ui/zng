@@ -2,9 +2,7 @@
 
 * Implement "when" instantiation.
     - Property `path::code_gen!` resolution fails in places `path::property` works.
-        - `property` is the Args struct, apparently it is better then a macro.
-        - We could replace the macro with const functions that panic.
-            - The const panic error is not as nice as compile_error!.
+        - Replace `code_gen` with const asserts and recontextualized compiler errors.
     - Auto generate defaults for StateVar.
         - Auto generate default handler, node an list too?
     - When generated properties are not visible in inspector.
@@ -42,3 +40,5 @@
         - Mostly want it to support `#self.exported_prop`, nice callback to the previous syntax.
         - If we can't establish unambiguity, assume `#property_ident`, support `#::widget_ident` to select a widget.
 * Implement pre-bind for when expressions.
+
+

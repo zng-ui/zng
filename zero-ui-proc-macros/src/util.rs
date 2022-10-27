@@ -404,6 +404,11 @@ pub fn display_path(path: &syn::Path) -> String {
     path.to_token_stream().to_string().replace(' ', "")
 }
 
+/// Gets a span that best represent the path.
+pub fn path_span(path: &syn::Path) -> Span {
+    path.segments.last().map(|s| s.span()).unwrap_or_else(|| path.span())
+}
+
 /// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`TokenStream`].
 pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let tokens = tokens.to_string();
