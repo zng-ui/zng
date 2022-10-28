@@ -588,7 +588,7 @@ pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
 /// This property must be [captured] during widget build and used directly in the panel node.
 ///
 /// [captured]: crate::widget#property-capture
-#[property(child_layout, capture, default(ui_list![]))]
+#[property(child_layout, capture)]
 pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
     _child
 }

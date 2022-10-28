@@ -269,7 +269,7 @@ pub struct ImageErrorArgs {
 /// # Route
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
-#[property(event, default( hn!(|_, _|{}) ))]
+#[property(event)]
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>) -> impl UiNode {
     #[ui_node(struct OnErrorNode {
         child: impl UiNode,
@@ -324,7 +324,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
 /// # Route
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
-#[property(event, default( hn!(|_, _|{}) ))]
+#[property(event)]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -> impl UiNode {
     #[ui_node(struct OnLoadNode {
         child: impl UiNode,

@@ -102,6 +102,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let vis = &item.vis;
         let ident = &item.sig.ident;
         let generics = &item.sig.generics;
+        let has_generics = !generics.params.empty_or_trailing();
         let args_ident = ident!("{ident}_Args");
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
@@ -118,6 +119,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         }),
                         InputKind::UiNode => default.extend(quote! {
                             #core::widget_instance::NilUiNode,
+                        }),
+                        InputKind::UiNodeList => default.extend(quote! {
+                            #core::widget_instance::ui_list![],
+                        }),
+                        InputKind::WidgetHandler if !has_generics => default.extend(quote! {
+                            #core::handler::hn!(|_, _| {}),
                         }),
                         _ => {
                             default = quote!();

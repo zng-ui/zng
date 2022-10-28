@@ -31,7 +31,7 @@ use super::hit_test_mode;
 /// ```
 ///
 /// The example renders a custom text background.
-#[property(fill, default(crate::core::widget_instance::NilUiNode))]
+#[property(fill)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     #[ui_node(struct BackgroundNode {
         children: impl UiNodeList,
