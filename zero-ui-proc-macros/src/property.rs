@@ -107,9 +107,31 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let default;
         let default_fn;
-        if let Some(dft) = args.default {
-            let args = dft.args;
+        let args_default = match args.default {
+            Some(d) => Some(d.args.to_token_stream()),
+            None => {
+                let mut default = quote!();
+                for input in &inputs[1..] {
+                    match input.kind {
+                        InputKind::StateVar => default.extend(quote! {
+                            #core::var::state_var(),
+                        }),
+                        _ => {
+                            default = quote!();
+                            break;
+                        }
+                    }
+                }
 
+                if !default.is_empty() {
+                    Some(default)
+                } else {
+                    None
+                }
+            }
+        };
+
+        if let Some(args) = args_default {
             default = quote! {
                 pub fn __default__(info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     Self::__new__(#args).__build__(info)
