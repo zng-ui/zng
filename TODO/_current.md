@@ -1,10 +1,14 @@
 # All Dyn Rewrite
 
-* Implement "when" instantiation.
-    - When generated properties are not visible in inspector.
-        - Can't really just clone the builder, need a struct that collects a clone of all final properties.
-        - Could have both, but inspector prints actuals.
-            - Name intrinsics?
+* Forbid capture/remove before Building, because when does not work otherwise.
+    - Allowed capture_value to capture ID.
+    - Style is a var currently, change to a value?
+        - No, we want it do be dynamic.
+        - We want the style with whens applied, to extend the builder with style properties..
+            - Need a way "pre-build & remove" a property.
+            - When build can insert properties, right now the builder is not polluted because these default items are inserted only in Building.
+        - Maybe style cannot be captured, but we can make it work by setting the priority to Context-0?
+            - No, we need the style properties to instantiate...
 
 * Review "!!:"
 

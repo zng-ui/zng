@@ -229,8 +229,8 @@ impl Style {
     pub fn from_builder(mut wgt: WidgetBuilder) -> Style {
         wgt.clear_build_actions();
         wgt.clear_custom_build();
-        for (imp, _, _) in wgt.properties_mut() {
-            *imp = match *imp {
+        for p in wgt.properties_mut() {
+            *p.importance = match *p.importance {
                 Importance::WIDGET => Style::WIDGET_IMPORTANCE,
                 Importance::INSTANCE => Style::INSTANCE_IMPORTANCE,
                 other => other,

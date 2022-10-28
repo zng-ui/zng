@@ -44,26 +44,27 @@ impl WriteTreeState {
 
     fn write_widget(&mut self, info: WidgetInfo, fmt: &mut print_fmt::Fmt) {
         let mut wgt_name = "<widget>";
-        if let Some(bu) = info.builder() {
-            wgt_name = bu.widget_mod().name();
+        if let Some(inf) = info.inspector_info() {
+            wgt_name = inf.builder.widget_mod().name();
 
             let widget_id = info.widget_id();
             let (parent_name, parent_prop) = match info.parent_property() {
-                Some((p, _)) => (info.parent().unwrap().builder().unwrap().widget_mod().name(), p.name),
+                Some((p, _)) => (info.parent().unwrap().inspector_info().unwrap().builder.widget_mod().name(), p.name),
                 None => ("", ""),
             };
 
             fmt.open_widget(wgt_name, parent_name, parent_prop);
 
-            let mut properties: Vec<_> = bu.properties().collect();
-            properties.sort_by_key(|(_, pos, _)| *pos);
-
-            for (imp, _, args) in properties {
+            for (args, _) in inf.properties() {
                 let info = args.property();
                 let inst = args.instance();
                 let group = info.priority.name();
                 let name = inst.name;
-                let user_assigned = imp == Importance::INSTANCE;
+                let user_assigned = if let Some(p) = inf.builder.property(args.id()) {
+                    p.importance == Importance::INSTANCE
+                } else {
+                    false
+                };
 
                 if info.inputs.len() == 1 {
                     let version = match info.inputs[0].kind {

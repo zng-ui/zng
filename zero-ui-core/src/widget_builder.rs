@@ -899,6 +899,7 @@ enum WidgetItem {
     Property {
         importance: Importance,
         args: Box<dyn PropertyArgs>,
+        captured: bool,
     },
     Intrinsic {
         name: &'static str,
@@ -908,8 +909,13 @@ enum WidgetItem {
 impl Clone for WidgetItem {
     fn clone(&self) -> Self {
         match self {
-            Self::Property { importance, args } => Self::Property {
+            Self::Property {
+                importance,
+                args,
+                captured,
+            } => Self::Property {
                 importance: *importance,
+                captured: *captured,
                 args: args.clone(),
             },
             Self::Intrinsic { .. } => unreachable!("only WidgetBuilder clones, and it does not insert intrinsic"),
@@ -989,7 +995,14 @@ impl WidgetBuilder {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
                         // override
-                        self.p.items[i] = (position, WidgetItem::Property { importance, args });
+                        self.p.items[i] = (
+                            position,
+                            WidgetItem::Property {
+                                importance,
+                                args,
+                                captured: false,
+                            },
+                        );
                     }
                 }
                 WidgetItem::Intrinsic { .. } => unreachable!(),
@@ -1000,7 +1013,14 @@ impl WidgetBuilder {
                     return; // unset blocks.
                 }
             }
-            self.p.items.push((position, WidgetItem::Property { importance, args }));
+            self.p.items.push((
+                position,
+                WidgetItem::Property {
+                    importance,
+                    args,
+                    captured: false,
+                },
+            ));
         }
     }
 
@@ -1074,7 +1094,12 @@ impl WidgetBuilder {
 
         for (pos, p) in other.p.items {
             match p {
-                WidgetItem::Property { importance, args } => {
+                WidgetItem::Property {
+                    importance,
+                    args,
+                    captured,
+                } => {
+                    debug_assert!(!captured);
                     self.push_property_positioned(importance, pos, args);
                 }
                 WidgetItem::Intrinsic { .. } => unreachable!(),
@@ -1138,20 +1163,20 @@ impl WidgetBuilder {
                 use crate::widget_instance::WidgetId;
 
                 self.property(property_id!(crate::widget_base::id))
-                    .map(|(_, _, args)| *args.downcast_value::<WidgetId>(0))
+                    .map(|p| *p.args.downcast_value::<WidgetId>(0))
                     .unwrap_or_else(|| WidgetId::named("<unkdown>"))
             },
+            #[cfg(inspector)]
+            builder,
 
             widget_mod: self.widget_mod,
             p: self.p,
-            whens: self.whens,
             child: None,
         };
 
-        #[cfg(inspector)]
-        building.push_intrinsic(Priority::Context, "inspector", move |child| {
-            crate::inspector::insert_widget_builder_info(child, builder)
-        });
+        if !self.whens.is_empty() {
+            building.build_whens(self.whens);
+        }
 
         for action in self.build_actions {
             (action.borrow_mut())(&mut building);
@@ -1176,14 +1201,18 @@ impl ops::DerefMut for WidgetBuilder {
 /// Represents a finalizing [`WidgetBuilder`].
 ///
 /// Widgets can register a [`build_action`] to get access to this, it provides an opportunity
-/// to remove or capture the final properties of an widget, after they have all been resolved as well as define
-/// the child node, intrinsic nodes and a custom builder.
+/// to remove or capture the final properties of an widget, after they have all been resolved and `when` assigns generated.
+/// Build actions can also define the child node, intrinsic nodes and a custom builder.
+/// 
+/// [`build_action`]: WidgetBuilder::build_action
 pub struct WidgetBuilding {
     #[cfg(trace_widget)]
     widget_id: crate::widget_instance::WidgetId,
+    #[cfg(inspector)]
+    builder: WidgetBuilder,
+
     widget_mod: WidgetMod,
     p: WidgetBuilderProperties,
-    whens: Vec<(Importance, WhenInfo)>,
     child: Option<BoxedUiNode>,
 }
 impl WidgetBuilding {
@@ -1234,8 +1263,120 @@ impl WidgetBuilding {
         ));
     }
 
-    fn build_whens(&mut self) {
-        self.whens.sort_by_key(|(i, _)| *i);
+    /// Removes the property, returns `(importance, position, args, captured)`.
+    ///
+    /// Note that if the property was captured a clone of the args is already in an intrinsic node and will still be used in the widget.
+    pub fn remove_property(&mut self, property_id: PropertyId) -> Option<BuilderProperty> {
+        if let Some(i) = self.property_index(property_id) {
+            match self.items.remove(i) {
+                // can't be swap remove for ordering of equal priority.
+                (
+                    pos,
+                    WidgetItem::Property {
+                        importance,
+                        args,
+                        captured,
+                    },
+                ) => Some(BuilderProperty {
+                    importance,
+                    position: pos,
+                    args,
+                    captured,
+                }),
+                (_, WidgetItem::Intrinsic { .. }) => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Flags the property as captured and returns a reference to it.
+    ///
+    /// Note that captured properties are not instantiated in the final build, but they also are not removed like *unset*.
+    /// A property can be "captured" more then once, and if the `inspector` feature is enabled they can be inspected.
+    pub fn capture_property(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
+        self.capture_property_impl(property_id)
+    }
+
+    /// Flags the property as captured and downcast the input var.
+    pub fn capture_var<T>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>>
+    where
+        T: VarValue,
+    {
+        let p = self.capture_property(property_id)?;
+        let var = p.args.downcast_var::<T>(0).clone();
+        Some(var)
+    }
+
+    /// Flags the property as captured and downcast the input var, or calls `or_else` to generate a fallback.
+    pub fn capture_var_or_else<T>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> T) -> BoxedVar<T>
+    where
+        T: VarValue,
+    {
+        match self.capture_var::<T>(property_id) {
+            Some(var) => var,
+            None => or_else().into_var().boxed(),
+        }
+    }
+
+    /// Flags the property as captured and downcast the input var, returns a new one with the default value.
+    pub fn capture_var_or_default<T>(&mut self, property_id: PropertyId) -> BoxedVar<T>
+    where
+        T: VarValue + Default,
+    {
+        self.capture_var_or_else(property_id, T::default)
+    }
+
+    /// Flags the property as captured and get the input node.
+    pub fn capture_ui_node(&mut self, property_id: PropertyId) -> Option<BoxedUiNode> {
+        let p = self.capture_property(property_id)?;
+        let node = p.args.ui_node(0).take_on_init().boxed();
+        Some(node)
+    }
+
+    /// Flags the property as captured and get the input node, or calls `or_else` to generate a fallback node.
+    pub fn capture_ui_node_or_else<F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedUiNode
+    where
+        F: UiNode,
+    {
+        match self.capture_ui_node(property_id) {
+            Some(u) => u,
+            None => or_else().boxed(),
+        }
+    }
+
+    /// Flags the property as captured and get the input list.
+    pub fn capture_ui_node_list(&mut self, property_id: PropertyId) -> Option<BoxedUiNodeList> {
+        let p = self.capture_property(property_id)?;
+        let list = p.args.ui_node_list(0).take_on_init().boxed();
+        Some(list)
+    }
+
+    /// Flags the property as captured and get the input list, or calls `or_else` to generate a fallback list.
+    pub fn capture_ui_node_list_or_else<F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedUiNodeList
+    where
+        F: UiNodeList,
+    {
+        match self.capture_ui_node_list(property_id) {
+            Some(u) => u,
+            None => or_else().boxed(),
+        }
+    }
+
+    /// Flags the property as captured and get the input list, or returns an empty list.
+    pub fn capture_ui_node_list_or_empty(&mut self, property_id: PropertyId) -> BoxedUiNodeList {
+        self.capture_ui_node_list_or_else(property_id, Vec::<BoxedUiNode>::new)
+    }
+
+    /// Flags the property as captured and downcast the input handler.
+    pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<RcWidgetHandler<A>> {
+        let p = self.capture_property(property_id)?;
+        let handler = p.args.downcast_handler::<A>(0).clone();
+        Some(handler)
+    }
+
+    fn build_whens(&mut self, mut whens: Vec<(Importance, WhenInfo)>) {
+        whens.sort_by_key(|(i, _)| *i);
 
         struct Input<'a> {
             input: &'a WhenInput,
@@ -1250,7 +1391,7 @@ impl WidgetBuilding {
         let mut assigns = LinearMap::new();
 
         // rev so that the last when overrides others, the WhenVar returns the first true condition.
-        'when: for (_, when) in self.whens.iter().rev() {
+        'when: for (_, when) in whens.iter().rev() {
             // bind inputs.
             let valid_inputs = inputs.len();
             let valid_items = self.p.items.len();
@@ -1267,6 +1408,7 @@ impl WidgetBuilding {
                         WidgetItem::Property {
                             importance: Importance::WIDGET,
                             args,
+                            captured: false,
                         },
                     ));
                 } else {
@@ -1289,6 +1431,7 @@ impl WidgetBuilding {
                         WidgetItem::Property {
                             importance: Importance::WIDGET,
                             args,
+                            captured: false,
                         },
                     ));
                     self.p.items.len() - 1
@@ -1367,10 +1510,6 @@ impl WidgetBuilding {
     }
 
     fn build(mut self) -> BoxedUiNode {
-        if !self.whens.is_empty() {
-            self.build_whens();
-        }
-
         self.items.sort_by_key(|(k, _)| *k);
 
         #[cfg(inspector)]
@@ -1379,13 +1518,18 @@ impl WidgetBuilding {
         let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());
         for (pos, item) in self.p.items.into_iter().rev() {
             match item {
-                WidgetItem::Property { args, .. } => {
-                    node = args.instantiate(node);
+                WidgetItem::Property { args, captured, .. } => {
+                    if !captured {
+                        node = args.instantiate(node);
+                    }
                     #[cfg(trace_wgt_item)]
                     {
                         let name = args.instance().name;
                         node = node.trace(|_, mtd| crate::context::UpdatesTrace::property_span(name, mtd));
                     }
+
+                    #[cfg(inspector)]
+                    inspector_items.push(crate::inspector::InstanceItem::Property { args, captured });
                 }
                 #[allow(unused_variables)]
                 WidgetItem::Intrinsic { new, name } => {
@@ -1399,9 +1543,21 @@ impl WidgetBuilding {
                     inspector_items.push(crate::inspector::InstanceItem::Intrinsic {
                         priority: pos.priority,
                         name,
-                    })
+                    });
                 }
             }
+        }
+
+        #[cfg(inspector)]
+        {
+            node = crate::inspector::insert_widget_builder_info(
+                node,
+                crate::inspector::InspectorInfo {
+                    builder: self.builder,
+                    items: inspector_items.into_boxed_slice(),
+                },
+            )
+            .boxed();
         }
 
         #[cfg(trace_widget)]
@@ -1429,37 +1585,148 @@ impl ops::DerefMut for WidgetBuilding {
     }
 }
 
+/// Represents a property removed from [`WidgetBuilding`].
+#[derive(Debug)]
+pub struct BuilderProperty {
+    /// Property importance at the time of remove.
+    pub importance: Importance,
+    /// Property priority and index at the time of remove.
+    pub position: NestPosition,
+    /// Property args.
+    pub args: Box<dyn PropertyArgs>,
+    /// If the property was *captured* before remove.
+    pub captured: bool,
+}
+
+/// Represents a property in [`WidgetBuilder`] or [`WidgetBuilding`].
+#[derive(Debug)]
+pub struct BuilderPropertyRef<'a> {
+    /// Property current importance.
+    pub importance: Importance,
+    /// Property current priority and index.
+    pub position: NestPosition,
+    /// Property args.
+    pub args: &'a dyn PropertyArgs,
+    /// If the property was *captured*.
+    ///
+    /// This can only be `true` in [`WidgetBuilding`].
+    pub captured: bool,
+}
+
+/// Represents a mutable reference to property in [`WidgetBuilder`] or [`WidgetBuilding`].
+#[derive(Debug)]
+pub struct BuilderPropertyMut<'a> {
+    /// Property current importance.
+    pub importance: &'a mut Importance,
+    /// Property current priority and index.
+    pub position: &'a mut NestPosition,
+    /// Property args.
+    pub args: &'a mut Box<dyn PropertyArgs>,
+    /// If the property was *captured*.
+    ///
+    /// This can only be `true` in [`WidgetBuilding`].
+    pub captured: &'a mut bool,
+}
+
 /// Direct property access in [`WidgetBuilder`] and [`WidgetBuilding`].
 pub struct WidgetBuilderProperties {
     items: Vec<(NestPosition, WidgetItem)>,
 }
 impl WidgetBuilderProperties {
-    /// Remove the property that matches the `property_id!(..)`.
-    pub fn remove_property(&mut self, property_id: PropertyId) -> Option<(Importance, NestPosition, Box<dyn PropertyArgs>)> {
-        if let Some(i) = self.property_index(property_id) {
-            match self.items.remove(i) {
-                // can't be swap remove for ordering of equal priority.
-                (pos, WidgetItem::Property { importance, args, .. }) => Some((importance, pos, args)),
-                (_, WidgetItem::Intrinsic { .. }) => unreachable!(),
-            }
-        } else {
-            None
+    /// Reference the property, if it is present.
+    pub fn property(&self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
+        match self.property_index(property_id) {
+            Some(i) => match &self.items[i].1 {
+                WidgetItem::Property {
+                    importance,
+                    args,
+                    captured,
+                } => Some(BuilderPropertyRef {
+                    importance: *importance,
+                    position: self.items[i].0,
+                    args: &**args,
+                    captured: *captured,
+                }),
+                WidgetItem::Intrinsic { .. } => unreachable!(),
+            },
+            None => None,
         }
-
-        // this method is used to remove "captures", that means we need to remove `when` assigns and a clone of the conditions too?
     }
 
-    /// Remove the property and downcast the input value.
+    /// Modify the property, if it is present.
+    pub fn property_mut(&mut self, property_id: PropertyId) -> Option<BuilderPropertyMut> {
+        match self.property_index(property_id) {
+            Some(i) => match &mut self.items[i] {
+                (
+                    pos,
+                    WidgetItem::Property {
+                        importance,
+                        args,
+                        captured,
+                    },
+                ) => Some(BuilderPropertyMut {
+                    importance,
+                    position: pos,
+                    args,
+                    captured,
+                }),
+                _ => unreachable!(),
+            },
+            None => None,
+        }
+    }
+
+    /// Iterate over the current properties.
+    ///
+    /// The properties may not be sorted in the correct order if the builder has never built.
+    pub fn properties(&self) -> impl Iterator<Item = BuilderPropertyRef> {
+        self.items.iter().filter_map(|(pos, it)| match it {
+            WidgetItem::Intrinsic { .. } => None,
+            WidgetItem::Property {
+                importance,
+                args,
+                captured,
+            } => Some(BuilderPropertyRef {
+                importance: *importance,
+                position: *pos,
+                args: &**args,
+                captured: *captured,
+            }),
+        })
+    }
+
+    /// iterate over mutable references to the current properties.
+    pub fn properties_mut(&mut self) -> impl Iterator<Item = BuilderPropertyMut> {
+        self.items.iter_mut().filter_map(|(pos, it)| match it {
+            WidgetItem::Intrinsic { .. } => None,
+            WidgetItem::Property {
+                importance,
+                args,
+                captured,
+            } => Some(BuilderPropertyMut {
+                importance,
+                position: pos,
+                args,
+                captured,
+            }),
+        })
+    }
+
+    /// Flags the property as captured and downcast the input value.
+    /// 
+    /// Unlike other property kinds you can capture values in the [`WidgetBuilder`], note that the value may not
+    /// the final value, unless you are capturing on build. Other properties kinds can only be captured in [`WidgetBuilding`] as
+    /// their values strongly depend on the final `when` blocks that are only applied after building starts.
     pub fn capture_value<T>(&mut self, property_id: PropertyId) -> Option<T>
     where
         T: VarValue,
     {
-        let (_, _, args) = self.remove_property(property_id)?;
-        let value = args.downcast_value::<T>(0).clone();
+        let p = self.capture_property_impl(property_id)?;
+        let value = p.args.downcast_value::<T>(0).clone();
         Some(value)
     }
 
-    /// Remove the property and downcast the input value, or calls `or_else` to generate the value.
+    /// Flags the property as captured and downcast the input value, or calls `or_else` to generate the value.
     pub fn capture_value_or_else<T>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> T) -> T
     where
         T: VarValue,
@@ -1470,7 +1737,7 @@ impl WidgetBuilderProperties {
         }
     }
 
-    /// Remove the property and downcast the input value, or returns the default value.
+    /// Flags the property as captured and downcast the input value, or returns the default value.
     pub fn capture_value_or_default<T>(&mut self, property_id: PropertyId) -> T
     where
         T: VarValue + Default,
@@ -1478,121 +1745,31 @@ impl WidgetBuilderProperties {
         self.capture_value_or_else(property_id, T::default)
     }
 
-    /// Remove the property and downcast the input var.
-    pub fn capture_var<T>(&mut self, property_id: PropertyId) -> Option<BoxedVar<T>>
-    where
-        T: VarValue,
-    {
-        let (_, _, args) = self.remove_property(property_id)?;
-        let var = args.downcast_var::<T>(0).clone();
-        Some(var)
-    }
-
-    /// Remove the property and downcast the input var, or calls `or_else` to generate a fallback.
-    pub fn capture_var_or_else<T>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> T) -> BoxedVar<T>
-    where
-        T: VarValue,
-    {
-        match self.capture_var::<T>(property_id) {
-            Some(var) => var,
-            None => or_else().into_var().boxed(),
+    fn capture_property_impl(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
+        if let Some(i) = self.property_index(property_id) {
+            match &mut self.items[i] {
+                // can't be swap remove for ordering of equal priority.
+                (
+                    pos,
+                    WidgetItem::Property {
+                        importance,
+                        args,
+                        captured,
+                    },
+                ) => {
+                    *captured = true;
+                    Some(BuilderPropertyRef {
+                        importance: *importance,
+                        position: *pos,
+                        args: &**args,
+                        captured: *captured,
+                    })
+                }
+                (_, WidgetItem::Intrinsic { .. }) => unreachable!(),
+            }
+        } else {
+            None
         }
-    }
-
-    /// Remove the property and downcast the input var, returns a new one with the default value.
-    pub fn capture_var_or_default<T>(&mut self, property_id: PropertyId) -> BoxedVar<T>
-    where
-        T: VarValue + Default,
-    {
-        self.capture_var_or_else(property_id, T::default)
-    }
-
-    /// Remove the property and get the input node.
-    pub fn capture_ui_node(&mut self, property_id: PropertyId) -> Option<BoxedUiNode> {
-        let (_, _, args) = self.remove_property(property_id)?;
-        let node = args.ui_node(0).take_on_init().boxed();
-        Some(node)
-    }
-
-    /// Remove the property and get the input node, or calls `or_else` to generate a fallback node.
-    pub fn capture_ui_node_or_else<F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedUiNode
-    where
-        F: UiNode,
-    {
-        match self.capture_ui_node(property_id) {
-            Some(u) => u,
-            None => or_else().boxed(),
-        }
-    }
-
-    /// Remove the property and get the input list.
-    pub fn capture_ui_node_list(&mut self, property_id: PropertyId) -> Option<BoxedUiNodeList> {
-        let (_, _, args) = self.remove_property(property_id)?;
-        let list = args.ui_node_list(0).take_on_init().boxed();
-        Some(list)
-    }
-
-    /// Remove the property and get the input list, or calls `or_else` to generate a fallback list.
-    pub fn capture_ui_node_list_or_else<F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedUiNodeList
-    where
-        F: UiNodeList,
-    {
-        match self.capture_ui_node_list(property_id) {
-            Some(u) => u,
-            None => or_else().boxed(),
-        }
-    }
-
-    /// Remove the property and get the input list, or returns an empty list.
-    pub fn capture_ui_node_list_or_empty(&mut self, property_id: PropertyId) -> BoxedUiNodeList {
-        self.capture_ui_node_list_or_else(property_id, Vec::<BoxedUiNode>::new)
-    }
-
-    /// Remove the property and downcast the input handler.
-    pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<RcWidgetHandler<A>> {
-        let (_, _, args) = self.remove_property(property_id)?;
-        let handler = args.downcast_handler::<A>(0).clone();
-        Some(handler)
-    }
-
-    /// Reference the property, if it is present.
-    pub fn property(&self, property_id: PropertyId) -> Option<(Importance, NestPosition, &dyn PropertyArgs)> {
-        match self.property_index(property_id) {
-            Some(i) => match &self.items[i].1 {
-                WidgetItem::Property { importance, args } => Some((*importance, self.items[i].0, &**args)),
-                WidgetItem::Intrinsic { .. } => unreachable!(),
-            },
-            None => None,
-        }
-    }
-
-    /// Modify the property, if it is present.
-    pub fn property_mut(&mut self, property_id: PropertyId) -> Option<(&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
-        match self.property_index(property_id) {
-            Some(i) => match &mut self.items[i] {
-                (pos, WidgetItem::Property { importance, args }) => Some((importance, pos, args)),
-                _ => unreachable!(),
-            },
-            None => None,
-        }
-    }
-
-    /// Iterate over the current properties.
-    ///
-    /// The properties may not be sorted in the correct order if the builder has never built.
-    pub fn properties(&self) -> impl Iterator<Item = (Importance, NestPosition, &dyn PropertyArgs)> {
-        self.items.iter().filter_map(|(pos, it)| match it {
-            WidgetItem::Intrinsic { .. } => None,
-            WidgetItem::Property { importance, args } => Some((*importance, *pos, &**args)),
-        })
-    }
-
-    /// iterate over mutable references to the current properties.
-    pub fn properties_mut(&mut self) -> impl Iterator<Item = (&mut Importance, &mut NestPosition, &mut Box<dyn PropertyArgs>)> {
-        self.items.iter_mut().filter_map(|(pos, it)| match it {
-            WidgetItem::Intrinsic { .. } => None,
-            WidgetItem::Property { importance, args } => Some((importance, pos, args)),
-        })
     }
 
     fn property_index(&self, property_id: PropertyId) -> Option<usize> {

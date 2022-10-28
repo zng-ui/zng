@@ -9,26 +9,27 @@ pub mod prompt;
 mod inspector_only {
     use std::rc::Rc;
 
-    use crate::context::InfoContext;
-    use crate::ui_node;
-    use crate::widget_builder::WidgetBuilder;
-    use crate::widget_info::WidgetInfoBuilder;
-    use crate::widget_instance::{BoxedUiNode, UiNode};
+    use crate::{
+        context::InfoContext,
+        ui_node,
+        widget_info::WidgetInfoBuilder,
+        widget_instance::{BoxedUiNode, UiNode},
+    };
 
-    pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, wgt: WidgetBuilder) -> impl UiNode {
+    pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
         #[ui_node(struct InsertInfoNode {
             child: BoxedUiNode,
-            builder: Rc<WidgetBuilder>,
+            info: Rc<super::InspectorInfo>,
         })]
         impl UiNode for InsertInfoNode {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                info.meta().set(&super::WIDGET_BUILDER_ID, self.builder.clone());
+                info.meta().set(&super::INSPECTOR_INFO_ID, self.info.clone());
                 self.child.info(ctx, info);
             }
         }
         InsertInfoNode {
             child,
-            builder: Rc::new(wgt),
+            info: Rc::new(info),
         }
     }
 }
@@ -43,7 +44,7 @@ use crate::{
     widget_info::WidgetInfo,
 };
 
-pub(super) static WIDGET_BUILDER_ID: StaticStateId<Rc<WidgetBuilder>> = StaticStateId::new_unique();
+pub(super) static INSPECTOR_INFO_ID: StaticStateId<Rc<InspectorInfo>> = StaticStateId::new_unique();
 
 /// Widget instance item.
 ///
@@ -55,8 +56,9 @@ pub enum InstanceItem {
         ///
         /// Unlike the same property in the builder, these args are affected by `when` assigns.
         args: Box<dyn PropertyArgs>,
-
         /// If the property was captured by the widget.
+        ///
+        /// If this is `true` the property is not instantiated in the widget, but its args are used in intrinsic nodes.
         captured: bool,
     },
     /// Marks an intrinsic node instance inserted by the widget.
@@ -78,14 +80,23 @@ pub struct InspectorInfo {
     /// Final instance items.
     pub items: Box<[InstanceItem]>,
 }
+impl InspectorInfo {
+    /// Iterate over property items.
+    pub fn properties(&self) -> impl Iterator<Item = (&dyn PropertyArgs, bool)> {
+        self.items.iter().filter_map(|it| match it {
+            InstanceItem::Property { args, captured } => Some((&**args, *captured)),
+            InstanceItem::Intrinsic { .. } => None,
+        })
+    }
+}
 
 /// Extensions methods for [`WidgetInfo`].
 pub trait WidgetInfoInspectorExt<'a> {
-    /// Reference the builder that was used to instantiate the widget.
+    /// Reference the builder that was used to instantiate the widget and the builder generated items.
     ///
     /// Returns `None` if not build with the `"inspector"` feature, or if the widget instance was not created using
     /// the standard builder.
-    fn builder(self) -> Option<Rc<WidgetBuilder>>;
+    fn inspector_info(self) -> Option<Rc<InspectorInfo>>;
 
     /// If a [`builder`] is defined for the widget.
     ///
@@ -139,66 +150,68 @@ pub trait WidgetInfoInspectorExt<'a> {
     fn inspect_property<P: InspectPropertyPattern>(self, pattern: P) -> Option<&'a dyn PropertyArgs>;
 
     /// Gets the parent property that has this widget as an input.
+    ///
+    /// Returns `Some((PropertyId, member_index))`.
     fn parent_property(self) -> Option<(PropertyId, usize)>;
 }
 impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
-    fn builder(self) -> Option<Rc<WidgetBuilder>> {
-        self.meta().get(&WIDGET_BUILDER_ID).cloned()
+    fn inspector_info(self) -> Option<Rc<InspectorInfo>> {
+        self.meta().get_clone(&INSPECTOR_INFO_ID)
     }
 
     fn can_inspect(self) -> bool {
-        self.meta().contains(&WIDGET_BUILDER_ID)
+        self.meta().contains(&INSPECTOR_INFO_ID)
     }
 
     fn inspect_child<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>> {
-        self.children().find(|c| match c.meta().get(&WIDGET_BUILDER_ID) {
+        self.children().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
             Some(wgt) => pattern.matches(wgt),
             None => false,
         })
     }
 
     fn inspect_descendant<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>> {
-        self.descendants().find(|c| match c.meta().get(&WIDGET_BUILDER_ID) {
-            Some(wgt) => pattern.matches(wgt),
+        self.descendants().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
+            Some(info) => pattern.matches(info),
             None => false,
         })
     }
 
     fn inspect_ancestor<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>> {
-        self.ancestors().find(|c| match c.meta().get(&WIDGET_BUILDER_ID) {
-            Some(wgt) => pattern.matches(wgt),
+        self.ancestors().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
+            Some(info) => pattern.matches(info),
             None => false,
         })
     }
 
     fn inspect_property<P: InspectPropertyPattern>(self, pattern: P) -> Option<&'a dyn PropertyArgs> {
         self.meta()
-            .get(&WIDGET_BUILDER_ID)?
+            .get(&INSPECTOR_INFO_ID)?
             .properties()
-            .find_map(|(_, _, args)| if pattern.matches(args) { Some(args) } else { None })
+            .find_map(|(args, cap)| if pattern.matches(args, cap) { Some(args) } else { None })
     }
 
     fn parent_property(self) -> Option<(PropertyId, usize)> {
-        self.parent()?.meta().get(&WIDGET_BUILDER_ID)?.properties().find_map(|(_, _, p)| {
+        self.parent()?.meta().get(&INSPECTOR_INFO_ID)?.properties().find_map(|(args, _)| {
             let id = self.widget_id();
-            let info = p.property();
+            let info = args.property();
             for (i, input) in info.inputs.iter().enumerate() {
                 match input.kind {
                     InputKind::UiNode => {
-                        let node = p.ui_node(i);
+                        let node = args.ui_node(i);
                         if let Some(true) = node.try_context(|ctx| ctx.id == id) {
-                            return Some((p.id(), i));
+                            return Some((args.id(), i));
                         }
                     }
                     InputKind::UiNodeList => {
-                        let list = p.ui_node_list(i);
+                        let list = args.ui_node_list(i);
                         let mut found = false;
                         list.for_each_ctx(|_, ctx| {
                             found = ctx.id == id;
                             !found
                         });
                         if found {
-                            return Some((p.id(), i));
+                            return Some((args.id(), i));
                         }
                     }
                     _ => continue,
@@ -212,43 +225,43 @@ impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
 /// Query pattern for the [`WidgetInspectorExt`] inspect methods.
 pub trait InspectWidgetPattern {
     /// Returns `true` if the pattern includes the widget.
-    fn matches(&self, wgt: &WidgetBuilder) -> bool;
+    fn matches(&self, info: &InspectorInfo) -> bool;
 }
 /// Matches if the [`WidgetMod::path`] ends with the string.
 impl<'s> InspectWidgetPattern for &'s str {
-    fn matches(&self, wgt: &WidgetBuilder) -> bool {
-        wgt.widget_mod().path.ends_with(self)
+    fn matches(&self, info: &InspectorInfo) -> bool {
+        info.builder.widget_mod().path.ends_with(self)
     }
 }
 impl InspectWidgetPattern for WidgetImplId {
-    fn matches(&self, wgt: &WidgetBuilder) -> bool {
-        wgt.widget_mod().impl_id == *self
+    fn matches(&self, info: &InspectorInfo) -> bool {
+        info.builder.widget_mod().impl_id == *self
     }
 }
 impl InspectWidgetPattern for WidgetMod {
-    fn matches(&self, wgt: &WidgetBuilder) -> bool {
-        wgt.widget_mod().impl_id == self.impl_id
+    fn matches(&self, info: &InspectorInfo) -> bool {
+        info.builder.widget_mod().impl_id == self.impl_id
     }
 }
 
 /// Query pattern for the [`WidgetInspectorExt`] inspect methods.
 pub trait InspectPropertyPattern {
     /// Returns `true` if the pattern includes the property.
-    fn matches(&self, args: &dyn PropertyArgs) -> bool;
+    fn matches(&self, args: &dyn PropertyArgs, captured: bool) -> bool;
 }
 /// Matches if the [`PropertyInstInfo::name`] exactly.
 impl<'s> InspectPropertyPattern for &'s str {
-    fn matches(&self, args: &dyn PropertyArgs) -> bool {
+    fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.instance().name == *self
     }
 }
 impl InspectPropertyPattern for PropertyId {
-    fn matches(&self, args: &dyn PropertyArgs) -> bool {
+    fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.id() == *self
     }
 }
 impl InspectPropertyPattern for PropertyImplId {
-    fn matches(&self, args: &dyn PropertyArgs) -> bool {
+    fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.property().impl_id == *self
     }
 }

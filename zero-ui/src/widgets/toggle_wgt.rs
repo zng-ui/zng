@@ -153,13 +153,14 @@ pub mod toggle {
     }
 
     fn include(wgt: &mut super::WidgetBuilder) {
-        // TODO !!: move this to a build action, same problem as capture here.
-        if let Some((_, pos, _)) = wgt.property_mut(super::property_id!(self.checked_opt)) {
-            pos.index = 999; // force property to be inside tristate.
-        }
-        if let Some((_, pos, _)) = wgt.property_mut(super::property_id!(self.value)) {
-            pos.index = 999; // force property to be inside select_on_init and others.
-        }
+        wgt.push_build_action(|wgt| {
+            if let Some(p) = wgt.property_mut(super::property_id!(self.checked_opt)) {
+                p.position.index = 999; // force property to be inside tristate.
+            }
+            if let Some(p) = wgt.property_mut(super::property_id!(self.value)) {
+                p.position.index = 999; // force property to be inside select_on_init and others.
+            }
+        });
     }
 }
 
