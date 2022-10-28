@@ -116,6 +116,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         InputKind::StateVar => default.extend(quote! {
                             #core::var::state_var(),
                         }),
+                        InputKind::UiNode => default.extend(quote! {
+                            #core::widget_instance::NilUiNode,
+                        }),
                         _ => {
                             default = quote!();
                             break;

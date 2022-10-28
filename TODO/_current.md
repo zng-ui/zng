@@ -1,7 +1,7 @@
 # All Dyn Rewrite
 
 * Implement "when" instantiation.
-    - Auto generate default handler, node and list?
+    - Auto generate default handler and list?
     - When generated properties are not visible in inspector.
         - Can't really just clone the builder, need a struct that collects a clone of all final properties.
     - Allow when assign for node, list and handler?
