@@ -49,8 +49,8 @@ pub mod icon {
 
         wgt.set_child(text::nodes::render_text());
 
-        wgt.push_intrinsic(Priority::Fill, text::nodes::layout_text);
-        wgt.push_intrinsic(Priority::Event, move |child| {
+        wgt.push_intrinsic(Priority::Fill, "layout_text", text::nodes::layout_text);
+        wgt.push_intrinsic(Priority::Event, "resolve_text", move |child| {
             let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
             let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
             let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);

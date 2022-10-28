@@ -53,10 +53,10 @@ test_util = ["zero-ui-core/test_util"]
 # Instrument every widget outer-most node to trace UI methods.
 trace_widget = ["zero-ui-core/trace_widget"]
 
-# Instrument every property node to trace UI methods.
+# Instrument every property and intrinsic node to trace UI methods.
 #
 # Note that this can cause very large trace files and bad performance.
-trace_property = ["zero-ui-core/trace_property"]
+trace_wgt_item = ["zero-ui-core/trace_wgt_item"]
 
 # # Other Features
 #

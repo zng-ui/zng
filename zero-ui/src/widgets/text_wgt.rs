@@ -145,10 +145,10 @@ pub mod text {
             let child = nodes::render_underlines(child);
             wgt.set_child(child.boxed());
 
-            wgt.push_intrinsic(Priority::Fill, nodes::layout_text);
+            wgt.push_intrinsic(Priority::Fill, "layout_text", nodes::layout_text);
 
             let text = wgt.capture_var_or_default(property_id!(self.text));
-            wgt.push_intrinsic(Priority::Event, |child| nodes::resolve_text(child, text));
+            wgt.push_intrinsic(Priority::Event, "resolve_text", |child| nodes::resolve_text(child, text));
         });
     }
 

@@ -901,6 +901,7 @@ enum WidgetItem {
         args: Box<dyn PropertyArgs>,
     },
     Intrinsic {
+        name: &'static str,
         new: Box<dyn FnOnce(BoxedUiNode) -> BoxedUiNode>,
     },
 }
@@ -977,11 +978,11 @@ impl WidgetBuilder {
     /// You can use the [`property_args!`] macro to collect args for a property.
     pub fn push_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
         let pos = NestPosition::property(args.property().priority);
-        self.push_property_positioned(importance, args, pos);
+        self.push_property_positioned(importance, pos, args);
     }
 
     /// Insert property with custom nest position.
-    pub fn push_property_positioned(&mut self, importance: Importance, args: Box<dyn PropertyArgs>, position: NestPosition) {
+    pub fn push_property_positioned(&mut self, importance: Importance, position: NestPosition, args: Box<dyn PropertyArgs>) {
         let property_id = args.id();
         if let Some(i) = self.p.property_index(property_id) {
             match &self.p.items[i].1 {
@@ -1074,7 +1075,7 @@ impl WidgetBuilder {
         for (pos, p) in other.p.items {
             match p {
                 WidgetItem::Property { importance, args } => {
-                    self.push_property_positioned(importance, args, pos);
+                    self.push_property_positioned(importance, pos, args);
                 }
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             }
@@ -1148,7 +1149,7 @@ impl WidgetBuilder {
         };
 
         #[cfg(inspector)]
-        building.push_intrinsic(Priority::Context, move |child| {
+        building.push_intrinsic(Priority::Context, "inspector", move |child| {
             crate::inspector::insert_widget_builder_info(child, builder)
         });
 
@@ -1204,15 +1205,30 @@ impl WidgetBuilding {
     }
 
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
-    pub fn push_intrinsic<I: UiNode>(&mut self, priority: Priority, intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static) {
-        self.push_intrinsic_positioned(intrinsic, NestPosition::intrinsic(priority))
+    ///
+    /// The `name` is used for inspector/trace only.
+    pub fn push_intrinsic<I: UiNode>(
+        &mut self,
+        priority: Priority,
+        name: &'static str,
+        intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static,
+    ) {
+        self.push_intrinsic_positioned(NestPosition::intrinsic(priority), name, intrinsic)
     }
 
     /// Insert intrinsic node with custom nest position.
-    pub fn push_intrinsic_positioned<I: UiNode>(&mut self, intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static, position: NestPosition) {
+    ///
+    /// The `name` is used for inspector/trace only.
+    pub fn push_intrinsic_positioned<I: UiNode>(
+        &mut self,
+        position: NestPosition,
+        name: &'static str,
+        intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static,
+    ) {
         self.items.push((
             position,
             WidgetItem::Intrinsic {
+                name,
                 new: Box::new(move |n| intrinsic(n).boxed()),
             },
         ));
@@ -1357,19 +1373,33 @@ impl WidgetBuilding {
 
         self.items.sort_by_key(|(k, _)| *k);
 
+        #[cfg(inspector)]
+        let mut inspector_items = Vec::with_capacity(self.p.items.len());
+
         let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());
-        for (_, item) in self.p.items.into_iter().rev() {
+        for (pos, item) in self.p.items.into_iter().rev() {
             match item {
                 WidgetItem::Property { args, .. } => {
                     node = args.instantiate(node);
-                    #[cfg(trace_property)]
+                    #[cfg(trace_wgt_item)]
                     {
                         let name = args.instance().name;
                         node = node.trace(|_, mtd| crate::context::UpdatesTrace::property_span(name, mtd));
                     }
                 }
-                WidgetItem::Intrinsic { new } => {
+                #[allow(unused_variables)]
+                WidgetItem::Intrinsic { new, name } => {
                     node = new(node);
+                    #[cfg(trace_wgt_item)]
+                    {
+                        node = node.trace(|_, mtd| ctate::context::UpdatesTrace::intrinsic_span(name, mtd));
+                    }
+
+                    #[cfg(inspector)]
+                    inspector_items.push(crate::inspector::InstanceItem::Intrinsic {
+                        priority: pos.priority,
+                        name,
+                    })
                 }
             }
         }

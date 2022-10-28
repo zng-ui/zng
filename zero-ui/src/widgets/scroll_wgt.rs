@@ -103,9 +103,11 @@ pub mod scroll {
 
         let clip_to_viewport = wgt.capture_var_or_default(property_id!(self.clip_to_viewport));
 
-        wgt.push_intrinsic(Priority::ChildLayout, |child| scroll_node(child, mode, clip_to_viewport));
+        wgt.push_intrinsic(Priority::ChildLayout, "scroll_node", |child| {
+            scroll_node(child, mode, clip_to_viewport)
+        });
 
-        wgt.push_intrinsic(Priority::Event, |child| {
+        wgt.push_intrinsic(Priority::Event, "commands", |child| {
             let child = nodes::scroll_to_node(child);
             let child = nodes::scroll_commands_node(child);
             let child = nodes::page_commands_node(child);
@@ -113,7 +115,7 @@ pub mod scroll {
             nodes::scroll_wheel_node(child)
         });
 
-        wgt.push_intrinsic(Priority::Context, |child| {
+        wgt.push_intrinsic(Priority::Context, "context", |child| {
             let child = with_context_var(child, SCROLL_VIEWPORT_SIZE_VAR, var(PxSize::zero()));
             let child = with_context_var(child, SCROLL_CONTENT_SIZE_VAR, var(PxSize::zero()));
 

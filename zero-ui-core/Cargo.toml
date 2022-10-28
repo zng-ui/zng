@@ -55,10 +55,10 @@ test_util = []
 # Instrument every widget outer-most node to trace UI methods.
 trace_widget = []
 
-# Instrument every property node to trace UI methods.
+# Instrument every property and intrinsic node to trace UI methods.
 #
 # Note that this can cause very large trace files and bad performance.
-trace_property = []
+trace_wgt_item = []
 
 # # Other Features
 #

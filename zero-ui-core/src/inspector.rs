@@ -39,11 +39,45 @@ use std::rc::Rc;
 
 use crate::{
     context::StaticStateId,
-    widget_builder::{InputKind, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
+    widget_builder::{InputKind, Priority, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
     widget_info::WidgetInfo,
 };
 
 pub(super) static WIDGET_BUILDER_ID: StaticStateId<Rc<WidgetBuilder>> = StaticStateId::new_unique();
+
+/// Widget instance item.
+///
+/// See [`InspectorInfo::items`].
+pub enum InstanceItem {
+    /// Property instance.
+    Property {
+        /// Final property args.
+        ///
+        /// Unlike the same property in the builder, these args are affected by `when` assigns.
+        args: Box<dyn PropertyArgs>,
+
+        /// If the property was captured by the widget.
+        captured: bool,
+    },
+    /// Marks an intrinsic node instance inserted by the widget.
+    Intrinsic {
+        /// Intrinsic node priority.
+        priority: Priority,
+        /// Name given to this intrinsic by the widget.
+        name: &'static str,
+    },
+}
+
+/// Widget instance inspector info.
+///
+/// Can be accessed and queried using [`WidgetInfoInspectorExt`].
+pub struct InspectorInfo {
+    /// Builder that was used to instantiate the widget.
+    pub builder: WidgetBuilder,
+
+    /// Final instance items.
+    pub items: Box<[InstanceItem]>,
+}
 
 /// Extensions methods for [`WidgetInfo`].
 pub trait WidgetInfoInspectorExt<'a> {

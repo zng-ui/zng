@@ -170,7 +170,7 @@ pub mod image {
             let error = ImageSource::Image(var(error).read_only());
             LocalVar(error).boxed()
         });
-        wgt.push_intrinsic(Priority::Event, |child| nodes::image_source(child, source));
+        wgt.push_intrinsic(Priority::Event, "image_source", |child| nodes::image_source(child, source));
     }
 }
 

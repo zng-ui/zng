@@ -241,9 +241,15 @@ impl UpdatesTrace {
     }
 
     /// Opens a property span.
-    #[cfg(trace_property)]
+    #[cfg(trace_wgt_item)]
     pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
+    }
+
+    /// Opens an intrinsic span.
+    #[cfg(trace_wgt_item)]
+    pub fn intrinsic_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "intrinsic", name, %node_mtd).entered()
     }
 
     /// Opens a custom named span.

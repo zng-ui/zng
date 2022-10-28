@@ -34,7 +34,7 @@ pub mod scrollbar {
             wgt.set_child(thumb);
 
             let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || Orientation::Vertical);
-            wgt.push_intrinsic(Priority::Layout, move |child| {
+            wgt.push_intrinsic(Priority::Layout, "orientation-align", move |child| {
                 align(
                     child,
                     orientation.map(|o| match o {
@@ -113,7 +113,7 @@ pub mod thumb {
     }
     fn on_build(wgt: &mut WidgetBuilding) {
         let cross_length = wgt.capture_var_or_default::<Length>(property_id!(self.cross_length));
-        wgt.push_intrinsic(Priority::Size, move |child| {
+        wgt.push_intrinsic(Priority::Size, "orientation-size", move |child| {
             size(
                 child,
                 merge_var!(THUMB_ORIENTATION_VAR, THUMB_VIEWPORT_RATIO_VAR, cross_length, |o, r, l| {
@@ -125,13 +125,13 @@ pub mod thumb {
             )
         });
 
-        wgt.push_intrinsic(Priority::Layout, thumb_layout);
+        wgt.push_intrinsic(Priority::Layout, "thumb_layout", thumb_layout);
 
         let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || scrollbar::Orientation::Vertical);
         let viewport_ratio = wgt.capture_var_or_else(property_id!(self.viewport_ratio), || 1.fct());
         let offset = wgt.capture_var_or_else(property_id!(self.offset), || 0.fct());
 
-        wgt.push_intrinsic(Priority::Context, move |child| {
+        wgt.push_intrinsic(Priority::Context, "thumb-context", move |child| {
             let child = with_context_var(child, THUMB_ORIENTATION_VAR, orientation);
             let child = with_context_var(child, THUMB_VIEWPORT_RATIO_VAR, viewport_ratio);
             with_context_var(child, THUMB_OFFSET_VAR, offset)

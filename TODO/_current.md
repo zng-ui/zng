@@ -3,14 +3,10 @@
 * Implement "when" instantiation.
     - When generated properties are not visible in inspector.
         - Can't really just clone the builder, need a struct that collects a clone of all final properties.
-    - Allow when assign for node, list and handler?
-        - It is possible to implement something that switches between the values.
-    - WhenInputVar sticks to the actual var at moment of first use, resetting only after clone.
-        - Review if the eval var resets all inputs on clone too.
+        - Could have both, but inspector prints actuals.
+            - Name intrinsics?
 
 * Review "!!:"
-* Review property macro, remove matchers that are not used.
-    - if (!)generics.
 
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
@@ -35,6 +31,6 @@
     - in when expressions: `when #foo.foo.1`, has ambiguity with `when #foo.foo`.
         - Mostly want it to support `#self.exported_prop`, nice callback to the previous syntax.
         - If we can't establish unambiguity, assume `#property_ident`, support `#::widget_ident` to select a widget.
+
 * Implement pre-bind for when expressions.
-
-
+* Implement when assign for `UiNode`, `UiNodeList` and `WidgetHandler`.
