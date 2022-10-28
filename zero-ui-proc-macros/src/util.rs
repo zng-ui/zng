@@ -288,26 +288,6 @@ macro_rules! non_user_bracketed {
     };
 }
 
-/// Hashes the `tokens` to generate an "unique" id  for generated macro-rules.
-pub fn uuid(tokens: &proc_macro::TokenStream) -> u64 {
-    // things we have tried before:
-    //
-    // - Generate a GUID.
-    // - Debug-to-string the call_site span and parse it.
-    //
-    // Both are more guaranteed than this, but can potentially change after any edit on the crate, invalidating incremental compilation,
-    // this one should still be good enough for practical reasons, an cause less incremental damage.
-
-    use sha2::Digest;
-
-    let mut s = sha2::Sha512_256::new();
-    s.update(tokens.to_string());
-
-    let hash = s.finalize();
-
-    u64::from_le_bytes(hash[..8].try_into().unwrap())
-}
-
 /// Collection of compile errors.
 #[derive(Default)]
 pub struct Errors {
