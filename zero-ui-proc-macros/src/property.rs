@@ -7,8 +7,6 @@ use crate::util::{crate_core, Attributes, Errors};
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut errors = Errors::default();
 
-    let uuid = crate::util::uuid(&input);
-
     let args = match parse::<Args>(args) {
         Ok(a) => a,
         Err(e) => {
@@ -105,11 +103,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let ident = &item.sig.ident;
         let generics = &item.sig.generics;
         let args_ident = ident!("{ident}_Args");
-        let macro_ident = ident!("{ident}_code_gen_{uuid:x}");
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
         let default;
-        let macro_default_fn;
         let default_fn;
         if let Some(dft) = args.default {
             let args = dft.args;
@@ -119,22 +115,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     Self::__new__(#args).__build__(info)
                 }
             };
-            macro_default_fn = quote! {
-                ({$($property:tt)*}::__default__) => {
-                    Some($($property)*::__default__)
-                };
-            };
             default_fn = quote! {
                 Some(Self::__default__)
             };
         } else {
             default = quote!();
-            macro_default_fn = quote! {
-                ({$($property:tt)*}::__default__
-            ) => {
-                    None
-                };
-            };
             default_fn = quote! {
                 None
             };
@@ -152,13 +137,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut input_tys = vec![];
         let mut storage_tys = vec![];
         let mut input_to_storage = vec![];
-        let mut macro_inputs = quote!();
-        let mut macro_input_index = quote!();
-        let mut macro_allowed_in_when = quote!();
         let mut named_into_var = quote!();
         let mut get_when_input = quote!();
-        let mut macro_get_when_input = quote!();
 
+        let mut allowed_in_when_expr = true;
         let mut allowed_in_when_assign = true;
 
         for (i, input) in inputs[1..].iter().enumerate() {
@@ -179,81 +161,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 },
             });
 
-            macro_inputs.extend(quote! {
-                (if input(#ident) {
-                    $($tt:tt)*
-                }) => {
-                    $($tt)*
-                };
-                (if !input(#ident) {
-                    $($tt:tt)*
-                }) => {
-                    // ignore
-                };
-                (if input(#i) {
-                    $($tt:tt)*
-                }) => {
-                    $($tt)*
-                };
-                (if !input(#i) {
-                    $($tt:tt)*
-                }) => {
-                    // ignore
-                };
-            });
-
-            macro_input_index.extend(quote! {
-                (input_index(#ident)) => {
-                    #i
-                };
-            });
-
-            if matches!(kind, InputKind::Var | InputKind::StateVar | InputKind::Value) {
-                macro_allowed_in_when.extend(quote! {
-                    (if allowed_in_when(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if !allowed_in_when(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                    (if allowed_in_when(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if !allowed_in_when(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                });
-            } else {
-                macro_allowed_in_when.extend(quote! {
-                    (if !allowed_in_when(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if allowed_in_when(#ident) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                    (if !allowed_in_when(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        $($tt)*
-                    };
-                    (if allowed_in_when(#i) {
-                        $($tt:tt)*
-                    }) => {
-                        // ignore
-                    };
-                });
+            if !matches!(kind, InputKind::Var | InputKind::StateVar | InputKind::Value) {
+                allowed_in_when_expr = false;
             }
 
             if !matches!(kind, InputKind::Var) {
@@ -276,21 +185,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::widget_builder::var_input_to_args(#ident)
                         }
                     });
-                    let get_ident = ident!("__{ident}_when__");
+                    let get_ident = ident!("__w_{ident}__");
+                    let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident()
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
+                        pub fn #get_ident_i()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
+                            #core::widget_builder::WhenInputVar::new::<#info_ty>()
+                        }
                     });
-                    macro_get_when_input.extend(quote! {
-                        ({$($property:tt)*}::when_input(#ident)) => {
-                            $($property)* :: #get_ident()
-                        };
-                        ({$($property:tt)*}::when_input(#i)) => {
-                            $($property)* :: #get_ident()
-                        };
-                    })
                 }
                 InputKind::StateVar => {
                     input_to_storage.push(quote! {
@@ -305,21 +211,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
                     });
-                    let get_ident = ident!("__{ident}_when__");
+                    let get_ident = ident!("__w_{ident}__");
+                    let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident()
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<bool>) {
                             #core::widget_builder::WhenInputVar::new::<bool>()
                         }
+                        pub fn #get_ident_i()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<bool>) {
+                            #core::widget_builder::WhenInputVar::new::<bool>()
+                        }
                     });
-                    macro_get_when_input.extend(quote! {
-                        ({$($property:tt)*}::when_input(#ident)) => {
-                            $($property)* :: #get_ident()
-                        };
-                        ({$($property:tt)*}::when_input(#i)) => {
-                            $($property)* :: #get_ident()
-                        };
-                    })
                 }
                 InputKind::Value => {
                     input_to_storage.push(quote! {
@@ -331,9 +234,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
                     });
-                    let get_ident = ident!("__{ident}_when__");
+                    let get_ident = ident!("__w_{ident}__");
+                    let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
+                            #core::widget_builder::WhenInputVar::new::<#info_ty>()
+                        }
+                        pub fn #get_ident_i()
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
@@ -520,6 +428,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 #default
 
+                pub fn __default_fn__() -> std::option::Option<fn (info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> {
+                    #default_fn
+                }
+
                 #named_into_var
                 #get_when_input
             }
@@ -563,37 +475,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
             #cfg
             #[doc(hidden)]
-            #[macro_export]
-            macro_rules! #macro_ident {
-                #macro_inputs
-                (if input($other:ident) {
-                    $($tt:tt)*
-                }) => {
-                    // ignore
-                };
-                (if !input($other:ident) {
-                    $($tt:tt)*
-                }) => {
-                    $($tt)*
-                };
-
-                #macro_input_index
-                #macro_allowed_in_when
-
-                #macro_default_fn
-
-                #macro_get_when_input
-            }
-
-            #cfg
-            #[doc(hidden)]
             #vis mod #ident {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 #args_reexport_vis use super::#args_ident as property;
                 #args_reexport_vis use super::#ident as export;
-                pub use #macro_ident as code_gen;
 
+                pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
                 pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
 
                 #[doc(hidden)]

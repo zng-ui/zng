@@ -1,8 +1,6 @@
 # All Dyn Rewrite
 
 * Implement "when" instantiation.
-    - Property `path::code_gen!` resolution fails in places `path::property` works.
-        - Replace `code_gen` with const asserts and recontextualized compiler errors.
     - Auto generate defaults for StateVar.
         - Auto generate default handler, node an list too?
     - When generated properties are not visible in inspector.

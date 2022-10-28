@@ -607,27 +607,10 @@ impl WgtWhen {
             let (property, generics) = split_path_generics(property).unwrap();
             let var_input = ident!("{var}_in");
 
-            let unknwon_member_err = format!("unknown member `{}`", member);
-            let not_gettable_err = format!("member `{}` cannot be used in when", member);
-            var_decl.extend(quote_spanned! {path_span(&property)=>
-                #property::code_gen! {
-                    if input(#member) {
-                        #property::code_gen! {
-                            if !allowed_in_when(#member) {
-                                std::compile_error!{ #not_gettable_err }
-                            }
-                        }
-
-                        let (#var_input, #var) = #property::code_gen! {
-                            {#property::property #generics}::when_input(#member)
-                        };
-                    }
-                }
-                #property::code_gen! {
-                    if !input(#member) {
-                        std::compile_error!{ #unknwon_member_err }
-                    }
-                }
+            let path_span = path_span(&property);
+            let member_ident = ident_spanned!(path_span=> "__w_{member}__");
+            var_decl.extend(quote_spanned! {path_span=>
+                let (#var_input, #var) = #property::property #generics::#member_ident();
             });
 
             let p_ident = &property.segments.last().unwrap().ident;
@@ -643,13 +626,18 @@ impl WgtWhen {
                 },
             };
             let p_ident_str = p_ident.to_string();
+            let error = format!("property `{p_ident_str}` cannot be read in when expr");
             inputs.extend(quote! {
-                #wgt_builder_mod::WhenInput {
-                    property: #property::property_id(#p_ident_str),
-                    member: #wgt_builder_mod::WhenInputMember::#member,
-                    var: #var_input,
-                    property_default: #property::code_gen! {
-                        {#property::property #generics}::__default__
+                {
+                    const _: () = if !#property::ALLOWED_IN_WHEN_EXPR {
+                        panic!(#error)
+                    };
+
+                    #wgt_builder_mod::WhenInput {
+                        property: #property::property_id(#p_ident_str),
+                        member: #wgt_builder_mod::WhenInputMember::#member,
+                        var: #var_input,
+                        property_default: #property::property #generics::__default_fn__(),
                     }
                 },
             });
