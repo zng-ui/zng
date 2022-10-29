@@ -459,7 +459,7 @@ pub trait UiNodeList: UiNodeListBoxed {
         });
     }
 
-    /// Receive an update for the list in a context, all nodes are also updated.
+    /// Receive updates for the list in a context, all nodes are also updated.
     ///
     /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to update nodes is an error.
     ///
@@ -470,6 +470,18 @@ pub trait UiNodeList: UiNodeListBoxed {
             c.update(ctx, updates);
             true
         });
+    }
+
+    /// Receive an event for the list in a context, all nodes are also notified.
+    ///
+    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to notify nodes is an error.
+    ///
+    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.for_each_mut(|_, c| {
+            c.event(ctx, update);
+            true
+        })
     }
 
     /// Render all nodes.
@@ -519,10 +531,7 @@ pub mod ui_node_list_default {
     }
 
     pub fn event_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        list.for_each_mut(|_, c| {
-            c.event(ctx, update);
-            true
-        });
+        list.event_all(ctx, update);
     }
 
     pub fn update_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -655,6 +664,7 @@ pub trait UiNodeListBoxed: Any {
     fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
     fn init_all_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext);
+    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
     fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
     fn render_all_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     fn render_update_all_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
@@ -690,6 +700,10 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext) {
         self.deinit_all(ctx);
+    }
+
+    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.event_all(ctx, update);
     }
 
     fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -848,6 +862,10 @@ impl UiNodeList for BoxedUiNodeList {
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.as_mut().update_all_boxed(ctx, updates, observer);
+    }
+
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.as_mut().event_all_boxed(ctx, update);
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

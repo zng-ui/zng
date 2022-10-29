@@ -615,6 +615,7 @@ mod impls {
         }
 
         fn init_all(&mut self, ctx: &mut WidgetContext) {
+            self.on_init(ctx);
             self.for_each_mut(|_, c| {
                 c.init(ctx);
                 true
@@ -622,13 +623,23 @@ mod impls {
         }
 
         fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+            self.on_deinit(ctx);
             self.for_each_mut(|_, c| {
                 c.deinit(ctx);
                 true
             });
         }
 
+        fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+            self.on_event(ctx, update);
+            self.for_each_mut(|_, c| {
+                c.event(ctx, update);
+                true
+            });
+        }
+
         fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+            self.on_update(ctx, updates);
             let _ = observer;
             self.for_each_mut(|_, c| {
                 c.update(ctx, updates);

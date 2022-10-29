@@ -146,6 +146,11 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         self.1.deinit_all(ctx);
     }
 
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.0.event_all(ctx, update);
+        self.1.event_all(ctx, update);
+    }
+
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.0.update_all(ctx, updates, observer);
         self.1.update_all(ctx, updates, &mut OffsetUiListObserver(self.0.len(), observer));
@@ -349,6 +354,10 @@ where
         self.invalidate_sort();
     }
 
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.list.event_all(ctx, update);
+    }
+
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut changed = false;
         let (_, resort) = SortingListParent::with(|| self.list.update_all(ctx, updates, &mut (observer, &mut changed as _)));
@@ -526,6 +535,10 @@ impl<L: UiNodeList> UiNodeList for ZSortingList<L> {
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
         self.list.deinit_all(ctx);
+    }
+
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.list.event_all(ctx, update);
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {

@@ -87,7 +87,7 @@ impl WriteTreeState {
                             value: args.debug(i),
                             changed: version.map(|ver| self.update((widget_id, args.id(), i), ver)).unwrap_or(false),
                         };
-                        fmt.write_property_arg(name, user_assigned, version.is_some(), value);
+                        fmt.write_property_arg(input.name, user_assigned, version.is_some(), value);
                     }
                     fmt.close_property(user_assigned);
                 }
