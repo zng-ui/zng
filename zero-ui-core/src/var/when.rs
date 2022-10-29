@@ -159,7 +159,7 @@ pub struct AnyWhenVarBuilder {
 impl AnyWhenVarBuilder {
     /// Start building with only the default value.
     pub fn new<O: VarValue>(default: impl IntoVar<O>) -> Self {
-        Self::new_any(Box::new(default.into_var()))
+        Self::new_any(default.into_var().boxed_any())
     }
 
     /// Start building with already boxed var.
@@ -187,7 +187,7 @@ impl AnyWhenVarBuilder {
 
     /// Set/replace the default value.
     pub fn set_default<O: VarValue>(&mut self, default: impl IntoVar<O>) {
-        self.set_default_any(Box::new(default.into_var()));
+        self.set_default_any(default.into_var().boxed_any());
     }
 
     /// Set/replace the default value with an already typed erased var.
@@ -196,8 +196,13 @@ impl AnyWhenVarBuilder {
     }
 
     /// Push a when condition.
-    pub fn push<C: Var<bool>, O: VarValue, V: IntoVar<O>>(&mut self, condition: C, value: V) {
-        self.push_any(condition.boxed(), Box::new(value.into_var()))
+    pub fn push<C, O, V>(&mut self, condition: C, value: V)
+    where
+        C: Var<bool>,
+        O: VarValue,
+        V: IntoVar<O>,
+    {
+        self.push_any(condition.boxed(), value.into_var().boxed_any())
     }
 
     /// Push a when condition already boxed and type erased.
@@ -220,14 +225,14 @@ impl AnyWhenVarBuilder {
 
     /// Build the when var if all value variables are of type [`BoxedVar<T>`].
     pub fn build<T: VarValue>(&self) -> Option<RcWhenVar<T>> {
-        let default = self.default.as_any().downcast_ref::<BoxedVar<T>>()?;
+        let default = *self.default.clone().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
 
-        let mut when = WhenVarBuilder::new(default.clone());
+        let mut when = WhenVarBuilder::new(default);
 
         for (c, v) in &self.conditions {
-            let value = v.as_any().downcast_ref::<BoxedVar<T>>()?;
+            let value = *v.clone().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
 
-            when.push(c.clone(), value.clone());
+            when.push(c.clone(), value);
         }
 
         Some(when.build())
