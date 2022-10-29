@@ -1025,8 +1025,18 @@ impl WidgetBuilder {
     }
 
     /// Insert a `when` block.
-    pub fn push_when(&mut self, importance: Importance, when: WhenInfo) {
-        self.whens.push((importance, when));
+    pub fn push_when(&mut self, importance: Importance, mut when: WhenInfo) {
+        when.assigns.retain(|a| {
+            if let Some(imp) = self.unset.get(&a.id()) {
+                *imp < importance
+            } else {
+                true
+            }
+        });
+
+        if !when.assigns.is_empty() {
+            self.whens.push((importance, when));
+        }
     }
 
     /// Insert a `name = unset!;` property.
@@ -1056,6 +1066,15 @@ impl WidgetBuilder {
                     WidgetItem::Intrinsic { .. } => unreachable!(),
                 }
             }
+
+            self.whens.retain_mut(|(imp, w)| {
+                if *imp <= importance {
+                    w.assigns.retain(|a| a.id() != property_id);
+                    !w.assigns.is_empty()
+                } else {
+                    true
+                }
+            });
         }
     }
 

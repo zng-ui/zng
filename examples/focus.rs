@@ -417,8 +417,8 @@ mod inspect {
                 } else {
                     return format!("<{p}>");
                 };
-                let wgt_mod = if let Some(b) = widget.builder() {
-                    b.widget_mod()
+                let wgt_mod = if let Some(b) = widget.inspector_info() {
+                    b.builder.widget_mod()
                 } else {
                     return format!("<{p}>");
                 };

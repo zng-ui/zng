@@ -1,7 +1,5 @@
 # All Dyn Rewrite
 
-* Unset when assigns.
-    - Right now we can remove a property and then the builder generates a default of it for a when assign.
 * Review "!!:"
 
 * Refactor to minimal docs generation that does not require custom post-processing?
