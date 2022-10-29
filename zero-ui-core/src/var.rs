@@ -145,24 +145,16 @@ impl<T: VarValue> AnyVarValue for T {
 
 /// A property value that is not a variable but can be inspected.
 ///
-/// Property inputs are usually of the type `impl IntoVar<T>` because most properties can handle input updates, some
-/// properties have a fixed value and can receive any other value type, a common pattern is receiving `impl Into<T>` in
-/// this case, but values of this type cannot be [inspected], only the type name will show in the inspector.
-///
-/// Implementers can instead use `impl IntoValue<T>`, it represents a type that can be cloned and converted into a [`Debug`]
-/// type that is the type expected by the property. In inspected builds this value is cloned and converted to the property type
-/// to collect the debug strings.
-///
 /// # Examples
 ///
-/// The example property receives two flags `a` and `b`, the inspector will show the value of `a` but only the type of `b`.
+/// The example property receives the input `a` and `b`, they cannot change.
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::{*, var::IntoValue};
+/// # use zero_ui_core::{*, widget_instance::*, var::IntoValue};
 /// #
 /// #[property(context)]
-/// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl Into<bool>) -> impl UiNode {
+/// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl IntoValue<bool>) -> impl UiNode {
 ///     #[ui_node(struct FooNode {
 ///         child: impl UiNode,
 ///         a: bool,
@@ -659,8 +651,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// A value type using [`IntoVar<T>`] twice to support a shorthand initialization syntax:
 ///
 /// ```
-/// # use zero_ui_core::var::*;
-/// # use zero_ui_core::*;
+/// # use zero_ui_core::{*, var::*, widget_instance::*};
 /// #[derive(Debug, Clone)]
 /// pub struct Size {
 ///     width: f32,
@@ -686,7 +677,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     # child
 /// }
 /// # #[widget($crate::blank)]
-/// # mod blank { }
+/// # mod blank { inherit!(zero_ui_core::widget_base::base); }
 /// # fn main() {
 /// // shorthand #1:
 /// let wgt = blank! {
@@ -708,10 +699,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// A property implemented using [`IntoVar`]:
 ///
 /// ```
-/// # use zero_ui_core::var::*;
-/// # use zero_ui_core::text::*;
-/// # use zero_ui_core::context::*;
-/// # use zero_ui_core::*;
+/// # use zero_ui_core::{*, var::*, text::*, context::*, widget_instance::*};
 /// #[property(layout)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct FooNode {
@@ -736,7 +724,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// }
 ///
 /// # #[widget($crate::blank)]
-/// # pub mod blank { }
+/// # pub mod blank { inherit!(zero_ui_core::widget_base::base); }
 /// # fn main() {
 /// // literal assign:
 /// let wgt = blank! {
@@ -753,7 +741,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// let wgt = blank! {
 ///     foo = 42;
 ///
-///     when !self.enabled {
+///     when !*#enabled {
 ///         foo = 32;
 ///     }
 /// };

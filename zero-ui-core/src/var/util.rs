@@ -53,11 +53,11 @@
 /// The value then can be used in a property:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*};
+/// # use zero_ui_core::{*, widget_instance::*, var::*};
 /// # #[derive(Debug, Clone)]
 /// # pub struct FooValue;
 /// # impl_from_and_into_var! { fn from(b: bool) -> FooValue { FooValue } }
-/// # #[widget($crate::bar)] pub mod bar { }
+/// # #[widget($crate::bar)] pub mod bar { inherit!(zero_ui_core::widget_base::base); }
 /// #[property(context)]
 /// pub fn foo(child: impl UiNode, value: impl IntoVar<FooValue>) -> impl UiNode {
 ///     // ..

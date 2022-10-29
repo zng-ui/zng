@@ -71,8 +71,9 @@ pub use when_condition_expr_var;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{property, widget_builder::property_id};
+/// # use zero_ui_core::{property, widget_builder::property_id, widget_instance::UiNode, var::IntoValue};
 /// # pub mod path {
+/// #   use super::*;
 /// #   #[property(context)]
 /// #   pub fn foo(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
 /// #     child
@@ -83,7 +84,7 @@ pub use when_condition_expr_var;
 /// let renamed_id = property_id!(path::foo as bar);
 ///
 /// assert_ne!(foo_id, renamed_id);
-/// assert_eq!(foo_id.unique_id, renamed_id.unique_id);
+/// assert_eq!(foo_id.impl_id, renamed_id.impl_id);
 /// assert_ne!(foo_id.name, renamed_id.name);
 /// # }
 /// ```

@@ -17,9 +17,9 @@ use super::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{ui_list, UiNode, Widget, WidgetId, NilUiNode};
+/// # use zero_ui_core::widget_instance::*;
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl UiNode { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
+/// # fn text(fake: &str) -> impl UiNode { NilUiNode  };
 /// # use text as foo;
 /// # use text as bar;
 /// let widgets = ui_list![
@@ -603,8 +603,8 @@ context_value! {
 /// Create a Z-index that causes the widget to render in front of all siblings that don't set Z-index.
 ///
 /// ```
-/// # use zero_ui_core::ui_list::ZIndex;
-///
+/// # use zero_ui_core::widget_instance::ZIndex;
+/// #
 /// let highlight_z = ZIndex::DEFAULT + 1;
 /// ```
 ///
@@ -1086,7 +1086,7 @@ impl UiNodeList for EditableUiNodeList {
     }
 }
 
-/// See [`WidgetVecRef::move_to`] for more details
+/// See [`EditableUiNodeListRef::move_to`] for more details
 type NodeMoveToFn = fn(usize, usize) -> usize;
 
 /// Represents a sender to an [`EditableUiNodeList`].
@@ -1193,7 +1193,7 @@ impl EditableUiNodeListRef {
     /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
     ///
     /// ```
-    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::widget_instance::EditableUiNodeListRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_sub(1));
     /// # }
     /// ```
@@ -1201,7 +1201,7 @@ impl EditableUiNodeListRef {
     /// And to move *down* stopping at the bottom:
     ///
     /// ```
-    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::widget_instance::EditableUiNodeListRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_add(1));
     /// # }
     /// ```
@@ -1212,7 +1212,7 @@ impl EditableUiNodeListRef {
     /// The length can be used for implementing wrapping move *down*:
     ///
     /// ```
-    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::widget_instance::EditableUiNodeListRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, len| {
     ///     let next = i.saturating_add(1);
     ///     if next < len { next } else { 0 }

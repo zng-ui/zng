@@ -114,9 +114,9 @@ pub trait WidgetInfoInspectorExt<'a> {
     /// an exact widget mod that matches the [`WidgetMod::impl_id`].
     ///
     /// ```
-    /// use zero_ui_core::inspector::*;
-    /// use zero_ui_core::widget_info::*;
-    /// mod mod widgets {
+    /// # fn main() { }
+    /// use zero_ui_core::{inspector::*, widget_info::*, widget_builder::*};
+    /// mod widgets {
     ///     use zero_ui_core::*;
     ///     
     ///     #[widget($crate::widgets::button)]

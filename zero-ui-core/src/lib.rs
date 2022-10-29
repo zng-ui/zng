@@ -78,7 +78,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// generator to delegate the method calls for the child node.
 ///
 /// ```
-/// # use zero_ui_core::{ui_node, UiNode};
+/// # use zero_ui_core::{ui_node, widget_instance::UiNode};
 /// struct MyNode<C> {
 ///     child: C
 /// }
@@ -94,7 +94,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// If the child node is in a field named `child` you can use this shorthand to the same effect:
 ///
 /// ```
-/// # use zero_ui_core::{ui_node, UiNode};
+/// # use zero_ui_core::{ui_node, widget_instance::UiNode};
 /// # struct MyNode<C> { child: C }
 /// #[ui_node(child)]
 /// impl<C: UiNode> UiNode for MyNode<C> { }
@@ -108,7 +108,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// you can configure the code generator to delegate to the equivalent list methods.
 ///
 /// ```
-/// # use zero_ui_core::{ui_node, UiNode, UiNodeList};
+/// # use zero_ui_core::{ui_node, widget_instance::*};
 /// struct MyNode<L> {
 ///     children: L
 /// }
@@ -124,7 +124,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// If the children list is a member named `children` you can use this shorthand to the same effect:
 ///
 /// ```
-/// # use zero_ui_core::{ui_node, UiNode, UiNodeList};
+/// # use zero_ui_core::{ui_node, widget_instance::*};
 /// # struct MyNode<L> { children: L }
 /// #[ui_node(children)]
 /// impl<L: UiNodeList> UiNode for MyNode<L> { }
@@ -138,7 +138,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// If your node does not have any child nodes you can configure the code generator to generate empty missing methods.
 ///
 /// ```
-/// # use zero_ui_core::{ui_node, UiNode};
+/// # use zero_ui_core::{ui_node, widget_instance::UiNode};
 /// # struct MyNode { }
 /// #[ui_node(none)]
 /// impl UiNode for MyNode { }
@@ -165,7 +165,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// methods must be tagged with the `#[UiNode]` pseudo-attribute.
 ///
 /// ```
-/// # use zero_ui_core::{ui_node, UiNode, BoxedUiNode, context::*};
+/// # use zero_ui_core::{ui_node, widget_instance::*, context::*};
 /// # struct MyNode { child: BoxedUiNode }
 /// #[ui_node(child)]
 /// impl MyNode {
@@ -199,7 +199,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// avoid this extra boilerplate by declaring the node `struct` as an arg for the macro.
 ///
 /// ```
-/// # use zero_ui_core::{ui_node, UiNode, context::*, var::*};
+/// # use zero_ui_core::{ui_node, widget_instance::UiNode, context::*, var::*};
 /// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct MyNode {
 ///         child: impl UiNode,

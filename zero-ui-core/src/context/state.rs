@@ -621,7 +621,7 @@ pub mod state_map {
 ///
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui_core::{property, context::{StaticStateId, StateId, WidgetContext, set_widget_state}, var::IntoVar, UiNode, Widget};
+/// use zero_ui_core::{property, context::*, var::IntoVar, widget_instance::UiNode};
 ///
 /// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
 ///
@@ -634,7 +634,7 @@ pub mod state_map {
 ///
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &impl UiNode) -> u32 {
-///     widget.state().get(&FOO_ID).copied().unwrap_or_default()
+///     widget.with_context(|ctx| ctx.widget_state.get(&FOO_ID).copied()).flatten().unwrap_or_default()
 /// }
 ///
 /// /// Get the value from inside the widget.

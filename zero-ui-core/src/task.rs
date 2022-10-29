@@ -8,10 +8,9 @@
 //! # Examples
 //!
 //! ```
-//! # use zero_ui_core::{widget, UiNode, var::{var, IntoVar, Var}, async_hn, event_property, property,
-//! # gesture::{CLICK_EVENT, ClickArgs}, task::{self, rayon::prelude::*}};
+//! # use zero_ui_core::{*, var::*, gesture::*, task::{self, rayon::prelude::*}, widget_instance::*};
 //! # #[widget($crate::button)]
-//! # pub mod button { }
+//! # pub mod button { inherit!(zero_ui_core::widget_base::base); }
 //! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
 //! # #[property(context)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
@@ -85,9 +84,9 @@
 //! implementing operations such as loading an image from a given URL, the module is a thin wrapper around the [`isahc`] crate.
 //!
 //! ```
-//! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*};
+//! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*, widget_instance::*};
 //! # #[widget($crate::button)]
-//! # pub mod button { }
+//! # pub mod button { inherit!(zero_ui_core::widget_base::base); }
 //! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
 //! # #[property(context)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }

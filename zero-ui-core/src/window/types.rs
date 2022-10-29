@@ -472,7 +472,7 @@ impl WindowIcon {
     ///
     /// ```
     /// # use zero_ui_core::{window::WindowIcon, render::RenderMode};
-    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
+    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
     /// # let _ =
     /// WindowIcon::render(
     ///     |_ctx| container! {

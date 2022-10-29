@@ -1019,8 +1019,8 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// so it is auto-hidden correctly.
 ///
 /// ```
-/// # macro_rules! container { ($($tt:tt)*) => { widget_base::implicit_base::nodes::widget(FillUiNode, WidgetId::new_unique()) } }
-/// # use zero_ui_core::*;
+/// # macro_rules! container { ($($tt:tt)*) => { NilUiNode }}
+/// # use zero_ui_core::widget_instance::*;
 /// fn center_viewport(content: impl UiNode) -> impl UiNode {
 ///     container! {
 ///         zero_ui::core::widget_base::can_auto_hide = false;

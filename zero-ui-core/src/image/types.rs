@@ -552,7 +552,7 @@ impl ImageSource {
     ///
     /// ```
     /// # use zero_ui_core::{image::ImageSource, render::RenderMode, units::*};
-    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
+    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
     /// # let _ =
     /// ImageSource::render_node(
     ///     RenderMode::Software,

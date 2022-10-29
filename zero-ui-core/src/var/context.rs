@@ -290,7 +290,7 @@ mod helpers {
     ///
     /// ```
     /// # fn main() -> () { }
-    /// # use zero_ui_core::{*, var::*};
+    /// # use zero_ui_core::{*, widget_instance::*, var::*};
     /// context_var! {
     ///     pub static FOO_VAR: u32 = 0u32;
     /// }
@@ -313,7 +313,7 @@ mod helpers {
     ///
     /// ```
     /// # fn main() -> () { }
-    /// # use zero_ui_core::{*, var::*};
+    /// # use zero_ui_core::{*, widget_instance::*, var::*};
     ///
     /// #[derive(Debug, Clone, Default)]
     /// pub struct Config {

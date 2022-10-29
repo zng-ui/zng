@@ -107,7 +107,7 @@ impl std::hash::Hash for EventPropagationHandle {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{event::event_args, WidgetPath, text::{Text, formatx}};
+/// # use zero_ui_core::{event::event_args, widget_info::WidgetPath, text::{Text, formatx}};
 ///
 /// event_args! {
 ///     /// My event arguments.
