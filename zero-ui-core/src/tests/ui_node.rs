@@ -317,7 +317,7 @@ mod util {
         pub fn notify_render_update(wgt: &mut impl UiNode, ctx: &mut TestWidgetContext) {
             let id = wgt.with_context(|ctx| ctx.id).expect("expected widget");
             let mut update = RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(id), UpdateDeliveryList::new_any());
-            ctx.widget_context(|ctx| wgt.event(ctx, &mut update));
+            ctx.event(wgt, &mut update);
         }
     }
     impl UiNode for TestTraceNode {

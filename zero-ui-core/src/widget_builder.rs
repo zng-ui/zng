@@ -1528,6 +1528,10 @@ impl WidgetBuilding {
                             captured: false,
                         },
                     ));
+                    inputs.push(Input {
+                        input,
+                        item_idx: self.p.items.len() - 1,
+                    });
                 } else {
                     inputs.truncate(valid_inputs);
                     self.p.items.truncate(valid_items);
