@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 
-use linear_map::LinearMap;
+use linear_map::{set::LinearSet, LinearMap};
 
 use crate::{
     handler::WidgetHandler,
@@ -848,7 +848,7 @@ pub struct WhenInfo {
 
     /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
     /// from other when blocks into a single property instance set to `when_var!` inputs.
-    pub assigns: Box<[Box<dyn PropertyArgs>]>,
+    pub assigns: Vec<Box<dyn PropertyArgs>>,
 
     /// The condition expression code.
     pub expr: &'static str,
@@ -1134,6 +1134,103 @@ impl WidgetBuilder {
         !self.whens.is_empty()
     }
 
+    /// Move all `properties` to a new builder.
+    ///
+    /// The properties are removed from `self`, any `when` assign is also moved, properties used in [`WhenInput`] that
+    /// affect the properties are cloned or moved into the new builder.
+    ///
+    /// Note that properties can depend on others in the widget contextually, this is not preserved on split-off.
+    /// The canonical usage of split-off is the `style` property, that dynamically (re)builds widgets and is it-self a variable
+    /// that can be affected by `when` blocks to a limited extent.
+    pub fn split_off(&mut self, properties: impl IntoIterator<Item = PropertyId>, out: &mut WidgetBuilder) {
+        self.split_off_impl(properties.into_iter().collect(), out)
+    }
+    fn split_off_impl(&mut self, properties: LinearSet<PropertyId>, out: &mut WidgetBuilder) {
+        let mut found = 0;
+
+        // move properties
+        let mut i = 0;
+        while i < self.items.len() && found < properties.len() {
+            match &self.items[i].1 {
+                WidgetItem::Property { args, .. } if properties.contains(&args.id()) => match self.items.remove(i) {
+                    (pos, WidgetItem::Property { importance, args, .. }) => {
+                        out.push_property_positioned(importance, pos, args);
+                        found += 1;
+                    }
+                    _ => unreachable!(),
+                },
+                _ => {
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+
+        i = 0;
+        while i < self.whens.len() {
+            // move when assigns
+            let mut ai = 0;
+            let mut moved_assigns = vec![];
+            while ai < self.whens[i].1.assigns.len() {
+                if properties.contains(&self.whens[i].1.assigns[ai].id()) {
+                    let args = self.whens[i].1.assigns.remove(ai);
+                    moved_assigns.push(args);
+                } else {
+                    ai += 1;
+                }
+            }
+
+            if !moved_assigns.is_empty() {
+                let out_imp;
+                let out_when;
+                if self.whens[i].1.assigns.is_empty() {
+                    // moved all assigns from block, move block
+                    let (imp, mut when) = self.whens.remove(i);
+                    when.assigns = moved_assigns;
+
+                    out_imp = imp;
+                    out_when = when;
+                } else {
+                    // when block still used, clone block header for moved assigns.
+                    let (imp, when) = &self.whens[i];
+                    out_imp = *imp;
+                    out_when = WhenInfo {
+                        inputs: when.inputs.clone(),
+                        state: when.state.clone(),
+                        assigns: moved_assigns,
+                        expr: when.expr,
+                        location: when.location,
+                    };
+
+                    i += 1;
+                };
+
+                // clone when input properties that are "manually" set.
+                for input in out_when.inputs.iter() {
+                    if let Some(i) = self.property_index(input.property) {
+                        match &self.items[i] {
+                            (pos, WidgetItem::Property { importance, args, .. }) => {
+                                out.push_property_positioned(*importance, *pos, args.clone());
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+
+                out.push_when(out_imp, out_when);
+            } else {
+                i += 1;
+            }
+        }
+
+        // move unsets
+        for id in properties {
+            if let Some(imp) = self.unset.remove(&id) {
+                out.push_unset(imp, id);
+            }
+        }
+    }
+
     /// Instantiate the widget.
     ///
     /// If a custom build is set it is run, unless it is already running, otherwise the [`default_build`] is called.
@@ -1203,7 +1300,7 @@ impl ops::DerefMut for WidgetBuilder {
 /// Widgets can register a [`build_action`] to get access to this, it provides an opportunity
 /// to remove or capture the final properties of an widget, after they have all been resolved and `when` assigns generated.
 /// Build actions can also define the child node, intrinsic nodes and a custom builder.
-/// 
+///
 /// [`build_action`]: WidgetBuilder::build_action
 pub struct WidgetBuilding {
     #[cfg(trace_widget)]
@@ -1713,7 +1810,7 @@ impl WidgetBuilderProperties {
     }
 
     /// Flags the property as captured and downcast the input value.
-    /// 
+    ///
     /// Unlike other property kinds you can capture values in the [`WidgetBuilder`], note that the value may not
     /// the final value, unless you are capturing on build. Other properties kinds can only be captured in [`WidgetBuilding`] as
     /// their values strongly depend on the final `when` blocks that are only applied after building starts.

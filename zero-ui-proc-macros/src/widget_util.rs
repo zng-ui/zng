@@ -672,9 +672,9 @@ impl WgtWhen {
                         #inputs
                     ]),
                     state: #wgt_builder_mod::when_condition_expr_var! { #expr },
-                    assigns: std::boxed::Box::new([
+                    assigns: std::vec![
                         #assigns
-                    ]),
+                    ],
                     expr: #expr_str,
                     location: #wgt_builder_mod::source_location!(),
                 }

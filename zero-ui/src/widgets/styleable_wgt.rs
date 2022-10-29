@@ -44,8 +44,12 @@ pub mod style {
 
 /// Styleable widget mix-in.
 ///
-/// Widgets that inherit from this one have a `style` property that can be set to a [`StyleGenerator`]
+/// Widgets that inherit from this one have a `style` property that can be set to a [`style_generator!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
+///
+/// The style mix-in drastically affects the widget build process, only the `style` property and `when` condition
+/// properties that affects it are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
+/// on init, after the style is generated.
 ///
 /// Styleable widgets usually have a more elaborate style setup that supports mixing multiple contextual styles, see
 /// [`style_mixin::with_style_extension`] for a full styleable widget example.
@@ -60,12 +64,11 @@ pub mod style_mixin {
         /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
         /// prefer property binding and `when` conditions to cause visual changes that happen often.
         ///
+        /// The style property it-self can be affected by `when` conditions set on the widget, this works to a limited
+        /// extent as only the style and when condition properties is loaded to evaluate, so a when condition that depends
+        /// on the full widget context will not work.
+        ///
         /// Is `nil` by default.
-        ///
-        /// # Capture Only
-        ///
-        /// This property must be captured by [`intrinsic`] to work, widgets that implement this re-export this
-        /// property with the name `style`.
         pub style;
     }
 
@@ -150,14 +153,31 @@ pub mod style_mixin {
 
     ///Gets the custom build that is set on intrinsic by the mix-in.
     pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
-        if let Some(style) = wgt.capture_var::<StyleGenerator>(property_id!(self.style)) {
-            StyleNode {
-                child: None,
-                builder: wgt.clone(),
-                style,
-            }
-            .boxed()
+        // 1 - "split_off" the property `style`
+        //     this moves the property and any `when` that affects it to a new widget builder.
+        let style_id = property_id!(self.style);
+        let mut style_builder = WidgetBuilder::new(wgt.widget_mod());
+        wgt.split_off([style_id], &mut style_builder);
+
+        if style_builder.has_properties() {
+            // 2.a - There was a `style` property, build a "mini widget" that is only the style property
+            //       and when condition properties that affect it.
+
+            let mut wgt = Some(wgt);
+            style_builder.push_build_action(move |b| {
+                // 3 - The actual StyleNode and builder is a child of the "mini widget".
+                let style = b.capture_var::<StyleGenerator>(style_id).unwrap();
+                b.set_child(StyleNode {
+                    child: None,
+                    builder: wgt.take().unwrap(),
+                    style,
+                });
+            });
+            // 4 - Build the "mini widget",
+            //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
+            style_builder.build()
         } else {
+            // 2.b - There was not property `style`, this widget is not styleable, just build the default.
             wgt.build()
         }
     }
