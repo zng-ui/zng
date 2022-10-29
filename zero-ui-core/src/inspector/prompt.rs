@@ -55,7 +55,15 @@ impl WriteTreeState {
 
             fmt.open_widget(wgt_name, parent_name, parent_prop);
 
-            for (args, _) in inf.properties() {
+            for item in inf.items.iter() {
+                let args = match item {
+                    super::InstanceItem::Property { args, .. } => args,
+                    super::InstanceItem::Intrinsic { priority, name } => {
+                        fmt.write_instrinsic(priority.name(), name);
+                        continue;
+                    }
+                };
+
                 let info = args.property();
                 let inst = args.instance();
                 let group = info.priority.name();
@@ -338,6 +346,17 @@ mod print_fmt {
             }
         }
 
+        pub fn write_instrinsic(&mut self, group: &'static str, name: &str) {
+            if self.property_group != group {
+                self.write_comment(group);
+                self.property_group = group;
+            }
+
+            self.write_tabs();
+            self.write(name.truecolor(180, 180, 180).dimmed().italic());
+            self.writeln();
+        }
+
         pub fn write_property(&mut self, group: &'static str, name: &str, user_assigned: bool, can_update: bool, value: Diff) {
             self.write_property_header(group, name, user_assigned);
             self.write_property_value(value, can_update);
@@ -400,6 +419,10 @@ mod print_fmt {
             self.writeln();
             self.write("▉".yellow());
             self.write("  - widget");
+            self.writeln();
+
+            self.write("▉".truecolor(180, 180, 180).dimmed().italic());
+            self.write("  - instrinsic");
             self.writeln();
 
             self.write("▉".blue());

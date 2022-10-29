@@ -1642,11 +1642,12 @@ impl WidgetBuilding {
                 WidgetItem::Property { args, captured, .. } => {
                     if !captured {
                         node = args.instantiate(node);
-                    }
-                    #[cfg(trace_wgt_item)]
-                    {
-                        let name = args.instance().name;
-                        node = node.trace(|_, mtd| crate::context::UpdatesTrace::property_span(name, mtd));
+
+                        #[cfg(trace_wgt_item)]
+                        {
+                            let name = args.instance().name;
+                            node = node.trace(|_, mtd| crate::context::UpdatesTrace::property_span(name, mtd));
+                        }
                     }
 
                     #[cfg(inspector)]
