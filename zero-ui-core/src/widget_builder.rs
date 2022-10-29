@@ -632,7 +632,7 @@ pub fn new_when_build<T: VarValue>(inputs: &mut std::vec::IntoIter<AnyWhenVarBui
     inputs
         .next()
         .expect("missing input")
-        .build::<T>()
+        .contextualized_build::<T>()
         .expect("invalid when builder")
         .boxed()
 }
