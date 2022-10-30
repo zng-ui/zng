@@ -14,7 +14,7 @@ use crate::prelude::new_widget::*;
 /// # use zero_ui::prelude::*;
 /// let text = v_stack! {
 ///     spacing = 5.0;
-///     items = ui_list![
+///     children = ui_list![
 ///         text("1. Hello"),
 ///         text("2. World"),
 ///     ];
@@ -264,7 +264,7 @@ pub mod h_stack {
 /// # use zero_ui::prelude::*;
 /// let text = h_stack! {
 ///     spacing = 5.0;
-///     items = ui_list![
+///     children = ui_list![
 ///         text("Hello"),
 ///         text("World"),
 ///     ];
@@ -559,7 +559,7 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 /// # use zero_ui::prelude::*;
 /// let text = z_stack! {
 ///     padding = 5.0;
-///     items = ui_list![
+///     children = ui_list![
 ///         text("one"),
 ///         text! { text = "three"; z_index = ZIndex::DEFAULT + 1; },
 ///         text("two"),

@@ -18,7 +18,7 @@ use super::hit_test_mode;
 /// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
-///     content = foo();
+///     child = foo();
 ///     background = text! {
 ///         text = "CUSTOM BACKGROUND";
 ///         font_size = 72;
@@ -83,7 +83,7 @@ pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 /// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
-///     content = foo();
+///     child = foo();
 ///     background_color = hex!(#ADF0B0);
 /// }
 /// # ;
@@ -106,7 +106,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
-///     content = foo();
+///     child = foo();
 ///     background_gradient = {
 ///         axis: 90.deg(),
 ///         stops: [colors::BLACK, colors::WHITE]
@@ -137,7 +137,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
-///     content = foo();
+///     child = foo();
 ///     foreground = text! {
 ///         text = "TRIAL";
 ///         font_size = 72;
@@ -191,7 +191,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// use zero_ui::prelude::*;
 /// # fn foo() -> impl UiNode { blank!() }
 /// container! {
-///     content = foo();
+///     child = foo();
 ///     foreground_highlight = {
 ///         offsets: 3,
 ///         widths: 1,
@@ -289,7 +289,7 @@ pub fn foreground_highlight(
 /// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
-///     content = foo();
+///     child = foo();
 ///     foreground_color = rgba(0, 240, 0, 10.pct())
 /// }
 /// # ;
@@ -314,7 +314,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// # fn foo() -> impl UiNode { blank!() }
 ///
 /// container! {
-///     content = foo();
+///     child = foo();
 ///     foreground_gradient = {
 ///         axis: (0, 0).to(0, 10),
 ///         stops: [colors::BLACK, colors::BLACK.transparent()]
@@ -350,11 +350,11 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///     size = (200, 300);
 ///     corner_radius = 5;
 ///     clip_to_bounds = true;
-///     content = container! {
+///     child = container! {
 ///         background_color = rgb(0, 255, 0);
 ///         // fixed size ignores the layout available size.
 ///         size = (1000, 1000);
-///         content = text("1000x1000 green clipped to 200x300");
+///         child = text("1000x1000 green clipped to 200x300");
 ///     };
 /// }
 /// # ;

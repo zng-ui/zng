@@ -38,7 +38,7 @@
 //!         window! {
 //!             title = size.map(|s: &Size| formatx!("Button Example - {s}"));
 //!             size;
-//!             content = button! {
+//!             child = button! {
 //!                 on_click = hn!(|_,_| {
 //!                     println!("Button clicked!");
 //!                 });
@@ -46,7 +46,7 @@
 //!                 size = (300, 200);
 //!                 align = Align::CENTER;
 //!                 font_size = 28;
-//!                 content = text("Click Me!");
+//!                 child = text("Click Me!");
 //!             }
 //!         }
 //!     })
@@ -62,7 +62,7 @@
 //! # use zero_ui::prelude::*;
 //! button! {
 //!     on_click = hn!(|_, _| println!("Clicked!"));
-//!     content = text("Click Me!");
+//!     child = text("Click Me!");
 //!     font_size = 28;
 //! }
 //! # ;
@@ -132,7 +132,7 @@
 //!
 //! # fn main() {
 //! let btn = red_button! {
-//!     content = text("!");
+//!     child = text("!");
 //!     on_click = hn!(|_, _| println!("Alert!"));
 //! };
 //! # }
@@ -151,10 +151,10 @@
 //! #
 //! let menu = v_stack! {
 //!     spacing = 5;
-//!     items = ui_list![
-//!         button! { content = text("New") },
-//!         button! { content = text("Load") },
-//!         button! { content = text("Save") },
+//!     children = ui_list![
+//!         button! { child = text("New") },
+//!         button! { child = text("Load") },
+//!         button! { child = text("Save") },
 //!     ];
 //! };
 //! ```
@@ -261,13 +261,13 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! let offset = var_from(10);
+//! let offset = var(SideOffsets::from(10));
 //! let moving_btn = button! {
 //!     margin = offset.clone();
 //!     on_click = hn!(|ctx, _| {
 //!         offset.modify(ctx, |m|m.get_mut().left += 50.0);
 //!     });
-//!     content = text("Click to Move!")
+//!     child = text("Click to Move!")
 //! };
 //! ```
 //!
@@ -285,7 +285,7 @@
 //! # use zero_ui::prelude::*;
 //! let flag = var(false);
 //! let btn = button! {
-//!     content = text(flag.map_to_text());
+//!     child = text(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
 //!         flag.set(ctx.vars, !flag.get());
 //!     });
@@ -309,7 +309,7 @@
 //! # use zero_ui::prelude::*;
 //! let flag = var(false);
 //! let btn = button! {
-//!     content = text(flag.map_to_text());
+//!     child = text(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
 //!         let new_value = !flag.get();
 //!         // 3 methods doing the same thing.
@@ -331,7 +331,7 @@
 //! # use zero_ui::prelude::*;
 //! let count = var(0u32);
 //! let clicker = button! {
-//!     content = text(count.map(|c| {
+//!     child = text(count.map(|c| {
 //!         match c {
 //!             0 => "Click Me!".to_text(),
 //!             1 => "Clicked 1 Time!".to_text(),
@@ -367,8 +367,8 @@
 //!     });
 //!     handle.perm();
 //!     window! {
-//!         content = button! {
-//!             content = text(count_text);
+//!         child = button! {
+//!             child = text(count_text);
 //!             on_click = hn!(|ctx, _| {
 //!                 count.modify(ctx, |c| *c.get_mut() += 1);
 //!             });
@@ -402,7 +402,7 @@
 //!
 //! let start_btn = button! {
 //!     // content derived from the status.
-//!     content = text(task_status.map(|s| match s {
+//!     child = text(task_status.map(|s| match s {
 //!         Status::Idle => "Start".to_text(),
 //!         Status::Info(t) => t.clone()
 //!     }));
@@ -459,7 +459,7 @@
 //!         count += 1;
 //!         println!("Clicked {count} time{}", if count > 1 { "s" } else { "" });
 //!     });
-//!     content = text("Click Me!");
+//!     child = text("Click Me!");
 //! }
 //! # ;
 //! ```
@@ -478,7 +478,7 @@
 //!     assert_eq!(1, count);
 //!     drop(data);
 //! });
-//! #   content = text("Click Me!");
+//! #   child = text("Click Me!");
 //! # }
 //! # ;
 //! ```
@@ -494,7 +494,7 @@
 //!     args.propagation().stop();
 //!     println!("Click handled by {}", args.target);
 //! });
-//! #   content = text("Click Me!");
+//! #   child = text("Click Me!");
 //! # }
 //! # ;
 //! ```
@@ -510,7 +510,7 @@
 //!     on_click = hn!(count, |ctx, _| {
 //!         count.modify(ctx, |c| *c.get_mut() += 1);
 //!     });
-//!     content = text(count.map_to_text());
+//!     child = text(count.map_to_text());
 //! }
 //! # ;
 //! ```
@@ -536,7 +536,7 @@
 //!             Err(e) => status.set(&ctx, e.to_text()),
 //!         }
 //!     });
-//!#    content = text("Save");
+//!#    child = text("Save");
 //! }
 //! # ;
 //! ```
@@ -555,7 +555,7 @@
 //!             status.set(&ctx, "Done.");
 //!         }
 //!     });
-//!#    content = text("Run");
+//!#    child = text("Run");
 //! }
 //! # ;
 //! ```
@@ -576,7 +576,7 @@
 //!     on_click = async_hn_once!(|ctx, _| {
 //!         task::wait(move || std::fs::write("data.bin", data)).await;
 //!     });
-//!#    content = text("Save");
+//!#    child = text("Save");
 //! }
 //! # ;
 //! ```
@@ -599,7 +599,7 @@
 //!         assert!(!a.is_double());
 //!         println!("Clicked!");
 //!     });
-//! #   content = text("!");
+//! #   child = text("!");
 //! }
 //! # ;
 //! ```
@@ -616,15 +616,15 @@
 //!     on_pre_click = hn!(|_, _| println!("window.on_pre_click"));
 //!     on_click = hn!(|_, _| println!("window.on_click"));
 //!
-//!     content = container! {
+//!     child = container! {
 //!         on_pre_click = hn!(|_, _| println!("container.on_pre_click"));
 //!         on_click = hn!(|_, _| println!("container.on_click"));
 //!
-//!         content = button! {
+//!         child = button! {
 //!             on_pre_click = hn!(|_, _| println!("button.on_pre_click"));
 //!             on_click = hn!(|_, _| println!("button.on_click"));
 //!
-//!             content = text("Click Me!");
+//!             child = text("Click Me!");
 //!         };
 //!     };
 //! }
@@ -661,7 +661,7 @@
 //!
 //! button! {
 //!     on_click = hn!(|ctx, _| COPY_CMD.notify(ctx));
-//!     content = text(COPY_CMD.name());
+//!     child = text(COPY_CMD.name());
 //!     enabled = COPY_CMD.is_enabled();
 //!     visibility = COPY_CMD.has_handlers().map_into();
 //! }
@@ -717,10 +717,10 @@
 //!
 //! # let _ =
 //! button! {
-//!     content = text("Open Window");
+//!     child = text("Open Window");
 //!     on_click = hn!(|ctx, _| {
 //!         Windows::req(ctx).open(|_| window! {
-//!             content = text("Hello!");
+//!             child = text("Hello!");
 //!         });
 //!     });
 //! }
@@ -1057,6 +1057,8 @@ pub mod prelude {
     /// #[widget($crate::my_widget)]
     /// pub mod my_widget {
     ///     use super::*;
+    /// 
+    ///     inherit!(widget_base::base);
     ///
     ///     properties! {
     ///         background_color = colors::BLUE;

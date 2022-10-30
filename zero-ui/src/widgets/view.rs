@@ -41,7 +41,7 @@ impl<U: UiNode> View<U> {
 ///
 /// ```
 /// use zero_ui::{
-///     core::{color::{rgb, rgba}, text::ToText, var::Var, UiNode},
+///     core::{color::{rgb, rgba}, text::ToText, var::Var, widget_instance::UiNode},
 ///     widgets::{text, text::{properties::{text_color, font_size}}, view, View},
 /// };
 ///

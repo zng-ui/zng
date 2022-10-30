@@ -26,7 +26,7 @@ pub mod button {
         ///         assert!(args.is_primary());
         ///         println!("button {:?} clicked!", ctx.path.widget_id());
         ///     });
-        ///     content = text("Click Me!");
+        ///     child = text("Click Me!");
         /// }
         /// # ;
         /// ```

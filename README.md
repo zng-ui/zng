@@ -35,7 +35,7 @@ fn run() {
         window! {
             title = size.map(|s: &Size| formatx!("Button Example - {}", s));
             size;
-            content = button! {
+            child = button! {
                 on_click = hn!(|_,_| {
                     println!("Button clicked!");
                 });
@@ -43,7 +43,7 @@ fn run() {
                 size = (300, 200);
                 align = Align::CENTER;
                 font_size = 28;
-                content = text("Click Me!");
+                child = text("Click Me!");
             }
         }
     })

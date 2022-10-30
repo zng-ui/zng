@@ -176,7 +176,7 @@ pub mod text {
 /// let hello_txt = container! {
 ///     font_family = "Arial";
 ///     font_size = 18;
-///     content = text("Hello!");
+///     child = text("Hello!");
 /// };
 /// # }
 /// ```

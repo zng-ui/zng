@@ -106,7 +106,7 @@ pub trait AppRunWindowExt {
     ///     println!("starting app with window {:?}", ctx.window_id);
     ///     window! {
     ///         title = "Window 1";
-    ///         content = text("Window 1");
+    ///         child = text("Window 1");
     ///     }
     /// })   
     /// ```
@@ -121,7 +121,7 @@ pub trait AppRunWindowExt {
     ///         println!("starting app with window {:?}", ctx.window_id);
     ///         window! {
     ///             title = "Window 1";
-    ///             content = text("Window 1");
+    ///             child = text("Window 1");
     ///         }
     ///     });
     /// })   

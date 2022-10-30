@@ -186,7 +186,7 @@ pub mod image {
 ///
 /// # let _ =
 /// button! {
-///     content = image("https://httpbin.org/image");
+///     child = image("https://httpbin.org/image");
 ///     image_rendering = ImageRendering::Pixelated;
 /// }
 /// # ;

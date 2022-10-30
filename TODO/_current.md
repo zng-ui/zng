@@ -28,3 +28,4 @@
 
 * Implement pre-bind for when expressions.
 * Implement when assign for `UiNode`, `UiNodeList` and `WidgetHandler`.
+* Rename `toggle::selection` to `toggle::selector` or rename `Selector` to `Selection`.

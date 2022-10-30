@@ -34,7 +34,7 @@ pub mod toggle {
         /// toggle! {
         ///     checked = foo.clone();
         ///
-        ///     content = text(foo.map(|b| formatx!("foo = {b}")));
+        ///     child = text(foo.map(|b| formatx!("foo = {b}")));
         /// }
         /// # ;
         /// ```
@@ -59,7 +59,7 @@ pub mod toggle {
         ///     checked_opt = foo.clone();
         ///     tristate = true;
         ///
-        ///     content = text(foo.map(|b| formatx!("foo = {b:?}")));
+        ///     child = text(foo.map(|b| formatx!("foo = {b:?}")));
         /// }
         /// # ;
         /// ```
@@ -84,16 +84,16 @@ pub mod toggle {
         /// let foo = var(1_i32);
         ///
         /// v_stack! {
-        ///     toggle::selection = toggle::SingleSel::new(foo.clone());
+        ///     toggle::selection = toggle::Selector::single(foo.clone());
         ///
         ///     spacing = 5;
-        ///     items = (1..=10_i32).map(|i| {
+        ///     children = (1..=10_i32).map(|i| {
         ///         toggle! {
-        ///             content = text(formatx!("Item {i}"));
-        ///             value<i32> = i;
+        ///             child = text(formatx!("Item {i}"));
+        ///             value::<i32> = i;
         ///         }
-        ///         .boxed_wgt()
-        ///     }).collect::<WidgetVec>();
+        ///         .boxed()
+        ///     }).collect::<Vec<_>>();
         /// }
         /// # ;
         /// ```
@@ -132,7 +132,7 @@ pub mod toggle {
         ///     // checked_opt = var(Some(false));
         ///     // value<i32> = 42;
         ///
-        ///     content = text("Toggle Background");
+        ///     child = text("Toggle Background");
         ///     background_color = colors::RED;
         ///     when *#is_checked {
         ///         background_color = colors::GREEN;

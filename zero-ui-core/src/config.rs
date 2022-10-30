@@ -101,8 +101,8 @@ type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
 ///     window! {
 ///         title = "Persistent Counter";
 ///         padding = 20;
-///         content = button! {
-///             content = text(count.map(|c| formatx!("Count: {c}")));
+///         child = button! {
+///             child = text(count.map(|c| formatx!("Count: {c}")));
 ///             on_click = hn!(|ctx, _| {
 ///                 // modifying the var updates the "main.count" config.
 ///                 count.modify(ctx, |mut c| *c += 1).unwrap();

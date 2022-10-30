@@ -92,7 +92,8 @@ pub mod style_mixin {
     /// pub mod foo {
     ///     use super::*;
     ///
-    ///     inherit!(styleable);
+    ///     inherit!(widget_base::base);
+    ///     inherit!(style_mixin);
     ///
     ///     properties! {
     ///         /// Foo style.
@@ -132,7 +133,7 @@ pub mod style_mixin {
     ///             child: impl UiNode,
     ///             style: impl IntoVar<StyleGenerator>
     ///         ) -> impl UiNode {
-    ///             styleable::with_style_extension(child, STYLE_VAR, style)
+    ///             style_mixin::with_style_extension(child, STYLE_VAR, style)
     ///         }
     ///     }
     /// }
