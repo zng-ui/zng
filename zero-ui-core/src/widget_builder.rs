@@ -438,6 +438,14 @@ pub struct PropertyInput {
     /// Type name.
     pub ty_name: &'static str,
 }
+impl PropertyInput {
+    /// Shorter [`ty_name`].
+    /// 
+    /// [`ty_name`]: Self::ty_name
+    pub fn display_ty_name(&self) -> Text {
+        pretty_type_name::pretty_type_name_str(self.ty_name).into()
+    }    
+}
 
 /// Represents a property instantiation request.
 pub trait PropertyArgs {
@@ -558,7 +566,7 @@ impl dyn PropertyArgs + '_ {
             InputKind::Value => LocalVar(formatx!("{:?}", self.value(i))).boxed(),
             InputKind::UiNode => LocalVar(Text::from_static("<impl UiNode>")).boxed(),
             InputKind::UiNodeList => LocalVar(Text::from_static("<impl UiNodeList>")).boxed(),
-            InputKind::WidgetHandler => LocalVar(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].ty_name)).boxed(),
+            InputKind::WidgetHandler => LocalVar(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())).boxed(),
         }
     }
 
@@ -574,7 +582,7 @@ impl dyn PropertyArgs + '_ {
             InputKind::Value => formatx!("{:?}", self.value(i)),
             InputKind::UiNode => Text::from_static("<impl UiNode>"),
             InputKind::UiNodeList => Text::from_static("<impl UiNodeList>"),
-            InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].ty_name),
+            InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name()),
         }
     }
 }

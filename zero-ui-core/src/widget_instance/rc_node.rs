@@ -616,18 +616,12 @@ mod impls {
 
         fn init_all(&mut self, ctx: &mut WidgetContext) {
             self.on_init(ctx);
-            self.for_each_mut(|_, c| {
-                c.init(ctx);
-                true
-            });
+            // delegation done in the handler
         }
 
         fn deinit_all(&mut self, ctx: &mut WidgetContext) {
             self.on_deinit(ctx);
-            self.for_each_mut(|_, c| {
-                c.deinit(ctx);
-                true
-            });
+            // delegation done in the handler
         }
 
         fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
