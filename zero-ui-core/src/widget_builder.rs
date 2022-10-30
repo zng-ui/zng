@@ -1562,11 +1562,11 @@ impl WidgetBuilding {
 
                 any_assign = true;
 
-                let args = match &self.items[i].1 {
+                let default_args = match &self.items[i].1 {
                     WidgetItem::Property { args, .. } => args,
                     WidgetItem::Intrinsic { .. } => unreachable!(),
                 };
-                let info = args.property();
+                let info = default_args.property();
 
                 let entry = match assigns.entry(id) {
                     linear_map::Entry::Occupied(e) => e.into_mut(),
@@ -1577,7 +1577,7 @@ impl WidgetBuilding {
                             .iter()
                             .enumerate()
                             .map(|(i, input)| match input.kind {
-                                InputKind::Var => AnyWhenVarBuilder::new_any(args.var(i).clone_any()),
+                                InputKind::Var => AnyWhenVarBuilder::new_any(default_args.var(i).clone_any()),
                                 _ => panic!("can only assign vars in when blocks"),
                             })
                             .collect(),
@@ -1586,7 +1586,7 @@ impl WidgetBuilding {
 
                 for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
                     let value = match input.kind {
-                        InputKind::Var => args.var(i).clone_any(),
+                        InputKind::Var => assign.var(i).clone_any(),
                         _ => panic!("can only assign vars in when blocks"),
                     };
                     entry.push_any(when.state.clone(), value);
