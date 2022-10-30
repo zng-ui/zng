@@ -538,25 +538,8 @@ pub mod capture_properties_wgt {
     use crate::widget_builder::*;
 
     properties! {
-        pub trace as new_child_trace = "new-child";
         pub trace as new_trace = "new";
         pub trace as property_trace = "property";
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        let msg: &'static str = wgt.capture_value(property_id!(self.new_child_trace)).unwrap();
-        let msg = match msg {
-            "new-child" => "custom new_child",
-            "user-new-child" => "custom new_child (user)",
-            o => panic!("unexpected {o:?}"),
-        };
-
-        wgt.push_property(
-            Importance::WIDGET,
-            property_args! {
-                super::util::trace as instrinsic_trace = msg;
-            },
-        );
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl crate::widget_instance::UiNode {
@@ -582,29 +565,21 @@ pub fn wgt_capture_properties() {
     TestWidgetContext::new().init(&mut wgt);
 
     assert!(util::traced(&wgt, "property"));
-    assert!(util::traced(&wgt, "custom new_child"));
     assert!(util::traced(&wgt, "custom new"));
-
-    assert!(!util::traced(&wgt, "new-child"));
     assert!(!util::traced(&wgt, "new"));
 }
 #[test]
 pub fn wgt_capture_properties_reassign() {
     let mut wgt = capture_properties_wgt! {
-        //new_child_trace = unset!;// compile error here
-        new_child_trace = "user-new-child";
         property_trace = "user-property";
         new_trace = "user-new";
     };
     TestWidgetContext::new().init(&mut wgt);
 
     assert!(util::traced(&wgt, "user-property"));
-    assert!(util::traced(&wgt, "custom new_child (user)"));
     assert!(util::traced(&wgt, "custom new (user)"));
 
-    assert!(!util::traced(&wgt, "new-child"));
     assert!(!util::traced(&wgt, "new"));
-    assert!(!util::traced(&wgt, "user-new-child"));
     assert!(!util::traced(&wgt, "user-new"));
 }
 

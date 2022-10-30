@@ -208,6 +208,7 @@ pub fn default_no_child() {
     let wgt_info = build_info.get(wgt.with_context(|w| w.id).unwrap()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
+    ctx.info_tree = build_info;
 
     let mut frame = FrameBuilder::new_renderless(
         FrameId::INVALID,

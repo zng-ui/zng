@@ -440,11 +440,11 @@ pub struct PropertyInput {
 }
 impl PropertyInput {
     /// Shorter [`ty_name`].
-    /// 
+    ///
     /// [`ty_name`]: Self::ty_name
     pub fn display_ty_name(&self) -> Text {
         pretty_type_name::pretty_type_name_str(self.ty_name).into()
-    }    
+    }
 }
 
 /// Represents a property instantiation request.

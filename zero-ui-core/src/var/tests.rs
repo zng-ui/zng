@@ -461,7 +461,15 @@ mod context {
         inherit!(crate::widget_base::base);
 
         properties! {
-            pub crate::widget_base::child = NilUiNode;
+            pub crate::widget_base::child;
+        }
+
+        fn include(wgt: &mut widget_builder::WidgetBuilder) {
+            wgt.push_build_action(|wgt| {
+                if let Some(child) = wgt.capture_ui_node(property_id!(self.child)) {
+                    wgt.set_child(child);
+                }
+            });
         }
     }
 
