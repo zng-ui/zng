@@ -626,19 +626,21 @@ mod impls {
 
         fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.on_event(ctx, update);
-            self.for_each_mut(|_, c| {
-                c.event(ctx, update);
-                true
-            });
+            self.delegate_owned_mut(|l| l.event_all(ctx, update));
         }
 
         fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
             self.on_update(ctx, updates);
             let _ = observer;
-            self.for_each_mut(|_, c| {
-                c.update(ctx, updates);
-                true
-            });
+            self.delegate_owned_mut(|l| l.update_all(ctx, updates, observer));
+        }
+
+        fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.delegate_owned(|l| l.render_all(ctx, frame));
+        }
+
+        fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            self.delegate_owned(|l| l.render_update_all(ctx, update));
         }
     }
 }
