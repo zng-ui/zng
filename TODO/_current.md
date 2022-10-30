@@ -29,3 +29,5 @@
 * Implement pre-bind for when expressions.
 * Implement when assign for `UiNode`, `UiNodeList` and `WidgetHandler`.
 * Rename `toggle::selection` to `toggle::selector` or rename `Selector` to `Selection`.
+* Merge `Property.new/new_when` into a single constructor that uses some kind of provider interface.
+    - Like the nightly Any provider.

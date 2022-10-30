@@ -1057,7 +1057,7 @@ pub mod prelude {
     /// #[widget($crate::my_widget)]
     /// pub mod my_widget {
     ///     use super::*;
-    /// 
+    ///
     ///     inherit!(widget_base::base);
     ///
     ///     properties! {

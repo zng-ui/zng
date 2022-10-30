@@ -1117,7 +1117,7 @@ impl EditableUiNodeListRef {
         })))
     }
 
-    /// Returns `true` if the [`WidgetVec`] still exists.
+    /// Returns `true` if the [`EditableUiNodeList`] still exists.
     pub fn alive(&self) -> bool {
         self.0.borrow().alive
     }
@@ -1126,7 +1126,7 @@ impl EditableUiNodeListRef {
     ///
     /// The `index` is resolved after all [`remove`] requests, if it is out-of-bounds the widget is pushed.
     ///
-    /// The `widget` will be initialized, inserted and the info tree updated.
+    /// The `widget` will inserted, inited and the info tree updated.
     ///
     /// [`remove`]: Self::remove
     pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl UiNode) {
@@ -1141,7 +1141,7 @@ impl EditableUiNodeListRef {
     ///
     /// The widget will be pushed after all [`insert`] requests.
     ///
-    /// The `widget` will be initialized, inserted and the info tree updated.
+    /// The `widget` will be inserted, inited and the info tree updated.
     ///
     /// [`insert`]: Self::insert
     pub fn push(&self, updates: &mut impl WithUpdates, widget: impl UiNode) {
