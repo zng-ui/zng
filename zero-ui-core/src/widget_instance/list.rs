@@ -459,9 +459,13 @@ impl<L: UiNodeList> ZSortingList<L> {
                 self.sort();
             }
 
-            for (index, &map) in self.map.borrow().iter().enumerate() {
-                if !self.list.with_node(map as usize, |node| f(index, node)) {
-                    break;
+            if self.naturally_sorted.get() {
+                self.list.for_each(f);
+            } else {
+                for (index, &map) in self.map.borrow().iter().enumerate() {
+                    if !self.list.with_node(map as usize, |node| f(index, node)) {
+                        break;
+                    }
                 }
             }
         }

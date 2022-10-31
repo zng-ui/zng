@@ -1,6 +1,5 @@
 # All Dyn Rewrite
 
-* Button example does not render new buttons on add, panics if add button using keyboard.
 * Focus example, no highlight focus after button move to new window.
 * Image example, content is not centered.
 * Transform example, items vanish on hover.
