@@ -103,7 +103,7 @@ pub mod scroll {
 
         let clip_to_viewport = wgt.capture_var_or_default(property_id!(self.clip_to_viewport));
 
-        wgt.push_intrinsic(Priority::ChildLayout, "scroll_node", |child| {
+        wgt.push_intrinsic(Priority::ChildContext, "scroll_node", |child| {
             scroll_node(child, mode, clip_to_viewport)
         });
 

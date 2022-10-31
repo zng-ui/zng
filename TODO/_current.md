@@ -2,7 +2,6 @@
 
 * Button example does not render new buttons on add, panics if add button using keyboard.
 * Focus example, no highlight focus after button move to new window.
-* Gradient example, scroll content not centered.
 * Image example, content is not centered.
 * Transform example, items vanish on hover.
 * Window example, initial background not set.
