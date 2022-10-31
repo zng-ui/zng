@@ -171,7 +171,7 @@ pub mod property_args_getter {
     use super::*;
 
     fn build(mut wgt: WidgetBuilder) -> Box<dyn PropertyArgs> {
-        match wgt.p.items.remove(0).1 {
+        match wgt.p.items.remove(0).item {
             WidgetItem::Property { args, .. } => args,
             WidgetItem::Intrinsic { .. } => unreachable!(),
         }
@@ -904,6 +904,18 @@ impl fmt::Debug for Box<dyn PropertyArgs> {
     }
 }
 
+#[derive(Clone)]
+struct WidgetItemPositioned {
+    position: NestPosition,
+    insert_idx: u32,
+    item: WidgetItem,
+}
+impl WidgetItemPositioned {
+    fn sort_key(&self) -> (NestPosition, u32) {
+        (self.position, self.insert_idx)
+    }
+}
+
 enum WidgetItem {
     Property {
         importance: Importance,
@@ -936,6 +948,7 @@ impl Clone for WidgetItem {
 pub struct WidgetBuilder {
     widget_mod: WidgetMod,
     p: WidgetBuilderProperties,
+    insert_idx: u32,
     unset: LinearMap<PropertyId, Importance>,
     whens: Vec<(Importance, WhenInfo)>,
     build_actions: Vec<Rc<RefCell<dyn FnMut(&mut WidgetBuilding)>>>,
@@ -946,6 +959,7 @@ impl Clone for WidgetBuilder {
         Self {
             widget_mod: self.widget_mod,
             p: WidgetBuilderProperties { items: self.items.clone() },
+            insert_idx: self.insert_idx,
             unset: self.unset.clone(),
             whens: self.whens.clone(),
             build_actions: self.build_actions.clone(),
@@ -976,6 +990,7 @@ impl WidgetBuilder {
         Self {
             widget_mod: widget,
             p: WidgetBuilderProperties { items: Default::default() },
+            insert_idx: 0,
             unset: Default::default(),
             whens: Default::default(),
             build_actions: Default::default(),
@@ -998,20 +1013,24 @@ impl WidgetBuilder {
 
     /// Insert property with custom nest position.
     pub fn push_property_positioned(&mut self, importance: Importance, position: NestPosition, args: Box<dyn PropertyArgs>) {
+        let insert_idx = self.insert_idx;
+        self.insert_idx = insert_idx.wrapping_add(1);
+
         let property_id = args.id();
         if let Some(i) = self.p.property_index(property_id) {
-            match &self.p.items[i].1 {
+            match &self.p.items[i].item {
                 WidgetItem::Property { importance: imp, .. } => {
                     if *imp <= importance {
                         // override
-                        self.p.items[i] = (
+                        self.p.items[i] = WidgetItemPositioned {
                             position,
-                            WidgetItem::Property {
+                            insert_idx,
+                            item: WidgetItem::Property {
                                 importance,
                                 args,
                                 captured: false,
                             },
-                        );
+                        };
                     }
                 }
                 WidgetItem::Intrinsic { .. } => unreachable!(),
@@ -1022,14 +1041,15 @@ impl WidgetBuilder {
                     return; // unset blocks.
                 }
             }
-            self.p.items.push((
+            self.p.items.push(WidgetItemPositioned {
                 position,
-                WidgetItem::Property {
+                insert_idx,
+                item: WidgetItem::Property {
                     importance,
                     args,
                     captured: false,
                 },
-            ));
+            });
         }
     }
 
@@ -1066,10 +1086,10 @@ impl WidgetBuilder {
 
         if check {
             if let Some(i) = self.p.property_index(property_id) {
-                match &self.p.items[i].1 {
+                match &self.p.items[i].item {
                     WidgetItem::Property { importance: imp, .. } => {
                         if *imp <= importance {
-                            self.p.items.remove(i);
+                            self.p.items.swap_remove(i);
                         }
                     }
                     WidgetItem::Intrinsic { .. } => unreachable!(),
@@ -1120,15 +1140,15 @@ impl WidgetBuilder {
             self.push_unset(imp, id);
         }
 
-        for (pos, p) in other.p.items {
-            match p {
+        for WidgetItemPositioned { position, item, .. } in other.p.items {
+            match item {
                 WidgetItem::Property {
                     importance,
                     args,
                     captured,
                 } => {
                     debug_assert!(!captured);
-                    self.push_property_positioned(importance, pos, args);
+                    self.push_property_positioned(importance, position, args);
                 }
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             }
@@ -1179,10 +1199,14 @@ impl WidgetBuilder {
         // move properties
         let mut i = 0;
         while i < self.items.len() && found < properties.len() {
-            match &self.items[i].1 {
-                WidgetItem::Property { args, .. } if properties.contains(&args.id()) => match self.items.remove(i) {
-                    (pos, WidgetItem::Property { importance, args, .. }) => {
-                        out.push_property_positioned(importance, pos, args);
+            match &self.items[i].item {
+                WidgetItem::Property { args, .. } if properties.contains(&args.id()) => match self.items.swap_remove(i) {
+                    WidgetItemPositioned {
+                        position,
+                        item: WidgetItem::Property { importance, args, .. },
+                        ..
+                    } => {
+                        out.push_property_positioned(importance, position, args);
                         found += 1;
                     }
                     _ => unreachable!(),
@@ -1237,8 +1261,12 @@ impl WidgetBuilder {
                 for input in out_when.inputs.iter() {
                     if let Some(i) = self.property_index(input.property) {
                         match &self.items[i] {
-                            (pos, WidgetItem::Property { importance, args, .. }) => {
-                                out.push_property_positioned(*importance, *pos, args.clone());
+                            WidgetItemPositioned {
+                                position,
+                                item: WidgetItem::Property { importance, args, .. },
+                                ..
+                            } => {
+                                out.push_property_positioned(*importance, *position, args.clone());
                             }
                             _ => unreachable!(),
                         }
@@ -1401,13 +1429,14 @@ impl WidgetBuilding {
         name: &'static str,
         intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static,
     ) {
-        self.items.push((
+        self.items.push(WidgetItemPositioned {
             position,
-            WidgetItem::Intrinsic {
+            insert_idx: u32::MAX,
+            item: WidgetItem::Intrinsic {
                 name,
                 new: Box::new(move |n| intrinsic(n).boxed()),
             },
-        ));
+        });
     }
 
     /// Removes the property, returns `(importance, position, args, captured)`.
@@ -1415,22 +1444,23 @@ impl WidgetBuilding {
     /// Note that if the property was captured a clone of the args is already in an intrinsic node and will still be used in the widget.
     pub fn remove_property(&mut self, property_id: PropertyId) -> Option<BuilderProperty> {
         if let Some(i) = self.property_index(property_id) {
-            match self.items.remove(i) {
-                // can't be swap remove for ordering of equal priority.
-                (
-                    pos,
-                    WidgetItem::Property {
-                        importance,
-                        args,
-                        captured,
-                    },
-                ) => Some(BuilderProperty {
+            match self.items.swap_remove(i) {
+                WidgetItemPositioned {
+                    position,
+                    item:
+                        WidgetItem::Property {
+                            importance,
+                            args,
+                            captured,
+                        },
+                    ..
+                } => Some(BuilderProperty {
                     importance,
-                    position: pos,
+                    position,
                     args,
                     captured,
                 }),
-                (_, WidgetItem::Intrinsic { .. }) => unreachable!(),
+                _ => unreachable!(),
             }
         } else {
             None
@@ -1550,14 +1580,15 @@ impl WidgetBuilding {
                         name: input.property.name,
                         location: when.location,
                     });
-                    self.p.items.push((
-                        NestPosition::property(args.property().priority),
-                        WidgetItem::Property {
+                    self.p.items.push(WidgetItemPositioned {
+                        position: NestPosition::property(args.property().priority),
+                        insert_idx: u32::MAX,
+                        item: WidgetItem::Property {
                             importance: Importance::WIDGET,
                             args,
                             captured: false,
                         },
-                    ));
+                    });
                     inputs.push(Input {
                         input,
                         item_idx: self.p.items.len() - 1,
@@ -1577,14 +1608,15 @@ impl WidgetBuilding {
                     i
                 } else if let Some(default) = assign.property().default {
                     let args = default(assign.instance());
-                    self.p.items.push((
-                        NestPosition::property(args.property().priority),
-                        WidgetItem::Property {
+                    self.p.items.push(WidgetItemPositioned {
+                        position: NestPosition::property(args.property().priority),
+                        insert_idx: u32::MAX,
+                        item: WidgetItem::Property {
                             importance: Importance::WIDGET,
                             args,
                             captured: false,
                         },
-                    ));
+                    });
                     self.p.items.len() - 1
                 } else {
                     continue;
@@ -1592,7 +1624,7 @@ impl WidgetBuilding {
 
                 any_assign = true;
 
-                let default_args = match &self.items[i].1 {
+                let default_args = match &self.items[i].item {
                     WidgetItem::Property { args, .. } => args,
                     WidgetItem::Intrinsic { .. } => unreachable!(),
                 };
@@ -1630,7 +1662,7 @@ impl WidgetBuilding {
         }
 
         for Input { input, item_idx } in inputs {
-            let args = match &self.items[item_idx].1 {
+            let args = match &self.items[item_idx].item {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
@@ -1651,7 +1683,7 @@ impl WidgetBuilding {
         }
 
         for (_, Assign { item_idx, builder }) in assigns {
-            let args = match &mut self.items[item_idx].1 {
+            let args = match &mut self.items[item_idx].item {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
@@ -1661,13 +1693,14 @@ impl WidgetBuilding {
     }
 
     fn build(mut self) -> BoxedUiNode {
-        self.items.sort_by_key(|(k, _)| *k);
+        // sort by priority, index and insert index.
+        self.items.sort_unstable_by_key(|b| b.sort_key());
 
         #[cfg(inspector)]
         let mut inspector_items = Vec::with_capacity(self.p.items.len());
 
         let mut node = self.child.take().unwrap_or_else(|| NilUiNode.boxed());
-        for (pos, item) in self.p.items.into_iter().rev() {
+        for WidgetItemPositioned { position, item, .. } in self.p.items.into_iter().rev() {
             match item {
                 WidgetItem::Property { args, captured, .. } => {
                     if !captured {
@@ -1693,7 +1726,7 @@ impl WidgetBuilding {
 
                     #[cfg(inspector)]
                     inspector_items.push(crate::inspector::InstanceItem::Intrinsic {
-                        priority: pos.priority,
+                        priority: position.priority,
                         name,
                     });
                 }
@@ -1781,20 +1814,20 @@ pub struct BuilderPropertyMut<'a> {
 
 /// Direct property access in [`WidgetBuilder`] and [`WidgetBuilding`].
 pub struct WidgetBuilderProperties {
-    items: Vec<(NestPosition, WidgetItem)>,
+    items: Vec<WidgetItemPositioned>,
 }
 impl WidgetBuilderProperties {
     /// Reference the property, if it is present.
     pub fn property(&self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
         match self.property_index(property_id) {
-            Some(i) => match &self.items[i].1 {
+            Some(i) => match &self.items[i].item {
                 WidgetItem::Property {
                     importance,
                     args,
                     captured,
                 } => Some(BuilderPropertyRef {
                     importance: *importance,
-                    position: self.items[i].0,
+                    position: self.items[i].position,
                     args: &**args,
                     captured: *captured,
                 }),
@@ -1808,16 +1841,18 @@ impl WidgetBuilderProperties {
     pub fn property_mut(&mut self, property_id: PropertyId) -> Option<BuilderPropertyMut> {
         match self.property_index(property_id) {
             Some(i) => match &mut self.items[i] {
-                (
-                    pos,
-                    WidgetItem::Property {
-                        importance,
-                        args,
-                        captured,
-                    },
-                ) => Some(BuilderPropertyMut {
+                WidgetItemPositioned {
+                    position,
+                    item:
+                        WidgetItem::Property {
+                            importance,
+                            args,
+                            captured,
+                        },
+                    ..
+                } => Some(BuilderPropertyMut {
                     importance,
-                    position: pos,
+                    position,
                     args,
                     captured,
                 }),
@@ -1831,7 +1866,7 @@ impl WidgetBuilderProperties {
     ///
     /// The properties may not be sorted in the correct order if the builder has never built.
     pub fn properties(&self) -> impl Iterator<Item = BuilderPropertyRef> {
-        self.items.iter().filter_map(|(pos, it)| match it {
+        self.items.iter().filter_map(|it| match &it.item {
             WidgetItem::Intrinsic { .. } => None,
             WidgetItem::Property {
                 importance,
@@ -1839,7 +1874,7 @@ impl WidgetBuilderProperties {
                 captured,
             } => Some(BuilderPropertyRef {
                 importance: *importance,
-                position: *pos,
+                position: it.position,
                 args: &**args,
                 captured: *captured,
             }),
@@ -1848,7 +1883,7 @@ impl WidgetBuilderProperties {
 
     /// iterate over mutable references to the current properties.
     pub fn properties_mut(&mut self) -> impl Iterator<Item = BuilderPropertyMut> {
-        self.items.iter_mut().filter_map(|(pos, it)| match it {
+        self.items.iter_mut().filter_map(|it| match &mut it.item {
             WidgetItem::Intrinsic { .. } => None,
             WidgetItem::Property {
                 importance,
@@ -1856,7 +1891,7 @@ impl WidgetBuilderProperties {
                 captured,
             } => Some(BuilderPropertyMut {
                 importance,
-                position: pos,
+                position: &mut it.position,
                 args,
                 captured,
             }),
@@ -1899,24 +1934,25 @@ impl WidgetBuilderProperties {
     fn capture_property_impl(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
         if let Some(i) = self.property_index(property_id) {
             match &mut self.items[i] {
-                // can't be swap remove for ordering of equal priority.
-                (
-                    pos,
-                    WidgetItem::Property {
-                        importance,
-                        args,
-                        captured,
-                    },
-                ) => {
+                WidgetItemPositioned {
+                    position,
+                    item:
+                        WidgetItem::Property {
+                            importance,
+                            args,
+                            captured,
+                        },
+                    ..
+                } => {
                     *captured = true;
                     Some(BuilderPropertyRef {
                         importance: *importance,
-                        position: *pos,
+                        position: *position,
                         args: &**args,
                         captured: *captured,
                     })
                 }
-                (_, WidgetItem::Intrinsic { .. }) => unreachable!(),
+                _ => unreachable!(),
             }
         } else {
             None
@@ -1924,7 +1960,7 @@ impl WidgetBuilderProperties {
     }
 
     fn property_index(&self, property_id: PropertyId) -> Option<usize> {
-        self.items.iter().position(|(_, item)| match item {
+        self.items.iter().position(|it| match &it.item {
             WidgetItem::Property { args, .. } => args.id() == property_id,
             WidgetItem::Intrinsic { .. } => false,
         })

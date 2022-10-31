@@ -155,10 +155,10 @@ pub mod toggle {
     fn include(wgt: &mut super::WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             if let Some(p) = wgt.property_mut(super::property_id!(self.checked_opt)) {
-                p.position.index = 999; // force property to be inside tristate.
+                p.position.index = u16::MAX; // force property to be inside tristate.
             }
             if let Some(p) = wgt.property_mut(super::property_id!(self.value)) {
-                p.position.index = 999; // force property to be inside select_on_init and others.
+                p.position.index = u16::MAX; // force property to be inside select_on_init and others.
             }
         });
     }
