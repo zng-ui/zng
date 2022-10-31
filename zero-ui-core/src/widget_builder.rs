@@ -1357,7 +1357,7 @@ impl WidgetBuilding {
     }
 
     /// Don't insert the inspector node and inspector metadata on build.
-    /// 
+    ///
     /// The inspector metadata is inserted by default when `feature="inspector"` is active.
     #[cfg(inspector)]
     pub fn disable_inspector(&mut self) {
@@ -1687,7 +1687,7 @@ impl WidgetBuilding {
                 WidgetItem::Intrinsic { new, name } => {
                     node = new(node);
                     #[cfg(trace_wgt_item)]
-                    {
+                    if self.trace_wgt_item {
                         node = node.trace(|_, mtd| ctate::context::UpdatesTrace::intrinsic_span(name, mtd));
                     }
 
