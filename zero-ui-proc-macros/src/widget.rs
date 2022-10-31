@@ -47,7 +47,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             quote! { $crate::missing_widget_path}
         }
     };
-    let mod_path_str = mod_path.to_string();
+    let mod_path_str = mod_path.to_string().replace(' ', "");
     let mod_path_slug = mod_path_slug(&mod_path_str);
 
     let WidgetItems {

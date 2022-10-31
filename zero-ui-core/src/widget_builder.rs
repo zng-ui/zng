@@ -1283,16 +1283,12 @@ impl WidgetBuilder {
         let builder = self.clone();
 
         let mut building = WidgetBuilding {
-            #[cfg(trace_widget)]
-            widget_id: {
-                use crate::widget_instance::WidgetId;
-
-                self.property(property_id!(crate::widget_base::id))
-                    .map(|p| *p.args.downcast_value::<WidgetId>(0))
-                    .unwrap_or_else(|| WidgetId::named("<unkdown>"))
-            },
             #[cfg(inspector)]
-            builder,
+            builder: Some(builder),
+            #[cfg(trace_widget)]
+            trace_widget: true,
+            #[cfg(trace_wgt_item)]
+            trace_wgt_item: true,
 
             widget_mod: self.widget_mod,
             p: self.p,
@@ -1331,10 +1327,12 @@ impl ops::DerefMut for WidgetBuilder {
 ///
 /// [`build_action`]: WidgetBuilder::build_action
 pub struct WidgetBuilding {
-    #[cfg(trace_widget)]
-    widget_id: crate::widget_instance::WidgetId,
     #[cfg(inspector)]
-    builder: WidgetBuilder,
+    builder: Option<WidgetBuilder>,
+    #[cfg(trace_widget)]
+    trace_widget: bool,
+    #[cfg(trace_wgt_item)]
+    trace_wgt_item: bool,
 
     widget_mod: WidgetMod,
     p: WidgetBuilderProperties,
@@ -1356,6 +1354,30 @@ impl WidgetBuilding {
     /// Set/replace the innermost node of the widget.
     pub fn set_child(&mut self, node: impl UiNode) {
         self.child = Some(node.boxed());
+    }
+
+    /// Don't insert the inspector node and inspector metadata on build.
+    /// 
+    /// The inspector metadata is inserted by default when `feature="inspector"` is active.
+    #[cfg(inspector)]
+    pub fn disable_inspector(&mut self) {
+        self.builder = None;
+    }
+
+    /// Don't insert the widget trace node on build.
+    ///
+    /// The trace node is inserted by default when `feature="trace_widget"` is active.
+    #[cfg(trace_widget)]
+    pub fn disable_trace_widget(&mut self) {
+        self.trace_widget = false;
+    }
+
+    /// Don't insert property/intrinsic trace nodes on build.
+    ///
+    /// The trace nodes is inserted by default when `feature="trace_wgt_item"` is active.
+    #[cfg(trace_wgt_item)]
+    pub fn disable_trace_wgt_item(&mut self) {
+        self.trace_wgt_item = false;
     }
 
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
@@ -1652,7 +1674,7 @@ impl WidgetBuilding {
                         node = args.instantiate(node);
 
                         #[cfg(trace_wgt_item)]
-                        {
+                        if self.trace_wgt_item {
                             let name = args.instance().name;
                             node = node.trace(|_, mtd| crate::context::UpdatesTrace::property_span(name, mtd));
                         }
@@ -1679,11 +1701,11 @@ impl WidgetBuilding {
         }
 
         #[cfg(inspector)]
-        {
+        if let Some(builder) = self.builder {
             node = crate::inspector::insert_widget_builder_info(
                 node,
                 crate::inspector::InspectorInfo {
-                    builder: self.builder,
+                    builder,
                     items: inspector_items.into_boxed_slice(),
                 },
             )
@@ -1691,11 +1713,10 @@ impl WidgetBuilding {
         }
 
         #[cfg(trace_widget)]
-        {
-            let id = self.widget_id;
+        if self.trace_widget {
             let name = self.widget_mod.name();
             node = node
-                .trace(move |_, mtd| crate::context::UpdatesTrace::widget_span(id, name, mtd))
+                .trace(move |ctx, mtd| crate::context::UpdatesTrace::widget_span(ctx.path.widget_id(), name, mtd))
                 .boxed();
         }
 

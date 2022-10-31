@@ -51,9 +51,9 @@ mod toggle_wgt;
 #[doc(inline)]
 pub use toggle_wgt::{checkbox, toggle};
 
-mod styleable_wgt;
+mod style_wgt;
 #[doc(inline)]
-pub use styleable_wgt::style;
+pub use style_wgt::style;
 
 mod view;
 #[doc(inline)]

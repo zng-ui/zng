@@ -3,4 +3,4 @@
 mod focusable;
 pub use focusable::focusable_mixin;
 
-pub use super::styleable_wgt::style_mixin;
+pub use super::style_wgt::style_mixin;

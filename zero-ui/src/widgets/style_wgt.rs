@@ -164,6 +164,12 @@ pub mod style_mixin {
             // 2.a - There was a `style` property, build a "mini widget" that is only the style property
             //       and when condition properties that affect it.
 
+            #[cfg(trace_widget)]
+            wgt.push_build_action(|wgt| {
+                // avoid double trace as the style builder already inserts a widget tracer.
+                wgt.disable_trace_widget();
+            });
+
             let mut wgt = Some(wgt);
             style_builder.push_build_action(move |b| {
                 // 3 - The actual StyleNode and builder is a child of the "mini widget".
