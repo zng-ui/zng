@@ -2,7 +2,6 @@
 
 * Focus example, no highlight focus after button move to new window.
 * Image example, content is not centered.
-* Transform example, items vanish on hover.
 * Window example, initial background not set.
 * Review "!!:"
 
