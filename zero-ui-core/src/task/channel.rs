@@ -28,7 +28,7 @@
 //!
 //! [`flume`]: https://docs.rs/flume/0.10.7/flume/
 
-use std::{any::type_name, convert::TryFrom, fmt};
+use std::{convert::TryFrom, fmt};
 
 pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
 
@@ -40,7 +40,7 @@ use crate::units::Deadline;
 pub struct UnboundSender<T>(flume::Sender<T>);
 impl<T> fmt::Debug for UnboundSender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "UnboundSender<{}>", type_name::<T>())
+        write!(f, "UnboundSender<{}>", pretty_type_name::pretty_type_name::<T>())
     }
 }
 impl<T> Clone for UnboundSender<T> {
@@ -97,7 +97,7 @@ impl<T> UnboundSender<T> {
 pub struct Sender<T>(flume::Sender<T>);
 impl<T> fmt::Debug for Sender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Sender<{}>", type_name::<T>())
+        write!(f, "Sender<{}>", pretty_type_name::pretty_type_name::<T>())
     }
 }
 impl<T> Clone for Sender<T> {
@@ -182,7 +182,7 @@ impl<T> Sender<T> {
 pub struct Receiver<T>(flume::Receiver<T>);
 impl<T> fmt::Debug for Receiver<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Receiver<{}>", type_name::<T>())
+        write!(f, "Receiver<{}>", pretty_type_name::pretty_type_name::<T>())
     }
 }
 impl<T> Clone for Receiver<T> {

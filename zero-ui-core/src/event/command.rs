@@ -750,7 +750,7 @@ impl<T: StateValue + VarValue> CommandMetaVarId<T> {
 impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[cfg(debug_assertions)]
-        let t = std::any::type_name::<T>();
+        let t = pretty_type_name::pretty_type_name::<T>();
         #[cfg(not(debug_assertions))]
         let t = "$T";
 

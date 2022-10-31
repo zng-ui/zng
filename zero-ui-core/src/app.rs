@@ -28,6 +28,7 @@ use crate::{
 
 use self::view_process::{ViewProcess, ViewProcessInitedArgs, VIEW_PROCESS_INITED_EVENT};
 use once_cell::sync::Lazy;
+use pretty_type_name::*;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::mem;
@@ -57,7 +58,7 @@ impl<T> From<flume::SendError<T>> for AppDisconnected<T> {
 }
 impl<T> fmt::Debug for AppDisconnected<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "AppDisconnected<{}>", type_name::<T>())
+        write!(f, "AppDisconnected<{}>", pretty_type_name::<T>())
     }
 }
 impl<T> fmt::Display for AppDisconnected<T> {

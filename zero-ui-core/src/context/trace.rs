@@ -1,5 +1,4 @@
 use std::{
-    any::type_name,
     collections::{hash_map, HashMap},
     fmt,
     sync::Arc,
@@ -226,7 +225,7 @@ impl UpdatesTrace {
 
     /// Opens an app extension span.
     pub fn extension_span<E: AppExtension>(ext_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = type_name::<E>(), %ext_mtd).entered()
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = pretty_type_name::pretty_type_name::<E>(), %ext_mtd).entered()
     }
 
     /// Opens a window span.
@@ -293,7 +292,7 @@ impl UpdatesTrace {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
             tracing::Level::TRACE,
-            { kind = "update var", type_name = type_name::<T>() }
+            { kind = "update var", type_name = pretty_type_name::pretty_type_name::<T>() }
         );
     }
 

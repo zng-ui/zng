@@ -1,4 +1,5 @@
-use std::{any::type_name, fmt, rc::Rc};
+use pretty_type_name::*;
+use std::{fmt, rc::Rc};
 
 use zero_ui_core::widget_instance::{BoxedUiNode, NilUiNode};
 
@@ -190,7 +191,7 @@ impl<D> Clone for ViewGenerator<D> {
 }
 impl<D> fmt::Debug for ViewGenerator<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ViewGenerator<{}>", type_name::<D>())
+        write!(f, "ViewGenerator<{}>", pretty_type_name::<D>())
     }
 }
 impl<D> ViewGenerator<D> {

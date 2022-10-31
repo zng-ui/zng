@@ -34,7 +34,7 @@ unique_id_64! {
 impl<T: StateValue> fmt::Debug for StateId<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[cfg(debug_assertions)]
-        let t = std::any::type_name::<T>();
+        let t = pretty_type_name::pretty_type_name::<T>();
         #[cfg(not(debug_assertions))]
         let t = "$T";
 
@@ -61,7 +61,12 @@ impl<'a, U> Clone for StateMapRef<'a, U> {
 impl<'a, U> Copy for StateMapRef<'a, U> {}
 impl<'a, U> fmt::Debug for StateMapRef<'a, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "StateMapRef<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
+        write!(
+            f,
+            "StateMapRef<{}>({} entries);",
+            pretty_type_name::pretty_type_name::<U>(),
+            self.0.len()
+        )
     }
 }
 impl<'a, U> StateMapRef<'a, U> {
@@ -224,7 +229,12 @@ impl<'a, U> StateMapMut<'a, U> {
 pub struct OwnedStateMap<U>(state_map::StateMap, PhantomData<U>);
 impl<U> fmt::Debug for OwnedStateMap<U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "OwnedStateMap<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
+        write!(
+            f,
+            "OwnedStateMap<{}>({} entries);",
+            pretty_type_name::pretty_type_name::<U>(),
+            self.0.len()
+        )
     }
 }
 impl<U> Default for OwnedStateMap<U> {
