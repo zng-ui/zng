@@ -340,7 +340,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
 pub mod img_window {
     use super::*;
 
-    inherit!(zero_ui::widgets::window);
+    inherit!(window);
 
     properties! {
         child_align = Align::CENTER;
@@ -348,7 +348,7 @@ pub mod img_window {
         // render_mode = RenderMode::Software;
 
         state = WindowState::Maximized;
-        size = (1140, 770);// restore size
+        window::properties::size = (1140, 770);// restore size
 
         background = checkerboard!();
 

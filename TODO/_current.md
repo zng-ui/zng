@@ -4,7 +4,6 @@
     - is_focused_hgl is `true`, but focus_highlight does not reflect the state.
     - Its the style reload that happens because of (re)init.
         - When not working after reuse?
-* Image example, content is not centered.
 * Review "!!:"
 
 * Refactor to minimal docs generation that does not require custom post-processing?
@@ -36,3 +35,5 @@
 * Rename `toggle::selection` to `toggle::selector` or rename `Selector` to `Selection`.
 * Merge `Property.new/new_when` into a single constructor that uses some kind of provider interface.
     - Like the nightly Any provider.
+* Improve widget property imports, when inheriting from widgets a `use self::*;` can override inherited properties.
+    - In the `image` example we need the full path to set the window size because of this.
