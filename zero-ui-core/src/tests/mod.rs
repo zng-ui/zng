@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-mod property;
 mod ui_node;
 mod widget;
 
