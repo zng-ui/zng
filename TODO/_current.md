@@ -1,9 +1,10 @@
 # All Dyn Rewrite
 
-* Focus example, no highlight focus after button move to new window.
-    - is_focused_hgl is `true`, but focus_highlight does not reflect the state.
-    - Its the style reload that happens because of (re)init.
-        - When not working after reuse?
+* Fix `widgets::when_reuse`.
+    - Is the same bug affecting focus highlight.
+    - Input var is never reassigned.
+        - Tracking clone/reset shows that it is not cloned.
+        - So the previous state var is used in the new when var.
 * Review "!!:"
 
 * Refactor to minimal docs generation that does not require custom post-processing?

@@ -568,13 +568,18 @@ impl<'a> PartialEq for VarPtr<'a> {
         self.eq == other.eq
     }
 }
+impl<'a> fmt::Debug for VarPtr<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("VarPtr").field(&self.eq).finish()
+    }
+}
 
+#[derive(Debug)]
 enum VarPtrData {
     Static(*const ()),
     Rc(*const ()),
     NeverEq,
 }
-
 impl PartialEq for VarPtrData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

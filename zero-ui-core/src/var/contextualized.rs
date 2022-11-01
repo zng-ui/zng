@@ -25,7 +25,6 @@ pub struct ContextualizedVar<T, S> {
     init: Rc<dyn Fn() -> S>,
     actual: RefCell<Option<S>>,
 }
-
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// New with initialization function.
     pub fn new(init: Rc<dyn Fn() -> S>) -> Self {
