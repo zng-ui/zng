@@ -904,6 +904,50 @@ pub fn when_property_member_indexed_method() {
     assert!(util::traced(&wgt, "true"));
 }
 
+#[widget($crate::tests::widget::get_builder)]
+pub mod get_builder {
+    use crate::widget_builder::WidgetBuilder;
+
+    fn build(mut wgt: WidgetBuilder) -> WidgetBuilder {
+        wgt.set_custom_build(crate::widget_base::nodes::build);
+        wgt
+    }
+}
+
+#[test]
+pub fn when_reuse() {
+    let builder = get_builder! {
+        util::live_trace = "false";
+
+        when *#util::is_state {
+            util::live_trace = "true";
+        }
+    };
+
+    let test = |pass: &str| {
+        let mut wgt = builder.clone().build();
+
+        let mut ctx = TestWidgetContext::new();
+        ctx.init(&mut wgt);
+        assert!(!util::traced(&wgt, "true"), "traced `true` in {pass} pass");
+        assert!(util::traced(&wgt, "false"), "did not trace `false` in {pass} pass");
+    
+        util::set_state(&mut ctx, &mut wgt, true);
+        ctx.update(&mut wgt, None);
+        ctx.apply_updates();
+        ctx.update(&mut wgt, None);
+        assert!(util::traced(&wgt, "true"), "did not trace `true` after when in {pass} pass");
+
+        util::set_state(&mut ctx, &mut wgt, false);
+        ctx.update(&mut wgt, None);
+        ctx.apply_updates();
+        ctx.update(&mut wgt, None);
+    };
+
+    test("first");
+    test("reuse");
+}
+
 /*
 * Inherit override
 */

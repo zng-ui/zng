@@ -925,7 +925,7 @@ struct WhenItemPositioned {
 impl WhenItemPositioned {
     fn sort_key(&self) -> (Importance, u32) {
         (self.importance, self.insert_idx)
-    }    
+    }
 }
 
 enum WidgetItem {
@@ -1146,8 +1146,8 @@ impl WidgetBuilder {
     /// Set a `build` closure to run instead of [`default_build`] when [`build`] is called.
     ///
     /// Overrides the previous custom build, if any was set.
-    pub fn set_custom_build(&mut self, build: impl FnMut(WidgetBuilder) -> BoxedUiNode + 'static) {
-        self.custom_build = Some(Rc::new(RefCell::new(build)));
+    pub fn set_custom_build<R: UiNode>(&mut self, mut build: impl FnMut(WidgetBuilder) -> R + 'static) {
+        self.custom_build = Some(Rc::new(RefCell::new(move |b| build(b).boxed())));
     }
 
     /// Remove the custom build handler, if any was set.
