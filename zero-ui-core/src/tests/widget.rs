@@ -931,7 +931,7 @@ pub fn when_reuse() {
         ctx.init(&mut wgt);
         assert!(!util::traced(&wgt, "true"), "traced `true` in {pass} pass");
         assert!(util::traced(&wgt, "false"), "did not trace `false` in {pass} pass");
-    
+
         util::set_state(&mut ctx, &mut wgt, true);
         ctx.update(&mut wgt, None);
         ctx.apply_updates();

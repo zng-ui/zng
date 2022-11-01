@@ -2,12 +2,20 @@ use std::{cell::Ref, marker::PhantomData, rc::Weak};
 
 use super::*;
 
+crate::context::context_value! {
+    /// Signal for nested ContextualizedVar.
+    static INIT_CONTEXT: bool = false;
+}
+fn init<S>(init: &dyn Fn() -> S) -> S {
+    INIT_CONTEXT.with_context(&mut Some(true), init)
+}
+
 /// Represents a variable that delays initialization until the first usage.
 ///
 /// Usage that initializes the variable are all [`AnyVar`] and [`Var<T>`] methods except `read_only`, `downgrade` and `boxed`.
 /// Clones of this variable are always not initialized and re-init on first usage.
 ///
-/// This variable use used in the [`Var::map`] and other mapping methods to support mapping from [`ContextVar<T>`].
+/// This variable is used in the [`Var::map`] and other mapping methods to support mapping from [`ContextVar<T>`].
 ///
 /// ```
 /// # macro_rules! fake{($($tt:tt)*) => {}}
@@ -27,6 +35,9 @@ pub struct ContextualizedVar<T, S> {
 }
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// New with initialization function.
+    ///
+    /// The `init` closure will be called on the first usage of the var, once after the var is cloned and any time
+    /// a parent contextualized var is initializing.
     pub fn new(init: Rc<dyn Fn() -> S>) -> Self {
         Self {
             _type: PhantomData,
@@ -38,12 +49,14 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> Ref<S> {
         let act = self.actual.borrow();
-        if act.is_some() {
+        if act.is_some() && !INIT_CONTEXT.get() {
             return Ref::map(act, |opt| opt.as_ref().unwrap());
         }
 
         drop(act);
-        *self.actual.borrow_mut() = Some((self.init)());
+
+        let act = init(&*self.init);
+        *self.actual.borrow_mut() = Some(act);
 
         let act = self.actual.borrow();
         Ref::map(act, |opt| opt.as_ref().unwrap())
@@ -52,8 +65,8 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// Unwraps the initialized actual var or initializes it now.
     pub fn into_init(self) -> S {
         match self.actual.into_inner() {
-            Some(s) => s,
-            None => (self.init)(),
+            Some(s) if !INIT_CONTEXT.get() => s,
+            _ => init(&*self.init),
         }
     }
 
@@ -224,8 +237,8 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
 
     fn into_value(self) -> T {
         match self.actual.into_inner() {
-            Some(act) => act.into_value(),
-            None => (self.init)().into_value(),
+            Some(act) if !INIT_CONTEXT.get() => act.into_value(),
+            _ => init(&*self.init).into_value(),
         }
     }
 

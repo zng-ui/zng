@@ -1,10 +1,5 @@
 # All Dyn Rewrite
 
-* Fix `widgets::when_reuse`.
-    - Is the same bug affecting focus highlight.
-    - Input var is never reassigned.
-        - Tracking clone/reset shows that it is not cloned.
-        - So the previous state var is used in the new when var.
 * Review "!!:"
 
 * Refactor to minimal docs generation that does not require custom post-processing?
