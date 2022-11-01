@@ -653,7 +653,7 @@ pub fn new_when_build<T: VarValue>(inputs: &mut std::vec::IntoIter<AnyWhenVarBui
 
 /// Value that indicates the override importance of a property instance, higher overrides lower.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
-pub struct Importance(pub usize);
+pub struct Importance(pub u32);
 impl Importance {
     /// Importance of default values defined in the widget declaration.
     pub const WIDGET: Importance = Importance(1000);
@@ -661,7 +661,7 @@ impl Importance {
     pub const INSTANCE: Importance = Importance(1000 * 10);
 }
 impl_from_and_into_var! {
-    fn from(imp: usize) -> Importance {
+    fn from(imp: u32) -> Importance {
         Importance(imp)
     }
 }
@@ -916,6 +916,18 @@ impl WidgetItemPositioned {
     }
 }
 
+#[derive(Clone, Debug)]
+struct WhenItemPositioned {
+    importance: Importance,
+    insert_idx: u32,
+    when: WhenInfo,
+}
+impl WhenItemPositioned {
+    fn sort_key(&self) -> (Importance, u32) {
+        (self.importance, self.insert_idx)
+    }    
+}
+
 enum WidgetItem {
     Property {
         importance: Importance,
@@ -950,7 +962,8 @@ pub struct WidgetBuilder {
     p: WidgetBuilderProperties,
     insert_idx: u32,
     unset: LinearMap<PropertyId, Importance>,
-    whens: Vec<(Importance, WhenInfo)>,
+    whens: Vec<WhenItemPositioned>,
+    when_insert_idx: u32,
     build_actions: Vec<Rc<RefCell<dyn FnMut(&mut WidgetBuilding)>>>,
     custom_build: Option<Rc<RefCell<dyn FnMut(WidgetBuilder) -> BoxedUiNode>>>,
 }
@@ -962,6 +975,7 @@ impl Clone for WidgetBuilder {
             insert_idx: self.insert_idx,
             unset: self.unset.clone(),
             whens: self.whens.clone(),
+            when_insert_idx: self.when_insert_idx,
             build_actions: self.build_actions.clone(),
             custom_build: self.custom_build.clone(),
         }
@@ -993,6 +1007,7 @@ impl WidgetBuilder {
             insert_idx: 0,
             unset: Default::default(),
             whens: Default::default(),
+            when_insert_idx: 0,
             build_actions: Default::default(),
             custom_build: Default::default(),
         }
@@ -1055,6 +1070,9 @@ impl WidgetBuilder {
 
     /// Insert a `when` block.
     pub fn push_when(&mut self, importance: Importance, mut when: WhenInfo) {
+        let insert_idx = self.when_insert_idx;
+        self.when_insert_idx = insert_idx.wrapping_add(1);
+
         when.assigns.retain(|a| {
             if let Some(imp) = self.unset.get(&a.id()) {
                 *imp < importance
@@ -1064,14 +1082,17 @@ impl WidgetBuilder {
         });
 
         if !when.assigns.is_empty() {
-            self.whens.push((importance, when));
+            self.whens.push(WhenItemPositioned {
+                importance,
+                insert_idx,
+                when,
+            });
         }
     }
 
     /// Insert a `name = unset!;` property.
     pub fn push_unset(&mut self, importance: Importance, property_id: PropertyId) {
         let check;
-
         match self.unset.entry(property_id) {
             linear_map::Entry::Occupied(mut e) => {
                 let i = e.get_mut();
@@ -1096,10 +1117,10 @@ impl WidgetBuilder {
                 }
             }
 
-            self.whens.retain_mut(|(imp, w)| {
-                if *imp <= importance {
-                    w.assigns.retain(|a| a.id() != property_id);
-                    !w.assigns.is_empty()
+            self.whens.retain_mut(|w| {
+                if w.importance <= importance {
+                    w.when.assigns.retain(|a| a.id() != property_id);
+                    !w.when.assigns.is_empty()
                 } else {
                     true
                 }
@@ -1154,8 +1175,8 @@ impl WidgetBuilder {
             }
         }
 
-        for (imp, when) in other.whens {
-            self.push_when(imp, when);
+        for w in other.whens {
+            self.push_when(w.importance, w.when);
         }
 
         for act in other.build_actions {
@@ -1223,9 +1244,9 @@ impl WidgetBuilder {
             // move when assigns
             let mut ai = 0;
             let mut moved_assigns = vec![];
-            while ai < self.whens[i].1.assigns.len() {
-                if properties.contains(&self.whens[i].1.assigns[ai].id()) {
-                    let args = self.whens[i].1.assigns.remove(ai);
+            while ai < self.whens[i].when.assigns.len() {
+                if properties.contains(&self.whens[i].when.assigns[ai].id()) {
+                    let args = self.whens[i].when.assigns.remove(ai);
                     moved_assigns.push(args);
                 } else {
                     ai += 1;
@@ -1235,17 +1256,17 @@ impl WidgetBuilder {
             if !moved_assigns.is_empty() {
                 let out_imp;
                 let out_when;
-                if self.whens[i].1.assigns.is_empty() {
+                if self.whens[i].when.assigns.is_empty() {
                     // moved all assigns from block, move block
-                    let (imp, mut when) = self.whens.remove(i);
+                    let WhenItemPositioned { importance, mut when, .. } = self.whens.remove(i);
                     when.assigns = moved_assigns;
 
-                    out_imp = imp;
+                    out_imp = importance;
                     out_when = when;
                 } else {
                     // when block still used, clone block header for moved assigns.
-                    let (imp, when) = &self.whens[i];
-                    out_imp = *imp;
+                    let WhenItemPositioned { importance, when, .. } = &self.whens[i];
+                    out_imp = *importance;
                     out_when = WhenInfo {
                         inputs: when.inputs.clone(),
                         state: when.state.clone(),
@@ -1552,8 +1573,8 @@ impl WidgetBuilding {
         Some(handler)
     }
 
-    fn build_whens(&mut self, mut whens: Vec<(Importance, WhenInfo)>) {
-        whens.sort_by_key(|(i, _)| *i);
+    fn build_whens(&mut self, mut whens: Vec<WhenItemPositioned>) {
+        whens.sort_unstable_by_key(|w| w.sort_key());
 
         struct Input<'a> {
             input: &'a WhenInput,
@@ -1568,7 +1589,7 @@ impl WidgetBuilding {
         let mut assigns = LinearMap::new();
 
         // rev so that the last when overrides others, the WhenVar returns the first true condition.
-        'when: for (_, when) in whens.iter().rev() {
+        'when: for WhenItemPositioned { when, .. } in whens.iter().rev() {
             // bind inputs.
             let valid_inputs = inputs.len();
             let valid_items = self.p.items.len();
