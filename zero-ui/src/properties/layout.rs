@@ -213,9 +213,9 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 ///
 /// In the example the button is moved 20 percent of the fill width to the right.
 ///
-/// # `position`
+/// # `offset`
 ///
-/// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
+/// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
 #[property(layout, default(0))]
 pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct XNode {
@@ -267,9 +267,9 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// In the example the button is moved down 20 percent of the fill height.
 ///
-/// # `position`
+/// # `offset`
 ///
-/// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
+/// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
 #[property(layout, default(0))]
 pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct YNode {

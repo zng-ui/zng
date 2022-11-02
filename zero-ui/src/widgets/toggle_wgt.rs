@@ -9,7 +9,7 @@ use crate::prelude::new_widget::*;
 /// [`checked`]: #wp-checked
 /// [`checked_opt`]: #wp-checked_opt
 /// [`value`]: #wp-value
-/// [`selection`]: toggle::selection
+/// [`selection`]: fn@toggle::selection
 #[widget($crate::widgets::toggle)]
 pub mod toggle {
     #[doc(inline)]
@@ -178,7 +178,7 @@ pub mod properties {
         pub static IS_TRISTATE_VAR: bool = false;
     }
 
-    /// Toggle `checked` on click and sets the [`IsCheckedVar`], disables the widget if `checked` is read-only.
+    /// Toggle `checked` on click and sets the [`IS_CHECKED_VAR`], disables the widget if `checked` is read-only.
     #[property(context, default(false))]
     pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
         #[ui_node(struct CheckedNode {
@@ -224,7 +224,7 @@ pub mod properties {
 
     /// Three state toggle `checked` on click and sets the [`IS_CHECKED_VAR`], disables the widget if `checked` is read-only.
     ///
-    /// Sets to `None` if [`IsTristateVar`] is `true`.
+    /// Sets to `None` if [`IS_TRISTATE_VAR`] is `true`.
     #[property(context, default(None))]
     pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
         #[ui_node(struct CheckedOptNode {
@@ -287,6 +287,8 @@ pub mod properties {
     /// Enables `None` as an input on toggle.
     ///
     /// If the toggle button is checking using [`checked_opt`] and this is enabled the toggle cycles between `None`, `Some(false)` and `Some(true)`.
+    /// 
+    /// [`checked_opt`]: fn@checked_opt
     #[property(context, default(IS_TRISTATE_VAR))]
     pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         with_context_var(child, IS_TRISTATE_VAR, enabled)
@@ -302,6 +304,8 @@ pub mod properties {
     ///
     /// This property interacts with the contextual [`selection`], when the widget is clicked or the `value` variable changes
     /// the contextual [`Selector`] is used to implement the behavior.
+    /// 
+    /// [`selection`]: fn@selection
     #[property(context)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
         #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
@@ -841,7 +845,7 @@ pub mod vis {
     /// Extends the [`button::vis::default_style`] to have the *pressed* look when [`is_checked`].
     ///
     /// [`button::vis::default_style`]: mod@crate::widgets::button::vis::default_style
-    /// [`is_checked`]: fn@toggle::is_checked
+    /// [`is_checked`]: fn@toggle::properties::is_checked
     #[widget($crate::widgets::toggle::vis::default_style)]
     pub mod default_style {
         use super::*;

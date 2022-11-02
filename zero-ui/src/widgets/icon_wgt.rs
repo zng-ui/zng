@@ -8,6 +8,8 @@ use std::fmt;
 /// Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
 /// or use an icon set crate. See the [`zero-ui-material-icons`] crate, it provides documented constants for
 /// each icon in the fonts.
+/// 
+/// [`GlyphIcon`]: icon::GlyphIcon
 #[widget($crate::widgets::icon)]
 pub mod icon {
     use super::*;

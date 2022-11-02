@@ -18,36 +18,36 @@ context_var! {
     /// View generator for the little square that joins the two scrollbars when both are visible.
     pub static SCROLLBAR_JOINER_VIEW_VAR: ViewGenerator<()> = view_generator!(|_, _| flood(scrollbar::vis::BACKGROUND_VAR));
 
-    /// Vertical offset added when the [`ScrollDownCommand`] runs and removed when the [`ScrollUpCommand`] runs.
+    /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport height, default value is `1.3.em()`.
     ///
-    /// [`ScrollDownCommand`]: crate::widgets::scroll::commands::ScrollDownCommand
-    /// [`ScrollUpCommand`]: crate::widgets::scroll::commands::ScrollUpCommand
+    /// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
+    /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
     pub static VERTICAL_LINE_UNIT_VAR: Length = 1.3.em();
 
-    /// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
+    /// Horizontal offset added when the [`SCROLL_RIGHT_CMD`] runs and removed when the [`SCROLL_LEFT_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `1.3.em()`.
     ///
-    /// [`ScrollLeftCommand`]: crate::widgets::scroll::commands::ScrollLeftCommand
-    /// [`ScrollRightCommand`]: crate::widgets::scroll::commands::ScrollRightCommand
+    /// [`SCROLL_LEFT_CMD`]: crate::widgets::scroll::commands::SCROLL_LEFT_CMD
+    /// [`SCROLL_RIGHT_CMD`]: crate::widgets::scroll::commands::SCROLL_RIGHT_CMD
     pub static HORIZONTAL_LINE_UNIT_VAR: Length = 1.3.em();
 
-    /// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
+    /// Vertical offset added when the [`PAGE_DOWN_CMD`] runs and removed when the [`PAGE_UP_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport height, default value is `100.pct()`.
     ///
-    /// [`ScrollDownCommand`]: crate::widgets::scroll::commands::ScrollDownCommand
-    /// [`ScrollUpCommand`]: crate::widgets::scroll::commands::ScrollUpCommand
+    /// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
+    /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
     pub static VERTICAL_PAGE_UNIT_VAR: Length = 100.pct();
 
-    /// Horizontal offset added when the [`PageRightCommand`] runs and removed when the [`PageLeftCommand`] runs.
+    /// Horizontal offset added when the [`PAGE_RIGHT_CMD`] runs and removed when the [`PAGE_LEFT_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `100.pct()`.
     ///
-    /// [`PageLeftCommand`]: crate::widgets::scroll::commands::PageLeftCommand
-    /// [`PageRightCommand`]: crate::widgets::scroll::commands::PageRightCommand
+    /// [`PAGE_LEFT_CMD`]: crate::widgets::scroll::commands::PAGE_LEFT_CMD
+    /// [`PAGE_RIGHT_CMD`]: crate::widgets::scroll::commands::PAGE_RIGHT_CMD
     pub static HORIZONTAL_PAGE_UNIT_VAR: Length = 100.pct();
 
     /// Scroll unit multiplier used when alternate scrolling.
@@ -108,23 +108,23 @@ pub fn scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
     h_scrollbar_view(child, generator)
 }
 
-/// Vertical offset added when the [`ScrollDownCommand`] runs and removed when the [`ScrollUpCommand`] runs.
+/// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
 ///
 /// Relative lengths are relative to the viewport height.
 ///
-/// [`ScrollUpCommand`]: crate::widgets::scroll::commands::ScrollUpCommand
-/// [`ScrollDownCommand`]: crate::widgets::scroll::commands::ScrollDownCommand
+/// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
+/// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
 #[property(context, default(VERTICAL_LINE_UNIT_VAR))]
 pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_LINE_UNIT_VAR, unit)
 }
 
-/// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
+/// Horizontal offset added when the [`SCROLL_RIGHT_CMD`] runs and removed when the [`SCROLL_LEFT_CMD`] runs.
 ///
 /// Relative lengths are relative to the viewport width.
 ///
-/// [`ScrollLeftCommand`]: crate::widgets::scroll::commands::ScrollLeftCommand
-/// [`ScrollRightCommand`]: crate::widgets::scroll::commands::ScrollRightCommand
+/// [`SCROLL_LEFT_CMD`]: crate::widgets::scroll::commands::SCROLL_LEFT_CMD
+/// [`SCROLL_RIGHT_CMD`]: crate::widgets::scroll::commands::SCROLL_RIGHT_CMD
 #[property(context, default(HORIZONTAL_LINE_UNIT_VAR))]
 pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_LINE_UNIT_VAR, unit)
@@ -148,23 +148,23 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
     with_context_var(child, ALT_FACTOR_VAR, factor)
 }
 
-/// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
+/// Vertical offset added when the [`PAGE_DOWN_CMD`] runs and removed when the [`PAGE_UP_CMD`] runs.
 ///
 /// Relative lengths are relative to the viewport height.
 ///
-/// [`PageUpCommand`]: crate::widgets::scroll::commands::PageUpCommand
-/// [`PageDownCommand`]: crate::widgets::scroll::commands::PageDownCommand
+/// [`PAGE_UP_CMD`]: crate::widgets::scroll::commands::PAGE_UP_CMD
+/// [`PAGE_DOWN_CMD`]: crate::widgets::scroll::commands::PAGE_DOWN_CMD
 #[property(context, default(VERTICAL_PAGE_UNIT_VAR))]
 pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_PAGE_UNIT_VAR, unit)
 }
 
-/// Horizontal offset added when the [`PageRightCommand`] runs and removed when the [`PageLeftCommand`] runs.
+/// Horizontal offset added when the [`PAGE_RIGHT_CMD`] runs and removed when the [`PAGE_LEFT_CMD`] runs.
 ///
 /// Relative lengths are relative to the viewport width.
 ///
-/// [`PageLeftCommand`]: crate::widgets::scroll::commands::PageLeftCommand
-/// [`PageRightCommand`]: crate::widgets::scroll::commands::PageRightCommand
+/// [`PAGE_LEFT_CMD`]: crate::widgets::scroll::commands::PAGE_LEFT_CMD
+/// [`PAGE_RIGHT_CMD`]: crate::widgets::scroll::commands::PAGE_RIGHT_CMD
 #[property(context, default(HORIZONTAL_PAGE_UNIT_VAR))]
 pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_PAGE_UNIT_VAR, unit)

@@ -30,6 +30,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`is_cap_hovered`]: fn@is_cap_hovered
 /// [`ENABLED`]: Interactivity::ENABLED
+/// [`is_hovered_disabled`]: fn@is_hovered_disabled
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
@@ -91,6 +92,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// include the captured state.
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
+/// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 #[property(context)]
 pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state2(

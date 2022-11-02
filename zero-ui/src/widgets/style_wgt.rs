@@ -19,7 +19,7 @@ use crate::prelude::new_widget::*;
 /// Note that you can declare a custom style *widget* using the same inheritance mechanism of normal widgets, as long
 /// as any build override calls [`style::build`].
 ///
-/// [`styleable`]: mod@styleable
+/// [`style_mixin`]: mod@style_mixin
 #[widget($crate::widgets::style)]
 pub mod style {
     use super::*;

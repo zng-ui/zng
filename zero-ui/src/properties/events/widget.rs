@@ -37,6 +37,7 @@ pub struct OnInitArgs {
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`on_info_init`]: fn@on_info_init
+/// [`WidgetInfoTree`]: crate::core::widget_info::WidgetInfoTree
 #[property(event)]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     #[ui_node(struct OnInitNode {
@@ -113,6 +114,8 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
 ///
 /// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+/// 
+/// [`WidgetInfoTree`]: crate::core::widget_info::WidgetInfoTree
 #[property(event)]
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     #[ui_node(struct OnInfoInitNode {

@@ -28,7 +28,7 @@ pub mod text {
     pub use super::{nodes, properties};
 
     properties! {
-        /// The [`Text`](crate::core::types::Text) value.
+        /// The [`Text`](crate::core::text::Text) value.
         ///
         /// Set to an empty string (`""`) by default.
         pub text_property as text;
@@ -75,7 +75,7 @@ pub mod text {
         /// A "word" is the sequence of characters in-between space characters. This extra
         /// spacing is applied per space character not per word, if there are three spaces between words
         /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
-        /// see [`WhiteSpace`](crate::text::WhiteSpace).
+        /// see [`WhiteSpace`](crate::core::text::WhiteSpace).
         ///
         /// The [`Default`] value signals that word spacing can be tweaked when text *justification* is enabled, all other
         /// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character,

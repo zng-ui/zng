@@ -808,7 +808,7 @@
 //! [`font_size`]: fn@crate::widgets::text::properties::font_size
 //! [`margin`]: fn@crate::properties::margin
 //! [`on_click`]: fn@crate::properties::events::gesture::on_click
-//! [`UiNode`]: crate::core::UiNode
+//! [`UiNode`]: crate::core::widget_instance::UiNode
 //! [`log`]: https://docs.rs/log
 //! [`Var<T>`]: crate::core::var::Var
 //! [`IntoVar<T>`]: crate::core::var::IntoVar

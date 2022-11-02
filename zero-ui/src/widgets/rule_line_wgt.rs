@@ -172,7 +172,7 @@ pub mod hr {
             with_context_var(child, STROKE_THICKNESS_VAR, thickness)
         }
 
-        /// Sets the [`STYLE_VAR`] that affects all horizontal rules inside the widget.
+        /// Sets the [`LINE_STYLE_VAR`] that affects all horizontal rules inside the widget.
         #[property(context, default(LINE_STYLE_VAR))]
         pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
             with_context_var(child, LINE_STYLE_VAR, style)

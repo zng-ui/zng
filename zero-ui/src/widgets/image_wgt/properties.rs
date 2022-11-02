@@ -207,13 +207,13 @@ pub fn image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>
     with_context_var(child, IMAGE_LIMITS_VAR, limits)
 }
 
-/// If the [`ContextImageVar`] is an error.
+/// If the [`CONTEXT_IMAGE_VAR`] is an error.
 #[property(layout)]
 pub fn is_error(child: impl UiNode, state: StateVar) -> impl UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
 }
 
-/// If the [`ContextImageVar`] is a successfully loaded image.
+/// If the [`CONTEXT_IMAGE_VAR`] is a successfully loaded image.
 #[property(layout)]
 pub fn is_loaded(child: impl UiNode, state: StateVar) -> impl UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
@@ -259,7 +259,7 @@ pub struct ImageErrorArgs {
 
 /// Image load or decode error event.
 ///
-/// This property calls `handler` every time the [`ContextImageVar`] updates with a different error.
+/// This property calls `handler` every time the [`CONTEXT_IMAGE_VAR`] updates with a different error.
 ///
 /// # Handlers
 ///
@@ -314,7 +314,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
 
 /// Image loaded event.
 ///
-/// This property calls `handler` every time the [`ContextImageVar`] updates with a successfully loaded image.
+/// This property calls `handler` every time the [`CONTEXT_IMAGE_VAR`] updates with a successfully loaded image.
 ///
 /// # Handlers
 ///

@@ -74,7 +74,7 @@ pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 
 /// Single color background property.
 ///
-/// This property applies a [`fill_color`] as [`background`].
+/// This property applies a [`flood`] as [`background`].
 ///
 /// # Examples
 ///
@@ -280,7 +280,7 @@ pub fn foreground_highlight(
 
 /// Fill color overlay property.
 ///
-/// This property applies a [`fill_color`] as [`foreground`].
+/// This property applies a [`flood`] as [`foreground`].
 ///
 /// # Examples
 ///

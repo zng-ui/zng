@@ -36,7 +36,7 @@ impl<U: UiNode> View<U> {
 /// [`View::Update(#new_view)`](View::Update) the view child is replaced by `#new_view`.
 ///
 /// The view container must be able to hold all the possible child UIs, you can use
-/// [`UiNode::boxed`](crate::core::UiNode::boxed) to unify the types.
+/// [`UiNode::boxed`](crate::core::widget_instance::UiNode::boxed) to unify the types.
 ///
 /// # Examples
 ///

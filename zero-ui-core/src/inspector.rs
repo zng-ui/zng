@@ -250,6 +250,8 @@ pub trait InspectPropertyPattern {
     fn matches(&self, args: &dyn PropertyArgs, captured: bool) -> bool;
 }
 /// Matches if the [`PropertyInstInfo::name`] exactly.
+/// 
+/// [`PropertyInstInfo::name`]: crate::widget_builder::PropertyInstInfo::name
 impl<'s> InspectPropertyPattern for &'s str {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.instance().name == *self

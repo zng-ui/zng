@@ -22,8 +22,6 @@ pub mod checkerboard {
 
         /// The size of one color rectangle.
         ///
-        /// Note, not to be confused with the [`size`] property that sets the widget dimensions.
-        ///
         /// Default is `(20, 20)`.
         pub properties::checkerboard_size as cb_size;
 

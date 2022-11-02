@@ -24,7 +24,7 @@ pub mod properties;
 ///     }
 /// })
 /// ```
-/// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
+/// See [`run_window`](crate::core::window::AppRunWindowExt::run_window) for more details.
 #[widget($crate::widgets::window)]
 pub mod window {
     use super::*;

@@ -24,7 +24,7 @@ pub mod image {
         ///
         /// By default the [`Contain`] mode is used.
         ///
-        /// [`Contain`]: ImageFit::Contain
+        /// [`Contain`]: properties::ImageFit::Contain
         pub properties::image_fit as fit;
 
         /// Align of the image after the final size is calculated.
@@ -48,7 +48,7 @@ pub mod image {
         ///
         /// By default no offset is applied.
         ///
-        /// [`offset`]: crate::properties::offset
+        /// [`offset`]: fn@crate::properties::offset
         pub properties::image_offset;
 
         /// Simple clip rectangle applied to the image before all layout.
@@ -131,6 +131,8 @@ pub mod image {
         /// Sets custom image load and decode limits.
         ///
         /// If not set or set to `None` the [`Images::limits`] is used.
+        /// 
+        /// [`Images::limits`]: crate::core::image::Images::limits
         pub properties::image_limits as limits;
 
         /// Block window load until the image loads.
