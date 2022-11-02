@@ -277,30 +277,61 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// # Attribute
 ///
-/// The property attribute
-///
-/// !!:
+/// The property attribute has one required argument and two optional.
 ///
 /// ## Priority
 ///
-/// !!: 
-/// 
+/// The first argument is the property [`Priority`], written in `snake_case`. The property priority defines the overall nest position
+/// of the property, for example, `layout` properties always wrap `fill` properties. This is important as widgets are open and any combination
+/// of properties may end-up instantiated in the same widget. The priorities are defined in the [`Priority`] enum, from outer-most `context`
+/// to inner-most `child_layout`.
+///
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{property, widget_instance::UiNode, var::*};
+/// #
+/// # #[derive(Clone, Debug)] pub struct Align { }
+///
+/// #[property(layout)]
+/// pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+/// #   child
+/// }
+/// ```
+///
 /// ## Default
 ///
-/// !!:
-/// 
+/// The last argument is an optional `default(args..)`. It defines the value to use when the property must be instantiated and no value was provided.
+/// The defaults should cause the property to behave as if it is not set, as the default value will be used in widgets that only set the
+/// property in `when` blocks.
+///
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{property, widget_instance::UiNode, color::*, var::*};
+///
+/// #[property(fill, default(rgba(0, 0, 0, 0)))]
+/// pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// #   child
+/// }
+/// ```
+///
+/// In the example above the `background_color` defines a transparent color as the default, so if the background color is only set in a `when`
+/// block if will only be visible when it is active.
+///
+/// For properties with multiple inputs the default args may be defined in a comma separated list of params, `default(dft0, dft1, ..)`.
+///
 /// ## Capture
-/// 
+///
 /// After the priority and before default the `, capture, ` value indicates that the property is capture-only. The property
 /// implementation is discarded in the case, and the unused inputs don't generate warnings. Because it is for widget capture only
 /// the priority only affects metadata that may end-up in an UI inspector.
-/// 
+///
 /// ```
-/// use zero_ui_core::{property, widget_instance::UiNode};
-/// 
+/// # fn main() { }
+/// use zero_ui_core::{property, widget_instance::{UiNode, UiNodeList}};
+///
 /// /// Children property, must be captured by panel widgets.
 /// #[property(context, capture)]
-/// pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> Impl UiNode {
+/// pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> impl UiNode {
 ///     _ignored
 /// }
 /// ```
@@ -391,6 +422,7 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// See [`property_id!`] and [`property_args!`] for more details about what kind of meta-code is generated for properties.
 ///
+/// [`Priority`]: crate::widget_builder::Priority
 /// [`property_id!`]: crate::widget_builder::property_id
 /// [`property_args!`]: crate::widget_builder::property_args
 /// [`#[ui_node(..)]`]: macro@ui_node
@@ -613,8 +645,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// #[property(context)]
 /// pub fn anb(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> impl UiNode {
-///   let _ = (a, b);
-///   child
+/// #   child
 /// }
 ///
 /// #[widget($crate::foo)]
@@ -644,8 +675,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// #[property(context)]
 /// pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-///   let _ = (a, b);
-///   child
+/// #   child
 /// }
 ///
 /// #[widget($crate::foo)]

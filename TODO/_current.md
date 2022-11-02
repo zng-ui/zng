@@ -1,7 +1,5 @@
 # All Dyn Rewrite
 
-* Review "!!:"
-
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
 * Test all.

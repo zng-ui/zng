@@ -237,21 +237,49 @@ impl fmt::Debug for NestPosition {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Priority {
-    /// [Context](crate::property#context) property.
+    /// Property defines a contextual value or variable.
+    ///
+    /// Usually these properties don't define behavior, they just configure the widget. A common pattern
+    /// is defining all widget config as context vars, that are all used by an widget intrinsic node.
+    ///
+    /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
     Context,
-    /// [Event](crate::property#event) property.
+    /// Property defines an event handler, or state monitor, they are placed inside all context properties, so can be configured
+    /// by context, but are still outside of the layout and render nodes.
+    ///
+    /// Event handlers can be notified before or after the inner child delegation, if handled before the event is said to be *preview*.
+    /// Implementers can use this intrinsic feature of the UI tree to interrupt notification for child properties and widgets.
+    ///
+    /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
     Event,
-    /// [Layout](crate::property#layout) property.
+    /// Property defines the position and size of the widget inside the space made available by the parent widget.
+    ///
+    /// These properties must accumulatively affect the measure and layout, they must avoid rendering. The computed layout is
+    /// usually rendered by the widget as a single transform, the layout properties don't need to render transforms.
     Layout,
-    /// [Size](crate::property#size) property.
+    /// Property strongly enforces a widget size.
+    ///
+    /// Usually the widget final size is a side-effect of all the layout properties, but some properties may enforce a size, they
+    /// can use this priority to ensure that they are inside the other layout properties.
     Size,
-    /// [Border](crate::property#border) property.
+    /// Property renders a border visual.
+    ///
+    /// Borders are strictly coordinated, see the [`border`] module for more details. All nodes of this priority
+    /// may render at will, the renderer is already configured to apply the final layout and size.
+    ///
+    /// [`border`]: crate::border
     Border,
-    /// [Fill](crate::property#fill) property.
+    /// Property defines a visual of the  widget.
+    ///
+    /// This is the main render priority, it usually defines things like a background fill, but it can render over child nodes simply
+    /// by choosing to render after the render is delegated to the inner child.
     Fill,
-    /// [Child Context](crate::property#child-context) property.
+    /// Property defines contextual value or variable for the inner child or children widgets. Config set here does not affect
+    /// the widget where it is set, it affects the descendants.
     ChildContext,
-    /// [Child Layout](crate::property#child-layout) property.
+    /// Property starts defining the layout and size of the child or children widgets. These properties don't affect the layout
+    /// of the widget where they are set. Some properties are functionally the same, only changing their effect depending on their
+    /// priority, the `margin` and `padding` properties are like this, `margin` is `layout` and `padding` is `child_layout`.
     ChildLayout,
 }
 impl Priority {
