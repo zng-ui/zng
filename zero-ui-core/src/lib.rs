@@ -268,8 +268,147 @@ pub use zero_ui_proc_macros::widget_new;
 #[doc(inline)]
 pub use zero_ui_proc_macros::ui_node;
 
-/// Expands a function to a widget property module.
-/// TODO !!:
+/// Expands a function to a widget property.
+///
+/// Property functions take one [`UiNode`] child input and one or more other inputs and produces a [`UiNode`] that implements
+/// the property feature. The attribute expansion does not modify the function, it can still be used as a function directly, some
+/// properties are implemented by calling other property functions to generate a derived effect. The attribute expansion generates
+/// a hidden module of the same name and visibility, the module contains helper code that defines the property for widgets.
+///
+/// # Attribute
+///
+/// The property attribute
+///
+/// !!:
+///
+/// ## Priority
+///
+/// !!: 
+/// 
+/// ## Default
+///
+/// !!:
+/// 
+/// ## Capture
+/// 
+/// After the priority and before default the `, capture, ` value indicates that the property is capture-only. The property
+/// implementation is discarded in the case, and the unused inputs don't generate warnings. Because it is for widget capture only
+/// the priority only affects metadata that may end-up in an UI inspector.
+/// 
+/// ```
+/// use zero_ui_core::{property, widget_instance::UiNode};
+/// 
+/// /// Children property, must be captured by panel widgets.
+/// #[property(context, capture)]
+/// pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> Impl UiNode {
+///     _ignored
+/// }
+/// ```
+///
+/// # Args
+///
+/// The property function requires at least two args, the first is the *child* node and the other(s) the input values. The
+/// number and type of inputs is validated at compile time, the types are limited and are identified and validated by their
+/// token name, so you cannot use renamed types.
+///
+/// ## Child
+///
+/// The first function argument must be of type `impl UiNode`, it represents the *child* node and the property node must
+/// delegate to it so that the UI tree functions correctly. The type must be an `impl` generic, a full path to [`UiNode`]
+/// is allowed, but no import renames as the proc-macro attribute can only use tokens to identify the type.
+///
+/// ## Inputs
+///
+/// The second arg and optional other args define the property inputs. When a property is assigned in a widget only these inputs
+/// are defined by the user, the *child* arg is provided by the widget builder. Property inputs are limited, and must be identifiable
+/// by their token name alone. The types are validated at compile time, the `impl` generic types must be declared using `impl` generics,
+/// a full path to the generic traits is allowed, but no import renames.
+///
+/// ### Input Types
+///
+/// These are the allowed input types:
+///
+/// #### `impl IntoVar<T>`
+///
+/// The most common type, accepts any value that can be converted [`IntoVar<T>`], usually the property defines the `T`, but it can be generic.
+/// The property node must respond to var updates. The input kind is [`InputKind::Var`]. No auto-default is generated for this type, property
+/// implementation should provide a default value that causes the property to behave as if it was present.
+///
+/// Only properties with inputs exclusive of this kind can be assigned in `when` blocks. The inputs can also be read in `when` expressions.
+///
+/// #### `StateVar`
+///
+/// The [`StateVar`] is used to get a [`bool`] value from the widget. Usually properties that implement this have the `is_` prefix on their name
+/// and are only used in `when` expression. The input kind is [`InputKind::StateVar`]. An auto-default value is generated, it just instantiates
+/// a new `false` state var, unlike all other input kinds this is more of an *output*, the `is_state` properties ignore external changes to the var
+/// and set their value instead.
+///
+/// The input can be read in `when` expressions, but cannot be assigned in `when` blocks.
+///
+/// #### `impl IntoValue<T>`
+///
+/// The [`IntoValue<T>`] defines an initialization input that does not change for the property node instance, usually the property
+/// defines the `T`, but it can be generic. The input kind is [`InputKind::Value`]. No auto-default is generated for this type.
+///
+/// The input can be read in `when` expressions, but cannot be assigned in `when` blocks.
+///
+/// #### `impl UiNode`
+///
+/// This input accepts another [`UiNode`], the implementation must handle it like it handles the *child* node, delegating all methods. The
+/// input kind is [`InputKind::UiNode`]. The [`NilUiNode`] is used as the default value if no other is provided.
+///
+/// The input cannot be read in `when` expressions and cannot be assigned in `when` blocks.
+///
+/// #### `impl UiNodeList`
+///
+/// This input accepts another [`UiNodeList`], the implementation must handle it like it handles the *child* node, delegating all methods. The
+/// input kind is [`InputKind::UiNodeList`]. An empty list is used as the default value if no other is provided.
+///
+/// The input cannot be read in `when` expressions and cannot be assigned in `when` blocks.
+///
+/// #### `impl WidgetHandler<A>`
+///
+/// This input accepts any [`WidgetHandler<A>`] for the argument type `A`, usually the property defines the `A`, but it can be generic.
+/// The input kind is [`InputKind::WidgetHandler`]. A no-op handler is used for the default if no other is provided.
+///
+/// The input cannot be read in `when` expressions and cannot be assigned in `when` blocks.
+///
+/// Event handler properties usually have the `on_` name prefix and are generated by the [`event_property!`] macro.
+///
+/// # Generics
+///
+/// Apart from the `impl` generics of inputs and *child* a very limited named generic types is supported, only `T: VarValue`, that is
+/// an simple ident name constrained by [`VarValue`]. Named generics can only be used as the argument for `impl IntoVar<T>`, `impl IntoValue<T>`
+/// and `impl WidgetHandler<T>`.
+///
+/// # Output
+///
+/// The property output type must be any type that implements [`UiNode`], usually an opaque type `impl UiNode` is used. The property
+/// node can be anything, as long as it delegates to the child node, see [`#[ui_node(..)]`] about implementing a node. Some common
+/// property patterns have helpers functions, for example, to setup a context var you can use [`with_context_var`] function.
+///
+/// # More Details
+///
+/// See [`property_id!`] and [`property_args!`] for more details about what kind of meta-code is generated for properties.
+///
+/// [`property_id!`]: crate::widget_builder::property_id
+/// [`property_args!`]: crate::widget_builder::property_args
+/// [`#[ui_node(..)]`]: macro@ui_node
+/// [`with_context_var`]: crate::var::with_context_var
+/// [`VarValue`]: crate::var::VarValue
+/// [`IntoVar<T>`]: crate::var::IntoVar
+/// [`WidgetHandler<A>`]: crate::handler::WidgetHandler
+/// [`StateVar`]: crate::var::StateVar
+/// [`UiNode`]: crate::widget_instance::UiNode
+/// [`UiNodeList`]: crate::widget_instance::UiNodeList
+/// [`NilUiNode`]: crate::widget_instance::NilUiNode
+/// [`InputKind::Var`]: crate::widget_builder::InputKind::Var
+/// [`InputKind::StateVar`]: crate::widget_builder::InputKind::StateVar
+/// [`InputKind::Value`]: crate::widget_builder::InputKind::Value
+/// [`InputKind::UiNode`]: crate::widget_builder::InputKind::UiNode
+/// [`InputKind::UiNodeList`]: crate::widget_builder::InputKind::UiNodeList
+/// [`InputKind::WidgetHandler`]: crate::widget_builder::InputKind::WidgetHandler
+/// [`event_property!`]: crate::event::event_property
 #[doc(inline)]
 pub use zero_ui_proc_macros::property;
 
@@ -305,10 +444,11 @@ pub use zero_ui_proc_macros::property;
 /// `foo_wgt.rs` file and then re-exported in the `lib.rs` file using:
 ///
 /// ```
-/// # fn main() { }
+/// # macro_rules! demo {() => {
 /// mod foo_wgt;
 /// #[doc(inline)]
 /// pub use foo_wgt::*;
+/// # }}
 /// ```
 ///
 /// # Inherit
@@ -363,7 +503,7 @@ pub use zero_ui_proc_macros::property;
 ///     inherit!(widget_base::base);
 ///
 ///     fn build(wgt: WidgetBuilder) -> impl UiNode {
-///         widget_base::nodes::widget(wgt)
+///         widget_base::nodes::build(wgt)
 ///     }
 /// }
 /// ```
@@ -385,7 +525,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui_core::{*, widget_builder::*, widget_instance::*};
+/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
 ///
 /// #[property(context)]
 /// pub fn bar(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
@@ -426,10 +566,10 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui_core::{*, widget_builder::*, widget_instance::*};
+/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
 /// #
 /// # #[property(context)]
-/// # pub fn bar(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
+/// # pub fn baz(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
 /// #   let _ = val;
 /// #   child
 /// # }
@@ -441,8 +581,7 @@ pub use zero_ui_proc_macros::property;
 /// #     inherit!(widget_base::base);
 /// #
 /// #     properties! {
-/// #         /// Baz property docs.
-/// #         pub bar as baz = true;
+/// #         pub baz = true;
 /// #     }
 /// # }
 /// #[widget($crate::bar)]
@@ -494,13 +633,100 @@ pub use zero_ui_proc_macros::property;
 /// }
 /// ```
 ///
+/// ## Generics
+///
+/// Some properties have named generics, the unnamed `impl` generics are inferred, but the named types must be defined using the *turbo-fish*
+/// syntax if you want to set a value.
+///
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
+///
+/// #[property(context)]
+/// pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
+///   let _ = (a, b);
+///   child
+/// }
+///
+/// #[widget($crate::foo)]
+/// pub mod foo {
+///     use super::*;
+///
+///     inherit!(widget_base::base);
+///
+///     properties! {
+///         pub value::<bool> = true;
+///     }
+/// }
+/// ```
+///
+/// Note that the property is not exported with the generics, the generic type must be specified in all other assigns, properties
+/// are also only identified by their source and name, so an assign with different type still replaces the value.
+///
+/// ## Capture Only
+///
+/// Properties can be *captured* during build using the capture methods of [`WidgetBuilding`], captured properties are not
+/// instantiated, the args are redirected to the intrinsic implementation of the widget. Every property can be captured, but
+/// some properties are always intrinsic to the widget and cannot have a standalone implementation. You can declare *capture-only*
+/// properties using the syntax `pub name(T)`, this expands to a [capture-only](property#capture-only) property that is
+/// exported by the widget.
+///
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
+///
+/// #[widget($crate::foo)]
+/// pub mod foo {
+///     use super::*;
+///
+///     inherit!(widget_base::base);
+///
+///     properties! {
+///         /// Docs.
+///         pub bar(impl IntoVar<bool>) = false;
+///     }
+///
+///     fn include(wgt: &mut WidgetBuilder) {
+///         wgt.push_build_action(|wgt| {
+///             let bar = wgt.capture_var_or_else::<bool>(property_id!(self.bar), || false);
+///             println!("bar: {}", bar.get());
+///         });
+///     }
+/// }
+/// ```
+///
+/// In the example above `bar` expands to:
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
+/// #[doc(hidden)]
+/// #[property(context, capture, default(false))]
+/// pub fn __bar__(__child__: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
+///     __child__
+/// }
+/// # macro_rules! demo { () => {
+/// properties! {
+///     /// Docs.
+///     pub __bar__ as bar;
+/// }
+/// # }}
+/// ```
+///
+/// The capture property is re-exported in the widget, and a build action captures it and prints the value. Usually in
+/// a captured variable is used in intrinsic nodes that implement a core feature of the widget.
+///
+/// This shorthand capture property can only have one unnamed input, the input type can be any of the types allowed in property inputs. If
+/// the property is assigned the value is used as the property default and a normal property assign is also inserted.
+///
 /// ## When
 ///
 /// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and multiple property assigns,
 /// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*};
+/// # fn main() { }
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
 /// #
 /// # #[property(fill)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -510,7 +736,7 @@ pub use zero_ui_proc_macros::property;
 /// #
 /// # #[property(layout)]
 /// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
-/// #   let _ = val;
+/// #   let _ = state;
 /// #   child
 /// # }
 /// #
@@ -558,7 +784,8 @@ pub use zero_ui_proc_macros::property;
 /// to deref in case the var is a simple [`Copy`] value.
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*};
+/// # fn main() { }
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
 /// #
 /// # #[property(fill)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -568,7 +795,7 @@ pub use zero_ui_proc_macros::property;
 /// #
 /// context_var! {
 ///     pub static FOO_VAR: Vec<&'static str> = vec![];
-///     pub static BAR_BAR: bool = false;
+///     pub static BAR_VAR: bool = false;
 /// }
 /// #
 /// # #[widget($crate::foo)]
@@ -580,7 +807,7 @@ pub use zero_ui_proc_macros::property;
 /// properties! {
 ///     background_color = colors::RED;
 ///
-///     when !*#{BAR_VAR} && #{FOO_VAR}.contains("green") {
+///     when !*#{BAR_VAR} && #{FOO_VAR}.contains(&"green") {
 ///         background_color = colors::GREEN;
 ///     }
 /// }
@@ -610,7 +837,7 @@ pub use zero_ui_proc_macros::property;
 /// accepts property inputs like the `properties!` pseudo-macro, except for the visibility control.
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*};
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
 /// #
 /// # #[property(context)]
 /// # pub fn bar(child: impl UiNode, val: impl var::IntoVar<bool>) -> impl UiNode {
@@ -632,7 +859,7 @@ pub use zero_ui_proc_macros::property;
 /// #
 /// # #[property(layout)]
 /// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
-/// #   let _ = val;
+/// #   let _ = state;
 /// #   child
 /// # }
 /// #

@@ -287,7 +287,7 @@ pub mod properties {
     /// Enables `None` as an input on toggle.
     ///
     /// If the toggle button is checking using [`checked_opt`] and this is enabled the toggle cycles between `None`, `Some(false)` and `Some(true)`.
-    /// 
+    ///
     /// [`checked_opt`]: fn@checked_opt
     #[property(context, default(IS_TRISTATE_VAR))]
     pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
@@ -304,7 +304,7 @@ pub mod properties {
     ///
     /// This property interacts with the contextual [`selection`], when the widget is clicked or the `value` variable changes
     /// the contextual [`Selector`] is used to implement the behavior.
-    /// 
+    ///
     /// [`selection`]: fn@selection
     #[property(context)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {

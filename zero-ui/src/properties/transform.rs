@@ -209,7 +209,7 @@ pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// Point relative to the widget inner bounds around which the [`transform`] is applied.
 ///
 /// This property sets the [`TRANSFORM_ORIGIN_VAR`] context variable.
-/// 
+///
 /// [`transform`]: fn@transform
 #[property(context, default(TRANSFORM_ORIGIN_VAR))]
 pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
@@ -220,7 +220,7 @@ context_var! {
     /// Point relative to the widget inner bounds around which the [`transform`] is applied.
     ///
     /// Default origin is the center (50%, 50%).
-    /// 
+    ///
     /// [`transform`]: fn@transform
     pub static TRANSFORM_ORIGIN_VAR: Point = Point::center();
 }

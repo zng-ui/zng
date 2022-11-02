@@ -89,7 +89,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let mut pre_bind = quote!();
 
     for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
-        capture_decl.extend(prop.declare_capture(&mod_path_slug));
+        capture_decl.extend(prop.declare_capture());
         pre_bind.extend(prop.pre_bind_args(false, None, ""));
     }
     for (i, when) in properties.iter_mut().flat_map(|i| i.whens.iter_mut()).enumerate() {

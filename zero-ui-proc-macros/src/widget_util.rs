@@ -189,7 +189,7 @@ impl WgtProperty {
     }
 
     /// Declares capture property if it is one, replaces path to new property.
-    pub fn declare_capture(&mut self, widget_uuid: &str) -> TokenStream {
+    pub fn declare_capture(&mut self) -> TokenStream {
         if let Some(decl) = self.capture_decl.take() {
             let mut errors = Errors::default();
             if !self.generics.is_empty() {
@@ -245,7 +245,6 @@ impl WgtProperty {
                     #[doc(hidden)]
                     #[#core::property(context, capture #default)]
                     #vis fn #decl_ident(__child__: impl #core::widget_instance::UiNode, #ident: #ty) -> impl #core::widget_instance::UiNode {
-                        let _ = #widget_uuid; // helps avoid name conflict for property macros.
                         __child__
                     }
                 }

@@ -33,3 +33,6 @@
     - Like the nightly Any provider.
 * Improve widget property imports, when inheriting from widgets a `use self::*;` can override inherited properties.
     - In the `image` example we need the full path to set the window size because of this.
+* Refactor property priority into constants: `#[property(CONTEXT)]`.
+* Test property generics `value::<bool> = true; when *#is_something { value::<u32> = 32; }`.
+* Review `IntoVar` and `IntoVarValue` constrains, we don't need then to be debug/clone anymore?

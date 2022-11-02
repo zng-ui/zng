@@ -131,7 +131,7 @@ pub mod image {
         /// Sets custom image load and decode limits.
         ///
         /// If not set or set to `None` the [`Images::limits`] is used.
-        /// 
+        ///
         /// [`Images::limits`]: crate::core::image::Images::limits
         pub properties::image_limits as limits;
 
