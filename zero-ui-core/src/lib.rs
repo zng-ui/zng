@@ -290,6 +290,7 @@ pub use zero_ui_proc_macros::property;
 /// to import the widget macro.
 ///
 /// ```
+/// # fn main() { }
 /// use zero_ui_core::widget;
 ///
 /// /// Minimal widget.
@@ -304,6 +305,7 @@ pub use zero_ui_proc_macros::property;
 /// `foo_wgt.rs` file and then re-exported in the `lib.rs` file using:
 ///
 /// ```
+/// # fn main() { }
 /// mod foo_wgt;
 /// #[doc(inline)]
 /// pub use foo_wgt::*;
@@ -325,6 +327,7 @@ pub use zero_ui_proc_macros::property;
 /// [instantiation](#instantiation).
 ///
 /// ```
+/// # fn main() { }
 /// use zero_ui_core::{widget, widget_base::*, widget_builder::*};
 ///
 /// #[widget($crate::foo)]
@@ -350,6 +353,7 @@ pub use zero_ui_proc_macros::property;
 /// The widget module can define a function that *builds* the final widget instance.
 ///
 /// ```
+/// # fn main() { }
 /// use zero_ui_core::{widget, widget_base, widget_builder::*, widget_instance::*};
 ///
 /// #[widget($crate::foo)]
@@ -376,11 +380,221 @@ pub use zero_ui_proc_macros::property;
 ///
 /// # Properties
 ///
-/// !!:
+/// Inside the widget module the `properties!` pseudo-macro can used to declare properties of the widget. The properties can
+/// be assigned, renamed and exported as widget properties.
+/// 
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{*, widget_builder::*, widget_instance::*};
+/// 
+/// #[property(context)]
+/// pub fn bar(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
+///   let _ = val;
+///   child
+/// }
+///
+/// #[widget($crate::foo)]
+/// pub mod foo {
+///     use super::*;
+///
+///     inherit!(widget_base::base);
+///
+///     properties! {
+///         /// Baz property docs.
+///         pub bar as baz = true;
+///         // inherited property
+///         enabled = false;
+///     }
+/// }
+/// ```
+/// 
+/// The example above declares an widget that exports the property `baz`, it is also automatically set to `true` and it also 
+/// sets the inherited [`widget_base::base`] property `enabled` to `false`.
+/// 
+/// The property visibility controls if it is assignable in derived widgets or during widget instantiation, in the example above
+/// if `baz` was not `pub` it would be set on the widget but it does not get a `baz` property accessible from outside. Inherited
+/// visibility cannot be overridden, the `enabled` property is defined as `pub` in [`widget_base::base`] so it is still `pub` in the
+/// widget, even though the value was changed.
+/// 
+/// You can also export properties without defining a value, the default assign is not required, the property is only instantiated
+/// if it is assigned in the final widget instance, but by exporting the property it is available in the widget macro by name without
+/// needing a `use` import.
+/// 
+/// ## Unset
+/// 
+/// If an inherited property is assigned a value you can *unset* this value by assigning the property with the special value `unset!`.
+/// 
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{*, widget_builder::*, widget_instance::*};
+/// # 
+/// # #[property(context)]
+/// # pub fn bar(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
+/// #   let _ = val;
+/// #   child
+/// # }
+/// # 
+/// # #[widget($crate::foo)]
+/// # pub mod foo {
+/// #     use super::*;
+/// # 
+/// #     inherit!(widget_base::base);
+/// # 
+/// #     properties! {
+/// #         /// Baz property docs.
+/// #         pub bar as baz = true;
+/// #     }
+/// # }
+/// #[widget($crate::bar)]
+/// pub mod bar {
+///     inherit!(crate::foo);
+///     
+///     properties! {
+///         baz = unset!;
+///     }
+/// }
+/// ```
+/// 
+/// In the example above the widget `bar` inherits the `foo` widget that defines and sets the `baz` property. Instances of the
+/// `bar` property will not include an instance of `baz` because it was `unset!`. Note that this does not remove the property
+/// the `bar` widget still exports the `baz` property, it just does not have a default value anymore.
+/// 
+/// ## Multiple Inputs
+/// 
+/// Some properties have multiple inputs, you can use a different syntax to assign each input by name or as a comma separated list. 
+/// In the example below the property `anb` has two inputs `a` and `b`, they are assigned by name in the `named` property and by
+/// position in the `unnamed` property. Note that the order of inputs can be swapped in the named init.
+/// 
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
+/// 
+/// #[property(context)]
+/// pub fn anb(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> impl UiNode {
+///   let _ = (a, b);
+///   child
+/// }
+///
+/// #[widget($crate::foo)]
+/// pub mod foo {
+///     use super::*;
+///
+///     inherit!(widget_base::base);
+///
+///     properties! {
+///         pub anb as named = {
+///             b: false,
+///             a: true,
+///         };
+///         pub anb as unnamed = true, false;
+///     }
+/// }
+/// ```
+/// 
+/// ## When
+/// 
+/// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and multiple property assigns,
+/// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
+/// 
+/// !!: 
+/// 
+/// ### Conditions
+/// 
+/// !!: 
+/// 
+/// ### When Assigns
+/// 
+/// !!: 
+/// 
+/// ### Default Values
+/// 
+/// A when assign can be defined by a property without setting a default value, during instantiation if the property declaration has
+/// a default value it is used, or if the property was later assigned a value it is used as *default*, if it is not possible to generate
+/// a default value the property is not instantiated and the when assign is not used.
+/// 
+/// The same apply for properties referenced in the condition expression, note that all `is_state` properties have a default value so
+/// it is more rare that a default value is not available. If a condition property cannot be generated the entire when block is ignored.
 ///
 /// # Instantiation
 ///
-/// !!:
+/// After the widget macro attribute expands you can still use the module like any other mod, but you can also use it like a macro that
+/// accepts property inputs like the `properties!` pseudo-macro, except for the visibility control.
+/// 
+/// ```
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*};
+/// # 
+/// # #[property(context)]
+/// # pub fn bar(child: impl UiNode, val: impl var::IntoVar<bool>) -> impl UiNode {
+/// #   let _ = val;
+/// #   child
+/// # }
+/// #
+/// # #[property(layout)]
+/// # pub fn margin(child: impl UiNode, val: impl var::IntoVar<u32>) -> impl UiNode {
+/// #   let _ = val;
+/// #   child
+/// # }
+/// #
+/// # #[property(fill)]
+/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// #   let _ = color;
+/// #   child
+/// # }
+/// #
+/// # #[property(layout)]
+/// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
+/// #   let _ = val;
+/// #   child
+/// # } 
+/// #
+/// # #[widget($crate::foo)]
+/// # pub mod foo {
+/// #     use super::*;
+/// # 
+/// #     inherit!(widget_base::base);
+/// # 
+/// #     properties! {
+/// #         /// Baz property docs.
+/// #         pub bar as baz = true;
+/// #         // inherited property
+/// #         enabled = false;
+/// #     }
+/// # }
+/// # fn main() {
+/// let wgt = foo! {
+///     baz = false;
+///     margin = 10;
+///     
+///     when *#is_pressed {
+///         background_color = colors::GREEN;
+///     }
+/// }; 
+/// # }
+/// ```
+/// 
+/// In the example above  the `baz` property is imported from the `foo!` widget, all widget properties are imported inside the
+/// widget macro call, and `foo` exported `pub bar as baz`. The value of `baz` is changed for this instance, the instance also
+/// gets a new property `margin`, that was not defined in the widget.
+/// 
+/// Most of the features of `properties!` can be used in the widget macro, you can `unset!` properties or rename then using the `original as name`
+/// syntax. You can also setup `when` conditions, as demonstrated above, the `background_color` is `GREEN` when `is_pressed`, these properties
+/// also don't need to be defined in the widget before use, but if they are they are used instead of the contextual imports.
+/// 
+/// ## Init Shorthand 
+/// 
+/// The generated instantiation widget macro also support the *init shorthand* syntax, where the name of a `let` variable defines the property
+/// name and value. In the example below the `margin` property is set on the widget with the value of `margin`.
+/// 
+/// ```
+/// # macro_rules! demo {
+/// # () => {
+/// let margin = 10;
+/// let wgt = foo! {
+///     margin;
+/// };
+/// # };
+/// # }
+/// ```
 ///
 /// [`WidgetBuilder`]: widget_builder::WidgetBuilder
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
