@@ -1,19 +1,19 @@
 error: expected `, delegate_mut = <expr>`
- --> cases/ui_node/invalid_delegate_pair.rs:6:28
+ --> cases/ui_node/invalid_delegate_pair.rs:9:28
   |
-6 | #[ui_node(delegate = &self.inner)]
+9 | #[ui_node(delegate = &self.inner)]
   |                            ^^^^^
 
 error: expected `, delegate = <expr>`
-  --> cases/ui_node/invalid_delegate_pair.rs:12:36
+  --> cases/ui_node/invalid_delegate_pair.rs:15:36
    |
-12 | #[ui_node(delegate_mut = &mut self.inner)]
+15 | #[ui_node(delegate_mut = &mut self.inner)]
    |                                    ^^^^^
 
 warning: unused import: `UiNode`
- --> cases/ui_node/invalid_delegate_pair.rs:1:41
+ --> cases/ui_node/invalid_delegate_pair.rs:3:34
   |
-1 | use zero_ui::core::{ui_node, NilUiNode, UiNode};
-  |                                         ^^^^^^
+3 |     widget_instance::{NilUiNode, UiNode},
+  |                                  ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

@@ -1,4 +1,4 @@
-use zero_ui::core::{ui_node, UiNode};
+use zero_ui::core::{ui_node, widget_instance::UiNode};
 struct NodeNotMut<C> {
     inner: C,
 }

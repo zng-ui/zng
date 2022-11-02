@@ -41,7 +41,7 @@ fn cleanup(test: &str) {
 
                     clean.push_str(line);
                     clean.push('\n');
-                } else if test_line.starts_with("and ") && test_line.ends_with(" others") {
+                } else if (test_line.starts_with("and ") && test_line.ends_with(" others")) || test_line.starts_with("= note") {
                     changed = true;
                     skip_trait_impl = false;
                     clean.push_str("            <implementers-list>\n")

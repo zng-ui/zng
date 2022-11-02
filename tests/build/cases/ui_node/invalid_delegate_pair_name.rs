@@ -1,4 +1,7 @@
-use zero_ui::core::{ui_node, NilUiNode, UiNode};
+use zero_ui::core::{
+    ui_node,
+    widget_instance::{NilUiNode, UiNode},
+};
 
 struct Node1 {
     inner: NilUiNode,

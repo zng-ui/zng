@@ -1,9 +1,8 @@
-error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+error[E0277]: the trait bound `NotANode: zero_ui::prelude::UiNode` is not satisfied
  --> cases/ui_node/delegate_expr_error_incorrect_type_child.rs:9:1
   |
 9 | #[ui_node(child)]
-  | ^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotANode`
+  | ^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNode` is not implemented for `NotANode`
   |
-  = help: the following other types implement trait `UiNode`:
+  = help: the following other types implement trait `zero_ui::prelude::UiNode`:
             <implementers-list>
-  = note: this error originates in the attribute macro `ui_node` (in Nightly builds, run with -Z macro-backtrace for more info)

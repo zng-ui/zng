@@ -1,6 +1,7 @@
 use zero_ui::core::{
     context::{WidgetContext, WidgetUpdates},
-    ui_node, NilUiNode, UiNode,
+    ui_node,
+    widget_instance::{NilUiNode, UiNode},
 };
 
 struct Node1<C> {
@@ -20,7 +21,7 @@ impl<C: UiNode> UiNode for Node1<C> {
     }
 }
 
-fn assert_type<N: zero_ui::core::UiNode>(_: N) {}
+fn assert_type<N: UiNode>(_: N) {}
 
 fn main() {
     // missing_delegate is a 'lint' and will become a full lint when
