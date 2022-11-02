@@ -19,10 +19,13 @@ use crate::{
 
 /// Base widget that implements the necessary core API.
 ///
-/// The base widget does [`nodes::insert_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
+/// The base widget does [`nodes::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
 ///
 /// The base widget also provides a default function that captures the [`id`] and handles missing child node by capturing
 /// [`child`] or falling back to [`FillUiNode`].
+///
+/// [`id`]: fn@id
+/// [`child`]: fn@child
 #[widget($crate::widget_base::base)]
 pub mod base {
     use super::*;
@@ -67,6 +70,9 @@ pub mod nodes {
     ///
     /// Note that this function does not handle missing child node, it falls back to [`NilUiNode`]. The [`base`]
     /// widget uses the [`FillUiNode`] if none was set.
+    ///
+    /// [`base`]: mod@base
+    /// [`id`]: fn@id
     pub fn build(mut wgt: WidgetBuilder) -> impl UiNode {
         let id = wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique);
         let child = wgt.build();
@@ -77,7 +83,7 @@ pub mod nodes {
     ///
     /// This node should wrap the inner most *child* node of panel widgets, and that in turn should layout the [`children`].
     ///
-    /// [`children`]: properties::children
+    /// [`children`]: fn@crate::widget_base::children
     pub fn children_layout(panel: impl UiNode) -> impl UiNode {
         #[ui_node(struct ChildrenLayoutNode {
                 child: impl UiNode,
@@ -249,7 +255,7 @@ pub mod nodes {
     /// [`WidgetContext::widget_context`], [`LayoutContext::with_widget`] and [`FrameBuilder::push_widget`]
     /// to define the widget.
     ///
-    /// This node must wrap the outer-most context node in the [`new`] constructor, it is the [`base`] widget type.
+    /// This node must wrap the outer-most context node in the build, it is the [`base`] widget type.
     ///
     /// [`base`]: mod@base
     pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
@@ -684,9 +690,11 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// explaining things to the user.
 ///
 /// Note that this affects the widget where it is set and descendants, to disable interaction only in the widgets
-/// inside `child` use the [`interactive_node`].
+/// inside `child` use the [`nodes::interactive_node`].
 ///
 /// [`enabled`]: fn@enabled
+/// [`BLOCKED`]: Interactivity::BLOCKED
+/// [`interactivity`]: crate::widget_info::WidgetInfo::interactivity
 #[property(context, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct InteractiveNode {
@@ -758,7 +766,7 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// only forces the widget to layout and render according to the specified visibility.
 ///
 /// To probe the visibility state of a widget in `when` clauses use [`is_visible`], [`is_hidden`] or [`is_collapsed`] in `when` clauses,
-/// to probe a widget state use [`Widget::render_info`] or [`WidgetInfo::visibility`].
+/// to probe a widget state use [`UiNode::with_context`] or [`WidgetInfo::visibility`].
 ///
 /// # Implicit
 ///

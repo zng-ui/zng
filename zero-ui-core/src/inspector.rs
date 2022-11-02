@@ -98,9 +98,9 @@ pub trait WidgetInfoInspectorExt<'a> {
     /// the standard builder.
     fn inspector_info(self) -> Option<Rc<InspectorInfo>>;
 
-    /// If a [`builder`] is defined for the widget.
+    /// If a [`inspector_info`] is defined for the widget.
     ///
-    /// [`builder`]: Self::builder
+    /// [`inspector_info`]: Self::inspector_info
     fn can_inspect(self) -> bool;
 
     /// Returns the first child that matches.
@@ -222,7 +222,7 @@ impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
     }
 }
 
-/// Query pattern for the [`WidgetInspectorExt`] inspect methods.
+/// Query pattern for the [`WidgetInfoInspectorExt`] inspect methods.
 pub trait InspectWidgetPattern {
     /// Returns `true` if the pattern includes the widget.
     fn matches(&self, info: &InspectorInfo) -> bool;
@@ -244,7 +244,7 @@ impl InspectWidgetPattern for WidgetMod {
     }
 }
 
-/// Query pattern for the [`WidgetInspectorExt`] inspect methods.
+/// Query pattern for the [`WidgetInfoInspectorExt`] inspect methods.
 pub trait InspectPropertyPattern {
     /// Returns `true` if the pattern includes the property.
     fn matches(&self, args: &dyn PropertyArgs, captured: bool) -> bool;

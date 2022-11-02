@@ -196,7 +196,7 @@ pub struct WindowContext<'a> {
     /// State that lives for the duration of the node tree method call in the window.
     ///
     /// This state lives only for the duration of the function `f` call in [`AppContext::window_context`].
-    /// Usually `f` calls one of the [`UiNode`](crate::UiNode) methods and [`WidgetContext`] shares this
+    /// Usually `f` calls one of the [`UiNode`](crate::widget_instance::UiNode) methods and [`WidgetContext`] shares this
     /// state so properties and event handlers can use this state to communicate to further nodes along the
     /// update sequence.
     pub update_state: StateMapMut<'a, state_map::Update>,
@@ -758,7 +758,7 @@ pub struct WidgetContext<'a> {
     /// of the window. You can use this to signal properties and event handlers from nodes that
     /// will be updated further then the current one.
     ///
-    /// [`UiNode`]: crate::UiNode
+    /// [`UiNode`]: crate::widget_instance::UiNode
     pub update_state: StateMapMut<'a, state_map::Update>,
 
     /// Var and event subscription handles managed by the widget.
@@ -982,7 +982,7 @@ pub struct MeasureContext<'a> {
 
     /// State that lives for the duration of the node tree measure in the window.
     ///
-    /// This state lives only for the call to [`UiNode::measure`](crate::UiNode::measure) in all nodes of the window.
+    /// This state lives only for the call to [`UiNode::measure`](crate::widget_instance::UiNode::measure) in all nodes of the window.
     /// You can use this to signal nodes that have not measured yet.
     pub update_state: StateMapMut<'a, state_map::Update>,
 }
@@ -1170,7 +1170,7 @@ pub struct LayoutContext<'a> {
     /// Note that if you assign a variable any frame request is deferred and the app loop goes back
     /// to the [`UiNode::update`] cycle.
     ///
-    /// [`UiNode::update`]: crate::UiNode::update
+    /// [`UiNode::update`]: crate::widget_instance::UiNode::update
     pub vars: &'a Vars,
 
     /// Updates that can be requested in layout context.
@@ -1352,8 +1352,8 @@ pub struct RenderContext<'a> {
 
     /// State that lives for the duration of the node tree render or render update call in the window.
     ///
-    /// This state lives only for the call to [`UiNode::render`](crate::UiNode::render) or
-    /// [`UiNode::render_update`](crate::UiNode::render_update) method call in all nodes of the window.
+    /// This state lives only for the call to [`UiNode::render`](crate::widget_instance::UiNode::render) or
+    /// [`UiNode::render_update`](crate::widget_instance::UiNode::render_update) method call in all nodes of the window.
     /// You can use this to signal nodes that have not rendered yet.
     pub update_state: StateMapMut<'a, state_map::Update>,
 }
@@ -1416,7 +1416,7 @@ pub struct InfoContext<'a> {
 
     /// State that lives for the duration of the node tree rebuild or subscriptions aggregation call in the window.
     ///
-    /// This state lives only for the call to the [`UiNode::info`](crate::UiNode::info) method in all nodes of the window.
+    /// This state lives only for the call to the [`UiNode::info`](crate::widget_instance::UiNode::info) method in all nodes of the window.
     /// You can use this to signal nodes that have not added info yet.
     pub update_state: StateMapMut<'a, state_map::Update>,
 }

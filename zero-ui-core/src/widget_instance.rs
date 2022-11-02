@@ -69,7 +69,7 @@ impl WidgetId {
     ///
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: mod@crate::widget_base::implicit_base#wp-id
+    /// [`id`]: mod@crate::widget_base::base#wp-id
     pub fn debug_named(name: impl Into<Text>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
@@ -346,10 +346,6 @@ pub trait UiNode: Any {
     }
 
     /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] that is `T`.
-    ///
-    /// Also see [`inspector::unwrap_constructor`] if you are trying to downcast in a widget dynamic constructor.
-    ///
-    /// [`inspector::unwrap_constructor`]: crate::inspector::unwrap_constructor
     fn downcast_unbox<T: UiNode>(self) -> Result<T, BoxedUiNode>
     where
         Self: Sized,

@@ -232,7 +232,7 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`event`](Self::event).
     ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](super::UiNode::event)
+    /// Only extensions that generate windows must handle this method. The [`UiNode::event`](crate::widget_instance::UiNode::event)
     /// method is called here.
     fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         let _ = (ctx, update);
@@ -257,7 +257,7 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`update`](Self::update).
     ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::update`](super::UiNode::update)
+    /// Only extensions that generate windows must handle this method. The [`UiNode::update`](crate::widget_instance::UiNode::update)
     /// method is called here.
     fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
         let _ = (ctx, updates);
@@ -1680,7 +1680,7 @@ impl HeadlessApp {
     /// is disabled is WebRender and the generation of frame textures.
     ///
     /// [frame pixels]: crate::window::Windows::frame_image
-    /// [`UiNode::render`]: crate::UiNode::render
+    /// [`UiNode::render`]: crate::widget_instance::UiNode::render
     /// [`Windows::widget_tree`]: crate::window::Windows::widget_tree
     pub fn renderer_enabled(&mut self) -> bool {
         self.ctx().services.get::<ViewProcess>().is_some()

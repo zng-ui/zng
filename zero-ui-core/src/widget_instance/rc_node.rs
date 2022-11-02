@@ -46,7 +46,7 @@ impl<U> Default for SlotsData<U> {
     }
 }
 
-/// A reference counted [`UiNode`] and [`Widget`].
+/// A reference counted [`UiNode`].
 ///
 /// Nodes can only appear in one place of the UI tree at a time, this `struct` allows the
 /// creation of ***slots*** that are [`UiNode`] implementers that can *exclusive take* the
@@ -108,7 +108,7 @@ impl<U: UiNode> RcNode<U> {
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
     ///
-    /// The return type implements [`UiNode`] and also implements [`Widget`] if `L: Widget`.
+    /// The return type implements [`UiNode`].
     pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<U, impl TakeOn> {
         impls::TakeSlot {
             slot: self.0.slots.borrow_mut().next_slot(),
@@ -123,7 +123,7 @@ impl<U: UiNode> RcNode<U> {
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
     ///
-    /// The return type implements [`UiNode`] and also implements [`Widget`] if `L: Widget`.
+    /// The return type implements [`UiNode`].
     pub fn take_on<A: EventArgs>(
         &self,
         event: Event<A>,
@@ -175,7 +175,7 @@ impl<U: UiNode> WeakNode<U> {
     }
 }
 
-/// A reference counted [`UiNodeList`] or [`WidgetList`].
+/// A reference counted [`UiNodeList`].
 ///
 /// Nodes can only appear in one place of the UI tree at a time, this `struct` allows the
 /// creation of ***slots*** that are [`UiNodeList`] implementers that can *exclusive take* the
@@ -237,7 +237,7 @@ impl<L: UiNodeList> RcNodeList<L> {
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
     ///
-    /// The return type implements [`UiNodeList`] and also implements [`WidgetList`] if `L: WidgetList`.
+    /// The return type implements [`UiNodeList`].
     pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<L, impl TakeOn> {
         impls::TakeSlot {
             slot: self.0.slots.borrow_mut().next_slot(),
@@ -252,7 +252,7 @@ impl<L: UiNodeList> RcNodeList<L> {
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
     ///
-    /// The return type implements [`UiNodeList`] and also implements [`WidgetList`] if `L: WidgetList`.
+    /// The return type implements [`UiNodeList`].
     pub fn take_on<A: EventArgs>(
         &self,
         event: Event<A>,

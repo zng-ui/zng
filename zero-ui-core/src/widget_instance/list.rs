@@ -374,6 +374,8 @@ where
 /// Represents a [`z_index`] sorting list.
 ///
 /// Note, unlike [`SortingList`], this list only sorts the render methods.
+///
+/// [`z_index`]: fn@z_index
 pub struct ZSortingList<L: UiNodeList> {
     list: L,
     map: RefCell<Vec<u64>>,
@@ -598,7 +600,7 @@ context_value! {
     static Z_INDEX: ZIndexContext = ZIndexContext::default();
 }
 
-/// Position of a widget inside a [`WidgetList`] render operation.
+/// Position of a widget inside an [`UiNodeList`] render operation.
 ///
 /// When two widgets have the same index their logical position defines the render order.
 ///
@@ -814,7 +816,7 @@ impl UiNodeListObserver for bool {
     }
 }
 
-/// Represents an [`UiListObserver`] that applies an offset to all indexes.
+/// Represents an [`UiNodeListObserver`] that applies an offset to all indexes.
 ///
 /// This type is useful for implementing [`UiNodeList`] that are composed of other lists.
 pub struct OffsetUiListObserver<'o>(pub usize, pub &'o mut dyn UiNodeListObserver);

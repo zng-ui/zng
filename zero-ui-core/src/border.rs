@@ -614,6 +614,7 @@ impl fmt::Debug for CornerRadiusFit {
 /// The [`Default`] value is calculated to fit inside the parent widget corner curve, see [`corner_radius_fit`].
 ///
 /// [`Default`]: crate::units::Length::Default
+/// [`corner_radius_fit`]: fn@corner_radius_fit
 #[property(context, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
     #[ui_node(struct CornerRadiusNode {
@@ -634,6 +635,8 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 ///
 /// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`ContextBorders`]
 /// coordinator can adjusts the radius inside each border to match the inside curve of the border.
+///
+/// [`corner_radius`]: fn@corner_radius
 #[property(context, default(CORNER_RADIUS_FIT_VAR))]
 pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
     with_context_var(child, CORNER_RADIUS_FIT_VAR, fit)

@@ -202,7 +202,7 @@ impl Updates {
     /// The window will call [`UiNode::info`] as soon as the current UI node method finishes,
     /// requests outside windows are ignored.
     ///
-    /// [`UiNode::info`]: crate::UiNode::info
+    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
     pub fn info(&mut self) {
         // tracing::trace!("requested `info`");
         self.l_updates.window_updates.info = true;
@@ -576,7 +576,7 @@ pub struct InfoLayoutRenderUpdates {
     ///
     /// Windows should call [`UiNode::info`] to rebuild the info tree as soon as they receive this flag.
     ///
-    /// [`UiNode::info`]: crate::UiNode::info
+    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
     pub info: bool,
 
     /// Layout requested.

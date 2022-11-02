@@ -31,7 +31,7 @@ pub trait WidgetHandler<A: Clone + 'static>: Any {
     /// is the case the handler also requests a widget [`info`] rebuild.
     ///
     /// [`update`]: WidgetHandler::update
-    /// [`info`]: crate::UiNode::info
+    /// [`info`]: crate::widget_instance::UiNode::info
     /// [`subscribe`]: WidgetHandler::subscribe
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool;
 

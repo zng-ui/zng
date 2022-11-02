@@ -595,10 +595,10 @@ impl WidgetBoundsInfo {
     /// Last layout pass that updated the offsets or any of the descendant offsets.
     ///
     /// The version is different every time any of the offsets on the widget or descendants changes after a layout update.
-    /// Widget implementers can use this version when optimizing `render` and `render_update`, the [`implicit_base::nodes::widget`]
+    /// Widget implementers can use this version when optimizing `render` and `render_update`, the [`widget_base::nodes::widget`]
     /// widget does this.
     ///
-    /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
+    /// [`widget_base::nodes::widget`]: crate::widget_base::nodes::widget
     pub fn offsets_pass(&self) -> LayoutPassId {
         if self.0.childs_changed.get() {
             self.0.working_pass.get()
@@ -1007,7 +1007,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
-    /// [`render`]: crate::UiNode::render
+    /// [`render`]: crate::widget_instance::UiNode::render
     pub fn z_index(self) -> Option<(ZIndex, ZIndex)> {
         self.info().bounds_info.rendered().map(|i| (i.back, i.front))
     }

@@ -304,7 +304,7 @@ pub enum InputKind {
 
 /// Represents a [`WidgetHandler<A>`] that can be reused.
 ///
-/// Note that [`once_hn!`] will still only be used once, and [`async_hn!`] tasks are bound to the specific widget
+/// Note that [`hn_once!`] will still only be used once, and [`async_hn!`] tasks are bound to the specific widget
 /// context that spawned then. This `struct` is cloneable to support handler properties in styleable widgets, but the
 /// general expectation is that the handler will be used on one property instance at a time.
 #[derive(Clone)]
@@ -671,8 +671,6 @@ unique_id_32! {
     ///
     /// This ID identifies a widget implementation. Widgets are identified
     /// by this ID and a module path, see [`WidgetMod`].
-    ///
-    /// [`name`]: WidgetId::name
     pub struct WidgetImplId;
 }
 impl fmt::Debug for WidgetImplId {
@@ -685,9 +683,7 @@ unique_id_32! {
     /// Unique ID of a property implementation.
     ///
     /// This ID identifies a property implementation, disregarding renames. Properties are identified
-    /// by this ID and a name string, see [`PropertyType`].
-    ///
-    /// [`name`]: WidgetId::name
+    /// by this ID and a name string, see [`PropertyId`].
     pub struct PropertyImplId;
 }
 impl fmt::Debug for PropertyImplId {
@@ -846,6 +842,8 @@ pub struct WhenInfo {
     /// They are type erased `BoxedVar<T>` instances that are *late-inited*, other variable references (`*#{var}`) are imbedded in
     /// the build expression and cannot be modified. Note that the [`state`] sticks to the first *late-inited* vars that it uses,
     /// the variable only updates after clone, this cloning happens naturally when instantiating a widget more then once.
+    ///
+    /// [`state`]: Self::state
     pub inputs: Box<[WhenInput]>,
 
     /// Output of the when expression.
@@ -853,6 +851,8 @@ pub struct WhenInfo {
     /// # Panics
     ///
     /// If used when [`can_use`] is `false`.
+    ///
+    /// [`can_use`]: Self::can_use
     pub state: BoxedVar<bool>,
 
     /// Properties assigned in the when block, in the build widget they are joined with the default value and assigns
@@ -868,6 +868,8 @@ pub struct WhenInfo {
 impl WhenInfo {
     /// Returns `true` if the [`state`] var is valid because it does not depend of any property input or all
     /// property inputs are inited with a value or have a default.
+    ///
+    /// [`state`]: Self::state
     pub fn can_use(&self) -> bool {
         self.inputs.iter().all(|i| i.var.can_use())
     }
@@ -1146,6 +1148,9 @@ impl WidgetBuilder {
     /// Set a `build` closure to run instead of [`default_build`] when [`build`] is called.
     ///
     /// Overrides the previous custom build, if any was set.
+    ///
+    /// [`build`]: Self::build
+    /// [`default_build`]: Self::default_build
     pub fn set_custom_build<R: UiNode>(&mut self, mut build: impl FnMut(WidgetBuilder) -> R + 'static) {
         self.custom_build = Some(Rc::new(RefCell::new(move |b| build(b).boxed())));
     }
@@ -1370,11 +1375,11 @@ impl ops::DerefMut for WidgetBuilder {
 
 /// Represents a finalizing [`WidgetBuilder`].
 ///
-/// Widgets can register a [`build_action`] to get access to this, it provides an opportunity
+/// Widgets can register a [build action] to get access to this, it provides an opportunity
 /// to remove or capture the final properties of an widget, after they have all been resolved and `when` assigns generated.
 /// Build actions can also define the child node, intrinsic nodes and a custom builder.
 ///
-/// [`build_action`]: WidgetBuilder::build_action
+/// [build action]: WidgetBuilder::push_build_action
 pub struct WidgetBuilding {
     #[cfg(inspector)]
     builder: Option<WidgetBuilder>,

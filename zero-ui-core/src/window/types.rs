@@ -57,7 +57,7 @@ impl WindowId {
     ///
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: mod@crate::widget_base::implicit_base#wp-id
+    /// [`id`]: mod@crate::widget_base::base#wp-id
     pub fn debug_named(name: impl Into<Text>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
@@ -203,14 +203,13 @@ impl Window {
 
     /// New window from a `child` node that becomes the child of the window root widget.
     ///
-    /// The `child` parameter is a node that is the window's content, if it is an [`Widget`] the `root_id` is the id of
+    /// The `child` parameter is a node that is the window's content, if it is a full widget the `root_id` is the id of
     /// an internal container widget that is the parent of `child`, if it is not a widget it will still be placed in the inner
     /// priority of the root widget.
     ///
     /// See [`new_root`] for other parameters.
     ///
     /// [`new_root`]: Self::new_root
-    /// [`Widget`]: crate::Widget
     #[allow(clippy::too_many_arguments)]
     pub fn new_container(
         root_id: WidgetId,

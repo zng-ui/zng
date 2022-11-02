@@ -40,6 +40,8 @@ use super::*;
 /// # Context Only
 ///
 /// Note that if you are only interested in sharing a contextual value you can use the [`context_value!`] macro instead.
+///
+/// [`context_value!`]: crate::context::context_value
 #[macro_export]
 macro_rules! context_var {
     ($(

@@ -276,7 +276,7 @@ impl WidgetLayout {
     //
     // ## Nice to Have
     //
-    // * Everything implemented in `implicit_base` for single child nodes, only panel implementers should have to learn
+    // * Everything implemented in `base` for single child nodes, only panel implementers should have to learn
     //   the details of the layout pass.
     //
     // ## Preview & Return
@@ -334,9 +334,9 @@ impl WidgetLayout {
     /// If `reuse` is `true` and none of the used metrics have changed skips calling `layout` and returns the current outer-size, the
     /// outer transform is still updated.
     ///
-    /// The default widget constructor calls this, see [`implicit_base::nodes::widget`].
+    /// The default widget constructor calls this, see [`widget_base::nodes::widget`].
     ///
-    /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
+    /// [`widget_base::nodes::widget`]: crate::widget_base::nodes::widget
     pub fn with_widget(
         &mut self,
         ctx: &mut LayoutContext,
@@ -385,9 +385,9 @@ impl WidgetLayout {
     ///
     /// This method also updates the border info.
     ///
-    /// The default widget borders constructor calls this, see [`implicit_base::nodes::inner`].
+    /// The default widget borders constructor calls this, see [`widget_base::nodes::inner`].
     ///
-    /// [`implicit_base::nodes::inner`]: crate::widget_base::implicit_base::nodes::inner
+    /// [`widget_base::nodes::inner`]: crate::widget_base::nodes::inner
     pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         #[cfg(debug_assertions)]
         if self.known.is_some() {
@@ -420,11 +420,11 @@ impl WidgetLayout {
     /// Defines a widget child scope, drops the current layout target, calls `layout`, then returns the child size and
     /// `true` if there was no child widget inside `layout` and so the caller must render the [`child_offset`].
     ///
-    /// If no inner [`Widget`] is found and the baseline is set during the call to `layout` the baseline is set to the current widget's inner bounds.
+    /// If no inner widget is found and the baseline is set during the call to `layout` the baseline is set to the current widget's inner bounds.
     ///
-    /// The default widget child layout constructor implements this, see [`implicit_base::nodes::child_layout`].
+    /// The default widget child layout constructor implements this, see [`widget_base::nodes::child_layout`].
     ///
-    /// [`implicit_base::nodes::child_layout`]: crate::widget_base::implicit_base::nodes::child_layout
+    /// [`widget_base::nodes::child_layout`]: crate::widget_base::nodes::child_layout
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
         self.finish_known(); // in case of WidgetList?
@@ -458,9 +458,9 @@ impl WidgetLayout {
     ///
     /// The caller must render the [`child_offset`].
     ///
-    /// The [`implicit_base::nodes::children_layout`] implements children bounds
+    /// The [`widget_base::nodes::children_layout`] implements children bounds
     ///
-    /// [`implicit_base::nodes::children_layout`]: crate::widget_base::implicit_base::nodes::children_layout
+    /// [`widget_base::nodes::children_layout`]: crate::widget_base::nodes::children_layout
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     pub fn with_children(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         #[cfg(debug_assertions)]
@@ -491,7 +491,7 @@ impl WidgetLayout {
     ///
     /// This is a limited version of the [`with_child`] method, useful for cases where multiple children need
     /// to be layout first before each child's position can be computed, in these scenarios this method avoids a second
-    /// layout pass by using the [`Widget`] trait to access and replace the outer transform.
+    /// layout pass by using the [`UiNode::with_context`] to access and replace the outer transform.
     ///
     /// If `keep_previous` is `true` the new offset is *added* to the previous.
     ///

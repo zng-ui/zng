@@ -13,7 +13,7 @@ use crate::{
 
 use super::WidgetInfoInspectorExt;
 
-/// State for tracking updates in [`write_tree`].
+/// UI state for printing and tracking updates.
 #[derive(Default, Clone)]
 pub struct WriteTreeState {
     state: FxHashMap<(WidgetId, PropertyId, usize), PropertyState>,

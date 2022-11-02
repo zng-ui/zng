@@ -74,8 +74,8 @@ impl<R> UiTask<R> {
     /// [`UiNode::update`] after that, in widgets the `target` can be set so that the update requests are received.
     ///
     /// [`update`]: UiTask::update
-    /// [`UiNode::update`]: crate::UiNode::update
-    /// [`UiNode::info`]: crate::UiNode::info
+    /// [`UiNode::update`]: crate::widget_instance::UiNode::update
+    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
     /// [`subscribe`]: Self::subscribe
     pub fn new<F: Future<Output = R> + 'static>(updates: &AppEventSender, target: Option<WidgetId>, task: F) -> Self {
         UiTask(UiTaskState::Pending {
@@ -132,7 +132,7 @@ impl<R> UiTask<R> {
 ///
 /// [`Waker`]: std::task::Waker
 /// [`update`]: Self::update
-/// [`UiNode::info`]: crate::UiNode::info
+/// [`UiNode::info`]: crate::widget_instance::UiNode::info
 /// [`subscribe`]: Self::subscribe
 pub struct WidgetTask<R> {
     task: UiTask<R>,
