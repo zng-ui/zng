@@ -459,6 +459,9 @@ pub use zero_ui_proc_macros::property;
 /// `bar` property will not include an instance of `baz` because it was `unset!`. Note that this does not remove the property
 /// the `bar` widget still exports the `baz` property, it just does not have a default value anymore.
 /// 
+/// An `unset!` assign also removes all `when` assigns to the same property, this is unlike normal assigns that just override the
+/// *default* value of the property, merged with the `when` assigns. 
+/// 
 /// ## Multiple Inputs
 /// 
 /// Some properties have multiple inputs, you can use a different syntax to assign each input by name or as a comma separated list. 
@@ -496,15 +499,101 @@ pub use zero_ui_proc_macros::property;
 /// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and multiple property assigns,
 /// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
 /// 
-/// !!: 
+/// ```
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*};
+/// #
+/// # #[property(fill)]
+/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// #   let _ = color;
+/// #   child
+/// # }
+/// #
+/// # #[property(layout)]
+/// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
+/// #   let _ = val;
+/// #   child
+/// # } 
+/// #
+/// # #[widget($crate::foo)]
+/// # pub mod foo {
+/// #     use super::*;
+/// # 
+/// #     inherit!(widget_base::base);
+/// #
+/// properties! {
+///     background_color = colors::RED;
 /// 
-/// ### Conditions
+///     when *#is_pressed {
+///         background_color = colors::GREEN;
+///     }
+/// }
+/// # }
+/// ```
 /// 
-/// !!: 
+/// ### When Condition
+/// 
+/// The `when` block defines a condition expression, in the example above this is `*#is_pressed`. The expression can be any Rust expression
+/// that results in a [`bool`] value, you can reference properties in it using the `#` token followed by the property name or path and you
+/// can reference variables in it using the `#{var}` syntax. If a property or var is reference the `when` block is dynamic, updating all
+/// assigned properties when the expression result changes.
+/// 
+/// ### Property Reference
+/// 
+/// The most common `when` expression reference is a property, in the example above the `is_pressed` property is instantiated for the widget
+/// and it's [`StateVar`] input controls when the background is set to green. Note that a reference to the value is inserted in the expression
+/// so an extra deref `*` is required. A property can also be referenced with a path, `#properties::is_pressed` also works.
+/// 
+/// The syntax seen so far is actually a shorthand way to reference the first input of a property, the full syntax is `#is_pressed.0` or 
+/// `#is_pressed.state`. You can use the extended syntax to reference inputs of properties with out than one input, the input can be
+/// reference by tuple-style index or by name. Note that if the value it self is a tuple or `struct` you need to use the extended syntax
+/// to reference a member of the value, `#foo.0.0` or `#foo.0.name`. Methods have no ambiguity, `#foo.name()` is the same as `#foo.0.name()`.
+/// 
+/// Not all properties can be referenced in `when` conditions, only inputs of type [`StateVar`], `impl IntoVar<T>` and `impl IntoValue<T>` are
+/// allowed, attempting to reference a different kind of input generates a compile error.
+/// 
+/// ### Variable Reference
+/// 
+/// Other variable can also be referenced, in a widget declaration only context variables due to placement, but in widget instances any locally
+/// declared variable can be referenced. Like with properties the variable value is inserted in the expression as a reference  so you may need
+/// to deref in case the var is a simple [`Copy`] value.
+/// 
+/// ```
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*};
+/// #
+/// # #[property(fill)]
+/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// #   let _ = color;
+/// #   child
+/// # }
+/// #
+/// context_var! { 
+///     pub static FOO_VAR: Vec<&'static str> = vec![];
+///     pub static BAR_BAR: bool = false;
+/// }
+/// #
+/// # #[widget($crate::foo)]
+/// # pub mod foo {
+/// #     use super::*;
+/// # 
+/// #     inherit!(widget_base::base);
+/// 
+/// properties! {
+///     background_color = colors::RED;
+/// 
+///     when !*#{BAR_VAR} && #{FOO_VAR}.contains("green") {
+///         background_color = colors::GREEN;
+///     }
+/// }
+/// # }
+/// ```
 /// 
 /// ### When Assigns
 /// 
-/// !!: 
+/// Inside the `when` block a list of property assigns is expected, only properties with all inputs of type `impl IntoVar<T>` can ne assigned
+/// in `when` blocks, you also cannot `unset!` in when assigns. On instantiation a single instance of the property will be generated, the input
+/// vars will track the when expression state and update to the value assigned in the block when it is `true`. When no block is `true` the value
+/// assigned to the property outside `when` blocks is used, or the property default value. When more then one block is `true` the *last* one
+/// sets the value. 
 /// 
 /// ### Default Values
 /// 
@@ -595,10 +684,19 @@ pub use zero_ui_proc_macros::property;
 /// # };
 /// # }
 /// ```
+/// 
+/// # More Details
+/// 
+/// See the [`WidgetBuilder`], [`WidgetBuilding`], [`Priority`] and [`Importance`] for more details of how the parts expanded from this macro are 
+/// put together to form a widget instance.
 ///
 /// [`WidgetBuilder`]: widget_builder::WidgetBuilder
+/// [`WidgetBuilding`]: widget_builder::WidgetBuilding
+/// [`Priority`]: widget_builder::Priority
+/// [`Importance`]: widget_builder::Importance
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: widget_instance::UiNode
+/// [`StateVar`]: var::StateVar
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 
