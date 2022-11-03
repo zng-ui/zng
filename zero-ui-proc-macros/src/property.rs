@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
 
@@ -109,7 +109,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let default;
         let default_fn;
         let args_default = match args.default {
-            Some(d) => Some(d.args.to_token_stream()),
+            Some(d) => Some((d.default.span(), d.args.to_token_stream())),
             None => {
                 let mut default = quote!();
                 for input in &inputs[1..] {
@@ -134,17 +134,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 if !default.is_empty() {
-                    Some(default)
+                    Some((Span::call_site(), default))
                 } else {
                     None
                 }
             }
         };
 
-        if let Some(args) = args_default {
+        if let Some((span, args)) = args_default {
+            let new = quote_spanned!(span=> Self::__new__);
             default = quote! {
                 pub fn __default__(info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    Self::__new__(#args).__build__(info)
+                    #new(#args).__build__(info)
                 }
             };
             default_fn = quote! {
@@ -568,15 +569,17 @@ impl Parse for Args {
 }
 
 struct Default {
+    default: Token![default],
     args: Punctuated<Expr, Token![,]>,
 }
 impl Parse for Default {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let _: Token![,] = input.parse()?;
-        let _: Token![default] = input.parse()?;
+        let default = input.parse()?;
         let inner;
         parenthesized!(inner in input);
         Ok(Default {
+            default,
             args: Punctuated::parse_terminated(&inner)?,
         })
     }
