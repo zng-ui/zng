@@ -1,5 +1,0 @@
-error: `allowed_in_when = true` cannot have named type params, only `impl Trait`
- --> cases/property/allowed_in_when_validation_named_type.rs:8:16
-  |
-8 | pub fn invalid<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-  |                ^

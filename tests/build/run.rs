@@ -45,6 +45,8 @@ fn cleanup(test: &str) {
                     changed = true;
                     skip_trait_impl = false;
                     clean.push_str("            <implementers-list>\n")
+                } else {
+                    changed = true;
                 }
             }
 

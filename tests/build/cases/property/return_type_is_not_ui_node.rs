@@ -1,9 +1,9 @@
-use zero_ui::core::{property, UiNode};
+use zero_ui::core::{property, var::IntoVar, widget_instance::UiNode};
 
 pub struct NotUiNode;
 
-#[property(context, allowed_in_when = false)]
-pub fn invalid_output(child: impl UiNode, input: bool) -> NotUiNode {
+#[property(context)]
+pub fn invalid_output(child: impl UiNode, _input: impl IntoVar<bool>) -> NotUiNode {
     NotUiNode
 }
 

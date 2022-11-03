@@ -8,7 +8,7 @@ impl NotVarValue {
     }
 }
 
-#[property(context, allowed_in_when = false)]
+#[property(context)]
 pub fn foo(child: impl UiNode, value: NotVarValue) -> impl UiNode {
     let _ = value;
     child

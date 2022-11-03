@@ -1,7 +1,7 @@
-use zero_ui::core::{property, UiNode};
+use zero_ui::core::{property, var::IntoVar, widget_instance::UiNode};
 
 #[property(invalid)]
-pub fn invalid_priority(child: impl UiNode, input: bool) -> impl UiNode {
+pub fn invalid_priority(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
     let _ = input;
     child
 }

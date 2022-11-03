@@ -1,23 +1,17 @@
 error: unexpected token
- --> $DIR/incorrect_attr_args.rs:3:21
+ --> cases/property/incorrect_attr_args.rs:3:19
   |
 3 | #[property(context, unknown = true)]
-  |                     ^^^^^^^
+  |                   ^
 
-error: expected boolean literal
- --> $DIR/incorrect_attr_args.rs:8:39
+error: property input can only have `impl OneTrait` or `StateVar` types
+ --> cases/property/incorrect_attr_args.rs:4:43
   |
-8 | #[property(context, allowed_in_when = "false")]
-  |                                       ^^^^^^^
+4 | fn unknown_arg(child: impl UiNode, input: bool) -> impl UiNode {
+  |                                           ^^^^
 
-error: expected `allowed_in_when = <bool>`
-  --> $DIR/incorrect_attr_args.rs:13:21
-   |
-13 | #[property(context, allowed_in_when)]
-   |                     ^^^^^^^^^^^^^^^
-
-error: expected `= <bool>`
-  --> $DIR/incorrect_attr_args.rs:18:37
-   |
-18 | #[property(context, allowed_in_when = )]
-   |                                     ^
+error[E0601]: `main` function not found in crate `$CRATE`
+ --> cases/property/incorrect_attr_args.rs:6:2
+  |
+6 | }
+  |  ^ consider adding a `main` function to `$DIR/cases/property/incorrect_attr_args.rs`

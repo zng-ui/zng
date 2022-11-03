@@ -1,5 +1,0 @@
-error: is_* properties functions must have 2 parameters, `UiNode` and `IsStateVar`
- --> $DIR/args_count_prefix_is.rs:4:34
-  |
-4 | pub fn is_state_wrong_input_count(child: impl UiNode) -> impl UiNode {
-  |                                  ^^^^^^^^^^^^^^^^^^^^

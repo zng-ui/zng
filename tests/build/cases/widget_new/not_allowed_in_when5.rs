@@ -1,7 +1,7 @@
 use zero_ui::core::{property, var::IntoVar, UiNode};
 use zero_ui::widgets::blank;
 
-#[property(context, allowed_in_when = false)] // valid signature, but disabled
+#[property(context)] // valid signature, but disabled
 pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
     let _ = value;
     child

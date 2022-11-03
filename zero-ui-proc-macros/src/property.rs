@@ -83,7 +83,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     }
     let item = item;
 
-    let _output_span = match &item.sig.output {
+    let output_span = match &item.sig.output {
         ReturnType::Default => {
             errors.push("output type must be `impl UiNode`", item.sig.ident.span());
             proc_macro2::Span::call_site()
@@ -413,6 +413,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             vis => vis.to_token_stream(),
         };
 
+        let node_instance = ident_spanned!(output_span=> "__node__");
+
         quote! {
             #cfg
             #[doc(hidden)]
@@ -494,7 +496,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 fn instantiate(&self, __child__: #core::widget_instance::BoxedUiNode) -> #core::widget_instance::BoxedUiNode {
-                    #core::widget_instance::UiNode::boxed(#ident(__child__, #instantiate))
+                    let #node_instance = #ident(__child__, #instantiate);
+                    #core::widget_instance::UiNode::boxed(#node_instance)
                 }
 
                 #get_var
@@ -662,7 +665,7 @@ impl Input {
         };
         match arg {
             FnArg::Receiver(rcv) => {
-                errors.push("property functions cannot be methods", rcv.span());
+                errors.push("methods cannot be properties", rcv.span());
             }
             FnArg::Typed(t) => {
                 if !t.attrs.is_empty() {
@@ -671,6 +674,9 @@ impl Input {
 
                 match *t.pat.clone() {
                     Pat::Ident(id) => {
+                        if id.ident == "self" {
+                            errors.push("methods cannot be properties", id.ident.span());
+                        }
                         input.ident = id.ident;
                     }
                     p => {

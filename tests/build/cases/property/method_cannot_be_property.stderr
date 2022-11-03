@@ -1,17 +1,17 @@
-error: methods cannot be property functions
- --> $DIR/method_cannot_be_property.rs:6:25
-  |
-6 |     pub fn self_method1(self) -> ! {}
-  |                         ^^^^
-
-error: methods cannot be property functions
- --> $DIR/method_cannot_be_property.rs:9:25
-  |
-9 |     pub fn self_method2(self, input: bool) -> impl UiNode {
-  |                         ^^^^
-
-error: methods cannot be property functions
-  --> $DIR/method_cannot_be_property.rs:14:25
+error: methods cannot be properties
+  --> cases/property/method_cannot_be_property.rs:10:25
    |
-14 |     pub fn self_method3(self: Box<Self>, input: bool) -> impl UiNode {
+10 |     pub fn self_method1(self, input: impl IntoVar<bool>) -> impl UiNode {
    |                         ^^^^
+
+error: methods cannot be properties
+  --> cases/property/method_cannot_be_property.rs:15:25
+   |
+15 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
+   |                         ^^^^
+
+error: property input can only have `impl OneTrait` or `StateVar` types
+  --> cases/property/method_cannot_be_property.rs:15:31
+   |
+15 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
+   |                               ^^^

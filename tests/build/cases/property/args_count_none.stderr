@@ -1,5 +1,15 @@
-error: properties must have at least 2 parameters, `UiNode` and one or more values
- --> cases/property/args_count_none.rs:4:15
+error: custom attribute panicked
+ --> cases/property/args_count_none.rs:3:1
   |
-4 | pub fn no_args() -> impl UiNode {
-  |               ^^
+3 | #[property(context)]
+  | ^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: index out of bounds: the len is 0 but the index is 0
+
+warning: unused import: `widget_instance::UiNode`
+ --> cases/property/args_count_none.rs:1:31
+  |
+1 | use zero_ui::core::{property, widget_instance::UiNode};
+  |                               ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

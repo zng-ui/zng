@@ -1,5 +1,0 @@
-error[E0415]: identifier `name` is bound more than once in this parameter list
- --> $DIR/args_with_same_name.rs:4:54
-  |
-4 | pub fn args_with_same_name(name: impl IntoVar<bool>, name: impl IntoVar<bool>) -> ! {}
-  |                                                      ^^^^ used as parameter more than once

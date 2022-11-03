@@ -1,7 +1,12 @@
-use zero_ui::core::{property, NilUiNode, UiNode};
+use zero_ui::core::{
+    property,
+    var::*,
+    widget_instance::{NilUiNode, UiNode},
+};
 
-#[property(context, allowed_in_when = false)]
-pub fn invalid_child(child: NilUiNode, input: bool) -> impl UiNode {
+#[property(context)]
+pub fn invalid_child(child: NilUiNode, input: impl IntoVar<bool>) -> impl UiNode {
+    let _ = input;
     child
 }
 

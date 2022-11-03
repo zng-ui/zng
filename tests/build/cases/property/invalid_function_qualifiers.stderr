@@ -1,17 +1,17 @@
 error: property functions cannot be `async`
- --> $DIR/invalid_function_qualifiers.rs:5:5
+ --> cases/property/invalid_function_qualifiers.rs:5:5
   |
-5 | pub async fn invalid_async(child: impl UiNode, _input: u32) -> impl UiNode {
+5 | pub async fn invalid_async(child: impl UiNode, _input: impl IntoVar<u32>) -> impl UiNode {
   |     ^^^^^
 
 error: property functions cannot be `unsafe`
-  --> $DIR/invalid_function_qualifiers.rs:10:5
+  --> cases/property/invalid_function_qualifiers.rs:10:5
    |
-10 | pub unsafe fn invalid_unsafe(child: impl UiNode, _input: u32) -> impl UiNode {
+10 | pub unsafe fn invalid_unsafe(child: impl UiNode, _input: impl IntoVar<u32>) -> impl UiNode {
    |     ^^^^^^
 
 error: property functions cannot be `extern`
-  --> $DIR/invalid_function_qualifiers.rs:15:5
+  --> cases/property/invalid_function_qualifiers.rs:15:5
    |
-15 | pub extern "C" fn invalid_extern(child: impl UiNode, _input: u32) -> impl UiNode {
+15 | pub extern "C" fn invalid_extern(child: impl UiNode, _input: impl IntoVar<u32>) -> impl UiNode {
    |     ^^^^^^
