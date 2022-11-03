@@ -1,17 +1,22 @@
-error: only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required`, `dyn_retained`, `dyn_when_default` and lint attributes are allowed in properties
-  --> cases/widget/attrs_allowed_in_properties.rs:20:11
+error[E0433]: failed to resolve: use of undeclared crate or module `disabled_cfg`
+  --> cases/widget/attrs_allowed_in_properties.rs:36:9
    |
-20 |         #[inline]
-   |           ^^^^^^
-
-error: only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required`, `dyn_retained`, `dyn_when_default` and lint attributes are allowed in properties
-  --> cases/widget/attrs_allowed_in_properties.rs:23:11
+36 |         disabled_cfg = 0;
+   |         ^^^^^^^^^^^^ not found in `disabled_cfg`
    |
-23 |         #[foo(bar)]
-   |           ^^^
-
-error: only `allowed_in_when`, `cfg`, `doc`, `priority_index`, `required`, `dyn_retained`, `dyn_when_default` and lint attributes are allowed in properties
-  --> cases/widget/attrs_allowed_in_properties.rs:26:16
+help: consider importing one of these items
    |
-26 |         #[foo::bar(true)]
-   |                ^^^
+1  | use crate::test_widget::__properties__::allowed_cfg::property;
+   |
+1  | use crate::test_widget::__properties__::enabled::property;
+   |
+1  | use crate::test_widget::__properties__::id::property;
+   |
+1  | use crate::test_widget::__properties__::visibility::property;
+   |
+     and 413 other candidates
+help: if you import `property`, refer to it directly
+   |
+36 -         disabled_cfg = 0;
+36 +         disabled_cfg = 0;
+   |

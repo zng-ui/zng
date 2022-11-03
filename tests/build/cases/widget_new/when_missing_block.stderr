@@ -1,11 +1,11 @@
-error: expected a block of property assigns
- --> $DIR/when_missing_block.rs:6:19
+error: expected a when block expr and properties
+ --> cases/widget_new/when_missing_block.rs:6:16
   |
 6 |         when *#is_pressed
-  |                   ^^^^^^^^^^
+  |                ^^^^^^^^^^
 
 warning: unused import: `zero_ui::properties::states::is_pressed`
- --> $DIR/when_missing_block.rs:1:5
+ --> cases/widget_new/when_missing_block.rs:1:5
   |
 1 | use zero_ui::properties::states::is_pressed;
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

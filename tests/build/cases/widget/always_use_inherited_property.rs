@@ -5,7 +5,7 @@ pub mod test_mixin {
     use zero_ui::properties::margin;
 
     properties! {
-        margin = 0;
+        pub margin = 0;
     }
 }
 
@@ -14,6 +14,7 @@ pub mod test_widget {
     // expected unused here
     use zero_ui::properties::margin;
 
+    inherit!(zero_ui::core::widget_base::base);
     inherit!(crate::test_mixin);
 
     properties! {
