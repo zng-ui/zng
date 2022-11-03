@@ -263,8 +263,6 @@ pub use zero_ui_proc_macros::widget_new;
 /// [`layout`]: crate::widget_instance::UiNode::layout
 /// [`render`]: crate::widget_instance::UiNode::render
 /// [`WidgetContext::handles`]: crate::context::WidgetContext::handles
-///
-/// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::ui_node;
 
@@ -415,19 +413,20 @@ pub use zero_ui_proc_macros::ui_node;
 /// # Output
 ///
 /// The property output type must be any type that implements [`UiNode`], usually an opaque type `impl UiNode` is used. The property
-/// node can be anything, as long as it delegates to the child node, see [`#[ui_node(..)]`] about implementing a node. Some common
+/// node can be anything, as long as it delegates to the child node, see [`ui_node`] about implementing a node. Some common
 /// property patterns have helpers functions, for example, to setup a context var you can use [`with_context_var`] function.
 ///
 /// # More Details
 ///
 /// See [`property_id!`] and [`property_args!`] for more details about what kind of meta-code is generated for properties.
-///
+/// 
 /// [`Priority`]: crate::widget_builder::Priority
 /// [`property_id!`]: crate::widget_builder::property_id
 /// [`property_args!`]: crate::widget_builder::property_args
-/// [`#[ui_node(..)]`]: macro@ui_node
-/// [`with_context_var`]: crate::var::with_context_var
+/// [`ui_node`]: macro@ui_node
+/// [`with_context_var`]: zero_ui_core::var::with_context_var
 /// [`VarValue`]: crate::var::VarValue
+/// [`IntoValue<T>`]: crate::var::IntoValue
 /// [`IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetHandler<A>`]: crate::handler::WidgetHandler
 /// [`StateVar`]: crate::var::StateVar
@@ -970,8 +969,6 @@ pub use zero_ui_proc_macros::widget;
 /// the `build` function.
 ///
 /// [#widget]: macro@widget
-///
-/// <div style='display:none'>
 
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget_mixin;
