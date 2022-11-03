@@ -3,3 +3,11 @@ error: unexpected token
   |
 3 | #[widget($crate::test_widget, invalid)]
   |                             ^
+
+error[E0432]: unresolved import `$crate`
+ --> cases/widget/module_path_malformed2.rs:3:1
+  |
+3 | #[widget($crate::test_widget, invalid)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ could not find `missing_widget_path` in the crate root
+  |
+  = note: this error originates in the macro `__widget_path__missing_widget_path__` (in Nightly builds, run with -Z macro-backtrace for more info)

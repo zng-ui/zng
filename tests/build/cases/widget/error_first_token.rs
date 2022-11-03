@@ -13,12 +13,6 @@ pub mod test {
             =
         }
     }
-
-    properties! {
-        remove {
-            =
-        }
-    }
 }
 
 fn main() {}

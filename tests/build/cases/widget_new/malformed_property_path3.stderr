@@ -4,35 +4,6 @@ error: expected `;`
 5 |         zero_ui::properties:margin = 0;
   |                            ^
 
-error[E0433]: failed to resolve: could not find `property` in `properties`
- --> cases/widget_new/malformed_property_path3.rs:5:18
-  |
-5 |         zero_ui::properties:margin = 0;
-  |                  ^^^^^^^^^^ not found in `zero_ui::properties`
-  |
-help: consider importing one of these items
-  |
-1 | use crate::blank::__properties__::enabled::property;
-  |
-1 | use crate::blank::__properties__::id::property;
-  |
-1 | use crate::blank::__properties__::visibility::property;
-  |
-1 | use zero_ui::prelude::align::property;
-  |
-    and 412 other candidates
-help: if you import `property`, refer to it directly
-  |
-5 -         zero_ui::properties:margin = 0;
-5 +         properties:margin = 0;
-  |
-
-error[E0425]: cannot find value `properties` in this scope
- --> cases/widget_new/malformed_property_path3.rs:5:18
-  |
-5 |         zero_ui::properties:margin = 0;
-  |                  ^^^^^^^^^^ not found in this scope
-
 error[E0433]: failed to resolve: use of undeclared crate or module `margin`
  --> cases/widget_new/malformed_property_path3.rs:5:29
   |

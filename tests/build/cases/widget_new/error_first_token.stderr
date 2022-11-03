@@ -1,4 +1,4 @@
-error: expected `when` or a property declaration
+error: expected property or when
  --> cases/widget_new/error_first_token.rs:6:9
   |
 6 |         =

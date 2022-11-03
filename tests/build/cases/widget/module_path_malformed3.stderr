@@ -3,3 +3,11 @@ error: expected `crate`
   |
 4 | #[widget($self::widget)]
   |           ^^^^
+
+error[E0432]: unresolved import `$crate`
+ --> cases/widget/module_path_malformed3.rs:4:1
+  |
+4 | #[widget($self::widget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^ could not find `missing_widget_path` in the crate root
+  |
+  = note: this error originates in the macro `__widget_path__missing_widget_path__` (in Nightly builds, run with -Z macro-backtrace for more info)

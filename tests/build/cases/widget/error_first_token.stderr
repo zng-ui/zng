@@ -1,4 +1,4 @@
-error: expected `when`, `child`, `remove` or a property declaration
+error: expected property or when
  --> cases/widget/error_first_token.rs:8:9
   |
 8 |         =
@@ -10,8 +10,8 @@ error: expected property path
 13 |             =
    |             ^
 
-error: expected inherited property ident
-  --> cases/widget/error_first_token.rs:19:13
-   |
-19 |             =
-   |             ^
+error: missing `fn build(WidgetBuilder) -> T` function, must be provided or inherited
+ --> cases/widget/error_first_token.rs:4:9
+  |
+4 | pub mod test {
+  |         ^^^^
