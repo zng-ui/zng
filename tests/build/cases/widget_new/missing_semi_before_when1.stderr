@@ -1,5 +1,5 @@
 error: expected `;`
  --> $DIR/missing_semi_before_when1.rs:7:9
   |
-7 |         when self.is_pressed {
+7 |         when *#is_pressed {
   |         ^^^^

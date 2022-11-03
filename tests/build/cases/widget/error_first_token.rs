@@ -9,7 +9,7 @@ pub mod test {
     }
 
     properties! {
-        when self.is_pressed {
+        when *#is_pressed {
             =
         }
     }

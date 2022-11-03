@@ -6,7 +6,7 @@ fn main() {
     let _ = blank! {
         margin = 0;
         cursor = CursorIcon::Default;
-        when self.is_pressed {
+        when *#is_pressed {
             margin =
             cursor = CursorIcon::Hand;
         }

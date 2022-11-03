@@ -19,7 +19,7 @@ fn main() {
     let _ = blank! {
         foo = NotVarValue;
         margin = 0;
-        when self.foo.is() {
+        when *#foo.is() {
             margin = 1;
         }
     };

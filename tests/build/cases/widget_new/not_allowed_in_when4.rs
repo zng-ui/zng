@@ -18,6 +18,6 @@ fn main() {
     let _ = blank! {
         foo = NotVarValue;
         // empty when should validate.
-        when self.foo.is() { }
+        when *#foo.is() { }
     };
 }

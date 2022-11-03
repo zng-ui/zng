@@ -9,6 +9,6 @@ pub fn my_property(child: impl UiNode, a: impl IntoVar<u32>) -> impl UiNode {
 
 fn main() {
     let _ = blank! {
-        when self.my_property == 1 { }
+        when *#my_property == 1 { }
     };
 }

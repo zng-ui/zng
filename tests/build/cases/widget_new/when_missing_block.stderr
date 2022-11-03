@@ -1,7 +1,7 @@
 error: expected a block of property assigns
  --> $DIR/when_missing_block.rs:6:19
   |
-6 |         when self.is_pressed
+6 |         when *#is_pressed
   |                   ^^^^^^^^^^
 
 warning: unused import: `zero_ui::properties::states::is_pressed`

@@ -21,7 +21,7 @@ pub mod bar {
         foo = NotVarValue;
 
         // empty when should validate.
-        when self.foo.is() { }
+        when *#foo.is() { }
     }
 }
 

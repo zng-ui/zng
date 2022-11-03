@@ -4,7 +4,7 @@ use zero_ui::widgets::blank;
 fn main() {
     let _ = blank! {
         margin = 0;
-        when self.is_pressed.unknown { // only .0 or .state allowed.
+        when *#is_pressed.unknown { // only .0 or .state allowed.
             margin = 1;
         }
     };

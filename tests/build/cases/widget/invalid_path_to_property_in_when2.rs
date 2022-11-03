@@ -7,7 +7,7 @@ pub mod test_widget {
     properties! {
         zero_ui::properties::margin = 0;
 
-        when self.is_pressed {
+        when *#is_pressed {
             zero_ui::properties::margin = 1;
         }
     }

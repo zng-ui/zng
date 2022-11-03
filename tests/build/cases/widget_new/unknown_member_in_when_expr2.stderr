@@ -4,7 +4,7 @@ error[E0782]: trait objects must include the `dyn` keyword
 5  |       let _ = blank! {
    |  _____________^
 6  | |         margin = 0;
-7  | |         when self.is_pressed.unknown { // only .0 or .state allowed.
+7  | |         when *#is_pressed.unknown { // only .0 or .state allowed.
 8  | |             margin = 1;
 9  | |         }
 10 | |     };
@@ -20,5 +20,5 @@ help: add `dyn` keyword before this trait
 error[E0599]: no associated item named `__unknown` found for trait object `dyn is_pressed_Args` in the current scope
  --> cases/widget_new/unknown_member_in_when_expr2.rs:7:30
   |
-7 |         when self.is_pressed.unknown { // only .0 or .state allowed.
+7 |         when *#is_pressed.unknown { // only .0 or .state allowed.
   |                              ^^^^^^^ associated item not found in `dyn is_pressed_Args`

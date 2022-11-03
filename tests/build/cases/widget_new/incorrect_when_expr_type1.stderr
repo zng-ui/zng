@@ -1,5 +1,5 @@
 error[E0308]: mismatched types
   --> $DIR/incorrect_when_expr_type1.rs:10:19
    |
-10 |         when self.margin {
+10 |         when *#margin {
    |                   ^^^^^^ expected `bool`, found struct `SideOffsets`

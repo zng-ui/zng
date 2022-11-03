@@ -7,7 +7,7 @@ fn main() {
         margin = 0;
         background_color = colors::BLACK;
 
-        when self.margin {
+        when *#margin {
             background_color = colors::WHITE;
         }
     };

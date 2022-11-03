@@ -1,5 +1,0 @@
-error: property `foo` cannot be set because it is capture-only, but is not captured by the widget
- --> $DIR/cannot_set_external_capture_only.rs:9:9
-  |
-9 |         foo = true;
-  |         ^^^

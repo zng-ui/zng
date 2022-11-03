@@ -271,7 +271,7 @@ impl WgtProperty {
         };
         if let Some((_, val)) = &self.value {
             match val {
-                PropertyValue::Special(_, _) => quote!(),
+                PropertyValue::Special(_, _) => non_user_error!("no args for special value"),
                 PropertyValue::Unnamed(args) => quote_spanned! {path_span(path)=>
                     #property_path #generics::__new__(#args).__build__(#instance)
                 },
@@ -549,6 +549,10 @@ impl WgtWhen {
                             errors.push("cannot declare capture property in when assign", decl.ty.span());
                         }
 
+                        if let Some((_, PropertyValue::Special(s, _))) = &p.value {
+                            errors.push(format!("cannot {} in when assign", s), s.span());
+                        }
+
                         assigns.push(p);
                     }
                     Err(e) => {
@@ -645,6 +649,10 @@ impl WgtWhen {
         let mut assigns = quote!();
         let mut assigns_error = quote!();
         for a in &self.assigns {
+            if a.is_unset() {
+                continue;
+            }
+
             let args = a.args_new(wgt_builder_mod.clone());
             assigns.extend(quote! {
                 #args,

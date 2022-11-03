@@ -21,7 +21,7 @@ pub mod bar {
     properties! {
         foo = NotVarValue;
         margin = 0;
-        when self.foo.is() && self.is_pressed {
+        when *#foo.is() && self.is_pressed {
             margin = 1;
         }
     }

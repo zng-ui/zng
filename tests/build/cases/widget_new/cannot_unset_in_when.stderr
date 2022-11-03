@@ -1,5 +1,5 @@
-error: cannot `unset!` properties in when blocks
- --> $DIR/cannot_unset_in_when.rs:8:22
+error: cannot unset in when assign
+ --> cases/widget_new/cannot_unset_in_when.rs:8:22
   |
 8 |             margin = unset!;
   |                      ^^^^^

@@ -1,7 +1,7 @@
 error: unexpected end of input, expected identifier
  --> $DIR/error_in_when_expr2.rs:7:18
   |
-7 |         when self. {
+7 |         when *# {
   |                  ^
 
 warning: unused import: `states::is_pressed`

@@ -12,6 +12,6 @@ pub mod foo {
 fn main() {
     let _ = foo! {
         margin = unset!;
-        when self.margin == 0 { }
+        when *#margin == 0 { }
     };
 }

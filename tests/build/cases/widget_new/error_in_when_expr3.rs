@@ -4,7 +4,7 @@ use zero_ui::widgets::blank;
 fn main() {
     let _ = blank! {
         margin = 0;
-        when self.margin.0. {
+        when *#margin.0. {
             margin = 10;
         }
     };

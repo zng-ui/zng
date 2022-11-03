@@ -12,7 +12,7 @@ pub mod test_widget {
         margin as disallowed_other1 = 0;
         margin as disallowed_other2 = 0;
 
-        when self.is_pressed {
+        when *#is_pressed {
             #[cfg(not(any()))]
             allowed_cfg = 1;
 

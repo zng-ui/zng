@@ -19,7 +19,7 @@ error[E0432]: unresolved import `zero_ui::properties::is_pressed`
 error: cannot determine resolution for the macro `is_pressed::code_gen`
   --> $DIR/error_first_token.rs:12:19
    |
-12 |         when self.is_pressed {
+12 |         when *#is_pressed {
    |                   ^^^^^^^^^^
    |
    = note: import resolution is stuck, try simplifying macro imports

@@ -16,7 +16,7 @@ fn main() {
     let _ = foo! {
         margin = unset!;
         cursor = CursorIcon::Default;
-        when self.is_pressed {
+        when *#is_pressed {
             margin = 5;// < error here
             cursor = Hand;// < when still included
         }

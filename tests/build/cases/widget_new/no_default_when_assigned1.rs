@@ -10,7 +10,7 @@ pub fn my_property(child: impl UiNode, a: impl IntoVar<u32>) -> impl UiNode {
 
 fn main() {
     let _ = blank! {
-        when self.is_pressed {
+        when *#is_pressed {
             my_property = 20
         }
     };

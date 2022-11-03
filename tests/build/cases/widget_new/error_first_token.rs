@@ -9,7 +9,7 @@ fn test_1() {
 
 fn test_2() {
     let _ = blank! {
-        when self.is_pressed {
+        when *#is_pressed {
             =
         }
     };

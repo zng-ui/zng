@@ -14,7 +14,7 @@ fn main() {
         foo = NotVarValue;
         margin = 0;
 
-        when self.is_pressed {
+        when *#is_pressed {
             foo = NotVarValue;
             margin = 1;
         }
