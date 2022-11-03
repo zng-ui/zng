@@ -1,14 +1,5 @@
-error: unknown field `unknown`
- --> $DIR/unknown_field.rs:7:13
+error[E0599]: no function or associated item named `unknown` found for struct `margin_Args` in the current scope
+ --> cases/widget_new/unknown_field.rs:7:13
   |
 7 |             unknown: 0,
-  |             ^^^^^^^
-
-error: missing field `margin` in property initializer
- --> $DIR/unknown_field.rs:6:18
-  |
-6 |           margin = {
-  |  __________________^
-7 | |             unknown: 0,
-8 | |         }
-  | |_________^
+  |             ^^^^^^^ function or associated item not found in `margin_Args`

@@ -1,27 +1,8 @@
-error[E0782]: trait objects must include the `dyn` keyword
-  --> cases/widget_new/unknown_member_in_when_expr1.rs:5:13
-   |
-5  |       let _ = blank! {
-   |  _____________^
-6  | |         margin = 0;
-7  | |         when *#is_pressed.1 { // only .0 or .state allowed.
-8  | |             margin = 1;
-9  | |         }
-10 | |     };
-   | |_____^
-   |
-   = note: this error originates in the macro `blank` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: add `dyn` keyword before this trait
-  --> $WORKSPACE/zero-ui/src/widgets.rs
-   |
-   | <dyn #[crate::core::widget($crate::widgets::blank)]>
-   | ++++                                               +
-
-error[E0599]: no associated item named `__1` found for trait object `dyn is_pressed_Args` in the current scope
- --> cases/widget_new/unknown_member_in_when_expr1.rs:7:30
+error[E0599]: no associated item named `__w_1__` found for struct `is_pressed_Args` in the current scope
+ --> cases/widget_new/unknown_member_in_when_expr1.rs:7:16
   |
 7 |         when *#is_pressed.1 { // only .0 or .state allowed.
-  |                              ^
-  |                              |
-  |                              associated item not found in `dyn is_pressed_Args`
-  |                              help: there is an associated function with a similar name: `__0`
+  |                ^^^^^^^^^^
+  |                |
+  |                associated item not found in `is_pressed_Args`
+  |                help: there is an associated function with a similar name: `__w_0__`

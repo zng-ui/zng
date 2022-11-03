@@ -1,5 +1,8 @@
-error: property `foo` is not allowed in when
-  --> $DIR/not_allowed_in_when1.rs:22:19
+error[E0599]: no associated item named `__w_0__` found for struct `foo_Args` in the current scope
+  --> cases/widget_new/not_allowed_in_when1.rs:15:26
    |
-22 |         when *#foo.is() {
-   |                   ^^^
+5  | #[property(context)]
+   | -------------------- associated item `__w_0__` not found for this struct
+...
+15 |             let node = *#foo;
+   |                          ^^^ associated item not found in `foo_Args`
