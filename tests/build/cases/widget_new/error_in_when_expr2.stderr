@@ -1,13 +1,5 @@
-error: unexpected end of input, expected identifier
- --> $DIR/error_in_when_expr2.rs:7:18
+error: expected a when block expr and properties
+ --> cases/widget_new/error_in_when_expr2.rs:9:9
   |
-7 |         when *# {
-  |                  ^
-
-warning: unused import: `states::is_pressed`
- --> $DIR/error_in_when_expr2.rs:1:35
-  |
-1 | use zero_ui::properties::{margin, states::is_pressed};
-  |                                   ^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
+9 |         }
+  |         ^

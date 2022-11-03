@@ -1,5 +1,0 @@
-error: property `foo` is not allowed in when
-  --> cases/widget_new/not_allowed_in_when5.rs:14:13
-   |
-14 |             foo = true;
-   |             ^^^

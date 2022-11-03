@@ -1,21 +1,21 @@
-use zero_ui::core::{property, UiNode};
+use zero_ui::core::{property, var::IntoValue, widget_instance::UiNode};
 use zero_ui::properties::{margin, states::is_pressed};
 use zero_ui::widgets::blank;
 struct NotVarValue;
 
 #[property(context)]
-pub fn foo(child: impl UiNode, value: NotVarValue) -> impl UiNode {
+pub fn foo(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
     let _ = value;
     child
 }
 
 fn main() {
     let _ = blank! {
-        foo = NotVarValue;
+        foo = false;
         margin = 0;
 
         when *#is_pressed {
-            foo = NotVarValue;
+            foo = true;
             margin = 1;
         }
     };

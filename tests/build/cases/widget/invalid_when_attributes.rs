@@ -16,7 +16,7 @@ pub mod test_widget {
         /// doc
         when {
             use std::vec; // expect no warnings here
-            self.is_pressed
+            *#is_pressed
         } {
             margin = 1;
         }
@@ -24,7 +24,7 @@ pub mod test_widget {
         #[inline] // invalid attribute
         when {
             use std::vec; // expect unused import warning here
-            self.is_pressed
+            *#is_pressed
         } {
             margin = 2;
         }

@@ -4,17 +4,11 @@ error: expected `;`
 8 |         margin = 0;
   |         ^^^^^^
 
-error: expected 2 values: axis, stops
- --> cases/widget_new/missing_value6.rs:7:31
-  |
-7 |         background_gradient = 0.deg(),
-  |                               ^
-
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
-   --> cases/widget_new/missing_value6.rs:7:31
+   --> cases/widget_new/missing_value6.rs:7:9
     |
 7   |         background_gradient = 0.deg(),
-    |                               ^ an argument is missing
+    |         ^^^^^^^^^^^^^^^^^^^ an argument is missing
     |
 note: associated function defined here
    --> $WORKSPACE/zero-ui/src/properties/visual.rs
@@ -27,5 +21,5 @@ note: associated function defined here
     = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
     |
-7   |         background_gradient = 0(0.deg(), /* value */).deg(),
-    |                               ~~~~~~~~~~~~~~~~~~~~~~~
+7   |         background_gradient(=, /* value */) = 0.deg(),
+    |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

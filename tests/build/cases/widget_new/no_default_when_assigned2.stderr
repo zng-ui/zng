@@ -1,5 +1,0 @@
-error: property `my_property` is not assigned and has no default value
-  --> $DIR/no_default_when_assigned2.rs:14:19
-   |
-14 |         when *#my_property == 1 {
-   |                   ^^^^^^^^^^^

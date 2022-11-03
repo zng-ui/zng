@@ -1,13 +1,5 @@
 error: expected identifier or index
- --> $DIR/error_in_when_expr3.rs:7:26
+ --> cases/widget_new/error_in_when_expr3.rs:7:23
   |
 7 |         when *#margin.0. {
-  |                          ^^
-
-warning: unused import: `states::is_pressed`
- --> $DIR/error_in_when_expr3.rs:1:35
-  |
-1 | use zero_ui::properties::{margin, states::is_pressed};
-  |                                   ^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
+  |                       ^^

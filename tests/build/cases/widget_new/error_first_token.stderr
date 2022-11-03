@@ -1,25 +1,11 @@
-error: expected `when` or a property path
- --> $DIR/error_first_token.rs:6:9
+error: expected `when` or a property declaration
+ --> cases/widget_new/error_first_token.rs:6:9
   |
 6 |         =
   |         ^
 
 error: expected property path
-  --> $DIR/error_first_token.rs:13:13
+  --> cases/widget_new/error_first_token.rs:13:13
    |
 13 |             =
    |             ^
-
-error[E0432]: unresolved import `zero_ui::properties::is_pressed`
- --> $DIR/error_first_token.rs:1:5
-  |
-1 | use zero_ui::properties::is_pressed;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `is_pressed` in `properties`
-
-error: cannot determine resolution for the macro `is_pressed::code_gen`
-  --> $DIR/error_first_token.rs:12:19
-   |
-12 |         when *#is_pressed {
-   |                   ^^^^^^^^^^
-   |
-   = note: import resolution is stuck, try simplifying macro imports

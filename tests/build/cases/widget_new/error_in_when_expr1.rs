@@ -6,7 +6,7 @@ fn main() {
         margin = 0;
         when {
             let a: u32 = true;
-            self.is_pressed
+            *#is_pressed
         } {
             margin = 10;
         }

@@ -1,11 +1,17 @@
-error: expected property value
- --> $DIR/missing_value5.rs:7:9
+error: expected expression, found `)`
+ --> cases/widget_new/missing_value5.rs:6:9
   |
-7 |         #[allow(unused_imports)]
-  |         ^
+6 |         cursor =
+  |         ^^^^^^ expected expression
+
+error: expected `;`
+ --> cases/widget_new/missing_value5.rs:8:9
+  |
+8 |         margin = {
+  |         ^^^^^^
 
 warning: unused import: `cursor`
- --> $DIR/missing_value5.rs:1:27
+ --> cases/widget_new/missing_value5.rs:1:27
   |
 1 | use zero_ui::properties::{cursor, margin};
   |                           ^^^^^^
@@ -13,7 +19,7 @@ warning: unused import: `cursor`
   = note: `#[warn(unused_imports)]` on by default
 
 warning: unused import: `zero_ui::core::units::PxPoint`
- --> $DIR/missing_value5.rs:9:17
+ --> cases/widget_new/missing_value5.rs:9:17
   |
 9 |             use zero_ui::core::units::PxPoint;
   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

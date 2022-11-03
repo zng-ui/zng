@@ -1,5 +1,5 @@
-error: expected `when` or a property path
- --> $DIR/malformed_property_path1.rs:5:9
+error: expected property or when
+ --> cases/widget_new/malformed_property_path1.rs:5:9
   |
 5 |         _ = 0;
   |         ^

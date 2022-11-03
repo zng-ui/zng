@@ -1,8 +1,19 @@
-error: missing field `stops` in property initializer
-  --> $DIR/missing_field_multi.rs:10:31
-   |
-10 |           background_gradient = {
-   |  _______________________________^
-11 | |             axis: 0.deg(),
-12 | |         }
-   | |_________^
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+   --> cases/widget_new/missing_field_multi.rs:10:9
+    |
+10  |         background_gradient = {
+    |         ^^^^^^^^^^^^^^^^^^^ an argument is missing
+    |
+note: associated function defined here
+   --> $WORKSPACE/zero-ui/src/properties/visual.rs
+    |
+    | / #[property(fill, default(0.deg(), {
+    | |     let c = colors::BLACK.transparent();
+    | |     crate::core::gradient::stops![c, c]
+    | | }))]
+    | |____^
+    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: provide the argument
+    |
+10  |         background_gradient(axis, /* value */) = {
+    |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

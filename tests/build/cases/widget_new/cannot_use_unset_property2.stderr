@@ -1,5 +1,0 @@
-error: cannot use unset property `margin` in when
-  --> $DIR/cannot_use_unset_property2.rs:20:13
-   |
-20 |             margin = 5;// < error here
-   |             ^^^^^^

@@ -1,5 +1,7 @@
-error: property `foo` is not allowed in when
-  --> $DIR/not_allowed_in_when2.rs:18:13
+error[E0080]: evaluation of constant value failed
+  --> cases/widget_new/not_allowed_in_when2.rs:18:13
    |
-18 |             foo = NotVarValue;
-   |             ^^^
+18 |             foo = true;
+   |             ^^^ the evaluated program panicked at 'property `foo` cannot be assigned in when', $DIR/cases/widget_new/not_allowed_in_when2.rs:18:13
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `panic` (in Nightly builds, run with -Z macro-backtrace for more info)

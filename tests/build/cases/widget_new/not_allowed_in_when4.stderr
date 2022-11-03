@@ -1,5 +1,0 @@
-error: property `foo` is not allowed in when
-  --> $DIR/not_allowed_in_when4.rs:21:19
-   |
-21 |         when *#foo.is() { }
-   |                   ^^^

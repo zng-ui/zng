@@ -1,4 +1,4 @@
-use zero_ui::properties::is_pressed;
+use zero_ui::properties::states::is_pressed;
 use zero_ui::widgets::blank;
 
 fn test_1() {

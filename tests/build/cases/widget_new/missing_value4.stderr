@@ -4,16 +4,10 @@ error: expected `;`
 8 |         margin = 0;
   |         ^^^^^^
 
-error: expected 1 value: cursor
- --> cases/widget_new/missing_value4.rs:8:9
-  |
-8 |         margin = 0;
-  |         ^^^^^^
-
 error[E0061]: this function takes 1 argument but 0 arguments were supplied
-  --> cases/widget_new/missing_value4.rs:8:9
+  --> cases/widget_new/missing_value4.rs:6:9
    |
-8  |         margin = 0;
+6  |         cursor =
    |         ^^^^^^ an argument is missing
    |
 note: associated function defined here
@@ -24,5 +18,5 @@ note: associated function defined here
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-8  |         margin(/* value */) = 0;
+6  |         cursor(/* value */) =
    |         ~~~~~~~~~~~~~~~~~~~

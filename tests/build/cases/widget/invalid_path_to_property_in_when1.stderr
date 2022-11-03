@@ -1,4 +1,4 @@
-error: widget properties only have a single name, try `self.is_pressed`
+error: widget properties only have a single name, try `*#is_pressed`
   --> $DIR/invalid_path_to_property_in_when1.rs:10:19
    |
 10 |         when *#zero_ui::properties::states::is_pressed {

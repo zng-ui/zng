@@ -1,15 +1,17 @@
-error[E0308]: mismatched types
-  --> cases/widget_new/incorrect_arg_type2.rs:11:23
+error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
+  --> cases/widget_new/incorrect_arg_type2.rs:11:21
    |
 11 |         simple_type = true
-   |                       ^^^^
-   |                       |
-   |                       expected `u32`, found `bool`
-   |                       arguments to this function are incorrect
+   |         ----------- ^ the trait `IntoVar<u32>` is not implemented for `bool`
+   |         |
+   |         required by a bound introduced by this call
    |
-note: associated function defined here
-  --> cases/widget_new/incorrect_arg_type2.rs:4:1
+   = help: the following other types implement trait `IntoVar<T>`:
+            <implementers-list>
+note: required by a bound in `simple_type_Args::__new__`
+  --> cases/widget_new/incorrect_arg_type2.rs:5:53
    |
 4  | #[property(context)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+   | -------------------- required by a bound in this
+5  | pub fn simple_type(child: impl UiNode, simple: impl IntoVar<u32>) -> impl UiNode {
+   |                                                     ^^^^^^^^^^^^ required by this bound in `simple_type_Args::__new__`

@@ -1,5 +1,0 @@
-error: cannot unset `zero_ui::properties::margin` because it is not set by the widget
- --> $DIR/cannot_unset_not_by_widget2.rs:5:39
-  |
-5 |         zero_ui::properties::margin = unset!;
-  |                                       ^^^^^

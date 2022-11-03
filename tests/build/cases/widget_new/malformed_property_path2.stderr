@@ -1,5 +1,39 @@
-error: expected `=`
- --> $DIR/malformed_property_path2.rs:5:15
+error: expected `;`
+ --> cases/widget_new/malformed_property_path2.rs:5:15
   |
 5 |         margin! = 0;
   |               ^
+
+error[E0425]: cannot find value `margin` in this scope
+ --> cases/widget_new/malformed_property_path2.rs:5:9
+  |
+5 |         margin! = 0;
+  |         ^^^^^^ not found in this scope
+  |
+help: consider importing this function
+  |
+1 | use zero_ui::prelude::margin;
+  |
+
+error[E0433]: failed to resolve: use of undeclared crate or module `margin`
+ --> cases/widget_new/malformed_property_path2.rs:5:9
+  |
+5 |         margin! = 0;
+  |         ^^^^^^ not found in `margin`
+  |
+help: consider importing one of these items
+  |
+1 | use crate::blank::__properties__::enabled::property;
+  |
+1 | use crate::blank::__properties__::id::property;
+  |
+1 | use crate::blank::__properties__::visibility::property;
+  |
+1 | use zero_ui::prelude::align::property;
+  |
+    and 412 other candidates
+help: if you import `property`, refer to it directly
+  |
+5 -         margin! = 0;
+5 +         margin! = 0;
+  |

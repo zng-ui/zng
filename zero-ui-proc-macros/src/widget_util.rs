@@ -570,7 +570,7 @@ impl WgtWhen {
             }
             (brace, assigns)
         } else {
-            errors.push("expected a block of properties", util::last_span(condition_expr));
+            errors.push("expected a when block expr and properties", util::last_span(condition_expr));
             return None;
         };
 

@@ -1,8 +1,8 @@
-use zero_ui::core::{property, UiNode};
+use zero_ui::core::{property, var::IntoVar, widget_instance::UiNode};
 use zero_ui::widgets::blank;
 
 #[property(context)]
-pub fn simple_type(child: impl UiNode, simple: u32) -> impl UiNode {
+pub fn simple_type(child: impl UiNode, simple: impl IntoVar<u32>) -> impl UiNode {
     child
 }
 
