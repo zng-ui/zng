@@ -1,5 +1,0 @@
-error: cannot remove, property `margin` is required
-  --> $DIR/cannot_remove_inherited_required.rs:18:18
-   |
-18 |         remove { margin }
-   |                  ^^^^^^

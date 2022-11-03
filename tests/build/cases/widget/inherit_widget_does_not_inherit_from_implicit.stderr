@@ -1,5 +1,0 @@
-error[E0433]: failed to resolve: use of undeclared crate or module `id`
-  --> $DIR/inherit_widget_does_not_inherit_from_implicit.rs:33:9
-   |
-33 |         id = WidgetId::new_unique();
-   |         ^^ use of undeclared crate or module `id`

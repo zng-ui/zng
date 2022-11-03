@@ -1,5 +1,0 @@
-error: widget properties only have a single name, try `margin`
-  --> $DIR/invalid_path_to_property_in_when2.rs:11:13
-   |
-11 |             zero_ui::properties::margin = 1;
-   |             ^^^^^^^

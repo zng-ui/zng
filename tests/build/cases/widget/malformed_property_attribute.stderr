@@ -1,11 +1,11 @@
 error: expected square brackets
- --> $DIR/malformed_property_attribute.rs:8:10
-  |
-8 |         #![allow(inner_attribute)]
-  |          ^
+  --> cases/widget/malformed_property_attribute.rs:10:10
+   |
+10 |         #![allow(inner_attribute)]
+   |          ^
 
 error: expected path
- --> $DIR/malformed_property_attribute.rs:9:11
-  |
-9 |         #[!foo]
-  |           ^
+  --> cases/widget/malformed_property_attribute.rs:11:11
+   |
+11 |         #[!foo]
+   |           ^

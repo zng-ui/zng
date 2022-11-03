@@ -4,10 +4,12 @@ use zero_ui::core::widget;
 pub mod test_widget {
     use zero_ui::properties::margin;
 
+    inherit!(zero_ui::core::widget_base::base);
+
     properties! {
         margin = 0;
 
-        when *#zero_ui::properties::states::is_pressed {
+        when *#zero_ui::properties::is_pressed {
             margin = 1;
         }
     }

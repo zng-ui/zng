@@ -285,6 +285,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     // rust-analyzer does not find the macro if we don't set the call_site here.
     let mod_path = util::set_stream_span(mod_path, Span::call_site());
 
+    let macro_new = if mixin {
+        quote! {
+            std::compile_error!{"cannot instantiate mix-in"}
+        }
+    } else {
+        quote! {
+            #mod_path::__widget__::widget_new! {
+                widget { #mod_path }
+                new { $($tt)* }
+            }
+        }
+    };
+
     let r = quote! {
         #(#attrs)*
         #vis #mod_token #ident #mod_block
@@ -295,10 +308,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             #macro_if_mixin
 
             ($($tt:tt)*) => {
-                #mod_path::__widget__::widget_new! {
-                    widget { #mod_path }
-                    new { $($tt)* }
-                }
+                #macro_new
             };
         }
         #[doc(hidden)]

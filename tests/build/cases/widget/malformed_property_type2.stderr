@@ -1,11 +1,45 @@
-error: type placeholder `_` is not allowed in property types
- --> $DIR/malformed_property_type2.rs:8:13
+error: property input can only have `impl OneTrait` or `StateVar` types
+ --> cases/widget/malformed_property_type2.rs:8:17
   |
-8 |         foo(_) = 10;
-  |             ^
+8 |         pub foo(_) = 10;
+  |                 ^
 
-error: property `foo` is not inherited nor declared by the widget
-  --> $DIR/malformed_property_type2.rs:11:18
-   |
-11 |     fn new_child(foo: bool) -> NilUiNode {
-   |                  ^^^
+error[E0432]: unresolved import `__foo__`
+ --> cases/widget/malformed_property_type2.rs:8:13
+  |
+8 |         pub foo(_) = 10;
+  |             ^^^ use of undeclared crate or module `__foo__`
+
+error[E0433]: failed to resolve: use of undeclared crate or module `__foo__`
+ --> cases/widget/malformed_property_type2.rs:8:13
+  |
+8 |         pub foo(_) = 10;
+  |             ^^^ not found in `__foo__`
+  |
+help: consider importing one of these items
+  |
+5 |     inherit!(zero_ui::core::widget_base::use crate::test_widget::__properties__::enabled::property;
+  |                                          ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+5 |     inherit!(zero_ui::core::widget_base::use crate::test_widget::__properties__::id::property;
+  |                                          +++++++++++++++++++++++++++++++++++++++++++++++++++++
+5 |     inherit!(zero_ui::core::widget_base::use crate::test_widget::__properties__::visibility::property;
+  |                                          +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+5 |     inherit!(zero_ui::core::widget_base::use zero_ui::prelude::align::property;
+  |                                          ++++++++++++++++++++++++++++++++++++++
+    and 412 other candidates
+help: if you import `property`, refer to it directly
+  |
+8 -         pub foo(_) = 10;
+8 +         pub foo(_) = 10;
+  |
+
+error[E0121]: the placeholder `_` is not allowed within types on item signatures for functions
+ --> cases/widget/malformed_property_type2.rs:8:17
+  |
+8 |         pub foo(_) = 10;
+  |                 ^ not allowed in type signatures
+  |
+help: use type parameters instead
+  |
+8 |         pub foo<T>(T) = 10;
+  |                +++ ~

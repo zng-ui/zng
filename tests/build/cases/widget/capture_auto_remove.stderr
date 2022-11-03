@@ -1,5 +1,0 @@
-error[E0433]: failed to resolve: use of undeclared crate or module `foo`
-  --> $DIR/capture_auto_remove.rs:33:9
-   |
-33 |         foo = true;
-   |         ^^^ use of undeclared crate or module `foo`

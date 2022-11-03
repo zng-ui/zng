@@ -1,5 +1,5 @@
-error: cannot inherit from `super::base2_wgt` because is already inheriting from `super::base1_wgt`, can only inherit from a single full widget
-  --> $DIR/cannot_inherit_from_two_widgets.rs:12:21
+error: can only inherit from one widget and multiple mix-ins
+  --> cases/widget/cannot_inherit_from_two_widgets.rs:16:14
    |
-12 |     inherit!(super::base2_wgt); // error
-   |                     ^^^^^^^^^
+16 |     inherit!(super::base2_wgt); // error
+   |              ^^^^^

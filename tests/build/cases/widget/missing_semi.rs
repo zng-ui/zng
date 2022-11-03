@@ -4,6 +4,8 @@ use zero_ui::core::widget;
 pub mod test_widget {
     use zero_ui::properties::{cursor, margin};
 
+    inherit!(zero_ui::core::widget_base::base);
+
     properties! {
         cursor //;
         margin = 10

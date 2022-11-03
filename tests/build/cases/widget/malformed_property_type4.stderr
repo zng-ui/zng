@@ -1,5 +1,0 @@
-error: expected `;`
- --> $DIR/malformed_property_type4.rs:7:32
-  |
-7 |         foo(impl IntoVar<bool>),
-  |                                ^

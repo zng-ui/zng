@@ -1,11 +1,5 @@
-error: expected property type
- --> $DIR/malformed_property_type1.rs:8:12
+error: unexpected end of input, expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
+ --> cases/widget/malformed_property_type1.rs:8:17
   |
-8 |         foo() = 10;
-  |            ^^
-
-error: property `foo` is not inherited nor declared by the widget
-  --> $DIR/malformed_property_type1.rs:11:18
-   |
-11 |     fn new_child(foo: bool) -> NilUiNode {
-   |                  ^^^
+8 |         pub foo() = 10;
+  |                 ^

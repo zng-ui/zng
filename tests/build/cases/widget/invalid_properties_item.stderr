@@ -1,5 +1,5 @@
-error: expected `when`, `child`, `remove` or a property declaration
- --> cases/widget/invalid_properties_item.rs:6:9
+error: expected property or when
+ --> cases/widget/invalid_properties_item.rs:8:9
   |
-6 |         {}
+8 |         {}
   |         ^
