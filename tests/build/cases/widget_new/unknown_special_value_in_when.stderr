@@ -1,5 +1,13 @@
-error: unknown value `foo!`
- --> $DIR/unknown_special_value_in_when.rs:8:22
+error: unexpected token
+ --> cases/widget_new/unknown_special_value_in_when.rs:8:25
   |
 8 |             margin = foo!;
-  |                      ^^^
+  |                         ^
+
+warning: unused imports: `margin`, `states::is_pressed`
+ --> cases/widget_new/unknown_special_value_in_when.rs:1:27
+  |
+1 | use zero_ui::properties::{margin, states::is_pressed};
+  |                           ^^^^^^  ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

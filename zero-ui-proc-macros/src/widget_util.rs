@@ -399,7 +399,11 @@ pub enum PropertyValue {
 impl Parse for PropertyValue {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         if input.peek(Ident) && input.peek2(Token![!]) && (input.peek3(Token![;]) || input.peek3(Ident::peek_any) || !peek_any3(input)) {
-            let r = PropertyValue::Special(input.parse().unwrap(), input.parse().unwrap());
+            let ident: Ident = input.parse().unwrap();
+            if ident != "unset" {
+                return Err(Error::new(ident.span(), "unknown special value,  expected `unset!`"));
+            }
+            let r = PropertyValue::Special(ident, input.parse().unwrap());
             return Ok(r);
         }
 
@@ -649,7 +653,7 @@ impl WgtWhen {
         let mut assigns = quote!();
         let mut assigns_error = quote!();
         for a in &self.assigns {
-            if a.is_unset() {
+            if !a.has_args() {
                 continue;
             }
 

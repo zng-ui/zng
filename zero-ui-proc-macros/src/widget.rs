@@ -531,7 +531,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #cfg
                 __wgt__.push_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
             });
-        } else {
+        } else if p.has_args() {
             let args = p.args_new(quote!(#widget::__widget__::widget_builder));
             init.extend(quote! {
                 #cfg
