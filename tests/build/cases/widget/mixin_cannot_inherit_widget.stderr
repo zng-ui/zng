@@ -1,5 +1,5 @@
-error: cannot inherit from `super::base_wgt` because it is not a mix-in
-  --> $DIR/mixin_cannot_inherit_widget.rs:11:21
+error: mixin-in cannot inherit from full widget
+  --> cases/widget/mixin_cannot_inherit_widget.rs:13:21
    |
-11 |     inherit!(super::base_wgt); // error
+13 |     inherit!(super::base_wgt); // error
    |                     ^^^^^^^^

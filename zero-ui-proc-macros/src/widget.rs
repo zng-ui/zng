@@ -153,7 +153,21 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         if let Some(build) = &build_fn {
             errors.push("mix-ins cannot have a build function", build.sig.ident.span());
         }
-        quote!()
+
+        let error = "mixin-in cannot inherit from full widget";
+        let mut check = quote!();
+        for inh in inherits.iter() {
+            let path = &inh.path;
+            check.extend(quote_spanned! {path_span(path)=>
+                #path! {
+                    >> if !mixin {
+                        std::compile_error!{#error}
+                    }
+                }
+            });
+        }
+
+        check
     } else if let Some(build) = &build_fn {
         let out = &build.sig.output;
         let ident = &build.sig.ident;
