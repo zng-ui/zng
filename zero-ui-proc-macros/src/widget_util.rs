@@ -658,13 +658,16 @@ impl WgtWhen {
             }
 
             let args = a.args_new(wgt_builder_mod.clone());
+            let cfg = &a.attrs.cfg;
             assigns.extend(quote! {
+                #cfg
                 #args,
             });
 
             let path = &a.path;
             let error = format!("property `{}` cannot be assigned in when", a.ident());
             assigns_error.extend(quote_spanned! {path_span(path)=>
+                #cfg
                 const _: () = if !#path::ALLOWED_IN_WHEN_ASSIGN {
                     panic!(#error);
                 };
