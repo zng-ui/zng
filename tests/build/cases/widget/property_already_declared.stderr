@@ -1,5 +1,0 @@
-error: property `margin` is already declared
- --> $DIR/property_already_declared.rs:9:9
-  |
-9 |         margin = 1;
-  |         ^^^^^^

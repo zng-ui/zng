@@ -1,0 +1,9 @@
+error[E0433]: failed to resolve: could not find `not` in the crate root
+ --> cases/widget/module_path_is_invalid1.rs:3:18
+  |
+3 | #[widget($crate::not::a::valid::path)]
+  |                  ^^^            ---- in this macro invocation
+  |                  |
+  |                  could not find `not` in the crate root
+  |
+  = note: this error originates in the macro `__widget_path__not_a_valid_path__` (in Nightly builds, run with -Z macro-backtrace for more info)

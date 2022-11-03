@@ -1,5 +1,0 @@
-error: property `foo` is not allowed in when
-  --> cases/widget/not_allowed_in_when2.rs:20:13
-   |
-20 |             foo = NotVarValue;
-   |             ^^^

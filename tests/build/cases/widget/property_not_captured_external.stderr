@@ -1,5 +1,0 @@
-error: property `foo` is capture-only, but is not captured by the widget
- --> $DIR/property_not_captured_external.rs:9:16
-  |
-9 |         super::foo;
-  |                ^^^

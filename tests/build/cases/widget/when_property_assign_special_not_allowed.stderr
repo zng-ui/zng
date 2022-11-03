@@ -1,5 +1,0 @@
-error: unexpected `foo!` in property value
- --> $DIR/when_property_assign_special_not_allowed.rs:9:22
-  |
-9 |             margin = foo!;
-  |                      ^^^

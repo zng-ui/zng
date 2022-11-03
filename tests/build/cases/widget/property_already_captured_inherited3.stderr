@@ -1,5 +1,0 @@
-error: property `margin` is already captured in inherited fn `new_child`
-  --> $DIR/property_already_captured_inherited3.rs:24:32
-   |
-24 |     fn new(child: impl UiNode, margin: impl IntoVar<SideOffsets>) {
-   |                                ^^^^^^

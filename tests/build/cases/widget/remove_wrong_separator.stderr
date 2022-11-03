@@ -1,5 +1,0 @@
-error: expected `;`
- --> $DIR/remove_wrong_separator.rs:8:34
-  |
-8 |         remove { background_color, padding }
-  |                                  ^

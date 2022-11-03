@@ -7,7 +7,9 @@ macro_rules! foo {
 pub use crate::foo;
 
 #[widget($crate::foo)]
-pub mod foo {}
+pub mod foo {
+    inherit!(zero_ui::core::widget_base::base);
+}
 
 // #[widget] expands to another `macro_rules! foo` and `pub use foo;`
 // The full call_site (line 8) gets highlighted here, that is usually

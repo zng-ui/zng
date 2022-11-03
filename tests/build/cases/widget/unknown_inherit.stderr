@@ -1,5 +1,13 @@
 error[E0433]: failed to resolve: could not find `not` in the crate root
- --> $DIR/unknown_inherit.rs:5:21
+ --> cases/widget/unknown_inherit.rs:5:21
   |
 5 |     inherit!(super::not::a::thing);
   |                     ^^^ could not find `not` in the crate root
+
+error[E0432]: unresolved import `super`
+ --> cases/widget/unknown_inherit.rs:3:1
+  |
+3 | #[widget($crate::test_widget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `__build__` in `test_widget`
+  |
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)

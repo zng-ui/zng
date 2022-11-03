@@ -1,5 +1,5 @@
 error: unexpected end of input, expected identifier
- --> $DIR/module_path_malformed1.rs:3:16
+ --> cases/widget/module_path_malformed1.rs:3:16
   |
 3 | #[widget($crate::)]
   |                ^^

@@ -50,6 +50,25 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let mod_path_str = mod_path.to_string().replace(' ', "");
     let mod_path_slug = mod_path_slug(&mod_path_str);
 
+    let val_span = util::last_span(mod_path.clone());
+    let validate_path_ident = ident_spanned!(val_span=> "__widget_path_{mod_path_slug}__");
+    let validate_path = quote_spanned! {val_span=>
+        #[doc(hidden)]
+        #[allow(non_camel_case_types)]
+        pub enum #validate_path_ident { }
+
+        #[doc(hidden)]
+        #[allow(unused)]
+        mod __validate_path__ {
+            macro_rules! #validate_path_ident {
+                () => {
+                    pub use #mod_path::#validate_path_ident;
+                }
+            }
+            #validate_path_ident!{}
+        }
+    };
+
     let WidgetItems {
         uses,
         inherits,
@@ -237,6 +256,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let macro_ident = ident!("__wgt_{}__", mod_path_slug);
 
     let mod_items = quote! {
+        #validate_path
+
         // custom items
         #(#others)*
 
@@ -524,7 +545,11 @@ impl Parse for Properties {
 }
 
 fn mod_path_slug(path: &str) -> String {
-    path.replace("crate", "").replace(':', "").replace('$', "").trim().replace(' ', "_")
+    path.replace("crate", "")
+        .replace("::", "_")
+        .replace('$', "")
+        .trim()
+        .replace(' ', "")
 }
 
 /*

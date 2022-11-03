@@ -1,76 +1,55 @@
-error[E0428]: the name `__foo_stage0_errors_2993199322790550832` is defined multiple times
- --> cases/widget/name_conflict2.rs:6:1
-  |
-3 | #[widget($crate::foo)]
-  | ---------------------- previous definition of the module `__foo_stage0_errors_2993199322790550832` here
-...
-6 | #[widget($crate::foo)]
-  | ^^^^^^^^^^^^^^^^^^^^^^ `__foo_stage0_errors_2993199322790550832` redefined here
-  |
-  = note: `__foo_stage0_errors_2993199322790550832` must be defined only once in the type namespace of this module
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0428]: the name `__foo_assert_mod_path_2993199322790550832` is defined multiple times
- --> cases/widget/name_conflict2.rs:6:1
-  |
-3 | #[widget($crate::foo)]
-  | ---------------------- previous definition of the module `__foo_assert_mod_path_2993199322790550832` here
-...
-6 | #[widget($crate::foo)]
-  | ^^^^^^^^^^^^^^^^^^^^^^ `__foo_assert_mod_path_2993199322790550832` redefined here
-  |
-  = note: `__foo_assert_mod_path_2993199322790550832` must be defined only once in the type namespace of this module
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0428]: the name `foo` is defined multiple times
- --> cases/widget/name_conflict2.rs:6:1
+ --> cases/widget/name_conflict2.rs:9:1
   |
-3 | #[widget($crate::foo)]
-  | ---------------------- previous definition of the module `foo` here
+4 | pub mod foo {
+  | ----------- previous definition of the module `foo` here
 ...
-6 | #[widget($crate::foo)]
-  | ^^^^^^^^^^^^^^^^^^^^^^ `foo` redefined here
+9 | pub mod foo {
+  | ^^^^^^^^^^^ `foo` redefined here
   |
   = note: `foo` must be defined only once in the type namespace of this module
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0428]: the name `__foo_2993199322790550832_final` is defined multiple times
- --> cases/widget/name_conflict2.rs:6:1
+error[E0428]: the name `__wgt__foo__` is defined multiple times
+ --> cases/widget/name_conflict2.rs:8:1
   |
 3 | #[widget($crate::foo)]
-  | ---------------------- previous definition of the macro `__foo_2993199322790550832_final` here
+  | ---------------------- previous definition of the macro `__wgt__foo__` here
 ...
-6 | #[widget($crate::foo)]
-  | ^^^^^^^^^^^^^^^^^^^^^^ `__foo_2993199322790550832_final` redefined here
+8 | #[widget($crate::foo)]
+  | ^^^^^^^^^^^^^^^^^^^^^^ `__wgt__foo__` redefined here
   |
-  = note: `__foo_2993199322790550832_final` must be defined only once in the macro namespace of this module
+  = note: `__wgt__foo__` must be defined only once in the macro namespace of this module
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0428]: the name `__foo_2993199322790550832` is defined multiple times
- --> cases/widget/name_conflict2.rs:6:1
+error[E0252]: the name `foo` is defined multiple times
+ --> cases/widget/name_conflict2.rs:8:1
   |
 3 | #[widget($crate::foo)]
-  | ---------------------- previous definition of the macro `__foo_2993199322790550832` here
+  | ---------------------- previous import of the macro `foo` here
 ...
-6 | #[widget($crate::foo)]
-  | ^^^^^^^^^^^^^^^^^^^^^^ `__foo_2993199322790550832` redefined here
+8 | #[widget($crate::foo)]
+  | ^^^^^^^^^^^^^^^^^^^^^^ `foo` reimported here
   |
-  = note: `__foo_2993199322790550832` must be defined only once in the macro namespace of this module
+  = note: `foo` must be defined only once in the macro namespace of this module
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0659]: `__foo_2993199322790550832_final` is ambiguous
- --> cases/widget/name_conflict2.rs:6:1
+help: you can use `as` to change the binding name of the import
   |
-6 | #[widget($crate::foo)]
+8 | #[widget($crate::foo)] as other_foo
+  |
+
+error[E0659]: `__wgt__foo__` is ambiguous
+ --> cases/widget/name_conflict2.rs:8:1
+  |
+8 | #[widget($crate::foo)]
   | ^^^^^^^^^^^^^^^^^^^^^^ ambiguous name
   |
   = note: ambiguous because of multiple potential import sources
-note: `__foo_2993199322790550832_final` could refer to the macro defined here
- --> cases/widget/name_conflict2.rs:6:1
+note: `__wgt__foo__` could refer to the macro defined here
+ --> cases/widget/name_conflict2.rs:8:1
   |
-6 | #[widget($crate::foo)]
+8 | #[widget($crate::foo)]
   | ^^^^^^^^^^^^^^^^^^^^^^
-note: `__foo_2993199322790550832_final` could also refer to the macro defined here
+note: `__wgt__foo__` could also refer to the macro defined here
  --> cases/widget/name_conflict2.rs:3:1
   |
 3 | #[widget($crate::foo)]
