@@ -2,9 +2,10 @@
 
 * Countdown example background does not change.
     - Refactored to use `WidgetInitId`, better, direct control of when `Contextualized` refreshes.
-    - The "minimal" case now works, and all previous tests and detach button in focus example.
-    - But countdown still fails..
-    - Minimal case fails again if one of the double-maps is inited in a different context id.
+    - Problem caused by `Contextualized` ending up shared using an external `Rc`.
+        - "Fixed" by letting `Contextualized` track more than one `actual`.
+            - Need to investigate how we will do cleanup.
+            - Check if there a common pattern that causes this map to keep growing.
 
 
 * Refactor to minimal docs generation that does not require custom post-processing?

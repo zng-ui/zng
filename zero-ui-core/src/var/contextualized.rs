@@ -23,8 +23,7 @@ use super::*;
 pub struct ContextualizedVar<T, S> {
     _type: PhantomData<T>,
     init: Rc<dyn Fn() -> S>,
-    init_id: Cell<Option<ContextInitId>>,
-    actual: RefCell<Option<S>>,
+    actual: RefCell<Vec<(ContextInitId, S)>>,
 }
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// New with initialization function.
@@ -35,32 +34,38 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         Self {
             _type: PhantomData,
             init,
-            init_id: Cell::new(None),
-            actual: RefCell::new(None),
+            actual: RefCell::new(Vec::with_capacity(1)),
         }
     }
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> Ref<S> {
-        let current_ctx_id = Some(ContextInitId::current());
-        if self.init_id.get() == current_ctx_id {
-            let act = self.actual.borrow();
-            return Ref::map(act, |opt| opt.as_ref().unwrap());
-        }
-
-        let act = (self.init)();
-        *self.actual.borrow_mut() = Some(act);
-        self.init_id.set(current_ctx_id);
+        let current_ctx_id = ContextInitId::current();
 
         let act = self.actual.borrow();
-        Ref::map(act, |opt| opt.as_ref().unwrap())
+        if let Some(i) = act.iter().position(|(id, _)| *id == current_ctx_id) {
+            return Ref::map(act, move |m| &m[i].1);
+        }
+        drop(act);
+
+        let mut act = self.actual.borrow_mut();
+        let i = act.len();
+        act.push((current_ctx_id, (self.init)()));
+        drop(act);
+
+        let act = self.actual.borrow();
+        Ref::map(act, move |m| &m[i].1)
     }
 
     /// Unwraps the initialized actual var or initializes it now.
     pub fn into_init(self) -> S {
-        match self.actual.into_inner() {
-            Some(s) => s,
-            _ => (self.init)(),
+        let mut act = self.actual.into_inner();
+        let current_ctx_id = ContextInitId::current();
+
+        if let Some(i) = act.iter().position(|(id, _)| *id == current_ctx_id) {
+            act.swap_remove(i).1
+        } else {
+            (self.init)()
         }
     }
 }
@@ -82,7 +87,6 @@ impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
         Self {
             _type: PhantomData,
             init: self.init.clone(),
-            init_id: self.init_id.clone(),
             actual: self.actual.clone(),
         }
     }
@@ -214,8 +218,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
     }
 
     fn actual_var(self) -> Self::ActualVar {
-        self.borrow_init();
-        self.actual.into_inner().unwrap().actual_var()
+        self.into_init().actual_var()
     }
 
     fn downgrade(&self) -> Self::Downgrade {
@@ -223,10 +226,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
     }
 
     fn into_value(self) -> T {
-        match self.actual.into_inner() {
-            Some(act) => act.into_value(),
-            _ => (self.init)().into_value(),
-        }
+        self.into_init().into_value()
     }
 
     fn read_only(&self) -> Self::ReadOnly {
