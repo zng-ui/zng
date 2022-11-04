@@ -89,7 +89,14 @@ impl ContextInitId {
 }
 impl fmt::Debug for ContextInitId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ContextInitId").field(&self.sequential()).finish()
+        if f.alternate() {
+            f.debug_struct("ContextInitId")
+                .field("raw", &self.get())
+                .field("sequential", &self.sequential())
+                .finish()
+        } else {
+            f.debug_tuple("ContextInitId").field(&self.sequential()).finish()
+        }
     }
 }
 
