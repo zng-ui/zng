@@ -49,15 +49,17 @@ on use a new var is generated in mapped
     the new var is strong in mapped
     the new var is weak in source
 
-on use a new var is generaed in mapped2
+on use a new var is generated in mapped2
     the new var is strong in mapped2
     the new var is weak in the (mapped new var)
+
+problem -> mapped2_copy overrides init_id of the already inited mapped2, inside mapped
 
 WHEN mapped2_copy inits:
 
 a new var is generated in mapped2_copy
     the new var is strong in mapped2_copy
-    the new var is wrak in the (mapped new var)
+    the new var is weak in the (mapped new var)
 
 traced a hook drop due to weak reference not strongly held anywere.
 ```
