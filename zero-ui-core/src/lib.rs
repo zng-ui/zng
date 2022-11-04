@@ -419,7 +419,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// # More Details
 ///
 /// See [`property_id!`] and [`property_args!`] for more details about what kind of meta-code is generated for properties.
-/// 
+///
 /// [`Priority`]: crate::widget_builder::Priority
 /// [`property_id!`]: crate::widget_builder::property_id
 /// [`property_args!`]: crate::widget_builder::property_args

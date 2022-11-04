@@ -45,6 +45,7 @@ fn app_main() {
                 r
             }));
 
+            /*
             icon = WindowIcon::render(move |_,| container! {
                 zero_ui::core::image::render_retain = true;
 
@@ -58,6 +59,7 @@ fn app_main() {
 
                 child = text(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
             });
+            */
         }
     })
 }

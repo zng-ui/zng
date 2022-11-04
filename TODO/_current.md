@@ -1,14 +1,49 @@
 # All Dyn Rewrite
 
+* Countdown animation did not work.
+    - If the icon is removed it works..
+    - Disabling `INIT_CONTEXT` works.
+Minimal:
+```rust
+use zero_ui::prelude::*;
+
+fn main() {
+    let mut app = App::default().run_headless(false);
+
+    let source = var(0u32);
+    let mapped = source.map(|n| n + 1);
+    let mapped2 = mapped.map(|n| n - 1); // double contextual here.
+    let mapped2_copy = mapped2.clone();
+
+    // init, same effect as subscribe in widgets, the last to init breaks the other.
+    assert_eq!(0, mapped2.get());
+    assert_eq!(0, mapped2_copy.get());
+
+    source.set(&app, 10u32);
+    let mut updated = false;
+    app.update_observe(
+        |ctx| {
+            updated = true;
+            assert_eq!(Some(10), mapped2.get_new(ctx));
+            assert_eq!(Some(10), mapped2_copy.get_new(ctx));
+        },
+        false,
+    )
+    .assert_wait();
+
+    assert!(updated);
+}
+```
+
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
-* Test all.
-* Test build all.
 * Merge.
 
 # Other
 
+* Update Rust, dependencies.
 * Update webrender to fx-106
+    - https://github.com/servo/webrender/pull/4724
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.
 
