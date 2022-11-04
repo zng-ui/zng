@@ -1,6 +1,6 @@
 use std::{cell::Ref, marker::PhantomData, rc::Weak};
 
-use super::*;
+use super::{types::WeakContextInitHandle, *};
 
 /// Represents a variable that delays initialization until the first usage.
 ///
@@ -23,7 +23,7 @@ use super::*;
 pub struct ContextualizedVar<T, S> {
     _type: PhantomData<T>,
     init: Rc<dyn Fn() -> S>,
-    actual: RefCell<Vec<(ContextInitId, S)>>,
+    actual: RefCell<Vec<(WeakContextInitHandle, S)>>,
 }
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// New with initialization function.
@@ -40,17 +40,18 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> Ref<S> {
-        let current_ctx_id = ContextInitId::current();
+        let current_ctx = ContextInitHandle::current().downgrade();
 
         let act = self.actual.borrow();
-        if let Some(i) = act.iter().position(|(id, _)| *id == current_ctx_id) {
+        if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
             return Ref::map(act, move |m| &m[i].1);
         }
         drop(act);
 
         let mut act = self.actual.borrow_mut();
+        act.retain(|(h, _)| h.is_alive());
         let i = act.len();
-        act.push((current_ctx_id, (self.init)()));
+        act.push((current_ctx, (self.init)()));
         drop(act);
 
         let act = self.actual.borrow();
@@ -60,9 +61,9 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// Unwraps the initialized actual var or initializes it now.
     pub fn into_init(self) -> S {
         let mut act = self.actual.into_inner();
-        let current_ctx_id = ContextInitId::current();
+        let current_ctx = ContextInitHandle::current().downgrade();
 
-        if let Some(i) = act.iter().position(|(id, _)| *id == current_ctx_id) {
+        if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
             act.swap_remove(i).1
         } else {
             (self.init)()
@@ -84,11 +85,16 @@ impl<T: VarValue, S: Var<T>> WeakContextualizedVar<T, S> {
 
 impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
     fn clone(&self) -> Self {
-        Self {
-            _type: PhantomData,
-            init: self.init.clone(),
-            actual: self.actual.clone(),
+        let current_ctx_id = ContextInitHandle::current().downgrade();
+        let act = self.actual.borrow();
+        if let Some(i) = act.iter().position(|(id, _)| *id == current_ctx_id) {
+            return Self {
+                _type: PhantomData,
+                init: self.init.clone(),
+                actual: RefCell::new(vec![act[i].clone()]),
+            };
         }
+        Self::new(self.init.clone())
     }
 }
 impl<T: VarValue, S: Var<T>> Clone for WeakContextualizedVar<T, S> {
@@ -286,7 +292,7 @@ mod tests {
 
         // init, same effect as subscribe in widgets, the last to init breaks the other.
         assert_eq!(0, mapped2.get());
-        let other_ctx = ContextInitId::new_unique();
+        let other_ctx = ContextInitHandle::new();
         other_ctx.with_context(|| {
             assert_eq!(0, mapped2_copy.get());
         });

@@ -1,13 +1,5 @@
 # All Dyn Rewrite
 
-* Countdown example background does not change.
-    - Refactored to use `WidgetInitId`, better, direct control of when `Contextualized` refreshes.
-    - Problem caused by `Contextualized` ending up shared using an external `Rc`.
-        - "Fixed" by letting `Contextualized` track more than one `actual`.
-            - Need to investigate how we will do cleanup.
-            - Check if there a common pattern that causes this map to keep growing.
-
-
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
 * Merge.

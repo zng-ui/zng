@@ -43,7 +43,7 @@ mod tests;
 pub use animation::easing;
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
-pub use context::{context_var, with_context_var, with_context_var_init, ContextInitId, ContextVar, ReadOnlyContextVar};
+pub use context::{context_var, with_context_var, with_context_var_init, ContextInitHandle, ContextVar, ReadOnlyContextVar};
 pub use expr::expr_var;
 pub use local::LocalVar;
 pub use merge::merge_var;
@@ -59,7 +59,7 @@ use crate::{context::Updates, widget_instance::WidgetId};
 /// Other variable types.
 pub mod types {
     pub use super::boxed::{VarBoxed, WeakVarBoxed};
-    pub use super::context::{with_new_context_init_id, ContextData};
+    pub use super::context::{with_new_context_init_id, ContextData, WeakContextInitHandle};
     pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
     pub use super::cow::{RcCowVar, WeakCowVar};
     pub use super::expr::__expr_var;

@@ -586,9 +586,9 @@ mod context {
     #[test]
     fn context_var_map_moved_app_ctx() {
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        let (_, a) = TEST_VAR.with_context(ContextInitId::new_unique(), "A", || mapped.get());
+        let (_, a) = TEST_VAR.with_context(ContextInitHandle::new(), "A", || mapped.get());
 
-        let (_, b) = TEST_VAR.with_context(ContextInitId::new_unique(), "B", || mapped.get());
+        let (_, b) = TEST_VAR.with_context(ContextInitHandle::new(), "B", || mapped.get());
 
         assert_ne!(a, b);
     }
@@ -619,7 +619,7 @@ mod context {
 
         let ctx = app.ctx();
 
-        TEST_VAR.with_context(ContextInitId::new_unique(), backing_var.clone(), || {
+        TEST_VAR.with_context(ContextInitHandle::new(), backing_var.clone(), || {
             let t = TEST_VAR;
             assert!(t.capabilities().contains(VarCapabilities::MODIFY));
             t.set(ctx.vars, "set!").unwrap();
