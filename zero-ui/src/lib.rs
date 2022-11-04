@@ -922,7 +922,8 @@ pub mod prelude {
         },
         var::{
             animation::{self, easing},
-            expr_var, merge_var, state_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, VarValue, Vars,
+            expr_var, merge_var, state_var, var, var_default, var_from, AnyVar, IntoVar, RcVar, Var, VarReceiver, VarSender, VarValue,
+            Vars,
         },
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility, WidgetPath},

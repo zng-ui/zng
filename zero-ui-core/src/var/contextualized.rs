@@ -4,10 +4,38 @@ use super::*;
 
 crate::context::context_value! {
     /// Signal for nested ContextualizedVar.
-    static INIT_CONTEXT: bool = false;
+    static INIT_CONTEXT: Option<u32> = None;
 }
-fn init<S>(init: &dyn Fn() -> S) -> S {
-    INIT_CONTEXT.with_context(&mut Some(true), init)
+thread_local! {
+    static INIT_ID: Cell<u32> = Cell::new(0);
+}
+
+fn need_init(id: &Cell<u32>) -> bool {
+    if let Some(ctx_id) = INIT_CONTEXT.get() {
+        let need = id.get() != ctx_id;
+        id.set(ctx_id);
+        need
+    } else if id.get() == 0 {
+        INIT_ID.with(|gen_id| {
+            let mut gen = gen_id.get().wrapping_add(1);
+            if gen == 0 {
+                gen = 1;
+            }
+            gen_id.set(gen);
+            id.set(gen);
+        });
+        true
+    } else {
+        false
+    }
+}
+
+fn init<R>(id: u32, f: impl FnOnce() -> R) -> R {
+    if INIT_CONTEXT.get().is_some() {
+        f()
+    } else {
+        INIT_CONTEXT.with_context_opt(&mut Some(id), f)
+    }
 }
 
 /// Represents a variable that delays initialization until the first usage.
@@ -31,6 +59,7 @@ fn init<S>(init: &dyn Fn() -> S) -> S {
 pub struct ContextualizedVar<T, S> {
     _type: PhantomData<T>,
     init: Rc<dyn Fn() -> S>,
+    init_id: Cell<u32>,
     actual: RefCell<Option<S>>,
 }
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
@@ -42,20 +71,19 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         Self {
             _type: PhantomData,
             init,
+            init_id: Cell::new(0),
             actual: RefCell::new(None),
         }
     }
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> Ref<S> {
-        let act = self.actual.borrow();
-        if act.is_some() && !INIT_CONTEXT.get() {
+        if !need_init(&self.init_id) {
+            let act = self.actual.borrow();
             return Ref::map(act, |opt| opt.as_ref().unwrap());
         }
 
-        drop(act);
-
-        let act = init(&*self.init);
+        let act = init(self.init_id.get(), &*self.init);
         *self.actual.borrow_mut() = Some(act);
 
         let act = self.actual.borrow();
@@ -65,8 +93,8 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// Unwraps the initialized actual var or initializes it now.
     pub fn into_init(self) -> S {
         match self.actual.into_inner() {
-            Some(s) if !INIT_CONTEXT.get() => s,
-            _ => init(&*self.init),
+            Some(s) => s,
+            _ => (self.init)(),
         }
     }
 
@@ -96,6 +124,7 @@ impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
         Self {
             _type: PhantomData,
             init: self.init.clone(),
+            init_id: Cell::new(0),
             actual: RefCell::new(None),
         }
     }
@@ -237,8 +266,8 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
 
     fn into_value(self) -> T {
         match self.actual.into_inner() {
-            Some(act) if !INIT_CONTEXT.get() => act.into_value(),
-            _ => init(&*self.init).into_value(),
+            Some(act) => act.into_value(),
+            _ => (self.init)().into_value(),
         }
     }
 
