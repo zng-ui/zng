@@ -1,68 +1,10 @@
 # All Dyn Rewrite
 
-* Countdown animation did not work.
-    - If the icon is removed it works..
-    - Disabling `INIT_CONTEXT` works.
-Minimal:
-```rust
-use zero_ui::prelude::*;
+* Countdown example background does not change.
+    - Refactored to use `WidgetInitId`, better, direct control of when `Contextualized` refreshes.
+    - The "minimal" case now works, and all previous tests and detach button in focus example.
+    - But countdown still fails..
 
-fn main() {
-    let mut app = App::default().run_headless(false);
-
-    let source = var(0u32);
-    let mapped = source.map(|n| n + 1);
-    let mapped2 = mapped.map(|n| n - 1); // double contextual here.
-    let mapped2_copy = mapped2.clone();
-
-    // init, same effect as subscribe in widgets, the last to init breaks the other.
-    assert_eq!(0, mapped2.get());
-    assert_eq!(0, mapped2_copy.get());
-
-    source.set(&app, 10u32);
-    let mut updated = false;
-    app.update_observe(
-        |ctx| {
-            updated = true;
-            assert_eq!(Some(10), mapped2.get_new(ctx));
-            assert_eq!(Some(10), mapped2_copy.get_new(ctx));
-        },
-        false,
-    )
-    .assert_wait();
-
-    assert!(updated);
-}
-```
-
-```txt
-mapped2      -> mapped -> source
-mapped2_copy -> mapped -> source
-
-mapped -> source
-source is strong in mapped (held by contextualized init closure).
-
-mapped2 -> mapped
-mapped is strong in mapped2 (held by contextualized init closure).
-
-on use a new var is generated in mapped
-    the new var is strong in mapped
-    the new var is weak in source
-
-on use a new var is generated in mapped2
-    the new var is strong in mapped2
-    the new var is weak in the (mapped new var)
-
-problem -> mapped2_copy overrides init_id of the already inited mapped2, inside mapped
-
-WHEN mapped2_copy inits:
-
-a new var is generated in mapped2_copy
-    the new var is strong in mapped2_copy
-    the new var is weak in the (mapped new var)
-
-traced a hook drop due to weak reference not strongly held anywere.
-```
 
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.

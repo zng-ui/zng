@@ -62,6 +62,32 @@ macro_rules! context_var {
 #[doc(inline)]
 pub use crate::context_var;
 
+unique_id_64! {
+    /// Identifies the unique context a [`ContextualizedVar`] is in.
+    ///
+    /// Each node that sets context-vars have an unique ID, it is different after each (re)init. The [`ContextualizedVar`]
+    /// records this ID, and rebuilds when it has changed.
+    ///
+    /// [`ContextualizedVar`]: crate::var::types::ContextualizedVar
+    pub struct ContextInitId;
+}
+crate::context_value! {
+    static CONTEXT_INIT_ID: ContextInitId = ContextInitId::new_unique();
+}
+impl ContextInitId {
+    /// Gets the current context ID.
+    pub fn current() -> Self {
+        CONTEXT_INIT_ID.get()
+    }
+
+    /// Runs `action` with `self` as the current context ID.
+    ///
+    /// Note that [`ContextVar::with_context`] already calls this method.
+    pub fn with_context<R>(self, action: impl FnOnce() -> R) -> R {
+        CONTEXT_INIT_ID.with_context(&mut Some(self), action)
+    }
+}
+
 struct ContextEntry<T> {
     var: BoxedVar<T>,
     busy: Cell<bool>,
@@ -106,9 +132,9 @@ impl<T: VarValue> ContextVar<T> {
     /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
     ///
     /// [contextualized]: types::ContextualizedVar
-    pub fn with_context<R>(self, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
+    pub fn with_context<R>(self, id: ContextInitId, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
         self.push_context(var.into_var().actual_var().boxed());
-        let r = action();
+        let r = id.with_context(action);
         let var = self.pop_context();
         (var, r)
     }
@@ -360,20 +386,25 @@ mod helpers {
         #[ui_node(struct WithContextVarNode<T: VarValue> {
             child: impl UiNode,
             context_var: ContextVar<T>,
+            id: Option<ContextInitId>,
             value: RefCell<Option<BoxedVar<T>>>,
         })]
         impl WithContextVarNode {
             fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
                 let mut value = self.value.borrow_mut();
                 let var = value.take().unwrap();
-                let (var, r) = self.context_var.with_context(var, move || mtd(&self.child));
+                let (var, r) = self
+                    .context_var
+                    .with_context(self.id.expect("node not inited"), var, move || mtd(&self.child));
                 *value = Some(var);
                 r
             }
 
             fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
                 let var = self.value.get_mut().take().unwrap();
-                let (var, r) = self.context_var.with_context(var, || mtd(&mut self.child));
+                let (var, r) = self
+                    .context_var
+                    .with_context(*self.id.get_or_insert_with(ContextInitId::new_unique), var, || mtd(&mut self.child));
                 *self.value.get_mut() = Some(var);
                 r
             }
@@ -385,7 +416,8 @@ mod helpers {
 
             #[UiNode]
             fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.deinit(ctx))
+                self.with_mut(|c| c.deinit(ctx));
+                self.id = None;
             }
 
             #[UiNode]
@@ -426,6 +458,7 @@ mod helpers {
         WithContextVarNode {
             child: child.cfg_boxed(),
             context_var,
+            id: None,
             value: RefCell::new(Some(value.into_var().boxed())),
         }
     }
@@ -444,6 +477,7 @@ mod helpers {
         #[ui_node(struct WithContextVarInitNode<T: VarValue> {
             child: impl UiNode,
             context_var: ContextVar<T>,
+            id: Option<ContextInitId>,
             init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
             value: RefCell<Option<BoxedVar<T>>>,
         })]
@@ -451,14 +485,18 @@ mod helpers {
             fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
                 let mut value = self.value.borrow_mut();
                 let var = value.take().unwrap();
-                let (var, r) = self.context_var.with_context(var, move || mtd(&self.child));
+                let (var, r) = self
+                    .context_var
+                    .with_context(self.id.expect("node not inited"), var, move || mtd(&self.child));
                 *value = Some(var);
                 r
             }
 
             fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
                 let var = self.value.get_mut().take().unwrap();
-                let (var, r) = self.context_var.with_context(var, || mtd(&mut self.child));
+                let (var, r) = self
+                    .context_var
+                    .with_context(*self.id.get_or_insert_with(ContextInitId::new_unique), var, || mtd(&mut self.child));
                 *self.value.get_mut() = Some(var);
                 r
             }
@@ -513,8 +551,81 @@ mod helpers {
         WithContextVarInitNode {
             child: child.cfg_boxed(),
             context_var: var,
+            id: None,
             init_value,
             value: RefCell::new(None),
+        }
+        .cfg_boxed()
+    }
+
+    /// Wraps `child` in a node that provides a unique [`ContextInitId`], refreshed every (re)init.
+    ///
+    /// Note that [`with_context_var`] and [`with_context_var_init`] already provide an unique ID.
+    pub fn with_new_context_init_id(child: impl UiNode) -> impl UiNode {
+        #[ui_node(struct WithNewContextInitIdNode {
+            child: impl UiNode,
+            id: Option<ContextInitId>,
+        })]
+        impl WithNewContextInitIdNode {
+            fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
+                self.id.expect("node not inited").with_context(|| mtd(&self.child))
+            }
+
+            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
+                self.id
+                    .get_or_insert_with(ContextInitId::new_unique)
+                    .with_context(|| mtd(&mut self.child))
+            }
+
+            #[UiNode]
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                self.with(|c| c.info(ctx, info));
+            }
+
+            #[UiNode]
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.with_mut(|c| c.init(ctx));
+            }
+
+            #[UiNode]
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.with_mut(|c| c.deinit(ctx));
+                self.id = None;
+            }
+
+            #[UiNode]
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.with_mut(|c| c.update(ctx, updates));
+            }
+
+            #[UiNode]
+            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+                self.with_mut(|c| c.event(ctx, update));
+            }
+
+            #[UiNode]
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                self.with(|c| c.measure(ctx))
+            }
+
+            #[UiNode]
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                self.with_mut(|c| c.layout(ctx, wl))
+            }
+
+            #[UiNode]
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                self.with(|c| c.render(ctx, frame));
+            }
+
+            #[UiNode]
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                self.with(|c| c.render_update(ctx, update));
+            }
+        }
+        WithNewContextInitIdNode {
+            child: child.cfg_boxed(),
+            id: None,
         }
         .cfg_boxed()
     }

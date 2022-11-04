@@ -1807,6 +1807,9 @@ impl WidgetBuilding {
                 .boxed();
         }
 
+        // ensure `when` reuse works, by forcing input refresh on (re)init.
+        node = types::with_new_context_init_id(node).boxed();
+
         node
     }
 }

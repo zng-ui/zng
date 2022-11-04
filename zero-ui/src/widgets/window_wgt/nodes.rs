@@ -111,6 +111,7 @@ impl WindowLayers {
 
             spatial_id: SpatialFrameId,
             transform_key: FrameValueKey<PxTransform>,
+            corner_radius_id: Option<ContextInitId>,
         }
         #[ui_node(
                 delegate = &self.widget,
@@ -162,6 +163,7 @@ impl WindowLayers {
                 self.anchor_info = None;
                 self.info_changed_handle = None;
                 self.widget.deinit(ctx);
+                self.corner_radius_id = None;
             }
 
             fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -249,7 +251,9 @@ impl WindowLayers {
                                         cr = cr.deflate(border.offsets());
                                     }
                                     CORNER_RADIUS_VAR
-                                        .with_context(cr, || ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl)))
+                                        .with_context(*self.corner_radius_id.get_or_insert_with(ContextInitId::new_unique), cr, || {
+                                            ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl))
+                                        })
                                         .1
                                 } else {
                                     self.widget.layout(ctx, wl)
@@ -417,6 +421,7 @@ impl WindowLayers {
 
                 transform_key: FrameValueKey::new_unique(),
                 spatial_id: SpatialFrameId::new_unique(),
+                corner_radius_id: None,
             },
         );
     }

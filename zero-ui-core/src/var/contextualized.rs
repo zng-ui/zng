@@ -2,46 +2,10 @@ use std::{cell::Ref, marker::PhantomData, rc::Weak};
 
 use super::*;
 
-crate::context::context_value! {
-    /// Signal for nested ContextualizedVar.
-    static INIT_CONTEXT: Option<u32> = None;
-}
-thread_local! {
-    static INIT_ID: Cell<u32> = Cell::new(0);
-}
-
-fn need_init(id: &Cell<u32>) -> bool {
-    if let Some(ctx_id) = INIT_CONTEXT.get() {
-        let need = id.get() != ctx_id;
-        id.set(ctx_id);
-        need
-    } else if id.get() == 0 {
-        INIT_ID.with(|gen_id| {
-            let mut gen = gen_id.get().wrapping_add(1);
-            if gen == 0 {
-                gen = 1;
-            }
-            gen_id.set(gen);
-            id.set(gen);
-        });
-        true
-    } else {
-        false
-    }
-}
-
-fn init<R>(id: u32, f: impl FnOnce() -> R) -> R {
-    if INIT_CONTEXT.get().is_some() {
-        f()
-    } else {
-        INIT_CONTEXT.with_context_opt(&mut Some(id), f)
-    }
-}
-
 /// Represents a variable that delays initialization until the first usage.
 ///
 /// Usage that initializes the variable are all [`AnyVar`] and [`Var<T>`] methods except `read_only`, `downgrade` and `boxed`.
-/// Clones of this variable are always not initialized and re-init on first usage.
+/// The variable re-initializes when the [`ContextInitId::current`] is different on usage.
 ///
 /// This variable is used in the [`Var::map`] and other mapping methods to support mapping from [`ContextVar<T>`].
 ///
@@ -59,7 +23,7 @@ fn init<R>(id: u32, f: impl FnOnce() -> R) -> R {
 pub struct ContextualizedVar<T, S> {
     _type: PhantomData<T>,
     init: Rc<dyn Fn() -> S>,
-    init_id: Cell<u32>,
+    init_id: Cell<Option<ContextInitId>>,
     actual: RefCell<Option<S>>,
 }
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
@@ -71,20 +35,22 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         Self {
             _type: PhantomData,
             init,
-            init_id: Cell::new(0),
+            init_id: Cell::new(None),
             actual: RefCell::new(None),
         }
     }
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> Ref<S> {
-        if !need_init(&self.init_id) {
+        let current_ctx_id = Some(ContextInitId::current());
+        if self.init_id.get() == current_ctx_id {
             let act = self.actual.borrow();
             return Ref::map(act, |opt| opt.as_ref().unwrap());
         }
 
-        let act = init(self.init_id.get(), &*self.init);
+        let act = (self.init)();
         *self.actual.borrow_mut() = Some(act);
+        self.init_id.set(current_ctx_id);
 
         let act = self.actual.borrow();
         Ref::map(act, |opt| opt.as_ref().unwrap())
@@ -96,14 +62,6 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
             Some(s) => s,
             _ => (self.init)(),
         }
-    }
-
-    /// Clone the variable initialization, but not the inited actual var, the clone can than
-    /// be inited in a different context.
-    #[allow(clippy::should_implement_trait)]
-    pub fn clone(&self) -> Self {
-        // highlight docs and removes "redundant" clone warnings.
-        Clone::clone(self)
     }
 }
 
@@ -124,8 +82,8 @@ impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
         Self {
             _type: PhantomData,
             init: self.init.clone(),
-            init_id: Cell::new(0),
-            actual: RefCell::new(None),
+            init_id: self.init_id.clone(),
+            actual: self.actual.clone(),
         }
     }
 }
@@ -280,5 +238,40 @@ impl<T: VarValue, S: Var<T>> WeakVar<T> for WeakContextualizedVar<T, S> {
 
     fn upgrade(&self) -> Option<Self::Upgrade> {
         self.init.upgrade().map(ContextualizedVar::new)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::app::App;
+
+    use super::*;
+
+    #[test]
+    fn nested_contextualized_vars() {
+        let mut app = App::default().run_headless(false);
+
+        let source = var(0u32);
+        let mapped = source.map(|n| n + 1);
+        let mapped2 = mapped.map(|n| n - 1); // double contextual here.
+        let mapped2_copy = mapped2.clone();
+
+        // init, same effect as subscribe in widgets, the last to init breaks the other.
+        assert_eq!(0, mapped2.get());
+        assert_eq!(0, mapped2_copy.get());
+
+        source.set(&app, 10u32);
+        let mut updated = false;
+        app.update_observe(
+            |ctx| {
+                updated = true;
+                assert_eq!(Some(10), mapped2.get_new(ctx));
+                assert_eq!(Some(10), mapped2_copy.get_new(ctx));
+            },
+            false,
+        )
+        .assert_wait();
+
+        assert!(updated);
     }
 }
