@@ -1,9 +1,3 @@
-# All Dyn Rewrite
-
-* Merge.
-
-# Other
-
 * Update Rust, dependencies.
 * Update webrender to fx-106
     - https://github.com/servo/webrender/pull/4724
