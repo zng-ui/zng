@@ -87,6 +87,11 @@ impl ContextInitId {
         CONTEXT_INIT_ID.with_context(&mut Some(self), action)
     }
 }
+impl fmt::Debug for ContextInitId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ContextInitId").field(&self.sequential()).finish()
+    }
+}
 
 struct ContextEntry<T> {
     var: BoxedVar<T>,
