@@ -35,6 +35,33 @@ fn main() {
 }
 ```
 
+```txt
+mapped2      -> mapped -> source
+mapped2_copy -> mapped -> source
+
+mapped -> source
+source is strong in mapped (held by contextualized init closure).
+
+mapped2 -> mapped
+mapped is strong in mapped2 (held by contextualized init closure).
+
+on use a new var is generated in mapped
+    the new var is strong in mapped
+    the new var is weak in source
+
+on use a new var is generaed in mapped2
+    the new var is strong in mapped2
+    the new var is weak in the (mapped new var)
+
+WHEN mapped2_copy inits:
+
+a new var is generated in mapped2_copy
+    the new var is strong in mapped2_copy
+    the new var is wrak in the (mapped new var)
+
+traced a hook drop due to weak reference not strongly held anywere.
+```
+
 * Refactor to minimal docs generation that does not require custom post-processing?
 * Update docs of new macros.
 * Merge.
