@@ -5,7 +5,7 @@ use super::{types::WeakContextInitHandle, *};
 /// Represents a variable that delays initialization until the first usage.
 ///
 /// Usage that initializes the variable are all [`AnyVar`] and [`Var<T>`] methods except `read_only`, `downgrade` and `boxed`.
-/// The variable re-initializes when the [`ContextInitId::current`] is different on usage.
+/// The variable re-initializes when the [`ContextInitHandle::current`] is different on usage.
 ///
 /// This variable is used in the [`Var::map`] and other mapping methods to support mapping from [`ContextVar<T>`].
 ///

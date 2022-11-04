@@ -1,7 +1,5 @@
 # All Dyn Rewrite
 
-* Refactor to minimal docs generation that does not require custom post-processing?
-* Update docs of new macros.
 * Merge.
 
 # Other
@@ -36,3 +34,5 @@
 * Review `IntoVar` and `IntoVarValue` constrains, we don't need then to be debug/clone anymore?
 * Const errors don't show if  there is a compile error, so the when `!foo::ALLOWED_IN_WHEN_EXPR` does not show.
     - Generate a placeholder `__w_0__`?
+* Refactor to minimal docs generation that does not require custom post-processing?
+* Update docs of new macros.
