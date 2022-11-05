@@ -69,15 +69,14 @@ fn install(mut args: Vec<&str>) {
 
 // do doc [-o, --open] [<cargo-doc-args>]
 //        [-s, --serve]
-//        [--no-post]
 //
 //    Generate documentation for zero-ui crates.
 //
 // USAGE:
 //     doc -o
 //         Generate docs, then open the `zero-ui` crate on the browser.
-//     doc --no-post -s -o
-//         Generate docs, don't do post-processing, then start `basic-http-server` on the docs and open
+//     doc -s -o
+//         Generate docs, then start `basic-http-server` on the docs and open
 //         the served URL on the browser.
 //
 //         Note: `basic-http-server` can be installed with cargo,
@@ -94,25 +93,12 @@ fn doc(mut args: Vec<&str>) {
 
     let serve = take_flag(&mut args, &["-s", "--serve"]);
 
-    let no_post = take_flag(&mut args, &["--no-post"]);
-
     cmd_env_req(
         "cargo",
-        &["+nightly", "doc", "--all-features", "--no-deps", "--package", "zero-ui*"],
+        &["doc", "--all-features", "--no-deps", "--package", "zero-ui*"],
         &args,
-        &[(
-            "RUSTDOCFLAGS",
-            "--cfg doc_nightly --cfg do_doc --html-in-header target/doc/zero-ui-extensions.html",
-        )],
+        &[],
     );
-
-    if !no_post {
-        cmd(
-            "cargo",
-            &["run", "--release", "-p", "zero-ui-docs", "--features", "post", "--", "target/doc"],
-            &[],
-        )
-    }
 
     let server = if serve {
         Some(std::thread::spawn(|| {

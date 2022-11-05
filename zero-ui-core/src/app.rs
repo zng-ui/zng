@@ -190,7 +190,6 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// [layout]: #3-layout
 /// [render]: #5-render
 /// [`RAW_FRAME_RENDERED_EVENT`]: raw_events::RAW_FRAME_RENDERED_EVENT
-#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait AppExtension: 'static {
     /// Type id of this extension.
     fn id(&self) -> TypeId {

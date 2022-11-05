@@ -19,7 +19,6 @@
 
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
-#![cfg_attr(doc_nightly, feature(doc_cfg))]
 
 use std::fmt;
 

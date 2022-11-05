@@ -981,7 +981,6 @@ impl<'a> From<&'a TestTempDir> for std::path::PathBuf {
 ///
 /// Panics if another different subscriber is already set.
 #[cfg(any(test, feature = "test_util"))]
-#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub fn test_log() {
     use std::sync::atomic::*;
 

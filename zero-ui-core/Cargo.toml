@@ -60,18 +60,6 @@ trace_widget = []
 # Note that this can cause very large trace files and bad performance.
 trace_wgt_item = []
 
-# # Other Features
-#
-# ## `doc_nightly`
-#
-# Activates nightly only `rustdoc` features. The crate is already configured to use this feature
-# in "docs.rs" and `do doc`.
-# 
-# Use `#![cfg_attr(doc_nightly, feature(doc_foo))]` in the `lib.rs` to activate a `rustdoc` feature. Then
-# use `#[cfg_attr(doc_nightly, doc(foo))]` in an item.
-# 
-# Use `RUSTDOCFLAGS="--cfg doc_nightly" cargo +nightly doc` to run `cargo doc` without using `do`.
-
 [dependencies]
 # local
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
@@ -131,8 +119,3 @@ pretty_assertions = "1"
 
 [build-dependencies]
 zero-ui-docs =  { path = "../zero-ui-docs" }
-
-[package.metadata.docs.rs]
-all-features = true
-targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
-rustdoc-args = ["--cfg", "doc_nightly", "--html-in-header", "target/doc/zero-ui-extensions.html"]

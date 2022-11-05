@@ -1,4 +1,3 @@
-#![cfg_attr(doc_nightly, feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
 #![doc(test(no_crate_inject))]
 //! View-Process implementation using [`glutin`].
@@ -105,21 +104,6 @@ use winit::{
     platform::run_return::EventLoopExtRunReturn,
 };
 
-// /*
-
-/// "do doc" only `webrender` re-export, for zero-ui developers.
-///
-#[cfg(do_doc)]
-#[doc(inline)]
-pub use webrender;
-
-/// "do doc" only `swgl` re-export, for zero-ui developers.
-///
-#[cfg(any(do_doc, software))]
-#[doc(inline)]
-pub use swgl;
-
-// */
 mod config;
 mod gl;
 mod image_cache;
@@ -171,7 +155,6 @@ use zero_ui_view_api::{units::*, *};
 /// the panics to the main thread, this causes the app to stop responding while still receiving
 /// event signals, causing the operating system to not detect that the app is frozen.
 #[cfg(feature = "ipc")]
-#[cfg_attr(doc_nightly, doc(cfg(feature = "ipc")))]
 pub fn init() {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `init` in the main thread, this is a requirement of some operating systems");

@@ -172,7 +172,6 @@ impl fmt::Debug for StaticWidgetId {
 impl crate::var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 
 /// An Ui tree node.
-#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait UiNode: Any {
     /// Called every time the node is plugged into the UI tree.
     ///

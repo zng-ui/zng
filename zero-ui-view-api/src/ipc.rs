@@ -140,14 +140,12 @@ impl IpcBytes {
 
     /// Returns the underlying shared memory reference, if the bytes are not zero-length.
     #[cfg(feature = "ipc")]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "ipc")))]
     pub fn ipc_shared_memory(&self) -> Option<ipc_channel::ipc::IpcSharedMemory> {
         self.bytes.clone()
     }
 
     /// Returns the underlying shared reference.
     #[cfg(not(feature = "ipc"))]
-    #[cfg_attr(doc_nightly, doc(cfg(not(feature = "ipc"))))]
     pub fn arc(&self) -> std::sync::Arc<Vec<u8>> {
         self.bytes.clone()
     }

@@ -40,7 +40,6 @@ impl ConfigFileBuilder {
 
     /// Read test delay, is not set by default.
     #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     pub fn with_read_sleep(mut self, delay: Duration) -> Self {
         self.read_delay = Some(delay);
         self

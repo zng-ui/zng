@@ -367,7 +367,6 @@ impl WidgetBoundsInfo {
 
     /// Constructor for tests.
     #[cfg(test)]
-    #[cfg_attr(doc_nightly, doc(cfg(test)))]
     pub fn new_test(
         inner: PxRect,
         outer: Option<PxRect>,
@@ -790,7 +789,6 @@ impl WidgetBorderInfo {
 
     /// Constructor for tests.
     #[cfg(test)]
-    #[cfg_attr(doc_nightly, doc(cfg(test)))]
     pub fn new_test(offsets: PxSideOffsets, corner_radius: PxCornerRadius) -> Self {
         let r = Self::default();
         r.set_offsets(offsets);

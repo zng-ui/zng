@@ -1834,7 +1834,6 @@ impl HeadlessApp {
     /// [`block_on`]: Self::block_on.
     #[track_caller]
     #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     pub fn doc_test<A, H>(args: A, mut handler: H)
     where
         A: Clone + 'static,
@@ -1849,7 +1848,6 @@ impl HeadlessApp {
     /// [`block_on_multi`]: Self::block_on_multi.
     #[track_caller]
     #[cfg(any(test, doc, feature = "test_util"))]
-    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Box<dyn AppHandler<A>>>)
     where
         A: Clone + 'static,

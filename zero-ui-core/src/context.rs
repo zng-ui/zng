@@ -334,7 +334,6 @@ impl<'a> WindowContext<'a> {
 /// [`new`]: TestWidgetContext::new
 /// [`HeadlessApp`]: crate::app::HeadlessApp
 #[cfg(any(test, doc, feature = "test_util"))]
-#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub struct TestWidgetContext {
     /// Id of the pretend window that owns the pretend root widget.
     ///

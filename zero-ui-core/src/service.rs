@@ -207,7 +207,6 @@ impl AsMut<Services> for crate::app::HeadlessApp {
 ///     }
 /// }
 /// ```
-#[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Service: 'static {
     /// Use `#[derive ..]` to implement this trait.
     ///

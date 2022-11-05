@@ -94,7 +94,7 @@ fn generate(codepoints: &str, mod_name: &str) -> Result<String, Box<dyn Error>> 
 
 fn write_html_in_header() {
     let doc_dir = doc_dir();
-    let file = doc_dir.join("zero-ui-material-icons-extensions.html");
+    let file = doc_dir.join("zero-ui-material-icons-extensions.css");
     let doc_dir = doc_dir.join("zero-ui-material-icons-extensions");
     if !doc_dir.exists() {
         fs::create_dir(&doc_dir).unwrap();
@@ -110,11 +110,15 @@ fn write_html_in_header() {
         let file = doc_dir.join(mod_name);
         fs::write(file, font).unwrap();
 
+        writeln!(&mut css, "@font-face {{").unwrap();
+        writeln!(&mut css, "   font-family: \"zero-ui-material-icons-extensions-{mod_name}\";").unwrap();
+        writeln!(&mut css, "   src: url('zero-ui-material-icons-extensions/{mod_name}');").unwrap();
+        writeln!(&mut css, "}}").unwrap();
         writeln!(&mut css, ".material-icons.{mod_name} {{").unwrap();
         writeln!(&mut css, "   font-family: url('zero-ui-material-icons-extensions/{mod_name}');").unwrap();
         writeln!(&mut css, "}}").unwrap();
     }
-    fs::write(&file, "<style>\n{css}\n</style>").unwrap();
+    fs::write(&file, css).unwrap();
 }
 fn doc_dir() -> PathBuf {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap()).canonicalize().unwrap();

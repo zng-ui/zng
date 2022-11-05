@@ -650,7 +650,6 @@ where
 /// This function is useful for implementing some async tests only, futures don't expect to be polled
 /// continuously. This function is only available in test builds.
 #[cfg(any(test, doc, feature = "test_util"))]
-#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub fn spin_on<F>(task: F) -> F::Output
 where
     F: Future,
@@ -670,7 +669,6 @@ where
 /// If `spin` is `true` the [`spin_on`] executor is used with a timeout of 500 milliseconds.
 /// IF `spin` is `false` the [`block_on`] executor is used with a timeout of 5 seconds.
 #[cfg(any(test, doc, feature = "test_util"))]
-#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub fn doc_test<F>(spin: bool, task: F) -> F::Output
 where
     F: Future,

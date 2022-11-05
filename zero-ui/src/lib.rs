@@ -4,8 +4,6 @@
 // that does not import `use` clauses declared inside the parent function.
 #![allow(clippy::needless_doctest_main)]
 #![warn(missing_docs)]
-#![cfg_attr(doc_nightly, feature(doc_cfg))]
-#![cfg_attr(doc_nightly, feature(doc_notable_trait))]
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]
 

@@ -1,5 +1,4 @@
 #![cfg(http)]
-#![cfg_attr(doc_nightly, doc(cfg(http)))]
 
 //! HTTP client.
 //!

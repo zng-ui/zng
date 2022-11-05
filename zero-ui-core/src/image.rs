@@ -310,7 +310,6 @@ impl Images {
     /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
     /// backend are accepted.
     #[cfg(http)]
-    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     pub fn download(&mut self, uri: impl task::http::TryUri, accept: Option<Text>) -> ImageVar {
         match uri.try_uri() {
             Ok(uri) => self.cache(ImageSource::Download(uri, accept)),

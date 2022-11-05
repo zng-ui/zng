@@ -474,7 +474,6 @@ pub enum ImageSource {
     ///
     /// Image equality is defined by the URI and ACCEPT string.
     #[cfg(http)]
-    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     Download(crate::task::http::Uri, Option<Text>),
     /// Static bytes for an encoded or decoded image.
     ///
@@ -617,7 +616,6 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(http)]
-    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Text>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
@@ -685,12 +683,10 @@ impl fmt::Debug for ImageSource {
 
 #[cfg(http)]
 impl_from_and_into_var! {
-    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     fn from(uri: crate::task::http::Uri) -> ImageSource {
         ImageSource::Download(uri, None)
     }
     /// From (URI, HTTP-ACCEPT).
-    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     fn from((uri, accept): (crate::task::http::Uri, &'static str)) -> ImageSource {
         ImageSource::Download(uri, Some(accept.into()))
     }
@@ -968,7 +964,6 @@ impl PathFilter {
 ///
 /// See [`ImageLimits::allow_uri`] for more information.
 #[cfg(http)]
-#[cfg_attr(doc_nightly, doc(cfg(http)))]
 pub type UriFilter = ImageSourceFilter<crate::task::http::Uri>;
 #[cfg(http)]
 impl UriFilter {
@@ -1015,7 +1010,6 @@ pub struct ImageLimits {
 
     /// Filter for [`ImageSource::Download`] URIs.
     #[cfg(http)]
-    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     pub allow_uri: UriFilter,
 }
 impl ImageLimits {
@@ -1058,7 +1052,6 @@ impl ImageLimits {
     ///
     /// [`allow_uri`]: Self::allow_uri
     #[cfg(http)]
-    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     pub fn with_allow_uri(mut self, allow_url: impl Into<UriFilter>) -> Self {
         self.allow_uri = allow_url.into();
         self
