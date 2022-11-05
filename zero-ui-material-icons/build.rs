@@ -130,7 +130,7 @@ fn write_html_in_header() {
         .unwrap();
         writeln!(&mut css, "}}").unwrap();
         writeln!(&mut css, ".material-icons.{mod_name} {{").unwrap();
-        writeln!(&mut css, "   font-family: \"zero-ui-materials-icons-extensions-{mod_name}\";").unwrap();
+        writeln!(&mut css, "   font-family: \"zero-ui-material-icons-extensions-{mod_name}\";").unwrap();
         writeln!(&mut css, "}}").unwrap();
     }
     fs::write(&file, css).unwrap();
