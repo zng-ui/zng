@@ -28,3 +28,6 @@ two_tone = []
 
 [dependencies]
 zero-ui= { path = "../zero-ui" }
+
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "target/doc/zero-ui-material-icons-extensions.html" ]

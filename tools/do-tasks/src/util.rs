@@ -358,7 +358,7 @@ pub fn file_name(path: &str) -> String {
 }
 */
 
-fn glob(pattern: &str) -> Vec<String> {
+pub fn glob(pattern: &str) -> Vec<String> {
     match glob::glob(pattern) {
         Ok(iter) => iter
             .filter_map(|r| match r {

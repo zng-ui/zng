@@ -1,35 +1,45 @@
 use std::{env, error::Error, fmt, fs, path::PathBuf};
 
-static FONTS: &[(&str, &[u8], &str)] = &[
+static FONTS: &[(&str, &str, &str, &[u8], &str)] = &[
     (
         "outlined",
+        "otf",
+        "opentype",
         include_bytes!("fonts/MaterialIconsOutlined-Regular.otf"),
         include_str!("fonts/MaterialIconsOutlined-Regular.codepoints"),
     ),
     (
         "filled",
+        "ttf",
+        "truetype",
         include_bytes!("fonts/MaterialIcons-Regular.ttf"),
         include_str!("fonts/MaterialIcons-Regular.codepoints"),
     ),
     (
         "rounded",
+        "otf",
+        "opentype",
         include_bytes!("fonts/MaterialIconsRound-Regular.otf"),
         include_str!("fonts/MaterialIconsRound-Regular.codepoints"),
     ),
     (
         "sharp",
+        "otf",
+        "opentype",
         include_bytes!("fonts/MaterialIconsSharp-Regular.otf"),
         include_str!("fonts/MaterialIconsSharp-Regular.codepoints"),
     ),
     (
         "two_tone",
+        "otf",
+        "opentype",
         include_bytes!("fonts/MaterialIconsTwoTone-Regular.otf"),
         include_str!("fonts/MaterialIconsTwoTone-Regular.codepoints"),
     ),
 ];
 
 fn main() {
-    for (mod_name, _, codepoints) in FONTS {
+    for (mod_name, _, _, _, codepoints) in FONTS {
         write(codepoints, mod_name);
     }
 
@@ -106,19 +116,28 @@ fn write_html_in_header() {
     writeln!(&mut css, "   font-size: 32px;").unwrap();
     writeln!(&mut css, "}}").unwrap();
 
-    for (mod_name, font, _) in FONTS {
-        let file = doc_dir.join(mod_name);
+    for (mod_name, ext, format, font, _) in FONTS {
+        let mut file = doc_dir.join(mod_name);
+        file.set_extension(ext);
         fs::write(file, font).unwrap();
 
         writeln!(&mut css, "@font-face {{").unwrap();
         writeln!(&mut css, "   font-family: \"zero-ui-material-icons-extensions-{mod_name}\";").unwrap();
-        writeln!(&mut css, "   src: url('zero-ui-material-icons-extensions/{mod_name}');").unwrap();
+        writeln!(
+            &mut css,
+            "   src: url('/zero-ui-material-icons-extensions/{mod_name}.{ext}') format(\"{format}\");"
+        )
+        .unwrap();
         writeln!(&mut css, "}}").unwrap();
         writeln!(&mut css, ".material-icons.{mod_name} {{").unwrap();
-        writeln!(&mut css, "   font-family: url('zero-ui-material-icons-extensions/{mod_name}');").unwrap();
+        writeln!(&mut css, "   font-family: \"zero-ui-materials-icons-extensions-{mod_name}\";").unwrap();
         writeln!(&mut css, "}}").unwrap();
     }
     fs::write(&file, css).unwrap();
+    let html = format!("<link rel=\"stylesheet\" href=\"/zero-ui-material-icons-extensions.css\">");
+    let mut file = file;
+    file.set_extension("html");
+    fs::write(file, html).unwrap();
 }
 fn doc_dir() -> PathBuf {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap()).canonicalize().unwrap();

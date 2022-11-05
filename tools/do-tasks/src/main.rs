@@ -93,12 +93,42 @@ fn doc(mut args: Vec<&str>) {
 
     let serve = take_flag(&mut args, &["-s", "--serve"]);
 
-    cmd_env_req(
-        "cargo",
-        &["doc", "--all-features", "--no-deps", "--package", "zero-ui*"],
-        &args,
-        &[],
-    );
+    for pkg in util::glob("zero-ui*/Cargo.toml") {
+        let toml = match std::fs::read_to_string(&pkg) {
+            Ok(p) => p,
+            Err(e) => {
+                error(e);
+                continue;
+            }
+        };
+
+        let mut name = String::new();
+        let mut rustdoc_flags = String::new();
+        for line in toml.lines() {
+            if line.starts_with("name = ") {
+                name = line["name = ".len()..].trim_matches('"').to_owned();
+            }
+            if line.starts_with("rustdoc-args = ") {
+                let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
+                for arg in line.split(',') {
+                    rustdoc_flags.push_str(arg.trim().trim_matches('"'));
+                    rustdoc_flags.push(' ');
+                }
+            }
+        }
+
+        if name.is_empty() {
+            error(f!("did not find package name for {pkg}"));
+            continue;
+        }
+
+        let mut env = vec![];
+        if !rustdoc_flags.is_empty() {
+            env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
+        }
+
+        cmd_env_req("cargo", &["doc", "--all-features", "--no-deps", "--package", &name], &args, &env);
+    }
 
     let server = if serve {
         Some(std::thread::spawn(|| {
