@@ -175,8 +175,8 @@ pub mod window {
         ///
         /// The default value is `None`.
         ///
-        /// [`modal`]: Self::modal
-        /// [`color_scheme`]: Self::color_scheme
+        /// [`modal`]: #wp-modal
+        /// [`color_scheme`]: #wp-color_scheme
         /// [`scale_factor`]: WindowVars::scale_factor
         pub properties::parent;
 
