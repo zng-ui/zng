@@ -177,7 +177,8 @@ pub mod window {
         ///
         /// [`modal`]: #wp-modal
         /// [`color_scheme`]: #wp-color_scheme
-        /// [`scale_factor`]: WindowVars::scale_factor
+        /// [`scale_factor`]: crate::core::window::WindowVars::scale_factor
+        /// [`actual_color_scheme`]: crate::core::window::WindowVars::actual_color_scheme
         pub properties::parent;
 
         /// Window background color.
@@ -259,6 +260,7 @@ pub mod window {
         /// [`position`]: #wp-position
         /// [`size`]: #wp-size
         /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
+        /// [`actual_monitor`]: crate::core::window::WindowVars::actual_monitor
         /// [`MonitorQuery::Primary`]: crate::core::window::MonitorQuery::Primary
         pub properties::monitor;
 
@@ -347,15 +349,15 @@ pub mod window {
         /// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
         /// have expired or dropped.
         ///
-        /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
-        ///
         /// This property is the [`on_pre_window_load`](fn@on_pre_window_load) so window handlers see it first.
+        ///
+        /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
         pub on_pre_window_load as on_load;
 
         /// On window close requested.
         ///
-        /// This event notifies every time the user or the app tries to close the window, you can call
-        /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
+        /// This event notifies every time the user or the app tries to close the window, you can stop propagation
+        /// to stop the window from being closed.
         pub on_window_close_requested as on_close_requested;
 
         /// On window deinited.
@@ -370,7 +372,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_moved`] so window handlers see it first.
         ///
-        /// [`actual_position`]: WindowVars::actual_position
+        /// [`actual_position`]: crate::core::window::WindowVars::actual_position
         /// [`on_pre_window_moved`]: fn@on_pre_window_moved
         pub on_pre_window_moved as on_moved;
 
@@ -381,7 +383,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_resized`] so window handlers see it first.
         ///
-        /// [`actual_size`]: WindowVars::actual_size
+        /// [`actual_size`]: crate::core::window::WindowVars::actual_size
         /// [`on_pre_window_resized`]: fn@on_pre_window_resized
         pub on_pre_window_resized as on_resized;
 
@@ -420,7 +422,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
         ///
-        /// [`on_pre_window_minimized`]: fn@on_pre_window_minimized
+        /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
         pub on_pre_window_minimized as on_minimized;
 
         /// On window exited the minimized state.
@@ -438,7 +440,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_restored`] so window handlers see it first.
         ///
-        /// [`Normal`]: WindowState::Normal
+        /// [`Normal`]: crate::core::window::WindowState::Normal
         /// [`on_pre_window_restored`]: fn@on_pre_window_restored
         pub on_pre_window_restored as on_restored;
 
@@ -448,8 +450,8 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_fullscreen`] so window handlers see it first.
         ///
-        /// [`Fullscreen`]: WindowState::Fullscreen
-        /// [`Exclusive`]: WindowState::Exclusive
+        /// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
+        /// [`Exclusive`]: crate::core::window::WindowState::Exclusive
         /// [`on_pre_window_fullscreen`]: fn@on_pre_window_fullscreen
         pub on_pre_window_fullscreen as on_fullscreen;
 
