@@ -220,7 +220,6 @@ impl Window {
         let opts = webrender::WebRenderOptions {
             // text-aa config from Firefox.
             enable_aa: true,
-            force_subpixel_aa: false,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
 
             renderer_id: Some((gen as u64) << 32 | id as u64),

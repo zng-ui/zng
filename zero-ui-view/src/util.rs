@@ -539,7 +539,7 @@ pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -
 
 pub(crate) fn panic_msg(payload: &dyn std::any::Any) -> &str {
     match payload.downcast_ref::<&'static str>() {
-        Some(s) => *s,
+        Some(s) => s,
         None => match payload.downcast_ref::<String>() {
             Some(s) => &s[..],
             None => "Box<dyn Any>",

@@ -423,7 +423,7 @@ pub mod nodes {
                 }
 
                 ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    frame.push_widget(ctx, &mut *reuse_range, |ctx, frame| self.child.render(ctx, frame));
+                    frame.push_widget(ctx, &mut reuse_range, |ctx, frame| self.child.render(ctx, frame));
                 });
             }
 

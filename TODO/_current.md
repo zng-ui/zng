@@ -1,12 +1,10 @@
-* Update Rust, dependencies.
-* Update webrender to fx-106
-    - https://github.com/servo/webrender/pull/4724
+* Refactor to minimal docs generation that does not require custom post-processing?
+* Update docs of new macros.
+
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.
 
 * Review nodes that call `(de)init(ctx)`, are they causing a widget handle collection to grow uncontrolledly?
-
-* Implement all `todo!` code.
 
 * If `ui_list![]` auto boxes in the macro params, but the returned type does not auto-boxes on `.push`.
     - Before refactor we had `WidgetVec(pub Vec<BoxedWidget>)`.
@@ -28,5 +26,5 @@
 * Review `IntoVar` and `IntoVarValue` constrains, we don't need then to be debug/clone anymore?
 * Const errors don't show if  there is a compile error, so the when `!foo::ALLOWED_IN_WHEN_EXPR` does not show.
     - Generate a placeholder `__w_0__`?
-* Refactor to minimal docs generation that does not require custom post-processing?
-* Update docs of new macros.
+
+* Implement all `todo!` code.

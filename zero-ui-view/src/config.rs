@@ -17,7 +17,6 @@ fn config_listener(event_loop: crate::AppEventSender) {
     let _span = tracing::trace_span!("config_listener").entered();
 
     use crate::AppEvent;
-    use std::ptr;
     use windows::core::*;
     use windows::Win32::{
         Foundation::{GetLastError, LRESULT},
@@ -27,7 +26,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
 
     use crate::util;
 
-    let class_name: PCWSTR = windows::w!("zero-ui-view::config_listener").into();
+    let class_name: PCWSTR = windows::w!("zero-ui-view::config_listener");
 
     unsafe {
         let class = WNDCLASSEXW {
@@ -64,7 +63,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
             None,
             None,
             util::get_instance_handle(),
-            ptr::null(),
+            None,
         );
         if r.0 == 0 {
             GetLastError().ok().unwrap();
@@ -113,7 +112,7 @@ pub fn font_aa() -> FontAntiAliasing {
         if SystemParametersInfoW(
             SPI_GETFONTSMOOTHING,
             0,
-            &mut enabled as *mut _ as *mut _,
+            Some(&mut enabled as *mut _ as *mut _),
             SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
         ) == BOOL(0)
         {
@@ -127,7 +126,7 @@ pub fn font_aa() -> FontAntiAliasing {
         if SystemParametersInfoW(
             SPI_GETFONTSMOOTHINGTYPE,
             0,
-            &mut smoothing_type as *mut _ as *mut _,
+            Some(&mut smoothing_type as *mut _ as *mut _),
             SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
         ) == BOOL(0)
         {
@@ -183,7 +182,7 @@ pub fn animations_enabled() -> bool {
         if SystemParametersInfoW(
             SPI_GETCLIENTAREAANIMATION,
             0,
-            &mut enabled as *mut _ as *mut _,
+            Some(&mut enabled as *mut _ as *mut _),
             SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
         ) == BOOL(0)
         {
@@ -213,7 +212,7 @@ pub fn key_repeat_delay() -> Duration {
         if SystemParametersInfoW(
             SPI_GETKEYBOARDDELAY,
             0,
-            &mut index as *mut _ as *mut _,
+            Some(&mut index as *mut _ as *mut _),
             SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
         ) == BOOL(0)
         {

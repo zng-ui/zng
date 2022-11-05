@@ -656,6 +656,7 @@ impl DisplayListCache {
 
     /// Apply updates, returns the webrender update if the renderer can also be updated and there are any updates,
     /// or returns a new frame if a new frame must be rendered.
+    #[allow(clippy::result_large_err)] // both are large
     pub fn update(
         &mut self,
         transforms: Vec<FrameValueUpdate<PxTransform>>,

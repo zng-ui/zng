@@ -1295,16 +1295,16 @@ impl<E: AppExtension> RunningApp<E> {
             if let Some(time) = timer {
                 match self.receiver.recv_deadline_sp(time) {
                     Ok(ev) => {
-                        idle.record("ended_by", &"event");
+                        idle.record("ended_by", "event");
                         drop(idle);
                         self.push_coalesce(ev, observer)
                     }
                     Err(e) => match e {
                         flume::RecvTimeoutError::Timeout => {
-                            idle.record("ended_by", &"timeout");
+                            idle.record("ended_by", "timeout");
                         }
                         flume::RecvTimeoutError::Disconnected => {
-                            idle.record("ended_by", &"disconnected");
+                            idle.record("ended_by", "disconnected");
                             disconnected = true
                         }
                     },
@@ -1312,13 +1312,13 @@ impl<E: AppExtension> RunningApp<E> {
             } else {
                 match self.receiver.recv() {
                     Ok(ev) => {
-                        idle.record("ended_by", &"event");
+                        idle.record("ended_by", "event");
                         drop(idle);
                         self.push_coalesce(ev, observer)
                     }
                     Err(e) => match e {
                         flume::RecvError::Disconnected => {
-                            idle.record("ended_by", &"disconnected");
+                            idle.record("ended_by", "disconnected");
                             disconnected = true
                         }
                     },

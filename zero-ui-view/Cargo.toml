@@ -38,7 +38,7 @@ swgl = { path = "../dependencies/webrender/swgl", optional = true }
 tracing = "0.1"
 gleam = "0.13.1" # matches webrender
 winit = { version =  "0.27", default-features = false, features = ["x11", "wayland", "wayland-dlopen"] }
-glutin = { git = "https://github.com/rust-windowing/glutin", version = "0.30.0-beta.2" }
+glutin = "0.30"
 raw-window-handle = "0.5"
 flume = "0.10"
 is_main_thread = "0.1"
@@ -51,7 +51,7 @@ backtrace = "0.3"
 linear-map = "1"
 
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.39.0"
+version = "0.43.0"
 features = [
     "Win32_Foundation", 
     "Win32_UI_Shell", 

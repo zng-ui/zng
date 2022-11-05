@@ -119,7 +119,7 @@ pub fn write_panic(log_file: impl AsRef<Path>) {
 }
 fn panic_msg(payload: &dyn std::any::Any) -> &str {
     match payload.downcast_ref::<&'static str>() {
-        Some(s) => *s,
+        Some(s) => s,
         None => match payload.downcast_ref::<String>() {
             Some(s) => &s[..],
             None => "Box<dyn Any>",

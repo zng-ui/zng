@@ -1720,16 +1720,16 @@ impl<'a> FocusInfoBuilder<'a> {
         if is_alt_focus_scope {
             data.scope = Some(true);
 
-            if data.tab_index == None {
+            if data.tab_index.is_none() {
                 data.tab_index = Some(TabIndex::SKIP);
             }
-            if data.tab_nav == None {
+            if data.tab_nav.is_none() {
                 data.tab_nav = Some(TabNav::Cycle);
             }
-            if data.directional_nav == None {
+            if data.directional_nav.is_none() {
                 data.directional_nav = Some(DirectionalNav::Cycle);
             }
-            if data.skip_directional == None {
+            if data.skip_directional.is_none() {
                 data.skip_directional = Some(true);
             }
 

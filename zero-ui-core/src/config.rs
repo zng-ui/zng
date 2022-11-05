@@ -612,7 +612,7 @@ impl ConfigAlt {
         D: FnOnce() -> T,
         V: Var<T>,
     {
-        Config::bind(&mut *self.0.borrow_mut(), key, default_value, target)
+        Config::bind(&mut self.0.borrow_mut(), key, default_value, target)
     }
 }
 impl Drop for ConfigAlt {

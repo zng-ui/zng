@@ -153,7 +153,7 @@ impl GlContextManager {
         let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
-        let display = unsafe { Display::from_raw(display_handle, display_pref) }?;
+        let display = unsafe { Display::new(display_handle, display_pref) }?;
 
         let template = ConfigTemplateBuilder::new()
             .with_alpha_size(8)
@@ -291,7 +291,7 @@ impl GlContextManager {
         let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
-        let display = unsafe { Display::from_raw(display_handle, display_pref) }?;
+        let display = unsafe { Display::new(display_handle, display_pref) }?;
 
         let template = ConfigTemplateBuilder::new()
             .with_alpha_size(8)
@@ -565,7 +565,7 @@ pub(crate) fn warmup() {
         .spawn(|| unsafe {
             let _span = tracing::trace_span!("open-gl-init").entered();
             let hdc = GetDC(HWND(0));
-            let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, std::ptr::null_mut());
+            let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, None);
             ReleaseDC(HWND(0), hdc);
         });
 }
@@ -735,7 +735,7 @@ mod blit {
                         biHeight: height,
                         biPlanes: 1,
                         biBitCount: 32,
-                        biCompression: 0,
+                        biCompression: windows::Win32::Graphics::Gdi::BI_COMPRESSION(0),
                         biSizeImage: 0,
                         biXPelsPerMeter: 0,
                         biYPelsPerMeter: 0,
@@ -761,7 +761,7 @@ mod blit {
                     0,
                     width,
                     height,
-                    frame.as_ptr() as *const _,
+                    Some(frame.as_ptr() as *const _),
                     &bmi as *const _,
                     DIB_USAGE(0),
                     SRCCOPY,
