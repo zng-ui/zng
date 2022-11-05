@@ -382,7 +382,7 @@ impl Controller {
                 }
 
                 #[cfg(unix)]
-                if code == None {
+                if code.is_none() {
                     tracing::warn!(target: "vp_respawn", "view-process exited by signal, probably killed by the user, \
                                         will exit app-process with code 1");
                     std::process::exit(1);
