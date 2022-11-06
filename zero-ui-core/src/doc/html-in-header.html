@@ -1,3 +1,4 @@
+<script>
 // Hides tagged `macro_rules!` macros from crate root.
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -13,7 +14,9 @@ document.addEventListener('DOMContentLoaded', function () {
         let removes = document.querySelectorAll('span[data-del-macro-root]');
         for (let remove of removes) {
             let div = remove.parentElement.parentElement;
-            div.previousElementSibling.remove();
+            if (div.previousElementSibling != null) {
+                div.previousElementSibling.remove();
+            }
             div.remove();
         }
     }
@@ -30,3 +33,4 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 })
+</script>

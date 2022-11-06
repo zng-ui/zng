@@ -117,5 +117,5 @@ serde_json = "1"
 [dev-dependencies]
 pretty_assertions = "1"
 
-[build-dependencies]
-zero-ui-docs =  { path = "../zero-ui-docs" }
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "zero-ui-core/src/doc/html-in-header.html" ]

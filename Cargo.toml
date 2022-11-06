@@ -10,8 +10,6 @@ members = [
     "zero-ui-core", 
     "zero-ui",
     "zero-ui-material-icons",
-    # util:
-    "zero-ui-docs",
 
     # examples:
     "examples",

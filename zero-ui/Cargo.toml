@@ -70,5 +70,5 @@ linear-map = "1"
 serde = "1"
 pretty-type-name = "1"
 
-[build-dependencies]
-zero-ui-docs =  { path = "../zero-ui-docs" }
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "zero-ui-core/src/doc/html-in-header.html" ]

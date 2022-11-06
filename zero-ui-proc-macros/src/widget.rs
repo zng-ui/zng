@@ -33,7 +33,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let vis = mod_.vis;
     let ident = mod_.ident;
     let mod_token = mod_.mod_token;
-    let attrs = mod_.attrs;
+    let mut attrs = util::Attributes::new(mod_.attrs);
+    attrs.tag_doc("widget", "this module is also a widget macro");
 
     if mixin && !ident.to_string().ends_with("_mixin") {
         errors.push("mix-in names must end with suffix `_mixin`", ident.span());
@@ -334,7 +335,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     };
 
     let r = quote! {
-        #(#attrs)*
+        #attrs
         #vis #mod_token #ident #mod_block
 
         #[doc(hidden)]

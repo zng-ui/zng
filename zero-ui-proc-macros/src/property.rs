@@ -1,3 +1,5 @@
+use std::mem;
+
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
@@ -26,7 +28,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     };
     let capture = args.capture;
 
-    let item = match parse::<ItemFn>(input.clone()) {
+    let mut item = match parse::<ItemFn>(input.clone()) {
         Ok(i) => i,
         Err(e) => {
             errors.push_syn(e);
@@ -38,6 +40,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             return r.into();
         }
     };
+    let mut attrs = Attributes::new(mem::take(&mut item.attrs));
+    attrs.tag_doc("property", "this function is also a widget property");
 
     if item.sig.inputs.len() < 2 {
         errors.push(
@@ -536,6 +540,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     };
 
     let r = quote! {
+        #attrs
         #item
         #extra
         #errors

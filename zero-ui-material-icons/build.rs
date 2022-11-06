@@ -134,7 +134,7 @@ fn write_html_in_header() {
         writeln!(&mut css, "}}").unwrap();
     }
     fs::write(&file, css).unwrap();
-    let html = format!("<link rel=\"stylesheet\" href=\"/zero-ui-material-icons-extensions.css\">");
+    let html = "<link rel=\"stylesheet\" href=\"/zero-ui-material-icons-extensions.css\">";
     let mut file = file;
     file.set_extension("html");
     fs::write(file, html).unwrap();

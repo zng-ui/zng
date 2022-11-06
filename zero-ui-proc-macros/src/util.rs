@@ -5,9 +5,10 @@ use quote::{quote_spanned, ToTokens};
 use syn::{
     self,
     parse::{discouraged::Speculative, Parse, ParseStream},
+    parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Token,
+    Attribute, LitStr, Token,
 };
 
 use once_cell::sync::OnceCell;
@@ -375,6 +376,54 @@ impl Attributes {
             cfg,
             lints,
             others,
+        }
+    }
+
+    /// Insert a tag on the first doc line, generate a doc if none are present.
+    pub fn tag_doc(&mut self, text: &str, help: &str) {
+        let txt = format!("<strong title='{help}'><code>{text}</code></strong>  ");
+        for first in self.docs.iter_mut() {
+            struct DocAttr {
+                msg: LitStr,
+            }
+            impl Parse for DocAttr {
+                fn parse(input: ParseStream) -> syn::Result<Self> {
+                    input.parse::<Token![=]>()?;
+                    Ok(DocAttr { msg: input.parse()? })
+                }
+            }
+            match syn::parse2::<DocAttr>(first.tokens.clone()) {
+                Ok(doc) => {
+                    let mut msg = doc.msg.value();
+                    msg.insert_str(0, &txt);
+                    *first = parse_quote_spanned! {first.span()=>
+                        #[doc=#msg]
+                    };
+                    return;
+                }
+                Err(_) => continue,
+            }
+        }
+
+        self.docs.insert(
+            0,
+            parse_quote! {
+                #[doc = #txt]
+            },
+        );
+    }
+}
+impl ToTokens for Attributes {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        for attr in self
+            .docs
+            .iter()
+            .chain(&self.inline)
+            .chain(&self.cfg)
+            .chain(&self.lints)
+            .chain(&self.others)
+        {
+            attr.to_tokens(tokens);
         }
     }
 }

@@ -1,6 +1,4 @@
 fn main() {
-    zero_ui_docs::html_in_header();
-
     macro_rules! enable {
         ($feature:tt) => {
             if !cfg!(feature = $feature) {
