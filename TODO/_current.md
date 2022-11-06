@@ -1,5 +1,21 @@
 * Refactor to minimal docs generation that does not require custom post-processing?
-* Update docs of new macros.
+    - What if we make `properties!` be a normal macro that expands to a `properties` mod?
+        - The properties defined in the macro become public `#[doc(no_inline)]` re-exports.
+        - We have many widgets that already define a `pub mod properties`, but only for the
+            properties declared for the widget, maybe we can join mods?
+            - If `pub mod properties { }` is present it is used for the `properties!` pseudo-macro expansion.
+            - Some widgets define a full named property and re-export for self with smaller name.
+                - `text!` defines `text_color`, re-exports as `color`.
+                - Can still work.
+            - To support existing `pub mod properties` we need to collect every property declaration name to avoid import conflict.
+                - `foo = true;` can't be pub use in context that declares `pub fn foo(..)`.
+            - Right now we avoid declaring properties nested inside the widget::properties module, we manually re-export.
+                - Small confusion, but uses can just avoid manually re-export with `*`.
+                - Widget macro can check manual `pub use foo` to avoid re-export too.
+        - If we use `#[doc(no_inline)]` the custom docs for `properties!` does not render.
+        - If we don't use it, rustdoc gets confused and starts linking to properties inside the widget, instead of their original decl.
+        - We can have docs in the `pub mod properties`, they link to the property function inside properties.
+            - This works, we already need to do this for `when` docs.
 
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.
