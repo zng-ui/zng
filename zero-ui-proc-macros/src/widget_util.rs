@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt, mem};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt, mem,
+};
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -819,5 +822,38 @@ impl Parse for UnamedArgs {
         Ok(Self {
             args: Punctuated::parse_terminated(input)?,
         })
+    }
+}
+
+pub fn collect_item_idents(mod_: &[syn::Item], r: &mut HashSet<Ident>) {
+    for item in mod_ {
+        match item {
+            Item::Fn(f) => {
+                r.insert(f.sig.ident.clone());
+            }
+            Item::Use(u) => {
+                collect_item_idents_use(&u.tree, r);
+            }
+            _ => continue,
+        }
+    }
+}
+fn collect_item_idents_use(u: &syn::UseTree, r: &mut HashSet<Ident>) {
+    match u {
+        UseTree::Path(p) => {
+            collect_item_idents_use(&p.tree, r);
+        }
+        UseTree::Name(n) => {
+            r.insert(n.ident.clone());
+        }
+        UseTree::Rename(n) => {
+            r.insert(n.rename.clone());
+        }
+        UseTree::Glob(_) => {}
+        UseTree::Group(g) => {
+            for u in g.items.iter() {
+                collect_item_idents_use(u, r);
+            }
+        }
     }
 }

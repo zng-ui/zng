@@ -1,4 +1,4 @@
-use std::mem;
+use std::{collections::HashSet, mem};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -74,10 +74,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         uses,
         inherits,
         mut properties,
+        properties_mod,
         include_fn,
         build_fn,
         others,
     } = WidgetItems::new(items, &mut errors);
+
+    let mut manual_properties = HashSet::new();
+    if let Some(n) = properties_mod.as_ref().and_then(|p| p.content.as_ref()).map(|(_, n)| n) {
+        widget_util::collect_item_idents(n, &mut manual_properties);
+    }
 
     let mut include_item_imports = quote!();
 
@@ -395,6 +401,7 @@ struct WidgetItems {
     uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
+    properties_mod: Option<ItemMod>,
     include_fn: Option<ItemFn>,
     build_fn: Option<ItemFn>,
     others: Vec<Item>,
@@ -404,6 +411,7 @@ impl WidgetItems {
         let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
+        let mut properties_mod = None;
         let mut include_fn = None;
         let mut build_fn = None;
         let mut others = vec![];
@@ -442,6 +450,9 @@ impl WidgetItems {
                 Item::Fn(fn_) if fn_.sig.ident == "build" => {
                     build_fn = Some(fn_);
                 }
+                Item::Mod(m) if m.ident == "properties" => {
+                    properties_mod = Some(m);
+                }
                 // other user items.
                 item => others.push(item),
             }
@@ -451,6 +462,7 @@ impl WidgetItems {
             uses,
             inherits,
             properties,
+            properties_mod,
             include_fn,
             build_fn,
             others,
