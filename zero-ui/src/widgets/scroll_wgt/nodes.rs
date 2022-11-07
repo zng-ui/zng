@@ -11,7 +11,7 @@ use crate::core::{
 
 use super::commands::*;
 use super::parts::*;
-use super::properties::*;
+use super::scroll_properties::*;
 use super::types::*;
 
 /// The actual content presenter.

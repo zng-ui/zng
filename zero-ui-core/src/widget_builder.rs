@@ -101,11 +101,11 @@ macro_rules! property_id {
         property_id($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
     ($($widget:ident)::+ . $property:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property_id}}};
+        #[rustfmt::skip] use $($widget)::+::{properties::{$property::{property_id}}};
         property_id($crate::widget_builder::property_id_name(stringify!($property)))
     }};
     ($($widget:ident)::+ . $property:ident as $rename:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{__properties__::{$property::{property_id}}};
+        #[rustfmt::skip] use $($widget)::+::{properties::{$property::{property_id}}};
         property_id($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
 }
@@ -146,7 +146,7 @@ macro_rules! property_args {
     ($($widget:ident)::+ . $property:ident $(as $rename:ident)? = $($value:tt)*) => {
         {
             $crate::widget_builder::property_args_getter! {
-                $($widget)::+::__properties__::$property $(as $rename)? = $($value)*
+                $($widget)::+::properties::$property $(as $rename)? = $($value)*
             }
         }
     };

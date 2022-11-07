@@ -74,7 +74,7 @@ fn app_main() {
                             },
                             sub_title("Render"),
                             image! {
-                                scale_ppi = true;
+                                image_scale_ppi = true;
                                 source = ImageSource::render_node(RenderMode::Software, |_, _| container! {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
@@ -160,7 +160,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
             image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                 size = (200, 100);
-                fit;
+                image_fit = fit;
             }
         ]
     }
@@ -220,7 +220,7 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
                     sides: BorderSides::dashed(colors::GRAY),
                 };
                 corner_radius = 4;
-                crop = timer.map(|n| {
+                image_crop = timer.map(|n| {
                     if n.count() == 10 {
                         n.set_count(0);
                     }
@@ -240,7 +240,7 @@ fn large_image() -> impl UiNode {
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                    limits = Some(ImageLimits::none().with_max_encoded_size(300.megabytes()).with_max_decoded_size(3.gigabytes()));
+                    image_limits = Some(ImageLimits::none().with_max_encoded_size(300.megabytes()).with_max_decoded_size(3.gigabytes()));
 
                     on_error = hn!(|_, args: &ImageErrorArgs| {
                         tracing::error!(target: "unexpected", "{}", args.error);
@@ -260,9 +260,9 @@ fn panorama_image() -> impl UiNode {
                 scroll! {
                     mode = ScrollMode::HORIZONTAL;
                     child = image! {
-                        fit = ImageFit::Fill;
+                        image_fit = ImageFit::Fill;
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                        image_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
                         on_error = hn!(|_, args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });
@@ -289,11 +289,11 @@ fn block_window_load_image() -> impl UiNode {
 
                         // block window load until the image is ready to present or 5 minutes have elapsed.
                         // usually you want to set a shorter deadline, `true` converts to 1 second.
-                        block_window_load = 5.minutes();
+                        image_block_window_load = 5.minutes();
 
-                        fit = ImageFit::Fill;
+                        image_fit = ImageFit::Fill;
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                        image_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
 
                         on_error = hn!(|_, args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
@@ -367,7 +367,7 @@ pub mod img_window {
 
             center_viewport(text! {
                 text = msg;
-                color = loading_color();
+                text_color = loading_color();
                 margin = 8;
                 width = 80;
                 font_style = FontStyle::Italic;
@@ -385,7 +385,7 @@ pub mod img_window {
                 text = args.error;
                 margin = 8;
                 align = Align::CENTER;
-                color = error_color();
+                text_color = error_color();
                 drop_shadow = {
                     offset: (0, 0),
                     blur_radius: 4,

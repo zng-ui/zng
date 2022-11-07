@@ -69,5 +69,5 @@ pub use window_wgt::window;
 /// be used once. Instead of declaring a new widget type.
 #[crate::core::widget($crate::widgets::blank)]
 pub mod blank {
-    inherit!(zero_ui_core::widget_base::base);
+    inherit!(::zero_ui_core::widget_base::base);
 }

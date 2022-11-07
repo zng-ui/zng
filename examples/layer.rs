@@ -138,7 +138,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
                 id;
                 child = text! {
                     text = label.clone();
-                    color = rgb(0.92, 0.92, 0.92);
+                    text_color = rgb(0.92, 0.92, 0.92);
                     font_size = 16;
                     font_weight = FontWeight::BOLD;
                 };
@@ -200,7 +200,7 @@ fn anchor_example() -> impl UiNode {
             WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
                 id = "anchored";
                 text = "Example";
-                color = rgb(0.92, 0.92, 0.92);
+                text_color = rgb(0.92, 0.92, 0.92);
                 padding = 4;
                 font_weight = FontWeight::BOLD;
                 background_color = colors::DARK_GREEN.with_alpha(80.pct());

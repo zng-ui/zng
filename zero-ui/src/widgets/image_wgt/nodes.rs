@@ -2,7 +2,7 @@
 
 use std::mem;
 
-use super::properties::{
+use super::image_properties::{
     ImageErrorArgs, ImageFit, ImageLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_ERROR_VIEW_VAR, IMAGE_FIT_VAR,
     IMAGE_LIMITS_VAR, IMAGE_LOADING_VIEW_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_PPI_VAR,
     IMAGE_SCALE_VAR,

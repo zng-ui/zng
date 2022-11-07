@@ -1,5 +1,3 @@
-//! Properties and context variables that configure the appearance of text widgets.
-
 use crate::core::text::{font_features::*, *};
 use crate::prelude::new_property::*;
 
@@ -185,25 +183,72 @@ pub fn text_transform(child: impl UiNode, transform: impl IntoVar<TextTransformF
     with_context_var(child, TEXT_TRANSFORM_VAR, transform)
 }
 
+/// Height of each text line. If not set inherits the `line_height` from the parent widget.
+///
+/// The [`Default`] value is computed from the font metrics, `ascent - descent + line_gap`, this is
+/// usually similar to `1.2.em()`. Relative values are computed from the default value, so `200.pct()` is double
+/// the default line height.
+///
+/// The text is vertically centralized inside the height.
+///
+/// [`Default`]: Length::Default
+///
 /// Sets the [`LINE_HEIGHT_VAR`] context var.
 #[property(context, default(LINE_HEIGHT_VAR))]
 pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl UiNode {
     with_context_var(child, LINE_HEIGHT_VAR, height)
 }
 
-/// Sets the [`LETTER_SPACING_VAR`] context var.
+/// Extra spacing added in between text letters. If not set inherits the `letter_spacing` from the parent widget.
+///
+/// Letter spacing is computed using the font data, this unit represents
+/// extra space added to the computed spacing.
+///
+/// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
+///
+/// The [`Default`] value signals that letter spacing can be tweaked when text *justification* is enabled, all other
+/// values disable automatic adjustments for justification inside words.
+///
+/// Relative values are computed from the length of the space `' '` character.
+///
+/// [`Default`]: Length::Default
+///
+/// This property sets the [`LETTER_SPACING_VAR`] context var that affects all inner texts.
 #[property(context, default(LETTER_SPACING_VAR))]
 pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) -> impl UiNode {
     with_context_var(child, LETTER_SPACING_VAR, extra)
 }
 
+/// Extra spacing in-between text lines. If not set inherits the `line_spacing` from the parent widget.
+///
+/// The [`Default`] value is zero. Relative values are calculated from the [`LineHeight`], so `50.pct()` is half
+/// the computed line height. If the text only has one line this property is not used.
+///
+/// [`Default`]: Length::Default
+///
 /// Sets the [`LINE_SPACING_VAR`] context var.
 #[property(context, default(LINE_SPACING_VAR))]
 pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> impl UiNode {
     with_context_var(child, LINE_SPACING_VAR, extra)
 }
 
-/// Sets the [`WORD_SPACING_VAR`] context var.
+/// Extra spacing added to the Unicode `U+0020 SPACE` character. If not set inherits the `letter_spacing` from the parent widget.
+///
+/// Word spacing is done using the space character "advance" as defined in the font,
+/// this unit represents extra spacing added to that default spacing.
+///
+/// A "word" is the sequence of characters in-between space characters. This extra
+/// spacing is applied per space character not per word, if there are three spaces between words
+/// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
+/// see [`WhiteSpace`](crate::core::text::WhiteSpace).
+///
+/// The [`Default`] value signals that word spacing can be tweaked when text *justification* is enabled, all other
+/// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character,
+/// so a word spacing of `100.pct()` visually adds *another* space in between words.
+///
+/// [`Default`]: Length::Default
+///
+/// This property sets the [`WORD_SPACING_VAR`] context var that affects all inner widgets.
 #[property(context, default(WORD_SPACING_VAR))]
 pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
     with_context_var(child, WORD_SPACING_VAR, extra)
@@ -427,47 +472,70 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
     with_context_var(child, LANG_VAR, lang)
 }
-
+/// Draw lines *under* each text line.
+///
 /// Sets the [`UNDERLINE_THICKNESS_VAR`] and [`UNDERLINE_STYLE_VAR`].
 #[property(context, default(UNDERLINE_THICKNESS_VAR, UNDERLINE_STYLE_VAR))]
 pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
     let child = with_context_var(child, UNDERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, UNDERLINE_STYLE_VAR, style)
 }
+/// Custom [`underline`](#wp-underline) color, if not set
+/// the [`color`](#wp-color) is used.
+///
 /// Sets the [`UNDERLINE_COLOR_VAR`].
 #[property(context, default(UNDERLINE_COLOR_VAR))]
 pub fn underline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, UNDERLINE_COLOR_VAR, color)
 }
+/// Defines what segments of each text line are skipped when tracing the [`underline`](#wp-underline).
+///
+/// By default skips glyphs that intercept the underline.
+///
 /// Sets the [`UNDERLINE_SKIP_VAR`].
 #[property(context, default(UNDERLINE_SKIP_VAR))]
 pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> impl UiNode {
     with_context_var(child, UNDERLINE_SKIP_VAR, skip)
 }
+/// Defines what font line gets traced by the underline.
+///
+/// By default uses the font configuration, but it usually crosses over glyph *descents* causing skips on
+/// the line, you can set this [`UnderlinePosition::Descent`] to fully clear all glyph *descents*.
+///
 /// Sets the [`UNDERLINE_POSITION_VAR`].
 #[property(context, default(UNDERLINE_POSITION_VAR))]
 pub fn underline_position(child: impl UiNode, position: impl IntoVar<UnderlinePosition>) -> impl UiNode {
     with_context_var(child, UNDERLINE_POSITION_VAR, position)
 }
 
+/// Draw lines *above* each text line.
+///
 /// Sets the [`OVERLINE_THICKNESS_VAR`] and [`OVERLINE_STYLE_VAR`].
 #[property(context, default(OVERLINE_THICKNESS_VAR, OVERLINE_STYLE_VAR))]
 pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
     let child = with_context_var(child, OVERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, OVERLINE_STYLE_VAR, style)
 }
+/// Custom [`overline`](#wp-overline) color, if not set
+/// the [`color`](#wp-color) is used.
+///
 /// Sets the [`OVERLINE_COLOR_VAR`].
 #[property(context, default(OVERLINE_COLOR_VAR))]
 pub fn overline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, OVERLINE_COLOR_VAR, color)
 }
 
+/// Draw lines across each text line.
+///
 /// Sets the [`STRIKETHROUGH_THICKNESS_VAR`] and [`STRIKETHROUGH_STYLE_VAR`].
 #[property(context, default(STRIKETHROUGH_THICKNESS_VAR, STRIKETHROUGH_STYLE_VAR))]
 pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
     let child = with_context_var(child, STRIKETHROUGH_THICKNESS_VAR, thickness);
     with_context_var(child, STRIKETHROUGH_STYLE_VAR, style)
 }
+/// Custom [`strikethrough`](#wp-strikethrough) color, if not set
+/// the [`color`](#wp-color) is used.
+///
 /// Sets the [`STRIKETHROUGH_COLOR_VAR`].
 #[property(context, default(STRIKETHROUGH_COLOR_VAR))]
 pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -480,6 +548,11 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     with_context_var(child, CARET_COLOR_VAR, color)
 }
 
+/// Enable text selection, copy, caret and input; and makes the widget focusable.
+///
+/// If the `text` variable is read-only, this only enables text selection, if the var is writeable this
+/// enables text input and modifies the variable.
+///
 /// Sets the [`TEXT_EDITABLE_VAR`].
 #[property(context, default(TEXT_EDITABLE_VAR))]
 pub fn text_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {

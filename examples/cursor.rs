@@ -46,7 +46,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         background = match icon {
             Some((_, img)) => image!{
                 source = img;
-                fit = ImageFit::None;
+                image_fit = ImageFit::None;
                 invert_color = color_scheme_map(true, false);
             }.boxed(),
             None => NilUiNode.boxed(),

@@ -1,7 +1,7 @@
 use crate::prelude::new_widget::*;
 
 pub mod nodes;
-pub mod properties;
+mod text_properties;
 
 /// A configured text run.
 ///
@@ -25,115 +25,19 @@ pub mod text {
 
     inherit!(widget_base::base);
 
-    pub use super::{nodes, properties};
+    #[doc(inline)]
+    pub use super::nodes;
+
+    pub mod properties {
+        #[doc(inline)]
+        pub use super::super::text_properties::*;
+    }
 
     properties! {
         /// The [`Text`](crate::core::text::Text) value.
         ///
         /// Set to an empty string (`""`) by default.
         pub text_property as text;
-
-        /// Spacing in between the text and background edges or border.
-        pub properties::text_padding as padding;
-
-        /// The text font. If not set inherits the `font_family` from the parent widget.
-        pub properties::font_family;
-        /// The font style. If not set inherits the `font_style` from the parent widget.
-        pub properties::font_style;
-        /// The font weight. If not set inherits the `font_weight` from the parent widget.
-        pub properties::font_weight;
-        /// The font stretch. If not set inherits the `font_stretch` from the parent widget.
-        pub properties::font_stretch;
-        /// The font size. If not set inherits the `font_size` from the parent widget.
-        pub properties::font_size;
-        /// The text color. If not set inherits the `text_color` from the parent widget.
-        pub properties::text_color as color;
-
-        /// The text alignment.
-        pub properties::text_align;
-
-        /// Extra spacing added in between text letters. If not set inherits the `letter_spacing` from the parent widget.
-        ///
-        /// Letter spacing is computed using the font data, this unit represents
-        /// extra space added to the computed spacing.
-        ///
-        /// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
-        ///
-        /// The [`Default`] value signals that letter spacing can be tweaked when text *justification* is enabled, all other
-        /// values disable automatic adjustments for justification inside words.
-        ///
-        /// Relative values are computed from the length of the space `' '` character.
-        ///
-        /// [`Default`]: Length::Default
-        pub properties::letter_spacing;
-
-        /// Extra spacing added to the Unicode `U+0020 SPACE` character. If not set inherits the `letter_spacing` from the parent widget.
-        ///
-        /// Word spacing is done using the space character "advance" as defined in the font,
-        /// this unit represents extra spacing added to that default spacing.
-        ///
-        /// A "word" is the sequence of characters in-between space characters. This extra
-        /// spacing is applied per space character not per word, if there are three spaces between words
-        /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
-        /// see [`WhiteSpace`](crate::core::text::WhiteSpace).
-        ///
-        /// The [`Default`] value signals that word spacing can be tweaked when text *justification* is enabled, all other
-        /// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character,
-        /// so a word spacing of `100.pct()` visually adds *another* space in between words.
-        ///
-        /// [`Default`]: Length::Default
-        pub properties::word_spacing;
-
-        /// Height of each text line. If not set inherits the `line_height` from the parent widget.
-        ///
-        /// The [`Default`] value is computed from the font metrics, `ascent - descent + line_gap`, this is
-        /// usually similar to `1.2.em()`. Relative values are computed from the default value, so `200.pct()` is double
-        /// the default line height.
-        ///
-        /// The text is vertically centralized inside the height.
-        ///
-        /// [`Default`]: Length::Default
-        pub properties::line_height;
-        /// Extra spacing in-between text lines. If not set inherits the `line_spacing` from the parent widget.
-        ///
-        /// The [`Default`] value is zero. Relative values are calculated from the [`LineHeight`], so `50.pct()` is half
-        /// the computed line height. If the text only has one line this property is not used.
-        ///
-        /// [`Default`]: Length::Default
-        pub properties::line_spacing;
-
-        /// Draw lines *above* each text line.
-        pub properties::overline;
-        /// Custom [`overline`](#wp-overline) color, if not set
-        /// the [`color`](#wp-color) is used.
-        pub properties::overline_color;
-
-        /// Draw lines across each text line.
-        pub properties::strikethrough;
-        /// Custom [`strikethrough`](#wp-strikethrough) color, if not set
-        /// the [`color`](#wp-color) is used.
-        pub properties::strikethrough_color;
-
-        /// Draw lines *under* each text line.
-        pub properties::underline;
-        /// Custom [`underline`](#wp-underline) color, if not set
-        /// the [`color`](#wp-color) is used.
-        pub properties::underline_color;
-        /// Defines what segments of each text line are skipped when tracing the [`underline`](#wp-underline).
-        ///
-        /// By default skips glyphs that intercept the underline.
-        pub properties::underline_skip;
-        /// Defines what font line gets traced by the underline.
-        ///
-        /// By default uses the font configuration, but it usually crosses over glyph *descents* causing skips on
-        /// the line, you can set this [`UnderlinePosition::Descent`] to fully clear all glyph *descents*.
-        pub properties::underline_position;
-
-        /// Enable text selection, copy, caret and input; and makes the widget focusable.
-        ///
-        /// If the `text` variable is read-only, this only enables text selection, if the var is writeable this
-        /// enables text input and modifies the variable.
-        pub properties::text_editable as editable;
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -221,7 +125,7 @@ pub mod text_input {
 
     properties! {
         /// Enabled by default.
-        pub editable = true;
+        text_editable = true;
 
         /// Enabled by default.
         ///
@@ -303,13 +207,13 @@ pub mod text_input_vis {
             /// Text padding.
             ///
             /// Is `(7, 15)` by default.
-            pub properties::text_padding as padding = (7, 15);
+            pub text_properties::text_padding as padding = (7, 15);
 
             /// Text cursor.
             pub cursor = CursorIcon::Text;
 
             /// Caret color.
-            pub properties::caret_color;
+            pub text_properties::caret_color;
 
             /// Text input base dark and light colors.
             ///

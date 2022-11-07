@@ -147,8 +147,8 @@ fn ease_btn(
             children = ui_list![
                 text(name.into()),
                 image! {
-                    scale_ppi = true;
-                    loading_view = view_generator!(|_, _| blank! {
+                    image_scale_ppi = true;
+                    image_loading_view = view_generator!(|_, _| blank! {
                         size = (64, 64);
                         margin = 10;
                     });
@@ -208,7 +208,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                     text = "v";
                     font_size = 12;
                     font_style = FontStyle::Italic;
-                    color = meta_color.clone();
+                    text_color = meta_color.clone();
                     offset = (-3.dip() - 100.pct(), -3.dip());
                 }
                 .boxed(),
@@ -218,7 +218,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                     text = "t";
                     font_size = 12;
                     font_style = FontStyle::Italic;
-                    color = meta_color.clone();
+                    text_color = meta_color.clone();
                     offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
                 }
                 .boxed(),

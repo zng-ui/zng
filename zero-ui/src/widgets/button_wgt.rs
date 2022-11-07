@@ -33,9 +33,7 @@ pub mod button {
         pub on_click;
 
         /// If pointer interaction with other widgets is blocked while the button is pressed.
-        ///
-        /// Enabled by default.
-        capture_mouse = true;
+        pub capture_mouse = true;
 
         /// Button style.
         ///
@@ -101,28 +99,28 @@ pub mod vis {
             /// Button padding.
             ///
             /// Is `(7, 15)` by default.
-            padding = (7, 15);
+            pub padding = (7, 15);
 
             /// Button corner radius.
             ///
             /// Is `4` by default.
-            corner_radius = 4;
+            pub corner_radius = 4;
 
             /// Button content align.
-            child_align as content_align = Align::CENTER;
+            pub child_align as content_align = Align::CENTER;
 
             /// Button base dark and light colors.
             ///
             /// All other button style colors are derived from this pair.
-            base_colors;
+            pub base_colors;
 
             /// Button background.
-            background_color = color_scheme_pair(BASE_COLORS_VAR);
+            pub background_color = color_scheme_pair(BASE_COLORS_VAR);
 
             /// Button border.
             ///
             /// Is widths `1`.
-            border = {
+            pub border = {
                 widths: 1,
                 sides: color_scheme_pair(BASE_COLORS_VAR).map_into()
             };

@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell};
 
 use font_features::FontVariations;
 
-use super::properties::*;
+use super::text_properties::*;
 use crate::core::{focus::FocusInfoBuilder, keyboard::CHAR_INPUT_EVENT, text::*};
 use crate::prelude::new_widget::*;
 

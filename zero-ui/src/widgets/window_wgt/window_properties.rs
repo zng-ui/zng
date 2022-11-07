@@ -1,8 +1,3 @@
-//! Window stand-alone properties.
-//!
-//! These properties are already included in the [`window!`](mod@crate::widgets::window) definition,
-//! but you can also use then stand-alone. They configure the window from any widget inside the window.
-
 use std::marker::PhantomData;
 use std::time::Duration;
 

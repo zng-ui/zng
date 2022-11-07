@@ -305,7 +305,7 @@ fn commands() -> impl UiNode {
                 text = cmd.name_with_shortcut();
 
                 when *#{cmd.is_enabled()} {
-                    color = color_scheme_map(colors::WHITE, colors::BLACK);
+                    text_color = color_scheme_map(colors::WHITE, colors::BLACK);
                 }
             }.boxed()
         }).collect::<Vec<_>>();

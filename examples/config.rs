@@ -42,7 +42,7 @@ fn app_main() {
                 font_weight = FontWeight::BOLD;
 
                 when *#{status.map(|s| s.has_errors())} {
-                    color = colors::RED;
+                    text_color = colors::RED;
                 }
             };
             child = v_stack! {

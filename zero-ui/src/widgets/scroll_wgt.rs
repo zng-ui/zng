@@ -2,7 +2,7 @@ use crate::prelude::new_widget::*;
 
 pub mod commands;
 pub mod nodes;
-pub mod properties;
+pub mod scroll_properties;
 
 mod parts;
 mod types;
@@ -11,7 +11,6 @@ mod types;
 #[widget($crate::widgets::scroll)]
 pub mod scroll {
     use super::*;
-    use properties::*;
 
     inherit!(container);
 
@@ -19,9 +18,13 @@ pub mod scroll {
     pub use super::{
         commands, nodes,
         parts::{scrollbar, thumb},
-        properties,
         types::*,
     };
+
+    pub mod properties {
+        #[doc(inline)]
+        pub use super::scroll_properties::*;
+    }
 
     properties! {
         /// Content alignment when it is smaller then the viewport.
@@ -42,57 +45,8 @@ pub mod scroll {
         /// By default scrolls in both dimensions.
         pub mode(impl IntoVar<ScrollMode>) = ScrollMode::ALL;
 
-        /// Scrollbar widget generator for both orientations.
-        ///
-        /// This property sets both [`v_scrollbar_view`] and [`h_scrollbar_view`] to the same `generator`.
-        ///
-        /// [`v_scrollbar_view`]: #wp-v_scrollbar_view
-        /// [`h_scrollbar_view`]: #wp-h_scrollbar_view
-        pub scrollbar_view;
-
-        /// Horizontal scrollbar widget generator.
-        pub h_scrollbar_view;
-        /// Vertical scrollbar widget generator.
-        pub v_scrollbar_view;
-
-        /// Horizontal and vertical offsets used when scrolling.
-        ///
-        /// This property sets the [`h_line_unit`] and [`v_line_unit`].
-        ///
-        /// [`h_line_unit`]: #wp-h_line_unit
-        /// [`v_line_unit`]: #wp-v_line_unit
-        pub line_units;
-        pub h_line_unit;
-        pub v_line_unit;
-
-        /// Horizontal and vertical offsets used when page-scrolling.
-        ///
-        /// This property sets the [`h_page_unit`] and [`v_page_unit`].
-        ///
-        /// [`h_page_unit`]: fn@h_page_unit
-        /// [`v_page_unit`]: fn@v_page_unit
-        pub page_units;
-        pub h_page_unit;
-        pub v_page_unit;
-
-        /// Scroll unit multiplier used when alternate scrolling.
-        ///
-        /// This value is used, for example, when `ALT` is pressed during an scroll-wheel event,
-        pub alt_factor;
-
         /// Enables keyboard controls.
         focusable = true;
-
-        /// Smooth scrolling configuration.
-        pub smooth_scrolling;
-
-        /// If the viewport size is used as the [`LayoutMetrics::viewport`] for the scrollable content.
-        ///
-        /// Note that this is only applied if the viewport size can be computed before the content size and is non-zero in both dimensions,
-        /// this is the case in the normal usage where the scroll fills the parent or when it has an exact size.
-        ///
-        /// This is enabled by default.
-        pub define_viewport_unit;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

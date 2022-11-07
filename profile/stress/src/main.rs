@@ -43,7 +43,7 @@ fn text_change_all(ctx: &mut WindowContext) -> Window {
                 text = msg.clone();
                 width = 80;
                 when *#is_hovered {
-                    color = colors::RED;
+                    text_color = colors::RED;
                 }
             }
             .boxed(),
@@ -72,7 +72,7 @@ fn text_change_one(_ctx: &mut WindowContext) -> Window {
                 font_weight = FontWeight::BOLD;
                 when *#is_hovered {
                     text = "HOT";
-                    color = colors::RED;
+                    text_color = colors::RED;
                 }
             }
             .boxed(),
@@ -113,7 +113,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
                     text = msg.clone();
                     width = 80;
                     when *#is_hovered {
-                        color = colors::RED;
+                        text_color = colors::RED;
                     }
                 }
                 .boxed(),

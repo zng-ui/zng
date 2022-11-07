@@ -110,11 +110,11 @@ fn basic() -> impl UiNode {
             strong("Strong Text"),
             em("Emphasis Text"),
             text! {
-                color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
+                text_color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
                 text = "Colored Text";
 
                 when *#is_hovered {
-                    color = color_scheme_map(colors::YELLOW, colors::BROWN);
+                    text_color = color_scheme_map(colors::YELLOW, colors::BROWN);
                 }
             },
         ],
@@ -128,12 +128,12 @@ fn line_height() -> impl UiNode {
             text! {
                 text = "Default: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
-                color = colors::BLACK;
+                text_color = colors::BLACK;
             },
             text! {
                 text = "150%: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
-                color = colors::BLACK;
+                text_color = colors::BLACK;
                 line_height = 150.pct();
             },
         ],

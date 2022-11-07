@@ -244,23 +244,148 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let mut inherit_export = quote!();
 
     for Inherit { attrs, path } in inherits {
-        let extra_super = if path.segments[0].ident == "super" {
-            let sup = &path.segments[0].ident;
-            quote_spanned!(sup.span()=> #sup::)
-        } else {
-            quote!()
-        };
+        let exp_path = widget_util::export_path(&path);
         inherit_export.extend(quote_spanned! {path_span(&path)=>
             #(#attrs)*
             #[allow(unused_imports)]
-            pub use #extra_super #path::__properties__::*;
+            #[doc(no_inline)]
+            pub use #exp_path::properties::*;
         });
     }
     for p in properties.iter().flat_map(|p| p.properties.iter()) {
-        inherit_export.extend(p.reexport());
+        if !manual_properties.contains(p.ident()) {
+            inherit_export.extend(p.reexport());
+        }
     }
 
     let macro_ident = ident!("__wgt_{}__", mod_path_slug);
+
+    let properties_span = properties
+        .first()
+        .map(|p| p.properties_span)
+        .or_else(|| properties_mod.as_ref().map(|p| p.ident.span()))
+        .unwrap_or_else(Span::call_site);
+
+    let mut doc_assigns = quote!();
+    let mut doc_unsets = quote!();
+    let mut doc_whens = quote!();
+    for p in &properties {
+        for p in &p.properties {
+            if p.is_unset() {
+                if doc_unsets.is_empty() {
+                    doc_unsets.extend(quote_spanned! {properties_span=>
+                        ///
+                        /// # Default Unsets
+                        ///
+                        /// These properties are `unset!` by default:
+                        ///
+                    });
+                }
+                let doc = format!("* [`{0}`](fn@properties::{0})", p.ident());
+                doc_unsets.extend(quote_spanned! {properties_span=>
+                    #[doc=#doc]
+                });
+            } else if p.has_args() {
+                if doc_assigns.is_empty() {
+                    doc_assigns.extend(quote_spanned! {properties_span=>
+                        ///
+                        /// # Default Assigns
+                        ///
+                        /// These properties are set by default:
+                        ///
+                    });
+                }
+
+                let doc = if p.is_private() {
+                    let mut path_str = String::new();
+                    if p.path.leading_colon.is_some() {
+                        path_str.push_str("::");
+                    }
+                    for s in &p.path.segments {
+                        use std::fmt::*;
+                        write!(&mut path_str, "{}::", s.ident).unwrap();
+                    }
+                    format!("* [`{}`](fn@{})", p.ident(), path_str.trim_end_matches(':'))
+                } else {
+                    format!("* [`{0}`](fn@properties::{0})", p.ident())
+                };
+                doc_assigns.extend(quote_spanned! {properties_span=>
+                    #[doc=#doc]
+                });
+            }
+        }
+        for w in &p.whens {
+            if doc_whens.is_empty() {
+                doc_unsets.extend(quote_spanned! {properties_span=>
+                    ///
+                    /// # Default Whens
+                    ///
+                    /// These `when` assigns are set by default:
+                    ///
+                });
+            }
+            let doc = format!("### `when {}`", w.condition_expr);
+            doc_whens.extend(quote_spanned! {properties_span=>
+                ///
+                #[doc=#doc]
+                ///
+            });
+            for p in &w.assigns {
+                let doc = format!("* [`{0}`](fn@properties::{0})", p.ident());
+                doc_whens.extend(quote_spanned! {properties_span=>
+                    #[doc=#doc]
+                });
+            }
+        }
+    }
+    let docs_intro = quote_spanned! {properties_span=>
+        /// Widget properties.
+        ///
+        /// The property functions in this module can be used directly in widget instances.
+    };
+    let docs = quote! {
+        #doc_assigns
+        #doc_unsets
+        #doc_whens
+    };
+
+    let properties;
+    if let Some(p) = &properties_mod {
+        let attrs = &p.attrs;
+        let vis = &p.vis;
+        let mod_ = &p.mod_token;
+        let ident = &p.ident;
+
+        let items = if let Some((brace, items)) = &p.content {
+            let mut r = quote!();
+            brace.surround(&mut r, |t| {
+                for item in items {
+                    item.to_tokens(t);
+                }
+                inherit_export.to_tokens(t);
+            });
+            r
+        } else {
+            quote_spanned! {ident.span()=>
+                #inherit_export
+            }
+        };
+        let vis = quote_spanned!(vis.span()=> pub);
+        properties = quote! {
+            #docs_intro
+            #(#attrs)*
+            #docs
+            #vis #mod_ #ident #items
+        }
+    } else {
+        properties = quote_spanned! {properties_span=>
+            #docs_intro
+            #docs
+            pub mod properties {
+                #inherit_export
+            }
+        }
+    }
 
     let mod_items = quote! {
         #validate_path
@@ -271,13 +396,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         // use items (after custom items in case of custom macro_rules re-export)
         #(#uses)*
 
-        #[doc(hidden)]
-        #[allow(unused_imports)]
-        pub mod __properties__ {
-            use super::*;
-
-            #inherit_export
-        }
+        #properties
 
         #include_fn
 
@@ -286,7 +405,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             #include_item_imports
             #pre_bind
             {
-                use self::__properties__::*;
+                use self::properties::*;
                 #include_items
             }
         }
@@ -426,6 +545,7 @@ impl WidgetItems {
                     match syn::parse2::<Properties>(mac.tokens) {
                         Ok(mut p) => {
                             errors.extend(mem::take(&mut p.errors));
+                            p.properties_span = path_span(&mac.path);
                             properties.push(p)
                         }
                         Err(e) => errors.push_syn(e),
@@ -494,6 +614,7 @@ impl Parse for Inherit {
 
 struct Properties {
     errors: Errors,
+    properties_span: Span,
     properties: Vec<WgtProperty>,
     whens: Vec<WgtWhen>,
 }
@@ -553,7 +674,12 @@ impl Parse for Properties {
             }
         }
 
-        Ok(Properties { errors, properties, whens })
+        Ok(Properties {
+            errors,
+            properties_span: Span::call_site(),
+            properties,
+            whens,
+        })
     }
 }
 
@@ -620,7 +746,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let mut __wgt__ = #widget::__widget__::new();
             {
                 #[allow(unused_imports)]
-                use #widget::__properties__::*;
+                use #widget::properties::*;
                 #init
             }
             #widget::__widget__::build(__wgt__)

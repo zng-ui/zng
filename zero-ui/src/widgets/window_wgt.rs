@@ -5,7 +5,7 @@ use crate::properties::events::window::*;
 
 pub mod commands;
 pub mod nodes;
-pub mod properties;
+pub mod window_properties;
 
 /// A window container.
 ///
@@ -32,162 +32,27 @@ pub mod window {
 
     inherit!(container);
 
-    pub use super::{commands, nodes, properties};
+    pub use super::{commands, nodes};
 
     #[doc(inline)]
     pub use nodes::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, WindowLayers};
 
+    pub mod properties {
+        #[doc(inline)]
+        pub use crate::widgets::window_wgt::window_properties::*;
+    }
+
     properties! {
-        /// Window title.
-        pub properties::title;
-
-        /// Window icon.
-        ///
-        /// See [`WindowIcon`] for details.
-        ///
-        /// [`WindowIcon`]: crate::core::window::WindowIcon
-        pub properties::icon;
-
-        /// Window chrome, the non-client area of the window.
-        ///
-        /// See [`WindowChrome`] for details.
-        ///
-        /// [`WindowChrome`]: crate::core::window::WindowChrome
-        pub properties::chrome;
-
         /// Window position when it opens.
         pub start_position(impl IntoValue<StartPosition>);
 
-        /// Window state.
-        ///
-        /// If set to a writeable variable it is updated back if the user changes the window state.
-        ///
-        /// See [`WindowState`] for details.
-        ///
-        /// [`WindowState`]: crate::core::window::WindowState
-        pub properties::state;
-
-        /// Window position (*x*, *y*).
-        ///
-        /// The position is computed in relation to the [`monitor`](#wp-monitor) value and is re-applied every
-        /// time this property or monitor updates.
-        ///
-        /// Setting [`Length::Default`] to either *x* or *y* causes the system initial position to be used in both dimensions.
-        /// This variable is not updated back if the user moves the window, you can use the [`actual_position`](#wp-actual_position)
-        /// to get the computed position.
-        ///
-        /// You can also set [`x`](#wp-x) and [`y`](#wp-y) as independent properties.
-        pub properties::position;
-
-        /// Window position *x*.
-        ///
-        /// This property value is the same as the [`position.x`](#wp-position) value.
-        pub properties::x;
-
-        /// Window position *y*.
-        ///
-        /// This property value is the same as the [`position.y`](#wp-position) value.
-        pub properties::y;
-
-        /// Window size (*width*, *height*).
-        ///
-        /// Does not include the OS window border.
-        ///
-        /// You can also set the [`width`](#wp-width) and [`height`](#wp-height) as independent properties.
-        pub properties::size;
-
-        /// Window size *width*.
-        ///
-        /// This property value is the same as the [`size.width`](#wp-size) value.
-        pub properties::width;
-
-        /// Window size *height*.
-        ///
-        /// This property value is the same as the [`size.height`](#wp-size) value.
-        pub properties::height;
-
-        /// Window minimum size.
-        ///
-        /// You can also set the [`min_width`](#wp-min_width) and [`min_height`](#wp-min_height) as independent properties.
-        pub properties::min_size;
-
-        /// Window minimum width.
-        ///
-        /// This property value is the same as the [`min_size.width`](#wp-min_size) value.
-        pub properties::min_width;
-
-        /// Window minimum height.
-        ///
-        /// This property value is the same as the [`min_size.height`](#wp-min_size) value.
-        pub properties::min_height;
-
-        /// Window maximum size.
-        ///
-        /// You can also set the [`max_width`](#wp-max_width) and [`max_height`](#wp-max_height) as independent properties.
-        pub properties::max_size;
-
-        /// Window maximum width.
-        ///
-        /// This property value is the same as the [`max_size.width`](#wp-max_size) value.
-        pub properties::max_width;
-
-        /// Window maximum height.
-        ///
-        /// This property value is the same as the [`max_size.height`](#wp-max_size) value.
-        pub properties::max_height;
-
-        /// Window auto-size to content.
-        ///
-        /// When enabled overwrites [`size`](#wp-size), but is still coerced by [`min_size`](#wp-min_size)
-        /// and [`max_size`](#wp-max_size). Auto-size is disabled if the user [manually resizes](#wp-resizable).
-        ///
-        /// The default value is [`AutoSize::DISABLED`].
-        ///
-        /// [`AutoSize::DISABLED`]: crate::prelude::AutoSize::DISABLED
-        pub properties::auto_size;
-
-        /// The point in the window content that does not move when the window is resized by [`auto_size`].
-        ///
-        /// When the window size increases it *grows* to the right-bottom, the top-left corner does not move because
-        /// the origin of window position is at the top-left and the position did not change, this variables overwrites this origin
-        /// for [`auto_size`] resizes, the window position is adjusted so that it is the *center* of the resize.
-        ///
-        /// Note this only applies to auto-resizes, the initial auto-size when the window opens is positioned
-        /// according to the [`start_position`] value.
-        ///
-        /// The default value is [`Point::top_left`].
-        ///
-        /// [`auto_size`]: #wp-auto_size
-        /// [`start_position`]: #wp-start_position
-        pub properties::auto_size_origin;
-
-        /// Parent window ID.
-        ///
-        /// If a parent is set this behavior applies:
-        ///
-        /// * If the parent is minimized, this window is also minimized.
-        /// * If the parent window is maximized, this window is restored.
-        /// * This window is always on-top of the parent window.
-        /// * If the parent window is closed, this window is also closed.
-        /// * If [`modal`] is set, the parent window cannot be focused while this window is open.
-        /// * If a [`color_scheme`] is not set, the [`actual_color_scheme`] fallback is the parent's actual color scheme.
-        /// * the window is headless it takes on the [`scale_factor`] of the parent.
-        ///
-        /// The default value is `None`.
-        ///
-        /// [`modal`]: #wp-modal
-        /// [`color_scheme`]: #wp-color_scheme
-        /// [`scale_factor`]: crate::core::window::WindowVars::scale_factor
-        /// [`actual_color_scheme`]: crate::core::window::WindowVars::actual_color_scheme
-        pub properties::parent;
-
         /// Window background color.
-        pub background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+        background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Window text color.
-        pub text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
+        text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
 
-        pub focus_highlight = {
+        focus_highlight = {
             offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
             widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
             sides: color_scheme_map(
@@ -202,7 +67,7 @@ pub mod window {
         /// It is visible if window content does not completely fill the content area, this
         /// can happen if you do not set a background or the background is semi-transparent, also
         /// can happen during very fast resizes.
-        pub properties::clear_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+        clear_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
 
         /// Windows are focus scopes by default.
         focus_scope = true;
@@ -216,58 +81,12 @@ pub mod window {
         /// Windows remember the last focused widget and return focus when the window is focused.
         pub focus_scope_behavior = FocusScopeOnFocus::LastFocused;
 
-        /// If the user can resize the window.
-        ///
-        /// Note that the window can still change size, this only disables
-        /// the OS window frame controls that change size.
-        pub properties::resizable;
-
-        /// If the window is visible.
-        ///
-        /// When set to `false` the window and its *taskbar* icon are not visible, that is different
-        /// from a minimized window where the icon is still visible.
-        pub properties::visible;
-
-        /// Whether the window should always stay on top of other windows.
-        ///
-        /// Note this only applies to other windows that are not also "always-on-top".
-        ///
-        /// The default value is `false`.
-        pub properties::always_on_top;
-
-        /// If the window is visible in the task-bar.
-        ///
-        /// The default value is `true`.
-        pub properties::taskbar_visible;
-
         /// If the Inspector can be opened for this window.
         ///
         /// The default value is `true`, but only applies if built with the `inspector` feature.
         #[cfg(inspector)]
         pub can_inspect(impl IntoVar<bool>);
 
-        /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
-        ///
-        /// When the window is dragged to a different monitor this property does not update, you can use the
-        /// [`actual_monitor`] property to get the current monitor.
-        ///
-        /// You can change this property after the window has opened to move the window to a different monitor,
-        /// see [`WindowVars::monitor`] for more details about this function.
-        ///
-        /// Is the [`MonitorQuery::Primary`] by default.
-        ///
-        /// [`start_position`]: #wp-start_position
-        /// [`position`]: #wp-position
-        /// [`size`]: #wp-size
-        /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
-        /// [`actual_monitor`]: crate::core::window::WindowVars::actual_monitor
-        /// [`MonitorQuery::Primary`]: crate::core::window::MonitorQuery::Primary
-        pub properties::monitor;
-
-        /// Frame image capture mode.
-        ///
-        /// This property is specially useful headless windows that are used to render.
-        pub properties::frame_capture_mode;
 
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
@@ -330,11 +149,9 @@ pub mod window {
         /// [`Windows::default_render_mode`]: crate::core::window::Windows::default_render_mode
         pub render_mode(impl IntoValue<Option<RenderMode>>);
 
-        /// Override the preferred color scheme for this window.
-        pub properties::color_scheme;
 
         /// Save and restore the window state.
-        pub properties::save_state = properties::SaveState::enabled();
+        properties::save_state = properties::SaveState::enabled();
 
         /// Event just after the window opens.
         ///

@@ -53,6 +53,10 @@ impl WgtProperty {
         }
     }
 
+    pub fn is_private(&self) -> bool {
+        matches!(&self.vis, Visibility::Inherited)
+    }
+
     /// Gets if this property is assigned `unset!`.
     pub fn is_unset(&self) -> bool {
         if let Some((_, PropertyValue::Special(special, _))) = &self.value {
@@ -158,13 +162,8 @@ impl WgtProperty {
             vis => vis,
         };
 
-        let path = &self.path;
-        let extra_super = if path.segments[0].ident == "super" {
-            let sup = &path.segments[0].ident;
-            quote_spanned!(sup.span()=> #sup::)
-        } else {
-            quote!()
-        };
+        let path = export_path(&self.path);
+
         let name = match &self.rename {
             Some((as_, id_)) => quote!(#as_ #id_),
             None => {
@@ -181,13 +180,14 @@ impl WgtProperty {
             quote!()
         };
 
-        quote_spanned! {path_span(path)=>
+        quote_spanned! {self.path.span()=>
             #(#docs)*
             #cfg
             #clippy_nag
             #(#lints)*
             #[allow(unused_imports)]
-            #vis use #extra_super #path::export #name;
+            #[doc(inline)]
+            #vis use #path::export #name;
         }
     }
 
@@ -497,6 +497,7 @@ pub struct WgtWhen {
     pub attrs: Attributes,
     pub when: keyword::when,
     pub condition_expr: TokenStream,
+    pub condition_expr_str: String,
     pub brace_token: syn::token::Brace,
     pub assigns: Vec<WgtProperty>,
 }
@@ -584,6 +585,7 @@ impl WgtWhen {
         Some(WgtWhen {
             attrs: Attributes::new(vec![]), // must be parsed before.
             when,
+            condition_expr_str: util::format_rust_expr(condition_expr.to_string()),
             condition_expr,
             brace_token,
             assigns,
@@ -678,7 +680,7 @@ impl WgtWhen {
         }
 
         let expr = when_expr.expr;
-        let expr_str = util::format_rust_expr(self.condition_expr.to_string());
+        let expr_str = &self.condition_expr_str;
 
         quote! {
             {
@@ -855,5 +857,18 @@ fn collect_item_idents_use(u: &syn::UseTree, r: &mut HashSet<Ident>) {
                 collect_item_idents_use(u, r);
             }
         }
+    }
+}
+
+pub fn export_path(path: &syn::Path) -> TokenStream {
+    let path_span = path_span(path);
+    let first_ident = &path.segments.first().unwrap().ident;
+    if path.leading_colon.is_some() || first_ident == "crate" || first_ident == "$crate" {
+        path.to_token_stream()
+    } else if first_ident == "self" {
+        let rest = path.segments.iter().skip(1);
+        quote_spanned!(path_span=> super::#(#rest)::*)
+    } else {
+        quote_spanned!(path_span=> super::#path)
     }
 }

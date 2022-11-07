@@ -37,7 +37,7 @@ fn app_main() {
                         font_size = 32.pt();
 
                         when #{calc.clone()}.error() {
-                            color = colors::RED;
+                            text_color = colors::RED;
                         }
                     },
                     controls(calc)

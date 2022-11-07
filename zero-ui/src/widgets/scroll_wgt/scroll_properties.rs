@@ -1,9 +1,3 @@
-//! Properties that configure [`scroll!`] widgets from parent widgets.
-//!
-//! Note that this properties are already available in the [`scroll!`] widget directly.
-//!
-//! [`scroll!`]: mod@crate::widgets::scroll
-
 use crate::widgets::flood;
 
 use super::{commands::ScrollToMode, parts::*, types::*, *};

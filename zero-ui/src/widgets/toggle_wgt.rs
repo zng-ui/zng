@@ -13,139 +13,19 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::toggle)]
 pub mod toggle {
     #[doc(inline)]
-    pub use super::properties::{self, selection, Selector, IS_CHECKED_VAR};
+    pub use super::toggle_properties::{selection, Selector, IS_CHECKED_VAR};
     #[doc(inline)]
     pub use super::vis;
 
     inherit!(crate::widgets::button);
     inherit!(super::style_mixin);
 
+    pub mod properties {
+        #[doc(inline)]
+        pub use super::super::toggle_properties::*;
+    }
+
     properties! {
-        /// Toggle cycles between `true` and `false`, updating the variable.
-        ///
-        /// # Examples
-        ///
-        /// The variable `foo` is toggled on click and it also controls the checked state of the widget.
-        ///
-        /// ```
-        /// # use zero_ui::prelude::*;
-        /// let foo = var(false);
-        ///
-        /// toggle! {
-        ///     checked = foo.clone();
-        ///
-        ///     child = text(foo.map(|b| formatx!("foo = {b}")));
-        /// }
-        /// # ;
-        /// ```
-        ///
-        /// Note that you can read the checked state of the widget using [`is_checked`].
-        ///
-        /// [`is_checked`]: #wp-is_checked
-        pub properties::checked;
-
-        /// Toggle cycles between `Some(true)` and `Some(false)` and accepts `None`, if the
-        /// widget is `tristate` also sets to `None` in the toggle cycle.
-        ///
-        /// # Examples
-        ///
-        /// The variable `foo` is cycles the three states on click.
-        ///
-        /// ```
-        /// # use zero_ui::prelude::*;
-        /// let foo = var(Some(false));
-        ///
-        /// toggle! {
-        ///     checked_opt = foo.clone();
-        ///     tristate = true;
-        ///
-        ///     child = text(foo.map(|b| formatx!("foo = {b:?}")));
-        /// }
-        /// # ;
-        /// ```
-        pub properties::checked_opt;
-
-        /// Values that is selected in the contextual [`selection`].
-        ///
-        /// The widget [`is_checked`] when the value is selected, on click and on value update the selection
-        /// is updated according to the behavior defined in the contextual [`selection`]. If no contextual
-        /// [`selection`] is the the widget is never checked.
-        ///
-        /// Note that the value can be any type, but must be one of the types accepted by the contextual [`selection`], type
-        /// validation happens in run-time, an error is logged if the type is not compatible. Because any type can be used in
-        /// this property type inference cannot resolve the type automatically and a type annotation is required: `value<T> = t;`.
-        ///
-        /// # Examples
-        ///
-        /// The variable `foo` is set to a `value` clone on click, or if the `value` updates when the previous was selected.
-        ///
-        /// ```
-        /// # use zero_ui::prelude::*;
-        /// let foo = var(1_i32);
-        ///
-        /// v_stack! {
-        ///     toggle::selection = toggle::Selector::single(foo.clone());
-        ///
-        ///     spacing = 5;
-        ///     children = (1..=10_i32).map(|i| {
-        ///         toggle! {
-        ///             child = text(formatx!("Item {i}"));
-        ///             value::<i32> = i;
-        ///         }
-        ///         .boxed()
-        ///     }).collect::<Vec<_>>();
-        /// }
-        /// # ;
-        /// ```
-        ///
-        /// [`is_checked`]: #wp-is_checked
-        /// [`selection`]: fn@selection
-        pub properties::value;
-
-        /// Enables `None` as an input value.
-        ///
-        /// Note that `None` is always accepted in `checked_opt`, this property controls if
-        /// `None` is one of the values in the toggle cycle. If the widget is bound to the `checked` property
-        /// this config is ignored.
-        ///
-        /// This is not enabled by default.
-        pub properties::tristate;
-
-        /// If [`value`] is selected when the widget is inited.
-        ///
-        /// [`value`]: #wp-value
-        pub properties::select_on_init;
-
-        /// If the toggle is checked from any of the three primary properties.
-        ///
-        /// Note to read the tristate use [`IS_CHECKED_VAR`].
-        ///
-        /// # Examples
-        ///
-        /// The `is_checked` state is set when the [`checked`] is `true`, or [`checked_opt`] is `Some(true)` or the [`value`]
-        /// is selected.
-        ///
-        /// ```
-        /// # use zero_ui::prelude::*;
-        /// toggle! {
-        ///     checked = var(false);
-        ///     // checked_opt = var(Some(false));
-        ///     // value<i32> = 42;
-        ///
-        ///     child = text("Toggle Background");
-        ///     background_color = colors::RED;
-        ///     when *#is_checked {
-        ///         background_color = colors::GREEN;
-        ///     }
-        /// }
-        /// # ;
-        /// ```
-        ///
-        /// [`checked`]: #wp-checked
-        /// [`checked_opt`]: #wp-checked_opt
-        /// [`value`]: #wp-value
-        pub properties::is_checked;
-
         /// Toggle style.
         ///
         /// Set to [`vis::STYLE_VAR`] by default.
@@ -165,7 +45,7 @@ pub mod toggle {
 }
 
 /// Properties used in the toggle widget.
-pub mod properties {
+pub mod toggle_properties {
     use std::{any::Any, cell::RefCell, error::Error, fmt, marker::PhantomData, rc::Rc};
 
     use crate::prelude::new_property::*;
@@ -178,7 +58,27 @@ pub mod properties {
         pub static IS_TRISTATE_VAR: bool = false;
     }
 
-    /// Toggle `checked` on click and sets the [`IS_CHECKED_VAR`], disables the widget if `checked` is read-only.
+    /// Toggle cycles between `true` and `false`, updating the variable.
+    ///
+    /// # Examples
+    ///
+    /// The variable `foo` is toggled on click and it also controls the checked state of the widget.
+    ///
+    /// ```
+    /// # use zero_ui::prelude::*;
+    /// let foo = var(false);
+    ///
+    /// toggle! {
+    ///     checked = foo.clone();
+    ///
+    ///     child = text(foo.map(|b| formatx!("foo = {b}")));
+    /// }
+    /// # ;
+    /// ```
+    ///
+    /// Note that you can read the checked state of the widget using [`is_checked`].
+    ///
+    /// [`is_checked`]: #wp-is_checked
     #[property(context, default(false))]
     pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
         #[ui_node(struct CheckedNode {
@@ -222,9 +122,25 @@ pub mod properties {
         with_context_var(node, IS_CHECKED_VAR, checked.map_into())
     }
 
-    /// Three state toggle `checked` on click and sets the [`IS_CHECKED_VAR`], disables the widget if `checked` is read-only.
+    /// Toggle cycles between `Some(true)` and `Some(false)` and accepts `None`, if the
+    /// widget is `tristate` also sets to `None` in the toggle cycle.
     ///
-    /// Sets to `None` if [`IS_TRISTATE_VAR`] is `true`.
+    /// # Examples
+    ///
+    /// The variable `foo` is cycles the three states on click.
+    ///
+    /// ```
+    /// # use zero_ui::prelude::*;
+    /// let foo = var(Some(false));
+    ///
+    /// toggle! {
+    ///     checked_opt = foo.clone();
+    ///     tristate = true;
+    ///
+    ///     child = text(foo.map(|b| formatx!("foo = {b:?}")));
+    /// }
+    /// # ;
+    /// ```
     #[property(context, default(None))]
     pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
         #[ui_node(struct CheckedOptNode {
@@ -284,9 +200,13 @@ pub mod properties {
         with_context_var(node, IS_CHECKED_VAR, checked)
     }
 
-    /// Enables `None` as an input on toggle.
+    /// Enables `None` as an input value.
     ///
-    /// If the toggle button is checking using [`checked_opt`] and this is enabled the toggle cycles between `None`, `Some(false)` and `Some(true)`.
+    /// Note that `None` is always accepted in `checked_opt`, this property controls if
+    /// `None` is one of the values in the toggle cycle. If the widget is bound to the `checked` property
+    /// this config is ignored.
+    ///
+    /// This is not enabled by default.
     ///
     /// [`checked_opt`]: fn@checked_opt
     #[property(context, default(IS_TRISTATE_VAR))]
@@ -294,13 +214,74 @@ pub mod properties {
         with_context_var(child, IS_TRISTATE_VAR, enabled)
     }
 
-    /// If [`IS_CHECKED_VAR`] is `Some(true)`.
+    /// If the toggle is checked from any of the three primary properties.
+    ///
+    /// Note to read the tristate use [`IS_CHECKED_VAR`] directly.
+    ///
+    /// # Examples
+    ///
+    /// The `is_checked` state is set when the [`checked`] is `true`, or [`checked_opt`] is `Some(true)` or the [`value`]
+    /// is selected.
+    ///
+    /// ```
+    /// # use zero_ui::prelude::*;
+    /// toggle! {
+    ///     checked = var(false);
+    ///     // checked_opt = var(Some(false));
+    ///     // value<i32> = 42;
+    ///
+    ///     child = text("Toggle Background");
+    ///     background_color = colors::RED;
+    ///     when *#is_checked {
+    ///         background_color = colors::GREEN;
+    ///     }
+    /// }
+    /// # ;
+    /// ```
+    ///
+    /// [`checked`]: #wp-checked
+    /// [`checked_opt`]: #wp-checked_opt
+    /// [`value`]: #wp-value.
     #[property(event)]
     pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
         bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
     }
 
-    /// Selects `value` on click and sets [`IS_CHECKED_VAR`] if the `value` is selected.
+    /// Values that is selected in the contextual [`selection`].
+    ///
+    /// The widget [`is_checked`] when the value is selected, on click and on value update the selection
+    /// is updated according to the behavior defined in the contextual [`selection`]. If no contextual
+    /// [`selection`] is the the widget is never checked.
+    ///
+    /// Note that the value can be any type, but must be one of the types accepted by the contextual [`selection`], type
+    /// validation happens in run-time, an error is logged if the type is not compatible. Because any type can be used in
+    /// this property type inference cannot resolve the type automatically and a type annotation is required: `value<T> = t;`.
+    ///
+    /// # Examples
+    ///
+    /// The variable `foo` is set to a `value` clone on click, or if the `value` updates when the previous was selected.
+    ///
+    /// ```
+    /// # use zero_ui::prelude::*;
+    /// let foo = var(1_i32);
+    ///
+    /// v_stack! {
+    ///     toggle::selection = toggle::Selector::single(foo.clone());
+    ///
+    ///     spacing = 5;
+    ///     children = (1..=10_i32).map(|i| {
+    ///         toggle! {
+    ///             child = text(formatx!("Item {i}"));
+    ///             value::<i32> = i;
+    ///         }
+    ///         .boxed()
+    ///     }).collect::<Vec<_>>();
+    /// }
+    /// # ;
+    /// ```
+    ///
+    /// [`is_checked`]: #wp-is_checked
+    /// [`selection`]: fn@selection
     ///
     /// This property interacts with the contextual [`selection`], when the widget is clicked or the `value` variable changes
     /// the contextual [`Selector`] is used to implement the behavior.
@@ -853,7 +834,7 @@ pub mod vis {
         inherit!(btn_vis::default_style);
 
         properties! {
-            properties::is_checked;
+            pub toggle::properties::is_checked;
 
             /// When the toggle is checked.
             when *#is_checked  {
