@@ -112,10 +112,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
 
     let mut capture_decl = quote!();
+    let mut capture_dft_decl = quote!();
     let mut pre_bind = quote!();
 
     for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
         capture_decl.extend(prop.declare_capture());
+        capture_dft_decl.extend(prop.declare_capture_default());
         pre_bind.extend(prop.pre_bind_args(false, None, ""));
     }
     for (i, when) in properties.iter_mut().flat_map(|i| i.whens.iter_mut()).enumerate() {
@@ -363,11 +365,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                     item.to_tokens(t);
                 }
                 inherit_export.to_tokens(t);
+                capture_decl.to_tokens(t);
             });
             r
         } else {
             quote_spanned! {ident.span()=>
                 #inherit_export
+                #capture_decl
             }
         };
         let vis = quote_spanned!(vis.span()=> pub);
@@ -383,6 +387,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             #docs
             pub mod properties {
                 #inherit_export
+                #capture_decl
             }
         }
     }
@@ -410,7 +415,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             }
         }
 
-        #capture_decl
+        #capture_dft_decl
         #build_fn
         #build
 

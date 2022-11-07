@@ -858,6 +858,16 @@ pub fn set_stream_span(stream: TokenStream, span: Span) -> TokenStream {
         .collect()
 }
 
+/// If the ident is any of the primitive keywords or a type in the prelude.
+pub fn is_rust_type(ident: &Ident) -> bool {
+    [
+        "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "i128", "u128", "isize", "usize", "f32", "f64", "bool", "char", "Box",
+        "Option", "Result", "String", "Vec",
+    ]
+    .iter()
+    .any(|p| ident == p)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

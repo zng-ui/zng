@@ -1,4 +1,4 @@
-* New capture-only properties are not visible in docs.
+* Patch doc links in widget properties to work inside the properties module.
 * Document new rules for `inherit!` and `properties!` path imports.
     - These don't actually work? Property links resolve outside, but doc links don't.
     - Try to make  the `use super::*` work again.

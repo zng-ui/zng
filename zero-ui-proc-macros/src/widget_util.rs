@@ -10,6 +10,7 @@ use syn::{
     parse::{discouraged::Speculative, Parse},
     punctuated::Punctuated,
     spanned::Spanned,
+    visit_mut::VisitMut,
     *,
 };
 
@@ -149,6 +150,10 @@ impl WgtProperty {
     }
 
     pub fn reexport(&self) -> TokenStream {
+        if self.capture_decl.is_some() {
+            return quote!();
+        }
+
         let vis = match self.vis.clone() {
             Visibility::Inherited => {
                 if self.rename.is_some() || self.path.get_ident().is_none() {
@@ -191,9 +196,30 @@ impl WgtProperty {
         }
     }
 
-    /// Declares capture property if it is one, replaces path to new property.
-    pub fn declare_capture(&mut self) -> TokenStream {
-        if let Some(decl) = self.capture_decl.take() {
+    fn declare_capture_default_ident(&self) -> Ident {
+        let ident = self.ident();
+        ident_spanned!(ident.span()=> "__{ident}_default__")
+    }
+
+    /// Declares the capture property default function.
+    pub fn declare_capture_default(&self) -> TokenStream {
+        if let (Some(decl), Some((_, PropertyValue::Unnamed(val)))) = (&self.capture_decl, &self.value) {
+            let ty = &decl.ty;
+            let ident = self.declare_capture_default_ident();
+            quote! {
+                #[doc(hidden)]
+                fn #ident() -> #ty {
+                    #val
+                }
+            }
+        } else {
+            quote!()
+        }
+    }
+
+    /// Declares capture property if it is one, patches types to work inside `properties`.
+    pub fn declare_capture(&self) -> TokenStream {
+        if let Some(decl) = &self.capture_decl {
             let mut errors = Errors::default();
             if !self.generics.is_empty() {
                 errors.push("new capture shorthand cannot have explicit generics", self.generics.span());
@@ -206,7 +232,10 @@ impl WgtProperty {
             }
             let default_args = match &self.value {
                 Some((_, val)) => match val {
-                    PropertyValue::Unnamed(a) => Some(a),
+                    PropertyValue::Unnamed(_) => {
+                        let ident = self.declare_capture_default_ident();
+                        Some(quote!(super::#ident()))
+                    }
                     PropertyValue::Special(id, _) => {
                         errors.push("cannot `{id}` new capture property", id.span());
                         None
@@ -221,16 +250,13 @@ impl WgtProperty {
 
             if errors.is_empty() {
                 let ident = self.path.get_ident().unwrap().clone();
-                let decl_ident = ident_spanned!(ident.span()=> "__{ident}__");
-                self.path = parse_quote!(#decl_ident);
-                self.rename = Some((parse_quote!(as), ident.clone()));
 
-                let ty = decl.ty;
-                let vis = match &self.vis {
+                let mut ty = decl.ty.clone();
+                ExportVisitor.visit_type_mut(&mut ty);
+                let vis = match self.vis.clone() {
                     Visibility::Inherited => {
                         // so at least the widget can get the `property_id!`.
-                        self.vis = parse_quote!(pub(super));
-                        &self.vis
+                        parse_quote!(pub(super))
                     }
                     vis => vis,
                 };
@@ -244,10 +270,12 @@ impl WgtProperty {
                     quote!()
                 };
 
-                quote_spanned! {decl_ident.span()=>
-                    #[doc(hidden)]
+                let attrs = &self.attrs;
+
+                quote_spanned! {ident.span()=>
+                    #attrs
                     #[#core::property(context, capture #default)]
-                    #vis fn #decl_ident(__child__: impl #core::widget_instance::UiNode, #ident: #ty) -> impl #core::widget_instance::UiNode {
+                    #vis fn #ident(__child__: impl #core::widget_instance::UiNode, #ident: #ty) -> impl #core::widget_instance::UiNode {
                         __child__
                     }
                 }
@@ -868,7 +896,18 @@ pub fn export_path(path: &syn::Path) -> TokenStream {
     } else if first_ident == "self" {
         let rest = path.segments.iter().skip(1);
         quote_spanned!(path_span=> super::#(#rest)::*)
+    } else if path.segments.len() == 1 && util::is_rust_type(&path.segments.first().unwrap().ident) {
+        // is keyword
+        path.to_token_stream()
     } else {
         quote_spanned!(path_span=> super::#path)
+    }
+}
+
+struct ExportVisitor;
+impl VisitMut for ExportVisitor {
+    fn visit_path_mut(&mut self, i: &mut Path) {
+        *i = syn::parse2(export_path(i)).unwrap();
+        syn::visit_mut::visit_path_mut(self, i);
     }
 }
