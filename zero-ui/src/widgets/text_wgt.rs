@@ -29,7 +29,15 @@ pub mod text {
     pub use super::nodes;
 
     #[doc(inline)]
-    pub use super::text_properties::*;
+    pub use super::text_properties::{
+        caret_color, font_aa, font_annotation, font_caps, font_char_variant, font_cn_variant, font_common_lig, font_contextual_alt,
+        font_discretionary_lig, font_ea_width, font_family, font_features, font_historical_forms, font_historical_lig, font_jp_variant,
+        font_kerning, font_num_fraction, font_num_spacing, font_numeric, font_ornaments, font_position, font_size, font_stretch,
+        font_style, font_style_set, font_stylistic, font_swash, font_synthesis, font_variations, font_weight, lang, letter_spacing,
+        line_break, line_height, line_spacing, overline, overline_color, paragraph_spacing, strikethrough, strikethrough_color, tab_length,
+        txt_align, txt_color, txt_editable, padding, txt_transform, underline, underline_color, underline_position, underline_skip,
+        white_space, word_break, word_spacing, *,
+    };
 
     properties! {
         /// The text string.
@@ -197,7 +205,7 @@ pub mod text_input_vis {
             /// Text padding.
             ///
             /// Is `(7, 15)` by default.
-            pub text_properties::txt_padding as padding = (7, 15);
+            pub text_properties::padding as padding = (7, 15);
 
             /// Text cursor.
             pub crate::properties::cursor = CursorIcon::Text;

@@ -561,6 +561,6 @@ pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
 
 /// Sets the [`TEXT_PADDING_VAR`] that is used in the text-input layout.
 #[property(context, default(TEXT_PADDING_VAR))]
-pub fn txt_padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, TEXT_PADDING_VAR, padding)
 }

@@ -359,10 +359,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 pending.insert(Layout::RESHAPE);
             }
 
-            let padding = TEXT_PADDING_VAR.get().layout(metrics, |_| PxSideOffsets::zero());
+            let txt_padding = TEXT_PADDING_VAR.get().layout(metrics, |_| PxSideOffsets::zero());
 
             let font_size = {
-                let m = metrics.clone().with_constrains(|c| c.with_less_y(padding.vertical()));
+                let m = metrics.clone().with_constrains(|c| c.with_less_y(txt_padding.vertical()));
                 FONT_SIZE_VAR.get().layout(m.for_y(), |m| m.metrics.root_font_size())
             };
 
@@ -389,7 +389,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 pending.insert(Layout::RESHAPE);
             }
 
-            if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != padding {
+            if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != txt_padding {
                 pending.insert(Layout::QUICK_RESHAPE);
             }
 
@@ -485,7 +485,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             if pending.contains(Layout::QUICK_RESHAPE) {
                 r.shaped_text.reshape(
-                    padding,
+                    txt_padding,
                     line_height,
                     line_spacing,
                     |size| PxRect::from_size(metrics.constrains().fill_size_or(size)),
@@ -493,7 +493,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 );
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
 
-                let baseline = r.shaped_text.box_baseline() + padding.bottom;
+                let baseline = r.shaped_text.box_baseline() + txt_padding.bottom;
                 t.baseline = baseline;
             }
             if pending.contains(Layout::OVERLINE) {
@@ -835,9 +835,9 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                     clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
                     clip_rect.size.height = t.shaped_text.line_height();
 
-                    let padding = t.shaped_text.padding();
-                    clip_rect.origin.x += padding.left;
-                    clip_rect.origin.y += padding.top;
+                    let txt_padding = t.shaped_text.padding();
+                    clip_rect.origin.x += txt_padding.left;
+                    clip_rect.origin.y += txt_padding.top;
 
                     let color = CARET_COLOR_VAR.get().into();
                     frame.push_color(clip_rect, self.color_key.bind(color, true));

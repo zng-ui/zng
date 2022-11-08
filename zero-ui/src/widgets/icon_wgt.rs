@@ -34,7 +34,7 @@ pub mod icon {
         /// Spacing in between the icon and background edges or border.
         ///
         /// Set to `0` by default.
-        pub text::txt_padding as padding;
+        pub text::padding as padding;
     }
 
     fn include(wgt: &mut WidgetBuilder) {
