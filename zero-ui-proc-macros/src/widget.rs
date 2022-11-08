@@ -74,8 +74,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         uses,
         inherits,
         mut properties,
-        include_fn,
-        build_fn,
+        mut include_fn,
+        mut build_fn,
         others,
     } = WidgetItems::new(items, &mut errors);
 
@@ -95,14 +95,24 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let path = &inh.path;
         include_item_imports.extend(quote_spanned! {path_span(path)=>
             #(#attrs)*
-            #path::__include__(__wgt__);
+            #path::include(__wgt__);
         });
     }
 
-    if let Some(int) = &include_fn {
-        include_item_imports.extend(quote_spanned! {int.span()=>
-            self::include(__wgt__);
-        })
+    let mut custom_include_docs = vec![];
+
+    if let Some(include) = &mut include_fn {
+        let attrs = util::Attributes::new(mem::take(&mut include.attrs));
+        custom_include_docs = attrs.docs;
+        include.attrs.extend(attrs.cfg);
+        include.attrs.extend(attrs.lints);
+        include.attrs.extend(attrs.inline);
+        include.attrs.extend(attrs.others);
+        include.vis = Visibility::Inherited;
+        include.sig.ident = ident_spanned!(include.sig.ident.span()=> "__wgt_include__");
+        include_item_imports.extend(quote_spanned! {include.span()=>
+            self::__wgt_include__(__wgt__);
+        });
     }
 
     let mut capture_decl = quote!();
@@ -188,13 +198,24 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         }
 
         check
-    } else if let Some(build) = &build_fn {
+    } else if let Some(build) = &mut build_fn {
+        let attrs = util::Attributes::new(mem::take(&mut build.attrs));
+        let docs = attrs.docs;
+        build.attrs.extend(attrs.cfg);
+        build.attrs.extend(attrs.lints);
+        build.attrs.extend(attrs.inline);
+        build.attrs.extend(attrs.others);
+        build.vis = Visibility::Inherited;
+        build.sig.ident = ident_spanned!(build.sig.ident.span()=> "__build__");
         let out = &build.sig.output;
-        let ident = &build.sig.ident;
         quote_spanned! {build.span()=>
-            #[doc(hidden)]
-            pub fn __build__(__wgt__: #crate_core::widget_builder::WidgetBuilder) #out {
-                self::#ident(__wgt__)
+            /// Build the widget.
+            /// 
+            /// The widget macro calls this function to build the widget instance.
+            /// 
+            #(#docs)*
+            pub fn build(builder: #crate_core::widget_builder::WidgetBuilder) #out {
+                self::__build__(builder)
             }
         }
     } else if let Some(inh) = inherits.iter().find(|m| !m.has_mixin_suffix()) {
@@ -209,9 +230,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             }
             #path! {
                 >> if !mixin {
-                    #[doc(hidden)]
+                    #[doc(inline)]
                     #[allow(unused_imports)]
-                    pub use #path::__build__;
+                    pub use #path::build;
                 }
             }
         }
@@ -221,17 +242,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             ident.span(),
         );
         quote! {
-            #[doc(hidden)]
-            pub fn __build__(_: #crate_core::widget_builder::WidgetBuilder) -> #crate_core::widget_instance::NilUiNode {
+            /// placeholder
+            pub fn build(_: #crate_core::widget_builder::WidgetBuilder) -> #crate_core::widget_instance::NilUiNode {
                 #crate_core::widget_instance::NilUiNode
             }
-        }
-    };
-    let build_final_export = if mixin {
-        quote!()
-    } else {
-        quote! {
-            pub use super::__build__ as build;
         }
     };
 
@@ -318,15 +332,24 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             }
         }
     }
-    let docs_intro = quote_spanned! {docs_span=>
-        /// Widget properties.
-        ///
-        /// The property functions in this module can be used directly in widget instances.
-    };
-    let docs = quote! {
-        #doc_assigns
-        #doc_unsets
-        #doc_whens
+
+    let docs_intro = if mixin {
+        quote_spanned! {docs_span=>
+            /// Include mix-in built-ins.
+            ///
+            /// This function is called by all widgets that inherit from this mix-in.
+            /// 
+            #(#custom_include_docs)*
+        }
+    } else {
+        quote_spanned! {docs_span=>
+            /// Include widget built-ins.
+            ///
+            /// The widget macro calls this function to start building the widget. This function is also called by
+            /// inheritor widgets.
+            /// 
+            #(#custom_include_docs)*
+        }
     };
 
     let mod_items = quote! {
@@ -343,8 +366,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
         #include_fn
 
-        #[doc(hidden)]
-        pub fn __include__(__wgt__: &mut #crate_core::widget_builder::WidgetBuilder) {
+        #docs_intro
+        #doc_assigns
+        #doc_unsets
+        #doc_whens
+        pub fn include(builder: &mut #crate_core::widget_builder::WidgetBuilder) {
+            let __wgt__ = builder;
             #include_item_imports
             #pre_bind
             #include_items
@@ -358,9 +385,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         pub mod __widget__ {
             pub use #crate_core::{widget_new, widget_builder};
 
-            pub use super::__include__ as include;
-            #build_final_export
-
             pub fn mod_info() -> widget_builder::WidgetMod {
                 static impl_id: widget_builder::StaticWidgetImplId = widget_builder::StaticWidgetImplId::new_unique();
 
@@ -373,7 +397,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
             pub fn new() -> widget_builder::WidgetBuilder {
                 let mut wgt = widget_builder::WidgetBuilder::new(mod_info());
-                include(&mut wgt);
+                super::include(&mut wgt);
                 wgt
             }
         }
@@ -682,7 +706,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 use #widget::*;
                 #init
             }
-            #widget::__widget__::build(__wgt__)
+            #widget::build(__wgt__)
         }
     };
 
