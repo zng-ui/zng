@@ -178,7 +178,10 @@ impl WgtProperty {
         };
         let cfg = &self.attrs.cfg;
         let lints = &self.attrs.lints;
-        let docs = &self.attrs.docs;
+        let mut docs = self.attrs.docs.clone();
+        let mut footnote_items = HashSet::new();
+        util::visit_doc_text(&mut docs, |d| export_footnote_docs(&mut footnote_items, d));
+        util::visit_doc_text(&mut docs, |d| export_inline_docs(&footnote_items, d));
         let clippy_nag = if !lints.is_empty() {
             quote!(#[allow(clippy::useless_attribute)])
         } else {
@@ -270,7 +273,10 @@ impl WgtProperty {
                     quote!()
                 };
 
-                let attrs = &self.attrs;
+                let mut attrs = self.attrs.clone();
+                let mut footnote_items = HashSet::new();
+                util::visit_doc_text(&mut attrs.docs, |d| export_footnote_docs(&mut footnote_items, d));
+                util::visit_doc_text(&mut attrs.docs, |d| export_inline_docs(&footnote_items, d));
 
                 quote_spanned! {ident.span()=>
                     #attrs
@@ -903,11 +909,104 @@ pub fn export_path(path: &syn::Path) -> TokenStream {
         quote_spanned!(path_span=> super::#path)
     }
 }
-
 struct ExportVisitor;
 impl VisitMut for ExportVisitor {
     fn visit_path_mut(&mut self, i: &mut Path) {
         *i = syn::parse2(export_path(i)).unwrap();
         syn::visit_mut::visit_path_mut(self, i);
     }
+}
+
+pub fn export_footnote_docs(items: &mut HashSet<String>, doc: &mut String) -> bool {
+    let mut changed = false;
+
+    let footnote_link = regex::Regex::new(r#"^\s*\[`(.+)`\]\s*:\s*(.+)\s*$"#).unwrap();
+    let result = footnote_link.replace_all(doc, |cap: &regex::Captures| {
+        if let Some(link) = cap.get(2) {
+            items.insert(cap[1].trim().to_owned());
+
+            let link = link.as_str().trim();
+            if !link.starts_with('#') {
+                if let Some((kind, link)) = link.split_once('@') {
+                    let s = export_path_str(link);
+                    changed = !s.is_empty();
+                    if changed {
+                        return format!("[`{}`]: {kind}@{s}", &cap[1]);
+                    }
+                } else {
+                    let s = export_path_str(link);
+                    changed = !s.is_empty();
+                    if changed {
+                        return format!("[`{}`]: {s}", &cap[1]);
+                    }
+                }
+            }
+        }
+        cap[0].to_owned()
+    });
+
+    if changed {
+        *doc = result.into();
+    }
+
+    changed
+}
+
+pub fn export_inline_docs(footnote_items: &HashSet<String>, doc: &mut String) -> bool {
+    let mut changed = false;
+
+    let inline_link = regex::Regex::new(r#"\[`(.+)`\](\(.+\))?[^:]"#).unwrap();
+
+    let result = inline_link.replace_all(doc, |cap: &regex::Captures| {
+        if let Some(link) = cap.get(2) {
+            let link = link.as_str().trim().trim_start_matches('(').trim_end_matches(')').trim();
+            if !link.starts_with('#') {
+                if let Some((kind, link)) = link.split_once('@') {
+                    let s = export_path_str(link);
+                    changed = !s.is_empty();
+                    if changed {
+                        return format!("[`{}`]({kind}@{s}", &cap[1]);
+                    }
+                } else {
+                    let s = export_path_str(link);
+                    changed = !s.is_empty();
+                    if changed {
+                        return format!("[`{}`]({s})", &cap[1]);
+                    }
+                }
+            }
+        } else if let Some(link) = cap.get(1) {
+            let link = link.as_str().trim();
+            if !link.starts_with('#') && !footnote_items.contains(link) {
+                let s = export_path_str(link);
+                changed = !s.is_empty();
+                if changed {
+                    return format!("[`{}`]({s})", link);
+                }
+            }
+        }
+        cap[0].to_owned()
+    });
+
+    if changed {
+        *doc = result.into();
+    }
+
+    changed
+}
+
+fn export_path_str(path: &str) -> String {
+    let path = path.trim();
+    if path.starts_with("::") || path.starts_with("crate") || path.starts_with("$crate") {
+        return String::new();
+    }
+    if let Some(path) = path.strip_prefix("self::") {
+        return format!("super::{path}");
+    }
+
+    if !util::is_rust_type_str(path) {
+        return format!("super::{path}");
+    }
+
+    String::new()
 }

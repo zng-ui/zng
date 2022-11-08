@@ -336,6 +336,7 @@ impl ToTokens for Errors {
 }
 
 /// Separated attributes.
+#[derive(Clone)]
 pub struct Attributes {
     pub docs: Vec<Attribute>,
     pub inline: Option<Attribute>,
@@ -383,22 +384,14 @@ impl Attributes {
     pub fn tag_doc(&mut self, text: &str, help: &str) {
         let txt = format!("<strong title='{help}'><code>{text}</code></strong>  ");
         for first in self.docs.iter_mut() {
-            struct DocAttr {
-                msg: LitStr,
-            }
-            impl Parse for DocAttr {
-                fn parse(input: ParseStream) -> syn::Result<Self> {
-                    input.parse::<Token![=]>()?;
-                    Ok(DocAttr { msg: input.parse()? })
-                }
-            }
             match syn::parse2::<DocAttr>(first.tokens.clone()) {
                 Ok(doc) => {
                     let mut msg = doc.msg.value();
                     msg.insert_str(0, &txt);
                     *first = parse_quote_spanned! {first.span()=>
-                        #[doc=#msg]
+                        #[doc = #msg]
                     };
+
                     return;
                 }
                 Err(_) => continue,
@@ -425,6 +418,32 @@ impl ToTokens for Attributes {
         {
             attr.to_tokens(tokens);
         }
+    }
+}
+
+/// Visit the text string of each doc attribute.
+///
+/// If the `visit` closure returns `true` the attribute text is replaced.
+pub fn visit_doc_text(docs: &mut [Attribute], mut visit: impl FnMut(&mut String) -> bool) {
+    for attr in docs.iter_mut() {
+        if let Ok(doc) = syn::parse2::<DocAttr>(attr.tokens.clone()) {
+            let mut msg = doc.msg.value();
+            if visit(&mut msg) {
+                *attr = parse_quote_spanned! {attr.span()=>
+                    #[doc = #msg]
+                };
+            }
+        }
+    }
+}
+
+struct DocAttr {
+    msg: LitStr,
+}
+impl Parse for DocAttr {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        input.parse::<Token![=]>()?;
+        Ok(DocAttr { msg: input.parse()? })
     }
 }
 
@@ -858,14 +877,19 @@ pub fn set_stream_span(stream: TokenStream, span: Span) -> TokenStream {
         .collect()
 }
 
+static RUST_TYPES: &[&str] = &[
+    "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "i128", "u128", "isize", "usize", "f32", "f64", "bool", "char", "Box", "Option",
+    "Result", "String", "Vec",
+];
+
 /// If the ident is any of the primitive keywords or a type in the prelude.
 pub fn is_rust_type(ident: &Ident) -> bool {
-    [
-        "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "i128", "u128", "isize", "usize", "f32", "f64", "bool", "char", "Box",
-        "Option", "Result", "String", "Vec",
-    ]
-    .iter()
-    .any(|p| ident == p)
+    RUST_TYPES.iter().any(|p| ident == p)
+}
+
+/// If the ident is any of the primitive keywords or a type in the prelude.
+pub(crate) fn is_rust_type_str(ident: &str) -> bool {
+    RUST_TYPES.iter().any(|p| &ident == p)
 }
 
 #[cfg(test)]

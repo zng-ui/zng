@@ -34,7 +34,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let ident = mod_.ident;
     let mod_token = mod_.mod_token;
     let mut attrs = util::Attributes::new(mod_.attrs);
-    attrs.tag_doc("widget", "this module is also a widget macro");
+    attrs.tag_doc("Ш", "this module is also a widget macro");
 
     if mixin && !ident.to_string().ends_with("_mixin") {
         errors.push("mix-in names must end with suffix `_mixin`", ident.span());
