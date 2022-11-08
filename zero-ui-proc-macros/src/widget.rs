@@ -115,8 +115,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let mut capture_dft_decl = quote!();
     let mut pre_bind = quote!();
 
+    let all_properties: Vec<_> = properties
+        .iter()
+        .flat_map(|i| i.properties.iter())
+        .map(|p| p.ident().clone())
+        .collect();
+
     for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
-        capture_decl.extend(prop.declare_capture());
+        capture_decl.extend(prop.declare_capture(&all_properties));
         capture_dft_decl.extend(prop.declare_capture_default());
         pre_bind.extend(prop.pre_bind_args(false, None, ""));
     }
@@ -256,7 +262,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
     for p in properties.iter().flat_map(|p| p.properties.iter()) {
         if !manual_properties.contains(p.ident()) {
-            inherit_export.extend(p.reexport());
+            inherit_export.extend(p.reexport(&all_properties));
         }
     }
 

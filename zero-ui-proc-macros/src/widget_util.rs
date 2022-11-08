@@ -149,7 +149,7 @@ impl WgtProperty {
         r
     }
 
-    pub fn reexport(&self) -> TokenStream {
+    pub fn reexport(&self, all_properties: &[Ident]) -> TokenStream {
         if self.capture_decl.is_some() {
             return quote!();
         }
@@ -180,8 +180,8 @@ impl WgtProperty {
         let lints = &self.attrs.lints;
         let mut docs = self.attrs.docs.clone();
         let mut footnote_items = HashSet::new();
-        util::visit_doc_text(&mut docs, |d| export_footnote_docs(&mut footnote_items, d));
-        util::visit_doc_text(&mut docs, |d| export_inline_docs(&footnote_items, d));
+        util::visit_doc_text(&mut docs, |d| export_footnote_docs(&mut footnote_items, all_properties, d));
+        util::visit_doc_text(&mut docs, |d| export_inline_docs(&footnote_items, all_properties, d));
         let clippy_nag = if !lints.is_empty() {
             quote!(#[allow(clippy::useless_attribute)])
         } else {
@@ -221,7 +221,7 @@ impl WgtProperty {
     }
 
     /// Declares capture property if it is one, patches types to work inside `properties`.
-    pub fn declare_capture(&self) -> TokenStream {
+    pub fn declare_capture(&self, all_properties: &[Ident]) -> TokenStream {
         if let Some(decl) = &self.capture_decl {
             let mut errors = Errors::default();
             if !self.generics.is_empty() {
@@ -275,8 +275,8 @@ impl WgtProperty {
 
                 let mut attrs = self.attrs.clone();
                 let mut footnote_items = HashSet::new();
-                util::visit_doc_text(&mut attrs.docs, |d| export_footnote_docs(&mut footnote_items, d));
-                util::visit_doc_text(&mut attrs.docs, |d| export_inline_docs(&footnote_items, d));
+                util::visit_doc_text(&mut attrs.docs, |d| export_footnote_docs(&mut footnote_items, all_properties, d));
+                util::visit_doc_text(&mut attrs.docs, |d| export_inline_docs(&footnote_items, all_properties, d));
 
                 quote_spanned! {ident.span()=>
                     #attrs
@@ -917,7 +917,7 @@ impl VisitMut for ExportVisitor {
     }
 }
 
-pub fn export_footnote_docs(items: &mut HashSet<String>, doc: &mut String) -> bool {
+pub fn export_footnote_docs(items: &mut HashSet<String>, skip: &[Ident], doc: &mut String) -> bool {
     let mut changed = false;
 
     let footnote_link = regex::Regex::new(r#"^\s*\[`(.+)`\]\s*:\s*(.+)\s*$"#).unwrap();
@@ -928,12 +928,14 @@ pub fn export_footnote_docs(items: &mut HashSet<String>, doc: &mut String) -> bo
             let link = link.as_str().trim();
             if !link.starts_with('#') {
                 if let Some((kind, link)) = link.split_once('@') {
-                    let s = export_path_str(link);
-                    changed = !s.is_empty();
-                    if changed {
-                        return format!("[`{}`]: {kind}@{s}", &cap[1]);
+                    if link.contains(':') || skip.iter().all(|s| *s != link) {
+                        let s = export_path_str(link);
+                        changed = !s.is_empty();
+                        if changed {
+                            return format!("[`{}`]: {kind}@{s}", &cap[1]);
+                        }
                     }
-                } else {
+                } else if link.contains(':') || skip.iter().all(|s| *s != link) {
                     let s = export_path_str(link);
                     changed = !s.is_empty();
                     if changed {
@@ -952,26 +954,28 @@ pub fn export_footnote_docs(items: &mut HashSet<String>, doc: &mut String) -> bo
     changed
 }
 
-pub fn export_inline_docs(footnote_items: &HashSet<String>, doc: &mut String) -> bool {
+pub fn export_inline_docs(footnote_items: &HashSet<String>, skip: &[Ident], doc: &mut String) -> bool {
     let mut changed = false;
 
-    let inline_link = regex::Regex::new(r#"\[`(.+)`\](\(.+\))?[^:]"#).unwrap();
+    let inline_link = regex::Regex::new(r#"\[`(.+)`\](\(.+\))?(?:[^:]|$)"#).unwrap();
 
     let result = inline_link.replace_all(doc, |cap: &regex::Captures| {
         if let Some(link) = cap.get(2) {
             let link = link.as_str().trim().trim_start_matches('(').trim_end_matches(')').trim();
             if !link.starts_with('#') {
                 if let Some((kind, link)) = link.split_once('@') {
-                    let s = export_path_str(link);
-                    changed = !s.is_empty();
-                    if changed {
-                        return format!("[`{}`]({kind}@{s}", &cap[1]);
+                    if link.contains(':') || skip.iter().all(|s| *s != link) {
+                        let s = export_path_str(link);
+                        changed = !s.is_empty();
+                        if changed {
+                            return format!("[`{}`]({kind}@{s}) ", &cap[1]);
+                        }
                     }
-                } else {
+                } else if link.contains(':') || skip.iter().all(|s| *s != link) {
                     let s = export_path_str(link);
                     changed = !s.is_empty();
                     if changed {
-                        return format!("[`{}`]({s})", &cap[1]);
+                        return format!("[`{}`]({s}) ", &cap[1]);
                     }
                 }
             }
@@ -981,7 +985,7 @@ pub fn export_inline_docs(footnote_items: &HashSet<String>, doc: &mut String) ->
                 let s = export_path_str(link);
                 changed = !s.is_empty();
                 if changed {
-                    return format!("[`{}`]({s})", link);
+                    return format!("[`{}`]({s}) ", link);
                 }
             }
         }

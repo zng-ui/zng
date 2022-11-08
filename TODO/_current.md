@@ -1,6 +1,4 @@
-* Patch doc links in widget properties to work inside the properties module.
-    - Don't patch links to other widget properties.
-    - Avoid running doc-rewrite when not build doc?
+* Auto-doc generating some invalid links.
 * Document new rules for `inherit!` and `properties!` path imports.
     - These don't actually work? Property links resolve outside, but doc links don't.
     - Try to make  the `use super::*` work again.
