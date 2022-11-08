@@ -50,7 +50,7 @@ impl WgtProperty {
         let ident = self.ident();
         let ident_str = ident.to_string();
         quote_spanned! {path_span(path)=>
-            #path::property::__id__(#ident_str)
+            #path::__id__(#ident_str)
         }
     }
 
@@ -296,7 +296,6 @@ impl WgtProperty {
     /// Gets the property args new code.
     pub fn args_new(&self, wgt_builder_mod: TokenStream) -> TokenStream {
         let path = &self.path;
-        let property_path = quote_spanned!(path_span(path)=> #path::property);
         let generics = &self.generics;
         let ident = self.ident();
         let ident_str = ident.to_string();
@@ -310,7 +309,7 @@ impl WgtProperty {
             match val {
                 PropertyValue::Special(_, _) => non_user_error!("no args for special value"),
                 PropertyValue::Unnamed(args) => quote_spanned! {path_span(path)=>
-                    #property_path #generics::__new__(#args).__build__(#instance)
+                    #path #generics::__new__(#args).__build__(#instance)
                 },
                 PropertyValue::Named(_, args) => {
                     let mut idents_sorted: Vec<_> = args.iter().map(|f| &f.ident).collect();
@@ -320,10 +319,10 @@ impl WgtProperty {
                     quote_spanned! {path_span(path)=>
                         {
                             #(
-                                let #idents = #property_path #generics::#idents(#exprs);
+                                let #idents = #path #generics::#idents(#exprs);
                             )*
 
-                            #property_path #generics::__new_sorted__(#(#idents_sorted),*).__build__(#instance)
+                            #path #generics::__new_sorted__(#(#idents_sorted),*).__build__(#instance)
                         }
                     }
                 }
@@ -331,7 +330,7 @@ impl WgtProperty {
         } else {
             let ident = self.ident();
             quote! {
-                #property_path #generics::__new__(#ident).__build__(#instance)
+                #path #generics::__new__(#ident).__build__(#instance)
             }
         }
     }
@@ -656,7 +655,7 @@ impl WgtWhen {
             let path_span = path_span(&property);
             let member_ident = ident_spanned!(path_span=> "__w_{member}__");
             var_decl.extend(quote_spanned! {path_span=>
-                let (#var_input, #var) = #property::property #generics::#member_ident();
+                let (#var_input, #var) = #property #generics::#member_ident();
             });
 
             let p_ident = &property.segments.last().unwrap().ident;
@@ -675,15 +674,15 @@ impl WgtWhen {
             let error = format!("property `{p_ident_str}` cannot be read in when expr");
             inputs.extend(quote! {
                 {
-                    const _: () = if !#property::property::ALLOWED_IN_WHEN_EXPR {
+                    const _: () = if !#property::ALLOWED_IN_WHEN_EXPR {
                         panic!(#error)
                     };
 
                     #wgt_builder_mod::WhenInput {
-                        property: #property::property #generics::__id__(#p_ident_str),
+                        property: #property #generics::__id__(#p_ident_str),
                         member: #wgt_builder_mod::WhenInputMember::#member,
                         var: #var_input,
-                        property_default: #property::property #generics::__default_fn__(),
+                        property_default: #property #generics::__default_fn__(),
                     }
                 },
             });
@@ -707,7 +706,7 @@ impl WgtWhen {
             let error = format!("property `{}` cannot be assigned in when", a.ident());
             assigns_error.extend(quote_spanned! {path_span(path)=>
                 #cfg
-                const _: () = if !#path::property::ALLOWED_IN_WHEN_ASSIGN {
+                const _: () = if !#path::ALLOWED_IN_WHEN_ASSIGN {
                     panic!(#error);
                 };
             });

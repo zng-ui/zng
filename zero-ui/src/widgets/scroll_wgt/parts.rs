@@ -17,7 +17,7 @@ pub mod scrollbar {
         /// thumb behavior and tags it-self in the frame.
         ///
         /// [`thumb!`]: mod@thumb
-        pub thumb;
+        pub thumb(impl UiNode) = thumb!();
 
         /// Fills the track with [`vis::BACKGROUND_VAR`]
         pub crate::properties::background_color = vis::BACKGROUND_VAR;
@@ -277,12 +277,4 @@ pub mod thumb {
             }
         }
     }
-
-    #[doc(hidden)]
-    #[property(context, capture, default(thumb!()))]
-    pub fn thumb_property(child: impl UiNode, thumb: impl UiNode) -> impl UiNode {
-        child
-    }
-    #[doc(hidden)]
-    pub use thumb_property::*;
 }

@@ -107,7 +107,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let ident = &item.sig.ident;
         let generics = &item.sig.generics;
         let has_generics = !generics.params.empty_or_trailing();
-        let args_ident = ident!("{ident}_Args");
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
         let default;
@@ -413,11 +412,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let sorted_idents = sorted_inputs.iter().map(|i| &i.ident);
         let sorted_tys = sorted_inputs.iter().map(|i| &i.ty);
 
-        let args_reexport_vis = match vis {
-            Visibility::Inherited => quote!(pub(super)),
-            vis => vis.to_token_stream(),
-        };
-
         let node_instance = ident_spanned!(output_span=> "__node__");
 
         quote! {
@@ -425,12 +419,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[doc(hidden)]
             #[derive(std::clone::Clone)]
             #[allow(non_camel_case_types)]
-            #vis struct #args_ident #impl_gens #where_gens {
+            #vis struct #ident #impl_gens #where_gens {
                 __instance__: #core::widget_builder::PropertyInstInfo,
                 #(#input_idents: #storage_tys),*
             }
             #cfg
-            impl #impl_gens #args_ident #ty_gens #where_gens {
+            impl #impl_gens #ident #ty_gens #where_gens {
                 pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
                 pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
 
@@ -488,7 +482,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #get_when_input
             }
             #cfg
-            impl #impl_gens #core::widget_builder::PropertyArgs for #args_ident #ty_gens #where_gens {
+            impl #impl_gens #core::widget_builder::PropertyArgs for #ident #ty_gens #where_gens {
                 fn clone_boxed(&self) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     Box::new(std::clone::Clone::clone(self))
                 }
@@ -524,14 +518,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #get_ui_node
                 #get_ui_node_list
                 #get_widget_handler
-            }
-
-            #cfg
-            #[doc(hidden)]
-            #vis mod #ident {
-                #[doc(hidden)]
-                #[allow(non_camel_case_types)]
-                #args_reexport_vis use super::#args_ident as property;                
             }
         }
     } else {
