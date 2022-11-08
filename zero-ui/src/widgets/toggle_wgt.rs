@@ -37,7 +37,7 @@ pub mod toggle {
             if let Some(p) = wgt.property_mut(super::property_id!(self.checked_opt)) {
                 p.position.index = u16::MAX; // force property to be inside tristate.
             }
-            if let Some(p) = wgt.property_mut(super::property_id!(self.value)) {
+            if let Some(p) = wgt.property_mut(super::property_id!(self.value::<()>)) {
                 p.position.index = u16::MAX; // force property to be inside select_on_init and others.
             }
         });

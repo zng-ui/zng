@@ -431,6 +431,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
             #cfg
             impl #impl_gens #args_ident #ty_gens #where_gens {
+                pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
+                pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
+
+                #[doc(hidden)]
+                pub fn __id__(name: &'static str) -> #core::widget_builder::PropertyId {
+                    static impl_id: #core::widget_builder::StaticPropertyImplId = #core::widget_builder::StaticPropertyImplId::new_unique();
+
+                    #core::widget_builder::PropertyId {
+                        impl_id: impl_id.get(),
+                        name,
+                    }
+                }
+
                 #[allow(clippy::too_many_arguments)]
                 pub fn __new__(
                     #(#input_idents: #input_tys),*
@@ -484,7 +497,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #core::widget_builder::PropertyInfo {
                         priority: #priority,
                         capture: #capture,
-                        impl_id: #ident::property_id("").impl_id,
+                        impl_id: Self::__id__("").impl_id,
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
                         default: #default_fn,
@@ -518,20 +531,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #vis mod #ident {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
-                #args_reexport_vis use super::#args_ident as property;
-
-                pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
-                pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
-
-                #[doc(hidden)]
-                pub fn property_id(name: &'static str) -> #core::widget_builder::PropertyId {
-                    static impl_id: #core::widget_builder::StaticPropertyImplId = #core::widget_builder::StaticPropertyImplId::new_unique();
-
-                    #core::widget_builder::PropertyId {
-                        impl_id: impl_id.get(),
-                        name,
-                    }
-                }
+                #args_reexport_vis use super::#args_ident as property;                
             }
         }
     } else {

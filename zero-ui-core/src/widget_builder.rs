@@ -92,21 +92,31 @@ pub use when_condition_expr_var;
 macro_rules! property_id {
     ($($property:ident)::+) => {{
         // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+::{property_id};
-        property_id($crate::widget_builder::property_id_name(stringify!($($property)::+)))
+        #[rustfmt::skip] use $($property)::+::{property};
+        property::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
+    }};
+    ($($property:ident)::+ ::<$($generics:ty),*>) => {{
+        // Rust does not expand the macro if we remove the braces.
+        #[rustfmt::skip] use $($property)::+::{property};
+        property::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
     }};
     ($($property:ident)::+ as $rename:ident) => {{
         // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+::{property_id};
-        property_id($crate::widget_builder::property_id_name(stringify!($rename)))
+        #[rustfmt::skip] use $($property)::+::{property};
+        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
     ($($widget:ident)::+ . $property:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{properties::{$property::{property_id}}};
-        property_id($crate::widget_builder::property_id_name(stringify!($property)))
+        #[rustfmt::skip] use $($widget)::+::{properties::{$property::{property}}};
+        property::__id__($crate::widget_builder::property_id_name(stringify!($property)))
+    }};
+
+    ($($widget:ident)::+ . $property:ident ::<$($generics:ty),*>) => {{
+        #[rustfmt::skip] use $($widget)::+::{properties::{$property::{property}}};
+        property::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($property)))
     }};
     ($($widget:ident)::+ . $property:ident as $rename:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{properties::{$property::{property_id}}};
-        property_id($crate::widget_builder::property_id_name(stringify!($rename)))
+        #[rustfmt::skip] use $($widget)::+::{properties::{$property::{property}}};
+        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
 }
 #[doc(inline)]

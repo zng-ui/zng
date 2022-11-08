@@ -50,7 +50,7 @@ impl WgtProperty {
         let ident = self.ident();
         let ident_str = ident.to_string();
         quote_spanned! {path_span(path)=>
-            #path::property_id(#ident_str)
+            #path::property::__id__(#ident_str)
         }
     }
 
@@ -675,12 +675,12 @@ impl WgtWhen {
             let error = format!("property `{p_ident_str}` cannot be read in when expr");
             inputs.extend(quote! {
                 {
-                    const _: () = if !#property::ALLOWED_IN_WHEN_EXPR {
+                    const _: () = if !#property::property::ALLOWED_IN_WHEN_EXPR {
                         panic!(#error)
                     };
 
                     #wgt_builder_mod::WhenInput {
-                        property: #property::property_id(#p_ident_str),
+                        property: #property::property #generics::__id__(#p_ident_str),
                         member: #wgt_builder_mod::WhenInputMember::#member,
                         var: #var_input,
                         property_default: #property::property #generics::__default_fn__(),
@@ -707,7 +707,7 @@ impl WgtWhen {
             let error = format!("property `{}` cannot be assigned in when", a.ident());
             assigns_error.extend(quote_spanned! {path_span(path)=>
                 #cfg
-                const _: () = if !#path::ALLOWED_IN_WHEN_ASSIGN {
+                const _: () = if !#path::property::ALLOWED_IN_WHEN_ASSIGN {
                     panic!(#error);
                 };
             });
