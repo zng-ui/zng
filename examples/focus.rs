@@ -426,8 +426,8 @@ mod inspect {
                     let txt = widget
                         .inspect_descendant("text")
                         .expect("expected text in button")
-                        .inspect_property("text")
-                        .expect("expected text property in text")
+                        .inspect_property("txt")
+                        .expect("expected txt property in text")
                         .live_debug(0)
                         .get();
 

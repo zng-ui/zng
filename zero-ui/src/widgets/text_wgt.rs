@@ -34,8 +34,8 @@ pub mod text {
         font_discretionary_lig, font_ea_width, font_family, font_features, font_historical_forms, font_historical_lig, font_jp_variant,
         font_kerning, font_num_fraction, font_num_spacing, font_numeric, font_ornaments, font_position, font_size, font_stretch,
         font_style, font_style_set, font_stylistic, font_swash, font_synthesis, font_variations, font_weight, lang, letter_spacing,
-        line_break, line_height, line_spacing, overline, overline_color, paragraph_spacing, strikethrough, strikethrough_color, tab_length,
-        txt_align, txt_color, txt_editable, padding, txt_transform, underline, underline_color, underline_position, underline_skip,
+        line_break, line_height, line_spacing, overline, overline_color, padding, paragraph_spacing, strikethrough, strikethrough_color,
+        tab_length, txt_align, txt_color, txt_editable, txt_transform, underline, underline_color, underline_position, underline_skip,
         white_space, word_break, word_spacing, *,
     };
 
