@@ -34,7 +34,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let ident = mod_.ident;
     let mod_token = mod_.mod_token;
     let mut attrs = util::Attributes::new(mod_.attrs);
-    attrs.tag_doc("Ш", "this module is also a widget macro");
+    attrs.tag_doc("W", "this module is also a widget macro");
 
     if mixin && !ident.to_string().ends_with("_mixin") {
         errors.push("mix-in names must end with suffix `_mixin`", ident.span());
@@ -305,15 +305,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 }
 
                 let doc = if p.is_private() {
-                    let mut path_str = String::new();
-                    if p.path.leading_colon.is_some() {
-                        path_str.push_str("::");
-                    }
-                    for s in &p.path.segments {
-                        use std::fmt::*;
-                        write!(&mut path_str, "{}::", s.ident).unwrap();
-                    }
-                    format!("* [`{}`](fn@{})", p.ident(), path_str.trim_end_matches(':'))
+                    format!("* `{}`", p.ident())
                 } else {
                     format!("* [`{0}`](fn@properties::{0})", p.ident())
                 };
@@ -339,7 +331,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 ///
             });
             for p in &w.assigns {
-                let doc = format!("* [`{0}`](fn@properties::{0})", p.ident());
+                let doc = format!("* `{0}`", p.ident());
                 doc_whens.extend(quote_spanned! {properties_span=>
                     #[doc=#doc]
                 });

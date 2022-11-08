@@ -130,11 +130,13 @@ pub fn image_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl Ui
 
 /// If the image desired size is scaled by the screen scale factor.
 ///
-/// The image desired size is its original size after [`crop`], it is a pixel value, but widgets are layout using
+/// The image desired size is its original size after [`image_crop`], it is a pixel value, but widgets are layout using
 /// device independent pixels that automatically scale in higher definition displays, when this property is enabled
 /// the image size is also scaled so that the image will take the same screen space in all devices, the image can end
 ///
 /// This is enabled by default.
+/// 
+/// [`image_crop`]: fn@image_crop
 #[property(context, default(IMAGE_SCALE_FACTOR_VAR))]
 pub fn image_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)

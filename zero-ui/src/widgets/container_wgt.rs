@@ -12,7 +12,7 @@ pub mod container {
         ///
         /// Can be any type that implements [`UiNode`], any widget.
         ///
-        /// [`UiNode`]: zero_ui::core::widget_instance::UiNode
+        /// [`UiNode`]: crate::core::widget_instance::UiNode
         pub crate::core::widget_base::child;
 
         /// Spacing around content, inside the border.

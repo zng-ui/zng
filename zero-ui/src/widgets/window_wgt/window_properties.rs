@@ -114,7 +114,12 @@ map_properties! {
     max_size.height = max_height: Length,
 }
 
-/// Sets the frame clear color.
+/// Window clear color.
+///
+/// Color used to *clear* the previous frame pixels before rendering a new frame.
+/// It is visible if window content does not completely fill the content area, this
+/// can happen if you do not set a background or the background is semi-transparent, also
+/// can happen during very fast resizes.
 #[property(context, default(colors::WHITE))]
 pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     #[ui_node(struct ClearColorNode {

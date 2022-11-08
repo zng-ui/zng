@@ -46,12 +46,8 @@ pub mod window {
         /// Window position when it opens.
         pub start_position(impl IntoValue<StartPosition>);
 
-        /// Window background color.
         background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
-
-        /// Window text color.
         text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
-
         focus_highlight = {
             offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
             widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
@@ -60,16 +56,7 @@ pub mod window {
                 BorderSides::dashed(colors::BLACK)
             ),
         };
-
-        /// Window clear color.
-        ///
-        /// Color used to *clear* the previous frame pixels before rendering a new frame.
-        /// It is visible if window content does not completely fill the content area, this
-        /// can happen if you do not set a background or the background is semi-transparent, also
-        /// can happen during very fast resizes.
         clear_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
-
-        /// Windows are focus scopes by default.
         focus_scope = true;
 
         /// Windows cycle TAB navigation by default.
@@ -151,7 +138,7 @@ pub mod window {
 
 
         /// Save and restore the window state.
-        properties::save_state = properties::SaveState::enabled();
+        save_state = properties::SaveState::enabled();
 
         /// Event just after the window opens.
         ///

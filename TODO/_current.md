@@ -1,11 +1,4 @@
-* Auto-doc generating some invalid links.
 * Document new rules for `inherit!` and `properties!` path imports.
-    - These don't actually work? Property links resolve outside, but doc links don't.
-    - Try to make  the `use super::*` work again.
-    - Is it an order of declaration problem?
-    - Or, now that we don't have super we can try having the auto-import affect the values.
-        - It was a neat effect, having enum values auto-imported for the widget they are needed.
-            - Or was it? All it takes is moving a variable declaration outside to break it.
 
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.
