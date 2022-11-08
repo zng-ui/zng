@@ -15,7 +15,7 @@ pub mod image {
     inherit!(widget_base::base);
 
     #[doc(inline)]
-        pub use super::image_properties::*;
+    pub use super::image_properties::*;
 
     properties! {
         /// The image source.
@@ -51,12 +51,12 @@ pub mod image {
 ///
 /// ```
 /// use zero_ui::prelude::*;
-/// use zero_ui::widgets::image::properties::*;
+/// use zero_ui::widgets::image::*;
 ///
 /// # let _ =
 /// button! {
 ///     child = image("https://httpbin.org/image");
-///     image_rendering = ImageRendering::Pixelated;
+///     img_rendering = ImageRendering::Pixelated;
 /// }
 /// # ;
 /// ```

@@ -1,15 +1,15 @@
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
-  --> cases/widget_new/missing_field_all_single.rs:8:16
-   |
-8  |         margin = { }
-   |         ------ ^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
-   |         |
-   |         required by a bound introduced by this call
-   |
-   = help: the following other types implement trait `IntoVar<T>`:
+ --> cases/widget_new/missing_field_all_single.rs:8:16
+  |
+8 |         margin = { }
+  |         ------ ^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
+  |         |
+  |         required by a bound introduced by this call
+  |
+  = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
-note: required by a bound in `margin_Args::__new__`
-  --> $WORKSPACE/zero-ui/src/properties/layout.rs
-   |
-   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
-   |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin_Args::__new__`
+note: required by a bound in `margin::__new__`
+ --> $WORKSPACE/zero-ui/src/properties/layout.rs
+  |
+  | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+  |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin::__new__`

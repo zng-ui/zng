@@ -88,8 +88,8 @@
 //! ```
 //! # use zero_ui::prelude::*;
 //! let text_a = text! {
-//!     text = "Hello!";
-//!     color = colors::BLACK;
+//!     txt = "Hello!";
+//!     txt_color = colors::BLACK;
 //!     background_gradient = 45.deg(), [rgb(255, 0, 0), rgb(0, 255, 0)];
 //!     margin = 10;
 //! };
@@ -803,7 +803,7 @@
 //! [`text()`]: fn@crate::widgets::text
 //! [`text!`]: mod@crate::widgets::text
 //! [`v_stack!`]: mod@crate::widgets::layouts::v_stack
-//! [`font_size`]: fn@crate::widgets::text::properties::font_size
+//! [`font_size`]: fn@crate::widgets::text::font_size
 //! [`margin`]: fn@crate::properties::margin
 //! [`on_click`]: fn@crate::properties::events::gesture::on_click
 //! [`UiNode`]: crate::core::widget_instance::UiNode

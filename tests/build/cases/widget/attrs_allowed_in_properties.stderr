@@ -2,21 +2,17 @@ error[E0433]: failed to resolve: use of undeclared crate or module `disabled_cfg
   --> cases/widget/attrs_allowed_in_properties.rs:36:9
    |
 36 |         disabled_cfg = 0;
-   |         ^^^^^^^^^^^^ not found in `disabled_cfg`
-   |
-help: consider importing one of these items
-   |
-1  | use crate::test_widget::__properties__::allowed_cfg::property;
-   |
-1  | use crate::test_widget::__properties__::enabled::property;
-   |
-1  | use crate::test_widget::__properties__::id::property;
-   |
-1  | use crate::test_widget::__properties__::visibility::property;
-   |
-     and 413 other candidates
-help: if you import `property`, refer to it directly
-   |
-36 -         disabled_cfg = 0;
-36 +         disabled_cfg = 0;
-   |
+   |         ^^^^^^^^^^^^ use of undeclared crate or module `disabled_cfg`
+
+warning: unused import: `zero_ui::properties::margin`
+ --> cases/widget/attrs_allowed_in_properties.rs:5:9
+  |
+5 |     use zero_ui::properties::margin;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+help: consider adding a `#[cfg(test)]` to the containing module
+ --> cases/widget/attrs_allowed_in_properties.rs:4:1
+  |
+4 | pub mod test_widget {
+  | ^^^^^^^^^^^^^^^^^^^

@@ -561,7 +561,7 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 ///     padding = 5.0;
 ///     children = ui_list![
 ///         text("one"),
-///         text! { text = "three"; z_index = ZIndex::DEFAULT + 1; },
+///         text! { txt = "three"; z_index = ZIndex::DEFAULT + 1; },
 ///         text("two"),
 ///     ];
 /// };

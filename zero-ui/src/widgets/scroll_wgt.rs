@@ -22,7 +22,7 @@ pub mod scroll {
     };
 
     #[doc(inline)]
-        pub use super::scroll_properties::*;
+    pub use super::scroll_properties::*;
 
     properties! {
         /// Content alignment when it is smaller then the viewport.

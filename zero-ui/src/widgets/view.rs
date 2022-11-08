@@ -43,7 +43,7 @@ impl<U: UiNode> View<U> {
 /// ```
 /// use zero_ui::{
 ///     core::{color::{rgb, rgba}, text::ToText, var::Var, widget_instance::UiNode},
-///     widgets::{text, text::{properties::{text_color, font_size}}, view, View},
+///     widgets::{text, text::{txt_color, font_size}, view, View},
 /// };
 ///
 /// fn countdown(n: impl Var<usize>) -> impl UiNode {
@@ -59,8 +59,8 @@ impl<U: UiNode> View<U> {
 ///
 ///     // initial_ui:
 ///     text! {
-///         color = rgba(0, 0, 0, 0.5);
-///         text = "starting..";
+///         txt_color = rgba(0, 0, 0, 0.5);
+///         txt = "starting..";
 ///     }.boxed(),
 ///
 ///     // presenter:
@@ -69,7 +69,7 @@ impl<U: UiNode> View<U> {
 ///             state = State::Counting;
 ///             View::Update(text! {
 ///                 font_size = 28;
-///                 text = n.map(|n| n.to_text());
+///                 txt = n.map(|n| n.to_text());
 ///             }.boxed())
 ///         }
 ///         State::Counting => {
@@ -86,9 +86,9 @@ impl<U: UiNode> View<U> {
 ///
 ///                 View::Update(
 ///                     text! {
-///                         color = rgb(0, 128, 0);
+///                         txt_color = rgb(0, 128, 0);
 ///                         font_size = 18;
-///                         text = "Congratulations!";
+///                         txt = "Congratulations!";
 ///                     }
 ///                     .boxed(),
 ///                 )
@@ -170,13 +170,13 @@ type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, D) -> BoxedUiNode>;
 /// Define the content that is shown when an image fails to load:
 ///
 /// ```
-/// # use zero_ui::{widgets::{ViewGenerator, image, image::properties::ImageErrorArgs, text}, core::color::colors};
+/// # use zero_ui::{widgets::{ViewGenerator, image, image::ImageErrorArgs, text}, core::color::colors};
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     error_view = ViewGenerator::new(|_ctx, e: ImageErrorArgs| text! {
-///         text = e.error.clone();
-///         color = colors::RED;
+///     img_error_view = ViewGenerator::new(|_ctx, e: ImageErrorArgs| text! {
+///         txt = e.error.clone();
+///         txt_color = colors::RED;
 ///     });
 /// }
 /// # ;
@@ -368,14 +368,14 @@ pub enum DataUpdate<D> {
 /// Define the content that is shown when an image fails to load, capturing another variable too.
 ///
 /// ```
-/// # use zero_ui::{widgets::{view_generator, image, image::properties::ImageErrorArgs, text}, core::{color::{Rgba, colors}, var::var, widget_info::Visibility}};
+/// # use zero_ui::{widgets::{view_generator, image, image::ImageErrorArgs, text}, core::{color::{Rgba, colors}, var::var, widget_info::Visibility}};
 /// let img_error_vis = var(Visibility::Visible);
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     error_view = view_generator!(img_error_vis, |_ctx, e: ImageErrorArgs| text! {
-///         text = e.error.clone();
-///         color = colors::RED;
+///     img_error_view = view_generator!(img_error_vis, |_ctx, e: ImageErrorArgs| text! {
+///         txt = e.error.clone();
+///         txt_color = colors::RED;
 ///         visibility = img_error_vis.clone();
 ///     });
 /// }

@@ -5,25 +5,25 @@ pub mod test_widget {
     use zero_ui::properties::margin;
 
     #[cfg(any())]
-    use margin as disabled_margin;
+    pub use margin as disabled_margin;
 
     inherit!(zero_ui::core::widget_base::base);
 
     properties! {
         #[cfg(not(any()))]
-        pub margin as allowed_cfg;
+        pub zero_ui::properties::margin as allowed_cfg;
 
         #[cfg(any())]
         pub disabled_margin as disabled_cfg;
 
         #[allow(unused_imports)]
-        pub margin as allowed_lints = {
+        pub zero_ui::properties::margin as allowed_lints = {
             use std::vec;
             0
         };
 
         /// doc
-        pub margin as allowed_doc;
+        pub zero_ui::properties::margin as allowed_doc;
     }
 }
 

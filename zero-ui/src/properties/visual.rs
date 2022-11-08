@@ -20,9 +20,9 @@ use super::hit_test_mode;
 /// container! {
 ///     child = foo();
 ///     background = text! {
-///         text = "CUSTOM BACKGROUND";
+///         txt = "CUSTOM BACKGROUND";
 ///         font_size = 72;
-///         color = colors::LIGHT_GRAY;
+///         txt_color = colors::LIGHT_GRAY;
 ///         transform = rotate(45.deg());
 ///         align = Align::CENTER;
 ///     }
@@ -139,9 +139,9 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// container! {
 ///     child = foo();
 ///     foreground = text! {
-///         text = "TRIAL";
+///         txt = "TRIAL";
 ///         font_size = 72;
-///         color = colors::BLACK;
+///         txt_color = colors::BLACK;
 ///         opacity = 10.pct();
 ///         transform = rotate(45.deg());
 ///         align = Align::CENTER;

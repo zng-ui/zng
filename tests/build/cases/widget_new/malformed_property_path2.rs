@@ -1,4 +1,4 @@
-use zero_ui::widgets::blank;
+use zero_ui::{properties::margin, widgets::blank};
 
 fn main() {
     let _ = blank! {

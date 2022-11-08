@@ -3,6 +3,9 @@
         - Done, test it.
     - Properties re-export moved to inline.
         - Done, test it.
+* Make `include` and `build` public for each widget.
+    - Set auto-docs in the `include` function.
+    - Maybe have a name `widget_include`? 
 
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.

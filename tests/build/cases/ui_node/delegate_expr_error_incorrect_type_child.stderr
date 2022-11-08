@@ -1,8 +1,10 @@
 error[E0277]: the trait bound `NotANode: zero_ui::prelude::UiNode` is not satisfied
- --> cases/ui_node/delegate_expr_error_incorrect_type_child.rs:9:1
+ --> cases/ui_node/delegate_expr_error_incorrect_type_child.rs:9:11
   |
 9 | #[ui_node(child)]
-  | ^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNode` is not implemented for `NotANode`
+  | ----------^^^^^--
+  | |         |
+  | |         the trait `zero_ui::prelude::UiNode` is not implemented for `NotANode`
+  | required by a bound introduced by this call
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNode`:
-            <implementers-list>

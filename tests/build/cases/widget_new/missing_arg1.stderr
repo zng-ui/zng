@@ -1,19 +1,19 @@
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
-   --> cases/widget_new/missing_arg1.rs:7:9
-    |
-7   |         background_gradient = 0.deg(), ;
-    |         ^^^^^^^^^^^^^^^^^^^ an argument is missing
-    |
+ --> cases/widget_new/missing_arg1.rs:7:9
+  |
+7 |         background_gradient = 0.deg(), ;
+  |         ^^^^^^^^^^^^^^^^^^^ an argument is missing
+  |
 note: associated function defined here
-   --> $WORKSPACE/zero-ui/src/properties/visual.rs
-    |
-    | / #[property(fill, default(0.deg(), {
-    | |     let c = colors::BLACK.transparent();
-    | |     crate::core::gradient::stops![c, c]
-    | | }))]
-    | |____^
-    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> $WORKSPACE/zero-ui/src/properties/visual.rs
+  |
+  | / #[property(fill, default(0.deg(), {
+  | |     let c = colors::BLACK.transparent();
+  | |     crate::core::gradient::stops![c, c]
+  | | }))]
+  | |____^
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
     |
 7   |         background_gradient(=, /* value */) = 0.deg(), ;
-    |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    |                            ++++++++++++++++

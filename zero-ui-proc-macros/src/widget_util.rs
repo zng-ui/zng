@@ -305,6 +305,10 @@ impl Parse for WgtProperty {
 
         let vis = input.parse()?;
         let path: Path = input.parse()?;
+        if input.peek(Token![!]) {
+            // cause error.
+            input.parse::<Token![=]>()?;
+        }
         let (path, generics) = split_path_generics(path)?;
 
         let capture_decl = if input.peek(token::Paren) { Some(input.parse()?) } else { None };

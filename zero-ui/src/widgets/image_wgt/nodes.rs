@@ -30,7 +30,7 @@ fn no_context_image() -> Image {
 /// In a widget this should be placed inside context properties and before event properties.
 ///
 /// [`Images`]: crate::core::image::Images
-/// [`image_cache`]: mod@crate::widgets::image::properties::image_cache
+/// [`image_cache`]: mod@crate::widgets::image::image_cache
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
     #[ui_node(struct ImageSourceNode {
         child: impl UiNode,

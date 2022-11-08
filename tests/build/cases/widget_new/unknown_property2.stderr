@@ -2,21 +2,4 @@ error[E0433]: failed to resolve: use of undeclared crate or module `unknown`
  --> cases/widget_new/unknown_property2.rs:5:9
   |
 5 |         unknown = {
-  |         ^^^^^^^ not found in `unknown`
-  |
-help: consider importing one of these items
-  |
-1 | use crate::blank::__properties__::enabled::property;
-  |
-1 | use crate::blank::__properties__::id::property;
-  |
-1 | use crate::blank::__properties__::visibility::property;
-  |
-1 | use zero_ui::prelude::align::property;
-  |
-    and 412 other candidates
-help: if you import `property`, refer to it directly
-  |
-5 -         unknown = {
-5 +         unknown = {
-  |
+  |         ^^^^^^^ use of undeclared crate or module `unknown`

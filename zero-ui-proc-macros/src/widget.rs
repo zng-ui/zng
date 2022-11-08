@@ -252,10 +252,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let macro_ident = ident!("__wgt_{}__", mod_path_slug);
 
     // !!: move auto-docs to `pub fn include`.
-    let docs_span = properties
-        .first()
-        .map(|p| p.properties_span)
-        .unwrap_or_else(Span::call_site);
+    let docs_span = properties.first().map(|p| p.properties_span).unwrap_or_else(Span::call_site);
 
     let mut doc_assigns = quote!();
     let mut doc_unsets = quote!();

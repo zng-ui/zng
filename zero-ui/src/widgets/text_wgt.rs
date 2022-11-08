@@ -13,7 +13,7 @@ mod text_properties;
 /// let hello_txt = text! {
 ///     font_family = "Arial";
 ///     font_size = 18;
-///     text = "Hello!";
+///     txt = "Hello!";
 /// };
 /// ```
 /// # As Function
@@ -29,7 +29,7 @@ pub mod text {
     pub use super::nodes;
 
     #[doc(inline)]
-        pub use super::text_properties::*;
+    pub use super::text_properties::*;
 
     properties! {
         /// The text string.
@@ -65,7 +65,7 @@ pub mod text {
 ///
 /// ```
 /// # fn main() -> () {
-/// use zero_ui::widgets::{container, text, text::properties::{font_family, font_size}};
+/// use zero_ui::widgets::{container, text, text::{font_family, font_size}};
 ///
 /// let hello_txt = container! {
 ///     font_family = "Arial";
@@ -79,9 +79,9 @@ pub mod text {
 ///
 /// There is a specific widget for creating configured text runs: [`text!`].
 ///
-/// [`font_family`]: fn@crate::widgets::text::properties::font_family
-/// [`font_size`]: fn@crate::widgets::text::properties::font_size
-/// [`text_color`]: fn@crate::widgets::text::properties::text_color
+/// [`font_family`]: fn@crate::widgets::text::font_family
+/// [`font_size`]: fn@crate::widgets::text::font_size
+/// [`text_color`]: fn@crate::widgets::text::text_color
 /// [`text!`]: mod@text
 pub fn text(txt: impl IntoVar<Text>) -> impl UiNode {
     text! { txt; }

@@ -1,17 +1,17 @@
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
-  --> cases/widget_new/malformed_fields2.rs:6:16
-   |
-6  |           margin = {
-   |           -      ^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
-   |  _________|
-   | |
-7  | |             margin:
-   | |__________________- required by a bound introduced by this call
-   |
-   = help: the following other types implement trait `IntoVar<T>`:
+ --> cases/widget_new/malformed_fields2.rs:6:16
+  |
+6 |           margin = {
+  |           -      ^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
+  |  _________|
+  | |
+7 | |             margin:
+  | |__________________- required by a bound introduced by this call
+  |
+  = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
-note: required by a bound in `margin_Args::margin`
-  --> $WORKSPACE/zero-ui/src/properties/layout.rs
-   |
-   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
-   |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin_Args::margin`
+note: required by a bound in `margin::margin`
+ --> $WORKSPACE/zero-ui/src/properties/layout.rs
+  |
+  | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+  |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin::margin`

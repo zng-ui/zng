@@ -1,35 +1,35 @@
 error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
-   --> cases/widget_new/missing_field_all_multi.rs:9:29
-    |
-9   |         background_gradient = { }
-    |         ------------------- ^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
-    |         |
-    |         required by a bound introduced by this call
-    |
-    = help: the following other types implement trait `IntoVar<T>`:
+ --> cases/widget_new/missing_field_all_multi.rs:9:29
+  |
+9 |         background_gradient = { }
+  |         ------------------- ^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
+  |         |
+  |         required by a bound introduced by this call
+  |
+  = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
-note: required by a bound in `background_gradient_Args::__new__`
-   --> $WORKSPACE/zero-ui/src/properties/visual.rs
-    |
-    | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient_Args::__new__`
+note: required by a bound in `background_gradient::__new__`
+ --> $WORKSPACE/zero-ui/src/properties/visual.rs
+  |
+  | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+  |                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::__new__`
 
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
-   --> cases/widget_new/missing_field_all_multi.rs:9:9
-    |
-9   |         background_gradient = { }
-    |         ^^^^^^^^^^^^^^^^^^^ an argument is missing
-    |
+ --> cases/widget_new/missing_field_all_multi.rs:9:9
+  |
+9 |         background_gradient = { }
+  |         ^^^^^^^^^^^^^^^^^^^ an argument is missing
+  |
 note: associated function defined here
-   --> $WORKSPACE/zero-ui/src/properties/visual.rs
-    |
-    | / #[property(fill, default(0.deg(), {
-    | |     let c = colors::BLACK.transparent();
-    | |     crate::core::gradient::stops![c, c]
-    | | }))]
-    | |____^
-    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> $WORKSPACE/zero-ui/src/properties/visual.rs
+  |
+  | / #[property(fill, default(0.deg(), {
+  | |     let c = colors::BLACK.transparent();
+  | |     crate::core::gradient::stops![c, c]
+  | | }))]
+  | |____^
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
     |
 9   |         background_gradient(=, /* value */) = { }
-    |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    |                            ++++++++++++++++

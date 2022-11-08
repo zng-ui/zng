@@ -2,7 +2,7 @@ use zero_ui::core::widget;
 
 #[widget($crate::test_widget)]
 pub mod test_widget {
-    use zero_ui::properties::{cursor, margin};
+    pub use zero_ui::properties::{cursor, margin};
 
     inherit!(zero_ui::core::widget_base::base);
 

@@ -110,7 +110,7 @@ pub use crate::property_id;
 
 #[doc(hidden)]
 pub fn property_id_name(path: &'static str) -> &'static str {
-    path.rsplit(':').last().unwrap_or("").trim()
+    path.rsplit(':').next().unwrap_or("").trim()
 }
 
 ///<span data-del-macro-root></span> New [`PropertyArgs`] box from a property and value.

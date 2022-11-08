@@ -5,18 +5,18 @@ error: expected `;`
   |         ^^^^
 
 error[E0061]: this function takes 1 argument but 0 arguments were supplied
-  --> cases/widget_new/missing_value_before_when1.rs:6:9
-   |
-6  |         margin = // missing 0; here
-   |         ^^^^^^ an argument is missing
-   |
+ --> cases/widget_new/missing_value_before_when1.rs:6:9
+  |
+6 |         margin = // missing 0; here
+  |         ^^^^^^ an argument is missing
+  |
 note: associated function defined here
-  --> $WORKSPACE/zero-ui/src/properties/layout.rs
-   |
-   | #[property(layout, default(0))]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> $WORKSPACE/zero-ui/src/properties/layout.rs
+  |
+  | #[property(layout, default(0))]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
 6  |         margin(/* value */) = // missing 0; here
-   |         ~~~~~~~~~~~~~~~~~~~
+   |               +++++++++++++

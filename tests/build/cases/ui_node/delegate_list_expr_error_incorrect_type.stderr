@@ -1,80 +1,10 @@
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
-
-error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
-   --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:1
-    |
-9   | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
-    |
-    = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
-            <implementers-list>
+ --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
+  |
+9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
+  | --------------------------^-------------------------------------------------
+  | |                         |
+  | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
+  | required by a bound introduced by this call
+  |
+  = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
