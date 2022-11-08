@@ -65,8 +65,6 @@ pub use when_condition_expr_var;
 ///
 /// * `property::path`: Gets the ID for the standalone property function.
 /// * `property::path as rename`: Gets the ID, but with the new name.
-/// * `widget::path.property`: Gets the ID for the property re-exported by the widget.
-/// * `widget::path.property as rename`: Gets the ID for widget property, but with the new name.
 ///
 /// # Examples
 ///
@@ -105,19 +103,7 @@ macro_rules! property_id {
         #[rustfmt::skip] use $($property)::+ as property;
         property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
-    ($($widget:ident)::+ . $property:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{properties::{$property as property}};
-        property::__id__($crate::widget_builder::property_id_name(stringify!($property)))
-    }};
-
-    ($($widget:ident)::+ . $property:ident ::<$($generics:ty),*>) => {{
-        #[rustfmt::skip] use $($widget)::+::{properties::{$property as property}};
-        property::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($property)))
-    }};
-    ($($widget:ident)::+ . $property:ident as $rename:ident) => {{
-        #[rustfmt::skip] use $($widget)::+::{properties::{$property as property}};
-        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
-    }};
+    // !!: rename generics
 }
 #[doc(inline)]
 pub use crate::property_id;
@@ -135,8 +121,6 @@ pub fn property_id_name(path: &'static str) -> &'static str {
 ///
 /// * `property::path = <value>;`: Args for the standalone property function.
 /// * `property::path as rename = <value>;`: Args for the standalone property, but the ID is renamed.
-/// * `widget::path.property = <value>;`: Args for a property re-exported by the widget.
-/// * `widget::path.property as rename = <value>;`: Args for the widget property, but the ID renamed.
 ///
 /// In all of these the `<value>` is the standard property init expression or named fields patterns that are used in widget assigns.
 ///
@@ -153,13 +137,7 @@ macro_rules! property_args {
             }
         }
     };
-    ($($widget:ident)::+ . $property:ident $(as $rename:ident)? = $($value:tt)*) => {
-        {
-            $crate::widget_builder::property_args_getter! {
-                $($widget)::+::properties::$property $(as $rename)? = $($value)*
-            }
-        }
-    };
+    // !!: generics
 }
 #[doc(inline)]
 pub use crate::property_args;

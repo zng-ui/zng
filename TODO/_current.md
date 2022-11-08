@@ -1,17 +1,8 @@
 * Hacks to remove
     - Properties with the same name as widgets cause conflict that need to be resolved manually.
-        - See `style` and `style_property`.
-        - Resolved by not having properties be modules.
-        - Can be `struct`.
-            - Need to figure-out generics for things that don't need generic, like ID.
-                - Could just require it.
-            - Users need to pub import to pub use property.
-                - Is this even a downside?
-    - Properties re-export module causes we to have to add a `super::` to types and doc links.
-        - It cannot be perfect, we are guessing types from tokens.
-        - Properties could be re-exported directly in the widget module.
-            - It makes visual sense, we set then directly in the widget, why not `widget::property`.
-            - Can remove special syntax of `property_id!/_args!`.
+        - Done, test it.
+    - Properties re-export moved to inline.
+        - Done, test it.
 
 * Refactor animate sleep tracking, to allow refactoring AnimationArgs to be an Rc, to allow real `Var::modify` animation.
     - Using clone for now, after merge refactor this.

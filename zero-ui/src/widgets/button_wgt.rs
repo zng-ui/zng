@@ -38,7 +38,7 @@ pub mod button {
         ///
         /// Set to [`vis::STYLE_VAR`] by default, setting this property directly completely replaces the button style,
         /// see [`vis::replace_style`] and [`vis::extend_style`] for other ways of modifying the button style.
-        style = vis::STYLE_VAR;
+        style_gen = vis::STYLE_VAR;
     }
 }
 

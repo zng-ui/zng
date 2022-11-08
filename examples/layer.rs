@@ -35,7 +35,7 @@ fn app_main() {
             on_pre_init = hn!(|ctx, _| {
                 WindowLayers::insert(ctx, LayerIndex::TOP_MOST - 100, text! {
                     hit_test_mode = HitTestMode::Disabled;
-                    text = "on_pre_init";
+                    txt = "on_pre_init";
                     font_size = 72;
                     font_family = "monospace";
                     opacity = 3.pct();
@@ -90,7 +90,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 children_align = Align::RIGHT;
                 children = ui_list![
                     text! {
-                        text = "Overlay inserted in the TOP_MOST layer.";
+                        txt = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
                     },
                     h_stack! {
@@ -137,8 +137,8 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
             ctx.with(|ctx| WindowLayers::insert(ctx, n, container! {
                 id;
                 child = text! {
-                    text = label.clone();
-                    text_color = rgb(0.92, 0.92, 0.92);
+                    txt = label.clone();
+                    txt_color = rgb(0.92, 0.92, 0.92);
                     font_size = 16;
                     font_weight = FontWeight::BOLD;
                 };
@@ -199,8 +199,8 @@ fn anchor_example() -> impl UiNode {
         on_mouse_enter = hn!(|ctx, _| {
             WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
                 id = "anchored";
-                text = "Example";
-                text_color = rgb(0.92, 0.92, 0.92);
+                txt = "Example";
+                txt_color = rgb(0.92, 0.92, 0.92);
                 padding = 4;
                 font_weight = FontWeight::BOLD;
                 background_color = colors::DARK_GREEN.with_alpha(80.pct());
@@ -236,7 +236,7 @@ fn transform_anchor_example() -> impl UiNode {
                     hit_test_mode = HitTestMode::Disabled;
                     child = text! {
                         y = -(2.dip() + 100.pct());
-                        text = "example";
+                        txt = "example";
                         font_weight = FontWeight::BOLD;
                     }
                 })

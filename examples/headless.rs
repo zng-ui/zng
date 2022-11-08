@@ -81,10 +81,10 @@ fn image() -> impl UiNode {
 
         child = text! {
             align = Align::CENTER;
-            text = "Hello World!";
+            txt = "Hello World!";
             font_size = 72;
             font_family = ["Consolas", "monospace"];
-            text_color = colors::WHITE;
+            txt_color = colors::WHITE;
         };
     }
 }

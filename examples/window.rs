@@ -240,7 +240,7 @@ fn icon(window_vars: &WindowVars) -> impl UiNode {
                     size = (36, 36);
                     font_size = 28;
                     font_weight = FontWeight::BOLD;
-                    text = "W";
+                    txt = "W";
                     drop_shadow = {
                         offset: (2, 2),
                         blur_radius: 5,
@@ -412,7 +412,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                             child_align = Align::CENTER;
                             start_position = StartPosition::CenterParent;
                             child = text! {
-                                text = formatx!("Child {child_count}");
+                                txt = formatx!("Child {child_count}");
                                 font_size = 20;
                             };
                         });
@@ -432,7 +432,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                             size = (400, 300);
                             child_align = Align::CENTER;
                             child = text! {
-                                text = formatx!("Other {other_count}");
+                                txt = formatx!("Other {other_count}");
                                 font_size = 20;
                             };
                         });
@@ -492,7 +492,7 @@ fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl UiNode
                 children_align = Align::RIGHT;
                 children = ui_list![
                     text! {
-                        text = match windows.len() {
+                        txt = match windows.len() {
                             1 => "Close Confirmation\n\nClose 1 window?".to_text(),
                             n => formatx!("Close Confirmation\n\nClose {n} windows?")
                         };
@@ -538,7 +538,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
         children = ui_list![text! {
-            text = header;
+            txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
         }].chain(items);
@@ -550,7 +550,7 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>,
         spacing = 5;
         toggle::selection = toggle::Selector::single(selection);
         children = ui_list![text! {
-            text = header;
+            txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
         }].chain(items);

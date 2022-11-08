@@ -1,4 +1,4 @@
-use std::{collections::HashSet, mem};
+use std::mem;
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -74,16 +74,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         uses,
         inherits,
         mut properties,
-        properties_mod,
         include_fn,
         build_fn,
         others,
     } = WidgetItems::new(items, &mut errors);
-
-    let mut manual_properties = HashSet::new();
-    if let Some(n) = properties_mod.as_ref().and_then(|p| p.content.as_ref()).map(|(_, n)| n) {
-        widget_util::collect_item_idents(n, &mut manual_properties);
-    }
 
     let mut include_item_imports = quote!();
 
@@ -112,18 +106,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
 
     let mut capture_decl = quote!();
-    let mut capture_dft_decl = quote!();
     let mut pre_bind = quote!();
 
-    let all_properties: Vec<_> = properties
-        .iter()
-        .flat_map(|i| i.properties.iter())
-        .map(|p| p.ident().clone())
-        .collect();
-
     for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
-        capture_decl.extend(prop.declare_capture(&all_properties));
-        capture_dft_decl.extend(prop.declare_capture_default());
+        capture_decl.extend(prop.declare_capture());
         pre_bind.extend(prop.pre_bind_args(false, None, ""));
     }
     for (i, when) in properties.iter_mut().flat_map(|i| i.whens.iter_mut()).enumerate() {
@@ -252,26 +238,23 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let mut inherit_export = quote!();
 
     for Inherit { attrs, path } in inherits {
-        let exp_path = widget_util::export_path(&path);
         inherit_export.extend(quote_spanned! {path_span(&path)=>
             #(#attrs)*
             #[allow(unused_imports)]
             #[doc(no_inline)]
-            pub use #exp_path::properties::*;
+            pub use #path::*;
         });
     }
     for p in properties.iter().flat_map(|p| p.properties.iter()) {
-        if !manual_properties.contains(p.ident()) {
-            inherit_export.extend(p.reexport(&all_properties));
-        }
+        inherit_export.extend(p.reexport());
     }
 
     let macro_ident = ident!("__wgt_{}__", mod_path_slug);
 
-    let properties_span = properties
+    // !!: move auto-docs to `pub fn include`.
+    let docs_span = properties
         .first()
         .map(|p| p.properties_span)
-        .or_else(|| properties_mod.as_ref().map(|p| p.ident.span()))
         .unwrap_or_else(Span::call_site);
 
     let mut doc_assigns = quote!();
@@ -281,7 +264,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         for p in &p.properties {
             if p.is_unset() {
                 if doc_unsets.is_empty() {
-                    doc_unsets.extend(quote_spanned! {properties_span=>
+                    doc_unsets.extend(quote_spanned! {docs_span=>
                         ///
                         /// # Default Unsets
                         ///
@@ -290,12 +273,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                     });
                 }
                 let doc = format!("* [`{0}`](fn@properties::{0})", p.ident());
-                doc_unsets.extend(quote_spanned! {properties_span=>
+                doc_unsets.extend(quote_spanned! {docs_span=>
                     #[doc=#doc]
                 });
             } else if p.has_args() {
                 if doc_assigns.is_empty() {
-                    doc_assigns.extend(quote_spanned! {properties_span=>
+                    doc_assigns.extend(quote_spanned! {docs_span=>
                         ///
                         /// # Default Assigns
                         ///
@@ -309,14 +292,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 } else {
                     format!("* [`{0}`](fn@properties::{0})", p.ident())
                 };
-                doc_assigns.extend(quote_spanned! {properties_span=>
+                doc_assigns.extend(quote_spanned! {docs_span=>
                     #[doc=#doc]
                 });
             }
         }
         for w in &p.whens {
             if doc_whens.is_empty() {
-                doc_unsets.extend(quote_spanned! {properties_span=>
+                doc_unsets.extend(quote_spanned! {docs_span=>
                     ///
                     /// # Default Whens
                     ///
@@ -325,20 +308,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 });
             }
             let doc = format!("### `when {}`", w.condition_expr);
-            doc_whens.extend(quote_spanned! {properties_span=>
+            doc_whens.extend(quote_spanned! {docs_span=>
                 ///
                 #[doc=#doc]
                 ///
             });
             for p in &w.assigns {
                 let doc = format!("* `{0}`", p.ident());
-                doc_whens.extend(quote_spanned! {properties_span=>
+                doc_whens.extend(quote_spanned! {docs_span=>
                     #[doc=#doc]
                 });
             }
         }
     }
-    let docs_intro = quote_spanned! {properties_span=>
+    let docs_intro = quote_spanned! {docs_span=>
         /// Widget properties.
         ///
         /// The property functions in this module can be used directly in widget instances.
@@ -349,47 +332,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #doc_whens
     };
 
-    let properties;
-    if let Some(p) = &properties_mod {
-        let attrs = &p.attrs;
-        let vis = &p.vis;
-        let mod_ = &p.mod_token;
-        let ident = &p.ident;
-
-        let items = if let Some((brace, items)) = &p.content {
-            let mut r = quote!();
-            brace.surround(&mut r, |t| {
-                for item in items {
-                    item.to_tokens(t);
-                }
-                inherit_export.to_tokens(t);
-                capture_decl.to_tokens(t);
-            });
-            r
-        } else {
-            quote_spanned! {ident.span()=>
-                #inherit_export
-                #capture_decl
-            }
-        };
-        let vis = quote_spanned!(vis.span()=> pub);
-        properties = quote! {
-            #docs_intro
-            #(#attrs)*
-            #docs
-            #vis #mod_ #ident #items
-        }
-    } else {
-        properties = quote_spanned! {properties_span=>
-            #docs_intro
-            #docs
-            pub mod properties {
-                #inherit_export
-                #capture_decl
-            }
-        }
-    }
-
     let mod_items = quote! {
         #validate_path
 
@@ -399,7 +341,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         // use items (after custom items in case of custom macro_rules re-export)
         #(#uses)*
 
-        #properties
+        #inherit_export
+        #capture_decl
 
         #include_fn
 
@@ -407,13 +350,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         pub fn __include__(__wgt__: &mut #crate_core::widget_builder::WidgetBuilder) {
             #include_item_imports
             #pre_bind
-            {
-                use self::properties::*;
-                #include_items
-            }
+            #include_items
         }
 
-        #capture_dft_decl
         #build_fn
         #build
 
@@ -523,7 +462,6 @@ struct WidgetItems {
     uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
-    properties_mod: Option<ItemMod>,
     include_fn: Option<ItemFn>,
     build_fn: Option<ItemFn>,
     others: Vec<Item>,
@@ -533,7 +471,6 @@ impl WidgetItems {
         let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
-        let mut properties_mod = None;
         let mut include_fn = None;
         let mut build_fn = None;
         let mut others = vec![];
@@ -573,9 +510,6 @@ impl WidgetItems {
                 Item::Fn(fn_) if fn_.sig.ident == "build" => {
                     build_fn = Some(fn_);
                 }
-                Item::Mod(m) if m.ident == "properties" => {
-                    properties_mod = Some(m);
-                }
                 // other user items.
                 item => others.push(item),
             }
@@ -585,7 +519,6 @@ impl WidgetItems {
             uses,
             inherits,
             properties,
-            properties_mod,
             include_fn,
             build_fn,
             others,
@@ -749,7 +682,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let mut __wgt__ = #widget::__widget__::new();
             {
                 #[allow(unused_imports)]
-                use #widget::properties::*;
+                use #widget::*;
                 #init
             }
             #widget::__widget__::build(__wgt__)

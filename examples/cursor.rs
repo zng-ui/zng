@@ -46,23 +46,23 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         background = match icon {
             Some((_, img)) => image!{
                 source = img;
-                image_fit = ImageFit::None;
+                img_fit = ImageFit::None;
                 invert_color = color_scheme_map(true, false);
             }.boxed(),
             None => NilUiNode.boxed(),
         };
 
-        text_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
+        txt_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
 
         when *#is_hovered {
-            text_color = color_scheme_map(colors::WHITE, colors::BLACK);
+            txt_color = color_scheme_map(colors::WHITE, colors::BLACK);
         }
 
         child_align = Align::TOP_LEFT;
         padding = (2, 5);
 
         child = text! {
-            text = match icon {
+            txt = match icon {
                 Some((ico, _)) => formatx!("{ico:?}"),
                 None => Text::from_static("<none>"),
             };

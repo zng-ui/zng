@@ -18,8 +18,8 @@ pub mod wrap {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
-            let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
+            let spacing = wgt.capture_var_or_default(property_id!(self::spacing));
 
             let node = WrapNode {
                 children: ZSortingList::new(children),

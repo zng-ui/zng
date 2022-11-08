@@ -77,24 +77,24 @@ fn app_main() {
                     text!{
                         align = Align::CENTER;
                         font_size = 18.pt();
-                        text = "Press a shortcut:";
+                        txt = "Press a shortcut:";
                     },
                     text! {
                         align = Align::CENTER;
                         margin = (10, 0);
                         font_size = 28.pt();
-                        text = shortcut_text;
+                        txt = shortcut_text;
 
                         when *#{shortcut_error} {
-                            text_color = colors::SALMON;
+                            txt_color = colors::SALMON;
                         }
                     },
                     text! {
                         align = Align::CENTER;
                         font_size = 22.pt();
                         font_family = FontName::monospace();
-                        text_color = colors::LIGHT_SLATE_GRAY;
-                        text = keypress_text;
+                        txt_color = colors::LIGHT_SLATE_GRAY;
+                        txt = keypress_text;
                     }
                 ];
             };

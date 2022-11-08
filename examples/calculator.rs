@@ -32,12 +32,12 @@ fn app_main() {
                 spacing = 5;
                 children = ui_list![
                     text! {
-                        text = calc.map_ref(|c| c.text());
+                        txt = calc.map_ref(|c| c.text());
                         align = Align::RIGHT;
                         font_size = 32.pt();
 
                         when #{calc.clone()}.error() {
-                            text_color = colors::RED;
+                            txt_color = colors::RED;
                         }
                     },
                     controls(calc)

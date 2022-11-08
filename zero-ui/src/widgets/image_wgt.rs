@@ -14,10 +14,8 @@ pub mod image {
 
     inherit!(widget_base::base);
 
-    pub mod properties {
-        #[doc(inline)]
-        pub use super::super::image_properties::*;
-    }
+    #[doc(inline)]
+        pub use super::image_properties::*;
 
     properties! {
         /// The image source.
@@ -36,7 +34,7 @@ pub mod image {
         let node = nodes::image_loading_presenter(node);
         wgt.set_child(node);
 
-        let source = wgt.capture_var::<ImageSource>(property_id!(self.source)).unwrap_or_else(|| {
+        let source = wgt.capture_var::<ImageSource>(property_id!(self::source)).unwrap_or_else(|| {
             let error = Image::dummy(Some("no source".to_owned()));
             let error = ImageSource::Image(var(error).read_only());
             LocalVar(error).boxed()
@@ -92,7 +90,7 @@ mod tests {
             window! {
                 child = image! {
                     source = img.clone();
-                    image_error_view = view_generator!(ok, |_, _| {
+                    img_error_view = view_generator!(ok, |_, _| {
                         ok.set(true);
                         image! {
                             source = img.clone();

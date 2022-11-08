@@ -21,20 +21,20 @@ pub mod icon {
 
     properties! {
         /// The glyph icon.
-        pub icon(impl IntoVar<icon::GlyphIcon>);
+        pub ico(impl IntoVar<GlyphIcon>);
 
         /// Icon size, best sizes are 18, 24, 36 or 48dip, default is 24dip.
         ///
         /// This is a single [`Length`] value that sets the "font size" of the icon glyph.
-        pub vis::icon_size;
+        pub vis::ico_size;
 
         /// Icon color.
-        pub vis::icon_color as color;
+        pub vis::ico_color;
 
         /// Spacing in between the icon and background edges or border.
         ///
         /// Set to `0` by default.
-        pub text::properties::text_padding as padding;
+        pub text::txt_padding as padding;
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -42,7 +42,7 @@ pub mod icon {
     }
 
     fn on_build(wgt: &mut WidgetBuilding) {
-        let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(self.icon)) {
+        let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(self::ico)) {
             icon
         } else {
             tracing::error!("missing `icon` property");
@@ -54,9 +54,9 @@ pub mod icon {
         wgt.push_intrinsic(Priority::Fill, "layout_text", text::nodes::layout_text);
         wgt.push_intrinsic(Priority::Event, "resolve_text", move |child| {
             let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
-            let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
-            let node = text::properties::font_size(node, vis::ICON_SIZE_VAR);
-            text::properties::text_color(node, vis::ICON_COLOR_VAR)
+            let node = text::font_family(node, icon.map(|i| i.font.clone().into()));
+            let node = text::font_size(node, vis::ICON_SIZE_VAR);
+            text::txt_color(node, vis::ICON_COLOR_VAR)
         });
     }
 
@@ -132,7 +132,7 @@ pub mod icon {
 pub mod vis {
     use super::*;
 
-    use crate::widgets::text::properties::TEXT_COLOR_VAR;
+    use crate::widgets::text::TEXT_COLOR_VAR;
 
     context_var! {
         /// Defines the size of an icon.
@@ -148,13 +148,13 @@ pub mod vis {
 
     /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
     #[property(context, default(ICON_SIZE_VAR))]
-    pub fn icon_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
+    pub fn ico_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
         with_context_var(child, ICON_SIZE_VAR, size)
     }
 
     /// Sets the [`ICON_COLOR_VAR`] that affects all icons inside the widget.
     #[property(context, default(ICON_COLOR_VAR))]
-    pub fn icon_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
         with_context_var(child, ICON_COLOR_VAR, color)
     }
 }
@@ -163,5 +163,5 @@ pub mod vis {
 ///
 /// [`icon!`]: mod@icon
 pub fn icon(ico: impl IntoVar<icon::GlyphIcon>) -> impl UiNode {
-    icon!(icon = ico)
+    icon!(ico)
 }

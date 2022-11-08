@@ -37,7 +37,7 @@ fn app_main() {
 
 fn title(title: &'static str) -> impl UiNode {
     text! {
-        text = title;
+        txt = title;
         font_size = 18.pt();
     }
 }

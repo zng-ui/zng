@@ -28,16 +28,14 @@ pub mod text {
     #[doc(inline)]
     pub use super::nodes;
 
-    pub mod properties {
-        #[doc(inline)]
-        pub use super::super::text_properties::*;
-    }
+    #[doc(inline)]
+        pub use super::text_properties::*;
 
     properties! {
-        /// The [`Text`](crate::core::text::Text) value.
+        /// The text string.
         ///
         /// Set to an empty string (`""`) by default.
-        pub text(impl IntoVar<Text>) = "";
+        pub txt(impl IntoVar<Text>) = "";
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -51,7 +49,7 @@ pub mod text {
 
             wgt.push_intrinsic(Priority::Fill, "layout_text", nodes::layout_text);
 
-            let text = wgt.capture_var_or_default(property_id!(self.text));
+            let text = wgt.capture_var_or_default(property_id!(self::txt));
             wgt.push_intrinsic(Priority::Event, "resolve_text", |child| nodes::resolve_text(child, text));
         });
     }
@@ -85,8 +83,8 @@ pub mod text {
 /// [`font_size`]: fn@crate::widgets::text::properties::font_size
 /// [`text_color`]: fn@crate::widgets::text::properties::text_color
 /// [`text!`]: mod@text
-pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
-    text! { text; }
+pub fn text(txt: impl IntoVar<Text>) -> impl UiNode {
+    text! { txt; }
 }
 
 /// A simple text run with **bold** font weight.
@@ -94,8 +92,8 @@ pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
 /// # Configure
 ///
 /// Apart from the font weight this widget can be configured with contextual properties like [`text`](function@text).
-pub fn strong(text: impl IntoVar<Text> + 'static) -> impl UiNode {
-    text! { text; font_weight = FontWeight::BOLD; }
+pub fn strong(txt: impl IntoVar<Text> + 'static) -> impl UiNode {
+    text! { txt; font_weight = FontWeight::BOLD; }
 }
 
 /// A simple text run with *italic* font style.
@@ -103,8 +101,8 @@ pub fn strong(text: impl IntoVar<Text> + 'static) -> impl UiNode {
 /// # Configure
 ///
 /// Apart from the font style this widget can be configured with contextual properties like [`text`](function@text).
-pub fn em(text: impl IntoVar<Text> + 'static) -> impl UiNode {
-    text! { text; font_style = FontStyle::Italic; }
+pub fn em(txt: impl IntoVar<Text> + 'static) -> impl UiNode {
+    text! { txt; font_style = FontStyle::Italic; }
 }
 
 /// Text box widget.
@@ -117,7 +115,7 @@ pub mod text_input {
 
     properties! {
         /// Enabled by default.
-        text_editable = true;
+        txt_editable = true;
 
         /// Enabled by default.
         ///
@@ -131,7 +129,7 @@ pub mod text_input {
         ///
         /// Set to [`vis::STYLE_VAR`] by default, setting this property directly completely replaces the text input style,
         /// see [`vis::replace_style`] and [`vis::extend_style`] for other ways of modifying the style.
-        style = vis::STYLE_VAR;
+        style_gen = vis::STYLE_VAR;
     }
 
     #[doc(inline)]
@@ -199,7 +197,7 @@ pub mod text_input_vis {
             /// Text padding.
             ///
             /// Is `(7, 15)` by default.
-            pub text_properties::text_padding as padding = (7, 15);
+            pub text_properties::txt_padding as padding = (7, 15);
 
             /// Text cursor.
             pub crate::properties::cursor = CursorIcon::Text;

@@ -21,10 +21,8 @@ pub mod scroll {
         types::*,
     };
 
-    pub mod properties {
-        #[doc(inline)]
+    #[doc(inline)]
         pub use super::scroll_properties::*;
-    }
 
     properties! {
         /// Content alignment when it is smaller then the viewport.
@@ -53,9 +51,9 @@ pub mod scroll {
         wgt.push_build_action(on_build);
     }
     fn on_build(wgt: &mut WidgetBuilding) {
-        let mode = wgt.capture_var_or_else(property_id!(self.mode), || ScrollMode::ALL);
+        let mode = wgt.capture_var_or_else(property_id!(self::mode), || ScrollMode::ALL);
 
-        let clip_to_viewport = wgt.capture_var_or_default(property_id!(self.clip_to_viewport));
+        let clip_to_viewport = wgt.capture_var_or_default(property_id!(self::clip_to_viewport));
 
         wgt.push_intrinsic(Priority::ChildContext, "scroll_node", |child| {
             scroll_node(child, mode, clip_to_viewport)

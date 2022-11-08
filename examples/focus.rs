@@ -171,7 +171,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl UiNode {
                 children_align = Align::RIGHT;
                 children = ui_list![
                     text! {
-                        text = "Window scope is disabled so the overlay scope is the root scope.";
+                        txt = "Window scope is disabled so the overlay scope is the root scope.";
                         margin = 15;
                     },
                     h_stack! {
@@ -228,14 +228,14 @@ fn delayed_focus() -> impl UiNode {
                 id = "target";
                 padding = (7, 15);
                 corner_radius = 4;
-                text = "delayed target";
+                txt = "delayed target";
                 font_style = FontStyle::Italic;
-                text_align = TextAlign::CENTER_MIDDLE;
+                txt_align = TextAlign::CENTER_MIDDLE;
                 background_color = color_scheme_map(rgb(30, 30, 30), rgb(225, 225, 225));
 
                 focusable = true;
                 when *#is_focused {
-                    text = "focused";
+                    txt = "focused";
                     background_color = color_scheme_map(colors::DARK_GREEN, colors::LIGHT_GREEN);
                 }
             },
@@ -260,8 +260,8 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
     }
 }
 
-fn title(text: impl IntoVar<Text>) -> impl UiNode {
-    text! { text; font_weight = FontWeight::BOLD; align = Align::CENTER; }
+fn title(txt: impl IntoVar<Text>) -> impl UiNode {
+    text! { txt; font_weight = FontWeight::BOLD; align = Align::CENTER; }
 }
 
 fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl UiNode {
@@ -298,14 +298,14 @@ fn commands() -> impl UiNode {
         children_align = Align::RIGHT;
 
         font_family = FontName::monospace();
-        text_color = colors::GRAY;
+        txt_color = colors::GRAY;
 
         children = cmds.into_iter().map(|cmd| {
             text! {
-                text = cmd.name_with_shortcut();
+                txt = cmd.name_with_shortcut();
 
                 when *#{cmd.is_enabled()} {
-                    text_color = color_scheme_map(colors::WHITE, colors::BLACK);
+                    txt_color = color_scheme_map(colors::WHITE, colors::BLACK);
                 }
             }.boxed()
         }).collect::<Vec<_>>();
@@ -368,7 +368,7 @@ fn nested_focusables_group(g: char) -> impl UiNode {
 }
 fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
     let nested = text! {
-        text = format!("Focusable {column}, {row}");
+        txt = format!("Focusable {column}, {row}");
         margin = 5;
     };
     v_stack! {

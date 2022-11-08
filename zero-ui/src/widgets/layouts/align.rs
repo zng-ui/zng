@@ -12,7 +12,7 @@ mod center {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            if let Some(child) = wgt.capture_ui_node(property_id!(self.child)) {
+            if let Some(child) = wgt.capture_ui_node(property_id!(self::child)) {
                 let child = align(child, Align::CENTER);
                 wgt.set_child(child.boxed());
             }

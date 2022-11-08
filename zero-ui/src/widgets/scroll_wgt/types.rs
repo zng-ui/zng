@@ -10,7 +10,7 @@ use crate::core::{
 use bitflags::bitflags;
 use zero_ui_core::var::animation::ChaseAnimation;
 
-use super::scroll::properties::SMOOTH_SCROLLING_VAR;
+use super::scroll::SMOOTH_SCROLLING_VAR;
 
 bitflags! {
     /// What dimensions are scrollable in a widget.

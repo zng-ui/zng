@@ -78,8 +78,8 @@ fn clip_to_bounds_demo() -> impl UiNode {
             background_color = colors::GREEN.darken(40.pct());
             padding = 3;
             rotate = -(5.deg());
-            text_align = Align::CENTER;
-            text = clip.map(|c| formatx!("clip_to_bounds = {c}"));
+            txt_align = Align::CENTER;
+            txt = clip.map(|c| formatx!("clip_to_bounds = {c}"));
         };
     }
 }

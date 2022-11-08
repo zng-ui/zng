@@ -55,9 +55,9 @@ pub mod h_stack {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
-            let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
-            let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL_LEFT);
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
+            let spacing = wgt.capture_var_or_default(property_id!(self::spacing));
+            let children_align = wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL_LEFT);
 
             let node = HStackNode {
                 children: ZSortingList::new(children),
@@ -304,9 +304,9 @@ pub mod v_stack {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
-            let spacing = wgt.capture_var_or_default(property_id!(self.spacing));
-            let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL_LEFT);
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
+            let spacing = wgt.capture_var_or_default(property_id!(self::spacing));
+            let children_align = wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL_LEFT);
 
             let node = VStackNode {
                 children: ZSortingList::new(children),
@@ -601,8 +601,8 @@ pub mod z_stack {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let children = wgt.capture_ui_node_list_or_empty(property_id!(self.children));
-            let children_align = wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL);
+            let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
+            let children_align = wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL);
             let node = ZStackNode {
                 children: ZSortingList::new(children),
                 align: children_align.into_var(),

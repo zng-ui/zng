@@ -33,13 +33,13 @@ fn app_main() {
                         children = ui_list![
                             text! {
                                 id = "Lorem 1";
-                                text = "Lorem 1";
+                                txt = "Lorem 1";
                                 font_size = 20;
                             },
                             text(ipsum()),
                             text! {
                                 id = "Lorem 2";
-                                text = "Lorem 2";
+                                txt = "Lorem 2";
                                 font_size = 20;
                             },
                             text(ipsum())

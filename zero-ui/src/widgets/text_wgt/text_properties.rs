@@ -173,13 +173,13 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 
 /// Sets the [`TEXT_COLOR_VAR`] context var.
 #[property(context, default(TEXT_COLOR_VAR))]
-pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn txt_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, TEXT_COLOR_VAR, color)
 }
 
 /// Sets the [`TEXT_TRANSFORM_VAR`] context var.
 #[property(context, default(TEXT_TRANSFORM_VAR))]
-pub fn text_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
+pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
     with_context_var(child, TEXT_TRANSFORM_VAR, transform)
 }
 
@@ -274,7 +274,7 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 
 /// Sets the [`TEXT_ALIGN_VAR`] context var.
 #[property(context, default(TEXT_ALIGN_VAR))]
-pub fn text_align(child: impl UiNode, mode: impl IntoVar<TextAlign>) -> impl UiNode {
+pub fn txt_align(child: impl UiNode, mode: impl IntoVar<TextAlign>) -> impl UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)
 }
 
@@ -555,12 +555,12 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 ///
 /// Sets the [`TEXT_EDITABLE_VAR`].
 #[property(context, default(TEXT_EDITABLE_VAR))]
-pub fn text_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_EDITABLE_VAR, enabled)
 }
 
 /// Sets the [`TEXT_PADDING_VAR`] that is used in the text-input layout.
 #[property(context, default(TEXT_PADDING_VAR))]
-pub fn text_padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+pub fn txt_padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, TEXT_PADDING_VAR, padding)
 }

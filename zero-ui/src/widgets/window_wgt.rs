@@ -38,17 +38,18 @@ pub mod window {
     #[doc(inline)]
     pub use nodes::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, WindowLayers};
 
-    pub mod properties {
-        #[doc(inline)]
-        pub use crate::widgets::window_wgt::window_properties::*;
-    }
+    #[doc(inline)]
+    pub use crate::widgets::window_wgt::window_properties::{
+        always_on_top, auto_size, auto_size_origin, chrome, color_scheme, frame_capture_mode, icon, max_size, min_size, modal, monitor,
+        movable, parent, position, resizable, size, state, taskbar_visible, title, visible, *,
+    };
 
     properties! {
         /// Window position when it opens.
         pub start_position(impl IntoValue<StartPosition>);
 
         background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
-        text_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
+        txt_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
         focus_highlight = {
             offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
             widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
@@ -139,7 +140,7 @@ pub mod window {
 
 
         /// Save and restore the window state.
-        save_state = properties::SaveState::enabled();
+        save_state = SaveState::enabled();
 
         /// Event just after the window opens.
         ///
@@ -279,7 +280,7 @@ pub mod window {
         wgt.push_build_action(|wgt| {
             #[cfg(inspector)]
             {
-                let can_inspect = wgt.capture_var_or_else(property_id!(self.can_inspect), || true);
+                let can_inspect = wgt.capture_var_or_else(property_id!(self::can_inspect), || true);
                 wgt.push_intrinsic(Priority::Event, "inspect_cmd", |child| commands::inspect_node(child, can_inspect));
             }
 
@@ -290,13 +291,13 @@ pub mod window {
 
     fn build(mut wgt: WidgetBuilder) -> Window {
         Window::new_root(
-            wgt.capture_value_or_else(property_id!(self.id), WidgetId::new_unique),
-            wgt.capture_value_or_default::<StartPosition>(property_id!(self.start_position)),
-            wgt.capture_value_or_default(property_id!(self.kiosk)),
-            wgt.capture_value_or_else(property_id!(self.allow_transparency), || true),
-            wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(self.render_mode)),
-            wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(self.headless_monitor)),
-            wgt.capture_value_or_default(property_id!(self.start_focused)),
+            wgt.capture_value_or_else(property_id!(self::id), WidgetId::new_unique),
+            wgt.capture_value_or_default::<StartPosition>(property_id!(self::start_position)),
+            wgt.capture_value_or_default(property_id!(self::kiosk)),
+            wgt.capture_value_or_else(property_id!(self::allow_transparency), || true),
+            wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(self::render_mode)),
+            wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(self::headless_monitor)),
+            wgt.capture_value_or_default(property_id!(self::start_focused)),
             wgt.build(),
         )
     }

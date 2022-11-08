@@ -111,7 +111,7 @@ pub mod alias_inherit_wgt {
     inherit!(super::foo_mixin);
 
     properties! {
-        pub super::foo_mixin::properties::foo_trace as alias_trace = "alias_inherit_wgt"
+        pub super::foo_mixin::foo_trace as alias_trace = "alias_inherit_wgt"
     }
 }
 #[test]
@@ -542,7 +542,7 @@ pub mod capture_properties_wgt {
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl crate::widget_instance::UiNode {
-        let msg: &'static str = wgt.capture_value(property_id!(self.new_trace)).unwrap();
+        let msg: &'static str = wgt.capture_value(property_id!(self::new_trace)).unwrap();
         let msg = match msg {
             "new" => "custom new",
             "user-new" => "custom new (user)",
@@ -1182,7 +1182,7 @@ mod macro_rules_generated {
                 }
 
                 properties! {
-                    pub margin;
+                    margin;
                 }
             }
         }

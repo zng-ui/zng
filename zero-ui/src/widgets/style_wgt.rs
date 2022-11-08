@@ -60,7 +60,7 @@ pub mod style_mixin {
         /// on the full widget context will not work.
         ///
         /// Is `nil` by default.
-        pub style(impl IntoVar<StyleGenerator>) = StyleGenerator::nil();
+        pub style_gen(impl IntoVar<StyleGenerator>) = StyleGenerator::nil();
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -92,7 +92,7 @@ pub mod style_mixin {
     ///         /// The style is set to [`vis::STYLE_VAR`], settings this directly replaces the style.
     ///         /// You can use [`vis::replace_style`] and [`vis::extend_style`] to set or modify the
     ///         /// style for all `foo` in a context.
-    ///         style = vis::STYLE_VAR;
+    ///         style_gen = vis::STYLE_VAR;
     ///     }
     ///
     ///     /// Foo style and visual properties.
@@ -147,7 +147,7 @@ pub mod style_mixin {
     pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
         // 1 - "split_off" the property `style`
         //     this moves the property and any `when` that affects it to a new widget builder.
-        let style_id = property_id!(self.style);
+        let style_id = property_id!(self::style_gen);
         let mut style_builder = WidgetBuilder::new(wgt.widget_mod());
         wgt.split_off([style_id], &mut style_builder);
 

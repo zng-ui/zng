@@ -36,23 +36,23 @@ pub mod rule_line {
             bounds: PxSize::zero(),
 
             orientation: wgt
-                .capture_var(property_id!(self.orientation))
+                .capture_var(property_id!(self::orientation))
                 .unwrap_or_else(|| LineOrientation::Horizontal.into_var().boxed()),
 
             length: wgt
-                .capture_var(property_id!(self.length))
+                .capture_var(property_id!(self::length))
                 .unwrap_or_else(|| LocalVar(Length::Default).boxed()),
 
             stroke_thickness: wgt
-                .capture_var(property_id!(self.stroke_thickness))
+                .capture_var(property_id!(self::stroke_thickness))
                 .unwrap_or_else(|| LocalVar(Length::from(1)).boxed()),
 
             color: wgt
-                .capture_var(property_id!(self.color))
+                .capture_var(property_id!(self::color))
                 .unwrap_or_else(|| LocalVar(rgb(0, 0, 0)).boxed()),
 
             style: wgt
-                .capture_var(property_id!(self.line_style))
+                .capture_var(property_id!(self::line_style))
                 .unwrap_or_else(|| LineStyle::Solid.into_var().boxed()),
         };
         wgt.set_child(child);
@@ -147,7 +147,7 @@ pub mod hr {
     /// Context variables and properties that affect the horizontal rule line appearance from parent widgets.
     pub mod vis {
         use super::*;
-        use crate::widgets::text::properties::TEXT_COLOR_VAR;
+        use crate::widgets::text::TEXT_COLOR_VAR;
 
         context_var! {
             /// Line color, inherits from [`TEXT_COLOR_VAR`].

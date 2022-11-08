@@ -34,7 +34,7 @@ fn app_main() {
         window! {
             title = "Config Example";
             background = text! {
-                text = status.map_to_text();
+                txt = status.map_to_text();
                 margin = 10;
                 font_family = "monospace";
                 align = Align::TOP_LEFT;
@@ -42,7 +42,7 @@ fn app_main() {
                 font_weight = FontWeight::BOLD;
 
                 when *#{status.map(|s| s.has_errors())} {
-                    text_color = colors::RED;
+                    txt_color = colors::RED;
                 }
             };
             child = v_stack! {
@@ -61,7 +61,7 @@ fn app_main() {
                     },
                     separator(),
                     text_input! {
-                        text = txt.clone();
+                        txt = txt.clone();
                         min_width = 100;
                     },
                     separator(),

@@ -87,7 +87,7 @@ fn font_size(font_size: RcVar<Length>) -> impl UiNode {
                 });
             },
             text! {
-                text = font_size.map(|s| formatx!("{s}"));
+                txt = font_size.map(|s| formatx!("{s}"));
             },
             button! {
                 child = text("+");
@@ -110,11 +110,11 @@ fn basic() -> impl UiNode {
             strong("Strong Text"),
             em("Emphasis Text"),
             text! {
-                text_color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
-                text = "Colored Text";
+                txt_color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
+                txt = "Colored Text";
 
                 when *#is_hovered {
-                    text_color = color_scheme_map(colors::YELLOW, colors::BROWN);
+                    txt_color = color_scheme_map(colors::YELLOW, colors::BROWN);
                 }
             },
         ],
@@ -126,14 +126,14 @@ fn line_height() -> impl UiNode {
         "line_height",
         ui_list![
             text! {
-                text = "Default: 'Émp Giga Ç'";
+                txt = "Default: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
-                text_color = colors::BLACK;
+                txt_color = colors::BLACK;
             },
             text! {
-                text = "150%: 'Émp Giga Ç'";
+                txt = "150%: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
-                text_color = colors::BLACK;
+                txt_color = colors::BLACK;
                 line_height = 150.pct();
             },
         ],
@@ -145,7 +145,7 @@ fn line_spacing() -> impl UiNode {
         "line_spacing",
         ui_list![container! {
             child = text! {
-                text = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
+                txt = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
                 when *#is_hovered {
@@ -162,7 +162,7 @@ fn word_spacing() -> impl UiNode {
     section(
         "word_spacing",
         ui_list![text! {
-            text = "Word spacing\n\thover to change";
+            txt = "Word spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
             when *#is_hovered {
@@ -176,7 +176,7 @@ fn letter_spacing() -> impl UiNode {
     section(
         "letter_spacing",
         ui_list![text! {
-            text = "Letter spacing\n\thover to change";
+            txt = "Letter spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
             when *#is_hovered {
@@ -191,21 +191,21 @@ fn decoration_lines() -> impl UiNode {
         "Decorations",
         ui_list![
             text! {
-                text = "Overline, 1, Dotted,\ndefault color";
+                txt = "Overline, 1, Dotted,\ndefault color";
                 overline = 1, LineStyle::Dotted;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
             text! {
-                text = "Strikethrough, 1, Solid,\ndefault color";
+                txt = "Strikethrough, 1, Solid,\ndefault color";
                 strikethrough = 1, LineStyle::Solid;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
             text! {
-                text = "Strikethrough, 4, Double,\ndifferent color";
+                txt = "Strikethrough, 4, Double,\ndifferent color";
                 strikethrough = 4, LineStyle::Double;
                 strikethrough_color = colors::RED;
 
@@ -213,14 +213,14 @@ fn decoration_lines() -> impl UiNode {
                 margin = (0, 0, 4, 0);
             },
             text! {
-                text = "Underline, 1, Solid,\ndefault color";
+                txt = "Underline, 1, Solid,\ndefault color";
                 underline = 1, LineStyle::Solid;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
             text! {
-                text = "Underline, 1, Solid,\ndefault color, skip spaces";
+                txt = "Underline, 1, Solid,\ndefault color, skip spaces";
                 underline = 1, LineStyle::Solid;
                 underline_skip = UnderlineSkip::SPACES;
 
@@ -228,7 +228,7 @@ fn decoration_lines() -> impl UiNode {
                 margin = (0, 0, 4, 0);
             },
             text! {
-                text = "Underline, 1, Solid,\ndefault color, descent";
+                txt = "Underline, 1, Solid,\ndefault color, descent";
                 underline = 1, LineStyle::Solid;
                 underline_position = UnderlinePosition::Descent;
 
@@ -236,7 +236,7 @@ fn decoration_lines() -> impl UiNode {
                 margin = (0, 0, 4, 0);
             },
             text! {
-                text = "Underline, 3, wavy,\ndifferent color, no skip";
+                txt = "Underline, 3, wavy,\ndifferent color, no skip";
                 underline = 3, LineStyle::Wavy(1.0);
                 underline_color = colors::GREEN;
                 underline_skip = UnderlineSkip::NONE;
@@ -268,7 +268,7 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
                     formatx!("{title}: ")
                 }),
                 text! {
-                    text = font.best().display_name().to_text();
+                    txt = font.best().display_name().to_text();
                     font_family;
                 }
             ];
@@ -294,7 +294,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
         children = ui_list![text! {
-            text = header;
+            txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
         }].chain(items);

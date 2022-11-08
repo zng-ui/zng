@@ -421,22 +421,6 @@ impl ToTokens for Attributes {
     }
 }
 
-/// Visit the text string of each doc attribute.
-///
-/// If the `visit` closure returns `true` the attribute text is replaced.
-pub fn visit_doc_text(docs: &mut [Attribute], mut visit: impl FnMut(&mut String) -> bool) {
-    for attr in docs.iter_mut() {
-        if let Ok(doc) = syn::parse2::<DocAttr>(attr.tokens.clone()) {
-            let mut msg = doc.msg.value();
-            if visit(&mut msg) {
-                *attr = parse_quote_spanned! {attr.span()=>
-                    #[doc = #msg]
-                };
-            }
-        }
-    }
-}
-
 struct DocAttr {
     msg: LitStr,
 }
@@ -875,21 +859,6 @@ pub fn set_stream_span(stream: TokenStream, span: Span) -> TokenStream {
             tt
         })
         .collect()
-}
-
-static RUST_TYPES: &[&str] = &[
-    "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "i128", "u128", "isize", "usize", "f32", "f64", "bool", "char", "Box", "Option",
-    "Result", "String", "Vec",
-];
-
-/// If the ident is any of the primitive keywords or a type in the prelude.
-pub fn is_rust_type(ident: &Ident) -> bool {
-    RUST_TYPES.iter().any(|p| ident == p)
-}
-
-/// If the ident is any of the primitive keywords or a type in the prelude.
-pub(crate) fn is_rust_type_str(ident: &str) -> bool {
-    RUST_TYPES.iter().any(|p| &ident == p)
 }
 
 #[cfg(test)]

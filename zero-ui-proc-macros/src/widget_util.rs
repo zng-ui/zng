@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt, mem,
-};
+use std::{collections::HashMap, fmt, mem};
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
@@ -10,7 +7,6 @@ use syn::{
     parse::{discouraged::Speculative, Parse},
     punctuated::Punctuated,
     spanned::Spanned,
-    visit_mut::VisitMut,
     *,
 };
 
@@ -149,7 +145,7 @@ impl WgtProperty {
         r
     }
 
-    pub fn reexport(&self, all_properties: &[Ident]) -> TokenStream {
+    pub fn reexport(&self) -> TokenStream {
         if self.capture_decl.is_some() {
             return quote!();
         }
@@ -158,7 +154,7 @@ impl WgtProperty {
             Visibility::Inherited => {
                 if self.rename.is_some() || self.path.get_ident().is_none() {
                     // so at least the widget can use it after pre-bind.
-                    parse_quote!(pub(super))
+                    Visibility::Inherited
                 } else {
                     // already in context
                     return quote!();
@@ -167,7 +163,7 @@ impl WgtProperty {
             vis => vis,
         };
 
-        let path = export_path(&self.path);
+        let path = &self.path;
 
         let name = match &self.rename {
             Some((as_, id_)) => quote!(#as_ #id_),
@@ -178,10 +174,7 @@ impl WgtProperty {
         };
         let cfg = &self.attrs.cfg;
         let lints = &self.attrs.lints;
-        let mut docs = self.attrs.docs.clone();
-        let mut footnote_items = HashSet::new();
-        util::visit_doc_text(&mut docs, |d| export_footnote_docs(&mut footnote_items, all_properties, d));
-        util::visit_doc_text(&mut docs, |d| export_inline_docs(&footnote_items, all_properties, d));
+        let docs = &self.attrs.docs;
         let clippy_nag = if !lints.is_empty() {
             quote!(#[allow(clippy::useless_attribute)])
         } else {
@@ -199,29 +192,8 @@ impl WgtProperty {
         }
     }
 
-    fn declare_capture_default_ident(&self) -> Ident {
-        let ident = self.ident();
-        ident_spanned!(ident.span()=> "__{ident}_default__")
-    }
-
-    /// Declares the capture property default function.
-    pub fn declare_capture_default(&self) -> TokenStream {
-        if let (Some(decl), Some((_, PropertyValue::Unnamed(val)))) = (&self.capture_decl, &self.value) {
-            let ty = &decl.ty;
-            let ident = self.declare_capture_default_ident();
-            quote! {
-                #[doc(hidden)]
-                fn #ident() -> #ty {
-                    #val
-                }
-            }
-        } else {
-            quote!()
-        }
-    }
-
-    /// Declares capture property if it is one, patches types to work inside `properties`.
-    pub fn declare_capture(&self, all_properties: &[Ident]) -> TokenStream {
+    /// Declares capture property if it is one.
+    pub fn declare_capture(&self) -> TokenStream {
         if let Some(decl) = &self.capture_decl {
             let mut errors = Errors::default();
             if !self.generics.is_empty() {
@@ -235,10 +207,7 @@ impl WgtProperty {
             }
             let default_args = match &self.value {
                 Some((_, val)) => match val {
-                    PropertyValue::Unnamed(_) => {
-                        let ident = self.declare_capture_default_ident();
-                        Some(quote!(super::#ident()))
-                    }
+                    PropertyValue::Unnamed(val) => Some(val),
                     PropertyValue::Special(id, _) => {
                         errors.push("cannot `{id}` new capture property", id.span());
                         None
@@ -254,8 +223,7 @@ impl WgtProperty {
             if errors.is_empty() {
                 let ident = self.path.get_ident().unwrap().clone();
 
-                let mut ty = decl.ty.clone();
-                ExportVisitor.visit_type_mut(&mut ty);
+                let ty = &decl.ty;
                 let vis = match self.vis.clone() {
                     Visibility::Inherited => {
                         // so at least the widget can get the `property_id!`.
@@ -273,11 +241,7 @@ impl WgtProperty {
                     quote!()
                 };
 
-                let mut attrs = self.attrs.clone();
-                let mut footnote_items = HashSet::new();
-                util::visit_doc_text(&mut attrs.docs, |d| export_footnote_docs(&mut footnote_items, all_properties, d));
-                util::visit_doc_text(&mut attrs.docs, |d| export_inline_docs(&footnote_items, all_properties, d));
-
+                let attrs = &self.attrs;
                 quote_spanned! {ident.span()=>
                     #attrs
                     #[#core::property(context, capture #default)]
@@ -858,158 +822,4 @@ impl Parse for UnamedArgs {
             args: Punctuated::parse_terminated(input)?,
         })
     }
-}
-
-pub fn collect_item_idents(mod_: &[syn::Item], r: &mut HashSet<Ident>) {
-    for item in mod_ {
-        match item {
-            Item::Fn(f) => {
-                r.insert(f.sig.ident.clone());
-            }
-            Item::Use(u) => {
-                collect_item_idents_use(&u.tree, r);
-            }
-            _ => continue,
-        }
-    }
-}
-fn collect_item_idents_use(u: &syn::UseTree, r: &mut HashSet<Ident>) {
-    match u {
-        UseTree::Path(p) => {
-            collect_item_idents_use(&p.tree, r);
-        }
-        UseTree::Name(n) => {
-            r.insert(n.ident.clone());
-        }
-        UseTree::Rename(n) => {
-            r.insert(n.rename.clone());
-        }
-        UseTree::Glob(_) => {}
-        UseTree::Group(g) => {
-            for u in g.items.iter() {
-                collect_item_idents_use(u, r);
-            }
-        }
-    }
-}
-
-pub fn export_path(path: &syn::Path) -> TokenStream {
-    let path_span = path_span(path);
-    let first_ident = &path.segments.first().unwrap().ident;
-    if path.leading_colon.is_some() || first_ident == "crate" || first_ident == "$crate" {
-        path.to_token_stream()
-    } else if first_ident == "self" {
-        let rest = path.segments.iter().skip(1);
-        quote_spanned!(path_span=> super::#(#rest)::*)
-    } else if path.segments.len() == 1 && util::is_rust_type(&path.segments.first().unwrap().ident) {
-        // is keyword
-        path.to_token_stream()
-    } else {
-        quote_spanned!(path_span=> super::#path)
-    }
-}
-struct ExportVisitor;
-impl VisitMut for ExportVisitor {
-    fn visit_path_mut(&mut self, i: &mut Path) {
-        *i = syn::parse2(export_path(i)).unwrap();
-        syn::visit_mut::visit_path_mut(self, i);
-    }
-}
-
-pub fn export_footnote_docs(items: &mut HashSet<String>, skip: &[Ident], doc: &mut String) -> bool {
-    let mut changed = false;
-
-    let footnote_link = regex::Regex::new(r#"^\s*\[`(.+)`\]\s*:\s*(.+)\s*$"#).unwrap();
-    let result = footnote_link.replace_all(doc, |cap: &regex::Captures| {
-        if let Some(link) = cap.get(2) {
-            items.insert(cap[1].trim().to_owned());
-
-            let link = link.as_str().trim();
-            if !link.starts_with('#') {
-                if let Some((kind, link)) = link.split_once('@') {
-                    if link.contains(':') || skip.iter().all(|s| *s != link) {
-                        let s = export_path_str(link);
-                        changed = !s.is_empty();
-                        if changed {
-                            return format!("[`{}`]: {kind}@{s}", &cap[1]);
-                        }
-                    }
-                } else if link.contains(':') || skip.iter().all(|s| *s != link) {
-                    let s = export_path_str(link);
-                    changed = !s.is_empty();
-                    if changed {
-                        return format!("[`{}`]: {s}", &cap[1]);
-                    }
-                }
-            }
-        }
-        cap[0].to_owned()
-    });
-
-    if changed {
-        *doc = result.into();
-    }
-
-    changed
-}
-
-pub fn export_inline_docs(footnote_items: &HashSet<String>, skip: &[Ident], doc: &mut String) -> bool {
-    let mut changed = false;
-
-    let inline_link = regex::Regex::new(r#"\[`(.+)`\](\(.+\))?(?:[^:]|$)"#).unwrap();
-
-    let result = inline_link.replace_all(doc, |cap: &regex::Captures| {
-        if let Some(link) = cap.get(2) {
-            let link = link.as_str().trim().trim_start_matches('(').trim_end_matches(')').trim();
-            if !link.starts_with('#') {
-                if let Some((kind, link)) = link.split_once('@') {
-                    if link.contains(':') || skip.iter().all(|s| *s != link) {
-                        let s = export_path_str(link);
-                        changed = !s.is_empty();
-                        if changed {
-                            return format!("[`{}`]({kind}@{s}) ", &cap[1]);
-                        }
-                    }
-                } else if link.contains(':') || skip.iter().all(|s| *s != link) {
-                    let s = export_path_str(link);
-                    changed = !s.is_empty();
-                    if changed {
-                        return format!("[`{}`]({s}) ", &cap[1]);
-                    }
-                }
-            }
-        } else if let Some(link) = cap.get(1) {
-            let link = link.as_str().trim();
-            if !link.starts_with('#') && !footnote_items.contains(link) {
-                let s = export_path_str(link);
-                changed = !s.is_empty();
-                if changed {
-                    return format!("[`{}`]({s}) ", link);
-                }
-            }
-        }
-        cap[0].to_owned()
-    });
-
-    if changed {
-        *doc = result.into();
-    }
-
-    changed
-}
-
-fn export_path_str(path: &str) -> String {
-    let path = path.trim();
-    if path.starts_with("::") || path.starts_with("crate") || path.starts_with("$crate") {
-        return String::new();
-    }
-    if let Some(path) = path.strip_prefix("self::") {
-        return format!("super::{path}");
-    }
-
-    if !util::is_rust_type_str(path) {
-        return format!("super::{path}");
-    }
-
-    String::new()
 }

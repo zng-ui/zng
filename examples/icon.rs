@@ -22,8 +22,8 @@ fn app_main() {
         window! {
             title = "Icon Example";
             icon = WindowIcon::render(|_| icon! {
-                icon = icons::filled::LIGHTBULB;
-                color = colors::YELLOW;
+                ico = icons::filled::LIGHTBULB;
+                ico_color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;
             });
             child = scroll! {
@@ -50,7 +50,7 @@ fn icons() -> impl UiNode {
             // zero_ui::properties::events::widget::on_info_init = hn_once!(|_, _| {
             //     println!("INIT: {:?}", start.elapsed());
             // });
-            icon::vis::icon_size = 48;
+            icon::vis::ico_size = 48;
             children = icons.into_iter()
                     .map(|i| icon_btn(i).boxed())
                     .collect::<Vec<_>>(),
@@ -96,10 +96,10 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
             children_align = Align::CENTER;
             children = ui_list![
                 icon! {
-                    icon = ico.clone();
+                    ico = ico.clone();
                 },
                 text! {
-                    text = formatx!("{ico}");
+                    txt = formatx!("{ico}");
                     font_size = 10;
                 },
             ]
@@ -141,7 +141,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                     children = ui_list![
                         title(formatx!("{ico}")),
                         text! {
-                            text = ico.name;
+                            txt = ico.name;
                             font_family = FontName::monospace();
                             font_size = 18;
                         },
@@ -155,8 +155,8 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                                     children = ui_list![
                                         size_label(formatx!("{size}")),
                                         icon! {
-                                            icon = ico.clone();
-                                            icon_size = size;
+                                            ico = ico.clone();
+                                            ico_size = size;
 
                                             background_color =  color_scheme_map(
                                                 colors::BLACK.with_alpha(85.pct()),
@@ -180,7 +180,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                                     children = ui_list![
                                         size_label(formatx!("{size}")),
                                         text! {
-                                            text = ico.code;
+                                            txt = ico.code;
                                             font_family = ico.font.clone();
                                             font_size = size;
 
@@ -199,7 +199,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                 },
                 button! {
                     id = "close-btn";
-                    icon::vis::icon_size = 14;
+                    icon::ico_size = 14;
                     child = icon(icons::filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;
@@ -216,21 +216,21 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
 
 fn title(title: Text) -> impl UiNode {
     text! {
-        text = title;
+        txt = title;
         font_size = 24;
-        text_align = TextAlign::CENTER;
+        txt_align = TextAlign::CENTER;
     }
 }
 fn sub_title(title: impl Into<Text>) -> impl UiNode {
     text! {
-        text = title.into();
+        txt = title.into();
         font_size = 16;
     }
 }
 fn size_label(size: Text) -> impl UiNode {
     text! {
-        text = size;
+        txt = size;
         font_size = 10;
-        text_align = TextAlign::CENTER;
+        txt_align = TextAlign::CENTER;
     }
 }

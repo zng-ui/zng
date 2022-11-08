@@ -11,10 +11,8 @@ pub mod checkerboard {
 
     inherit!(widget_base::base);
 
-    pub mod properties {
-        #[doc(inline)]
-        pub use super::super::checkerboard_properties::*;
-    }
+    #[doc(inline)]
+    pub use super::checkerboard_properties::*;
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| wgt.set_child(self::node()))

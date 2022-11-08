@@ -20,24 +20,22 @@ pub mod toggle {
     inherit!(crate::widgets::button);
     inherit!(super::style_mixin);
 
-    pub mod properties {
-        #[doc(inline)]
-        pub use super::super::toggle_properties::*;
-    }
+    #[doc(inline)]
+    pub use super::toggle_properties::*;
 
     properties! {
         /// Toggle style.
         ///
         /// Set to [`vis::STYLE_VAR`] by default.
-        style = vis::STYLE_VAR;
+        style_gen = vis::STYLE_VAR;
     }
 
     fn include(wgt: &mut super::WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            if let Some(p) = wgt.property_mut(super::property_id!(self.checked_opt)) {
+            if let Some(p) = wgt.property_mut(super::property_id!(self::checked_opt)) {
                 p.position.index = u16::MAX; // force property to be inside tristate.
             }
-            if let Some(p) = wgt.property_mut(super::property_id!(self.value::<()>)) {
+            if let Some(p) = wgt.property_mut(super::property_id!(self::value::<()>)) {
                 p.position.index = u16::MAX; // force property to be inside select_on_init and others.
             }
         });
@@ -834,7 +832,7 @@ pub mod vis {
         inherit!(btn_vis::default_style);
 
         properties! {
-            pub toggle::properties::is_checked;
+            pub toggle::is_checked;
 
             /// When the toggle is checked.
             when *#is_checked  {

@@ -1062,7 +1062,7 @@ pub fn focus_widget_or_parent_goes_to_parent() {
             child = text! {
                 id = child_id;
                 focusable = false;
-                text = "not focusable"
+                txt = "not focusable"
             }
         }
     ]));
@@ -1092,7 +1092,7 @@ pub fn focus_widget_or_child_goes_to_child() {
             child = text! {
                 id = child_id;
                 focusable = true;
-                text = "focusable focusable"
+                txt = "focusable focusable"
             }
         }
     ]));

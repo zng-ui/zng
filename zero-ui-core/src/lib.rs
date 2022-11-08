@@ -564,13 +564,11 @@ pub use zero_ui_proc_macros::property;
 ///
 /// #[widget($crate::foo)]
 /// pub mod foo {
-///     use super::*;
-///
-///     inherit!(widget_base::base);
+///     inherit!(super::widget_base::base);
 ///
 ///     properties! {
 ///         /// Baz property docs.
-///         pub bar as baz = true;
+///         pub super::bar as baz = true;
 ///         // inherited property
 ///         enabled = false;
 ///     }
@@ -605,12 +603,10 @@ pub use zero_ui_proc_macros::property;
 /// #
 /// # #[widget($crate::foo)]
 /// # pub mod foo {
-/// #     use super::*;
-/// #
-/// #     inherit!(widget_base::base);
+/// #     inherit!(super::widget_base::base);
 /// #
 /// #     properties! {
-/// #         pub baz = true;
+/// #         pub super::baz = true;
 /// #     }
 /// # }
 /// #[widget($crate::bar)]
@@ -647,16 +643,14 @@ pub use zero_ui_proc_macros::property;
 ///
 /// #[widget($crate::foo)]
 /// pub mod foo {
-///     use super::*;
-///
-///     inherit!(widget_base::base);
+///     inherit!(super::widget_base::base);
 ///
 ///     properties! {
-///         pub anb as named = {
+///         pub super::anb as named = {
 ///             b: false,
 ///             a: true,
 ///         };
-///         pub anb as unnamed = true, false;
+///         pub super::anb as unnamed = true, false;
 ///     }
 /// }
 /// ```
@@ -677,12 +671,10 @@ pub use zero_ui_proc_macros::property;
 ///
 /// #[widget($crate::foo)]
 /// pub mod foo {
-///     use super::*;
-///
-///     inherit!(widget_base::base);
+///     inherit!(super::widget_base::base);
 ///
 ///     properties! {
-///         pub value::<bool> = true;
+///         pub super::value::<bool> = true;
 ///     }
 /// }
 /// ```
@@ -715,7 +707,7 @@ pub use zero_ui_proc_macros::property;
 ///
 ///     fn include(wgt: &mut WidgetBuilder) {
 ///         wgt.push_build_action(|wgt| {
-///             let bar = wgt.capture_var_or_else::<bool>(property_id!(self.bar), || false);
+///             let bar = wgt.capture_var_or_else::<bool>(property_id!(self::bar), || false);
 ///             println!("bar: {}", bar.get());
 ///         });
 ///     }
@@ -892,13 +884,11 @@ pub use zero_ui_proc_macros::property;
 /// #
 /// # #[widget($crate::foo)]
 /// # pub mod foo {
-/// #     use super::*;
-/// #
-/// #     inherit!(widget_base::base);
+/// #     inherit!(super::widget_base::base);
 /// #
 /// #     properties! {
 /// #         /// Baz property docs.
-/// #         pub bar as baz = true;
+/// #         pub super::bar as baz = true;
 /// #         // inherited property
 /// #         enabled = false;
 /// #     }

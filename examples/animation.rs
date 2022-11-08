@@ -147,8 +147,8 @@ fn ease_btn(
             children = ui_list![
                 text(name.into()),
                 image! {
-                    image_scale_ppi = true;
-                    image_loading_view = view_generator!(|_, _| blank! {
+                    img_scale_ppi = true;
+                    img_loading_view = view_generator!(|_, _| blank! {
                         size = (64, 64);
                         margin = 10;
                     });
@@ -205,20 +205,20 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
             #[allow(clippy::precedence)]
             children.push(
                 text! {
-                    text = "v";
+                    txt = "v";
                     font_size = 12;
                     font_style = FontStyle::Italic;
-                    text_color = meta_color.clone();
+                    txt_color = meta_color.clone();
                     offset = (-3.dip() - 100.pct(), -3.dip());
                 }
                 .boxed(),
             );
             children.push(
                 text! {
-                    text = "t";
+                    txt = "t";
                     font_size = 12;
                     font_style = FontStyle::Italic;
-                    text_color = meta_color.clone();
+                    txt_color = meta_color.clone();
                     offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
                 }
                 .boxed(),

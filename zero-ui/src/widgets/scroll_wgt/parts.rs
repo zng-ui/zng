@@ -17,7 +17,7 @@ pub mod scrollbar {
         /// thumb behavior and tags it-self in the frame.
         ///
         /// [`thumb!`]: mod@thumb
-        pub thumb(impl UiNode) = thumb!();
+        pub thumb_node(impl UiNode) = thumb!();
 
         /// Fills the track with [`vis::BACKGROUND_VAR`]
         pub crate::properties::background_color = vis::BACKGROUND_VAR;
@@ -30,10 +30,10 @@ pub mod scrollbar {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let thumb = wgt.capture_ui_node_or_else(property_id!(self.thumb), || NilUiNode);
+            let thumb = wgt.capture_ui_node_or_else(property_id!(self::thumb_node), || NilUiNode);
             wgt.set_child(thumb);
 
-            let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || Orientation::Vertical);
+            let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || Orientation::Vertical);
             wgt.push_intrinsic(Priority::Layout, "orientation-align", move |child| {
                 align(
                     child,
@@ -112,7 +112,7 @@ pub mod thumb {
         wgt.push_build_action(on_build);
     }
     fn on_build(wgt: &mut WidgetBuilding) {
-        let cross_length = wgt.capture_var_or_default::<Length>(property_id!(self.cross_length));
+        let cross_length = wgt.capture_var_or_default::<Length>(property_id!(self::cross_length));
         wgt.push_intrinsic(Priority::Size, "orientation-size", move |child| {
             size(
                 child,
@@ -127,9 +127,9 @@ pub mod thumb {
 
         wgt.push_intrinsic(Priority::Layout, "thumb_layout", thumb_layout);
 
-        let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || scrollbar::Orientation::Vertical);
-        let viewport_ratio = wgt.capture_var_or_else(property_id!(self.viewport_ratio), || 1.fct());
-        let offset = wgt.capture_var_or_else(property_id!(self.offset), || 0.fct());
+        let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || scrollbar::Orientation::Vertical);
+        let viewport_ratio = wgt.capture_var_or_else(property_id!(self::viewport_ratio), || 1.fct());
+        let offset = wgt.capture_var_or_else(property_id!(self::offset), || 0.fct());
 
         wgt.push_intrinsic(Priority::Context, "thumb-context", move |child| {
             let child = with_context_var(child, THUMB_ORIENTATION_VAR, orientation);

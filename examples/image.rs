@@ -6,7 +6,7 @@ use zero_ui::core::{
     timer::Timers,
 };
 use zero_ui::prelude::*;
-use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs};
+use zero_ui::widgets::image::{img_error_view, img_loading_view, ImageErrorArgs};
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -74,7 +74,7 @@ fn app_main() {
                             },
                             sub_title("Render"),
                             image! {
-                                image_scale_ppi = true;
+                                img_scale_ppi = true;
                                 source = ImageSource::render_node(RenderMode::Software, |_, _| container! {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
@@ -160,7 +160,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
             image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                 size = (200, 100);
-                image_fit = fit;
+                img_fit = fit;
             }
         ]
     }
@@ -220,7 +220,7 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
                     sides: BorderSides::dashed(colors::GRAY),
                 };
                 corner_radius = 4;
-                image_crop = timer.map(|n| {
+                img_crop = timer.map(|n| {
                     if n.count() == 10 {
                         n.set_count(0);
                     }
@@ -240,7 +240,7 @@ fn large_image() -> impl UiNode {
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                    image_limits = Some(ImageLimits::none().with_max_encoded_size(300.megabytes()).with_max_decoded_size(3.gigabytes()));
+                    img_limits = Some(ImageLimits::none().with_max_encoded_size(300.megabytes()).with_max_decoded_size(3.gigabytes()));
 
                     on_error = hn!(|_, args: &ImageErrorArgs| {
                         tracing::error!(target: "unexpected", "{}", args.error);
@@ -260,9 +260,9 @@ fn panorama_image() -> impl UiNode {
                 scroll! {
                     mode = ScrollMode::HORIZONTAL;
                     child = image! {
-                        image_fit = ImageFit::Fill;
+                        img_fit = ImageFit::Fill;
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        image_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                        img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
                         on_error = hn!(|_, args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });
@@ -289,11 +289,11 @@ fn block_window_load_image() -> impl UiNode {
 
                         // block window load until the image is ready to present or 5 minutes have elapsed.
                         // usually you want to set a shorter deadline, `true` converts to 1 second.
-                        image_block_window_load = 5.minutes();
+                        img_block_window_load = 5.minutes();
 
-                        image_fit = ImageFit::Fill;
+                        img_fit = ImageFit::Fill;
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        image_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                        img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
 
                         on_error = hn!(|_, args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
@@ -348,14 +348,14 @@ pub mod img_window {
         // render_mode = RenderMode::Software;
 
         state = WindowState::Maximized;
-        window::properties::size = (1140, 770);// restore size
+        window::size = (1140, 770);// restore size
 
         background = checkerboard!();
 
         color_scheme = ColorScheme::Dark;
 
         // content shown by all images when loading.
-        image_loading_view = view_generator!(|ctx, _| {
+        img_loading_view = view_generator!(|ctx, _| {
             let mut dots_count = 3;
             let msg = ctx.timers.interval(300.ms(), false).map(move |_| {
                 dots_count += 1;
@@ -366,8 +366,8 @@ pub mod img_window {
             });
 
             center_viewport(text! {
-                text = msg;
-                text_color = loading_color();
+                txt = msg;
+                txt_color = loading_color();
                 margin = 8;
                 width = 80;
                 font_style = FontStyle::Italic;
@@ -380,12 +380,12 @@ pub mod img_window {
         });
 
         // content shown by all images that failed to load.
-        image_error_view = view_generator!(|_, args: ImageErrorArgs| {
+        img_error_view = view_generator!(|_, args: ImageErrorArgs| {
             center_viewport(text! {
-                text = args.error;
+                txt = args.error;
                 margin = 8;
                 align = Align::CENTER;
-                text_color = error_color();
+                txt_color = error_color();
                 drop_shadow = {
                     offset: (0, 0),
                     blur_radius: 4,
@@ -427,18 +427,18 @@ fn section(title: impl IntoVar<Text>, children: impl UiNodeList) -> impl UiNode 
     }
 }
 
-fn title(text: impl IntoVar<Text>) -> impl UiNode {
+fn title(txt: impl IntoVar<Text>) -> impl UiNode {
     text! {
-        text;
+        txt;
         font_size = 20;
         background_color = colors::BLACK;
         padding = (5, 10);
     }
 }
 
-fn sub_title(text: impl IntoVar<Text>) -> impl UiNode {
+fn sub_title(txt: impl IntoVar<Text>) -> impl UiNode {
     text! {
-        text;
+        txt;
 
         font_size = 14;
 

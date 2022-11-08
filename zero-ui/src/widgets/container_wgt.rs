@@ -27,7 +27,7 @@ pub mod container {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            if let Some(child) = wgt.capture_ui_node(property_id!(self.child)) {
+            if let Some(child) = wgt.capture_ui_node(property_id!(self::child)) {
                 wgt.set_child(child);
             }
         });

@@ -66,7 +66,7 @@ context_var! {
 fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
     view_generator!(|_, args: ScrollBarArgs| {
         scrollbar! {
-            thumb = scrollbar::thumb! {
+            thumb_node = scrollbar::thumb! {
                 orientation = args.orientation;
                 viewport_ratio = args.viewport_ratio();
                 offset = args.offset();
