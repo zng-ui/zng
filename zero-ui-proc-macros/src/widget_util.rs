@@ -195,7 +195,7 @@ impl WgtProperty {
             #(#lints)*
             #[allow(unused_imports)]
             #[doc(inline)]
-            #vis use #path::export #name;
+            #vis use #path #name;
         }
     }
 

@@ -16,13 +16,13 @@ pub mod container {
         pub crate::core::widget_base::child;
 
         /// Spacing around content, inside the border.
-        pub padding;
+        pub crate::properties::padding;
 
         /// Content alignment.
-        pub child_align;
+        pub crate::properties::child_align;
 
         /// Content overflow clipping.
-        pub clip_to_bounds;
+        pub crate::properties::clip_to_bounds;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

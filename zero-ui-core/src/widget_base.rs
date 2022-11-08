@@ -31,9 +31,9 @@ pub mod base {
     use super::*;
 
     properties! {
-        pub id;
-        pub enabled;
-        pub visibility;
+        pub super::id;
+        pub super::enabled;
+        pub super::visibility;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

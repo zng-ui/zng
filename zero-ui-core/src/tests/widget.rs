@@ -534,12 +534,11 @@ pub fn user_cfg_when() {
 pub mod capture_properties_wgt {
     inherit!(crate::widget_base::base);
 
-    use super::util::trace;
     use crate::widget_builder::*;
 
     properties! {
-        pub trace as new_trace = "new";
-        pub trace as property_trace = "property";
+        pub super::util::trace as new_trace = "new";
+        pub super::util::trace as property_trace = "property";
     }
 
     fn build(mut wgt: WidgetBuilder) -> impl crate::widget_instance::UiNode {

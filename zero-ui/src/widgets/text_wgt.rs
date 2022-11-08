@@ -210,7 +210,7 @@ pub mod text_input_vis {
             pub text_properties::text_padding as padding = (7, 15);
 
             /// Text cursor.
-            pub cursor = CursorIcon::Text;
+            pub crate::properties::cursor = CursorIcon::Text;
 
             /// Caret color.
             pub text_properties::caret_color;
@@ -218,13 +218,13 @@ pub mod text_input_vis {
             /// Text input base dark and light colors.
             ///
             /// All other text input style colors are derived from this pair.
-            pub base_colors;
+            pub super::base_colors;
 
             /// Text input background color.
-            pub background_color = color_scheme_pair(BASE_COLORS_VAR);
+            pub crate::properties::background_color = color_scheme_pair(BASE_COLORS_VAR);
 
             /// Text input border.
-            pub border = {
+            pub crate::properties::border = {
                 widths: 1,
                 sides: border_color().map_into(),
             };

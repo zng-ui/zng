@@ -69,7 +69,7 @@ pub mod style_mixin {
         /// on the full widget context will not work.
         ///
         /// Is `nil` by default.
-        pub style;
+        pub super::style;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

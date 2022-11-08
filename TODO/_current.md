@@ -4,6 +4,7 @@
         - Resolved by not having properties be modules.
         - Can be `struct`.
             - Need to figure-out generics for things that don't need generic, like ID.
+                - Could just require it.
             - Users need to pub import to pub use property.
                 - Is this even a downside?
     - Properties re-export module causes we to have to add a `super::` to types and doc links.

@@ -1,7 +1,6 @@
 use crate::core::focus::*;
 use crate::core::window::{HeadlessMonitor, StartPosition, Window};
 use crate::prelude::new_widget::*;
-use crate::properties::events::window::*;
 
 pub mod commands;
 pub mod nodes;
@@ -29,6 +28,8 @@ pub mod window_properties;
 pub mod window {
     use super::*;
     use crate::widgets::mixins::focusable_mixin::vis::*;
+
+    use crate::properties::{events, focus};
 
     inherit!(container);
 
@@ -60,13 +61,13 @@ pub mod window {
         focus_scope = true;
 
         /// Windows cycle TAB navigation by default.
-        pub tab_nav = TabNav::Cycle;
+        pub focus::tab_nav = TabNav::Cycle;
 
         /// Windows cycle arrow navigation by default.
-        pub directional_nav = DirectionalNav::Cycle;
+        pub focus::directional_nav = DirectionalNav::Cycle;
 
         /// Windows remember the last focused widget and return focus when the window is focused.
-        pub focus_scope_behavior = FocusScopeOnFocus::LastFocused;
+        pub focus::focus_scope_behavior = FocusScopeOnFocus::LastFocused;
 
         /// If the Inspector can be opened for this window.
         ///
@@ -145,7 +146,7 @@ pub mod window {
         /// This event notifies once per window, after the window content is inited.
         ///
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
-        pub on_pre_window_open as on_open;
+        pub events::window::on_pre_window_open as on_open;
 
         /// Event just after the window loads.
         ///
@@ -156,18 +157,18 @@ pub mod window {
         /// This property is the [`on_pre_window_load`](fn@on_pre_window_load) so window handlers see it first.
         ///
         /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
-        pub on_pre_window_load as on_load;
+        pub events::window::on_pre_window_load as on_load;
 
         /// On window close requested.
         ///
         /// This event notifies every time the user or the app tries to close the window, you can stop propagation
         /// to stop the window from being closed.
-        pub on_window_close_requested as on_close_requested;
+        pub events::window::on_window_close_requested as on_close_requested;
 
         /// On window deinited.
         ///
         /// This event notifies once after the window content is deinited because it is closing.
-        pub crate::properties::events::widget::on_deinit as on_close;
+        pub events::widget::on_deinit as on_close;
 
         /// On window position changed.
         ///
@@ -178,7 +179,7 @@ pub mod window {
         ///
         /// [`actual_position`]: crate::core::window::WindowVars::actual_position
         /// [`on_pre_window_moved`]: fn@on_pre_window_moved
-        pub on_pre_window_moved as on_moved;
+        pub events::window::on_pre_window_moved as on_moved;
 
         /// On window size changed.
         ///
@@ -189,7 +190,7 @@ pub mod window {
         ///
         /// [`actual_size`]: crate::core::window::WindowVars::actual_size
         /// [`on_pre_window_resized`]: fn@on_pre_window_resized
-        pub on_pre_window_resized as on_resized;
+        pub events::window::on_pre_window_resized as on_resized;
 
         /// On window state changed.
         ///
@@ -200,7 +201,7 @@ pub mod window {
         ///
         /// [`state`]: #wp-state
         /// [`on_pre_window_state_changed`]: fn@on_pre_window_state_changed
-        pub on_pre_window_state_changed as on_state_changed;
+        pub events::window::on_pre_window_state_changed as on_state_changed;
 
         /// On window maximized.
         ///
@@ -209,7 +210,7 @@ pub mod window {
         /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
         ///
         /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
-        pub on_pre_window_maximized as on_maximized;
+        pub events::window::on_pre_window_maximized as on_maximized;
 
         /// On window exited the maximized state.
         ///
@@ -218,7 +219,7 @@ pub mod window {
         /// This property is the [`on_pre_window_unmaximized`] so window handlers see it first.
         ///
         /// [`on_pre_window_unmaximized`]: fn@on_pre_window_unmaximized
-        pub on_pre_window_unmaximized as on_unmaximized;
+        pub events::window::on_pre_window_unmaximized as on_unmaximized;
 
         /// On window minimized.
         ///
@@ -227,7 +228,7 @@ pub mod window {
         /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
         ///
         /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
-        pub on_pre_window_minimized as on_minimized;
+        pub events::window::on_pre_window_minimized as on_minimized;
 
         /// On window exited the minimized state.
         ///
@@ -236,7 +237,7 @@ pub mod window {
         /// This property is the [`on_pre_window_unminimized`] so window handlers see it first.
         ///
         /// [`on_pre_window_unminimized`]: fn@on_pre_window_unminimized
-        pub on_pre_window_unminimized as on_unminimized;
+        pub events::window::on_pre_window_unminimized as on_unminimized;
 
         /// On window state changed to [`Normal`].
         ///
@@ -246,7 +247,7 @@ pub mod window {
         ///
         /// [`Normal`]: crate::core::window::WindowState::Normal
         /// [`on_pre_window_restored`]: fn@on_pre_window_restored
-        pub on_pre_window_restored as on_restored;
+        pub events::window::on_pre_window_restored as on_restored;
 
         /// On window enter one of the fullscreen states.
         ///
@@ -257,7 +258,7 @@ pub mod window {
         /// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
         /// [`Exclusive`]: crate::core::window::WindowState::Exclusive
         /// [`on_pre_window_fullscreen`]: fn@on_pre_window_fullscreen
-        pub on_pre_window_fullscreen as on_fullscreen;
+        pub events::window::on_pre_window_fullscreen as on_fullscreen;
 
         /// On window is no longer fullscreen.
         ///
@@ -266,12 +267,12 @@ pub mod window {
         /// This property is the [`on_pre_window_exited_fullscreen`] so window handlers see it first.
         ///
         /// [`on_pre_window_exited_fullscreen`]: fn@on_pre_window_exited_fullscreen
-        pub on_pre_window_exited_fullscreen as on_exited_fullscreen;
+        pub events::window::on_pre_window_exited_fullscreen as on_exited_fullscreen;
 
         /// On window frame rendered.
         ///
         /// If [`frame_image_capture`](#wp-frame_image_capture) is set
-        pub on_pre_frame_image_ready as on_frame_image_ready;
+        pub events::window::on_pre_frame_image_ready as on_frame_image_ready;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

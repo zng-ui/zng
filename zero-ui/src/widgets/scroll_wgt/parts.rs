@@ -20,7 +20,7 @@ pub mod scrollbar {
         pub thumb;
 
         /// Fills the track with [`vis::BACKGROUND_VAR`]
-        pub background_color = vis::BACKGROUND_VAR;
+        pub crate::properties::background_color = vis::BACKGROUND_VAR;
 
         /// Scrollbar orientation.
         ///
@@ -90,7 +90,7 @@ pub mod thumb {
         pub cross_length(impl IntoVar<Length>) = 16;
 
         /// Fills the thumb with [`vis::BACKGROUND_VAR`].
-        pub background_color = vis::BACKGROUND_VAR;
+        pub crate::properties::background_color = vis::BACKGROUND_VAR;
 
         /// Enabled by default.
         ///

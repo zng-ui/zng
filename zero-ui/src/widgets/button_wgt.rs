@@ -4,7 +4,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::button)]
 pub mod button {
     use super::*;
-    use crate::properties::capture_mouse;
 
     #[doc(inline)]
     pub use super::vis;
@@ -30,10 +29,10 @@ pub mod button {
         /// }
         /// # ;
         /// ```
-        pub on_click;
+        pub crate::properties::events::gesture::on_click;
 
         /// If pointer interaction with other widgets is blocked while the button is pressed.
-        pub capture_mouse = true;
+        pub crate::properties::capture_mouse = true;
 
         /// Button style.
         ///
@@ -99,28 +98,28 @@ pub mod vis {
             /// Button padding.
             ///
             /// Is `(7, 15)` by default.
-            pub padding = (7, 15);
+            pub crate::properties::padding = (7, 15);
 
             /// Button corner radius.
             ///
             /// Is `4` by default.
-            pub corner_radius = 4;
+            pub crate::properties::corner_radius = 4;
 
             /// Button content align.
-            pub child_align as content_align = Align::CENTER;
+            pub crate::properties::child_align as content_align = Align::CENTER;
 
             /// Button base dark and light colors.
             ///
             /// All other button style colors are derived from this pair.
-            pub base_colors;
+            pub super::base_colors;
 
             /// Button background.
-            pub background_color = color_scheme_pair(BASE_COLORS_VAR);
+            pub crate::properties::background_color = color_scheme_pair(BASE_COLORS_VAR);
 
             /// Button border.
             ///
             /// Is widths `1`.
-            pub border = {
+            pub crate::properties::border = {
                 widths: 1,
                 sides: color_scheme_pair(BASE_COLORS_VAR).map_into()
             };

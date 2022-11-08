@@ -135,7 +135,7 @@ pub fn image_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl Ui
 /// the image size is also scaled so that the image will take the same screen space in all devices, the image can end
 ///
 /// This is enabled by default.
-/// 
+///
 /// [`image_crop`]: fn@image_crop
 #[property(context, default(IMAGE_SCALE_FACTOR_VAR))]
 pub fn image_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {

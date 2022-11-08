@@ -42,7 +42,7 @@ pub mod h_stack {
         pub spacing(impl IntoVar<Length>);
 
         /// Spacing around the items stack, inside the border.
-        pub padding;
+        pub crate::properties::padding;
 
         /// Items alignment.
         ///
@@ -291,7 +291,7 @@ pub mod v_stack {
         pub spacing(impl IntoVar<Length>);
 
         /// Spacing around the items stack, inside the border.
-        pub padding;
+        pub crate::properties::padding;
 
         /// Items alignment.
         ///
@@ -589,7 +589,7 @@ pub mod z_stack {
         pub widget_base::children;
 
         /// Spacing around the items stack, inside the border.
-        pub padding;
+        pub crate::properties::padding;
 
         /// Items alignment.
         ///

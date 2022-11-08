@@ -82,7 +82,7 @@ pub mod uniform_grid {
         pub spacing(impl IntoVar<GridSpacing>);
 
         /// Spacing around the items grid, inside the border.
-        pub padding;
+        pub crate::properties::padding;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

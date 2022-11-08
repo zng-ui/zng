@@ -519,7 +519,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 #args_reexport_vis use super::#args_ident as property;
-                #args_reexport_vis use super::#ident as export;
 
                 pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
                 pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
