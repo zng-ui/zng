@@ -9,13 +9,13 @@ use nodes::CONTEXT_IMAGE_VAR;
 
 /// Image layout mode.
 ///
-/// This layout mode can be set to all images inside a widget using [`image_fit`], in the image widget
+/// This layout mode can be set to all images inside a widget using [`img_fit`], in the image widget
 /// it can be set using the [`fit`] property, the [`image_presenter`] uses this value to calculate the image final size.
 ///
 /// The image desired size is its original size, either in pixels or DIPs after cropping and scaling.
 ///
 /// [`fit`]: mod@crate::widgets::image#wp-fit
-/// [`image_fit`]: fn@image_fit
+/// [`img_fit`]: fn@img_fit
 /// [`image_presenter`]: crate::widgets::image::nodes::image_presenter
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ImageFit {
@@ -117,11 +117,11 @@ pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
 
 /// Sets the scale applied to all inner images.
 ///
-/// The scaling is applied after [`image_scale_ppi`] if active.
+/// The scaling is applied after [`img_scale_ppi`] if active.
 ///
 /// By default not scaling is done.
 ///
-/// [`image_scale_ppi`]: fn@image_scale_ppi
+/// [`img_scale_ppi`]: fn@img_scale_ppi
 /// [`scale`]: mod@crate::widgets::image#wp-scale
 #[property(context, default(IMAGE_SCALE_VAR))]
 pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
@@ -130,13 +130,13 @@ pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNo
 
 /// If the image desired size is scaled by the screen scale factor.
 ///
-/// The image desired size is its original size after [`image_crop`], it is a pixel value, but widgets are layout using
+/// The image desired size is its original size after [`img_crop`], it is a pixel value, but widgets are layout using
 /// device independent pixels that automatically scale in higher definition displays, when this property is enabled
 /// the image size is also scaled so that the image will take the same screen space in all devices, the image can end
 ///
 /// This is enabled by default.
 ///
-/// [`image_crop`]: fn@image_crop
+/// [`img_crop`]: fn@img_crop
 #[property(context, default(IMAGE_SCALE_FACTOR_VAR))]
 pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)
@@ -174,7 +174,7 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`BASELINE`]: Align::BASELINE
 /// [`BOTTOM`]: Align::BOTTOM
 ///
-/// [`image_align`]: mod@crate::widgets::image#wp-image_align
+/// [`img_align`]: mod@crate::widgets::image#wp-img_align
 #[property(context, default(IMAGE_ALIGN_VAR))]
 pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, IMAGE_ALIGN_VAR, fit)
@@ -188,7 +188,7 @@ pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
 /// This property sets the [`IMAGE_OFFSET_VAR`]. By default no offset is applied.
 ///
 /// [`offset`]: fn@crate::properties::offset
-/// [`image_offset`]: mod@crate::widgets::image#wp-image_offset
+/// [`img_offset`]: mod@crate::widgets::image#wp-img_offset
 #[property(context, default(IMAGE_OFFSET_VAR))]
 pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     with_context_var(child, IMAGE_OFFSET_VAR, offset)
@@ -196,13 +196,13 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 
 /// Sets a [`Rect`] that is a clip applied to all inner images before their layout.
 ///
-/// Relative values are calculated from the image pixel size, the [`image_scale_ppi`] is only considered after.
+/// Relative values are calculated from the image pixel size, the [`img_scale_ppi`] is only considered after.
 /// Note that more complex clipping can be applied after to the full widget, this property exists primarily to
 /// render selections of a [texture atlas].
 ///
 /// By default no cropping is done.
 ///
-/// [`image_scale_ppi`]: #fn@image_scale_ppi
+/// [`img_scale_ppi`]: #fn@img_scale_ppi
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas///
 /// [`crop`]: mod@crate::widgets::image#wp-crop
 #[property(context, default(IMAGE_CROP_VAR))]
@@ -287,9 +287,9 @@ pub fn img_loading_view(child: impl UiNode, generator: impl IntoVar<ViewGenerato
     with_context_var(child, IMAGE_LOADING_VIEW_VAR, generator)
 }
 
-/// Arguments for [`image_loading_view`].
+/// Arguments for [`img_loading_view`].
 ///
-/// [`image_loading_view`]: fn@image_loading_view
+/// [`img_loading_view`]: fn@img_loading_view
 #[derive(Clone, Debug)]
 pub struct ImageLoadingArgs {}
 
@@ -299,10 +299,10 @@ pub struct ImageLoadingArgs {}
 #[derive(Clone, Debug)]
 pub struct ImageLoadArgs {}
 
-/// Arguments for [`on_error`] and [`image_error_view`].
+/// Arguments for [`on_error`] and [`img_error_view`].
 ///
 /// [`on_error`]: fn@on_error
-/// [`image_error_view`]: fn@image_error_view
+/// [`img_error_view`]: fn@img_error_view
 #[derive(Clone, Debug)]
 pub struct ImageErrorArgs {
     /// Error message.

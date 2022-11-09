@@ -824,7 +824,7 @@ pub mod vis {
     /// Extends the [`button::vis::default_style`] to have the *pressed* look when [`is_checked`].
     ///
     /// [`button::vis::default_style`]: mod@crate::widgets::button::vis::default_style
-    /// [`is_checked`]: fn@toggle::properties::is_checked
+    /// [`is_checked`]: fn@toggle::is_checked
     #[widget($crate::widgets::toggle::vis::default_style)]
     pub mod default_style {
         use super::*;

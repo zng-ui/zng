@@ -283,7 +283,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                         ///
                     });
                 }
-                let doc = format!("* [`{0}`](fn@properties::{0})", p.ident());
+                let doc = format!("* [`{0}`](fn@{0})", p.ident());
                 doc_unsets.extend(quote_spanned! {docs_span=>
                     #[doc=#doc]
                 });
@@ -299,9 +299,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 }
 
                 let doc = if p.is_private() {
-                    format!("* `{}`", p.ident())
+                    let path = p.path.to_token_stream().to_string().replace(' ', "");
+                    format!("* [`{}`](fn@{path})", p.ident())
                 } else {
-                    format!("* [`{0}`](fn@properties::{0})", p.ident())
+                    format!("* [`{0}`](fn@{0})", p.ident())
                 };
                 doc_assigns.extend(quote_spanned! {docs_span=>
                     #[doc=#doc]

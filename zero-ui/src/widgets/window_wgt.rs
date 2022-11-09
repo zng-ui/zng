@@ -147,7 +147,9 @@ pub mod window {
         ///
         /// This event notifies once per window, after the window content is inited.
         ///
-        /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
+        /// This property is the [`on_pre_window_open`] so window handlers see it first.
+        /// 
+        /// [`on_pre_window_open`]: fn@events::window::on_pre_window_open
         pub events::window::on_pre_window_open as on_open;
 
         /// Event just after the window loads.
@@ -156,9 +158,10 @@ pub mod window {
         /// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
         /// have expired or dropped.
         ///
-        /// This property is the [`on_pre_window_load`](fn@on_pre_window_load) so window handlers see it first.
+        /// This property is the [`on_pre_window_load`] so window handlers see it first.
         ///
         /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
+        /// [`on_pre_window_load`]: fn@events::window::on_pre_window_load
         pub events::window::on_pre_window_load as on_load;
 
         /// On window close requested.
@@ -180,7 +183,7 @@ pub mod window {
         /// This property is the [`on_pre_window_moved`] so window handlers see it first.
         ///
         /// [`actual_position`]: crate::core::window::WindowVars::actual_position
-        /// [`on_pre_window_moved`]: fn@on_pre_window_moved
+        /// [`on_pre_window_moved`]: fn@events::window::on_pre_window_moved
         pub events::window::on_pre_window_moved as on_moved;
 
         /// On window size changed.
@@ -191,7 +194,7 @@ pub mod window {
         /// This property is the [`on_pre_window_resized`] so window handlers see it first.
         ///
         /// [`actual_size`]: crate::core::window::WindowVars::actual_size
-        /// [`on_pre_window_resized`]: fn@on_pre_window_resized
+        /// [`on_pre_window_resized`]: fn@events::window::on_pre_window_resized
         pub events::window::on_pre_window_resized as on_resized;
 
         /// On window state changed.
@@ -202,7 +205,7 @@ pub mod window {
         /// This property is the [`on_pre_window_state_changed`] so window handlers see it first.
         ///
         /// [`state`]: #wp-state
-        /// [`on_pre_window_state_changed`]: fn@on_pre_window_state_changed
+        /// [`on_pre_window_state_changed`]: fn@events::window::on_pre_window_state_changed
         pub events::window::on_pre_window_state_changed as on_state_changed;
 
         /// On window maximized.
@@ -211,7 +214,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
         ///
-        /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
+        /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
         pub events::window::on_pre_window_maximized as on_maximized;
 
         /// On window exited the maximized state.
@@ -220,7 +223,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_unmaximized`] so window handlers see it first.
         ///
-        /// [`on_pre_window_unmaximized`]: fn@on_pre_window_unmaximized
+        /// [`on_pre_window_unmaximized`]: fn@events::window::on_pre_window_unmaximized
         pub events::window::on_pre_window_unmaximized as on_unmaximized;
 
         /// On window minimized.
@@ -229,7 +232,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
         ///
-        /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
+        /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
         pub events::window::on_pre_window_minimized as on_minimized;
 
         /// On window exited the minimized state.
@@ -238,7 +241,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_unminimized`] so window handlers see it first.
         ///
-        /// [`on_pre_window_unminimized`]: fn@on_pre_window_unminimized
+        /// [`on_pre_window_unminimized`]: fn@events::window::on_pre_window_unminimized
         pub events::window::on_pre_window_unminimized as on_unminimized;
 
         /// On window state changed to [`Normal`].
@@ -248,7 +251,7 @@ pub mod window {
         /// This property is the [`on_pre_window_restored`] so window handlers see it first.
         ///
         /// [`Normal`]: crate::core::window::WindowState::Normal
-        /// [`on_pre_window_restored`]: fn@on_pre_window_restored
+        /// [`on_pre_window_restored`]: fn@events::window::on_pre_window_restored
         pub events::window::on_pre_window_restored as on_restored;
 
         /// On window enter one of the fullscreen states.
@@ -259,7 +262,7 @@ pub mod window {
         ///
         /// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
         /// [`Exclusive`]: crate::core::window::WindowState::Exclusive
-        /// [`on_pre_window_fullscreen`]: fn@on_pre_window_fullscreen
+        /// [`on_pre_window_fullscreen`]: fn@events::window::on_pre_window_fullscreen
         pub events::window::on_pre_window_fullscreen as on_fullscreen;
 
         /// On window is no longer fullscreen.
@@ -268,7 +271,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_exited_fullscreen`] so window handlers see it first.
         ///
-        /// [`on_pre_window_exited_fullscreen`]: fn@on_pre_window_exited_fullscreen
+        /// [`on_pre_window_exited_fullscreen`]: fn@events::window::on_pre_window_exited_fullscreen
         pub events::window::on_pre_window_exited_fullscreen as on_exited_fullscreen;
 
         /// On window frame rendered.

@@ -23,14 +23,14 @@ fn no_context_image() -> Image {
 
 /// Requests an image from [`Images`] and sets [`CONTEXT_IMAGE_VAR`].
 ///
-/// Caches the image if [`image_cache`] is `true` in the context.
+/// Caches the image if [`img_cache`] is `true` in the context.
 ///
 /// The image is not rendered by this property, the [`image_presenter`] renders the image in [`CONTEXT_IMAGE_VAR`].
 ///
 /// In a widget this should be placed inside context properties and before event properties.
 ///
 /// [`Images`]: crate::core::image::Images
-/// [`image_cache`]: mod@crate::widgets::image::image_cache
+/// [`img_cache`]: fn@crate::widgets::image::img_cache
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
     #[ui_node(struct ImageSourceNode {
         child: impl UiNode,

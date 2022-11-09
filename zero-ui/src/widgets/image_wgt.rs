@@ -62,9 +62,10 @@ pub mod image {
 /// ```
 ///
 /// Note that you can only define the [`source`] property in the image widget but you can
-/// still use the [`image::properties`] in the parent widget to define other properties.
+/// still use the [`image`] properties in the parent widget to define other properties.
 ///
 /// [`image!`]: mod@image
+/// [`image`]: mod@image
 /// [`source`]: mod@image#wp-source
 pub fn image(source: impl IntoVar<ImageSource>) -> impl UiNode {
     image! { source }

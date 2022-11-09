@@ -1,4 +1,4 @@
-//! Transform properties, [`scale`](module@scale), [`rotate`](module@rotate), [`transform`](module@transform) and more.
+//! Transform properties, [`scale`](fn@scale), [`rotate`](fn@rotate), [`transform`](fn@transform) and more.
 
 use crate::prelude::new_property::*;
 

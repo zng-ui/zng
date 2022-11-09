@@ -78,7 +78,7 @@ mod checkerboard_properties {
 
 /// Checkerboard node.
 ///
-/// The node is configured by the contextual variables defined in [`checkerboard::properties`].
+/// The node is configured by the contextual variables defined in the widget.
 pub fn node() -> impl UiNode {
     use crate::core::gradient::RenderExtendMode;
     use checkerboard_properties::*;
