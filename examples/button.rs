@@ -22,6 +22,7 @@ fn app_main() {
             child = v_stack! {
                 align = Align::CENTER;
                 spacing = 5;
+                sticky_width = true;
                 children = ui_list![
                     example(),
                     example(),

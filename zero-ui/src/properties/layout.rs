@@ -954,3 +954,93 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
     }
     .cfg_boxed()
 }
+
+/// Retain the widget's previous width if the new layout width is smaller.
+/// 
+/// The widget is layout using its previous width as the minimum width constrain.
+#[property(SIZE, default(false))]
+pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
+    #[ui_node(struct StickyWidthNode {
+        child: impl UiNode,
+        #[var] sticky: impl Var<bool>,
+    })]
+    impl UiNode for StickyWidthNode {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let min = ctx.widget_info.bounds.inner_size().width;
+            let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.measure(ctx));
+            size.width = size.width.max(min);
+            size
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let min = ctx.widget_info.bounds.inner_size().width;
+            let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.layout(ctx, wl));
+            size.width = size.width.max(min);
+            size
+        }
+    }
+    StickyWidthNode {
+        child,
+        sticky: sticky.into_var(),
+    }
+}
+
+/// Retain the widget's previous height if the new layout height is smaller.
+/// 
+/// The widget is layout using its previous height as the minimum height constrain.
+#[property(SIZE, default(false))]
+pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
+    #[ui_node(struct StickyHeightNode {
+        child: impl UiNode,
+        #[var] sticky: impl Var<bool>,
+    })]
+    impl UiNode for StickyHeightNode {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let min = ctx.widget_info.bounds.inner_size().height;
+            let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.measure(ctx));
+            size.height = size.height.max(min);
+            size
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let min = ctx.widget_info.bounds.inner_size().height;
+            let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.layout(ctx, wl));
+            size.height = size.height.max(min);
+            size
+        }
+    }
+    StickyHeightNode {
+        child,
+        sticky: sticky.into_var(),
+    }
+}
+
+/// Retain the widget's previous size if the new layout size is smaller.
+/// 
+/// The widget is layout using its previous size as the minimum size constrain.
+#[property(SIZE, default(false))]
+pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
+    #[ui_node(struct StickyHeightNode {
+        child: impl UiNode,
+        #[var] sticky: impl Var<bool>,
+    })]
+    impl UiNode for StickyHeightNode {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let min = ctx.widget_info.bounds.inner_size();
+            let mut size = ctx.with_constrains(|c| c.with_min_size(min), |ctx| self.child.measure(ctx));
+            size = size.max(min);
+            size
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let min = ctx.widget_info.bounds.inner_size();
+            let mut size = ctx.with_constrains(|c| c.with_min_size(min), |ctx| self.child.layout(ctx, wl));
+            size = size.max(min);
+            size
+        }
+    }
+    StickyHeightNode {
+        child,
+        sticky: sticky.into_var(),
+    }
+}
