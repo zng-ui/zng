@@ -177,6 +177,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut input_to_storage = vec![];
         let mut named_into_var = quote!();
         let mut get_when_input = quote!();
+        let mut input_new_dyn = vec![];
 
         let mut allowed_in_when_expr = true;
         let mut allowed_in_when_assign = true;
@@ -205,6 +206,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
             if !matches!(kind, InputKind::Var) {
                 allowed_in_when_assign = false;
+
+                input_new_dyn.push(quote! {
+                    #core::widget_builder::new_dyn_other(&mut __inputs__)
+                });
             }
 
             match kind {
@@ -222,6 +227,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         pub fn #ident(#ident: #input_ty) -> #core::var::BoxedVar<#info_ty> {
                             #core::widget_builder::var_input_to_args(#ident)
                         }
+                    });
+                    input_new_dyn.push(quote! {
+                        #core::widget_builder::new_dyn_var(&mut __inputs__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -319,33 +327,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                 }
             }
-        }
-
-        let new_when;
-        let new_when_fn;
-        if allowed_in_when_assign {
-            new_when = quote! {
-                pub fn __new_when__(
-                    __instance__: #core::widget_builder::PropertyInstInfo,
-                    inputs: std::vec::Vec<#core::var::types::AnyWhenVarBuilder>,
-                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    let mut inputs = inputs.into_iter();
-
-                    Box::new(Self {
-                        __instance__,
-                        #(#input_idents: #core::widget_builder::new_when_build(&mut inputs),)*
-                    })
-                }
-            };
-
-            new_when_fn = quote! {
-                Some(Self::__new_when__)
-            };
-        } else {
-            new_when = quote!();
-            new_when_fn = quote! {
-                None
-            };
         }
 
         if !get_var.is_empty() {
@@ -457,17 +438,15 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 pub fn __new_dyn__(
                     __instance__: #core::widget_builder::PropertyInstInfo,
-                    inputs: std::vec::Vec<std::boxed::Box<dyn std::any::Any>>
+                    __inputs__: std::vec::Vec<std::boxed::Box<dyn std::any::Any>>
                 ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    let mut inputs = inputs.into_iter();
+                    let mut __inputs__ = __inputs__.into_iter();
 
                     Box::new(Self {
                         __instance__,
-                        #(#input_idents: #core::widget_builder::new_dyn_downcast(&mut inputs),)*
+                        #(#input_idents: #input_new_dyn,)*
                     })
                 }
-
-                #new_when
 
                 pub fn __build__(mut self, info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     self.__instance__ = info;
@@ -498,7 +477,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         location: #core::widget_builder::source_location!(),
                         default: #default_fn,
                         new: Self::__new_dyn__,
-                        new_when: #new_when_fn,
                         inputs: std::boxed::Box::new([
                             #input_info
                         ]),

@@ -398,8 +398,8 @@ pub struct PropertyInfo {
     /// The expected types for each [`InputKind`] are:
     ///
     /// | Kind                | Expected Type
-    /// |---------------------|----------------------
-    /// | [`Var`]             | `Box<BoxedVar<T>>`
+    /// |---------------------|-------------------------------------------------
+    /// | [`Var`]             | `Box<BoxedVar<T>>` or `Box<AnyWhenVarBuilder>`
     /// | [`StateVar`]        | `Box<StateVar>`
     /// | [`Value`]           | `Box<T>`
     /// | [`UiNode`]          | `Box<RcNode<BoxedUiNode>>`
@@ -420,13 +420,6 @@ pub struct PropertyInfo {
     /// [`UiNodeList`]: InputKind::UiNodeList
     /// [`WidgetHandler`]: InputKind::WidgetHandler
     pub new: fn(PropertyInstInfo, Vec<Box<dyn Any>>) -> Box<dyn PropertyArgs>,
-
-    /// New property args from all the `when` assigns that affect this property.
-    ///
-    /// This is `Some(_)` only if all [`inputs`] are [`InputKind::Var`].
-    ///
-    /// [`inputs`]: Self::inputs
-    pub new_when: Option<fn(PropertyInstInfo, Vec<AnyWhenVarBuilder>) -> Box<dyn PropertyArgs>>,
 
     /// Property inputs info, always at least one.
     pub inputs: Box<[PropertyInput]>,
@@ -669,22 +662,22 @@ pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>
 }
 
 #[doc(hidden)]
-pub fn new_dyn_downcast<T: Any>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> T {
+pub fn new_dyn_var<T: VarValue>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> BoxedVar<T> {
+    let item = inputs.next().expect("missing input");
+
+    match item.downcast::<AnyWhenVarBuilder>() {
+        Ok(builder) => builder.contextualized_build::<T>().expect("invalid when builder").boxed(),
+        Err(item) => item.downcast::<BoxedVar<T>>().expect("input did not match expected var type"),
+    }
+}
+
+#[doc(hidden)]
+pub fn new_dyn_other<T: Any>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> T {
     *inputs
         .next()
         .expect("missing input")
         .downcast::<T>()
         .expect("input did not match expected var type")
-}
-
-#[doc(hidden)]
-pub fn new_when_build<T: VarValue>(inputs: &mut std::vec::IntoIter<AnyWhenVarBuilder>) -> BoxedVar<T> {
-    inputs
-        .next()
-        .expect("missing input")
-        .contextualized_build::<T>()
-        .expect("invalid when builder")
-        .boxed()
 }
 
 /*
@@ -1626,7 +1619,7 @@ impl WidgetBuilding {
 
         struct Assign {
             item_idx: usize,
-            builder: Vec<AnyWhenVarBuilder>,
+            builder: Vec<Box<dyn Any>>,
         }
         let mut assigns = LinearMap::new();
 
@@ -1665,7 +1658,7 @@ impl WidgetBuilding {
 
             let mut any_assign = false;
             // collect assigns.
-           'assign: for assign in when.assigns.iter() {
+            'assign: for assign in when.assigns.iter() {
                 let id = assign.id();
                 let assign_info;
                 let i;
@@ -1713,7 +1706,7 @@ impl WidgetBuilding {
                             .iter()
                             .enumerate()
                             .map(|(i, input)| match input.kind {
-                                InputKind::Var => AnyWhenVarBuilder::new_any(default_args.var(i).clone_any()),
+                                InputKind::Var => Box::new(AnyWhenVarBuilder::new_any(default_args.var(i).clone_any())) as _,
                                 _ => panic!("can only assign vars in when blocks"),
                             })
                             .collect(),
@@ -1721,6 +1714,7 @@ impl WidgetBuilding {
                 };
 
                 for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
+                    let entry = entry.downcast_mut::<AnyWhenVarBuilder>().unwrap();
                     let value = match input.kind {
                         InputKind::Var => assign.var(i).clone_any(),
                         _ => panic!("can only assign vars in when blocks"),
@@ -1761,8 +1755,8 @@ impl WidgetBuilding {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
-            let new_when = args.property().new_when.unwrap();
-            *args = new_when(args.instance(), builder);
+            let new = args.property().new;
+            *args = new(args.instance(), builder);
         }
     }
 
