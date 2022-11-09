@@ -1781,6 +1781,9 @@ impl WidgetBuilding {
                         priority: position.priority,
                         name,
                     });
+
+                    #[cfg(not(inspector))]
+                    let _ = position;
                 }
             }
         }
