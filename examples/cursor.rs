@@ -16,7 +16,7 @@ fn app_main() {
     App::default().run_window(|_| {
         let mut demos = ui_list![];
         for icon in CURSORS {
-            demos.push(cursor_demo(Some(*icon)).boxed());
+            demos.push(cursor_demo(Some(*icon)));
         }
 
         window! {

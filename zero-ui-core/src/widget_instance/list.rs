@@ -12,7 +12,7 @@ use crate::{
 
 use super::*;
 
-/// Creates a `Vec<BoxedUiNode>` containing the arguments.
+/// Creates an [`UiNodeVec`] containing the arguments.
 ///
 /// # Examples
 ///
@@ -31,15 +31,167 @@ use super::*;
 /// `ui_list!` automatically calls [`UiNode::boxed`] for each item.
 #[macro_export]
 macro_rules! ui_list {
-    () => { std::vec::Vec::<$crate::widget_instance::BoxedUiNode>::new() };
+    () => { $crate::widget_instance::UiNodeVec::new() };
     ($($node:expr),+ $(,)?) => {
-        vec![
+        $crate::widget_instance::UiNodeVec(vec![
             $($crate::widget_instance::UiNode::boxed($node)),*
-        ]
+        ])
     };
 }
 #[doc(inline)]
 pub use crate::ui_list;
+
+impl UiNodeList for Vec<BoxedUiNode> {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        f(&self[index])
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        f(&mut self[index])
+    }
+
+    fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        for (i, node) in self.iter().enumerate() {
+            if !f(i, node) {
+                break;
+            }
+        }
+    }
+
+    fn for_each_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        for (i, node) in self.iter_mut().enumerate() {
+            if !f(i, node) {
+                break;
+            }
+        }
+    }
+
+    fn len(&self) -> usize {
+        Vec::len(self)
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        vec.append(self)
+    }
+}
+
+/// Vec of boxed UI nodes.
+///
+/// This is a thin wrapper around `Vec<BoxedUiNode>` that adds helper methods for pushing widgets without needing to box.
+#[derive(Default)]
+pub struct UiNodeVec(pub Vec<BoxedUiNode>);
+impl UiNodeVec {
+    /// New default.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// New [`with_capacity`].
+    ///
+    /// [`with_capacity`]: Vec::with_capacity
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(Vec::with_capacity(capacity))
+    }
+
+    /// Box and [`push`] the node.
+    ///
+    /// [`push`]: Vec::push
+    pub fn push(&mut self, node: impl UiNode) {
+        self.0.push(node.boxed())
+    }
+
+    /// Box and [`insert`] the node.
+    ///
+    /// [`insert`]: Vec::insert
+    pub fn insert(&mut self, index: usize, node: impl UiNode) {
+        self.0.insert(index, node.boxed())
+    }
+}
+impl ops::Deref for UiNodeVec {
+    type Target = Vec<BoxedUiNode>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for UiNodeVec {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl From<Vec<BoxedUiNode>> for UiNodeVec {
+    fn from(vec: Vec<BoxedUiNode>) -> Self {
+        Self(vec)
+    }
+}
+impl From<UiNodeVec> for Vec<BoxedUiNode> {
+    fn from(vec: UiNodeVec) -> Self {
+        vec.0
+    }
+}
+impl FromIterator<BoxedUiNode> for UiNodeVec {
+    fn from_iter<T: IntoIterator<Item = BoxedUiNode>>(iter: T) -> Self {
+        Self(Vec::from_iter(iter))
+    }
+}
+
+impl UiNodeList for UiNodeVec {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        self.0.with_node(index, f)
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.0.with_node_mut(index, f)
+    }
+
+    fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        self.0.for_each(f)
+    }
+
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        self.0.for_each_mut(f)
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        self.0.boxed()
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.0.drain_into(vec)
+    }
+}
 
 /// Adds the `chain` method for all [`UiNodeList`] implementers.
 pub trait UiNodeListChain: UiNodeList {
@@ -885,9 +1037,9 @@ impl EditableUiNodeList {
     }
 
     /// New from an already allocated vec.
-    pub fn from_vec(vec: Vec<BoxedUiNode>) -> Self {
+    pub fn from_vec(vec: impl Into<Vec<BoxedUiNode>>) -> Self {
         let mut s = Self::new();
-        s.vec = vec;
+        s.vec = vec.into();
         s
     }
 

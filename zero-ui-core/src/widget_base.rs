@@ -61,8 +61,8 @@ pub mod nodes {
     /// Insert [`child_layout`] and [`inner`] in the widget.
     pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            wgt.push_intrinsic(Priority::ChildLayout, "child_layout", |c| nodes::child_layout(c).boxed());
-            wgt.push_intrinsic(Priority::Border, "inner", |c| nodes::inner(c).boxed());
+            wgt.push_intrinsic(Priority::ChildLayout, "child_layout", nodes::child_layout);
+            wgt.push_intrinsic(Priority::Border, "inner", nodes::inner);
         });
     }
 

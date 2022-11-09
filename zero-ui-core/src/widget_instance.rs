@@ -1054,56 +1054,6 @@ fn assert_bounds(len: usize, i: usize) {
     }
 }
 
-impl UiNodeList for Vec<BoxedUiNode> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        f(&self[index])
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        f(&mut self[index])
-    }
-
-    fn for_each<F>(&self, mut f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
-    {
-        for (i, node) in self.iter().enumerate() {
-            if !f(i, node) {
-                break;
-            }
-        }
-    }
-
-    fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        for (i, node) in self.iter_mut().enumerate() {
-            if !f(i, node) {
-                break;
-            }
-        }
-    }
-
-    fn len(&self) -> usize {
-        Vec::len(self)
-    }
-
-    fn boxed(self) -> BoxedUiNodeList {
-        Box::new(self)
-    }
-
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        vec.append(self)
-    }
-}
-
 /// A UI node that does not contain any other node, only takes the minimum space and renders nothing.
 pub struct NilUiNode;
 #[ui_node(none)]
