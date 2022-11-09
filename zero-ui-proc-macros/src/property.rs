@@ -44,6 +44,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             "property functions must have at least 2 inputs: child: impl UiNode, arg0..",
             item.sig.inputs.span(),
         );
+
+        if item.sig.inputs.is_empty() {
+            // patch to continue validation.
+            let core = crate_core();
+            item.sig.inputs.push(parse_quote!(__child__: impl #core::widget_instance::UiNode));
+        }
     }
     if let Some(async_) = &item.sig.asyncness {
         errors.push("property functions cannot be `async`", async_.span());

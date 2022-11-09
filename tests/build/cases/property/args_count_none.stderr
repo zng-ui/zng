@@ -1,15 +1,7 @@
-error: custom attribute panicked
+error: property functions must have at least 2 inputs: child: impl UiNode, arg0..
  --> cases/property/args_count_none.rs:3:1
   |
 3 | #[property(CONTEXT)]
   | ^^^^^^^^^^^^^^^^^^^^
   |
-  = help: message: index out of bounds: the len is 0 but the index is 0
-
-warning: unused import: `widget_instance::UiNode`
- --> cases/property/args_count_none.rs:1:31
-  |
-1 | use zero_ui::core::{property, widget_instance::UiNode};
-  |                               ^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
