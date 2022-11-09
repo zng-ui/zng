@@ -51,8 +51,8 @@ pub mod icon {
 
         wgt.set_child(text::nodes::render_text());
 
-        wgt.push_intrinsic(Priority::Fill, "layout_text", text::nodes::layout_text);
-        wgt.push_intrinsic(Priority::Event, "resolve_text", move |child| {
+        wgt.push_intrinsic(NestGroup::FILL, "layout_text", text::nodes::layout_text);
+        wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
             let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
             let node = text::font_family(node, icon.map(|i| i.font.clone().into()));
             let node = text::font_size(node, vis::ICON_SIZE_VAR);
@@ -147,13 +147,13 @@ pub mod vis {
     }
 
     /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
-    #[property(context, default(ICON_SIZE_VAR))]
+    #[property(CONTEXT, default(ICON_SIZE_VAR))]
     pub fn ico_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
         with_context_var(child, ICON_SIZE_VAR, size)
     }
 
     /// Sets the [`ICON_COLOR_VAR`] that affects all icons inside the widget.
-    #[property(context, default(ICON_COLOR_VAR))]
+    #[property(CONTEXT, default(ICON_COLOR_VAR))]
     pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
         with_context_var(child, ICON_COLOR_VAR, color)
     }

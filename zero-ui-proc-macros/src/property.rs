@@ -14,18 +14,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         Err(e) => {
             errors.push_syn(e);
             Args {
-                priority: ident!("context"),
+                nest_group: ident!("CONTEXT"),
                 capture: false,
                 default: None,
             }
         }
     };
 
-    let priority = if errors.is_empty() {
-        Priority::from_ident(&args.priority, &mut errors)
-    } else {
-        Priority::Context
-    };
+    let nest_group = args.nest_group;
     let capture = args.capture;
 
     let mut item = match parse::<ItemFn>(input.clone()) {
@@ -489,7 +485,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 fn property(&self) -> #core::widget_builder::PropertyInfo {
                     #core::widget_builder::PropertyInfo {
-                        priority: #priority,
+                        group: #core::widget_builder::NestGroup::#nest_group,
                         capture: #capture,
                         impl_id: Self::__id__("").impl_id,
                         name: std::stringify!(#ident),
@@ -534,14 +530,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 }
 
 struct Args {
-    priority: Ident,
+    nest_group: Ident,
     capture: bool,
     default: Option<Default>,
 }
 impl Parse for Args {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(Args {
-            priority: input.parse()?,
+            nest_group: input.parse()?,
             capture: if input.peek(Token![,]) && input.peek2(keyword::capture) {
                 let _: Token![,] = input.parse()?;
                 let _: keyword::capture = input.parse()?;
@@ -571,45 +567,6 @@ impl Parse for Default {
         Ok(Default {
             default,
             args: Punctuated::parse_terminated(&inner)?,
-        })
-    }
-}
-
-#[derive(Debug)]
-enum Priority {
-    Context,
-    Event,
-    Layout,
-    Size,
-    Border,
-    Fill,
-    ChildContext,
-    ChildLayout,
-}
-impl Priority {
-    fn from_ident(ident: &Ident, errors: &mut Errors) -> Priority {
-        match ident.to_string().as_str() {
-            "context" => Priority::Context,
-            "event" => Priority::Event,
-            "layout" => Priority::Layout,
-            "size" => Priority::Size,
-            "border" => Priority::Border,
-            "fill" => Priority::Fill,
-            "child_context" => Priority::ChildContext,
-            "child_layout" => Priority::ChildLayout,
-            _ => {
-                errors.push("expected property priority", ident.span());
-                Priority::Context
-            }
-        }
-    }
-}
-impl ToTokens for Priority {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let core = crate_core();
-        let pri = ident!("{:?}", self);
-        tokens.extend(quote! {
-            #core::widget_builder::Priority::#pri
         })
     }
 }

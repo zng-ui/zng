@@ -1,9 +1,9 @@
 use zero_ui::core::property;
 
-#[property(context)]
+#[property(CONTEXT)]
 pub struct Foo {}
 
-#[property(context)]
+#[property(CONTEXT)]
 pub mod bar {
     pub fn baz() {}
 }

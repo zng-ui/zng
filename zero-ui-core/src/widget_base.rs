@@ -61,8 +61,8 @@ pub mod nodes {
     /// Insert [`child_layout`] and [`inner`] in the widget.
     pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            wgt.push_intrinsic(Priority::ChildLayout, "child_layout", nodes::child_layout);
-            wgt.push_intrinsic(Priority::Border, "inner", nodes::inner);
+            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT, "child_layout", nodes::child_layout);
+            wgt.push_intrinsic(NestGroup::BORDER, "inner", nodes::inner);
         });
     }
 
@@ -122,7 +122,7 @@ pub mod nodes {
     /// to not be a full widget. This is important for making properties like *padding* or *content_align* work
     /// for any [`UiNode`] as content.
     ///
-    /// This node must be intrinsic at [`Priority::ChildLayout`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::CHILD_LAYOUT`], the [`base`] default intrinsic inserts it.
     ///
     /// [`base`]: mod@base
     pub fn child_layout(child: impl UiNode) -> impl UiNode {
@@ -177,7 +177,7 @@ pub mod nodes {
     ///
     /// This node renders the inner transform and implements the [`HitTestMode`] for the widget.
     ///
-    /// This node must be intrinsic at [`Priority::Border`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::BORDER`], the [`base`] default intrinsic inserts it.
     ///
     /// [`base`]: mod@base
     pub fn inner(child: impl UiNode) -> impl UiNode {
@@ -592,7 +592,7 @@ context_var! {
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base
-#[property(child_layout, capture, default(FillUiNode))]
+#[property(CHILD_LAYOUT, capture, default(FillUiNode))]
 pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
     _child
 }
@@ -604,7 +604,7 @@ pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
 /// This property must be [captured] during widget build and used directly in the panel node.
 ///
 /// [captured]: crate::widget#property-capture
-#[property(child_layout, capture)]
+#[property(CHILD_LAYOUT, capture)]
 pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
     _child
 }
@@ -620,7 +620,7 @@ pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base
-#[property(context, capture, default(WidgetId::new_unique()))]
+#[property(CONTEXT, capture, default(WidgetId::new_unique()))]
 pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
     _child
 }
@@ -656,7 +656,7 @@ pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
-#[property(context, default(true))]
+#[property(CONTEXT, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct EnabledNode {
         child: impl UiNode,
@@ -705,7 +705,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// [`enabled`]: fn@enabled
 /// [`BLOCKED`]: Interactivity::BLOCKED
 /// [`interactivity`]: crate::widget_info::WidgetInfo::interactivity
-#[property(context, default(true))]
+#[property(CONTEXT, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct InteractiveNode {
         child: impl UiNode,
@@ -752,7 +752,7 @@ fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> 
 ///
 /// [`enabled`]: fn@enabled
 /// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
-#[property(event)]
+#[property(EVENT)]
 pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
     vis_enabled_eq_state(child, state, true)
 }
@@ -764,7 +764,7 @@ pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// This is the same as `!self.is_enabled`.
 ///
 /// [`enabled`]: fn@enabled
-#[property(event)]
+#[property(EVENT)]
 pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
     vis_enabled_eq_state(child, state, false)
 }
@@ -786,7 +786,7 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_hidden`]: fn@is_hidden
 /// [`is_collapsed`]: fn@is_collapsed
 /// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
-#[property(context, default(true))]
+#[property(CONTEXT, default(true))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
     #[ui_node(struct VisibilityNode {
         child: impl UiNode,
@@ -875,17 +875,17 @@ fn visibility_eq_state(child: impl UiNode, state: StateVar, expected: Visibility
     )
 }
 /// If the widget is [`Visible`](Visibility::Visible).
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_visible(child: impl UiNode, state: StateVar) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Visible)
 }
 /// If the widget is [`Hidden`](Visibility::Hidden).
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_hidden(child: impl UiNode, state: StateVar) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Hidden)
 }
 /// If the widget is [`Collapsed`](Visibility::Collapsed).
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Collapsed)
 }
@@ -965,7 +965,7 @@ context_var! {
 ///
 /// [`hit_testable`]: fn@hit_testable
 /// [`corner_radius`]: fn@crate::border::corner_radius
-#[property(context, default(HIT_TEST_MODE_VAR))]
+#[property(CONTEXT, default(HIT_TEST_MODE_VAR))]
 pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
     #[ui_node(struct HitTestModeNode {
         child: impl UiNode,
@@ -1017,7 +1017,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 ///
 /// [`hit_testable`]: fn@hit_testable
 /// [`hit_test_mode`]: fn@hit_test_mode
-#[property(event)]
+#[property(EVENT)]
 pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
     bind_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
 }
@@ -1055,7 +1055,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///  
 /// [`outer_bounds`]: WidgetBoundsInfo::outer_bounds
 /// [`inner_bounds`]: WidgetBoundsInfo::inner_bounds
-#[property(context, default(true))]
+#[property(CONTEXT, default(true))]
 pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct CanAutoHideNode {
         child: impl UiNode,

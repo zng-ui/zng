@@ -72,7 +72,7 @@ pub use when_condition_expr_var;
 /// # use zero_ui_core::{property, widget_builder::property_id, widget_instance::UiNode, var::IntoValue};
 /// # pub mod path {
 /// #   use super::*;
-/// #   #[property(context)]
+/// #   #[property(CONTEXT)]
 /// #   pub fn foo(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
 /// #     child
 /// #   }
@@ -181,9 +181,9 @@ pub mod property_args_getter {
 /// Each node "wraps" the next one, so the sort defines `(context#0 (context#1 (event (size (border..)))))`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NestPosition {
-    /// The priority, all items of the same priority are "grouped" together.
-    pub priority: Priority,
-    /// Extra sorting within items of the same priority.
+    /// The major position.
+    pub group: NestGroup,
+    /// Extra sorting within items of the same group.
     pub index: u16,
 }
 impl NestPosition {
@@ -194,17 +194,17 @@ impl NestPosition {
     pub const PROPERTY_INDEX: u16 = Self::INTRINSIC_INDEX * 2;
 
     /// New position for property.
-    pub fn property(priority: Priority) -> Self {
+    pub fn property(group: NestGroup) -> Self {
         NestPosition {
-            priority,
+            group,
             index: Self::PROPERTY_INDEX,
         }
     }
 
     /// New position for intrinsic node.
-    pub fn intrinsic(priority: Priority) -> Self {
+    pub fn intrinsic(group: NestGroup) -> Self {
         NestPosition {
-            priority,
+            group,
             index: Self::INTRINSIC_INDEX,
         }
     }
@@ -223,25 +223,25 @@ impl fmt::Debug for NestPosition {
         }
 
         f.debug_struct("NestPosition")
-            .field("priority", &self.priority)
+            .field("group", &self.group)
             .field("index", &IndexName(self.index))
             .finish()
     }
 }
 
-/// Property priority in a widget.
+/// Property nest position group.
 ///
-/// See [the property doc](crate::property#priority) for more details.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum Priority {
+/// See [`NestPosition`] for more details.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NestGroup(u8);
+impl NestGroup {
     /// Property defines a contextual value or variable.
     ///
     /// Usually these properties don't define behavior, they just configure the widget. A common pattern
     /// is defining all widget config as context vars, that are all used by an widget intrinsic node.
     ///
     /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
-    Context,
+    pub const CONTEXT: Self = Self(0);
     /// Property defines an event handler, or state monitor, they are placed inside all context properties, so can be configured
     /// by context, but are still outside of the layout and render nodes.
     ///
@@ -249,65 +249,81 @@ pub enum Priority {
     /// Implementers can use this intrinsic feature of the UI tree to interrupt notification for child properties and widgets.
     ///
     /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
-    Event,
+    pub const EVENT: Self = Self(Self::CONTEXT.0 + 1);
     /// Property defines the position and size of the widget inside the space made available by the parent widget.
     ///
     /// These properties must accumulatively affect the measure and layout, they must avoid rendering. The computed layout is
     /// usually rendered by the widget as a single transform, the layout properties don't need to render transforms.
-    Layout,
+    pub const LAYOUT: Self = Self(Self::EVENT.0 + 1);
     /// Property strongly enforces a widget size.
     ///
     /// Usually the widget final size is a side-effect of all the layout properties, but some properties may enforce a size, they
-    /// can use this priority to ensure that they are inside the other layout properties.
-    Size,
+    /// can use this group to ensure that they are inside the other layout properties.
+    pub const SIZE: Self = Self(Self::LAYOUT.0 + 1);
     /// Property renders a border visual.
     ///
-    /// Borders are strictly coordinated, see the [`border`] module for more details. All nodes of this priority
+    /// Borders are strictly coordinated, see the [`border`] module for more details. All nodes of this group
     /// may render at will, the renderer is already configured to apply the final layout and size.
     ///
     /// [`border`]: crate::border
-    Border,
+    pub const BORDER: Self = Self(Self::SIZE.0 + 1);
     /// Property defines a visual of the  widget.
     ///
-    /// This is the main render priority, it usually defines things like a background fill, but it can render over child nodes simply
+    /// This is the main render group, it usually defines things like a background fill, but it can render over child nodes simply
     /// by choosing to render after the render is delegated to the inner child.
-    Fill,
+    pub const FILL: Self = Self(Self::BORDER.0 + 1);
     /// Property defines contextual value or variable for the inner child or children widgets. Config set here does not affect
     /// the widget where it is set, it affects the descendants.
-    ChildContext,
+    pub const CHILD_CONTEXT: Self = Self(Self::FILL.0 + 1);
     /// Property starts defining the layout and size of the child or children widgets. These properties don't affect the layout
     /// of the widget where they are set. Some properties are functionally the same, only changing their effect depending on their
-    /// priority, the `margin` and `padding` properties are like this, `margin` is `layout` and `padding` is `child_layout`.
-    ChildLayout,
-}
-impl Priority {
-    /// All priorities, from outermost([`Context`]) to innermost([`ChildLayout`]).
+    /// group, the `margin` and `padding` properties are like this, `margin` is `layout` and `padding` is `child_layout`.
+    pub const CHILD_LAYOUT: Self = Self(Self::CHILD_CONTEXT.0 + 1);
+
+    /// All priorities, from outermost([`CONTEXT`]) to innermost([`CHILD_LAYOUT`]).
     ///
-    /// [`Context`]: Priority::Context
-    /// [`ChildLayout`]: Priority::ChildLayout
-    pub const ITEMS: [Priority; 8] = [
-        Priority::Context,
-        Priority::Event,
-        Priority::Layout,
-        Priority::Size,
-        Priority::Border,
-        Priority::Fill,
-        Priority::ChildContext,
-        Priority::ChildLayout,
+    /// [`CONTEXT`]: Self::CONTEXT
+    /// [`CHILD_LAYOUT`]: Self::CHILD_LAYOUT
+    pub const ITEMS: [Self; 8] = [
+        Self::CONTEXT,
+        Self::EVENT,
+        Self::LAYOUT,
+        Self::SIZE,
+        Self::BORDER,
+        Self::FILL,
+        Self::CHILD_CONTEXT,
+        Self::CHILD_LAYOUT,
     ];
 
-    /// Priority name in the style written in the `#[property(..)]` attribute.
-    pub fn name(self) -> &'static str {
-        match self {
-            Priority::Context => "context",
-            Priority::Event => "event",
-            Priority::Layout => "layout",
-            Priority::Size => "size",
-            Priority::Border => "border",
-            Priority::Fill => "fill",
-            Priority::ChildContext => "child_context",
-            Priority::ChildLayout => "child_layout",
+    /// Group const name.
+    pub const fn name(self) -> &'static str {
+        if self.0 == Self::CONTEXT.0 {
+            "CONTEXT"
+        } else if self.0 == Self::EVENT.0 {
+            "EVENT"
+        } else if self.0 == Self::LAYOUT.0 {
+            "LAYOUT"
+        } else if self.0 == Self::SIZE.0 {
+            "SIZE"
+        } else if self.0 == Self::BORDER.0 {
+            "BORDER"
+        } else if self.0 == Self::FILL.0 {
+            "FILL"
+        } else if self.0 == Self::CHILD_CONTEXT.0 {
+            "CHILD_CONTEXT"
+        } else if self.0 == Self::CHILD_LAYOUT.0 {
+            "CHILD_LAYOUT"
+        } else {
+            unreachable!()
         }
+    }
+}
+impl fmt::Debug for NestGroup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "NestGroup::")?;
+        }
+        write!(f, "{}", self.name())
     }
 }
 
@@ -354,8 +370,8 @@ impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
 /// Property info.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
-    /// Property insert order.
-    pub priority: Priority,
+    /// Property nest position group.
+    pub group: NestGroup,
     /// Property is "capture-only", no standalone implementation is provided, instantiating does not add a node, just returns the child.
     ///
     /// Note that all properties can be captured, but if this is `false` they provide an implementation that works standalone.
@@ -1050,7 +1066,7 @@ impl WidgetBuilder {
     ///
     /// You can use the [`property_args!`] macro to collect args for a property.
     pub fn push_property(&mut self, importance: Importance, args: Box<dyn PropertyArgs>) {
-        let pos = NestPosition::property(args.property().priority);
+        let pos = NestPosition::property(args.property().group);
         self.push_property_positioned(importance, pos, args);
     }
 
@@ -1463,13 +1479,8 @@ impl WidgetBuilding {
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     ///
     /// The `name` is used for inspector/trace only.
-    pub fn push_intrinsic<I: UiNode>(
-        &mut self,
-        priority: Priority,
-        name: &'static str,
-        intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static,
-    ) {
-        self.push_intrinsic_positioned(NestPosition::intrinsic(priority), name, intrinsic)
+    pub fn push_intrinsic<I: UiNode>(&mut self, group: NestGroup, name: &'static str, intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static) {
+        self.push_intrinsic_positioned(NestPosition::intrinsic(group), name, intrinsic)
     }
 
     /// Insert intrinsic node with custom nest position.
@@ -1633,7 +1644,7 @@ impl WidgetBuilding {
                         location: when.location,
                     });
                     self.p.items.push(WidgetItemPositioned {
-                        position: NestPosition::property(args.property().priority),
+                        position: NestPosition::property(args.property().group),
                         insert_idx: u32::MAX,
                         item: WidgetItem::Property {
                             importance: Importance::WIDGET,
@@ -1661,7 +1672,7 @@ impl WidgetBuilding {
                 } else if let Some(default) = assign.property().default {
                     let args = default(assign.instance());
                     self.p.items.push(WidgetItemPositioned {
-                        position: NestPosition::property(args.property().priority),
+                        position: NestPosition::property(args.property().group),
                         insert_idx: u32::MAX,
                         item: WidgetItem::Property {
                             importance: Importance::WIDGET,
@@ -1745,7 +1756,7 @@ impl WidgetBuilding {
     }
 
     fn build(mut self) -> BoxedUiNode {
-        // sort by priority, index and insert index.
+        // sort by group, index and insert index.
         self.items.sort_unstable_by_key(|b| b.sort_key());
 
         #[cfg(inspector)]
@@ -1778,7 +1789,7 @@ impl WidgetBuilding {
 
                     #[cfg(inspector)]
                     inspector_items.push(crate::inspector::InstanceItem::Intrinsic {
-                        priority: position.priority,
+                        group: position.group,
                         name,
                     });
 
@@ -1832,7 +1843,7 @@ impl ops::DerefMut for WidgetBuilding {
 pub struct BuilderProperty {
     /// Property importance at the time of remove.
     pub importance: Importance,
-    /// Property priority and index at the time of remove.
+    /// Property group and index at the time of remove.
     pub position: NestPosition,
     /// Property args.
     pub args: Box<dyn PropertyArgs>,
@@ -1845,7 +1856,7 @@ pub struct BuilderProperty {
 pub struct BuilderPropertyRef<'a> {
     /// Property current importance.
     pub importance: Importance,
-    /// Property current priority and index.
+    /// Property current group and index.
     pub position: NestPosition,
     /// Property args.
     pub args: &'a dyn PropertyArgs,
@@ -1860,7 +1871,7 @@ pub struct BuilderPropertyRef<'a> {
 pub struct BuilderPropertyMut<'a> {
     /// Property current importance.
     pub importance: &'a mut Importance,
-    /// Property current priority and index.
+    /// Property current group and index.
     pub position: &'a mut NestPosition,
     /// Property args.
     pub args: &'a mut Box<dyn PropertyArgs>,

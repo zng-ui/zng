@@ -177,7 +177,7 @@ impl Window {
     /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](WindowMode::is_headless).
     /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
-    /// * `root` - The root widget's context priority node, the window uses this and the `root_id` to form the root widget.
+    /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
     pub fn new_root(
         root_id: WidgetId,
@@ -205,7 +205,7 @@ impl Window {
     ///
     /// The `child` parameter is a node that is the window's content, if it is a full widget the `root_id` is the id of
     /// an internal container widget that is the parent of `child`, if it is not a widget it will still be placed in the inner
-    /// priority of the root widget.
+    /// nest group of the root widget.
     ///
     /// See [`new_root`] for other parameters.
     ///

@@ -40,7 +40,7 @@ use std::rc::Rc;
 
 use crate::{
     context::StaticStateId,
-    widget_builder::{InputKind, Priority, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
+    widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
     widget_info::WidgetInfo,
 };
 
@@ -63,8 +63,8 @@ pub enum InstanceItem {
     },
     /// Marks an intrinsic node instance inserted by the widget.
     Intrinsic {
-        /// Intrinsic node priority.
-        priority: Priority,
+        /// Intrinsic node nest group.
+        group: NestGroup,
         /// Name given to this intrinsic by the widget.
         name: &'static str,
     },

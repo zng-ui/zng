@@ -58,15 +58,15 @@ impl WriteTreeState {
             for item in inf.items.iter() {
                 let args = match item {
                     super::InstanceItem::Property { args, .. } => args,
-                    super::InstanceItem::Intrinsic { priority, name } => {
-                        fmt.write_instrinsic(priority.name(), name);
+                    super::InstanceItem::Intrinsic { group, name } => {
+                        fmt.write_instrinsic(group.name(), name);
                         continue;
                     }
                 };
 
                 let info = args.property();
                 let inst = args.instance();
-                let group = info.priority.name();
+                let group = info.group.name();
                 let name = inst.name;
                 let user_assigned = if let Some(p) = inf.builder.property(args.id()) {
                     p.importance == Importance::INSTANCE

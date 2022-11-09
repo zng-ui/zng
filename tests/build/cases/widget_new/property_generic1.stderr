@@ -25,7 +25,7 @@ error[E0283]: type annotations needed
           - impl IntoVar<CornerRadius> for i32;
           - impl IntoVar<GridSpacing> for i32;
           - impl IntoVar<SideOffsets> for i32;
-          - impl IntoVar<Vector> for i32;
+          - impl IntoVar<Size> for i32;
           and 5 more
 note: required by a bound in `zero_ui::widgets::checkbox::value::<T>::__new__`
  --> $WORKSPACE/zero-ui/src/widgets/toggle_wgt.rs

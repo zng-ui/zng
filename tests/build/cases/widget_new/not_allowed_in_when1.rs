@@ -2,7 +2,7 @@ use zero_ui::core::{property, widget_instance::UiNode};
 use zero_ui::properties::margin;
 use zero_ui::widgets::blank;
 
-#[property(context)]
+#[property(CONTEXT)]
 pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
     let _ = value;
     child

@@ -1,7 +1,7 @@
 error: unexpected token
  --> cases/property/incorrect_attr_args.rs:3:19
   |
-3 | #[property(context, unknown = true)]
+3 | #[property(CONTEXT, unknown = true)]
   |                   ^
 
 error: property input can only have `impl OneTrait` or `StateVar` types

@@ -275,12 +275,11 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// The property attribute has one required argument and two optional.
 ///
-/// ## Priority
+/// ## Nest Group
 ///
-/// The first argument is the property [`Priority`], written in `snake_case`. The property priority defines the overall nest position
-/// of the property, for example, `layout` properties always wrap `fill` properties. This is important as widgets are open and any combination
-/// of properties may end-up instantiated in the same widget. The priorities are defined in the [`Priority`] enum, from outer-most `context`
-/// to inner-most `child_layout`.
+/// The first argument is the property [`NestGroup`], written as one the `const` group names. The property nest defines the overall nest position
+/// of the property, for example, `LAYOUT` properties always wrap `FILL` properties. This is important as widgets are open and any combination
+/// of properties may end-up instantiated in the same widget.
 ///
 /// ```
 /// # fn main() { }
@@ -288,7 +287,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// #
 /// # #[derive(Clone, Debug)] pub struct Align { }
 ///
-/// #[property(layout)]
+/// #[property(LAYOUT)]
 /// pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
 /// #   child
 /// }
@@ -304,7 +303,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// # fn main() { }
 /// use zero_ui_core::{property, widget_instance::UiNode, color::*, var::*};
 ///
-/// #[property(fill, default(rgba(0, 0, 0, 0)))]
+/// #[property(FILL, default(rgba(0, 0, 0, 0)))]
 /// pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 /// #   child
 /// }
@@ -317,16 +316,16 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// ## Capture
 ///
-/// After the priority and before default the `, capture, ` value indicates that the property is capture-only. The property
+/// After the nest group and before default the `, capture, ` value indicates that the property is capture-only. The property
 /// implementation is discarded in the case, and the unused inputs don't generate warnings. Because it is for widget capture only
-/// the priority only affects metadata that may end-up in an UI inspector.
+/// the nest group only affects metadata that may end-up in an UI inspector.
 ///
 /// ```
 /// # fn main() { }
 /// use zero_ui_core::{property, widget_instance::{UiNode, UiNodeList}};
 ///
 /// /// Children property, must be captured by panel widgets.
-/// #[property(context, capture)]
+/// #[property(CONTEXT, capture)]
 /// pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> impl UiNode {
 ///     _ignored
 /// }
@@ -418,7 +417,7 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// See [`property_id!`] and [`property_args!`] for more details about what kind of meta-code is generated for properties.
 ///
-/// [`Priority`]: crate::widget_builder::Priority
+/// [`NestGroup`]: crate::widget_builder::NestGroup
 /// [`property_id!`]: crate::widget_builder::property_id
 /// [`property_args!`]: crate::widget_builder::property_args
 /// [`ui_node`]: macro@ui_node
@@ -556,7 +555,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
 ///
-/// #[property(context)]
+/// #[property(CONTEXT)]
 /// pub fn bar(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
 ///   let _ = val;
 ///   child
@@ -595,7 +594,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
 /// #
-/// # #[property(context)]
+/// # #[property(CONTEXT)]
 /// # pub fn baz(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
 /// #   let _ = val;
 /// #   child
@@ -636,7 +635,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
 ///
-/// #[property(context)]
+/// #[property(CONTEXT)]
 /// pub fn anb(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> impl UiNode {
 /// #   child
 /// }
@@ -664,7 +663,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
 ///
-/// #[property(context)]
+/// #[property(CONTEXT)]
 /// pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
 /// #   child
 /// }
@@ -720,7 +719,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
 /// #[doc(hidden)]
-/// #[property(context, capture, default(false))]
+/// #[property(CONTEXT, capture, default(false))]
 /// pub fn __bar__(__child__: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
 ///     __child__
 /// }
@@ -747,13 +746,13 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
 /// #
-/// # #[property(fill)]
+/// # #[property(FILL)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 /// #   let _ = color;
 /// #   child
 /// # }
 /// #
-/// # #[property(layout)]
+/// # #[property(LAYOUT)]
 /// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
 /// #   let _ = state;
 /// #   child
@@ -806,7 +805,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
 /// #
-/// # #[property(fill)]
+/// # #[property(FILL)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 /// #   let _ = color;
 /// #   child
@@ -858,25 +857,25 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
 /// #
-/// # #[property(context)]
+/// # #[property(CONTEXT)]
 /// # pub fn bar(child: impl UiNode, val: impl var::IntoVar<bool>) -> impl UiNode {
 /// #   let _ = val;
 /// #   child
 /// # }
 /// #
-/// # #[property(layout)]
+/// # #[property(LAYOUT)]
 /// # pub fn margin(child: impl UiNode, val: impl var::IntoVar<u32>) -> impl UiNode {
 /// #   let _ = val;
 /// #   child
 /// # }
 /// #
-/// # #[property(fill)]
+/// # #[property(FILL)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 /// #   let _ = color;
 /// #   child
 /// # }
 /// #
-/// # #[property(layout)]
+/// # #[property(LAYOUT)]
 /// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
 /// #   let _ = state;
 /// #   child
@@ -931,12 +930,12 @@ pub use zero_ui_proc_macros::property;
 ///
 /// # More Details
 ///
-/// See the [`WidgetBuilder`], [`WidgetBuilding`], [`Priority`] and [`Importance`] for more details of how the parts expanded from this macro are
+/// See the [`WidgetBuilder`], [`WidgetBuilding`], [`NestGroup`] and [`Importance`] for more details of how the parts expanded from this macro are
 /// put together to form a widget instance.
 ///
 /// [`WidgetBuilder`]: widget_builder::WidgetBuilder
 /// [`WidgetBuilding`]: widget_builder::WidgetBuilding
-/// [`Priority`]: widget_builder::Priority
+/// [`NestGroup`]: widget_builder::NestGroup
 /// [`Importance`]: widget_builder::Importance
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: widget_instance::UiNode

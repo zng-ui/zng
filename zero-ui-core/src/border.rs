@@ -615,7 +615,7 @@ impl fmt::Debug for CornerRadiusFit {
 ///
 /// [`Default`]: crate::units::Length::Default
 /// [`corner_radius_fit`]: fn@corner_radius_fit
-#[property(context, default(CORNER_RADIUS_VAR))]
+#[property(CONTEXT, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
     #[ui_node(struct CornerRadiusNode {
         child: impl UiNode,
@@ -637,7 +637,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 /// coordinator can adjusts the radius inside each border to match the inside curve of the border.
 ///
 /// [`corner_radius`]: fn@corner_radius
-#[property(context, default(CORNER_RADIUS_FIT_VAR))]
+#[property(CONTEXT, default(CORNER_RADIUS_FIT_VAR))]
 pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
     with_context_var(child, CORNER_RADIUS_FIT_VAR, fit)
 }
@@ -655,7 +655,7 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
 /// Fill property implementers, see [`fill_node`], a helper function for quickly implementing support for `border_align`.
 ///
 /// [`corner_radius`]: fn@corner_radius
-#[property(context, default(BORDER_ALIGN_VAR))]
+#[property(CONTEXT, default(BORDER_ALIGN_VAR))]
 pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
     with_context_var(child, BORDER_ALIGN_VAR, align)
 }

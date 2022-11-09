@@ -5,7 +5,7 @@ use crate::core::focus::*;
 use crate::prelude::new_property::*;
 
 /// Enables a widget to receive focus.
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct FocusableNode {
         child: impl UiNode,
@@ -31,7 +31,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 }
 
 /// Customizes the widget order during TAB navigation.
-#[property(context, default(TabIndex::default()))]
+#[property(CONTEXT, default(TabIndex::default()))]
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
     #[ui_node(struct TabIndexNode {
         child: impl UiNode,
@@ -57,7 +57,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 }
 
 /// Widget is a focus scope.
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
@@ -68,7 +68,7 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
 /// Widget is the ALT focus scope.
 ///
 /// ALT focus scopes are also, `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` by default.
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
@@ -103,7 +103,7 @@ impl UiNode for FocusScopeNode {
 }
 
 /// Behavior of a focus scope when it receives direct focus.
-#[property(context, default(FocusScopeOnFocus::default()))]
+#[property(CONTEXT, default(FocusScopeOnFocus::default()))]
 pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> impl UiNode {
     #[ui_node(struct FocusScopeBehaviorNode {
         child: impl UiNode,
@@ -130,7 +130,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 }
 
 /// Tab navigation within this focus scope.
-#[property(context, default(TabNav::Continue))]
+#[property(CONTEXT, default(TabNav::Continue))]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
     #[ui_node(struct TabNavNode {
         child: impl UiNode,
@@ -156,7 +156,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 }
 
 /// Arrows navigation within this focus scope.
-#[property(context, default(DirectionalNav::Continue))]
+#[property(CONTEXT, default(DirectionalNav::Continue))]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
     #[ui_node(struct DirectionalNavNode {
         child: impl UiNode,
@@ -182,7 +182,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 }
 
 /// Keyboard shortcuts that focus this widget or its first focusable descendant or its first focusable parent.
-#[property(context, default(Shortcuts::default()))]
+#[property(CONTEXT, default(Shortcuts::default()))]
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     #[ui_node(struct FocusShortcutNode {
         child: impl UiNode,
@@ -214,7 +214,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 /// If directional navigation from outside this widget skips over it and its descendants.
 ///
 /// Setting this to `true` is the directional navigation equivalent of setting `tab_index` to `SKIP`.
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct SkipDirectionalNode {
         child: impl UiNode,
@@ -297,7 +297,7 @@ event_property! {
 /// [`is_focus_within`]: fn@zero_ui::properties::focus::is_focus_within
 /// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
 /// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus(ctx.path.widget_id()) {
@@ -318,7 +318,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`is_focused`]: fn@zero_ui::properties::focus::is_focused
 /// [`is_focus_within_hgl`]: fn@zero_ui::properties::focus::is_focus_within_hgl
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus_enter(ctx.path.widget_id()) {
@@ -343,7 +343,7 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`is_focus_within_hgl`]: fn@zero_ui::properties::focus::is_focus_within_hgl
 /// [`is_focused`]: fn@zero_ui::properties::focus::is_focused
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus(ctx.path.widget_id()) {
@@ -372,7 +372,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
 /// [`is_focus_within`]: fn@zero_ui::properties::focus::is_focus_within
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_focus_enter(ctx.path.widget_id()) {
@@ -403,7 +403,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`is_focused`]: fn@zero_ui::properties::focus::is_focused_hgl
 /// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_return_focus(ctx.path.widget_id()) {
@@ -421,7 +421,7 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// To check if only the widget is the return focus use [`is_return_focus`].
 ///
 /// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_return_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, RETURN_FOCUS_CHANGED_EVENT, |ctx, args| {
         if args.is_return_focus_enter(ctx.path.widget_id()) {
@@ -437,7 +437,7 @@ pub fn is_return_focus_within(child: impl UiNode, state: StateVar) -> impl UiNod
 /// If the widget is focused on init.
 ///
 /// When the widget is inited a [`Focus::focus_widget_or_related`] request is made for the widget.
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node( struct FocusOnInitNode {
         child: impl UiNode,

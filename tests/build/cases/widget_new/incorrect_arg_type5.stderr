@@ -11,7 +11,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
 note: required by a bound in `simple_type::__new__`
   --> cases/widget_new/incorrect_arg_type5.rs:5:84
    |
-4  | #[property(context)]
+4  | #[property(CONTEXT)]
    | -------------------- required by a bound in this
 5  | pub fn simple_type(child: impl UiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> impl UiNode {
    |                                                                                    ^^^^^^^^^^^^ required by this bound in `simple_type::__new__`

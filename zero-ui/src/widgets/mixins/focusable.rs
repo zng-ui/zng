@@ -46,7 +46,7 @@ pub mod vis {
 
     /// Sets the `focus_highlight` values used when the widget is focused and highlighted.
     #[property(
-        context,
+        CONTEXT,
         default(FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR, FOCUS_HIGHLIGHT_SIDES_VAR)
     )]
     pub fn focus_highlight(

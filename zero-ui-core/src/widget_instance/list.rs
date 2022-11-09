@@ -870,7 +870,7 @@ impl_from_and_into_var! {
 ///
 /// Layout panels that support this property should mention it in their documentation, implementers
 /// see [`ZSortingList`] for more details.
-#[property(context, default(ZIndex::DEFAULT))]
+#[property(CONTEXT, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     #[ui_node(struct ZIndexNode {
         child: impl UiNode,

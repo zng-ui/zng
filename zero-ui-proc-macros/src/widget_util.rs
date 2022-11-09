@@ -244,7 +244,7 @@ impl WgtProperty {
                 let attrs = &self.attrs;
                 quote_spanned! {ident.span()=>
                     #attrs
-                    #[#core::property(context, capture #default)]
+                    #[#core::property(CONTEXT, capture #default)]
                     #vis fn #ident(__child__: impl #core::widget_instance::UiNode, #ident: #ty) -> impl #core::widget_instance::UiNode {
                         __child__
                     }

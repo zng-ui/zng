@@ -214,7 +214,7 @@ pub(super) static IMAGE_RENDER_VARS_ID: StaticStateId<ImageRenderVars> = StaticS
 /// when the render widget requests a new frame.
 ///
 /// This property sets and binds `retain` to [`ImageRenderVars::retain`].
-#[property(context)]
+#[property(CONTEXT)]
 pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct RenderRetainNode {
         child: impl UiNode,

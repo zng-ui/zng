@@ -38,7 +38,7 @@ pub struct OnInitArgs {
 ///
 /// [`on_info_init`]: fn@on_info_init
 /// [`WidgetInfoTree`]: crate::core::widget_info::WidgetInfoTree
-#[property(event)]
+#[property(EVENT)]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     #[ui_node(struct OnInitNode {
         child: impl UiNode,
@@ -77,7 +77,7 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`on_init`]: fn@on_init
-#[property(event)]
+#[property(EVENT)]
 pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     #[ui_node(struct OnPreviewInitNode {
         child: impl UiNode,
@@ -116,7 +116,7 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`WidgetInfoTree`]: crate::core::widget_info::WidgetInfoTree
-#[property(event)]
+#[property(EVENT)]
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     #[ui_node(struct OnInfoInitNode {
         child: impl UiNode,
@@ -169,7 +169,7 @@ pub struct OnUpdateArgs {
 ///
 /// You can use one of the handler macros, [`hn!`] or [`hn_once!`], to declare a handler closure. You must avoid using the async
 /// handlers as they cause an update every time the UI task advances from an await point causing another task to spawn.
-#[property(event)]
+#[property(EVENT)]
 pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) -> impl UiNode {
     #[ui_node(struct OnUpdateNode {
         child: impl UiNode,
@@ -200,7 +200,7 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) 
 ///
 /// [`on_update`]: fn@on_update
 /// [`on_init`]: fn@on_init
-#[property(event)]
+#[property(EVENT)]
 pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) -> impl UiNode {
     #[ui_node(struct OnPreviewUpdateNode {
         child: impl UiNode,
@@ -246,7 +246,7 @@ pub struct OnDeinitArgs {
 /// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
 /// async task in the app context using [`WidgetContext::async_task`] or you can use [`task::spawn`] to start a parallel async task
 /// in a worker thread.
-#[property(event)]
+#[property(EVENT)]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) -> impl UiNode {
     #[ui_node(struct OnDeinitNode {
         child: impl UiNode,
@@ -288,7 +288,7 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) 
 ///
 /// [`on_update`]: fn@on_update
 /// [`on_init`]: fn@on_init
-#[property(event)]
+#[property(EVENT)]
 pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) -> impl UiNode {
     #[ui_node(struct OnPreviewDeinitNode {
         child: impl UiNode,

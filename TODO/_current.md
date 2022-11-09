@@ -1,10 +1,5 @@
-* Refactor property priority into constants: `#[property(CONTEXT)]`.
-    - Is the word priority wrong?
-    - Why not call it NestGroup?
-
 * Review property & widget macro docs.
     - Property does not generate mod anymore.
-        - Wait for priority const refactor.
     - Widget publishes include and build.
 
 * Implement when assign for `UiNode`, `UiNodeList` and `WidgetHandler`.

@@ -8,7 +8,7 @@ use crate::prelude::new_property::*;
 /// If the mouse pointer is over the widget or a descendant and the widget is [`DISABLED`].
 ///
 /// [`DISABLED`]: Interactivity::DISABLED
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_disabled(ctx.path) {
@@ -31,7 +31,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_cap_hovered`]: fn@is_cap_hovered
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_hovered_disabled`]: fn@is_hovered_disabled
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_enabled(ctx.path) {
@@ -49,7 +49,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// The value is always `false` when the widget is not fully [`ENABLED`].
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state2(
         child,
@@ -93,7 +93,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state2(
         child,
@@ -132,7 +132,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// If the pointer is pressed in the widget or was captured during press and the widget is [`ENABLED`].
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state2(
         child,
@@ -171,7 +171,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
 /// If the widget was clicked by shortcut and the [`shortcut_pressed_duration`] has not elapsed.
 ///
 /// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     #[ui_node(struct IsShortcutPressedNode {
         child: impl UiNode,
@@ -237,7 +237,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_pointer_pressed`]: fn@is_pointer_pressed
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 /// [`is_cap_pressed`]: fn@is_cap_pressed
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     let pointer_pressed = state_var();
     let child = is_pointer_pressed(child, pointer_pressed.clone());
@@ -252,7 +252,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
-#[property(context)]
+#[property(CONTEXT)]
 pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     let pointer_pressed = state_var();
     let child = is_cap_pointer_pressed(child, pointer_pressed.clone());

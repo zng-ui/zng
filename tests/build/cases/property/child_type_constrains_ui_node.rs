@@ -4,7 +4,7 @@ use zero_ui::core::{
     widget_instance::{NilUiNode, UiNode},
 };
 
-#[property(context)]
+#[property(CONTEXT)]
 pub fn invalid_child(child: NilUiNode, input: impl IntoVar<bool>) -> impl UiNode {
     let _ = input;
     child

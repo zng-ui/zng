@@ -199,7 +199,7 @@
 //! # fn main() { }
 //! use zero_ui::prelude::new_property::*;
 //!
-//! #[property(layout)]
+//! #[property(LAYOUT)]
 //! pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
 //!     // ..
 //!#    child
@@ -978,7 +978,7 @@ pub mod prelude {
     /// # fn main() {}
     /// use zero_ui::prelude::new_property::*;
     ///
-    /// #[property(context)]
+    /// #[property(CONTEXT)]
     /// pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
     ///     MyPropertyNode { child, value: value.into_var() }
     /// }

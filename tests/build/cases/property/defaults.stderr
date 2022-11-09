@@ -1,7 +1,7 @@
 error: unexpected end of input, expected parentheses
  --> cases/property/defaults.rs:3:1
   |
-3 | #[property(context, default)]
+3 | #[property(CONTEXT, default)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
@@ -9,82 +9,82 @@ error: unexpected end of input, expected parentheses
 error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
   --> cases/property/defaults.rs:21:32
    |
-21 | #[property(context, default(a: true))]
+21 | #[property(CONTEXT, default(a: true))]
    |                                ^^^^
 
 error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
   --> cases/property/defaults.rs:33:32
    |
-33 | #[property(context, default(a: true, b: 2555, c: "ABC"))]
+33 | #[property(CONTEXT, default(a: true, b: 2555, c: "ABC"))]
    |                                ^^^^
 
 error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
   --> cases/property/defaults.rs:45:32
    |
-45 | #[property(context, default(a: 2555, b: true))]
+45 | #[property(CONTEXT, default(a: 2555, b: true))]
    |                                ^^^^
 
 error[E0061]: this function takes 2 arguments but 0 arguments were supplied
   --> cases/property/defaults.rs:9:21
    |
-9  | #[property(context, default())]
+9  | #[property(CONTEXT, default())]
    |                     ^^^^^^^---- two arguments are missing
    |
 note: associated function defined here
   --> cases/property/defaults.rs:9:1
    |
-9  | #[property(context, default())]
+9  | #[property(CONTEXT, default())]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 10 | pub fn missing_default_values(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
    |                                                   ---------------------  --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the arguments
    |
-9  | #[property(context, default())](/* value */, /* value */)
+9  | #[property(CONTEXT, default())](/* value */, /* value */)
    |                                ++++++++++++++++++++++++++
 
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
   --> cases/property/defaults.rs:15:21
    |
-15 | #[property(context, default(true))]
+15 | #[property(CONTEXT, default(true))]
    |                     ^^^^^^^-------- an argument is missing
    |
 note: associated function defined here
   --> cases/property/defaults.rs:15:1
    |
-15 | #[property(context, default(true))]
+15 | #[property(CONTEXT, default(true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 16 | pub fn incorrect_default_args_count_u_1(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
    |                                                             ---------------------  --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-15 | #[property(context, default(true))](true, /* value */)
+15 | #[property(CONTEXT, default(true))](true, /* value */)
    |                                    +++++++++++++++++++
 
 error[E0061]: this function takes 2 arguments but 3 arguments were supplied
   --> cases/property/defaults.rs:27:21
    |
-27 | #[property(context, default(true, 2555, "ABC"))]
+27 | #[property(CONTEXT, default(true, 2555, "ABC"))]
    |                     ^^^^^^^             ----- argument of type `&'static str` unexpected
    |
 note: associated function defined here
   --> cases/property/defaults.rs:27:1
    |
-27 | #[property(context, default(true, 2555, "ABC"))]
+27 | #[property(CONTEXT, default(true, 2555, "ABC"))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 28 | pub fn incorrect_default_args_count_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
    |                                                             ---------------------  --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: remove the extra argument
    |
-27 | #[property(context, default(true, 2555, "ABC"))](true, 2555)
+27 | #[property(CONTEXT, default(true, 2555, "ABC"))](true, 2555)
    |                                                 ++++++++++++
 
 error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
   --> cases/property/defaults.rs:39:29
    |
-39 | #[property(context, default(2555, true))]
+39 | #[property(CONTEXT, default(2555, true))]
    |                     ------- ^^^^ the trait `IntoVar<bool>` is not implemented for `{integer}`
    |                     |
    |                     required by a bound introduced by this call
@@ -94,7 +94,7 @@ error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
 note: required by a bound in `invalid_default_args_types_u_2::__new__`
   --> cases/property/defaults.rs:40:67
    |
-39 | #[property(context, default(2555, true))]
+39 | #[property(CONTEXT, default(2555, true))]
    | ----------------------------------------- required by a bound in this
 40 | pub fn invalid_default_args_types_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
    |                                                                   ^^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2::__new__`
@@ -102,7 +102,7 @@ note: required by a bound in `invalid_default_args_types_u_2::__new__`
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> cases/property/defaults.rs:39:35
    |
-39 | #[property(context, default(2555, true))]
+39 | #[property(CONTEXT, default(2555, true))]
    |                     -------       ^^^^ the trait `IntoVar<u32>` is not implemented for `bool`
    |                     |
    |                     required by a bound introduced by this call
@@ -112,7 +112,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
 note: required by a bound in `invalid_default_args_types_u_2::__new__`
   --> cases/property/defaults.rs:40:90
    |
-39 | #[property(context, default(2555, true))]
+39 | #[property(CONTEXT, default(2555, true))]
    | ----------------------------------------- required by a bound in this
 40 | pub fn invalid_default_args_types_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
    |                                                                                          ^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2::__new__`

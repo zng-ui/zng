@@ -104,43 +104,43 @@ context_var! {
 }
 
 /// Sets the [`FONT_FAMILY_VAR`] context var.
-#[property(context, default(FONT_FAMILY_VAR))]
+#[property(CONTEXT, default(FONT_FAMILY_VAR))]
 pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl UiNode {
     with_context_var(child, FONT_FAMILY_VAR, names)
 }
 
 /// Sets the [`FONT_STYLE_VAR`] context var.
-#[property(context, default(FONT_STYLE_VAR))]
+#[property(CONTEXT, default(FONT_STYLE_VAR))]
 pub fn font_style(child: impl UiNode, style: impl IntoVar<FontStyle>) -> impl UiNode {
     with_context_var(child, FONT_STYLE_VAR, style)
 }
 
 /// Sets the [`FONT_WEIGHT_VAR`] context var.
-#[property(context, default(FONT_WEIGHT_VAR))]
+#[property(CONTEXT, default(FONT_WEIGHT_VAR))]
 pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl UiNode {
     with_context_var(child, FONT_WEIGHT_VAR, weight)
 }
 
 /// Sets the [`FONT_STRETCH_VAR`] context var.
-#[property(context, default(FONT_STRETCH_VAR))]
+#[property(CONTEXT, default(FONT_STRETCH_VAR))]
 pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
     with_context_var(child, FONT_STRETCH_VAR, stretch)
 }
 
 /// Sets the [`FONT_SYNTHESIS_VAR`] context var.
-#[property(context, default(FONT_SYNTHESIS_VAR))]
+#[property(CONTEXT, default(FONT_SYNTHESIS_VAR))]
 pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
     with_context_var(child, FONT_SYNTHESIS_VAR, enabled)
 }
 
 /// Sets the [`FONT_AA_VAR`] context var.
-#[property(context, default(FONT_AA_VAR))]
+#[property(CONTEXT, default(FONT_AA_VAR))]
 pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl UiNode {
     with_context_var(child, FONT_AA_VAR, aa)
 }
 
 /// Sets the [`FONT_SIZE_VAR`] context var and the [`LayoutMetrics::font_size`].
-#[property(context, default(FONT_SIZE_VAR))]
+#[property(CONTEXT, default(FONT_SIZE_VAR))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     #[ui_node(struct FontSizeNode {
         child: impl UiNode,
@@ -172,13 +172,13 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 }
 
 /// Sets the [`TEXT_COLOR_VAR`] context var.
-#[property(context, default(TEXT_COLOR_VAR))]
+#[property(CONTEXT, default(TEXT_COLOR_VAR))]
 pub fn txt_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, TEXT_COLOR_VAR, color)
 }
 
 /// Sets the [`TEXT_TRANSFORM_VAR`] context var.
-#[property(context, default(TEXT_TRANSFORM_VAR))]
+#[property(CONTEXT, default(TEXT_TRANSFORM_VAR))]
 pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
     with_context_var(child, TEXT_TRANSFORM_VAR, transform)
 }
@@ -194,7 +194,7 @@ pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn
 /// [`Default`]: Length::Default
 ///
 /// Sets the [`LINE_HEIGHT_VAR`] context var.
-#[property(context, default(LINE_HEIGHT_VAR))]
+#[property(CONTEXT, default(LINE_HEIGHT_VAR))]
 pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl UiNode {
     with_context_var(child, LINE_HEIGHT_VAR, height)
 }
@@ -214,7 +214,7 @@ pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl
 /// [`Default`]: Length::Default
 ///
 /// This property sets the [`LETTER_SPACING_VAR`] context var that affects all inner texts.
-#[property(context, default(LETTER_SPACING_VAR))]
+#[property(CONTEXT, default(LETTER_SPACING_VAR))]
 pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) -> impl UiNode {
     with_context_var(child, LETTER_SPACING_VAR, extra)
 }
@@ -227,7 +227,7 @@ pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) ->
 /// [`Default`]: Length::Default
 ///
 /// Sets the [`LINE_SPACING_VAR`] context var.
-#[property(context, default(LINE_SPACING_VAR))]
+#[property(CONTEXT, default(LINE_SPACING_VAR))]
 pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> impl UiNode {
     with_context_var(child, LINE_SPACING_VAR, extra)
 }
@@ -249,43 +249,43 @@ pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> imp
 /// [`Default`]: Length::Default
 ///
 /// This property sets the [`WORD_SPACING_VAR`] context var that affects all inner widgets.
-#[property(context, default(WORD_SPACING_VAR))]
+#[property(CONTEXT, default(WORD_SPACING_VAR))]
 pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
     with_context_var(child, WORD_SPACING_VAR, extra)
 }
 
 /// Sets the [`PARAGRAPH_SPACING_VAR`] context var.
-#[property(context, default(PARAGRAPH_SPACING_VAR))]
+#[property(CONTEXT, default(PARAGRAPH_SPACING_VAR))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
 }
 
 /// Sets the [`WORD_BREAK_VAR`] context var.
-#[property(context, default(WORD_BREAK_VAR))]
+#[property(CONTEXT, default(WORD_BREAK_VAR))]
 pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiNode {
     with_context_var(child, WORD_BREAK_VAR, mode)
 }
 
 /// Sets the [`LINE_BREAK_VAR`] context var.
-#[property(context, default(LINE_BREAK_VAR))]
+#[property(CONTEXT, default(LINE_BREAK_VAR))]
 pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiNode {
     with_context_var(child, LINE_BREAK_VAR, mode)
 }
 
 /// Sets the [`TEXT_ALIGN_VAR`] context var.
-#[property(context, default(TEXT_ALIGN_VAR))]
+#[property(CONTEXT, default(TEXT_ALIGN_VAR))]
 pub fn txt_align(child: impl UiNode, mode: impl IntoVar<TextAlign>) -> impl UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)
 }
 
 /// Sets the [`TAB_LENGTH_VAR`] context var.
-#[property(context, default(TAB_LENGTH_VAR))]
+#[property(CONTEXT, default(TAB_LENGTH_VAR))]
 pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl UiNode {
     with_context_var(child, TAB_LENGTH_VAR, length)
 }
 
 /// Sets the [`WHITE_SPACE_VAR`] context var.
-#[property(context, default(WHITE_SPACE_VAR))]
+#[property(CONTEXT, default(WHITE_SPACE_VAR))]
 pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
     with_context_var(child, WHITE_SPACE_VAR, transform)
 }
@@ -333,7 +333,7 @@ where
 ///
 /// **Note:** This property fully replaces the font variations for the widget and descendants, use [`with_font_variation`]
 /// to create a property that sets a variation but retains others from the context.
-#[property(context)]
+#[property(CONTEXT)]
 pub fn font_variations(child: impl UiNode, variations: impl IntoVar<FontVariations>) -> impl UiNode {
     with_context_var(child, FONT_VARIATIONS_VAR, variations)
 }
@@ -342,140 +342,140 @@ pub fn font_variations(child: impl UiNode, variations: impl IntoVar<FontVariatio
 ///
 /// **Note:** This property fully replaces the font variations for the widget and descendants, use [`with_font_variation`]
 /// to create a property that sets a variation but retains others from the context.
-#[property(context)]
+#[property(CONTEXT)]
 pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -> impl UiNode {
     with_context_var(child, FONT_FEATURES_VAR, features)
 }
 
 /// Sets the font kerning feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_kerning(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.kerning().set(s))
 }
 
 /// Sets the font common ligatures features.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_common_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.common_lig().set(s))
 }
 
 /// Sets the font discretionary ligatures feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_discretionary_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.discretionary_lig().set(s))
 }
 
 /// Sets the font historical ligatures feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_historical_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.historical_lig().set(s))
 }
 
 /// Sets the font contextual alternatives feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_contextual_alt(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.contextual_alt().set(s))
 }
 
 /// Sets the font capital variant features.
-#[property(context, default(CapsVariant::Auto))]
+#[property(CONTEXT, default(CapsVariant::Auto))]
 pub fn font_caps(child: impl UiNode, state: impl IntoVar<CapsVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.caps().set(s))
 }
 
 /// Sets the font numeric variant features.
-#[property(context, default(NumVariant::Auto))]
+#[property(CONTEXT, default(NumVariant::Auto))]
 pub fn font_numeric(child: impl UiNode, state: impl IntoVar<NumVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.numeric().set(s))
 }
 
 /// Sets the font numeric spacing features.
-#[property(context, default(NumSpacing::Auto))]
+#[property(CONTEXT, default(NumSpacing::Auto))]
 pub fn font_num_spacing(child: impl UiNode, state: impl IntoVar<NumSpacing>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.num_spacing().set(s))
 }
 
 /// Sets the font numeric fraction features.
-#[property(context, default(NumFraction::Auto))]
+#[property(CONTEXT, default(NumFraction::Auto))]
 pub fn font_num_fraction(child: impl UiNode, state: impl IntoVar<NumFraction>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.num_fraction().set(s))
 }
 
 /// Sets the font swash features.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_swash(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.swash().set(s))
 }
 
 /// Sets the font stylistic alternative feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_stylistic(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.stylistic().set(s))
 }
 
 /// Sets the font historical forms alternative feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_historical_forms(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.historical_forms().set(s))
 }
 
 /// Sets the font ornaments alternative feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_ornaments(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.ornaments().set(s))
 }
 
 /// Sets the font annotation alternative feature.
-#[property(context, default(FontFeatureState::auto()))]
+#[property(CONTEXT, default(FontFeatureState::auto()))]
 pub fn font_annotation(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.annotation().set(s))
 }
 
 /// Sets the font stylistic set alternative feature.
-#[property(context, default(FontStyleSet::auto()))]
+#[property(CONTEXT, default(FontStyleSet::auto()))]
 pub fn font_style_set(child: impl UiNode, state: impl IntoVar<FontStyleSet>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.style_set().set(s))
 }
 
 /// Sets the font character variant alternative feature.
-#[property(context, default(CharVariant::auto()))]
+#[property(CONTEXT, default(CharVariant::auto()))]
 pub fn font_char_variant(child: impl UiNode, state: impl IntoVar<CharVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.char_variant().set(s))
 }
 
 /// Sets the font sub/super script position alternative feature.
-#[property(context, default(FontPosition::Auto))]
+#[property(CONTEXT, default(FontPosition::Auto))]
 pub fn font_position(child: impl UiNode, state: impl IntoVar<FontPosition>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.position().set(s))
 }
 
 /// Sets the Japanese logographic set.
-#[property(context, default(JpVariant::Auto))]
+#[property(CONTEXT, default(JpVariant::Auto))]
 pub fn font_jp_variant(child: impl UiNode, state: impl IntoVar<JpVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.jp_variant().set(s))
 }
 
 /// Sets the Chinese logographic set.
-#[property(context, default(CnVariant::Auto))]
+#[property(CONTEXT, default(CnVariant::Auto))]
 pub fn font_cn_variant(child: impl UiNode, state: impl IntoVar<CnVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.cn_variant().set(s))
 }
 
 /// Sets the East Asian figure width.
-#[property(context, default(EastAsianWidth::Auto))]
+#[property(CONTEXT, default(EastAsianWidth::Auto))]
 pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.ea_width().set(s))
 }
 
 /// Sets the [`LANG_VAR`] context var.
-#[property(context, default(LANG_VAR))]
+#[property(CONTEXT, default(LANG_VAR))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
     with_context_var(child, LANG_VAR, lang)
 }
 /// Draw lines *under* each text line.
 ///
 /// Sets the [`UNDERLINE_THICKNESS_VAR`] and [`UNDERLINE_STYLE_VAR`].
-#[property(context, default(UNDERLINE_THICKNESS_VAR, UNDERLINE_STYLE_VAR))]
+#[property(CONTEXT, default(UNDERLINE_THICKNESS_VAR, UNDERLINE_STYLE_VAR))]
 pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
     let child = with_context_var(child, UNDERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, UNDERLINE_STYLE_VAR, style)
@@ -484,7 +484,7 @@ pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>
 /// the [`color`](#wp-color) is used.
 ///
 /// Sets the [`UNDERLINE_COLOR_VAR`].
-#[property(context, default(UNDERLINE_COLOR_VAR))]
+#[property(CONTEXT, default(UNDERLINE_COLOR_VAR))]
 pub fn underline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, UNDERLINE_COLOR_VAR, color)
 }
@@ -493,7 +493,7 @@ pub fn underline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl Ui
 /// By default skips glyphs that intercept the underline.
 ///
 /// Sets the [`UNDERLINE_SKIP_VAR`].
-#[property(context, default(UNDERLINE_SKIP_VAR))]
+#[property(CONTEXT, default(UNDERLINE_SKIP_VAR))]
 pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> impl UiNode {
     with_context_var(child, UNDERLINE_SKIP_VAR, skip)
 }
@@ -503,7 +503,7 @@ pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> 
 /// the line, you can set this [`UnderlinePosition::Descent`] to fully clear all glyph *descents*.
 ///
 /// Sets the [`UNDERLINE_POSITION_VAR`].
-#[property(context, default(UNDERLINE_POSITION_VAR))]
+#[property(CONTEXT, default(UNDERLINE_POSITION_VAR))]
 pub fn underline_position(child: impl UiNode, position: impl IntoVar<UnderlinePosition>) -> impl UiNode {
     with_context_var(child, UNDERLINE_POSITION_VAR, position)
 }
@@ -511,7 +511,7 @@ pub fn underline_position(child: impl UiNode, position: impl IntoVar<UnderlinePo
 /// Draw lines *above* each text line.
 ///
 /// Sets the [`OVERLINE_THICKNESS_VAR`] and [`OVERLINE_STYLE_VAR`].
-#[property(context, default(OVERLINE_THICKNESS_VAR, OVERLINE_STYLE_VAR))]
+#[property(CONTEXT, default(OVERLINE_THICKNESS_VAR, OVERLINE_STYLE_VAR))]
 pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
     let child = with_context_var(child, OVERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, OVERLINE_STYLE_VAR, style)
@@ -520,7 +520,7 @@ pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, 
 /// the [`color`](#wp-color) is used.
 ///
 /// Sets the [`OVERLINE_COLOR_VAR`].
-#[property(context, default(OVERLINE_COLOR_VAR))]
+#[property(CONTEXT, default(OVERLINE_COLOR_VAR))]
 pub fn overline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, OVERLINE_COLOR_VAR, color)
 }
@@ -528,7 +528,7 @@ pub fn overline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiN
 /// Draw lines across each text line.
 ///
 /// Sets the [`STRIKETHROUGH_THICKNESS_VAR`] and [`STRIKETHROUGH_STYLE_VAR`].
-#[property(context, default(STRIKETHROUGH_THICKNESS_VAR, STRIKETHROUGH_STYLE_VAR))]
+#[property(CONTEXT, default(STRIKETHROUGH_THICKNESS_VAR, STRIKETHROUGH_STYLE_VAR))]
 pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
     let child = with_context_var(child, STRIKETHROUGH_THICKNESS_VAR, thickness);
     with_context_var(child, STRIKETHROUGH_STYLE_VAR, style)
@@ -537,13 +537,13 @@ pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickne
 /// the [`color`](#wp-color) is used.
 ///
 /// Sets the [`STRIKETHROUGH_COLOR_VAR`].
-#[property(context, default(STRIKETHROUGH_COLOR_VAR))]
+#[property(CONTEXT, default(STRIKETHROUGH_COLOR_VAR))]
 pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, STRIKETHROUGH_COLOR_VAR, color)
 }
 
 /// Sets the [`CARET_COLOR_VAR`].
-#[property(context, default(CARET_COLOR_VAR))]
+#[property(CONTEXT, default(CARET_COLOR_VAR))]
 pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, CARET_COLOR_VAR, color)
 }
@@ -554,13 +554,13 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// enables text input and modifies the variable.
 ///
 /// Sets the [`TEXT_EDITABLE_VAR`].
-#[property(context, default(TEXT_EDITABLE_VAR))]
+#[property(CONTEXT, default(TEXT_EDITABLE_VAR))]
 pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_EDITABLE_VAR, enabled)
 }
 
 /// Sets the [`TEXT_PADDING_VAR`] that is used in the text-input layout.
-#[property(context, default(TEXT_PADDING_VAR))]
+#[property(CONTEXT, default(TEXT_PADDING_VAR))]
 pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, TEXT_PADDING_VAR, padding)
 }

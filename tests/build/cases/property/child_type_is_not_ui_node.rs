@@ -6,7 +6,7 @@ use zero_ui::core::{
 
 struct NotUiNode;
 
-#[property(context)]
+#[property(CONTEXT)]
 pub fn invalid_child(child: NotUiNode, input: impl IntoVar<bool>) -> impl UiNode {
     let _ = input;
     NilUiNode

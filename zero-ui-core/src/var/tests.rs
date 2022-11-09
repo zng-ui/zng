@@ -411,12 +411,12 @@ mod context {
 
     static PROBE_ID: StaticStateId<Text> = StaticStateId::new_unique();
 
-    #[property(context, default(TEST_VAR))]
+    #[property(CONTEXT, default(TEST_VAR))]
     fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
         with_context_var(child, TEST_VAR, value)
     }
 
-    #[property(context)]
+    #[property(CONTEXT)]
     fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
         #[ui_node(struct ProbeNode {
             child: impl UiNode,
@@ -434,7 +434,7 @@ mod context {
         }
     }
 
-    #[property(event)]
+    #[property(EVENT)]
     fn on_init(child: impl UiNode, handler: impl handler::WidgetHandler<()>) -> impl UiNode {
         #[ui_node(struct OnInitNode {
             child: impl UiNode,

@@ -1161,7 +1161,7 @@ context_var! {
 }
 
 /// Defines the preferred color scheme in the widget and descendants.
-#[crate::property(context, default(COLOR_SCHEME_VAR))]
+#[crate::property(CONTEXT, default(COLOR_SCHEME_VAR))]
 pub fn color_scheme(child: impl UiNode, pref: impl IntoVar<ColorScheme>) -> impl UiNode {
     with_context_var(child, COLOR_SCHEME_VAR, pref)
 }

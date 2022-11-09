@@ -635,7 +635,7 @@ pub mod state_map {
 ///
 /// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
 ///
-/// #[property(context)]
+/// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
 ///     set_widget_state(child, &FOO_ID, value)
 /// }

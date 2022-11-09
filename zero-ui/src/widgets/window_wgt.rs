@@ -285,11 +285,11 @@ pub mod window {
             #[cfg(inspector)]
             {
                 let can_inspect = wgt.capture_var_or_else(property_id!(self::can_inspect), || true);
-                wgt.push_intrinsic(Priority::Event, "inspect_cmd", |child| commands::inspect_node(child, can_inspect));
+                wgt.push_intrinsic(NestGroup::EVENT, "inspect_cmd", |child| commands::inspect_node(child, can_inspect));
             }
 
-            wgt.push_intrinsic(Priority::Event, "layers", nodes::layers);
-            wgt.push_intrinsic(Priority::Context, "context", nodes::color_scheme);
+            wgt.push_intrinsic(NestGroup::EVENT, "layers", nodes::layers);
+            wgt.push_intrinsic(NestGroup::CONTEXT, "context", nodes::color_scheme);
         });
     }
 

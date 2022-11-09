@@ -153,7 +153,7 @@ impl<T: VarValue> AnyVarValue for T {
 /// # fn main() { }
 /// # use zero_ui_core::{*, widget_instance::*, var::IntoValue};
 /// #
-/// #[property(context)]
+/// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl IntoValue<bool>) -> impl UiNode {
 ///     #[ui_node(struct FooNode {
 ///         child: impl UiNode,
@@ -676,7 +676,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///         LocalVar(Size { width: self.0, height: self.1 })
 ///     }
 /// }
-/// #[property(size)]
+/// #[property(SIZE)]
 /// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///     // ...
 ///     # child
@@ -705,7 +705,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///
 /// ```
 /// # use zero_ui_core::{*, var::*, text::*, context::*, widget_instance::*};
-/// #[property(layout)]
+/// #[property(LAYOUT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct FooNode {
 ///         child: impl UiNode,

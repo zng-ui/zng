@@ -6,12 +6,12 @@ use zero_ui::core::{
 
 struct Foo;
 impl Foo {
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn self_method1(self, input: impl IntoVar<bool>) -> impl UiNode {
         NilUiNode
     }
 
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
         NilUiNode
     }

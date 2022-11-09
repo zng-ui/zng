@@ -380,7 +380,7 @@ mod helpers {
     /// }
     ///
     /// /// Sets the [`FooVar`] in the widgets and its content.
-    /// #[property(context, default(FOO_VAR))]
+    /// #[property(CONTEXT, default(FOO_VAR))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
     ///     with_context_var(child, FOO_VAR, value)
     /// }
@@ -410,7 +410,7 @@ mod helpers {
     /// }
     ///
     /// /// Sets the *foo* config.
-    /// #[property(context, default(false))]
+    /// #[property(CONTEXT, default(false))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
     ///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
@@ -420,7 +420,7 @@ mod helpers {
     /// }
     ///
     /// /// Sets the *bar* config.
-    /// #[property(context, default(false))]
+    /// #[property(CONTEXT, default(false))]
     /// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
     ///     with_context_var(child, CONFIG_VAR, merge_var!(CONFIG_VAR, value.into_var(), |c, &v| {
     ///         let mut c = c.clone();

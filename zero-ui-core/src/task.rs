@@ -12,7 +12,7 @@
 //! # #[widget($crate::button)]
 //! # pub mod button { inherit!(zero_ui_core::widget_base::base); }
 //! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
-//! # #[property(context)]
+//! # #[property(CONTEXT)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 //! # fn main() {
 //! let enabled = var(false);
@@ -88,7 +88,7 @@
 //! # #[widget($crate::button)]
 //! # pub mod button { inherit!(zero_ui_core::widget_base::base); }
 //! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
-//! # #[property(context)]
+//! # #[property(CONTEXT)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 //! # fn main() {
 //! let enabled = var(false);

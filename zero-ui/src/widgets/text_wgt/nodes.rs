@@ -28,7 +28,7 @@ pub struct ResolvedText {
 impl ResolvedText {
     /// If any [`ResolvedText`] is set in the current context.
     ///
-    /// This is `true` for any property with priority `event` or up set in a `text!` widget or
+    /// This is `true` for any property within [`NestGroup::EVENT`] set in a `text!` widget or
     /// any widget that uses the [`resolve_text`] node.
     pub fn is_some() -> bool {
         RESOLVED_TEXT.with(Option::is_some)
@@ -89,7 +89,7 @@ pub struct LayoutText {
 impl LayoutText {
     /// If any [`ResolvedText`] is set in the current context.
     ///
-    /// This is `true` only during layout & render, in properties with priority `border` or `fill` set in a `text!` widget or
+    /// This is `true` only during layout & render, in properties in [`NestGroup::BORDER`] or [`NestGroup::FILL`] set in a `text!` widget or
     /// any widget that uses the [`layout_text`] node.
     pub fn is_some() -> bool {
         LAYOUT_TEXT.with(Option::is_some)
@@ -113,7 +113,7 @@ context_value! {
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///
 /// This node setups the [`ResolvedText`] for all inner nodes, the `text!` widget introduces this node at the `new_event` constructor,
-/// so all properties except priority *context* have access using the [`ResolvedText::with`] function.
+/// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::with`] function.
 ///
 /// This node also subscribes to all the text context vars so other `text!` properties don't need to.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
@@ -334,7 +334,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
 ///
 /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
-/// node at the `new_fill` constructor, so all properties with priority `fill` have access to the [`LayoutText::with`] function.
+/// node at the `new_fill` constructor, so all properties in [`NestGroup::FILL`] have access to the [`LayoutText::with`] function.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
     bitflags::bitflags! {
         struct Layout: u8 {

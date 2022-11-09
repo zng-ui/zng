@@ -17,7 +17,7 @@ use crate::core::color::filters::{
 /// which can be animated using only frame updates instead of generating a new frame every change.
 ///
 /// [`opacity`]: fn@opacity
-#[property(context, default(Filter::default()))]
+#[property(CONTEXT, default(Filter::default()))]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     #[ui_node(struct FilterNode {
         child: impl UiNode,
@@ -77,7 +77,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 /// which can be animated using only frame updates instead of generating a new frame every change.
 ///
 /// [`child_opacity`]: fn@child_opacity
-#[property(child_context, default(Filter::default()))]
+#[property(CHILD_CONTEXT, default(Filter::default()))]
 pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
     #[ui_node(struct ChildFilterNode {
         child: impl UiNode,
@@ -135,7 +135,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::invert`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| cf::invert(a)))
 }
@@ -145,7 +145,7 @@ pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl Ui
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::blur`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(0))]
+#[property(CONTEXT, default(0))]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
     filter(child, radius.into_var().map(|r| cf::blur(r.clone())))
 }
@@ -157,7 +157,7 @@ pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::sepia`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| cf::sepia(a)))
 }
@@ -169,7 +169,7 @@ pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::grayscale`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| cf::grayscale(a)))
 }
@@ -181,7 +181,7 @@ pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNod
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::drop_shadow`] using variable merging.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default((0, 0), 0, colors::BLACK.transparent()))]
+#[property(CONTEXT, default((0, 0), 0, colors::BLACK.transparent()))]
 pub fn drop_shadow(
     child: impl UiNode,
     offset: impl IntoVar<Point>,
@@ -203,7 +203,7 @@ pub fn drop_shadow(
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::brightness`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(1.0))]
+#[property(CONTEXT, default(1.0))]
 pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| cf::brightness(a)))
 }
@@ -215,7 +215,7 @@ pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNo
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::brightness`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(1.0))]
+#[property(CONTEXT, default(1.0))]
 pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| cf::contrast(a)))
 }
@@ -227,7 +227,7 @@ pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 /// This property is a shorthand way of setting [`filter`] to [`color::filters::saturate`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(1.0))]
+#[property(CONTEXT, default(1.0))]
 pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter(child, amount.into_var().map(|&a| cf::saturate(a)))
 }
@@ -240,7 +240,7 @@ pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 ///
 /// [`filter`]: fn@filter
 /// [`hue`]: Hsla::hue
-#[property(context, default(0.deg()))]
+#[property(CONTEXT, default(0.deg()))]
 pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
     filter(child, angle.into_var().map(|&a| cf::hue_rotate(a)))
 }
@@ -248,7 +248,7 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 /// Custom color filter.
 ///
 /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
-#[property(context, default(cf::ColorMatrix::identity()))]
+#[property(CONTEXT, default(cf::ColorMatrix::identity()))]
 pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -> impl UiNode {
     filter(child, matrix.into_var().map(|&m| cf::color_matrix(m)))
 }
@@ -259,7 +259,7 @@ pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -
 /// **but** updating the opacity is faster in this property.
 ///
 /// [`filter`]: fn@filter
-#[property(context, default(1.0))]
+#[property(CONTEXT, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     #[ui_node(struct OpacityNode {
         child: impl UiNode,
@@ -298,7 +298,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 /// **but** updating the opacity is faster in this property.
 ///
 /// [`child_filter`]: fn@child_filter
-#[property(child_context, default(1.0))]
+#[property(CHILD_CONTEXT, default(1.0))]
 pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     #[ui_node(struct ChildOpacityNode {
         child: impl UiNode,

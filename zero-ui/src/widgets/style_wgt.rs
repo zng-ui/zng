@@ -110,7 +110,7 @@ pub mod style_mixin {
     ///         }
     ///
     ///         /// Replace the contextual [`STYLE_VAR`] with `style`.
-    ///         #[property(context, default(STYLE_VAR))]
+    ///         #[property(CONTEXT, default(STYLE_VAR))]
     ///         pub fn replace_style(
     ///             child: impl UiNode,
     ///             style: impl IntoVar<StyleGenerator>
@@ -119,7 +119,7 @@ pub mod style_mixin {
     ///         }
     ///
     ///         /// Extends the contextual [`STYLE_VAR`] with the `style` override.
-    ///         #[property(context, default(StyleGenerator::nil()))]
+    ///         #[property(CONTEXT, default(StyleGenerator::nil()))]
     ///         pub fn extend_style(
     ///             child: impl UiNode,
     ///             style: impl IntoVar<StyleGenerator>

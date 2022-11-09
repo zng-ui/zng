@@ -194,7 +194,7 @@ pub fn value_init_order() {
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["count_border", "count_context"]);
 
-    // but properties init in the priority order.
+    // but properties init in the nest group order.
     assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_border"]);
 }
 
@@ -214,7 +214,7 @@ pub fn wgt_child_property_init_order() {
         ["count_border", "count_child_layout", "count_context"]
     );
 
-    // but properties init in the priority order (child first).
+    // but properties init in the nest group order (child first).
     assert_eq!(
         util::sorted_node_init(&wgt),
         ["count_context", "count_border", "count_child_layout"]
@@ -222,10 +222,10 @@ pub fn wgt_child_property_init_order() {
 }
 
 /*
- * Tests the ordering of properties of the same priority.
+ * Tests the ordering of properties of the same nest group.
  */
-#[widget($crate::tests::widget::same_priority_order_wgt)]
-pub mod same_priority_order_wgt {
+#[widget($crate::tests::widget::same_nest_group_order_wgt)]
+pub mod same_nest_group_order_wgt {
     inherit!(crate::widget_base::base);
 
     properties! {
@@ -234,9 +234,9 @@ pub mod same_priority_order_wgt {
     }
 }
 #[test]
-pub fn wgt_same_priority_order() {
+pub fn wgt_same_nest_group_order() {
     Position::reset();
-    let mut wgt = same_priority_order_wgt! {
+    let mut wgt = same_nest_group_order_wgt! {
         border_a = Position::next("border_a");
         border_b = Position::next("border_b");
     };
@@ -245,7 +245,7 @@ pub fn wgt_same_priority_order() {
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["border_a", "border_b"]);
 
-    // properties with the same priority are set in reversed typed order.
+    // properties with the same nest group are set in reversed typed order.
     // inner_a is set after inner_b so it will contain inner_b:
     // let node = border_b(child, ..);
     // let node = border_a(node, ..);
@@ -254,7 +254,7 @@ pub fn wgt_same_priority_order() {
     Position::reset();
     // order of declaration(in the widget) doesn't impact the order of evaluation,
     // only the order of use does (in here).
-    let mut wgt = same_priority_order_wgt! {
+    let mut wgt = same_nest_group_order_wgt! {
         border_b = Position::next("border_b");
         border_a = Position::next("border_a");
     };
@@ -586,8 +586,8 @@ pub fn wgt_capture_properties_reassign() {
  * Tests order properties are inited and applied.
  */
 
-#[widget($crate::tests::widget::property_priority_sorting_wgt)]
-pub mod property_priority_sorting_wgt {
+#[widget($crate::tests::widget::property_nest_group_sorting_wgt)]
+pub mod property_nest_group_sorting_wgt {
     inherit!(crate::widget_base::base);
 
     properties! {
@@ -607,8 +607,8 @@ pub mod property_priority_sorting_wgt {
         pub super::util::on_count as count_event1;
     }
 }
-fn property_priority_sorting_init1() -> impl UiNode {
-    property_priority_sorting_wgt! {
+fn property_nest_group_sorting_init1() -> impl UiNode {
+    property_nest_group_sorting_wgt! {
         count_border1 = Position::next("count_border1");
         count_border2 = Position::next("count_border2");
         count_size1 = Position::next("count_size1");
@@ -627,10 +627,10 @@ fn property_priority_sorting_init1() -> impl UiNode {
     }
 }
 #[test]
-pub fn property_priority_sorting_value_init1() {
+pub fn property_nest_group_sorting_value_init1() {
     Position::reset();
 
-    let mut wgt = property_priority_sorting_init1();
+    let mut wgt = property_nest_group_sorting_init1();
     TestWidgetContext::new().init(&mut wgt);
 
     // assert that value init is the same as typed.
@@ -654,8 +654,8 @@ pub fn property_priority_sorting_value_init1() {
         ]
     );
 }
-fn property_priority_sorting_init2() -> impl UiNode {
-    property_priority_sorting_wgt! {
+fn property_nest_group_sorting_init2() -> impl UiNode {
+    property_nest_group_sorting_wgt! {
         count_child_context1 = Position::next("count_child_context1");
         count_child_context2 = Position::next("count_child_context2");
         count_child_layout1 = Position::next("count_child_layout1");
@@ -674,10 +674,10 @@ fn property_priority_sorting_init2() -> impl UiNode {
     }
 }
 #[test]
-pub fn property_priority_sorting_value_init2() {
+pub fn property_nest_group_sorting_value_init2() {
     Position::reset();
 
-    let mut wgt = property_priority_sorting_init2();
+    let mut wgt = property_nest_group_sorting_init2();
     TestWidgetContext::new().init(&mut wgt);
 
     // assert that value init is the same as typed.
@@ -727,32 +727,32 @@ fn assert_node_order(wgt: &impl UiNode) {
     );
 }
 #[test]
-pub fn property_priority_sorting_node_init1() {
+pub fn property_nest_group_sorting_node_init1() {
     Position::reset();
 
-    let mut wgt = property_priority_sorting_init1();
+    let mut wgt = property_nest_group_sorting_init1();
     TestWidgetContext::new().init(&mut wgt);
 
     assert_node_order(&wgt);
 }
 #[test]
-pub fn property_priority_sorting_node_init2() {
+pub fn property_nest_group_sorting_node_init2() {
     Position::reset();
 
-    let mut wgt = property_priority_sorting_init2();
+    let mut wgt = property_nest_group_sorting_init2();
     TestWidgetContext::new().init(&mut wgt);
 
     assert_node_order(&wgt);
 }
-#[widget($crate::tests::widget::property_priority_sorting_inherited_wgt)]
-pub mod property_priority_sorting_inherited_wgt {
-    inherit!(super::property_priority_sorting_wgt);
+#[widget($crate::tests::widget::property_nest_group_sorting_inherited_wgt)]
+pub mod property_nest_group_sorting_inherited_wgt {
+    inherit!(super::property_nest_group_sorting_wgt);
 }
 #[test]
-pub fn property_priority_sorting_node_inherited_init() {
+pub fn property_nest_group_sorting_node_inherited_init() {
     Position::reset();
 
-    let mut wgt = property_priority_sorting_inherited_wgt! {
+    let mut wgt = property_nest_group_sorting_inherited_wgt! {
         count_child_context1 = Position::next("count_child_context1");
         count_child_context2 = Position::next("count_child_context2");
         count_child_layout1 = Position::next("count_child_layout1");
@@ -774,11 +774,11 @@ pub fn property_priority_sorting_node_inherited_init() {
     assert_node_order(&wgt);
 }
 
-#[widget($crate::tests::widget::property_priority_sorting_defaults_wgt)]
-pub mod property_priority_sorting_defaults_wgt {
+#[widget($crate::tests::widget::property_nest_group_sorting_defaults_wgt)]
+pub mod property_nest_group_sorting_defaults_wgt {
     use super::util::Position;
 
-    inherit!(super::property_priority_sorting_wgt);
+    inherit!(super::property_nest_group_sorting_wgt);
 
     properties! {
         count_context1 = Position::next("count_context1");
@@ -799,10 +799,10 @@ pub mod property_priority_sorting_defaults_wgt {
     }
 }
 #[test]
-pub fn property_priority_sorting_defaults() {
+pub fn property_nest_group_sorting_defaults() {
     Position::reset();
 
-    let mut wgt = property_priority_sorting_defaults_wgt!();
+    let mut wgt = property_nest_group_sorting_defaults_wgt!();
     TestWidgetContext::new().init(&mut wgt);
     assert_node_order(&wgt);
 }
@@ -1053,7 +1053,7 @@ pub fn allowed_in_when_without_wgt_assign2() {
 /*
 * Generated Names Don't Shadow Each Other
 */
-#[crate::property(context)]
+#[crate::property(CONTEXT)]
 pub fn util_live_trace(
     child: impl crate::widget_instance::UiNode,
     not_str: impl crate::var::IntoVar<bool>,
@@ -1175,7 +1175,7 @@ mod macro_rules_generated {
 
                 inherit!($crate::widget_base::base);
 
-                #[$crate::property(layout)]
+                #[$crate::property(CONTEXT)]
                 pub fn margin(child: impl UiNode, margin: impl IntoVar<$crate::units::SideOffsets>) -> impl UiNode {
                     let _ = margin;
                     child
@@ -1214,7 +1214,7 @@ mod util {
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
         TraceNode {
             child,
@@ -1242,7 +1242,7 @@ mod util {
     }
 
     /// Insert `count` in the widget state. Can get using [`Count::get`].
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
@@ -1252,8 +1252,8 @@ mod util {
 
     pub use count as count_context;
 
-    /// Same as [`count`] but with `child_context` priority.
-    #[property(child_context)]
+    /// Same as [`count`] but in `CHILD_CONTEXT` group.
+    #[property(CHILD_CONTEXT)]
     pub fn count_child_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
@@ -1261,8 +1261,8 @@ mod util {
         }
     }
 
-    /// Same as [`count`] but with `child_layout` priority.
-    #[property(child_layout)]
+    /// Same as [`count`] but in `CHILD_LAYOUT` group.
+    #[property(CHILD_LAYOUT)]
     pub fn count_child_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
@@ -1270,8 +1270,8 @@ mod util {
         }
     }
 
-    /// Same as [`count`] but with `border` priority.
-    #[property(border)]
+    /// Same as [`count`] but in `BORDER` group.
+    #[property(BORDER)]
     pub fn count_border(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
@@ -1279,8 +1279,8 @@ mod util {
         }
     }
 
-    /// Same as [`count`] but with `layout` priority.
-    #[property(layout)]
+    /// Same as [`count`] but in `LAYOUT` group.
+    #[property(LAYOUT)]
     pub fn count_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
@@ -1288,8 +1288,8 @@ mod util {
         }
     }
 
-    /// Same as [`count`] but with `size` priority.
-    #[property(size)]
+    /// Same as [`count`] but in `SIZE` group.
+    #[property(SIZE)]
     pub fn count_size(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
@@ -1297,8 +1297,8 @@ mod util {
         }
     }
 
-    /// Same as [`count`] but with `event` priority.
-    #[property(event)]
+    /// Same as [`count`] but in `EVENT` group.
+    #[property(EVENT)]
     pub fn on_count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
@@ -1394,7 +1394,7 @@ mod util {
     }
 
     /// Test state property, state can be set using [`set_state`] followed by updating.
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
         IsStateNode { child, state }
     }
@@ -1437,7 +1437,7 @@ mod util {
     static IS_STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
 
     /// A [trace] that can update.
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn live_trace(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
         LiveTraceNode {
             child,
@@ -1445,7 +1445,7 @@ mod util {
         }
     }
     /// A [trace] that can update and has a default value of `"default-trace"`.
-    #[property(context, default("default-trace"))]
+    #[property(CONTEXT, default("default-trace"))]
     pub fn live_trace_default(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
         LiveTraceNode {
             child,
@@ -1473,7 +1473,7 @@ mod util {
     }
 
     /// A capture_only property.
-    #[property(context)]
+    #[property(CONTEXT)]
     #[allow(unreachable_code)]
     pub fn capture_only_trace(_child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
         let _ = trace;
@@ -1481,7 +1481,7 @@ mod util {
         _child
     }
 
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn duo_members(child: impl UiNode, member_a: impl IntoVar<&'static str>, member_b: impl IntoVar<&'static str>) -> impl UiNode {
         let _ = member_a;
         let _ = member_b;

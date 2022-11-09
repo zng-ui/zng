@@ -18,7 +18,7 @@ use crate::prelude::new_property::*;
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 ///
 /// [center point]: crate::core::widget_info::WidgetInfo::center
-#[property(context)]
+#[property(CONTEXT)]
 pub fn show_center_points(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     show_widget_tree(
         child,
@@ -36,7 +36,7 @@ pub fn show_center_points(child: impl UiNode, enabled: impl IntoVar<bool>) -> im
 /// # Window Only
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
-#[property(context)]
+#[property(CONTEXT)]
 pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     show_widget_tree(
         child,
@@ -119,7 +119,7 @@ fn show_widget_tree(
 /// # Window Only
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
-#[property(context)]
+#[property(CONTEXT)]
 pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct ShowHitTestNode {
         child: impl UiNode,
@@ -255,7 +255,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// # Window Only
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
-#[property(context)]
+#[property(CONTEXT)]
 pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> impl UiNode {
     #[ui_node(struct ShowDirectionalQueryNode {
         child: impl UiNode,

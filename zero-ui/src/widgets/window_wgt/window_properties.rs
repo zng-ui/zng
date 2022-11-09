@@ -50,7 +50,7 @@ macro_rules! set_properties {
             #[doc = "Binds the [`"$ident "`](WindowVars::"$ident ") window var with the property value."]
             ///
             /// The binding is bidirectional and the window variable is assigned on init.
-            #[property(context)]
+            #[property(CONTEXT)]
             pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
                 bind_window_var(child, $ident, |w|w.$ident().clone())
             }
@@ -97,7 +97,7 @@ macro_rules! map_properties {
                 #[doc = "Binds the `"$member "` of the [`"$ident "`](WindowVars::"$ident ") window var with the property value."]
                 ///
                 /// The binding is bidirectional and the window variable is assigned on init.
-                #[property(context)]
+                #[property(CONTEXT)]
                 pub fn $name(child: impl UiNode, $name: impl IntoVar<$Type>) -> impl UiNode {
                     bind_window_var(child, $name, |w|w.$ident().map_ref_bidi(|v| &v.$member, |v|&mut v.$member))
                 }
@@ -120,7 +120,7 @@ map_properties! {
 /// It is visible if window content does not completely fill the content area, this
 /// can happen if you do not set a background or the background is semi-transparent, also
 /// can happen during very fast resizes.
-#[property(context, default(colors::WHITE))]
+#[property(CONTEXT, default(colors::WHITE))]
 pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     #[ui_node(struct ClearColorNode {
         child: impl UiNode,
@@ -243,7 +243,7 @@ impl_from_and_into_var! {
 ///
 /// This property is enabled by default in the `window!` widget, it is recommended to open the window with a name if
 /// the app can open more than one window.
-#[property(context, default(SaveState::Disabled))]
+#[property(CONTEXT, default(SaveState::Disabled))]
 pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
     enum Task {
         None,

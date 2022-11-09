@@ -31,7 +31,7 @@ use super::hit_test_mode;
 /// ```
 ///
 /// The example renders a custom text background.
-#[property(fill)]
+#[property(FILL)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     #[ui_node(struct BackgroundNode {
         children: impl UiNodeList,
@@ -67,7 +67,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 /// [`ViewGenerator<()>`]: ViewGenerator
 /// [`background`]: fn@background
 /// [`presenter_default`]: ViewGenerator::presenter_default
-#[property(fill, default(ViewGenerator::nil()))]
+#[property(FILL, default(ViewGenerator::nil()))]
 pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<()>>) -> impl UiNode {
     background(child, ViewGenerator::presenter_default(generator))
 }
@@ -90,7 +90,7 @@ pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 /// ```
 ///
 /// [`background`]: fn@background
-#[property(fill, default(colors::BLACK.transparent()))]
+#[property(FILL, default(colors::BLACK.transparent()))]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     background(child, flood(color))
 }
@@ -116,7 +116,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// ```
 ///
 /// [`background`]: fn@background
-#[property(fill, default(0.deg(), {
+#[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
     crate::core::gradient::stops![c, c]
 }))]
@@ -151,7 +151,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// ```
 ///
 /// The example renders a custom see-through text overlay.
-#[property(fill, default(crate::core::widget_instance::NilUiNode))]
+#[property(FILL, default(crate::core::widget_instance::NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     #[ui_node(struct ForegroundNode {
         children: impl UiNodeList,
@@ -202,7 +202,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// ```
 ///
 /// The example renders a solid blue 1 pixel border overlay, the border lines are offset 3 pixels into the container.
-#[property(fill, default(0, 0, BorderStyle::Hidden))]
+#[property(FILL, default(0, 0, BorderStyle::Hidden))]
 pub fn foreground_highlight(
     child: impl UiNode,
     offsets: impl IntoVar<SideOffsets>,
@@ -298,7 +298,7 @@ pub fn foreground_highlight(
 /// The example adds a green tint to the container content.
 ///
 /// [`foreground`]: fn@foreground
-#[property(fill, default(colors::BLACK.transparent()))]
+#[property(FILL, default(colors::BLACK.transparent()))]
 pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     foreground(child, flood(color))
 }
@@ -327,7 +327,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// [`foreground`]: fn@foreground
 /// [`Clamp`]: crate::core::gradient::ExtendMode::Clamp
-#[property(fill, default(0.deg(), {
+#[property(FILL, default(0.deg(), {
     let c = colors::BLACK.transparent();
     crate::core::gradient::stops![c, c]
 }))]
@@ -361,7 +361,7 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// ```
 ///
 /// [`corner_radius`]: fn@corner_radius
-#[property(fill, default(false))]
+#[property(FILL, default(false))]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct ClipToBoundsNode {
         child: impl UiNode,

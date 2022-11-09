@@ -30,7 +30,7 @@ use std::rc::Rc;
 /// [`Widget`]: CaptureMode::Widget
 /// [`Subtree`]: CaptureMode::Subtree
 /// [`Window`]: CaptureMode::Window
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
     #[ui_node(struct CaptureMouseNode {
         child: impl UiNode,
@@ -103,7 +103,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 /// is by design to support dialog overlays that open another dialog overlay.
 ///
 /// [allows interaction]: crate::core::widget_info::WidgetInfo::interactivity
-#[property(context, default(false))]
+#[property(CONTEXT, default(false))]
 pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     static MODAL_WIDGETS: StaticStateId<Rc<RefCell<ModalWidgetsData>>> = StaticStateId::new_unique();
     #[derive(Default)]

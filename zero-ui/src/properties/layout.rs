@@ -36,7 +36,7 @@ use zero_ui::prelude::new_property::*;
 ///
 /// In the example the button has `10` pixels of space above and bellow and `5%` of the container width to the left and right.
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
-#[property(layout, default(0))]
+#[property(LAYOUT, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     #[ui_node(struct MarginNode {
         child: impl UiNode,
@@ -74,8 +74,8 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 
 /// Margin space around the *content* of a widget.
 ///
-/// This property is [`margin`](fn@margin) with priority `child_layout`.
-#[property(child_layout, default(0))]
+/// This property is [`margin`](fn@margin) with nest group `CHILD_LAYOUT`.
+#[property(CHILD_LAYOUT, default(0))]
 pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
     margin(child, padding)
 }
@@ -98,7 +98,7 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 ///
 /// In the example the button is positioned at the top-center of the container. See [`Align`] for
 /// more details.
-#[property(layout, default(Align::FILL))]
+#[property(LAYOUT, default(Align::FILL))]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
     #[ui_node(struct AlignNode {
         child: impl UiNode,
@@ -132,8 +132,8 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
 
 /// Aligns the widget *content* within the available space.
 ///
-/// This property is [`align`](fn@align) with priority `child_layout`.
-#[property(child_layout, default(Align::FILL))]
+/// This property is [`align`](fn@align) with nest group `CHILD_LAYOUT`.
+#[property(CHILD_LAYOUT, default(Align::FILL))]
 pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
     align(child, alignment)
 }
@@ -159,7 +159,7 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 /// # `x` and `y`
 ///
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
-#[property(layout, default((0, 0)))]
+#[property(LAYOUT, default((0, 0)))]
 pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     #[ui_node(struct OffsetNode {
         child: impl UiNode,
@@ -216,7 +216,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 /// # `offset`
 ///
 /// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
-#[property(layout, default(0))]
+#[property(LAYOUT, default(0))]
 pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct XNode {
         child: impl UiNode,
@@ -270,7 +270,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// # `offset`
 ///
 /// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
-#[property(layout, default(0))]
+#[property(LAYOUT, default(0))]
 pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct YNode {
         child: impl UiNode,
@@ -331,7 +331,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// You can use the [`min_width`](fn@min_width) and [`min_height`](fn@min_height) properties to only
 /// set the minimum size of one dimension.
-#[property(size, default((0, 0)))]
+#[property(SIZE, default((0, 0)))]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct MinSizeNode {
         child: impl UiNode,
@@ -396,7 +396,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// # `min_size`
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
-#[property(size, default(0))]
+#[property(SIZE, default(0))]
 pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MinWidthNode {
         child: impl UiNode,
@@ -463,7 +463,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// # `min_size`
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
-#[property(size, default(0))]
+#[property(SIZE, default(0))]
 pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MinHeightNode {
         child: impl UiNode,
@@ -531,7 +531,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 ///
 /// You can use the [`max_width`](fn@max_width) and [`max_height`](fn@max_height) properties to only
 /// set the maximum size of one dimension.
-#[property(size)]
+#[property(SIZE)]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct MaxSizeNode {
         child: impl UiNode,
@@ -596,7 +596,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(size)]
+#[property(SIZE)]
 pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MaxWidthNode {
         child: impl UiNode,
@@ -665,7 +665,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(size)]
+#[property(SIZE)]
 pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MaxHeightNode {
         child: impl UiNode,
@@ -736,7 +736,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`max_size`]: fn@max_size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
-#[property(size)]
+#[property(SIZE)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct SizeNode {
         child: impl UiNode,
@@ -799,7 +799,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///
 /// [`min_width`]: fn@min_width
 /// [`max_width`]: fn@max_width
-#[property(size)]
+#[property(SIZE)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct WidthNode {
         child: impl UiNode,
@@ -868,7 +868,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`min_height`]: fn@min_height
 /// [`max_height`]: fn@max_height
-#[property(size)]
+#[property(SIZE)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct HeightNode {
         child: impl UiNode,
@@ -916,7 +916,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
 /// Relative values are computed from the widget's height.
 ///
 /// [`text!`]: mod@crate::widgets::text
-#[property(border, default(Length::Default))]
+#[property(BORDER, default(Length::Default))]
 pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct BaselineNode {
         child: impl UiNode,

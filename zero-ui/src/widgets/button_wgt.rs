@@ -59,20 +59,20 @@ pub mod vis {
     }
 
     /// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the button style.
-    #[property(context, default(BASE_COLORS_VAR))]
+    #[property(CONTEXT, default(BASE_COLORS_VAR))]
     pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
         with_context_var(child, BASE_COLORS_VAR, color)
     }
 
     /// Sets the button style in a context, the parent style is fully replaced.
-    #[property(context, default(STYLE_VAR))]
+    #[property(CONTEXT, default(STYLE_VAR))]
     pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
         with_context_var(child, STYLE_VAR, style)
     }
 
     /// Extends the button style in a context, the parent style is used, properties of the same name set in
     /// `style` override the parent style.
-    #[property(context, default(StyleGenerator::nil()))]
+    #[property(CONTEXT, default(StyleGenerator::nil()))]
     pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
         style_mixin::with_style_extension(child, STYLE_VAR, style)
     }

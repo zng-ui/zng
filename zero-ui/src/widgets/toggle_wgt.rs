@@ -77,7 +77,7 @@ pub mod toggle_properties {
     /// Note that you can read the checked state of the widget using [`is_checked`].
     ///
     /// [`is_checked`]: #wp-is_checked
-    #[property(context, default(false))]
+    #[property(CONTEXT, default(false))]
     pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
         #[ui_node(struct CheckedNode {
             child: impl UiNode,
@@ -139,7 +139,7 @@ pub mod toggle_properties {
     /// }
     /// # ;
     /// ```
-    #[property(context, default(None))]
+    #[property(CONTEXT, default(None))]
     pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
         #[ui_node(struct CheckedOptNode {
             child: impl UiNode,
@@ -207,7 +207,7 @@ pub mod toggle_properties {
     /// This is not enabled by default.
     ///
     /// [`checked_opt`]: fn@checked_opt
-    #[property(context, default(IS_TRISTATE_VAR))]
+    #[property(CONTEXT, default(IS_TRISTATE_VAR))]
     pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         with_context_var(child, IS_TRISTATE_VAR, enabled)
     }
@@ -240,7 +240,7 @@ pub mod toggle_properties {
     /// [`checked`]: #wp-checked
     /// [`checked_opt`]: #wp-checked_opt
     /// [`value`]: #wp-value.
-    #[property(event)]
+    #[property(EVENT)]
     pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
         bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
     }
@@ -285,7 +285,7 @@ pub mod toggle_properties {
     /// the contextual [`Selector`] is used to implement the behavior.
     ///
     /// [`selection`]: fn@selection
-    #[property(context)]
+    #[property(CONTEXT)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
         #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
             child: impl UiNode,
@@ -456,7 +456,7 @@ pub mod toggle_properties {
     /// property only works if a contextual selection is present.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(Selector::nil()))]
+    #[property(CONTEXT, default(Selector::nil()))]
     pub fn selection(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
         with_context_value(child, SELECTOR, selector)
     }
@@ -464,7 +464,7 @@ pub mod toggle_properties {
     /// If [`value`] is selected when the widget that has the value is inited.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(SELECT_ON_INIT_VAR))]
+    #[property(CONTEXT, default(SELECT_ON_INIT_VAR))]
     pub fn select_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         with_context_var(child, SELECT_ON_INIT_VAR, enabled)
     }
@@ -472,7 +472,7 @@ pub mod toggle_properties {
     /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(DESELECT_ON_DEINIT_VAR))]
+    #[property(CONTEXT, default(DESELECT_ON_DEINIT_VAR))]
     pub fn deselect_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         with_context_var(child, DESELECT_ON_DEINIT_VAR, enabled)
     }
@@ -480,7 +480,7 @@ pub mod toggle_properties {
     /// If [`value`] selects the new value when the variable changes and the previous value was selected.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(SELECT_ON_NEW_VAR))]
+    #[property(CONTEXT, default(SELECT_ON_NEW_VAR))]
     pub fn select_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         with_context_var(child, SELECT_ON_NEW_VAR, enabled)
     }
@@ -488,7 +488,7 @@ pub mod toggle_properties {
     /// If [`value`] deselects the previously selected value when the variable changes.
     ///
     /// [`value`]: fn@value
-    #[property(context, default(DESELECT_ON_NEW_VAR))]
+    #[property(CONTEXT, default(DESELECT_ON_NEW_VAR))]
     pub fn deselect_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         with_context_var(child, DESELECT_ON_NEW_VAR, enabled)
     }
@@ -807,14 +807,14 @@ pub mod vis {
     }
 
     /// Sets the toggle style in a context, the parent style is fully replaced.
-    #[property(context, default(STYLE_VAR))]
+    #[property(CONTEXT, default(STYLE_VAR))]
     pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
         with_context_var(child, STYLE_VAR, style)
     }
 
     /// Extends the toggle style in a context, the parent style is used, properties of the same name set in
     /// `style` override the parent style.
-    #[property(context, default(StyleGenerator::nil()))]
+    #[property(CONTEXT, default(StyleGenerator::nil()))]
     pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
         style_mixin::with_style_extension(child, STYLE_VAR, style)
     }

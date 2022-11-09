@@ -78,13 +78,13 @@ fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
 }
 
 /// Vertical scrollbar generator for all scroll widget descendants.
-#[property(context, default(VERTICAL_SCROLLBAR_VIEW_VAR))]
+#[property(CONTEXT, default(VERTICAL_SCROLLBAR_VIEW_VAR))]
 pub fn v_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
     with_context_var(child, VERTICAL_SCROLLBAR_VIEW_VAR, generator)
 }
 
 /// Horizontal scrollbar generator for all scroll widget descendants.
-#[property(context, default(HORIZONTAL_SCROLLBAR_VIEW_VAR))]
+#[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_VIEW_VAR))]
 pub fn h_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_SCROLLBAR_VIEW_VAR, generator)
 }
@@ -95,7 +95,7 @@ pub fn h_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerato
 ///
 /// [`v_scrollbar_view`]: fn@v_scrollbar_view
 /// [`h_scrollbar_view`]: fn@h_scrollbar_view
-#[property(context, default(ViewGenerator::nil()))]
+#[property(CONTEXT, default(ViewGenerator::nil()))]
 pub fn scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
     let generator = generator.into_var();
     let child = v_scrollbar_view(child, generator.clone());
@@ -108,7 +108,7 @@ pub fn scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 ///
 /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
 /// [`SCROLL_DOWN_CMD`]: crate::widgets::scroll::commands::SCROLL_DOWN_CMD
-#[property(context, default(VERTICAL_LINE_UNIT_VAR))]
+#[property(CONTEXT, default(VERTICAL_LINE_UNIT_VAR))]
 pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_LINE_UNIT_VAR, unit)
 }
@@ -119,7 +119,7 @@ pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`SCROLL_LEFT_CMD`]: crate::widgets::scroll::commands::SCROLL_LEFT_CMD
 /// [`SCROLL_RIGHT_CMD`]: crate::widgets::scroll::commands::SCROLL_RIGHT_CMD
-#[property(context, default(HORIZONTAL_LINE_UNIT_VAR))]
+#[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR))]
 pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_LINE_UNIT_VAR, unit)
 }
@@ -130,14 +130,14 @@ pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`h_line_unit`]: fn@h_line_unit
 /// [`v_line_unit`]: fn@v_line_unit
-#[property(context, default(HORIZONTAL_LINE_UNIT_VAR, VERTICAL_LINE_UNIT_VAR))]
+#[property(CONTEXT, default(HORIZONTAL_LINE_UNIT_VAR, VERTICAL_LINE_UNIT_VAR))]
 pub fn line_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_line_unit(child, horizontal);
     v_line_unit(child, vertical)
 }
 
 /// Scroll unit multiplier used when alternate scrolling.
-#[property(context, default(ALT_FACTOR_VAR))]
+#[property(CONTEXT, default(ALT_FACTOR_VAR))]
 pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNode {
     with_context_var(child, ALT_FACTOR_VAR, factor)
 }
@@ -148,7 +148,7 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
 ///
 /// [`PAGE_UP_CMD`]: crate::widgets::scroll::commands::PAGE_UP_CMD
 /// [`PAGE_DOWN_CMD`]: crate::widgets::scroll::commands::PAGE_DOWN_CMD
-#[property(context, default(VERTICAL_PAGE_UNIT_VAR))]
+#[property(CONTEXT, default(VERTICAL_PAGE_UNIT_VAR))]
 pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VERTICAL_PAGE_UNIT_VAR, unit)
 }
@@ -159,7 +159,7 @@ pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`PAGE_LEFT_CMD`]: crate::widgets::scroll::commands::PAGE_LEFT_CMD
 /// [`PAGE_RIGHT_CMD`]: crate::widgets::scroll::commands::PAGE_RIGHT_CMD
-#[property(context, default(HORIZONTAL_PAGE_UNIT_VAR))]
+#[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR))]
 pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HORIZONTAL_PAGE_UNIT_VAR, unit)
 }
@@ -170,26 +170,26 @@ pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`h_page_unit`]: fn@h_page_unit
 /// [`v_page_unit`]: fn@v_page_unit
-#[property(context, default(HORIZONTAL_PAGE_UNIT_VAR, VERTICAL_PAGE_UNIT_VAR))]
+#[property(CONTEXT, default(HORIZONTAL_PAGE_UNIT_VAR, VERTICAL_PAGE_UNIT_VAR))]
 pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_page_unit(child, horizontal);
     v_page_unit(child, vertical)
 }
 
 /// Smooth scrolling config.
-#[property(context, default(SMOOTH_SCROLLING_VAR))]
+#[property(CONTEXT, default(SMOOTH_SCROLLING_VAR))]
 pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling>) -> impl UiNode {
     with_context_var(child, SMOOTH_SCROLLING_VAR, config)
 }
 
 /// If the scroll defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
-#[property(context, default(DEFINE_VIEWPORT_UNIT_VAR))]
+#[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR))]
 pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DEFINE_VIEWPORT_UNIT_VAR, enabled)
 }
 
 /// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
-#[property(context, default(SCROLL_TO_FOCUSED_MODE_VAR))]
+#[property(CONTEXT, default(SCROLL_TO_FOCUSED_MODE_VAR))]
 pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) -> impl UiNode {
     with_context_var(child, SCROLL_TO_FOCUSED_MODE_VAR, mode)
 }

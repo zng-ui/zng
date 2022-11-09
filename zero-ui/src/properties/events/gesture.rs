@@ -110,7 +110,7 @@ event_property! {
 /// Keyboard shortcuts that focus and clicks this widget.
 ///
 /// When any of the `shortcuts` is pressed, focus and click this widget.
-#[property(context)]
+#[property(CONTEXT)]
 pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
@@ -122,7 +122,7 @@ pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 /// Keyboard shortcuts that focus and [context clicks](fn@on_context_click) this widget.
 ///
 /// When any of the `shortcuts` is pressed, focus and context clicks this widget.
-#[property(context)]
+#[property(CONTEXT)]
 pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,

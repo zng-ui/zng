@@ -3,7 +3,7 @@ use zero_ui::properties::{margin, states::is_pressed};
 use zero_ui::widgets::blank;
 struct NotVarValue;
 
-#[property(context)]
+#[property(CONTEXT)]
 pub fn foo(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
     let _ = value;
     child
