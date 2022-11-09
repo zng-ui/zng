@@ -1,19 +1,3 @@
-# Build Time
-
-* Massive increase of zero-ui "llvm-lines" after dynamic when.
-    - was 451,610 now is 1,771,218, event-2 regained ~37,000, but after dynamic when was 1,808,286!
-    - example window improved by -122,989, from 537,674 to 414,685.
-
-# Update Mask
-
-* Review the icon example with all icon to see what happens with lots of false positives.
-  - Maybe we need a better distribution or a linear search after the flag matches?
-  - Can we have delivery lists for vars?
-* Move update skipping optimization to context, right now the `Widget` implementer handles some parts of it.
-* `WidgetContextMut::update` causes a general update, change to only update the parent task?
-  - Task future is pooled every update, independent of if it requested wake or not, need a local flag to ignore updates or change
-    update signal to have not false positives.
-
 # Startup
 
 * NVIDIA OpenGL takes 200ms! to startup.
@@ -42,22 +26,19 @@
     - gleam uses a `Rc<dyn Gl>` for the OpenGL functions.
     - There are obscure bugs with sending OpenGL contexts across threads, maybe review using `surfman` again.
 
-# Inspector + Profiler
+# Tracing
 
-* Icon example changing the icon font, time to `on_info_init` in all icon buttons:
-  - debug (default) changes in 3.5s.
-  - debug + trace-json.gz (default) changes in 8s.
-  - release-lto + "inspector" changes in 390ms.
-  - release-lto + "inspector" + trace changes in 1.6s.
-  - release-lto (default) changes in 180ms. 
-  - release-lto + "dyn_node" changes in 181ms.
-
-Need to optimize the inspector nodes a bit, maybe some lazy stuff?
-
-Profiler has a huge impact, but is also generating so much data that chrome struggles to display.
-
+* The `tracing` trace is pretty slow, maybe because we need to allocate debug string for each entry.
+  - Already offloading everything possible to another thread.
 * Try `minitrace-rust` see if it is faster/more accurate than `tracing`.
-* Try filtering more data?
+  - Or some other alternative crate?
+  - Browsers collect trace by ID, ideally our "ID" would be a static str but the tracing API does not allow it.
+
+# Code Bloat
+
+* The main crate generates a massive amount of "llvm-lines".
+* The final executables are pretty big as well.
+* Probably a lot of type name strings?
 
 # Parallel UI
 
