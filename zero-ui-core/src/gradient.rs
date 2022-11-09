@@ -241,7 +241,7 @@ impl ColorStop {
     }
 }
 impl_from_and_into_var! {
-    fn from<C: Into<Rgba> + Clone, O: Into<Length> + Clone>((color, offset): (C, O)) -> ColorStop {
+    fn from<C: Into<Rgba>, O: Into<Length>>((color, offset): (C, O)) -> ColorStop {
         ColorStop::new(color, offset)
     }
 
@@ -272,7 +272,7 @@ pub enum GradientStop {
     ColorHint(Length),
 }
 impl_from_and_into_var! {
-    fn from<C: Into<Rgba> + Clone, O: Into<Length> + Clone>(color_offset: (C, O)) -> GradientStop {
+    fn from<C: Into<Rgba>, O: Into<Length>>(color_offset: (C, O)) -> GradientStop {
         GradientStop::Color(color_offset.into())
     }
 

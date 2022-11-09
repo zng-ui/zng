@@ -1211,7 +1211,7 @@ pub struct ColorPair {
 }
 impl_from_and_into_var! {
     /// From `(dark, light)` tuple.
-    fn from<D: Into<Rgba> + Clone, L: Into<Rgba> + Clone>((dark, light): (D, L)) -> ColorPair {
+    fn from<D: Into<Rgba>, L: Into<Rgba>>((dark, light): (D, L)) -> ColorPair {
         ColorPair {
             dark: dark.into(),
             light: light.into(),

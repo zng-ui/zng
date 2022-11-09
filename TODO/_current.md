@@ -1,4 +1,3 @@
-* Review `IntoVar` and `IntoVarValue` constrains, we don't need then to be debug/clone anymore?
 * Test property generics `value::<bool> = true; when *#is_something { value::<u32> = 32; }`.
 * Const errors don't show if  there is a compile error, so the when `!foo::ALLOWED_IN_WHEN_EXPR` does not show.
     - Generate a placeholder `__w_0__`?

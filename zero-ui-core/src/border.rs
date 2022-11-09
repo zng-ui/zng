@@ -352,7 +352,7 @@ impl_from_and_into_var! {
     }
 
     /// (top-left, top-right, bottom-left, bottom-right) corners.
-    fn from<TL: Into<Size> + Clone, TR: Into<Size> + Clone, BR: Into<Size> + Clone, BL: Into<Size> + Clone>(
+    fn from<TL: Into<Size>, TR: Into<Size>, BR: Into<Size>, BL: Into<Size>>(
         (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL)
     ) -> CornerRadius {
         CornerRadius::new(top_left, top_right, bottom_right, bottom_left)
@@ -531,30 +531,30 @@ impl_from_and_into_var! {
     }
 
     /// (color, style) side.
-    fn from<C: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>((color, style): (C, S)) -> BorderSide {
+    fn from<C: Into<Rgba>, S: Into<BorderStyle>>((color, style): (C, S)) -> BorderSide {
         BorderSide::new(color, style)
     }
 
     /// (color, style) sides.
-    fn from<C: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>((color, style): (C, S)) -> BorderSides {
+    fn from<C: Into<Rgba>, S: Into<BorderStyle>>((color, style): (C, S)) -> BorderSides {
         BorderSides::new_all(BorderSide::new(color, style))
     }
 
     /// (top, right, bottom, left) sides.
-    fn from<T: Into<BorderSide> + Clone, R: Into<BorderSide> + Clone, B: Into<BorderSide> + Clone, L: Into<BorderSide> + Clone>(
+    fn from<T: Into<BorderSide>, R: Into<BorderSide>, B: Into<BorderSide>, L: Into<BorderSide>>(
         (top, right, bottom, left): (T, R, B, L)
     ) -> BorderSides {
         BorderSides::new(top, right, bottom, left)
     }
 
     /// (top-bottom-color, left-right-color, style) sides.
-    fn from<TB: Into<Rgba> + Clone, LR: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>((top_bottom, left_right, style): (TB, LR, S)) -> BorderSides {
+    fn from<TB: Into<Rgba>, LR: Into<Rgba>, S: Into<BorderStyle>>((top_bottom, left_right, style): (TB, LR, S)) -> BorderSides {
         let style = style.into();
         BorderSides::new_vh((top_bottom, style), (left_right, style))
     }
 
     /// (top-color, right-color, bottom-color, left-color, style) sides.
-    fn from<T: Into<Rgba> + Clone, R: Into<Rgba> + Clone, B: Into<Rgba> + Clone, L: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>(
+    fn from<T: Into<Rgba>, R: Into<Rgba>, B: Into<Rgba>, L: Into<Rgba>, S: Into<BorderStyle>>(
         (top, right, bottom, left, style): (T, R, B, L, S)
     ) -> BorderSides {
         let style = style.into();

@@ -147,7 +147,7 @@ impl_from_and_into_var! {
     }
 
     /// New from origin and size.
-    fn from<O: Into<Point> + Clone, S: Into<Size> + Clone>((origin, size): (O, S)) -> Rect {
+    fn from<O: Into<Point>, S: Into<Size>>((origin, size): (O, S)) -> Rect {
         Rect::new(origin, size)
     }
 }

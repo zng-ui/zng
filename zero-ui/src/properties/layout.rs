@@ -956,7 +956,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
 }
 
 /// Retain the widget's previous width if the new layout width is smaller.
-/// 
+///
 /// The widget is layout using its previous width as the minimum width constrain.
 #[property(SIZE, default(false))]
 pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
@@ -986,7 +986,7 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
 }
 
 /// Retain the widget's previous height if the new layout height is smaller.
-/// 
+///
 /// The widget is layout using its previous height as the minimum height constrain.
 #[property(SIZE, default(false))]
 pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
@@ -1016,7 +1016,7 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
 }
 
 /// Retain the widget's previous size if the new layout size is smaller.
-/// 
+///
 /// The widget is layout using its previous size as the minimum size constrain.
 #[property(SIZE, default(false))]
 pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {

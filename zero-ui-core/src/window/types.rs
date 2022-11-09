@@ -553,19 +553,19 @@ impl_from_and_into_var! {
         ImageSource::from(data).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat>>((data, format): (&'static [u8], F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Vec<u8>, F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> WindowIcon {
+    fn from<F: Into<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
     }
 }

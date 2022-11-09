@@ -172,14 +172,14 @@ impl<T: VarValue> AnyVarValue for T {
 ///
 /// # Implementing
 ///
-/// The trait is only auto-implemented for `T: Into<T> + Debug + Clone`, unfortunately actual type conversions
+/// The trait is only auto-implemented for `T: Into<T> + VarValue`, unfortunately actual type conversions
 /// must be manually implemented, note that the [`impl_from_and_into_var!`] macro auto-implements this conversion.
 ///
 /// [inspected]: crate::inspector
 /// [`Debug`]: std::fmt::Debug
 /// [`impl_from_and_into_var`]: crate::var::impl_from_and_into_var
-pub trait IntoValue<T: fmt::Debug + Any>: Into<T> + Clone {}
-impl<T: fmt::Debug + Clone + Any> IntoValue<T> for T {}
+pub trait IntoValue<T: VarValue>: Into<T> {}
+impl<T: VarValue> IntoValue<T> for T {}
 
 bitflags! {
     /// Kinds of interactions allowed by a [`Var<T>`] in the current update.
@@ -642,7 +642,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// Every [`Var<T>`] implements this to convert to it-self, every [`VarValue`] implements this to
 /// convert to an [`LocalVar<T>`].
 ///
-/// This trait is used by used by most properties, it allows then to accept literal values, variables and context variables
+/// This trait is used by most properties, it allows then to accept literal values, variables and context variables
 /// all with a single signature. Together with [`Var<T>`] this gives properties great flexibility of usage, at zero-cost. Widget
 /// `when` blocks also use [`IntoVar<T>`] to support *changing* the property value depending on the widget state.
 ///
@@ -758,7 +758,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///
 /// In the case of an static value the update code will be optimized away, but if assigned a variable it will become dynamic
 /// reacting to state changes, the same applies to `when` that compiles to a single property assign with a generated variable.
-pub trait IntoVar<T: VarValue>: Clone {
+pub trait IntoVar<T: VarValue> {
     /// Variable type that will wrap the `T` value.
     ///
     /// This is the [`LocalVar`] for most types or `Self` for variable types.

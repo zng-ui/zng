@@ -488,7 +488,7 @@ pub struct Factor2d {
     pub y: Factor,
 }
 impl_from_and_into_var! {
-    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Factor2d {
+    fn from<X: Into<Factor>, Y: Into<Factor>>((x, y): (X, Y)) -> Factor2d {
         Factor2d { x: x.into(), y: y.into() }
     }
 
@@ -788,8 +788,8 @@ impl_from_and_into_var! {
 
     /// New dimension, top-bottom, left-right.
     fn from<
-        TB: Into<Factor> + Clone,
-        LR: Into<Factor> + Clone
+        TB: Into<Factor>,
+        LR: Into<Factor>
         >(
             (top_bottom, left_right): (TB, LR)
         )
@@ -799,10 +799,10 @@ impl_from_and_into_var! {
 
     /// New top, right, bottom, left.
     fn from<
-        T: Into<Factor> + Clone,
-        R: Into<Factor> + Clone,
-        B: Into<Factor> + Clone,
-        L: Into<Factor> + Clone
+        T: Into<Factor>,
+        R: Into<Factor>,
+        B: Into<Factor>,
+        L: Into<Factor>
         >(
             (top, right, bottom, left): (T, R, B, L)
         )

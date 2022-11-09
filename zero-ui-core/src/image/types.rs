@@ -765,19 +765,19 @@ impl_from_and_into_var! {
         Arc::new(data).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> ImageSource {
+    fn from<F: Into<ImageDataFormat>>((data, format): (&'static [u8], F)) -> ImageSource {
         ImageSource::Static(ImageHash::compute(data), data, format.into())
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
+    fn from<F: Into<ImageDataFormat>, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
         (&data[..], format).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Vec<u8>, F)) -> ImageSource {
+    fn from<F: Into<ImageDataFormat>>((data, format): (Vec<u8>, F)) -> ImageSource {
         (Arc::new(data), format).into()
     }
     /// From encoded data of known format.
-    fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
+    fn from<F: Into<ImageDataFormat>>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
         ImageSource::Data(ImageHash::compute(&data[..]), data, format.into())
     }
 }

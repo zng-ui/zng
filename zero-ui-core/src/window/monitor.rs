@@ -238,10 +238,10 @@ impl Default for HeadlessMonitor {
     }
 }
 impl_from_and_into_var! {
-    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone>((width, height): (W, H)) -> HeadlessMonitor {
+    fn from<W: Into<Dip>, H: Into<Dip>>((width, height): (W, H)) -> HeadlessMonitor {
         HeadlessMonitor::new(DipSize::new(width.into(), height.into()))
     }
-    fn from<W: Into<Dip> + Clone, H: Into<Dip> + Clone, F: Into<Factor> + Clone>((width, height, scale): (W, H, F)) -> HeadlessMonitor {
+    fn from<W: Into<Dip>, H: Into<Dip>, F: Into<Factor>>((width, height, scale): (W, H, F)) -> HeadlessMonitor {
         HeadlessMonitor::new_scaled(DipSize::new(width.into(), height.into()), scale.into())
     }
 }

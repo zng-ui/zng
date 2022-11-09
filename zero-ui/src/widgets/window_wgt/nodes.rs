@@ -612,7 +612,7 @@ impl_from_and_into_var! {
         AnchorTransform::InnerOffset(inner_offset)
     }
     /// `InnerOffset`.
-    fn from<X: Into<Length> + Clone, Y: Into<Length> + Clone>(inner_offset: (X, Y)) -> AnchorTransform {
+    fn from<X: Into<Length>, Y: Into<Length>>(inner_offset: (X, Y)) -> AnchorTransform {
         Point::from(inner_offset).into()
     }
     /// `InnerOffset`.
@@ -759,7 +759,7 @@ impl_from_and_into_var! {
     }
 
     /// Custom transform and size, all else default.
-    fn from<T: Into<AnchorTransform> + Clone, S: Into<AnchorSize> + Clone>((transform, size): (T, S)) -> AnchorMode {
+    fn from<T: Into<AnchorTransform>, S: Into<AnchorSize>>((transform, size): (T, S)) -> AnchorMode {
         AnchorMode {
             transform: transform.into(),
             size: size.into(),

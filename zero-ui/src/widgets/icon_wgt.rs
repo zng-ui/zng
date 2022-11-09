@@ -123,7 +123,7 @@ pub mod icon {
         }
     }
     impl_from_and_into_var! {
-        fn from<F: Into<FontName> + Clone, G: Into<GlyphSource> + Clone>((name, glyph): (F, G)) -> GlyphIcon {
+        fn from<F: Into<FontName>, G: Into<GlyphSource>>((name, glyph): (F, G)) -> GlyphIcon {
             GlyphIcon::new(name, glyph)
         }
     }

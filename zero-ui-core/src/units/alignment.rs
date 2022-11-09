@@ -116,7 +116,7 @@ impl Align {
     }
 }
 impl_from_and_into_var! {
-    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Align {
+    fn from<X: Into<Factor>, Y: Into<Factor>>((x, y): (X, Y)) -> Align {
         Align { x: x.into(), y: y.into() }
     }
 
