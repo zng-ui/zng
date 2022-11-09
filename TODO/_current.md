@@ -1,7 +1,3 @@
-* Review property & widget macro docs.
-    - Property does not generate mod anymore.
-    - Widget publishes include and build.
-
 * Implement when assign for `UiNode`, `UiNodeList` and `WidgetHandler`.
 * Rename `toggle::selection` to `toggle::selector` or rename `Selector` to `Selection`.
 * Merge `Property.new/new_when` into a single constructor that uses some kind of provider interface.

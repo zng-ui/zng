@@ -261,6 +261,8 @@ pub use zero_ui_proc_macros::widget_new;
 /// [`layout`]: crate::widget_instance::UiNode::layout
 /// [`render`]: crate::widget_instance::UiNode::render
 /// [`WidgetContext::handles`]: crate::context::WidgetContext::handles
+///
+/// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::ui_node;
 
@@ -277,7 +279,7 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// ## Nest Group
 ///
-/// The first argument is the property [`NestGroup`], written as one the `const` group names. The property nest defines the overall nest position
+/// The first argument is the property [`NestGroup`], written as one the `const` group names. The group defines the overall nest position
 /// of the property, for example, `LAYOUT` properties always wrap `FILL` properties. This is important as widgets are open and any combination
 /// of properties may end-up instantiated in the same widget.
 ///
@@ -437,6 +439,8 @@ pub use zero_ui_proc_macros::ui_node;
 /// [`InputKind::UiNodeList`]: crate::widget_builder::InputKind::UiNodeList
 /// [`InputKind::WidgetHandler`]: crate::widget_builder::InputKind::WidgetHandler
 /// [`event_property!`]: crate::event::event_property
+///
+/// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::property;
 
@@ -449,7 +453,7 @@ pub use zero_ui_proc_macros::property;
 /// # Attribute
 ///
 /// The widget attribute must be placed in a `mod name { }` module declaration, only modules with inline content are supported, mods
-/// with content in other files will cause a compile time error. You also cannot set the attribute from the inside `#!`, this  is a current
+/// with content in other files will cause a compile time error. You also cannot set the attribute from the inside `#!`, this  is a
 /// limitation of the Rust compiler.
 ///
 /// The attribute receives one argument, it must be a macro style `$crate` path to the widget module, this is used in the generated macro
@@ -516,6 +520,11 @@ pub use zero_ui_proc_macros::property;
 /// own behavior that does not depend on properties. Note that the widget inherits from [`widget_base::base`], during [instantiation](#instantiation)
 /// of `foo!` the base include is called first, then the `foo!` include is called.
 ///
+/// The function does not need to be `pub`, but the widget attribute will generate a `pub` include function that calls this function,
+/// inherited includes and property builds. This generated `pub fn include` is visible in docs with sections about the properties and
+/// inherits it builds documented, if you place docs in the custom `include` they are incorporated in the generated docs after the
+/// first paragraph.
+///
 /// # Build
 ///
 /// The widget module can define a function that *builds* the final widget instance.
@@ -545,6 +554,9 @@ pub use zero_ui_proc_macros::property;
 /// widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets, the widget outer-node also must implement
 /// the widget context, to ensure that the widget is correctly placed in the UI tree. The base widget implementation is in [`widget_base::nodes::widget`],
 /// you can use it directly, so even if you need to run code on build or define a custom type you don't need to start from scratch.
+///
+/// The function does not need to be `pub`, but the widget attribute will make it `pub` and add some minimal docs, if you place
+/// docs in the custom `build` they are incorporated after the generated docs.
 ///
 /// # Properties
 ///
@@ -941,6 +953,8 @@ pub use zero_ui_proc_macros::property;
 /// [`UiNode`]: widget_instance::UiNode
 /// [`StateVar`]: var::StateVar
 /// [`widget_base::base`]: mod@widget_base::base
+///
+/// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 
@@ -951,11 +965,12 @@ pub use zero_ui_proc_macros::widget;
 /// this is validated at compile time. Mix-ins represent a set of properties and build actions that adds a complex feature to an widget,
 /// something that cannot be implemented as a single property.
 ///
-/// See the [`#[widget(..)]`][#widget] documentation for how to declare, the only difference
-/// from a full widget is that you can only inherit other mix-ins and cannot declare
-/// the `build` function.
+/// See the [`#[widget(..)]`][#widget] documentation for how to declare, the same syntax and items are expected
+/// by this macro, except the `build` function.
 ///
 /// [#widget]: macro@widget
+///
+/// <div style='display:none'>
 
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget_mixin;
