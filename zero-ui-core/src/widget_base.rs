@@ -345,7 +345,7 @@ pub mod nodes {
                     tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), self.id);
                 }
 
-                let (_, updates) = ctx.widget_context(
+                let (_, (updates, reinit)) = ctx.widget_context(
                     self.id,
                     &self.info,
                     &mut self.state,
@@ -358,6 +358,11 @@ pub mod nodes {
                     },
                 );
                 *self.pending_updates.get_mut() |= updates;
+
+                if reinit {
+                    self.deinit(ctx);
+                    self.init(ctx);
+                }
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -366,7 +371,7 @@ pub mod nodes {
                     tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
                 }
 
-                let (_, updates) = ctx.widget_context(
+                let (_, (updates, reinit)) = ctx.widget_context(
                     self.id,
                     &self.info,
                     &mut self.state,
@@ -379,6 +384,11 @@ pub mod nodes {
                     },
                 );
                 *self.pending_updates.get_mut() |= updates;
+
+                if reinit {
+                    self.deinit(ctx);
+                    self.init(ctx);
+                }
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {

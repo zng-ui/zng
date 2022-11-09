@@ -1,5 +1,3 @@
-* Review nodes that call `(de)init(ctx)`, are they causing a widget handle collection to grow uncontrolledly?
-
 * If `ui_list![]` auto boxes in the macro params, but the returned type does not auto-boxes on `.push`.
     - Before refactor we had `WidgetVec(pub Vec<BoxedWidget>)`.
 

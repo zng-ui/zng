@@ -116,6 +116,7 @@ impl<U: UiNode> RcNode<U> {
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init(ctx),
             delegate_deinit: |n, ctx| n.deinit(ctx),
+            init_count: 0,
         }
     }
 
@@ -140,6 +141,7 @@ impl<U: UiNode> RcNode<U> {
             },
             delegate_init: |n, ctx| n.init(ctx),
             delegate_deinit: |n, ctx| n.deinit(ctx),
+            init_count: 0,
         }
     }
 
@@ -245,6 +247,7 @@ impl<L: UiNodeList> RcNodeList<L> {
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init_all(ctx),
             delegate_deinit: |n, ctx| n.deinit_all(ctx),
+            init_count: 0,
         }
     }
 
@@ -269,6 +272,7 @@ impl<L: UiNodeList> RcNodeList<L> {
             },
             delegate_init: |n, ctx| n.init_all(ctx),
             delegate_deinit: |n, ctx| n.deinit_all(ctx),
+            init_count: 0,
         }
     }
 
@@ -385,6 +389,7 @@ mod impls {
 
         pub(super) delegate_init: fn(&mut U, &mut WidgetContext),
         pub(super) delegate_deinit: fn(&mut U, &mut WidgetContext),
+        pub(super) init_count: u8,
     }
     impl<U, T: TakeOn> TakeSlot<U, T> {
         fn on_init(&mut self, ctx: &mut WidgetContext) {
@@ -449,6 +454,11 @@ mod impls {
                     (self.delegate_init)(&mut new, ctx);
                     *node = new;
 
+                    self.init_count = self.init_count.wrapping_add(1);
+                    if self.init_count == 0 {
+                        // cleanup handle accumulation.
+                        ctx.updates.reinit();
+                    }
                     ctx.updates.info_layout_and_render();
                 }
             } else if self.take.take_on_update(ctx, updates) {
@@ -483,6 +493,11 @@ mod impls {
 
             if self.is_owner() {
                 (self.delegate_init)(&mut *self.rc.item.borrow_mut(), ctx);
+                self.init_count = self.init_count.wrapping_add(1);
+                if self.init_count == 0 {
+                    // cleanup handle accumulation.
+                    ctx.updates.reinit();
+                }
                 ctx.updates.info_layout_and_render();
             }
         }

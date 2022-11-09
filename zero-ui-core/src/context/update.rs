@@ -104,6 +104,7 @@ pub struct UpdateArgs {
 pub struct Updates {
     event_sender: AppEventSender,
     update: bool,
+    reinit: bool,
     update_widgets: UpdateDeliveryList,
     layout: bool,
     l_updates: LayoutUpdates,
@@ -116,6 +117,7 @@ impl Updates {
         Updates {
             event_sender,
             update: false,
+            reinit: false,
             update_widgets: UpdateDeliveryList::new_any(),
             layout: false,
             l_updates: LayoutUpdates {
@@ -137,6 +139,18 @@ impl Updates {
     pub fn update(&mut self, target: impl Into<Option<WidgetId>>) {
         UpdatesTrace::log_update();
         self.update_internal(target.into());
+    }
+
+    /// Flags the current widget to deinit and init.
+    ///
+    /// Note that this is not a scheduled update, the widget will reinit as soon as the execution returns to it.
+    pub fn reinit(&mut self) {
+        self.reinit = true;
+    }
+
+    /// If the current widget will deinit and init as soon as the execution returns to it.
+    pub fn reinit_flagged(&self) -> bool {
+        self.reinit
     }
 
     pub(crate) fn update_internal(&mut self, target: Option<WidgetId>) {
@@ -330,9 +344,9 @@ impl Updates {
     pub(super) fn enter_widget_ctx(&mut self) -> InfoLayoutRenderUpdates {
         mem::take(&mut self.l_updates.window_updates)
     }
-    pub(super) fn exit_widget_ctx(&mut self, mut prev: InfoLayoutRenderUpdates) -> InfoLayoutRenderUpdates {
+    pub(super) fn exit_widget_ctx(&mut self, mut prev: InfoLayoutRenderUpdates) -> (InfoLayoutRenderUpdates, bool) {
         prev |= self.l_updates.window_updates;
-        mem::replace(&mut self.l_updates.window_updates, prev)
+        (mem::replace(&mut self.l_updates.window_updates, prev), mem::take(&mut self.reinit))
     }
 
     pub(super) fn take_updates(&mut self) -> (bool, WidgetUpdates, bool, bool) {

@@ -779,8 +779,8 @@ pub struct WidgetContext<'a> {
     pub updates: &'a mut Updates,
 }
 impl<'a> WidgetContext<'a> {
-    /// Runs a function `f` in the context of a widget, returns the function result and
-    /// what updates where requested inside it.
+    /// Runs a function `f` in the context of a widget, returns the function result,
+    /// info+layout+render update requests and reinit request.
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
@@ -789,7 +789,7 @@ impl<'a> WidgetContext<'a> {
         var_handles: &mut VarHandles,
         event_handles: &mut EventHandles,
         f: impl FnOnce(&mut WidgetContext) -> R,
-    ) -> (R, InfoLayoutRenderUpdates) {
+    ) -> (R, (InfoLayoutRenderUpdates, bool)) {
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
