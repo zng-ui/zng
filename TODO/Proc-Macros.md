@@ -44,6 +44,8 @@ pub mod foo {
 
 * Review all error span hacks when this issue https://github.com/rust-lang/rust/issues/54725 is stable.
 * Allow trailing semicolon in widget_new (those are only warnings in Rust, not errors)
+* Const errors don't show if  there is a compile error, so the when `!foo::ALLOWED_IN_WHEN_EXPR` does not show.
+    - Can't generate placeholder `__w_0__` because the property type does not match (UiNode cannot be in a Var for example).
 
 ## Difficult
 
