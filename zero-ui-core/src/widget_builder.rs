@@ -1665,12 +1665,17 @@ impl WidgetBuilding {
 
             let mut any_assign = false;
             // collect assigns.
-            for assign in when.assigns.iter() {
+           'assign: for assign in when.assigns.iter() {
                 let id = assign.id();
-                let i = if let Some(i) = self.property_index(id) {
-                    i
+                let assign_info;
+                let i;
+                if let Some(idx) = self.property_index(id) {
+                    assign_info = assign.property();
+                    i = idx;
                 } else if let Some(default) = assign.property().default {
                     let args = default(assign.instance());
+                    assign_info = args.property();
+                    i = self.p.items.len();
                     self.p.items.push(WidgetItemPositioned {
                         position: NestPosition::property(args.property().group),
                         insert_idx: u32::MAX,
@@ -1680,10 +1685,9 @@ impl WidgetBuilding {
                             captured: false,
                         },
                     });
-                    self.p.items.len() - 1
                 } else {
                     continue;
-                };
+                }
 
                 any_assign = true;
 
@@ -1692,6 +1696,13 @@ impl WidgetBuilding {
                     WidgetItem::Intrinsic { .. } => unreachable!(),
                 };
                 let info = default_args.property();
+
+                for (default_info, assign_info) in info.inputs.iter().zip(assign_info.inputs.iter()) {
+                    if default_info.ty != assign_info.ty {
+                        // can happen with generic properties.
+                        continue 'assign;
+                    }
+                }
 
                 let entry = match assigns.entry(id) {
                     linear_map::Entry::Occupied(e) => e.into_mut(),
