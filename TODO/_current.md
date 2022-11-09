@@ -1,5 +1,6 @@
 * Review docs.
-* !!:
+    - List inherits.
+    - When not rendering?
 * Merge.
 
 * Review nodes that call `(de)init(ctx)`, are they causing a widget handle collection to grow uncontrolledly?

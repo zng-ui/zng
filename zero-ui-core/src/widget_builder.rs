@@ -103,7 +103,11 @@ macro_rules! property_id {
         #[rustfmt::skip] use $($property)::+ as property;
         property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
-    // !!: rename generics
+    ($($property:ident)::+ ::<$($generics:ty),*> as $rename:ident) => {{
+        // Rust does not expand the macro if we remove the braces.
+        #[rustfmt::skip] use $($property)::+ as property;
+        property::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+    }};
 }
 #[doc(inline)]
 pub use crate::property_id;
@@ -137,7 +141,13 @@ macro_rules! property_args {
             }
         }
     };
-    // !!: generics
+    ($($property:ident)::+ ::<$($generics:ty),*> $(as $rename:ident)? = $($value:tt)*) => {
+        {
+            $crate::widget_builder::property_args_getter! {
+                $($property)::+ ::<$($generics),*> $(as $rename)? = $($value)*
+            }
+        }
+    };
 }
 #[doc(inline)]
 pub use crate::property_args;

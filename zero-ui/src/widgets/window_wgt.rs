@@ -148,7 +148,7 @@ pub mod window {
         /// This event notifies once per window, after the window content is inited.
         ///
         /// This property is the [`on_pre_window_open`] so window handlers see it first.
-        /// 
+        ///
         /// [`on_pre_window_open`]: fn@events::window::on_pre_window_open
         pub events::window::on_pre_window_open as on_open;
 

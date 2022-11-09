@@ -210,9 +210,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let out = &build.sig.output;
         quote_spanned! {build.span()=>
             /// Build the widget.
-            /// 
+            ///
             /// The widget macro calls this function to build the widget instance.
-            /// 
+            ///
             #(#docs)*
             pub fn build(builder: #crate_core::widget_builder::WidgetBuilder) #out {
                 self::__build__(builder)
@@ -251,8 +251,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     let mut inherit_export = quote!();
 
-    for Inherit { attrs, path } in inherits {
-        inherit_export.extend(quote_spanned! {path_span(&path)=>
+    for Inherit { attrs, path } in &inherits {
+        inherit_export.extend(quote_spanned! {path_span(path)=>
             #(#attrs)*
             #[allow(unused_imports)]
             #[doc(no_inline)]
@@ -265,21 +265,40 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     let macro_ident = ident!("__wgt_{}__", mod_path_slug);
 
-    // !!: move auto-docs to `pub fn include`.
     let docs_span = properties.first().map(|p| p.properties_span).unwrap_or_else(Span::call_site);
 
+    let mut doc_inherits = quote!();
     let mut doc_assigns = quote!();
     let mut doc_unsets = quote!();
     let mut doc_whens = quote!();
+
+    for Inherit { path, .. } in &inherits {
+        if doc_inherits.is_empty() {
+            doc_inherits.extend(quote_spanned! {docs_span=>
+                ///
+                /// ## Inherits
+                ///
+                /// These other includes functions are also called by the include function.
+                ///
+            });
+        }
+
+        let path = path.to_token_stream().to_string().replace(' ', "");
+        let doc = format!("* [`{path}::include`](fn@{path}::include)");
+        doc_inherits.extend(quote_spanned! {docs_span=>
+            #[doc = #doc]
+        });
+    }
+
     for p in &properties {
         for p in &p.properties {
             if p.is_unset() {
                 if doc_unsets.is_empty() {
                     doc_unsets.extend(quote_spanned! {docs_span=>
                         ///
-                        /// # Default Unsets
+                        /// ## Unsets
                         ///
-                        /// These properties are `unset!` by default:
+                        /// These properties are unset by the include function.
                         ///
                     });
                 }
@@ -291,9 +310,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 if doc_assigns.is_empty() {
                     doc_assigns.extend(quote_spanned! {docs_span=>
                         ///
-                        /// # Default Assigns
+                        /// ## Assigns
                         ///
-                        /// These properties are set by default:
+                        /// These properties are set by the include function.
                         ///
                     });
                 }
@@ -311,22 +330,23 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         }
         for w in &p.whens {
             if doc_whens.is_empty() {
-                doc_unsets.extend(quote_spanned! {docs_span=>
+                doc_whens.extend(quote_spanned! {docs_span=>
                     ///
-                    /// # Default Whens
+                    /// ## Whens
                     ///
-                    /// These `when` assigns are set by default:
+                    /// These when conditionals are set by the include function.
                     ///
                 });
             }
-            let doc = format!("### `when {}`", w.condition_expr);
+            let doc = format!("* `when {}`", w.condition_expr);
             doc_whens.extend(quote_spanned! {docs_span=>
                 ///
                 #[doc=#doc]
                 ///
             });
             for p in &w.assigns {
-                let doc = format!("* `{0}`", p.ident());
+                let path = p.path.to_token_stream().to_string().replace(' ', "");
+                let doc = format!("   * [`{0}`](fn@{path})", p.ident());
                 doc_whens.extend(quote_spanned! {docs_span=>
                     #[doc=#doc]
                 });
@@ -339,8 +359,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             /// Include mix-in built-ins.
             ///
             /// This function is called by all widgets that inherit from this mix-in.
-            /// 
+            ///
             #(#custom_include_docs)*
+            ///
+            /// # Included
+            ///
+            /// These items are included in the builder by this function.
         }
     } else {
         quote_spanned! {docs_span=>
@@ -348,8 +372,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             ///
             /// The widget macro calls this function to start building the widget. This function is also called by
             /// inheritor widgets.
-            /// 
+            ///
             #(#custom_include_docs)*
+            ///
+            /// # Included
+            ///
+            /// These items are included in the builder by this function.
         }
     };
 
@@ -371,6 +399,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #doc_assigns
         #doc_unsets
         #doc_whens
+        #doc_inherits
         pub fn include(builder: &mut #crate_core::widget_builder::WidgetBuilder) {
             let __wgt__ = builder;
             #include_item_imports
