@@ -645,7 +645,7 @@ impl WgtWhen {
             let error = format!("property `{p_ident_str}` cannot be read in when expr");
             inputs.extend(quote! {
                 {
-                    const _: () = if !#property::ALLOWED_IN_WHEN_EXPR {
+                    const _: () = if !#property #generics::ALLOWED_IN_WHEN_EXPR {
                         panic!(#error)
                     };
 
@@ -667,6 +667,7 @@ impl WgtWhen {
             }
 
             let args = a.args_new(wgt_builder_mod.clone());
+            let generics = &a.generics;
             let cfg = &a.attrs.cfg;
             assigns.extend(quote! {
                 #cfg
@@ -677,7 +678,7 @@ impl WgtWhen {
             let error = format!("property `{}` cannot be assigned in when", a.ident());
             assigns_error.extend(quote_spanned! {path_span(path)=>
                 #cfg
-                const _: () = if !#path::ALLOWED_IN_WHEN_ASSIGN {
+                const _: () = if !#path #generics::ALLOWED_IN_WHEN_ASSIGN {
                     panic!(#error);
                 };
             });
