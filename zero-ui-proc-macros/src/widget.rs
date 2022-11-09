@@ -338,7 +338,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                     ///
                 });
             }
-            let doc = format!("* `when {}`", w.condition_expr);
+            let doc = format!("* `when {}`", w.condition_expr_str);
             doc_whens.extend(quote_spanned! {docs_span=>
                 ///
                 #[doc=#doc]

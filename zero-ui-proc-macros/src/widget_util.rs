@@ -583,10 +583,13 @@ impl WgtWhen {
             return None;
         };
 
+        let expr_str = condition_expr.to_string().replace(" # ", "__pound__");
+        let expr_str = util::format_rust_expr(expr_str).replace("__pound__", "#");
+
         Some(WgtWhen {
             attrs: Attributes::new(vec![]), // must be parsed before.
             when,
-            condition_expr_str: util::format_rust_expr(condition_expr.to_string()),
+            condition_expr_str: expr_str,
             condition_expr,
             brace_token,
             assigns,
