@@ -548,7 +548,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
 fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl UiNodeList) -> impl UiNode {
     v_stack! {
         spacing = 5;
-        toggle::selection = toggle::Selector::single(selection);
+        toggle::selector = toggle::Selector::single(selection);
         children = ui_list![text! {
             txt = header;
             font_weight = FontWeight::BOLD;

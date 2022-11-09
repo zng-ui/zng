@@ -4,16 +4,16 @@ use crate::prelude::new_widget::*;
 ///
 /// This widget has three primary properties, [`checked`], [`checked_opt`] and [`value`], setting one
 /// of the checked properties to a read-write variable enables the widget and it will set the variables
-/// on click, setting [`value`] turns the toggle in a selection item that sets a contextual [`selection`].
+/// on click, setting [`value`] turns the toggle in a selection item that is inserted/removed in a contextual [`selector`].
 ///
 /// [`checked`]: #wp-checked
 /// [`checked_opt`]: #wp-checked_opt
 /// [`value`]: #wp-value
-/// [`selection`]: fn@toggle::selection
+/// [`selector`]: fn@toggle::selector
 #[widget($crate::widgets::toggle)]
 pub mod toggle {
     #[doc(inline)]
-    pub use super::toggle_properties::{selection, Selector, IS_CHECKED_VAR};
+    pub use super::toggle_properties::{selector, Selector, IS_CHECKED_VAR};
     #[doc(inline)]
     pub use super::vis;
 
@@ -245,13 +245,13 @@ pub mod toggle_properties {
         bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
     }
 
-    /// Values that is selected in the contextual [`selection`].
+    /// Values that is selected in the contextual [`selector`].
     ///
-    /// The widget [`is_checked`] when the value is selected, on click and on value update the selection
-    /// is updated according to the behavior defined in the contextual [`selection`]. If no contextual
-    /// [`selection`] is the the widget is never checked.
+    /// The widget [`is_checked`] when the value is selected, on click and on value update, the selection
+    /// is updated according to the behavior defined in the contextual [`selector`]. If no contextual
+    /// [`selector`] is the the widget is never checked.
     ///
-    /// Note that the value can be any type, but must be one of the types accepted by the contextual [`selection`], type
+    /// Note that the value can be any type, but must be one of the types accepted by the contextual [`selector`], type
     /// validation happens in run-time, an error is logged if the type is not compatible. Because any type can be used in
     /// this property type inference cannot resolve the type automatically and a type annotation is required: `value<T> = t;`.
     ///
@@ -264,7 +264,7 @@ pub mod toggle_properties {
     /// let foo = var(1_i32);
     ///
     /// v_stack! {
-    ///     toggle::selection = toggle::Selector::single(foo.clone());
+    ///     toggle::selector = toggle::Selector::single(foo.clone());
     ///
     ///     spacing = 5;
     ///     children = (1..=10_i32).map(|i| {
@@ -279,12 +279,12 @@ pub mod toggle_properties {
     /// ```
     ///
     /// [`is_checked`]: #wp-is_checked
-    /// [`selection`]: fn@selection
+    /// [`selector`]: fn@selector
     ///
-    /// This property interacts with the contextual [`selection`], when the widget is clicked or the `value` variable changes
+    /// This property interacts with the contextual [`selector`], when the widget is clicked or the `value` variable changes
     /// the contextual [`Selector`] is used to implement the behavior.
     ///
-    /// [`selection`]: fn@selection
+    /// [`selector`]: fn@selector
     #[property(CONTEXT)]
     pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
         #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
@@ -419,7 +419,7 @@ pub mod toggle_properties {
                     selected
                 });
                 let selected = selected.unwrap_or_else(|| {
-                    // contextual selection can change in any update.
+                    // contextual selector can change in any update.
                     self.value.with(|val| Self::is_selected(ctx, val))
                 });
                 self.checked.set_ne(ctx.vars, selected);
@@ -447,17 +447,17 @@ pub mod toggle_properties {
         }
     }
 
-    /// Sets the contextual selection target that all inner widgets will target from the [`value`] property.
+    /// Sets the contextual selector that all inner widgets will target from the [`value`] property.
     ///
     /// All [`value`] properties declared in widgets inside `child` will use the [`Selector`] to manipulate
     /// the selection.
     ///
-    /// Selection in a context can be blocked by setting the selector to [`Selector::nil()`], this is also the default selector so the [`value`]
-    /// property only works if a contextual selection is present.
+    /// Selection in a context can be blocked by setting the selector to [`Selector::nil()`], this is also the default
+    /// selector so the [`value`] property only works if a contextual selector is present.
     ///
     /// [`value`]: fn@value
     #[property(CONTEXT, default(Selector::nil()))]
-    pub fn selection(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
+    pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
         with_context_value(child, SELECTOR, selector)
     }
 
@@ -546,12 +546,12 @@ pub mod toggle_properties {
         fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool;
     }
 
-    /// Represents the contextual selection behavior of [`value`] selection.
+    /// Represents the contextual selector behavior of [`value`] selector.
     ///
-    /// A selector can be set using [`selection`], all [`value`] widgets in context will target it.
+    /// A selector can be set using [`selector`], all [`value`] widgets in context will target it.
     ///
     /// [`value`]: fn@value
-    /// [`selection`]: fn@selection
+    /// [`selector`]: fn@selector
     #[derive(Clone)]
     pub struct Selector(Rc<RefCell<dyn SelectorImpl>>);
     impl Selector {
@@ -560,14 +560,14 @@ pub mod toggle_properties {
             Self(Rc::new(RefCell::new(selector)))
         }
 
-        /// Represents no selection and the inability to select any item.
+        /// Represents no selector and the inability to select any item.
         pub fn nil() -> Self {
             struct NilSel;
             impl SelectorImpl for NilSel {
                 fn subscribe(&self, _: WidgetId, _: &mut WidgetHandles) {}
 
                 fn select(&mut self, _: &mut WidgetContext, _: Box<dyn Any>) -> Result<(), SelectorError> {
-                    Err(SelectorError::custom_str("no contextual `selection`"))
+                    Err(SelectorError::custom_str("no contextual `selector`"))
                 }
 
                 fn deselect(&mut self, _: &mut WidgetContext, _: &dyn Any) -> Result<(), SelectorError> {
@@ -582,12 +582,12 @@ pub mod toggle_properties {
         }
 
         /// Represents the "radio" selection of a single item.
-        pub fn single<T>(target: impl IntoVar<T>) -> Self
+        pub fn single<T>(selection: impl IntoVar<T>) -> Self
         where
             T: VarValue + PartialEq,
         {
             struct SingleSel<T, S> {
-                target: S,
+                selection: S,
                 _type: PhantomData<T>,
             }
             impl<T, S> SelectorImpl for SingleSel<T, S>
@@ -596,12 +596,12 @@ pub mod toggle_properties {
                 S: Var<T>,
             {
                 fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
-                    handles.push_var(self.target.subscribe(widget_id));
+                    handles.push_var(self.selection.subscribe(widget_id));
                 }
 
                 fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
                     match value.downcast::<T>() {
-                        Ok(value) => match self.target.set_ne(ctx, *value) {
+                        Ok(value) => match self.selection.set_ne(ctx, *value) {
                             Ok(_) => Ok(()),
                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         },
@@ -619,24 +619,24 @@ pub mod toggle_properties {
 
                 fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
                     match value.downcast_ref::<T>() {
-                        Some(value) => self.target.with(|t| t == value),
+                        Some(value) => self.selection.with(|t| t == value),
                         None => false,
                     }
                 }
             }
             Self::new(SingleSel {
-                target: target.into_var(),
+                selection: selection.into_var(),
                 _type: PhantomData,
             })
         }
 
         /// Represents the "radio" selection of a single item that is optional.
-        pub fn single_opt<T>(target: impl IntoVar<Option<T>>) -> Self
+        pub fn single_opt<T>(selection: impl IntoVar<Option<T>>) -> Self
         where
             T: VarValue + PartialEq,
         {
             struct SingleOptSel<T, S> {
-                target: S,
+                selection: S,
                 _type: PhantomData<T>,
             }
             impl<T, S> SelectorImpl for SingleOptSel<T, S>
@@ -645,17 +645,17 @@ pub mod toggle_properties {
                 S: Var<Option<T>>,
             {
                 fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
-                    handles.push_var(self.target.subscribe(widget_id));
+                    handles.push_var(self.selection.subscribe(widget_id));
                 }
 
                 fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
                     match value.downcast::<T>() {
-                        Ok(value) => match self.target.set_ne(ctx, Some(*value)) {
+                        Ok(value) => match self.selection.set_ne(ctx, Some(*value)) {
                             Ok(_) => Ok(()),
                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         },
                         Err(value) => match value.downcast::<Option<T>>() {
-                            Ok(value) => match self.target.set_ne(ctx, *value) {
+                            Ok(value) => match self.selection.set_ne(ctx, *value) {
                                 Ok(_) => Ok(()),
                                 Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                             },
@@ -667,8 +667,8 @@ pub mod toggle_properties {
                 fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
                     match value.downcast_ref::<T>() {
                         Some(value) => {
-                            if self.target.with(|t| t.as_ref() == Some(value)) {
-                                match self.target.set(ctx, None) {
+                            if self.selection.with(|t| t.as_ref() == Some(value)) {
+                                match self.selection.set(ctx, None) {
                                     Ok(_) => Ok(()),
                                     Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                                 }
@@ -678,11 +678,11 @@ pub mod toggle_properties {
                         }
                         None => match value.downcast_ref::<Option<T>>() {
                             Some(value) => {
-                                if self.target.with(|t| t == value) {
+                                if self.selection.with(|t| t == value) {
                                     if value.is_none() {
                                         Ok(())
                                     } else {
-                                        match self.target.set(ctx, None) {
+                                        match self.selection.set(ctx, None) {
                                             Ok(_) => Ok(()),
                                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                                         }
@@ -698,16 +698,16 @@ pub mod toggle_properties {
 
                 fn is_selected(&self, _: &mut InfoContext, value: &dyn Any) -> bool {
                     match value.downcast_ref::<T>() {
-                        Some(value) => self.target.with(|t| t.as_ref() == Some(value)),
+                        Some(value) => self.selection.with(|t| t.as_ref() == Some(value)),
                         None => match value.downcast_ref::<Option<T>>() {
-                            Some(value) => self.target.with(|t| t == value),
+                            Some(value) => self.selection.with(|t| t == value),
                             None => false,
                         },
                     }
                 }
             }
             Self::new(SingleOptSel {
-                target: target.into_var(),
+                selection: selection.into_var(),
                 _type: PhantomData,
             })
         }
@@ -746,7 +746,7 @@ pub mod toggle_properties {
     /// Error for [`Selector`] operations.
     #[derive(Debug, Clone)]
     pub enum SelectorError {
-        /// Cannot select item because it is not of the same type as the selection.
+        /// Cannot select item because it is not of type that the selector can handle.
         WrongType,
         /// Cannot (de)select item because the selection is read-only.
         ReadOnly,
@@ -767,7 +767,7 @@ pub mod toggle_properties {
     impl fmt::Display for SelectorError {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self {
-                SelectorError::WrongType => write!(f, "wrong value type for selection"),
+                SelectorError::WrongType => write!(f, "wrong value type for selector"),
                 SelectorError::ReadOnly => write!(f, "selection is read-only"),
                 SelectorError::CannotClear => write!(f, "selection cannot be empty"),
                 SelectorError::Custom(e) => fmt::Display::fmt(e, f),

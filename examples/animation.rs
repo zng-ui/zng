@@ -71,7 +71,7 @@ fn example(vars: &Vars) -> impl UiNode {
             h_stack! {
                 id = "mod-menu";
                 spacing = 2;
-                toggle::selection = toggle::Selector::single(easing_mod.clone());
+                toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
                     let mode = |m: easing::EasingModifierFn| toggle! {
                         child = text(m.to_text());
