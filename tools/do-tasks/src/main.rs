@@ -93,7 +93,12 @@ fn doc(mut args: Vec<&str>) {
 
     let serve = take_flag(&mut args, &["-s", "--serve"]);
 
-    for pkg in util::glob("zero-ui*/Cargo.toml") {
+    let mut pkgs = util::glob("zero-ui*/Cargo.toml");
+    if let Some(i) = pkgs.iter().position(|p| p.ends_with("zero-ui/Cargo.toml")) {
+        let last = pkgs.len() - 1;
+        pkgs.swap(i, last);
+    }
+    for pkg in pkgs {
         let toml = match std::fs::read_to_string(&pkg) {
             Ok(p) => p,
             Err(e) => {

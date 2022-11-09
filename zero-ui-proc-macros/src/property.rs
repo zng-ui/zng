@@ -41,7 +41,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
     let mut attrs = Attributes::new(mem::take(&mut item.attrs));
-    attrs.tag_doc("P", "this function is also a widget property");
+    attrs.tag_doc("P", "This function is also a widget property");
 
     if item.sig.inputs.len() < 2 {
         errors.push(

@@ -362,7 +362,7 @@ pub fn glob(pattern: &str) -> Vec<String> {
     match glob::glob(pattern) {
         Ok(iter) => iter
             .filter_map(|r| match r {
-                Ok(p) => Some(p.to_string_lossy().into_owned()),
+                Ok(p) => Some(p.to_string_lossy().replace("\\", "/")),
                 Err(e) => {
                     error(e);
                     None
