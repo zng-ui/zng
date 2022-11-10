@@ -779,7 +779,7 @@ pub struct WidgetContext<'a> {
     pub updates: &'a mut Updates,
 }
 impl<'a> WidgetContext<'a> {
-    /// Runs a function `f` in the context of a widget, returns the function result,
+    /// Runs `f` in the context of a widget, returns the function result,
     /// info+layout+render update requests and reinit request.
     pub fn widget_context<R>(
         &mut self,
@@ -821,6 +821,36 @@ impl<'a> WidgetContext<'a> {
         self.path.pop();
 
         (r, self.updates.exit_widget_ctx(prev_updates))
+    }
+
+    /// Runs `f` with handles registered in custom collections.
+    ///
+    /// Calls to [`WidgetContext::sub_var`] and [`WidgetContext::sub_event`] inside `f` are added to `var_handles` and `event_handles`.
+    /// Nodes that reinit children nodes should use this to avoid *leaking* handles in the actual widget instance that does not reinit.
+    pub fn with_handles<R>(
+        &mut self,
+        var_handles: &mut VarHandles,
+        event_handles: &mut EventHandles,
+        f: impl FnOnce(&mut WidgetContext) -> R,
+    ) -> R {
+        f(&mut WidgetContext {
+            path: self.path,
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
+            handles: WidgetHandles {
+                var_handles,
+                event_handles,
+            },
+            vars: self.vars,
+            events: self.events,
+            services: self.services,
+            timers: self.timers,
+            updates: self.updates,
+        })
     }
 
     /// Returns an [`InfoContext`] generated from `self`.

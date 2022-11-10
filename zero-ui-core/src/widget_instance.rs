@@ -27,6 +27,9 @@ pub use adopt::*;
 mod rc_node;
 pub use rc_node::*;
 
+mod when;
+pub use when::*;
+
 mod list;
 pub use list::*;
 

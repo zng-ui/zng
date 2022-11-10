@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     app::AppEventSender,
-    event::{Event, EventArgs},
+    event::{Event, EventArgs, EventHandles},
     var::*,
     widget_instance::*,
 };
@@ -116,7 +116,8 @@ impl<U: UiNode> RcNode<U> {
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init(ctx),
             delegate_deinit: |n, ctx| n.deinit(ctx),
-            init_count: 0,
+            var_handles: VarHandles::default(),
+            event_handles: EventHandles::default(),
         }
     }
 
@@ -141,7 +142,8 @@ impl<U: UiNode> RcNode<U> {
             },
             delegate_init: |n, ctx| n.init(ctx),
             delegate_deinit: |n, ctx| n.deinit(ctx),
-            init_count: 0,
+            var_handles: VarHandles::default(),
+            event_handles: EventHandles::default(),
         }
     }
 
@@ -247,7 +249,8 @@ impl<L: UiNodeList> RcNodeList<L> {
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init_all(ctx),
             delegate_deinit: |n, ctx| n.deinit_all(ctx),
-            init_count: 0,
+            var_handles: VarHandles::default(),
+            event_handles: EventHandles::default(),
         }
     }
 
@@ -272,7 +275,8 @@ impl<L: UiNodeList> RcNodeList<L> {
             },
             delegate_init: |n, ctx| n.init_all(ctx),
             delegate_deinit: |n, ctx| n.deinit_all(ctx),
-            init_count: 0,
+            var_handles: VarHandles::default(),
+            event_handles: EventHandles::default(),
         }
     }
 
@@ -319,7 +323,7 @@ mod impls {
 
     use crate::{
         context::*,
-        event::{Event, EventArgs, EventUpdate},
+        event::{Event, EventArgs, EventHandles, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::PxSize,
         var::*,
@@ -389,7 +393,8 @@ mod impls {
 
         pub(super) delegate_init: fn(&mut U, &mut WidgetContext),
         pub(super) delegate_deinit: fn(&mut U, &mut WidgetContext),
-        pub(super) init_count: u8,
+        pub(super) var_handles: VarHandles,
+        pub(super) event_handles: EventHandles,
     }
     impl<U, T: TakeOn> TakeSlot<U, T> {
         fn on_init(&mut self, ctx: &mut WidgetContext) {
@@ -412,8 +417,13 @@ mod impls {
             }
 
             if was_owner {
-                (self.delegate_deinit)(&mut *self.rc.item.borrow_mut(), ctx)
+                ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
+                    (self.delegate_deinit)(&mut *self.rc.item.borrow_mut(), ctx)
+                });
             }
+
+            self.var_handles.clear();
+            self.event_handles.clear();
         }
 
         fn on_event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -450,15 +460,17 @@ mod impls {
                     drop(slots);
 
                     let mut node = self.rc.item.borrow_mut();
-                    (self.delegate_deinit)(&mut node, ctx);
-                    (self.delegate_init)(&mut new, ctx);
+                    ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
+                        (self.delegate_deinit)(&mut node, ctx);
+                    });
+                    self.var_handles.clear();
+                    self.event_handles.clear();
+
+                    ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
+                        (self.delegate_init)(&mut new, ctx);
+                    });
                     *node = new;
 
-                    self.init_count = self.init_count.wrapping_add(1);
-                    if self.init_count == 0 {
-                        // cleanup handle accumulation.
-                        ctx.updates.reinit();
-                    }
                     ctx.updates.info_layout_and_render();
                 }
             } else if self.take.take_on_update(ctx, updates) {
@@ -492,12 +504,9 @@ mod impls {
             }
 
             if self.is_owner() {
-                (self.delegate_init)(&mut *self.rc.item.borrow_mut(), ctx);
-                self.init_count = self.init_count.wrapping_add(1);
-                if self.init_count == 0 {
-                    // cleanup handle accumulation.
-                    ctx.updates.reinit();
-                }
+                ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
+                    (self.delegate_init)(&mut *self.rc.item.borrow_mut(), ctx);
+                });
                 ctx.updates.info_layout_and_render();
             }
         }
@@ -526,6 +535,20 @@ mod impls {
                 None
             }
         }
+
+        fn delegate_owned_mut_with_handles<R>(
+            &mut self,
+            ctx: &mut WidgetContext,
+            del: impl FnOnce(&mut WidgetContext, &mut U) -> R,
+        ) -> Option<R> {
+            if self.is_owner() {
+                ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
+                    Some(del(ctx, &mut *self.rc.item.borrow_mut()))
+                })
+            } else {
+                None
+            }
+        }
     }
 
     impl<U: UiNode, T: TakeOn> UiNode for TakeSlot<U, T> {
@@ -543,12 +566,12 @@ mod impls {
 
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.on_event(ctx, update);
-            self.delegate_owned_mut(|n| n.event(ctx, update));
+            self.delegate_owned_mut_with_handles(ctx, |ctx, n| n.event(ctx, update));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.on_update(ctx, updates);
-            self.delegate_owned_mut(|n| n.update(ctx, updates));
+            self.delegate_owned_mut_with_handles(ctx, |ctx, n| n.update(ctx, updates));
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
@@ -641,13 +664,13 @@ mod impls {
 
         fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             self.on_event(ctx, update);
-            self.delegate_owned_mut(|l| l.event_all(ctx, update));
+            self.delegate_owned_mut_with_handles(ctx, |ctx, l| l.event_all(ctx, update));
         }
 
         fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
             self.on_update(ctx, updates);
             let _ = observer;
-            self.delegate_owned_mut(|l| l.update_all(ctx, updates, observer));
+            self.delegate_owned_mut_with_handles(ctx, |ctx, l| l.update_all(ctx, updates, observer));
         }
 
         fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

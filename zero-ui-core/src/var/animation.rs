@@ -529,7 +529,7 @@ impl Animations {
                 animation(vars, &anim);
 
                 // retain until next frame
-                // 
+                //
                 // stop or sleep may be requested after this (during modify apply),
                 // these updates are applied on the next frame.
                 Some(info.next_frame)
