@@ -551,12 +551,9 @@ pub(crate) fn warmup() {
     // idea copied from here:
     // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
 
-    use windows::Win32::{
-        Foundation::HWND,
-        Graphics::{
-            Gdi::*,
-            OpenGL::{self, PFD_PIXEL_TYPE},
-        },
+    use windows_sys::Win32::Graphics::{
+        Gdi::*,
+        OpenGL::{self},
     };
 
     let _ = std::thread::Builder::new()
@@ -564,9 +561,9 @@ pub(crate) fn warmup() {
         .stack_size(3 * 64 * 1024)
         .spawn(|| unsafe {
             let _span = tracing::trace_span!("open-gl-init").entered();
-            let hdc = GetDC(HWND(0));
-            let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, None);
-            ReleaseDC(HWND(0), hdc);
+            let hdc = GetDC(0);
+            let _ = OpenGL::DescribePixelFormat(hdc, 0, 0, std::ptr::null_mut());
+            ReleaseDC(0, hdc);
         });
 }
 
@@ -696,8 +693,8 @@ mod blit {
     #[cfg(windows)]
     mod windows_blit {
 
-        use windows::Win32::Foundation::HWND;
-        use windows::Win32::Graphics::Gdi::*;
+        use windows_sys::Win32::Foundation::HWND;
+        use windows_sys::Win32::Graphics::Gdi::*;
         use winit::platform::windows::WindowExtWindows;
 
         pub struct GdiBlit {
@@ -706,9 +703,7 @@ mod blit {
 
         impl GdiBlit {
             pub fn new(window: &winit::window::Window) -> Self {
-                GdiBlit {
-                    hwnd: HWND(window.hwnd() as _),
-                }
+                GdiBlit { hwnd: window.hwnd() as _ }
             }
 
             pub fn supported() -> bool {
@@ -735,7 +730,7 @@ mod blit {
                         biHeight: height,
                         biPlanes: 1,
                         biBitCount: 32,
-                        biCompression: windows::Win32::Graphics::Gdi::BI_COMPRESSION(0),
+                        biCompression: 0,
                         biSizeImage: 0,
                         biXPelsPerMeter: 0,
                         biYPelsPerMeter: 0,
@@ -761,9 +756,9 @@ mod blit {
                     0,
                     width,
                     height,
-                    Some(frame.as_ptr() as *const _),
+                    frame.as_ptr() as *const _,
                     &bmi as *const _,
-                    DIB_USAGE(0),
+                    0,
                     SRCCOPY,
                 );
                 BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);

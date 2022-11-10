@@ -28,43 +28,42 @@ use zero_ui_view_api::{
 /// [`raw_events`]: crate::app::raw_events
 /// [`SUBCLASSPROC`]: https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc
 #[cfg(windows)]
-pub fn set_raw_windows_event_handler<H>(hwnd: windows::Win32::Foundation::HWND, subclass_id: usize, handler: H) -> bool
+pub fn set_raw_windows_event_handler<H>(hwnd: windows_sys::Win32::Foundation::HWND, subclass_id: usize, handler: H) -> bool
 where
     H: FnMut(
-            windows::Win32::Foundation::HWND,
+            windows_sys::Win32::Foundation::HWND,
             u32,
-            windows::Win32::Foundation::WPARAM,
-            windows::Win32::Foundation::LPARAM,
-        ) -> Option<windows::Win32::Foundation::LRESULT>
+            windows_sys::Win32::Foundation::WPARAM,
+            windows_sys::Win32::Foundation::LPARAM,
+        ) -> Option<windows_sys::Win32::Foundation::LRESULT>
         + 'static,
 {
-    use windows::Win32::Foundation::BOOL;
     let data = Box::new(handler);
     unsafe {
-        windows::Win32::UI::Shell::SetWindowSubclass(hwnd, Some(subclass_raw_event_proc::<H>), subclass_id, Box::into_raw(data) as _)
-            != BOOL(0)
+        windows_sys::Win32::UI::Shell::SetWindowSubclass(hwnd, Some(subclass_raw_event_proc::<H>), subclass_id, Box::into_raw(data) as _)
+            != 0
     }
 }
 
 #[cfg(windows)]
 unsafe extern "system" fn subclass_raw_event_proc<H>(
-    hwnd: windows::Win32::Foundation::HWND,
+    hwnd: windows_sys::Win32::Foundation::HWND,
     msg: u32,
-    wparam: windows::Win32::Foundation::WPARAM,
-    lparam: windows::Win32::Foundation::LPARAM,
+    wparam: windows_sys::Win32::Foundation::WPARAM,
+    lparam: windows_sys::Win32::Foundation::LPARAM,
     _id: usize,
     data: usize,
-) -> windows::Win32::Foundation::LRESULT
+) -> windows_sys::Win32::Foundation::LRESULT
 where
     H: FnMut(
-            windows::Win32::Foundation::HWND,
+            windows_sys::Win32::Foundation::HWND,
             u32,
-            windows::Win32::Foundation::WPARAM,
-            windows::Win32::Foundation::LPARAM,
-        ) -> Option<windows::Win32::Foundation::LRESULT>
+            windows_sys::Win32::Foundation::WPARAM,
+            windows_sys::Win32::Foundation::LPARAM,
+        ) -> Option<windows_sys::Win32::Foundation::LRESULT>
         + 'static,
 {
-    use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
+    use windows_sys::Win32::UI::WindowsAndMessaging::WM_DESTROY;
     match msg {
         WM_DESTROY => {
             // last call and cleanup.
@@ -77,7 +76,7 @@ where
             if let Some(r) = handler(hwnd, msg, wparam, lparam) {
                 r
             } else {
-                windows::Win32::UI::Shell::DefSubclassProc(hwnd, msg, wparam, lparam)
+                windows_sys::Win32::UI::Shell::DefSubclassProc(hwnd, msg, wparam, lparam)
             }
         }
     }
@@ -85,9 +84,9 @@ where
 
 #[cfg(windows)]
 pub(crate) fn unregister_raw_input() {
-    use windows::Win32::Devices::HumanInterfaceDevice::{HID_USAGE_GENERIC_KEYBOARD, HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC};
-    use windows::Win32::Foundation::{BOOL, HWND};
-    use windows::Win32::UI::Input::{RAWINPUTDEVICE, RIDEV_REMOVE};
+    use windows_sys::Win32::Devices::HumanInterfaceDevice::{HID_USAGE_GENERIC_KEYBOARD, HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC};
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::UI::Input::{RAWINPUTDEVICE, RIDEV_REMOVE};
 
     let flags = RIDEV_REMOVE;
 
@@ -108,10 +107,10 @@ pub(crate) fn unregister_raw_input() {
 
     let device_size = std::mem::size_of::<RAWINPUTDEVICE>() as _;
 
-    let ok = unsafe { windows::Win32::UI::Input::RegisterRawInputDevices(&devices, device_size) != BOOL(0) };
+    let ok = unsafe { windows_sys::Win32::UI::Input::RegisterRawInputDevices(devices.as_ptr(), devices.len() as _, device_size) != 0 };
 
     if !ok {
-        let e = unsafe { windows::Win32::Foundation::GetLastError() };
+        let e = unsafe { windows_sys::Win32::Foundation::GetLastError() };
         panic!("failed `unregister_raw_input`, {e:?}");
     }
 }
@@ -563,16 +562,16 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
 
 #[cfg(windows)]
 pub(crate) extern "system" fn minimal_wndproc(
-    window: windows::Win32::Foundation::HWND,
+    window: windows_sys::Win32::Foundation::HWND,
     message: u32,
-    wparam: windows::Win32::Foundation::WPARAM,
-    lparam: windows::Win32::Foundation::LPARAM,
-) -> windows::Win32::Foundation::LRESULT {
-    unsafe { windows::Win32::UI::WindowsAndMessaging::DefWindowProcW(window, message, wparam, lparam) }
+    wparam: windows_sys::Win32::Foundation::WPARAM,
+    lparam: windows_sys::Win32::Foundation::LPARAM,
+) -> windows_sys::Win32::Foundation::LRESULT {
+    unsafe { windows_sys::Win32::UI::WindowsAndMessaging::DefWindowProcW(window, message, wparam, lparam) }
 }
 
 #[cfg(windows)]
-pub fn get_instance_handle() -> windows::Win32::Foundation::HINSTANCE {
+pub fn get_instance_handle() -> windows_sys::Win32::Foundation::HINSTANCE {
     // Gets the instance handle by taking the address of the
     // pseudo-variable created by the Microsoft linker:
     // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483
@@ -581,8 +580,70 @@ pub fn get_instance_handle() -> windows::Win32::Foundation::HINSTANCE {
     // https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
 
     extern "C" {
-        static __ImageBase: windows::Win32::System::SystemServices::IMAGE_DOS_HEADER;
+        static __ImageBase: windows_sys::Win32::System::SystemServices::IMAGE_DOS_HEADER;
     }
 
-    unsafe { windows::Win32::Foundation::HINSTANCE((&__ImageBase) as *const _ as _) }
+    unsafe { (&__ImageBase) as *const _ as _ }
+}
+
+#[cfg(windows)]
+pub mod taskbar_com {
+    // copied from winit
+
+    #![allow(non_snake_case)]
+    #![allow(non_upper_case_globals)]
+
+    use std::ffi::c_void;
+
+    use windows_sys::{
+        core::{IUnknown, GUID, HRESULT},
+        Win32::Foundation::{BOOL, HWND},
+    };
+
+    #[repr(C)]
+    pub struct IUnknownVtbl {
+        pub QueryInterface: unsafe extern "system" fn(This: *mut IUnknown, riid: *const GUID, ppvObject: *mut *mut c_void) -> HRESULT,
+        pub AddRef: unsafe extern "system" fn(This: *mut IUnknown) -> u32,
+        pub Release: unsafe extern "system" fn(This: *mut IUnknown) -> u32,
+    }
+
+    #[repr(C)]
+    pub struct ITaskbarListVtbl {
+        pub parent: IUnknownVtbl,
+        pub HrInit: unsafe extern "system" fn(This: *mut ITaskbarList) -> HRESULT,
+        pub AddTab: unsafe extern "system" fn(This: *mut ITaskbarList, hwnd: HWND) -> HRESULT,
+        pub DeleteTab: unsafe extern "system" fn(This: *mut ITaskbarList, hwnd: HWND) -> HRESULT,
+        pub ActivateTab: unsafe extern "system" fn(This: *mut ITaskbarList, hwnd: HWND) -> HRESULT,
+        pub SetActiveAlt: unsafe extern "system" fn(This: *mut ITaskbarList, hwnd: HWND) -> HRESULT,
+    }
+
+    #[repr(C)]
+    pub struct ITaskbarList {
+        pub lpVtbl: *const ITaskbarListVtbl,
+    }
+
+    #[repr(C)]
+    pub struct ITaskbarList2Vtbl {
+        pub parent: ITaskbarListVtbl,
+        pub MarkFullscreenWindow: unsafe extern "system" fn(This: *mut ITaskbarList2, hwnd: HWND, fFullscreen: BOOL) -> HRESULT,
+    }
+
+    #[repr(C)]
+    pub struct ITaskbarList2 {
+        pub lpVtbl: *const ITaskbarList2Vtbl,
+    }
+
+    pub const CLSID_TaskbarList: GUID = GUID {
+        data1: 0x56fdf344,
+        data2: 0xfd6d,
+        data3: 0x11d0,
+        data4: [0x95, 0x8a, 0x00, 0x60, 0x97, 0xc9, 0xa0, 0x90],
+    };
+
+    pub const IID_ITaskbarList2: GUID = GUID {
+        data1: 0x602d4995,
+        data2: 0xb13a,
+        data3: 0x429b,
+        data4: [0xa6, 0x6e, 0x19, 0x35, 0xe4, 0x4f, 0x43, 0x17],
+    };
 }

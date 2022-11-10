@@ -176,9 +176,9 @@ impl Window {
             let mut first_focus = false;
 
             let window_id = winit_window.id();
-            let hwnd = windows::Win32::Foundation::HWND(winit_window.hwnd() as _);
+            let hwnd = winit_window.hwnd() as _;
             crate::util::set_raw_windows_event_handler(hwnd, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
-                if !first_focus && unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd {
+                if !first_focus && unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd {
                     // Windows sends a `WM_SETFOCUS` when the window open, even if the user changed focus to something
                     // else before the process opens the window so that the window title bar shows the unfocused visual and
                     // we are not actually keyboard focused. We block this in `focused_changed` but then become out-of-sync
@@ -189,9 +189,9 @@ impl Window {
                     let _ = event_sender.send(AppEvent::WinitFocused(window_id, true));
                 }
 
-                if msg == windows::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
-                    && windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(wparam.0 as u16)
-                        == windows::Win32::UI::Input::KeyboardAndMouse::VK_F4
+                if msg == windows_sys::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
+                    && wparam as windows_sys::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY
+                        == windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4
                 {
                     // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
 
@@ -200,11 +200,11 @@ impl Window {
                     let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
                         window: id,
                         device,
-                        scan_code: wparam.0 as ScanCode,
+                        scan_code: wparam as ScanCode,
                         state: KeyState::Pressed,
                         key: Some(Key::F4),
                     }));
-                    return Some(windows::Win32::Foundation::LRESULT(0));
+                    return Some(0);
                 }
                 None
             });
@@ -357,8 +357,8 @@ impl Window {
     fn windows_is_foreground(&self) -> bool {
         use winit::platform::windows::WindowExtWindows;
 
-        let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
-        foreground.0 == self.window.hwnd() as isize
+        let foreground = unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
+        foreground == self.window.hwnd() as isize
     }
 
     pub fn is_focused(&self) -> bool {
@@ -493,20 +493,19 @@ impl Window {
 
     #[cfg(windows)]
     fn windows_set_restore(&self) {
-        use windows::Win32::Foundation::{BOOL, HWND};
-        use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO, MONITORINFOEXW};
-        use windows::Win32::{
+        use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITORINFO, MONITORINFOEXW};
+        use windows_sys::Win32::{
             Foundation::{POINT, RECT},
             UI::WindowsAndMessaging::*,
         };
         use winit::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
 
         if let Some(monitor) = self.window.current_monitor() {
-            let hwnd = HWND(self.window.hwnd() as _);
+            let hwnd = self.window.hwnd() as _;
             let mut placement = WINDOWPLACEMENT {
                 length: mem::size_of::<WINDOWPLACEMENT>() as _,
-                flags: WINDOWPLACEMENT_FLAGS(0),
-                showCmd: SHOW_WINDOW_CMD(0),
+                flags: 0,
+                showCmd: 0,
                 ptMinPosition: POINT { x: 0, y: 0 },
                 ptMaxPosition: POINT { x: 0, y: 0 },
                 rcNormalPosition: RECT {
@@ -516,12 +515,12 @@ impl Window {
                     bottom: 0,
                 },
             };
-            if unsafe { GetWindowPlacement(hwnd, &mut placement) } != BOOL(0) {
+            if unsafe { GetWindowPlacement(hwnd, &mut placement) } != 0 {
                 let scale_factor = self.scale_factor();
                 let mut left_top = self.state.restore_rect.origin.to_px(scale_factor);
 
                 // placement is in "workspace", window is in "virtual screen space".
-                let hmonitor = HMONITOR(monitor.hmonitor() as _);
+                let hmonitor = monitor.hmonitor() as _;
                 let mut monitor_info = MONITORINFOEXW {
                     monitorInfo: MONITORINFO {
                         cbSize: mem::size_of::<MONITORINFOEXW>() as _,
@@ -541,7 +540,7 @@ impl Window {
                     },
                     szDevice: [0; 32],
                 };
-                if unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info as *mut MONITORINFOEXW as *mut MONITORINFO) } != BOOL(0) {
+                if unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info as *mut MONITORINFOEXW as *mut MONITORINFO) } != 0 {
                     left_top.x.0 -= monitor_info.monitorInfo.rcWork.left;
                     left_top.y.0 -= monitor_info.monitorInfo.rcWork.top;
                 }
@@ -624,8 +623,7 @@ impl Window {
         {
             let hwnd = winit::platform::windows::WindowExtWindows::hwnd(&self.window);
             // SAFETY: function does not fail.
-            return unsafe { windows::Win32::UI::WindowsAndMessaging::IsZoomed(windows::Win32::Foundation::HWND(hwnd as _)) }
-                != windows::Win32::Foundation::BOOL(0);
+            return unsafe { windows_sys::Win32::UI::WindowsAndMessaging::IsZoomed(hwnd as _) } != 0;
         }
 
         #[allow(unreachable_code)]
@@ -646,8 +644,7 @@ impl Window {
         {
             let hwnd = winit::platform::windows::WindowExtWindows::hwnd(&self.window);
             // SAFETY: function does not fail.
-            return unsafe { windows::Win32::UI::WindowsAndMessaging::IsIconic(windows::Win32::Foundation::HWND(hwnd as _)) }
-                != windows::Win32::Foundation::BOOL(0);
+            return unsafe { windows_sys::Win32::UI::WindowsAndMessaging::IsIconic(hwnd as _) } != 0;
         }
 
         #[allow(unreachable_code)]
@@ -768,39 +765,53 @@ impl Window {
         }
         self.taskbar_visible = visible;
 
-        use windows::Win32::Foundation::*;
-        use windows::Win32::System::Com::*;
-        use windows::Win32::UI::Shell::*;
+        use windows_sys::Win32::System::Com::*;
         use winit::platform::windows::WindowExtWindows;
+
+        use crate::util::taskbar_com;
 
         // winit already initializes COM
 
         unsafe {
-            let result: Result<ITaskbarList, _> = CoCreateInstance(&TaskbarList, None, CLSCTX_INPROC_SERVER);
-            match result {
-                Ok(tb) => {
-                    let result = if visible {
-                        tb.AddTab(HWND(self.window.hwnd() as _))
-                    } else {
-                        tb.DeleteTab(HWND(self.window.hwnd() as _))
-                    };
-                    match result {
-                        Ok(_) => {}
-                        Err(error) => {
-                            let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
-                            tracing::error!(
-                                target: "window",
-                                "cannot set `taskbar_visible`, `ITaskbarList::{mtd_name}` failed, error: {error}",
-                            )
-                        }
-                    }
-                }
-                Err(e) => {
+            let mut taskbar_list2: *mut taskbar_com::ITaskbarList2 = std::ptr::null_mut();
+            let result = CoCreateInstance(
+                &taskbar_com::CLSID_TaskbarList,
+                std::ptr::null_mut(),
+                CLSCTX_ALL,
+                &taskbar_com::IID_ITaskbarList2,
+                &mut taskbar_list2 as *mut _ as *mut _,
+            );
+            if result == 0 {
+                let taskbar_list2 = taskbar_list2 as *mut taskbar_com::ITaskbarList2;
+
+                let result = if visible {
+                    let add_tab = (*(*taskbar_list2).lpVtbl).parent.AddTab;
+                    add_tab(taskbar_list2.cast(), self.window.hwnd() as _)
+                } else {
+                    let delete_tab = (*(*taskbar_list2).lpVtbl).parent.DeleteTab;
+                    delete_tab(taskbar_list2.cast(), self.window.hwnd() as _)
+                };
+                if result != 0 {
+                    let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
                     tracing::error!(
                         target: "window",
-                        "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {e}",
+                        "cannot set `taskbar_visible`, `ITaskbarList::{mtd_name}` failed, error: {result:x}",
                     )
                 }
+
+                let release = (*(*taskbar_list2).lpVtbl).parent.parent.Release;
+                let result = release(taskbar_list2.cast());
+                if result != 0 {
+                    tracing::error!(
+                        target: "window",
+                        "failed to release `taskbar_list`, error: {result:x}"
+                    )
+                }
+            } else {
+                tracing::error!(
+                    target: "window",
+                    "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {result:x}",
+                )
             }
         }
     }
