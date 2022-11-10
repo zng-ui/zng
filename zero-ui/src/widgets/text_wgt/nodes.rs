@@ -1,8 +1,12 @@
 //! UI nodes used for building a text widget.
 
-use std::cell::{Cell, RefCell};
+use std::{
+    cell::{Cell, RefCell},
+    fmt,
+};
 
 use font_features::FontVariations;
+use zero_ui_core::focus::{Focus, FOCUS_CHANGED_EVENT};
 
 use super::text_properties::*;
 use crate::core::{
@@ -13,7 +17,7 @@ use crate::core::{
 use crate::prelude::new_widget::*;
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ResolvedText {
     /// Text transformed, white space corrected and segmented.
     pub text: SegmentedText,
@@ -25,6 +29,11 @@ pub struct ResolvedText {
     /// If the `text` or `faces` has updated, this value is `true` in the update the value changed and stays `true`
     /// until after layout.
     pub reshape: bool,
+
+    /// Caret opacity.
+    ///
+    /// This variable is replaced often, the text resolver subscribes to it automatically.
+    pub caret_opacity: ReadOnlyRcVar<Factor>,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
     baseline: Px,
@@ -43,6 +52,18 @@ impl ResolvedText {
     /// [`is_some`]: Self::is_some
     pub fn with<R>(f: impl FnOnce(&Self) -> R) -> Option<R> {
         RESOLVED_TEXT.with(|opt| opt.as_ref().map(f))
+    }
+}
+impl fmt::Debug for ResolvedText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ResolvedText")
+            .field("text", &self.text)
+            .field("faces", &self.faces)
+            .field("synthesis", &self.synthesis)
+            .field("reshape", &self.reshape)
+            .field("caret_opacity", &self.caret_opacity.debug())
+            .field("baseline", &self.baseline)
+            .finish()
     }
 }
 
@@ -125,7 +146,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         child: C,
         text: T,
         resolved: RefCell<Option<ResolvedText>>,
-        char_input_handle: Option<EventHandle>,
+        event_handles: EventHandles,
+        caret_opacity_handle: Option<VarHandle>,
     }
     impl<C: UiNode, T> ResolveTextNode<C, T> {
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
@@ -181,16 +203,28 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
             let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
 
+            let editable = TEXT_EDITABLE_VAR.get();
+            let caret_opacity = if editable && Focus::req(ctx.services).focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id())
+            {
+                let v = Keyboard::req(ctx.services).caret_animation(ctx.vars);
+                self.caret_opacity_handle = Some(v.subscribe(ctx.path.widget_id()));
+                v
+            } else {
+                var(0.fct()).read_only()
+            };
+
             *self.resolved.get_mut() = Some(ResolvedText {
                 synthesis: FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight),
                 faces,
                 text: SegmentedText::new(text),
                 reshape: false,
                 baseline: Px(0),
+                caret_opacity,
             });
 
-            if TEXT_EDITABLE_VAR.get() {
-                self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
+            if editable {
+                self.event_handles.push(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
+                self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
             }
 
             self.with_mut(|c| c.init(ctx))
@@ -204,7 +238,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.char_input_handle = None;
+            self.event_handles.clear();
+            self.caret_opacity_handle = None;
             self.with_mut(|c| c.deinit(ctx));
             *self.resolved.get_mut() = None;
         }
@@ -216,6 +251,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     && args.is_enabled(ctx.path.widget_id())
                 {
                     args.propagation().stop();
+
+                    let new_animation = Keyboard::req(ctx.services).caret_animation(ctx.vars);
+                    self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
+                    self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
 
                     if args.is_backspace() {
                         let _ = self.text.modify(ctx.vars, move |t| {
@@ -229,6 +268,15 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                             t.get_mut().to_mut().push(c);
                         });
                     }
+                }
+            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                if args.is_focused(ctx.path.widget_id()) {
+                    let new_animation = Keyboard::req(ctx.services).caret_animation(ctx.vars);
+                    self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
+                    self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
+                } else {
+                    self.caret_opacity_handle = None;
+                    self.resolved.get_mut().as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
                 }
             } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
                 // font query may return a different result.
@@ -299,10 +347,21 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             }
             if let Some(enabled) = TEXT_EDITABLE_VAR.get_new(ctx) {
-                if enabled && self.char_input_handle.is_none() {
-                    self.char_input_handle = Some(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
+                if enabled && self.event_handles.0.is_empty() {
+                    // actually enabled.
+
+                    self.event_handles.push(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
+                    self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
+
+                    if Focus::req(ctx.services).focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
+                        let new_animation = Keyboard::req(ctx.services).caret_animation(ctx.vars);
+                        self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
+                        self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
+                    }
                 } else {
-                    self.char_input_handle = None;
+                    self.event_handles.clear();
+                    self.caret_opacity_handle = None;
+                    self.resolved.get_mut().as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
                 }
             }
 
@@ -330,7 +389,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         child: child.cfg_boxed(),
         text: text.into_var(),
         resolved: RefCell::new(None),
-        char_input_handle: None,
+        event_handles: EventHandles::default(),
+        caret_opacity_handle: None,
     }
     .cfg_boxed()
 }
@@ -818,42 +878,35 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct RenderCaretNode {
         child: impl UiNode,
-        blink: Option<(ReadOnlyRcVar<Factor>, VarHandle)>,
+        color: Rgba,
         color_key: FrameValueKey<RenderColor>,
     })]
     impl UiNode for RenderCaretNode {
+        // subscriptions are handled by the text resolver node.
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if TEXT_EDITABLE_VAR.get() {
-                let blink = Keyboard::req(ctx.services).caret_animation(ctx.vars);
-                let handle = blink.subscribe(ctx.path.widget_id());
-                self.blink = Some((blink, handle));
-            }
+            self.color = if TEXT_EDITABLE_VAR.get() {
+                let mut c = CARET_COLOR_VAR.get();
+                c.alpha *= ResolvedText::with(|t| t.caret_opacity.get().0).unwrap_or(0.0);
+                c
+            } else {
+                rgba(0, 0, 0, 0)
+            };
+
             self.child.init(ctx);
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.blink = None;
-            self.child.deinit(ctx);
-        }
-
-        // subscriptions are handled by the `editable` property node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if TEXT_EDITABLE_VAR.is_new(ctx) || CARET_COLOR_VAR.is_new(ctx) {
-                ctx.updates.render();
+            let color = if TEXT_EDITABLE_VAR.get() {
+                let mut c = CARET_COLOR_VAR.get();
+                c.alpha *= ResolvedText::with(|t| t.caret_opacity.get().0).unwrap_or(0.0);
+                c
+            } else {
+                rgba(0, 0, 0, 0)
+            };
 
-                if TEXT_EDITABLE_VAR.get() {
-                    let blink = Keyboard::req(ctx.services).caret_animation(ctx.vars);
-                    let handle = blink.subscribe(ctx.path.widget_id());
-                    self.blink = Some((blink, handle));
-                } else {
-                    self.blink = None;
-                }
-            }
-
-            if let Some((blink, _)) = &self.blink {
-                if blink.is_new(ctx) {
-                    ctx.updates.render_update();
-                }
+            if self.color != color {
+                self.color = color;
+                ctx.updates.render_update();
             }
 
             self.child.update(ctx, updates);
@@ -872,9 +925,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                     clip_rect.origin.x += txt_padding.left;
                     clip_rect.origin.y += txt_padding.top;
 
-                    let mut color = CARET_COLOR_VAR.get();
-                    color.alpha = if let Some((blink, _)) = &self.blink { blink.get().0 } else { 1.0 };
-                    frame.push_color(clip_rect, self.color_key.bind(color.into(), true));
+                    frame.push_color(clip_rect, self.color_key.bind(self.color.into(), true));
                 })
                 .expect("expected `LayoutText` in `render_text`");
             }
@@ -884,15 +935,13 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render_update(ctx, update);
 
             if TEXT_EDITABLE_VAR.get() {
-                let mut color = CARET_COLOR_VAR.get();
-                color.alpha = if let Some((blink, _)) = &self.blink { blink.get().0 } else { 1.0 };
-                update.update_color(self.color_key.update(color.into(), true))
+                update.update_color(self.color_key.update(self.color.into(), true))
             }
         }
     }
     RenderCaretNode {
         child,
-        blink: None,
+        color: rgba(0, 0, 0, 0),
         color_key: FrameValueKey::new_unique(),
     }
 }

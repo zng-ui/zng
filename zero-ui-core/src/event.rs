@@ -620,10 +620,28 @@ impl UpdateSubscribers for AnyEvent {
 #[derive(Clone, Default)]
 pub struct EventHandles(pub Vec<EventHandle>);
 impl EventHandles {
+    /// Empty collection.
+    pub fn dummy() -> Self {
+        EventHandles(vec![])
+    }
+
+    /// Returns `true` if empty or all handles are dummy.
+    pub fn is_dummy(&self) -> bool {
+        self.0.is_empty() || self.0.iter().all(EventHandle::is_dummy)
+    }
+
+    /// Drop all handles without stopping their behavior.
+    pub fn perm(self) {
+        for handle in self.0 {
+            handle.perm()
+        }
+    }
+
     /// Add `other` handle to the collection.
     pub fn push(&mut self, other: EventHandle) -> &mut Self {
-        // TODO, filter out dummies.
-        self.0.push(other);
+        if !other.is_dummy() {
+            self.0.push(other);
+        }
         self
     }
 
