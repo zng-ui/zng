@@ -81,34 +81,37 @@ impl WeakAnimationHandle {
     }
 }
 
-/// Represents an animation in its closure.
-///
-/// See the [`Vars.animate`] method for more details.
-pub struct AnimationArgs {
+struct AnimationData {
     start_time: Cell<Instant>,
     restart_count: Cell<usize>,
     stop: Cell<bool>,
     sleep: Cell<Option<Deadline>>,
-    animations_enabled: bool,
-    now: Instant,
-    time_scale: Factor,
+    animations_enabled: Cell<bool>,
+    now: Cell<Instant>,
+    time_scale: Cell<Factor>,
 }
+
+/// Represents an animation in its closure.
+///
+/// See the [`Vars.animate`] method for more details.
+#[derive(Clone)]
+pub struct AnimationArgs(Rc<AnimationData>);
 impl AnimationArgs {
     pub(super) fn new(animations_enabled: bool, now: Instant, time_scale: Factor) -> Self {
-        AnimationArgs {
+        AnimationArgs(Rc::new(AnimationData {
             start_time: Cell::new(now),
             restart_count: Cell::new(0),
             stop: Cell::new(false),
-            now,
+            now: Cell::new(now),
             sleep: Cell::new(None),
-            animations_enabled,
-            time_scale,
-        }
+            animations_enabled: Cell::new(animations_enabled),
+            time_scale: Cell::new(time_scale),
+        }))
     }
 
     /// Instant this animation (re)started.
     pub fn start_time(&self) -> Instant {
-        self.start_time.get()
+        self.0.start_time.get()
     }
 
     /// Instant the current animation update started.
@@ -116,23 +119,23 @@ impl AnimationArgs {
     /// Use this value instead of [`Instant::now`], animations update sequentially, but should behave as if
     /// they are updating exactly in parallel, using this timestamp ensures that.
     pub fn now(&self) -> Instant {
-        self.now
+        self.0.now.get()
     }
 
     /// Global time scale for animations.
     pub fn time_scale(&self) -> Factor {
-        self.time_scale
+        self.0.time_scale.get()
     }
 
-    pub(crate) fn reset_state(&mut self, enabled: bool, now: Instant, time_scale: Factor) {
-        self.animations_enabled = enabled;
-        self.now = now;
-        self.time_scale = time_scale;
-        *self.sleep.get_mut() = None;
+    pub(crate) fn reset_state(&self, enabled: bool, now: Instant, time_scale: Factor) {
+        self.0.animations_enabled.set(enabled);
+        self.0.now.set(now);
+        self.0.time_scale.set(time_scale);
+        self.0.sleep.set(None);
     }
 
-    pub(crate) fn reset_sleep(&mut self) {
-        *self.sleep.get_mut() = None;
+    pub(crate) fn reset_sleep(&self) {
+        self.0.sleep.set(None);
     }
 
     /// Set the duration to the next animation update. The animation will *sleep* until `duration` elapses.
@@ -141,18 +144,18 @@ impl AnimationArgs {
     /// a multiple of the frame duration it will delay an extra `frame_duration - 1ns` in the worst case. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     pub fn sleep(&self, duration: Duration) {
-        self.sleep.set(Some(Deadline(self.now + duration)));
+        self.0.sleep.set(Some(Deadline(self.0.now.get() + duration)));
     }
 
     pub(crate) fn sleep_deadline(&self) -> Option<Deadline> {
-        self.sleep.get()
+        self.0.sleep.get()
     }
 
     /// Returns a value that indicates if animations are enabled in the operating system.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
     pub fn animations_enabled(&self) -> bool {
-        self.animations_enabled
+        self.0.animations_enabled.get()
     }
 
     /// Compute the time elapsed from [`start_time`] to [`now`].
@@ -160,7 +163,7 @@ impl AnimationArgs {
     /// [`start_time`]: Self::start_time
     /// [`now`]: Self::now
     pub fn elapsed_dur(&self) -> Duration {
-        self.now - self.start_time.get()
+        self.0.now.get() - self.0.start_time.get()
     }
 
     /// Compute the elapsed [`EasingTime`], in the span of the total `duration`, if [`animations_enabled`].
@@ -169,8 +172,8 @@ impl AnimationArgs {
     ///
     /// [`animations_enabled`]: Self::animations_enabled
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
-        if self.animations_enabled {
-            EasingTime::elapsed(duration, self.elapsed_dur(), self.time_scale)
+        if self.0.animations_enabled.get() {
+            EasingTime::elapsed(duration, self.elapsed_dur(), self.0.time_scale.get())
         } else {
             EasingTime::end()
         }
@@ -216,30 +219,30 @@ impl AnimationArgs {
 
     /// Drop the animation after applying the current update.
     pub fn stop(&self) {
-        self.stop.set(true);
+        self.0.stop.set(true);
     }
 
     /// If the animation will be dropped after applying the update.
     pub fn stop_requested(&self) -> bool {
-        self.stop.get()
+        self.0.stop.get()
     }
 
     /// Set the animation start time to now.
     pub fn restart(&self) {
-        self.set_start_time(self.now);
-        self.restart_count.set(self.restart_count.get() + 1);
+        self.set_start_time(self.0.now.get());
+        self.0.restart_count.set(self.0.restart_count.get() + 1);
     }
 
     /// Number of times the animation restarted.
     pub fn restart_count(&self) -> usize {
-        self.restart_count.get()
+        self.0.restart_count.get()
     }
 
     /// Change the start time to an arbitrary value.
     ///
     /// Note that this does not affect the restart count.
     pub fn set_start_time(&self, instant: Instant) {
-        self.start_time.set(instant)
+        self.0.start_time.set(instant)
     }
 
     /// Change the start to an instant that computes the `elapsed` for the `duration` at the moment
@@ -247,7 +250,7 @@ impl AnimationArgs {
     ///
     /// Note that this does not affect the restart count.
     pub fn set_elapsed(&self, elapsed: EasingTime, duration: Duration) {
-        self.set_start_time(self.now - (duration * elapsed.fct()));
+        self.set_start_time(self.0.now.get() - (duration * elapsed.fct()));
     }
 }
 
@@ -491,11 +494,16 @@ impl Animations {
             handle = h;
         };
 
-        let mut anim = AnimationArgs::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
+        let anim = AnimationArgs::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
         vars.ans.animations.borrow_mut().push(Box::new(move |vars, info| {
             let _handle_owner = &handle_owner; // capture and own the handle owner.
 
             if weak_handle.upgrade().is_some() {
+                if anim.stop_requested() {
+                    // drop
+                    return None;
+                }
+
                 if let Some(sleep) = anim.sleep_deadline() {
                     if sleep > info.next_frame {
                         // retain sleep
@@ -520,16 +528,11 @@ impl Animations {
 
                 animation(vars, &anim);
 
-                if anim.stop_requested() {
-                    // drop
-                    return None;
-                }
-
-                // retain
-                match anim.sleep_deadline() {
-                    Some(sleep) if sleep > info.next_frame => Some(sleep),
-                    _ => Some(info.next_frame),
-                }
+                // retain until next frame
+                // 
+                // stop or sleep may be requested after this (during modify apply),
+                // these updates are applied on the next frame.
+                Some(info.next_frame)
             } else {
                 // drop
                 None
@@ -557,30 +560,24 @@ struct AnimationUpdateInfo {
 pub(super) fn var_animate<T: VarValue>(
     vars: &Vars,
     target: &impl Var<T>,
-    mut animate: impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
+    animate: impl FnMut(&AnimationArgs, &mut VarModifyValue<T>) + 'static,
 ) -> AnimationHandle {
     if !target.capabilities().is_always_read_only() {
         let target = target.clone().actual_var();
         if !target.capabilities().is_always_read_only() {
             let wk_target = target.downgrade();
+            let animate = Rc::new(RefCell::new(animate));
             return vars.animate(move |vars, args| {
                 if let Some(target) = wk_target.upgrade() {
-                    // TODO refactor animation to allow using modify here.
-                    let mut value = target.get();
-                    let mut modify = VarModifyValue {
-                        update_id: vars.update_id(),
-                        value: &mut value,
-                        touched: false,
-                    };
-                    animate(args, &mut modify);
-
-                    if modify.touched {
-                        let r = target.set(vars, value);
-
-                        if let Err(VarIsReadOnlyError { .. }) = r {
-                            // var can maybe change to allow write again, but we wipe all animations anyway.
-                            args.stop();
-                        }
+                    let r = target.modify(
+                        vars,
+                        clone_move!(animate, args, |value| {
+                            (animate.borrow_mut())(&args, value);
+                        }),
+                    );
+                    if let Err(VarIsReadOnlyError { .. }) = r {
+                        // var can maybe change to allow write again, but we wipe all animations anyway.
+                        args.stop();
                     }
                 } else {
                     // target dropped.
