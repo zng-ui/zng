@@ -291,7 +291,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
-                    })
+                    });
                 }
                 InputKind::UiNode => {
                     input_to_storage.push(quote! {
@@ -302,6 +302,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     instantiate.extend(quote! {
                         self.#ident.take_on_init(),
+                    });
+                    let get_ident = ident!("__w_{ident}__");
+                    let get_ident_i = ident!("__w_{i}__");
+                    get_when_input.extend(quote! {
+                        pub fn #get_ident()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeInWhenExprError>) {
+                            #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeInWhenExprError>()
+                        }
+                        pub fn #get_ident_i()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeInWhenExprError>) {
+                            #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeInWhenExprError>()
+                        }
                     });
                 }
                 InputKind::UiNodeList => {
@@ -314,6 +326,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         self.#ident.take_on_init(),
                     });
+                    let get_ident = ident!("__w_{ident}__");
+                    let get_ident_i = ident!("__w_{i}__");
+                    get_when_input.extend(quote! {
+                        pub fn #get_ident()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeListInWhenExprError>) {
+                            #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeListInWhenExprError>()
+                        }
+                        pub fn #get_ident_i()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeListInWhenExprError>) {
+                            #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeListInWhenExprError>()
+                        }
+                    });
                 }
                 InputKind::WidgetHandler => {
                     input_to_storage.push(quote! {
@@ -324,6 +348,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
+                    });
+                    let get_ident = ident!("__w_{ident}__");
+                    let get_ident_i = ident!("__w_{i}__");
+                    get_when_input.extend(quote! {
+                        pub fn #get_ident()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) {
+                            #core::widget_builder::WhenInputVar::new::<#core::widget_builder::WidgetHandlerInWhenExprError>()
+                        }
+                        pub fn #get_ident_i()
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) {
+                            #core::widget_builder::WhenInputVar::new::<#core::widget_builder::WidgetHandlerInWhenExprError>()
+                        }
                     });
                 }
             }

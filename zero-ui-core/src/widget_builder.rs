@@ -706,6 +706,66 @@ pub fn new_dyn_other<T: Any>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> T
         .expect("input did not match expected var type")
 }
 
+/// Error value used in a reference to an [`UiNode`] property input is made in `when` expression.
+///
+/// Only variables and values can be referenced in `when` expression.
+#[derive(Clone)]
+pub struct UiNodeInWhenExprError;
+impl fmt::Debug for UiNodeInWhenExprError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+impl fmt::Display for UiNodeInWhenExprError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "cannot ref `impl UiNode` in when expression, only var and value properties allowed"
+        )
+    }
+}
+impl std::error::Error for UiNodeInWhenExprError {}
+
+/// Error value used in a reference to an [`UiNodeList`] property input is made in `when` expression.
+///
+/// Only variables and values can be referenced in `when` expression.
+#[derive(Clone)]
+pub struct UiNodeListInWhenExprError;
+impl fmt::Debug for UiNodeListInWhenExprError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+impl fmt::Display for UiNodeListInWhenExprError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "cannot ref `impl UiNodeList` in when expression, only var and value properties allowed"
+        )
+    }
+}
+impl std::error::Error for UiNodeListInWhenExprError {}
+
+/// Error value used in a reference to an [`UiNodeList`] property input is made in `when` expression.
+///
+/// Only variables and values can be referenced in `when` expression.
+#[derive(Clone)]
+pub struct WidgetHandlerInWhenExprError;
+impl fmt::Debug for WidgetHandlerInWhenExprError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+impl fmt::Display for WidgetHandlerInWhenExprError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "cannot ref `impl WidgetHandler<A>` in when expression, only var and value properties allowed"
+        )
+    }
+}
+impl std::error::Error for WidgetHandlerInWhenExprError {}
+
 /*
 
  WIDGET

@@ -1,8 +1,22 @@
-error[E0599]: no associated item named `__w_0__` found for struct `foo` in the current scope
-  --> cases/widget_new/not_allowed_in_when1.rs:15:26
+warning: unused variable: `node`
+  --> cases/widget_new/not_allowed_in_when1.rs:15:17
    |
-5  | #[property(CONTEXT)]
-   | -------------------- associated item `__w_0__` not found for this struct
-...
-15 |             let node = *#foo;
-   |                          ^^^ associated item not found in `foo`
+15 |             let node = #foo;
+   |                 ^^^^ help: if this is intentional, prefix it with an underscore: `_node`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+error[E0080]: evaluation of constant value failed
+  --> cases/widget_new/not_allowed_in_when1.rs:12:13
+   |
+12 |       let _ = blank! {
+   |  _____________^
+13 | |         margin = 0;
+14 | |         when {
+15 | |             let node = #foo;
+...  |
+19 | |         }
+20 | |     };
+   | |_____^ the evaluated program panicked at 'property `foo` cannot be read in when expr', $DIR/cases/widget_new/not_allowed_in_when1.rs:12:13
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `blank` (in Nightly builds, run with -Z macro-backtrace for more info)

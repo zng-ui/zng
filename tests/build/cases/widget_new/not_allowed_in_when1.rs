@@ -12,7 +12,7 @@ fn main() {
     let _ = blank! {
         margin = 0;
         when {
-            let node = *#foo;
+            let node = #foo;
             true
         } {
             margin = 1;
