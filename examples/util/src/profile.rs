@@ -112,18 +112,11 @@ fn record_profile_impl(
     about: &[(&str, &dyn std::fmt::Display)],
     mut filter: Box<dyn FnMut(FilterArgs) -> bool + Send>,
 ) -> Recording {
-    if cfg!(feature = "deflate") {
-        path.set_extension("json.gz");
-    } else {
-        path.set_extension("json");
-    }
+    path.set_extension("json");
     let path = path;
 
     #[allow(unused_mut)]
     let mut file = BufWriter::new(File::create(&path).unwrap());
-
-    #[cfg(feature = "deflate")]
-    let mut file = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
 
     // specs: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lpfof2aylapb
 
@@ -314,8 +307,6 @@ fn record_profile_impl(
             }
             write!(&mut file, "]}}").unwrap();
 
-            #[cfg(feature = "deflate")]
-            let mut file = file.finish().unwrap();
             file.flush().unwrap();
         })
         .unwrap();
