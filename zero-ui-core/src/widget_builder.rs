@@ -392,6 +392,71 @@ impl<A: Clone + 'static> AnyRcWidgetHandler for RcWidgetHandler<A> {
     }
 }
 
+/// When builder for [`AnyRcWidgetHandler`] values.
+///
+/// This builder is used to generate a composite handler that redirects to active `when`
+pub struct AnyWhenRcWidgetHandlerBuilder {
+    default: Box<dyn AnyRcWidgetHandler>,
+    conditions: Vec<(BoxedVar<bool>, Box<dyn AnyRcWidgetHandler>)>,
+}
+impl AnyWhenRcWidgetHandlerBuilder {
+    /// New from default value.
+    pub fn new(default: Box<dyn AnyRcWidgetHandler>) -> Self {
+        Self {
+            default,
+            conditions: vec![],
+        }
+    }
+
+    /// Push a conditional handler.
+    pub fn push(&mut self, condition: BoxedVar<bool>, handler: Box<dyn AnyRcWidgetHandler>) {
+        self.conditions.push((condition, handler));
+    }
+
+    /// Build the handler.
+    pub fn build<A: Clone + 'static>(self) -> RcWidgetHandler<A> {
+        match self.default.into_any().downcast::<RcWidgetHandler<A>>() {
+            Ok(default) => {
+                let mut conditions = Vec::with_capacity(self.conditions.len());
+                for (c, h) in self.conditions {
+                    match h.into_any().downcast::<RcWidgetHandler<A>>() {
+                        Ok(h) => conditions.push((c, *h)),
+                        Err(_) => continue,
+                    }
+                }
+                RcWidgetHandler::new(WhenWidgetHandler {
+                    default: *default,
+                    conditions,
+                })
+            }
+            Err(_) => panic!("unexpected build type in widget handler when builder"),
+        }
+    }
+}
+
+struct WhenWidgetHandler<A: Clone + 'static> {
+    default: RcWidgetHandler<A>,
+    conditions: Vec<(BoxedVar<bool>, RcWidgetHandler<A>)>,
+}
+impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
+    fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
+        for (c, h) in &mut self.conditions {
+            if c.get() {
+                return h.event(ctx, args);
+            }
+        }
+        self.default.event(ctx, args)
+    }
+
+    fn update(&mut self, ctx: &mut crate::context::WidgetContext) -> bool {
+        let mut pending = self.default.update(ctx);
+        for (_, h) in &mut self.conditions {
+            pending |= h.update(ctx);
+        }
+        pending
+    }
+}
+
 /// Property info.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
