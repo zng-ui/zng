@@ -5,7 +5,11 @@ use std::cell::{Cell, RefCell};
 use font_features::FontVariations;
 
 use super::text_properties::*;
-use crate::core::{focus::FocusInfoBuilder, keyboard::CHAR_INPUT_EVENT, text::*};
+use crate::core::{
+    focus::FocusInfoBuilder,
+    keyboard::{Keyboard, CHAR_INPUT_EVENT},
+    text::*,
+};
 use crate::prelude::new_widget::*;
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
@@ -814,13 +818,42 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct RenderCaretNode {
         child: impl UiNode,
+        blink: Option<(ReadOnlyRcVar<Factor>, VarHandle)>,
         color_key: FrameValueKey<RenderColor>,
     })]
     impl UiNode for RenderCaretNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            if TEXT_EDITABLE_VAR.get() {
+                let blink = Keyboard::req(ctx.services).caret_animation(ctx.vars);
+                let handle = blink.subscribe(ctx.path.widget_id());
+                self.blink = Some((blink, handle));
+            }
+            self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.blink = None;
+            self.child.deinit(ctx);
+        }
+
         // subscriptions are handled by the `editable` property node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if TEXT_EDITABLE_VAR.is_new(ctx) || CARET_COLOR_VAR.is_new(ctx) {
                 ctx.updates.render();
+
+                if TEXT_EDITABLE_VAR.get() {
+                    let blink = Keyboard::req(ctx.services).caret_animation(ctx.vars);
+                    let handle = blink.subscribe(ctx.path.widget_id());
+                    self.blink = Some((blink, handle));
+                } else {
+                    self.blink = None;
+                }
+            }
+
+            if let Some((blink, _)) = &self.blink {
+                if blink.is_new(ctx) {
+                    ctx.updates.render_update();
+                }
             }
 
             self.child.update(ctx, updates);
@@ -839,8 +872,9 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                     clip_rect.origin.x += txt_padding.left;
                     clip_rect.origin.y += txt_padding.top;
 
-                    let color = CARET_COLOR_VAR.get().into();
-                    frame.push_color(clip_rect, self.color_key.bind(color, true));
+                    let mut color = CARET_COLOR_VAR.get();
+                    color.alpha = if let Some((blink, _)) = &self.blink { blink.get().0 } else { 1.0 };
+                    frame.push_color(clip_rect, self.color_key.bind(color.into(), true));
                 })
                 .expect("expected `LayoutText` in `render_text`");
             }
@@ -850,13 +884,15 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render_update(ctx, update);
 
             if TEXT_EDITABLE_VAR.get() {
-                let color = CARET_COLOR_VAR.get().into();
-                update.update_color(self.color_key.update(color, true))
+                let mut color = CARET_COLOR_VAR.get();
+                color.alpha = if let Some((blink, _)) = &self.blink { blink.get().0 } else { 1.0 };
+                update.update_color(self.color_key.update(color.into(), true))
             }
         }
     }
     RenderCaretNode {
         child,
+        blink: None,
         color_key: FrameValueKey::new_unique(),
     }
 }

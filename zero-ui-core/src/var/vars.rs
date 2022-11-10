@@ -1,5 +1,7 @@
 use std::{mem, time::Duration};
 
+use zero_ui_view_api::AnimationsConfig;
+
 use crate::{
     app::{AppEventSender, LoopTimer},
     context::Updates,
@@ -244,6 +246,10 @@ impl Vars {
         let mut rcvs_mut = self.modify_receivers.borrow_mut();
         rcvs.extend(rcvs_mut.drain(..));
         *rcvs_mut = rcvs;
+    }
+
+    pub(crate) fn update_animations_config(&self, cfg: &AnimationsConfig) {
+        self.ans.animations_enabled.set_ne(self, cfg.enabled);
     }
 
     /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.

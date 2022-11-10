@@ -4,14 +4,15 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use crate::app::view_process::VIEW_PROCESS_INITED_EVENT;
+use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{raw_events::*, *};
 use crate::event::*;
 use crate::focus::Focus;
 use crate::service::*;
-use crate::var::{var, var_default, RcVar, ReadOnlyRcVar, Var, Vars};
+use crate::units::*;
+use crate::var::{var, var_default, RcVar, ReadOnlyRcVar, Var, Vars, WithVars};
 use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, widget_instance::WidgetId};
@@ -204,6 +205,10 @@ impl AppExtension for KeyboardManager {
             let kb = Keyboard::req(ctx.services);
             kb.repeat_config.set_ne(ctx.vars, args.config);
             kb.last_key_down = None;
+        } else if let Some(args) = RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.on(update) {
+            let kb = Keyboard::req(ctx.services);
+            kb.caret_animation_config
+                .set_ne(ctx.vars, (args.config.caret_blink_interval, args.config.caret_blink_timeout));
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
                 let kb = Keyboard::req(ctx.services);
@@ -218,6 +223,13 @@ impl AppExtension for KeyboardManager {
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
             kb.repeat_config.set_ne(ctx.vars, args.key_repeat_config);
+            kb.caret_animation_config.set_ne(
+                ctx.vars,
+                (
+                    args.animations_config.caret_blink_interval,
+                    args.animations_config.caret_blink_timeout,
+                ),
+            );
 
             if args.is_respawn {
                 kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
@@ -244,6 +256,7 @@ pub struct Keyboard {
     codes: RcVar<Vec<ScanCode>>,
     keys: RcVar<Vec<Key>>,
     repeat_config: RcVar<KeyRepeatConfig>,
+    caret_animation_config: RcVar<(Duration, Duration)>,
 
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
@@ -255,6 +268,10 @@ impl Keyboard {
             codes: var(vec![]),
             keys: var(vec![]),
             repeat_config: var_default(),
+            caret_animation_config: {
+                let cfg = AnimationsConfig::default();
+                var((cfg.caret_blink_interval, cfg.caret_blink_timeout))
+            },
             last_key_down: None,
         }
     }
@@ -391,6 +408,55 @@ impl Keyboard {
     /// [`repeat_speed`]: Self::repeat_speed
     pub fn repeat_config(&self) -> ReadOnlyRcVar<KeyRepeatConfig> {
         self.repeat_config.read_only()
+    }
+
+    /// Returns a read-only variable that defines the system config for the caret blink speed and timeout.
+    ///
+    /// The first value defines the blink speed interval, the caret is visible for the duration, then not visible for the duration. The
+    /// second value defines the animation total duration, the caret stops animating and sticks to visible after this timeout is reached.
+    ///
+    /// You can use the [`caret_animation`] method to generate a new animation.
+    ///
+    /// [`caret_animation`]: Self::caret_animation
+    pub fn caret_animation_config(&self) -> ReadOnlyRcVar<(Duration, Duration)> {
+        self.caret_animation_config.read_only()
+    }
+
+    /// Returns a new read-only variable that animates the caret opacity.
+    ///
+    /// A new animation must be started after each key press. The value is always 1 or 0, no easing is used by default,
+    /// it can be added using the [`Var::easing`] method.
+    pub fn caret_animation(&self, vars: &impl WithVars) -> ReadOnlyRcVar<Factor> {
+        vars.with_vars(|vars| self.caret_animation_impl(vars))
+    }
+    fn caret_animation_impl(&self, vars: &Vars) -> ReadOnlyRcVar<Factor> {
+        let var = var(1.fct());
+        let cfg = self.caret_animation_config.clone();
+        let interval_start = Instant::now();
+        var.animate(vars, move |a, value| {
+            if !a.animations_enabled() {
+                if *value.get() != 1.fct() {
+                    *value.get_mut() = 1.fct();
+                }
+            } else {
+                let (interval, timeout) = cfg.get();
+
+                if interval_start.elapsed() >= interval {
+                    *value.get_mut() = if *value.get() == 1.fct() { 0.fct() } else { 1.fct() };
+                }
+
+                if a.start_time().elapsed() >= timeout {
+                    if *value.get() != 1.fct() {
+                        *value.get_mut() = 1.fct();
+                    }
+                    a.stop();
+                } else {
+                    a.sleep(interval);
+                }
+            }
+        })
+        .perm();
+        var.read_only()
     }
 }
 

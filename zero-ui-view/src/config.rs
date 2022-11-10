@@ -1,4 +1,4 @@
-use crate::{FontAntiAliasing, KeyRepeatConfig, MultiClickConfig};
+use crate::{AnimationsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig};
 use std::time::Duration;
 
 /// Create a hidden window that listens to Windows config change events.
@@ -80,7 +80,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
                 SPI_SETDOUBLECLICKTIME | SPI_SETDOUBLECLKWIDTH | SPI_SETDOUBLECLKHEIGHT => {
                     notify(Event::MultiClickConfigChanged(multi_click_config()))
                 }
-                SPI_SETCLIENTAREAANIMATION => notify(Event::AnimationsEnabledChanged(animations_enabled())),
+                SPI_SETCLIENTAREAANIMATION => notify(Event::AnimationsConfigChanged(animations_config())),
                 SPI_SETKEYBOARDDELAY | SPI_SETKEYBOARDSPEED => notify(Event::KeyRepeatConfigChanged(key_repeat_config())),
                 _ => None,
             },
@@ -157,27 +157,57 @@ pub fn multi_click_config() -> MultiClickConfig {
 }
 
 #[cfg(windows)]
-pub fn animations_enabled() -> bool {
+pub fn animations_config() -> AnimationsConfig {
     use windows_sys::Win32::Foundation::GetLastError;
+    use windows_sys::Win32::System::WindowsProgramming::INFINITE;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-    unsafe {
+    let enabled = unsafe {
         let mut enabled = true;
 
         if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
             tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:?}", GetLastError());
-            return true;
+            enabled = true;
         }
 
         enabled
+    };
+
+    let blink_time = unsafe { GetCaretBlinkTime() };
+    let blink_time = if blink_time == INFINITE {
+        Duration::MAX
+    } else {
+        Duration::from_millis(blink_time as _)
+    };
+
+    let blink_timeout = unsafe {
+        let mut timeout = 5000;
+
+        if SystemParametersInfoW(SPI_GETCARETTIMEOUT, 0, &mut timeout as *mut _ as *mut _, 0) == 0 {
+            tracing::error!("SPI_GETCARETTIMEOUT error: {:?}", GetLastError());
+            timeout = 5000;
+        }
+
+        timeout
+    };
+    let blink_timeout = if blink_timeout == INFINITE {
+        Duration::MAX
+    } else {
+        Duration::from_millis(blink_timeout as _)
+    };
+
+    AnimationsConfig {
+        enabled,
+        caret_blink_interval: blink_time,
+        caret_blink_timeout: blink_timeout,
     }
 }
 #[cfg(not(windows))]
-pub fn animations_enabled() -> bool {
+pub fn animations_config() -> AnimationsConfig {
     // see https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion
     // for other config sources
     tracing::error!("`animations_enabled` not implemented for this OS, will use default");
-    true
+    AnimationsConfig::default()
 }
 
 #[cfg(windows)]
@@ -233,7 +263,10 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
         }
     };
 
-    KeyRepeatConfig { start_delay, speed }
+    KeyRepeatConfig {
+        start_delay,
+        interval: speed,
+    }
 }
 
 #[cfg(not(windows))]

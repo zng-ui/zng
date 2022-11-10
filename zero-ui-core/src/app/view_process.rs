@@ -21,9 +21,9 @@ use zero_ui_view_api::webrender_api::{
     FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
 };
 pub use zero_ui_view_api::{
-    bytes_channel, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId,
-    HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode,
-    VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
+    bytes_channel, AnimationsConfig, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
+    FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo,
+    RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
 };
 use zero_ui_view_api::{
     Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
@@ -1096,9 +1096,7 @@ event_args! {
         pub font_aa: FontAntiAliasing,
 
         /// System animations config.
-        ///
-        /// People with photosensitive epilepsy usually disable animations system wide.
-        pub animations_enabled: bool,
+        pub animations_config: AnimationsConfig,
 
         ..
 

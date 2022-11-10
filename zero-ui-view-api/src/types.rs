@@ -689,9 +689,7 @@ pub enum Event {
         /// System font anti-aliasing config.
         font_aa: FontAntiAliasing,
         /// System animations config.
-        ///
-        /// People with photo-sensitive epilepsy usually disable animations system wide.
-        animations_enabled: bool,
+        animations_config: AnimationsConfig,
     },
 
     /// The event channel disconnected, probably because the view-process crashed.
@@ -942,8 +940,8 @@ pub enum Event {
     FontAaChanged(FontAntiAliasing),
     /// System double-click definition changed.
     MultiClickConfigChanged(MultiClickConfig),
-    /// System animations enabled config changed.
-    AnimationsEnabledChanged(bool),
+    /// System animations config changed.
+    AnimationsConfigChanged(AnimationsConfig),
     /// System definition of pressed key repeat event changed.
     KeyRepeatConfigChanged(KeyRepeatConfig),
 
@@ -1004,6 +1002,7 @@ pub enum Event {
 }
 impl Event {
     /// Change `self` to incorporate `other` or returns `other` if both events cannot be coalesced.
+    #[allow(clippy::result_large_err)]
     pub fn coalesce(&mut self, other: Event) -> Result<(), Event> {
         use Event::*;
 
@@ -1159,8 +1158,8 @@ impl Event {
             (MultiClickConfigChanged(config), MultiClickConfigChanged(n_config)) => {
                 *config = n_config;
             }
-            // animation enabled.
-            (AnimationsEnabledChanged(config), AnimationsEnabledChanged(n_config)) => {
+            // animation enabled and caret speed.
+            (AnimationsConfigChanged(config), AnimationsConfigChanged(n_config)) => {
                 *config = n_config;
             }
             // key repeat delay and speed.
@@ -1708,14 +1707,39 @@ impl Default for MultiClickConfig {
 pub struct KeyRepeatConfig {
     /// Delay before repeat starts.
     pub start_delay: Duration,
-    /// Repeat speed.
-    pub speed: Duration,
+    /// Delay before each repeat event after the first.
+    pub interval: Duration,
 }
 impl Default for KeyRepeatConfig {
+    /// 600ms, 100ms.
     fn default() -> Self {
         Self {
             start_delay: Duration::from_millis(600),
-            speed: Duration::from_millis(100),
+            interval: Duration::from_millis(100),
+        }
+    }
+}
+
+/// System settings that control animations.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+pub struct AnimationsConfig {
+    /// If animation are enabled.
+    ///
+    /// People with photo-sensitive epilepsy usually disable animations system wide.
+    pub enabled: bool,
+
+    /// Interval of the caret blink animation.
+    pub caret_blink_interval: Duration,
+    /// Duration after which the blink animation stops.
+    pub caret_blink_timeout: Duration,
+}
+impl Default for AnimationsConfig {
+    /// true, 100ms, MAX.
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            caret_blink_interval: Duration::from_millis(100),
+            caret_blink_timeout: Duration::MAX,
         }
     }
 }

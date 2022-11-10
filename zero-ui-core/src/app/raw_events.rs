@@ -21,7 +21,7 @@ use zero_ui_view_api::FrameWaitId;
 
 use super::{
     raw_device_events::AxisId,
-    view_process::{MonitorInfo, ViewImage, WindowStateAll},
+    view_process::{AnimationsConfig, MonitorInfo, ViewImage, WindowStateAll},
     DeviceId,
 };
 use crate::{
@@ -560,10 +560,10 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_ANIMATIONS_ENABLED_CHANGED_EVENT`].
-    pub struct RawAnimationsEnabledChangedArgs {
-        /// If animation is enabled in the operating system.
-        pub enabled: bool,
+    /// Arguments for the [`RAW_ANIMATIONS_CONFIG_CHANGED_EVENT`].
+    pub struct RawAnimationsConfigChangedArgs {
+        /// New config.
+        pub config: AnimationsConfig,
 
         ..
 
@@ -690,7 +690,7 @@ event! {
     pub static RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT: RawMultiClickConfigChangedArgs;
 
     /// Change in system animation enabled config.
-    pub static RAW_ANIMATIONS_ENABLED_CHANGED_EVENT: RawAnimationsEnabledChangedArgs;
+    pub static RAW_ANIMATIONS_CONFIG_CHANGED_EVENT: RawAnimationsConfigChangedArgs;
 
     /// Change in system key repeat interval config.
     pub static RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT: RawKeyRepeatConfigChangedArgs;

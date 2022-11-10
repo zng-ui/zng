@@ -1298,7 +1298,7 @@ impl Api for App {
             multi_click_config: config::multi_click_config(),
             key_repeat_config: config::key_repeat_config(),
             font_aa: config::font_aa(),
-            animations_enabled: config::animations_enabled(),
+            animations_config: config::animations_config(),
         });
     }
 

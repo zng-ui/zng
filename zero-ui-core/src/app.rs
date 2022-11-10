@@ -1109,9 +1109,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawMultiClickConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::AnimationsEnabledChanged(enabled) => {
-                let args = RawAnimationsEnabledChangedArgs::now(enabled);
-                self.notify_event(RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.new_update(args), observer);
+            Event::AnimationsConfigChanged(cfg) => {
+                self.ctx().vars.update_animations_config(&cfg);
+                let args = RawAnimationsConfigChangedArgs::now(cfg);
+                self.notify_event(RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
             Event::KeyRepeatConfigChanged(cfg) => {
                 let args = RawKeyRepeatConfigChangedArgs::now(cfg);
@@ -1220,7 +1221,7 @@ impl<E: AppExtension> RunningApp<E> {
                     multi_click_config,
                     key_repeat_config,
                     font_aa,
-                    animations_enabled,
+                    animations_config,
                 } => {
                     // notify immediately.
                     if is_respawn {
@@ -1237,6 +1238,9 @@ impl<E: AppExtension> RunningApp<E> {
                         .into_iter()
                         .map(|(id, info)| (view.monitor_id(id), info))
                         .collect();
+
+                    self.ctx().vars.update_animations_config(&animations_config);
+
                     let args = ViewProcessInitedArgs::now(
                         generation,
                         is_respawn,
@@ -1244,7 +1248,7 @@ impl<E: AppExtension> RunningApp<E> {
                         multi_click_config,
                         key_repeat_config,
                         font_aa,
-                        animations_enabled,
+                        animations_config,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }
