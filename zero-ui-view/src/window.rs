@@ -774,44 +774,46 @@ impl Window {
 
         unsafe {
             let mut taskbar_list2: *mut taskbar_com::ITaskbarList2 = std::ptr::null_mut();
-            let result = CoCreateInstance(
+            match CoCreateInstance(
                 &taskbar_com::CLSID_TaskbarList,
                 std::ptr::null_mut(),
                 CLSCTX_ALL,
                 &taskbar_com::IID_ITaskbarList2,
                 &mut taskbar_list2 as *mut _ as *mut _,
-            );
-            if result == 0 {
-                let taskbar_list2 = taskbar_list2 as *mut taskbar_com::ITaskbarList2;
+            ) {
+                0 => {
+                    let taskbar_list2 = taskbar_list2 as *mut taskbar_com::ITaskbarList2;
 
-                let result = if visible {
-                    let add_tab = (*(*taskbar_list2).lpVtbl).parent.AddTab;
-                    add_tab(taskbar_list2.cast(), self.window.hwnd() as _)
-                } else {
-                    let delete_tab = (*(*taskbar_list2).lpVtbl).parent.DeleteTab;
-                    delete_tab(taskbar_list2.cast(), self.window.hwnd() as _)
-                };
-                if result != 0 {
-                    let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
+                    let result = if visible {
+                        let add_tab = (*(*taskbar_list2).lpVtbl).parent.AddTab;
+                        add_tab(taskbar_list2.cast(), self.window.hwnd() as _)
+                    } else {
+                        let delete_tab = (*(*taskbar_list2).lpVtbl).parent.DeleteTab;
+                        delete_tab(taskbar_list2.cast(), self.window.hwnd() as _)
+                    };
+                    if result != 0 {
+                        let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
+                        tracing::error!(
+                            target: "window",
+                            "cannot set `taskbar_visible`, `ITaskbarList::{mtd_name}` failed, error: 0x{result:x}",
+                        )
+                    }
+
+                    let release = (*(*taskbar_list2).lpVtbl).parent.parent.Release;
+                    let result = release(taskbar_list2.cast());
+                    if result != 0 {
+                        tracing::error!(
+                            target: "window",
+                            "failed to release `taskbar_list`, error: 0x{result:x}"
+                        )
+                    }
+                }
+                error => {
                     tracing::error!(
                         target: "window",
-                        "cannot set `taskbar_visible`, `ITaskbarList::{mtd_name}` failed, error: {result:x}",
+                        "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: 0x{error:x}",
                     )
                 }
-
-                let release = (*(*taskbar_list2).lpVtbl).parent.parent.Release;
-                let result = release(taskbar_list2.cast());
-                if result != 0 {
-                    tracing::error!(
-                        target: "window",
-                        "failed to release `taskbar_list`, error: {result:x}"
-                    )
-                }
-            } else {
-                tracing::error!(
-                    target: "window",
-                    "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {result:x}",
-                )
             }
         }
     }

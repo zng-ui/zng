@@ -1113,9 +1113,9 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawAnimationsEnabledChangedArgs::now(enabled);
                 self.notify_event(RAW_ANIMATIONS_ENABLED_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::KeyRepeatDelayChanged(delay) => {
-                let args = RawKeyRepeatDelayChangedArgs::now(delay);
-                self.notify_event(RAW_KEY_REPEAT_DELAY_CHANGED_EVENT.new_update(args), observer);
+            Event::KeyRepeatConfigChanged(cfg) => {
+                let args = RawKeyRepeatConfigChangedArgs::now(cfg);
+                self.notify_event(RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
 
             // `device_events`
@@ -1218,7 +1218,7 @@ impl<E: AppExtension> RunningApp<E> {
                     is_respawn,
                     available_monitors,
                     multi_click_config,
-                    key_repeat_delay,
+                    key_repeat_config,
                     font_aa,
                     animations_enabled,
                 } => {
@@ -1242,7 +1242,7 @@ impl<E: AppExtension> RunningApp<E> {
                         is_respawn,
                         monitors,
                         multi_click_config,
-                        key_repeat_delay,
+                        key_repeat_config,
                         font_aa,
                         animations_enabled,
                     );

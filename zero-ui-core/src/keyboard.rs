@@ -4,21 +4,20 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::app::view_process::VIEW_PROCESS_INITED_EVENT;
 use crate::app::{raw_events::*, *};
 use crate::event::*;
 use crate::focus::Focus;
 use crate::service::*;
-use crate::units::TimeUnits;
-use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
+use crate::var::{var, var_default, RcVar, ReadOnlyRcVar, Var, Vars};
 use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, widget_instance::WidgetId};
 
 use linear_map::set::LinearSet;
-pub use zero_ui_view_api::{Key, KeyState, ScanCode};
+pub use zero_ui_view_api::{Key, KeyRepeatConfig, KeyState, ScanCode};
 
 event_args! {
     /// Arguments for [`KEY_INPUT_EVENT`].
@@ -201,9 +200,9 @@ impl AppExtension for KeyboardManager {
                     CHAR_INPUT_EVENT.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
                 }
             }
-        } else if let Some(args) = RAW_KEY_REPEAT_DELAY_CHANGED_EVENT.on(update) {
+        } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
-            kb.repeat_delay.set_ne(ctx.vars, args.delay);
+            kb.repeat_config.set_ne(ctx.vars, args.config);
             kb.last_key_down = None;
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
@@ -218,7 +217,7 @@ impl AppExtension for KeyboardManager {
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let kb = Keyboard::req(ctx.services);
-            kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay);
+            kb.repeat_config.set_ne(ctx.vars, args.key_repeat_config);
 
             if args.is_respawn {
                 kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
@@ -244,7 +243,7 @@ pub struct Keyboard {
     modifiers: RcVar<ModifiersState>,
     codes: RcVar<Vec<ScanCode>>,
     keys: RcVar<Vec<Key>>,
-    repeat_delay: RcVar<Duration>,
+    repeat_config: RcVar<KeyRepeatConfig>,
 
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
@@ -255,7 +254,7 @@ impl Keyboard {
             modifiers: var(ModifiersState::empty()),
             codes: var(vec![]),
             keys: var(vec![]),
-            repeat_delay: var(600.ms()),
+            repeat_config: var_default(),
             last_key_down: None,
         }
     }
@@ -267,7 +266,7 @@ impl Keyboard {
         match args.state {
             KeyState::Pressed => {
                 if let Some((d_id, code, time)) = &mut self.last_key_down {
-                    let max_t = self.repeat_delay.get() * 2;
+                    let max_t = self.repeat_config.get().start_delay * 2;
                     if args.scan_code == *code && args.device_id == *d_id && (args.timestamp - *time) < max_t {
                         repeat = true;
                     } else {
@@ -383,15 +382,15 @@ impl Keyboard {
         self.keys.read_only()
     }
 
-    /// Returns a read-only variable that tracks the operating system key press repeat delay.
+    /// Returns a read-only variable that tracks the operating system key press repeat start delay and repeat speed.
     ///
-    /// This delay is roughly the time the user must hold a key pressed to generate a new key
-    /// press event. When a second key press happens without any other keyboard event and within twice this
-    /// value if is marked [`is_repeat`] by the [`KeyboardManager`].
+    /// This delay is roughly the time the user must hold a key pressed to start repeating. When a second key press
+    /// happens without any other keyboard event and within twice this value it is marked [`is_repeat`] by the [`KeyboardManager`].
     ///
     /// [`is_repeat`]: KeyInputArgs::is_repeat
-    pub fn repeat_delay(&self) -> ReadOnlyRcVar<Duration> {
-        self.repeat_delay.read_only()
+    /// [`repeat_speed`]: Self::repeat_speed
+    pub fn repeat_config(&self) -> ReadOnlyRcVar<KeyRepeatConfig> {
+        self.repeat_config.read_only()
     }
 }
 

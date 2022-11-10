@@ -1296,7 +1296,7 @@ impl Api for App {
             is_respawn,
             available_monitors,
             multi_click_config: config::multi_click_config(),
-            key_repeat_delay: config::key_repeat_delay(),
+            key_repeat_config: config::key_repeat_config(),
             font_aa: config::font_aa(),
             animations_enabled: config::animations_enabled(),
         });

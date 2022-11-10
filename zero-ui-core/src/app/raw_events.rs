@@ -15,7 +15,7 @@
 //! [`notify`]: crate::event::Event::notify
 //! [`DeviceId`]: crate::app::DeviceId
 
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 
 use zero_ui_view_api::FrameWaitId;
 
@@ -27,7 +27,7 @@ use super::{
 use crate::{
     color::ColorScheme,
     event::*,
-    keyboard::{Key, KeyState, ScanCode},
+    keyboard::{Key, KeyRepeatConfig, KeyState, ScanCode},
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase},
     render::FrameId,
     text::FontAntiAliasing,
@@ -573,14 +573,10 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_KEY_REPEAT_DELAY_CHANGED_EVENT`].
-    pub struct RawKeyRepeatDelayChangedArgs {
-        /// New delay.
-        ///
-        /// When the user holds a key pressed the system will generate a new key-press event
-        /// every time this delay elapses. The real delay time depends on the hardware but it
-        /// roughly matches this value.
-        pub delay: Duration,
+    /// Arguments for the [`RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT`].
+    pub struct RawKeyRepeatConfigChangedArgs {
+        /// New config.
+        pub config: KeyRepeatConfig,
 
         ..
 
@@ -697,7 +693,7 @@ event! {
     pub static RAW_ANIMATIONS_ENABLED_CHANGED_EVENT: RawAnimationsEnabledChangedArgs;
 
     /// Change in system key repeat interval config.
-    pub static RAW_KEY_REPEAT_DELAY_CHANGED_EVENT: RawKeyRepeatDelayChangedArgs;
+    pub static RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT: RawKeyRepeatConfigChangedArgs;
 
     /// Image metadata loaded without errors.
     pub static RAW_IMAGE_METADATA_LOADED_EVENT: RawImageArgs;

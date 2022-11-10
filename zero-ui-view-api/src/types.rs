@@ -684,8 +684,8 @@ pub enum Event {
         available_monitors: Vec<(MonitorId, MonitorInfo)>,
         /// System multi-click config.
         multi_click_config: MultiClickConfig,
-        /// System keyboard pressed key repeat delay config.
-        key_repeat_delay: Duration,
+        /// System keyboard pressed key repeat start delay config.
+        key_repeat_config: KeyRepeatConfig,
         /// System font anti-aliasing config.
         font_aa: FontAntiAliasing,
         /// System animations config.
@@ -945,7 +945,7 @@ pub enum Event {
     /// System animations enabled config changed.
     AnimationsEnabledChanged(bool),
     /// System definition of pressed key repeat event changed.
-    KeyRepeatDelayChanged(Duration),
+    KeyRepeatConfigChanged(KeyRepeatConfig),
 
     // Raw device events
     /// Device added or installed.
@@ -1163,8 +1163,8 @@ impl Event {
             (AnimationsEnabledChanged(config), AnimationsEnabledChanged(n_config)) => {
                 *config = n_config;
             }
-            // key repeat delay timeout.
-            (KeyRepeatDelayChanged(config), KeyRepeatDelayChanged(n_config)) => {
+            // key repeat delay and speed.
+            (KeyRepeatConfigChanged(config), KeyRepeatConfigChanged(n_config)) => {
                 *config = n_config;
             }
             (_, e) => return Err(e),
@@ -1699,6 +1699,23 @@ impl Default for MultiClickConfig {
         Self {
             time: Duration::from_millis(500),
             area: DipSize::new(Dip::new(4), Dip::new(4)),
+        }
+    }
+}
+
+/// System settings that define the key pressed repeat.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+pub struct KeyRepeatConfig {
+    /// Delay before repeat starts.
+    pub start_delay: Duration,
+    /// Repeat speed.
+    pub speed: Duration,
+}
+impl Default for KeyRepeatConfig {
+    fn default() -> Self {
+        Self {
+            start_delay: Duration::from_millis(600),
+            speed: Duration::from_millis(100),
         }
     }
 }

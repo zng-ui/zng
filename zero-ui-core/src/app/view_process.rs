@@ -3,7 +3,6 @@
 use std::cell::Cell;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 use std::{cell::RefCell, rc::Rc};
 use std::{fmt, rc};
 
@@ -26,7 +25,9 @@ pub use zero_ui_view_api::{
     HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode,
     VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
 };
-use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
+use zero_ui_view_api::{
+    Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
+};
 
 type Result<T> = std::result::Result<T, ViewProcessOffline>;
 
@@ -1088,8 +1089,8 @@ event_args! {
         /// System multi-click config.
         pub multi_click_config: MultiClickConfig,
 
-        /// System keyboard pressed repeat delay config.
-        pub key_repeat_delay: Duration,
+        /// System keyboard pressed repeat config.
+        pub key_repeat_config: KeyRepeatConfig,
 
         /// System font font-aliasing config.
         pub font_aa: FontAntiAliasing,

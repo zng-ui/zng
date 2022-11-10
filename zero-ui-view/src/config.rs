@@ -1,4 +1,4 @@
-use crate::{FontAntiAliasing, MultiClickConfig};
+use crate::{FontAntiAliasing, KeyRepeatConfig, MultiClickConfig};
 use std::time::Duration;
 
 /// Create a hidden window that listens to Windows config change events.
@@ -43,7 +43,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
 
         let r = RegisterClassExW(&class);
         if r == 0 {
-            panic!("error {:x}", GetLastError())
+            panic!("error 0x{:x}", GetLastError())
         }
     }
 
@@ -63,7 +63,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
             std::ptr::null(),
         );
         if r == 0 {
-            panic!("error {:x}", GetLastError())
+            panic!("error 0x{:x}", GetLastError())
         }
         r
     };
@@ -81,7 +81,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
                     notify(Event::MultiClickConfigChanged(multi_click_config()))
                 }
                 SPI_SETCLIENTAREAANIMATION => notify(Event::AnimationsEnabledChanged(animations_enabled())),
-                SPI_SETKEYBOARDDELAY => notify(Event::KeyRepeatDelayChanged(key_repeat_delay())),
+                SPI_SETKEYBOARDDELAY | SPI_SETKEYBOARDSPEED => notify(Event::KeyRepeatConfigChanged(key_repeat_config())),
                 _ => None,
             },
             WM_DISPLAYCHANGE => {
@@ -92,7 +92,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
         }
     });
     if !r {
-        panic!("error {:x}", unsafe { GetLastError() })
+        panic!("error 0x{:x}", unsafe { GetLastError() })
     }
 }
 
@@ -181,36 +181,63 @@ pub fn animations_enabled() -> bool {
 }
 
 #[cfg(windows)]
-pub fn key_repeat_delay() -> Duration {
+pub fn key_repeat_config() -> KeyRepeatConfig {
     use windows_sys::Win32::Foundation::GetLastError;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-    unsafe {
+    let start_delay = unsafe {
         let mut index = 0;
 
         if SystemParametersInfoW(SPI_GETKEYBOARDDELAY, 0, &mut index as *mut _ as *mut _, 0) == 0 {
             tracing::error!("SPI_GETKEYBOARDDELAY error: {:?}", GetLastError());
-            return Duration::from_millis(600);
+            Duration::from_millis(600)
+        } else {
+            /*
+                ..which is a value in the range from 0 (approximately 250 ms delay) through 3 (approximately 1 second delay).
+                The actual delay associated with each value may vary depending on the hardware.
+
+                source: SPI_GETKEYBOARDDELAY entry in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow
+            */
+            Duration::from_millis(match index {
+                0 => 250,
+                1 => 500,
+                2 => 750,
+                3 => 1000,
+                _ => 600,
+            })
         }
+    };
 
-        /*
-            ..which is a value in the range from 0 (approximately 250 ms delay) through 3 (approximately 1 second delay).
-            The actual delay associated with each value may vary depending on the hardware.
+    let speed = unsafe {
+        let mut index = 0;
 
-            source: SPI_GETKEYBOARDDELAY entry in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow
-        */
-        Duration::from_millis(match index {
-            0 => 250,
-            1 => 500,
-            2 => 750,
-            3 => 1000,
-            _ => 600,
-        })
-    }
+        if SystemParametersInfoW(SPI_GETKEYBOARDSPEED, 0, &mut index as *mut _ as *mut _, 0) == 0 {
+            tracing::error!("SPI_GETKEYBOARDSPEED error: {:?}", GetLastError());
+            Duration::from_millis(100)
+        } else {
+            /*
+                ..which is a value in the range from 0 (approximately 2.5 repetitions per second) through 31
+                (approximately 30 repetitions per second). The actual repeat rates are hardware-dependent and may
+                vary from a linear scale by as much as 20%
+
+                source: SPI_GETKEYBOARDSPEED entry in https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow
+            */
+            let min = 0.0;
+            let max = 31.0;
+            let t_min = 2.5;
+            let t_max = 30.0;
+            let i = index as f32;
+            let t = (i - min) / (max - min) * (t_max - t_min) + t_min;
+
+            Duration::from_secs_f32(1.0 / t)
+        }
+    };
+
+    KeyRepeatConfig { start_delay, speed }
 }
 
 #[cfg(not(windows))]
-pub fn key_repeat_delay() -> Duration {
-    tracing::error!("`key_repeat_delay` not implemented for this OS, will use default");
-    Duration::from_millis(600)
+pub fn key_repeat_config() -> KeyRepeatConfig {
+    tracing::error!("`key_repeat_config` not implemented for this OS, will use default");
+    KeyRepeatConfig::default()
 }
