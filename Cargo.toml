@@ -18,12 +18,6 @@ members = [
     # tests:
     "tests",
     "tests/build",
-    "tests/widget-no-direct-dep/direct-dep",
-    "tests/widget-no-direct-dep/no-direct-dep",
-
-    # profile:
-    "profile/util",
-    "profile/stress",
 ]
 
 exclude = [

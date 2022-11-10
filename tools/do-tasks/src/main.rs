@@ -11,7 +11,6 @@ fn main() {
         "rust_analyzer_check" => rust_analyzer_check(args),
         "fmt" | "f" => fmt(args),
         "test" | "t" => test(args),
-        "profile" | "p" => profile(args),
         "run" | "r" => run(args),
         "doc" => doc(args),
         "expand" => expand(args),
@@ -475,10 +474,6 @@ fn fmt(args: Vec<&str>) {
     cmd("rustfmt", &["--edition", "2021"], &cases_str);
     println("done");
 
-    print("    fmt profile/build-time ... ");
-    cmd("cargo", &["fmt", "--manifest-path", "profile/build-time/Cargo.toml"], &args);
-    println("done");
-
     print("    fmt tools ... ");
     for tool_crate in top_cargo_toml("tools") {
         cmd("cargo", &["fmt", "--manifest-path", &tool_crate], &args);
@@ -578,58 +573,6 @@ fn prebuild(mut args: Vec<&str>) {
     cmd("cargo", &["build", "-p", "zero-ui-view-prebuilt", "--release"], &[]);
 }
 
-// do profile, p [-b --build [--diff]] [-s --stress <stress-test>]
-//    Build time and runtime profiling.
-// USAGE:
-//    profile --build --release
-//       Profile `rustc` using `-Z self-timings` and summarize.
-//    profile --build --release --diff
-//       Profile `rustc` using `-Z self-timings` and compare with previous profile.
-//    profile -s <stress-test> --release-lto
-//       Record a tracing profile of the stress test build in release with LTO mode.
-fn profile(mut args: Vec<&str>) {
-    if let Some(t) = take_value(&mut args, &["-s", "--stress"], "") {
-        args.push("--");
-        args.push(&t[0]); // the crate prints a list for ""
-        cmd("cargo", &["run", "--manifest-path", "profile/stress/Cargo.toml"], &args);
-    } else if take_flag(&mut args, &["-b", "--build"]) {
-        let diff = take_flag(&mut args, &["--diff"]);
-
-        if take_flag(&mut args, &["--release-lto"]) {
-            args.push("--profile");
-            args.push("release-lto");
-        }
-
-        if !args.contains(&"--") {
-            args.push("--");
-        }
-        args.push("-Zself-profile");
-
-        cmd(
-            "cargo",
-            &["+nightly", "rustc", "--manifest-path", "profile/build-time/Cargo.toml"],
-            &args,
-        );
-
-        let mut profiles = all_ext("profile/build-time", "mm_profdata");
-        if profiles.is_empty() {
-            fatal("no profile generated\n   was `profile/build-time` already built and the profile file deleted?\n   try `do clean --profile-build` and then this command again")
-        }
-
-        sort_modified(&mut profiles);
-
-        if diff && profiles.len() > 1 {
-            let from = profiles[1].strip_suffix(".mm_profdata").unwrap();
-            let to = profiles[0].strip_suffix(".mm_profdata").unwrap();
-            cmd("summarize", &["diff", from, to], &[]);
-        } else {
-            cmd("summarize", &["summarize", profiles[0].strip_suffix(".mm_profdata").unwrap()], &[]);
-        }
-    } else {
-        help(vec!["profile"])
-    }
-}
-
 // do clean [--tools] [--workspace] [--release-lto] [--prebuild] [<cargo-clean-args>]
 //    Remove workspace, test crates, profile crates and tools target directories.
 // USAGE:
@@ -643,14 +586,11 @@ fn profile(mut args: Vec<&str>) {
 //       Remove only the release files from the target directories.
 //    clean --temp, --tmp
 //       Remove the temp files from the target workspace target directory.
-//    clean --profile-build
-//       Remove only the target directory of ./profile/build-time.
 fn clean(mut args: Vec<&str>) {
     let tools = take_flag(&mut args, &["--tools"]);
     let workspace = take_flag(&mut args, &["--workspace"]);
     let temp = take_flag(&mut args, &["--temp", "--tmp"]);
-    let profile_build = take_flag(&mut args, &["--profile-build"]);
-    let all = !tools && !workspace && !temp && !profile_build;
+    let all = !tools && !workspace && !temp;
 
     let release_lto = take_flag(&mut args, &["--release-lto"]);
     let prebuild = take_flag(&mut args, &["--prebuild"]);
@@ -675,10 +615,6 @@ fn clean(mut args: Vec<&str>) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => println("did not find `target/tmp`"),
             Err(e) => error(f!("failed to cleanup temp, {e}")),
         }
-    }
-
-    if all || profile_build {
-        cmd("cargo", &["clean", "--manifest-path", "profile/build-time/Cargo.toml"], &[]);
     }
 
     if all || tools {

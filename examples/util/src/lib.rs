@@ -1,4 +1,5 @@
 use std::{
+    backtrace::Backtrace,
     fs,
     io::Write,
     path::{Path, PathBuf},
@@ -7,7 +8,9 @@ use std::{
 use tracing::{Level, Subscriber};
 use tracing_subscriber::{layer::Layer, prelude::*};
 
-pub use profile_util::*;
+mod mpsc;
+mod profile;
+pub use profile::*;
 
 /// Prints `tracing` and `log` events of levels INFO, WARN and ERROR in debug builds, logs to `example_name.error.log` in release builds.
 pub fn print_info() {
@@ -109,7 +112,7 @@ pub fn write_panic(log_file: impl AsRef<Path>) {
 
         let msg = panic_msg(info.payload());
 
-        let backtrace = backtrace::Backtrace::new();
+        let backtrace = Backtrace::capture();
 
         let msg = format!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n{backtrace:?}");
         std::fs::write(&log_file, msg).ok();
@@ -131,7 +134,7 @@ fn panic_msg(payload: &dyn std::any::Any) -> &str {
 ///
 /// See [`profile_util::record_profile`] for more details.
 pub fn record_profile(example: &'static str) -> Recording {
-    profile_util::record_profile(
+    profile::record_profile(
         format!("profile-{example}{}", if cfg!(debug_assertions) { "-dbg" } else { "" }),
         &[("example", &example), ("debug", &cfg!(debug_assertions))],
         default_profile_filter,

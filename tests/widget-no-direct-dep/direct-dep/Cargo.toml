@@ -1,9 +1,0 @@
-[package]
-name = "direct-dep"
-version = "0.1.0"
-authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
-edition = "2021"
-
-[dependencies]
-# test support for custom names.
-zero-ui-renamed = { package = "zero-ui", path = "../../../zero-ui" }

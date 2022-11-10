@@ -146,29 +146,6 @@ pub fn take_option<'a>(args: &mut Vec<&'a str>, option: &[&str], value_name: &st
     }
 }
 
-// Removes all of the `option` values, if the option is set without value (as a flag), uses the `default_value`.
-pub fn take_value<'a>(args: &mut Vec<&'a str>, option: &[&str], default_value: &'a str) -> Option<Vec<&'a str>> {
-    let mut i = 0;
-    let mut values = vec![];
-    while i < args.len() {
-        if option.iter().any(|&o| args[i] == o) {
-            args.remove(i); // remove option
-            if i == args.len() || args[i].starts_with('-') {
-                values.push(default_value);
-            } else {
-                values.push(args.remove(i)) // take value.
-            }
-        }
-        i += 1;
-    }
-
-    if values.is_empty() {
-        None
-    } else {
-        Some(values)
-    }
-}
-
 // Parses the initial input. Returns ("task-name", ["task", "args"]).
 pub fn args() -> (&'static str, Vec<&'static str>) {
     let mut args: Vec<_> = env::args().skip(1).collect();
@@ -262,16 +239,6 @@ pub fn top_cargo_toml(dir: &str) -> Vec<String> {
 /// Get all `dir/**/*`.ext files.
 pub fn all_ext(dir: &str, ext: &str) -> Vec<String> {
     glob(&format!("{dir}/**/*.{ext}"))
-}
-
-/// Sort the file list by newest modification first.
-pub fn sort_modified(files: &mut [String]) {
-    files.sort_by_cached_key(|f| {
-        std::fs::metadata(f)
-            .and_then(|m| m.modified())
-            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-    });
-    files.reverse();
 }
 
 // Get all `examples/*.rs` file names.

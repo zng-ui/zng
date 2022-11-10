@@ -1,5 +1,3 @@
-mod mpsc;
-
 use std::{
     cell::Cell,
     fmt,
@@ -19,6 +17,8 @@ use tracing::{
 use v_jsonescape::escape;
 
 pub use tracing::Level;
+
+use crate::mpsc;
 
 /// Arguments for the filter closure of [`record_profile`].
 pub struct FilterArgs<'a> {
@@ -639,7 +639,7 @@ pub fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
     // suppress font-kit warnings:
     //
     if metadata.target() == "font_kit::loaders::freetype" {
-        // Suppress "get_type_1_or_sfnt_name(): found invalid platform ID $n"
+        // Suppress "$fn(): found invalid platform ID $n"
         // This does not look fully implemented and generates a lot of warns
         // with the default Ubuntu font set all with valid platform IDs.
         if metadata.line() == Some(735) {
