@@ -381,7 +381,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_widget_handler.is_empty() {
             get_widget_handler = quote! {
-                fn widget_handler(&self, __index__: usize) -> &dyn std::any::Any {
+                fn widget_handler(&self, __index__: usize) -> &dyn #core::widget_builder::AnyRcWidgetHandler {
                     match __index__ {
                         #get_widget_handler
                         n => #core::widget_builder::panic_input(&self.property(), n, #core::widget_builder::InputKind::WidgetHandler),

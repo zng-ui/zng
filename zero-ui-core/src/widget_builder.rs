@@ -367,6 +367,31 @@ impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
     }
 }
 
+/// Represents a type erased [`RcWidgetHandler<A>`].
+pub trait AnyRcWidgetHandler: Any {
+    /// Access to `dyn Any` methods.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Access to `Box<dyn Any>` methods.
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+
+    /// Clone the handler reference.
+    fn clone_boxed(&self) -> Box<dyn AnyRcWidgetHandler>;
+}
+impl<A: Clone + 'static> AnyRcWidgetHandler for RcWidgetHandler<A> {
+    fn clone_boxed(&self) -> Box<dyn AnyRcWidgetHandler> {
+        Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
 /// Property info.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
@@ -523,7 +548,7 @@ pub trait PropertyArgs {
     /// Gets a [`InputKind::WidgetHandler`].
     ///
     /// Is a `RcWidgetHandler<A>`.
-    fn widget_handler(&self, i: usize) -> &dyn Any {
+    fn widget_handler(&self, i: usize) -> &dyn AnyRcWidgetHandler {
         panic_input(&self.property(), i, InputKind::WidgetHandler)
     }
 
@@ -571,6 +596,7 @@ impl dyn PropertyArgs + '_ {
         A: 'static + Clone,
     {
         self.widget_handler(i)
+            .as_any()
             .downcast_ref::<RcWidgetHandler<A>>()
             .expect("cannot downcast handler to type")
     }
