@@ -200,18 +200,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 },
             });
 
-            if !matches!(kind, InputKind::Var | InputKind::StateVar | InputKind::Value) {
-                allowed_in_when_expr = false;
-            }
-
-            if !matches!(kind, InputKind::Var) {
-                allowed_in_when_assign = false;
-
-                input_new_dyn.push(quote! {
-                    #core::widget_builder::new_dyn_other(&mut __inputs__)
-                });
-            }
-
             match kind {
                 InputKind::Var => {
                     input_to_storage.push(quote! {
@@ -245,6 +233,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                 }
                 InputKind::StateVar => {
+                    allowed_in_when_assign = false;
                     input_to_storage.push(quote! {
                         #ident
                     });
@@ -256,6 +245,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
+                    });
+                    input_new_dyn.push(quote! {
+                        #core::widget_builder::new_dyn_other(&mut __inputs__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -271,6 +263,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                 }
                 InputKind::Value => {
+                    allowed_in_when_assign = false;
                     input_to_storage.push(quote! {
                         #core::widget_builder::value_to_args(#ident)
                     });
@@ -279,6 +272,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
+                    });
+                    input_new_dyn.push(quote! {
+                        #core::widget_builder::new_dyn_other(&mut __inputs__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -294,6 +290,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                 }
                 InputKind::UiNode => {
+                    allowed_in_when_expr = false;
                     input_to_storage.push(quote! {
                         #core::widget_builder::ui_node_to_args(#ident)
                     });
@@ -302,6 +299,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     instantiate.extend(quote! {
                         self.#ident.take_on_init(),
+                    });
+                    input_new_dyn.push(quote! {
+                        #core::widget_builder::new_dyn_ui_node(&mut __inputs__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -317,6 +317,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                 }
                 InputKind::UiNodeList => {
+                    allowed_in_when_expr = false;
                     input_to_storage.push(quote! {
                         #core::widget_builder::ui_node_list_to_args(#ident)
                     });
@@ -325,6 +326,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     instantiate.extend(quote! {
                         self.#ident.take_on_init(),
+                    });
+                    input_new_dyn.push(quote! {
+                        #core::widget_builder::new_dyn_ui_node_list(&mut __inputs__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -340,6 +344,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                 }
                 InputKind::WidgetHandler => {
+                    allowed_in_when_expr = false;
                     input_to_storage.push(quote! {
                         #core::widget_builder::widget_handler_to_args(#ident)
                     });
@@ -348,6 +353,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     });
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
+                    });
+                    input_new_dyn.push(quote! {
+                        #core::widget_builder::new_dyn_widget_handler(&mut __inputs__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");

@@ -14,7 +14,9 @@ use crate::{
     impl_from_and_into_var,
     text::{formatx, Text},
     var::{types::AnyWhenVarBuilder, *},
-    widget_instance::{BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList},
+    widget_instance::{
+        BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
+    },
 };
 
 ///<span data-del-macro-root></span> New [`SourceLocation`] that represents the location you call this macro.
@@ -492,9 +494,9 @@ pub struct PropertyInfo {
     /// | [`Var`]             | `Box<BoxedVar<T>>` or `Box<AnyWhenVarBuilder>`
     /// | [`StateVar`]        | `Box<StateVar>`
     /// | [`Value`]           | `Box<T>`
-    /// | [`UiNode`]          | `Box<RcNode<BoxedUiNode>>`
-    /// | [`UiNodeList`]      | `Box<RcNodeList<BoxedUiNodeList>>`
-    /// | [`WidgetHandler`]   | `Box<RcWidgetHandler<A>>`
+    /// | [`UiNode`]          | `Box<RcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
+    /// | [`UiNodeList`]      | `Box<RcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
+    /// | [`WidgetHandler`]   | `Box<RcWidgetHandler<A>>` or `Box<AnyWhenRcWidgetHandlerBuilder>`
     ///
     /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
     ///
@@ -758,7 +760,41 @@ pub fn new_dyn_var<T: VarValue>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -
 
     match item.downcast::<AnyWhenVarBuilder>() {
         Ok(builder) => builder.contextualized_build::<T>().expect("invalid when builder").boxed(),
-        Err(item) => item.downcast::<BoxedVar<T>>().expect("input did not match expected var type"),
+        Err(item) => *item.downcast::<BoxedVar<T>>().expect("input did not match expected var types"),
+    }
+}
+
+#[doc(hidden)]
+pub fn new_dyn_ui_node(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> RcNode<BoxedUiNode> {
+    let item = inputs.next().expect("missing input");
+
+    match item.downcast::<WhenUiNodeBuilder>() {
+        Ok(builder) => RcNode::new(builder.build().boxed()),
+        Err(item) => *item.downcast::<RcNode<BoxedUiNode>>().expect("input did not match expected UiNode types"),
+    }
+}
+
+#[doc(hidden)]
+pub fn new_dyn_ui_node_list(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> RcNodeList<BoxedUiNodeList> {
+    let item = inputs.next().expect("missing input");
+
+    match item.downcast::<WhenUiNodeListBuilder>() {
+        Ok(builder) => RcNodeList::new(builder.build().boxed()),
+        Err(item) => *item
+            .downcast::<RcNodeList<BoxedUiNodeList>>()
+            .expect("input did not match expected UiNodeList types"),
+    }
+}
+
+#[doc(hidden)]
+pub fn new_dyn_widget_handler<A: Clone + 'static>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> RcWidgetHandler<A> {
+    let item = inputs.next().expect("missing input");
+
+    match item.downcast::<AnyWhenRcWidgetHandlerBuilder>() {
+        Ok(builder) => builder.build(),
+        Err(item) => *item
+            .downcast::<RcWidgetHandler<A>>()
+            .expect("input did not match expected WidgetHandler types"),
     }
 }
 
@@ -1858,19 +1894,43 @@ impl WidgetBuilding {
                             .enumerate()
                             .map(|(i, input)| match input.kind {
                                 InputKind::Var => Box::new(AnyWhenVarBuilder::new_any(default_args.var(i).clone_any())) as _,
-                                _ => panic!("can only assign vars in when blocks"),
+                                InputKind::UiNode => Box::new(WhenUiNodeBuilder::new(default_args.ui_node(i).take_on_init())) as _,
+                                InputKind::UiNodeList => {
+                                    Box::new(WhenUiNodeListBuilder::new(default_args.ui_node_list(i).take_on_init())) as _
+                                }
+                                InputKind::WidgetHandler => {
+                                    Box::new(AnyWhenRcWidgetHandlerBuilder::new(default_args.widget_handler(i).clone_boxed())) as _
+                                }
+                                InputKind::StateVar | InputKind::Value => panic!("can only assign vars in when blocks"),
                             })
                             .collect(),
                     }),
                 };
 
                 for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
-                    let entry = entry.downcast_mut::<AnyWhenVarBuilder>().unwrap();
-                    let value = match input.kind {
-                        InputKind::Var => assign.var(i).clone_any(),
-                        _ => panic!("can only assign vars in when blocks"),
-                    };
-                    entry.push_any(when.state.clone(), value);
+                    match input.kind {
+                        InputKind::Var => {
+                            let entry = entry.downcast_mut::<AnyWhenVarBuilder>().unwrap();
+                            let value = assign.var(i).clone_any();
+                            entry.push_any(when.state.clone(), value);
+                        }
+                        InputKind::UiNode => {
+                            let entry = entry.downcast_mut::<WhenUiNodeBuilder>().unwrap();
+                            let node = assign.ui_node(i).take_on_init();
+                            entry.push(when.state.clone(), node);
+                        }
+                        InputKind::UiNodeList => {
+                            let entry = entry.downcast_mut::<WhenUiNodeListBuilder>().unwrap();
+                            let list = assign.ui_node_list(i).take_on_init();
+                            entry.push(when.state.clone(), list);
+                        }
+                        InputKind::WidgetHandler => {
+                            let entry = entry.downcast_mut::<AnyWhenRcWidgetHandlerBuilder>().unwrap();
+                            let handler = assign.widget_handler(i).clone_boxed();
+                            entry.push(when.state.clone(), handler);
+                        }
+                        InputKind::StateVar | InputKind::Value => panic!("can only assign vars in when blocks"),
+                    }
                 }
             }
 

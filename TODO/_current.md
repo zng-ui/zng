@@ -1,3 +1,3 @@
 * Implement when assign for `UiNode`, `UiNodeList` and `WidgetHandler`.
-    - Use `WhenUiNodeBuilder`, `WhenUiNodeListBuilder` and `AnyWhenRcWidgetHandlerBuilder`.
+    - Implemented, test.
 * Implement all `todo!` code.
