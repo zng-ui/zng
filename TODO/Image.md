@@ -2,7 +2,8 @@
 
 ## Requirements
 
-* All web formats (jpeg, bmp+ico, gif, png, webp).
+* All web formats.
+    - AVIF still a pain.
 * DPI size correcting.
 * Color profile correcting.
     Use `qcms` or `lcms2`
@@ -13,8 +14,6 @@
 * Progressive decoding.
 
 ## View-image TODO
-* Optional pre-multiply.
-    Or can we use pre-multiplied images for the window icon? Not seeing any problem so far.
 * Support creating resized image from existing image.
 * Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
@@ -26,13 +25,9 @@
 * Improve limits error message.
 * Optional hold window open (first layout) until an image is loaded.
 
-## Questions
-
-
-### Image Support
+## Image Support
 
 * How to support metadata reading (dpi + CC) without parsing multiple times?
-* How to support webp?
 * How to support progressive decoding?
 
 The `image` crate does not support these features, no

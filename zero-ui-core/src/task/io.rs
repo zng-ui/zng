@@ -195,6 +195,21 @@ impl fmt::Display for Metrics {
     }
 }
 
+/// Extension methods for [`std::io::Error`] to be used with errors returned by [`McBufReader`].
+pub trait McBufErrorExt {
+    /// Returns `true` if this error represents the condition where there are only [`McBufReader::is_lazy`] readers
+    /// left, the buffer is drained and the inner reader is not EOF.
+    ///
+    /// You can recover from this error by turning the reader non-lazy using [`McBufReader::set_lazy`].
+    fn is_only_lazy_left(&self) -> bool;
+}
+impl McBufErrorExt for std::io::Error {
+    fn is_only_lazy_left(&self) -> bool {
+        matches!(self.kind(), ErrorKind::Other) && format!("{:?}", self).contains(ONLY_NON_LAZY_ERROR_MSG)
+    }
+}
+const ONLY_NON_LAZY_ERROR_MSG: &str = "no non-lazy readers left to read";
+
 /// Multiple consumer buffered read.
 ///
 /// Clone an instance to create a new consumer, already read bytes stay in the buffer until all clones have read it,
@@ -208,17 +223,28 @@ impl fmt::Display for Metrics {
 /// so the error is recreated using [`CloneableError`] for subsequent poll attempts.
 ///
 /// The inner reader is dropped as soon as it finishes.
+///
+/// # Lazy Clones
+///
+/// You can mark clones as [lazy], lazy clones don't pull from the inner reader, only advance when another clone reads, if
+/// all living clones are lazy they stop reading with an error. You can identify this custom error using the [`McBufErrorExt::is_only_lazy_left`]
+/// extension method.
+///
+/// [lazy]: Self::set_lazy
 pub struct McBufReader<S: AsyncRead> {
     inner: Arc<Mutex<McBufInner<S>>>,
     index: usize,
+    lazy: bool,
 }
 struct McBufInner<S: AsyncRead> {
     source: Option<S>,
     waker: McWaker,
+    lazy_wakers: Vec<task::Waker>,
 
     buf: Vec<u8>,
 
     clones: Vec<usize>,
+    non_lazy_count: usize,
 
     result: ReadState,
 }
@@ -231,14 +257,38 @@ impl<S: AsyncRead> McBufReader<S> {
             inner: Arc::new(Mutex::new(McBufInner {
                 source: Some(source),
                 waker: McWaker::empty(),
+                lazy_wakers: vec![],
 
                 buf: Vec::with_capacity(10.kilobytes().0),
 
                 clones,
+                non_lazy_count: 1,
 
                 result: ReadState::Running,
             })),
             index: 0,
+            lazy: false,
+        }
+    }
+
+    /// Returns `true` if this reader does not pull from the inner reader, only advancing when a non-lazy reader advances.
+    ///
+    /// The initial reader is not lazy, only clones of lazy readers are lazy by default.
+    pub fn is_lazy(&self) -> bool {
+        self.lazy
+    }
+
+    /// Sets [`is_lazy`].
+    ///
+    /// [`is_lazy`]: Self::is_lazy
+    pub fn set_lazy(&mut self, lazy: bool) {
+        if self.lazy != lazy {
+            if lazy {
+                self.inner.lock().non_lazy_count -= 1;
+            } else {
+                self.inner.lock().non_lazy_count += 1;
+            }
+            self.lazy = lazy;
         }
     }
 }
@@ -249,15 +299,31 @@ impl<S: AsyncRead> Clone for McBufReader<S> {
         let offset = inner.clones[self.index];
         let index = inner.clones.len();
         inner.clones.push(offset);
+
+        if !self.lazy {
+            inner.non_lazy_count += 1;
+        }
+
         Self {
             inner: self.inner.clone(),
             index,
+            lazy: self.lazy,
         }
     }
 }
 impl<S: AsyncRead> Drop for McBufReader<S> {
     fn drop(&mut self) {
-        self.inner.lock().clones[self.index] = usize::MAX;
+        let mut inner = self.inner.lock();
+        inner.clones[self.index] = usize::MAX;
+        if !self.lazy {
+            inner.non_lazy_count -= 1;
+            if inner.non_lazy_count == 0 {
+                // notify lazy so they get the error.
+                for waker in inner.lazy_wakers.drain(..) {
+                    waker.wake();
+                }
+            }
+        }
     }
 }
 impl<S: AsyncRead> AsyncRead for McBufReader<S> {
@@ -277,6 +343,19 @@ impl<S: AsyncRead> AsyncRead for McBufReader<S> {
                 ready = &inner.buf[i..];
 
                 if ready.is_empty() {
+                    if self.lazy {
+                        if inner.non_lazy_count == 0 {
+                            // user can make this reader non-lazy and try again.
+                            return Poll::Ready(Err(Error::new(ErrorKind::Other, ONLY_NON_LAZY_ERROR_MSG)));
+                        } else {
+                            // register waker for after non-lazy poll.
+                            inner.lazy_wakers.push(cx.waker().clone());
+
+                            // wait non-lazy to pull.
+                            return Poll::Pending;
+                        }
+                    }
+
                     // time to poll source.
 
                     ready = &[];
@@ -310,36 +389,47 @@ impl<S: AsyncRead> AsyncRead for McBufReader<S> {
                     // SAFETY: we don't move `source`.
                     let source = unsafe { Pin::new_unchecked(inner.source.as_mut().unwrap()) };
                     let result = source.poll_read(&mut inner_cx, &mut inner.buf[new_start..]);
+
                     match result {
-                        Poll::Ready(Ok(0)) => {
-                            inner.waker.cancel();
+                        Poll::Ready(result) => {
+                            // notify lazy readers.
+                            for waker in inner.lazy_wakers.drain(..) {
+                                waker.wake();
+                            }
 
-                            // EOF
-                            inner.buf.truncate(new_start);
-                            inner.result = ReadState::Eof;
-                            inner.source = None;
+                            match result {
+                                Ok(0) => {
+                                    inner.waker.cancel();
 
-                            // continue 'copy ready
+                                    // EOF
+                                    inner.buf.truncate(new_start);
+                                    inner.result = ReadState::Eof;
+                                    inner.source = None;
+
+                                    // continue 'copy ready
+                                }
+                                Ok(read) => {
+                                    inner.waker.cancel();
+
+                                    // Read > 0
+                                    inner.buf.truncate(new_start + read);
+                                    ready = &inner.buf[i..];
+
+                                    // continue 'copy ready
+                                }
+                                Err(e) => {
+                                    inner.waker.cancel();
+
+                                    // Error
+                                    inner.result = ReadState::Err(CloneableError::new(&e));
+                                    inner.buf = vec![];
+                                    inner.source = None;
+
+                                    return Poll::Ready(Err(e));
+                                }
+                            }
                         }
-                        Poll::Ready(Ok(read)) => {
-                            inner.waker.cancel();
 
-                            // Read > 0
-                            inner.buf.truncate(new_start + read);
-                            ready = &inner.buf[i..];
-
-                            // continue 'copy ready
-                        }
-                        Poll::Ready(Err(e)) => {
-                            inner.waker.cancel();
-
-                            // Error
-                            inner.result = ReadState::Err(CloneableError::new(&e));
-                            inner.buf = vec![];
-                            inner.source = None;
-
-                            return Poll::Ready(Err(e));
-                        }
                         Poll::Pending => {
                             inner.buf.truncate(new_start);
                             return Poll::Pending;

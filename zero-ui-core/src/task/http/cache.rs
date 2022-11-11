@@ -264,7 +264,10 @@ mod file_cache {
 
     use crate::{
         crate_util::unlock_ok,
-        task::{self, io::McBufReader},
+        task::{
+            self,
+            io::{McBufErrorExt, McBufReader},
+        },
         units::TimeUnits,
     };
     use async_trait::async_trait;
@@ -284,6 +287,9 @@ mod file_cache {
     /// in case of a cache error mid-download the cache entry is removed but the returned body will still download the rest of the data.
     /// In case of an error creating the entry the original body is always returned so the [`Client`] can continue with a normal
     /// download also.
+    ///
+    /// The cache does not pull data, only data read by the returned body is written to the cache, dropping the body without reading
+    /// to end cancels the cache entry.
     ///
     /// [`Client`]: crate::task::http::Client
     /// [`set`]: crate::task::http::CacheDb::set
@@ -567,12 +573,18 @@ mod file_cache {
                 Ok(cache_body) => {
                     let cache_body = task::io::BufWriter::new(cache_body);
                     let len = body.len();
-                    let cache_copy = McBufReader::new(body);
+                    let mut cache_copy = McBufReader::new(body);
                     let body_copy = cache_copy.clone();
+                    cache_copy.set_lazy(true); // don't read more than body, gets error if body is dropped before EOF.
 
                     task::spawn(async move {
                         if let Err(e) = task::io::copy(cache_copy, cache_body).await {
-                            tracing::error!("cache body write error, {e:?}");
+                            if e.is_only_lazy_left() {
+                                tracing::warn!("cache cancel");
+                            } else {
+                                tracing::error!("cache body write error, {e:?}");
+                            }
+                            // cleanup partial download, stopped by error of by user dropping body reader.
                             Self::try_delete_locked_dir(&self.dir, &self.lock);
                         } else {
                             let _ = fs::remove_file(w_tag);
@@ -740,7 +752,8 @@ mod tests {
         async_test(async_clone_move!(key, {
             let (_, body) = response.into_parts();
 
-            let _ = test.set(&key, policy, body).await.unwrap();
+            let mut body = test.set(&key, policy, body).await.unwrap();
+            Body::bytes(&mut body).await.unwrap();
 
             drop(test);
         }));
@@ -772,7 +785,8 @@ mod tests {
         let policy = CachePolicy::new(&request.req, &response.0);
 
         let r_policy = async_test(async_clone_move!(policy, {
-            let _ = test.set(&key, policy, response.into_parts().1).await.unwrap();
+            let mut body = test.set(&key, policy, response.into_parts().1).await.unwrap();
+            Body::bytes(&mut body).await.unwrap();
 
             let test = FileSystemCache::new(&tmp).unwrap();
 
@@ -799,7 +813,8 @@ mod tests {
         let policy = CachePolicy::new(&request.req, &response.0);
 
         async_test(async_clone_move!(key, {
-            let _ = test.set(&key, policy, response.into_parts().1).await.unwrap();
+            let mut body = test.set(&key, policy, response.into_parts().1).await.unwrap();
+            Body::bytes(&mut body).await.unwrap();
 
             drop(test);
         }));
