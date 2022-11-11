@@ -11,22 +11,52 @@ default = ["ipc", "software"]
 # Enables pre-build and init as view-process.
 #
 # If this is enabled all communication with the view is serialized/deserialized, 
-# even if is running in same-process mode.
+# even in same-process mode.
 #
-# Enabled by default.
+# Feature enabled by default.
 ipc = ["zero-ui-view-api/ipc"]
 
 # Enables software renderer fallback.
 #
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 #
-# The `clang-cl` dependency is required to build with this feature on Windows, you can install a copy
-# by installing LLVM (https://releases.llvm.org/) and adding the installation
-# to the path with something like `set PATH=%PATH%;C:\Program Files\LLVM\bin`.
-# Then `set CC=clang-cl` and `set CXX=clang-cl`.
+# The `clang-cl` dependency is required to build with this feature.
 #
-# Enabled by default.
+# To install `clang-cl` in Windows:
+#
+# * Install LLVM (https://releases.llvm.org/), it bundles clang-cl.
+# * Add it to Windows PATH with something like `set PATH=%PATH%;C:\Program Files\LLVM\bin`.
+# * Define these two env vars `set CC=clang-cl` and `set CXX=clang-cl`.
+#
+# Feature enabled by default.
 software = ["swgl"]
+
+# Enables AVIF decoding and encoding.
+#
+# The `NASM`, `pkg-config`, `dav1d` external dependency is required to build with this feature.
+# 
+# To install NASM in Windows:
+#
+# * Install NASM (https://www.nasm.us/pub/nasm/releasebuilds), just the minimal feature set is needed.
+# * Add it to Windows PATH with something like `set PATH=%PATH%;C:\Program Files\NASM`.
+#
+# To install `pkg-config` in Windows:
+#
+# * Install `choco` (https://chocolatey.org/install).
+# * Run `choco install pkgconfiglite`.
+#
+# To install `dav1d` in Windows:
+#
+# * Build/install `vcpkg` (https://vcpkg.io/en/getting-started.html).
+# * Add `vcpkg` to Windows PATH with something like `set PATH=%PATH%;C:\your-path\vcpkg`.
+# * Run `vcpkg install dav1d:x64-windows`.
+# * Add `C:\your-path\vcpkg\installed\x64-windows\lib\pkgconfig` to the `PKG_CONFIG_PATH` env var.
+#
+# Note that the `dav1d.dll` is dynamically linked, Windows needs to find it when you run your app, the DLL is in
+# `C:\your-path\vcpkg\installed\x64-windows\bin`, you can add this dir to PATH if you are getting a `STATUS_DLL_NOT_FOUND` runtime error.
+#
+# Feature not enabled by default.
+avif = ["image/avif", "image/avif-decoder"]
 
 [lib]
 crate-type = ["lib", "cdylib"]

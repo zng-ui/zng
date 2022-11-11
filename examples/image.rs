@@ -82,7 +82,12 @@ fn app_main() {
                                     child_align = Align::CENTER;
                                     child = text("Rendered!");
                                 })
-                            }
+                            },
+                            // sub_title("AVIF"),
+                            // image! {
+                            //     source = "https://raw.githubusercontent.com/link-u/avif-sample-images/master/fox.profile0.8bpc.yuv420.avif";
+                            //     size = (200, 150);
+                            // },
                         ]
                     ),
 
