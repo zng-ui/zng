@@ -972,6 +972,7 @@ pub fn render_text() -> impl UiNode {
         }
 
         fn deinit(&mut self, _: &mut WidgetContext) {
+            *self.reuse.get_mut() = None;
             self.color_key = None;
         }
 

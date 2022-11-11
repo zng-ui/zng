@@ -315,6 +315,7 @@ pub mod nodes {
                 *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::none();
                 self.var_handles.clear();
                 self.var_handles.clear();
+                *self.reuse.get_mut() = None;
 
                 #[cfg(debug_assertions)]
                 {

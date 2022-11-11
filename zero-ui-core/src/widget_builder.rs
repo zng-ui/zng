@@ -770,7 +770,9 @@ pub fn new_dyn_ui_node(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> RcNode<
 
     match item.downcast::<WhenUiNodeBuilder>() {
         Ok(builder) => RcNode::new(builder.build().boxed()),
-        Err(item) => *item.downcast::<RcNode<BoxedUiNode>>().expect("input did not match expected UiNode types"),
+        Err(item) => *item
+            .downcast::<RcNode<BoxedUiNode>>()
+            .expect("input did not match expected UiNode types"),
     }
 }
 
