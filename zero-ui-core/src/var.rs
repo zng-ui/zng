@@ -36,6 +36,8 @@ mod when;
 
 #[macro_use]
 mod util;
+
+#[doc(inline)]
 pub use util::impl_from_and_into_var;
 
 mod tests;
@@ -43,15 +45,19 @@ mod tests;
 pub use animation::easing;
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
+#[doc(inline)]
 pub use context::{context_var, with_context_var, with_context_var_init, ContextInitHandle, ContextVar, ReadOnlyContextVar};
+#[doc(inline)]
 pub use expr::expr_var;
 pub use local::LocalVar;
+#[doc(inline)]
 pub use merge::merge_var;
 pub use rc::{var, var_default, var_from, RcVar};
 pub use read_only::ReadOnlyRcVar;
 pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use state::*;
 pub use vars::*;
+#[doc(inline)]
 pub use when::when_var;
 
 use crate::{context::Updates, widget_instance::WidgetId};
