@@ -629,9 +629,6 @@ impl Images {
                             r: Err(String::new()),
                         };
 
-                        // for image crate:
-                        // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
-                        // image/avif decoder does not build in Windows
                         let request = task::http::Request::get(uri)
                             .unwrap()
                             .header(task::http::header::ACCEPT, accept)
