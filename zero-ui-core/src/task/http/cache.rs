@@ -358,7 +358,6 @@ mod file_cache {
                 })
                 .await
             }
-            todo!()
         }
 
         async fn purge(&self) {

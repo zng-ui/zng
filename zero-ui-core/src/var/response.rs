@@ -99,6 +99,8 @@ impl<T: VarValue> ResponseVar<T> {
 
     /// Add a `handler` that is called once when the response is received,
     /// the handler is called before all other UI updates.
+    /// 
+    /// The handle is not called if already [`responded`], in this case a dummy handle is returned.
     ///
     /// [touched]: Var::touch
     /// [`responded`]: Self::responded
@@ -107,7 +109,7 @@ impl<T: VarValue> ResponseVar<T> {
         H: AppHandler<T>,
     {
         if self.responded() {
-            todo!()
+            return VarHandle::dummy()
         }
 
         self.on_pre_new(app_hn!(|ctx, args, handler_args| {
@@ -126,6 +128,8 @@ impl<T: VarValue> ResponseVar<T> {
 
     /// Add a `handler` that is called once when the response is received,
     /// the handler is called after all other UI updates.
+    /// 
+    /// The handle is not called if already [`responded`], in this case a dummy handle is returned.
     ///
     /// [touched]: Var::touch
     /// [`responded`]: Self::responded
@@ -134,7 +138,7 @@ impl<T: VarValue> ResponseVar<T> {
         H: AppHandler<T>,
     {
         if self.responded() {
-            todo!()
+            return VarHandle::dummy()
         }
 
         self.on_new(app_hn!(|ctx, args, handler_args| {
