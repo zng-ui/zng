@@ -116,6 +116,8 @@ impl WhenUiNode {
             let (child, var_handles, event_handles) = self.child_mut_with_handles();
             ctx.with_handles(var_handles, event_handles, |ctx| child.init(ctx));
         }
+
+        ctx.updates.info_layout_and_render();
     }
 }
 #[ui_node(
@@ -225,6 +227,7 @@ impl WhenUiNodeList {
         }
 
         observer.reseted();
+        ctx.updates.info_layout_and_render();
     }
 }
 
