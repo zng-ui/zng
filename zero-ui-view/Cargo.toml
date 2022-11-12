@@ -56,7 +56,7 @@ software = ["swgl"]
 # `C:\your-path\vcpkg\installed\x64-windows\bin`, you can add this dir to PATH if you are getting a `STATUS_DLL_NOT_FOUND` runtime error.
 #
 # Feature not enabled by default.
-avif = ["image/avif", "image/avif-decoder"]
+# avif = ["image/avif", "image/avif-decoder"]
 
 [lib]
 crate-type = ["lib", "cdylib"]
