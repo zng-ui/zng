@@ -431,8 +431,10 @@ impl HeadedCtrl {
                             (WindowState::Minimized, _) => {
                                 // restored, restore children.
                                 self.vars.0.children.with(|c| {
+                                    let w = Windows::req(ctx.services);
                                     for &c in c {
                                         RESTORE_CMD.scoped(c).notify(ctx.events);
+                                        let _ = w.bring_to_top(c);
                                     }
                                 });
 
@@ -493,6 +495,15 @@ impl HeadedCtrl {
                     );
                     WINDOW_CHANGED_EVENT.notify(ctx.events, args);
                 }
+            }
+        } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
+            if args.new_focus == Some(self.window_id) {
+                self.vars.0.children.with(|c| {
+                    let w = Windows::req(ctx.services);
+                    for &c in c {
+                        let _ = w.bring_to_top(c);
+                    }
+                });                
             }
         } else if let Some(args) = MONITORS_CHANGED_EVENT.on(update) {
             if let Some(m) = &self.monitor {
@@ -858,6 +869,12 @@ impl HeadedCtrl {
         });
     }
 
+    pub fn bring_to_top(&mut self, _: &mut WindowContext) {
+        self.update_view(|view| {
+            let _ = view.bring_to_top();
+        });
+    }
+
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
         self.window = None;
@@ -1128,6 +1145,10 @@ impl HeadlessWithRendererCtrl {
         self.headless_simulator.focus(ctx);
     }
 
+    pub fn bring_to_top(&mut self, ctx: &mut WindowContext) {
+        self.headless_simulator.bring_to_top(ctx);
+    }
+
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
         self.surface = None;
@@ -1283,6 +1304,10 @@ impl HeadlessCtrl {
         self.headless_simulator.focus(ctx);
     }
 
+    pub fn bring_to_top(&mut self, ctx: &mut WindowContext) {
+        self.headless_simulator.bring_to_top(ctx);
+    }
+
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
     }
@@ -1327,6 +1352,10 @@ impl HeadlessSimulator {
         }
         let args = RawWindowFocusArgs::now(prev, Some(*ctx.window_id));
         RAW_WINDOW_FOCUS_EVENT.notify(ctx.events, args);
+    }
+
+    pub fn bring_to_top(&mut self, _: &mut WindowContext) {
+        // we don't have "bring-to-top" event.
     }
 }
 
@@ -1796,6 +1825,14 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.focus(ctx),
             WindowCtrlMode::Headless(c) => c.focus(ctx),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.focus(ctx),
+        }
+    }
+
+    pub fn bring_to_top(&mut self, ctx: &mut WindowContext) {
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.bring_to_top(ctx),
+            WindowCtrlMode::Headless(c) => c.bring_to_top(ctx),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.bring_to_top(ctx),
         }
     }
 

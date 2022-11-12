@@ -299,7 +299,7 @@ declare_api! {
     /// Set the window taskbar icon visibility.
     pub fn set_taskbar_visible(&mut self, id: WindowId, visible: bool);
 
-    /// Bring the window the z top.
+    /// Bring the window to  the Z top, without focusing it.
     pub fn bring_to_top(&mut self, id: WindowId);
 
     /// Set the window state, position, size.

@@ -446,6 +446,29 @@ impl Window {
         self.window.set_resizable(resizable)
     }
 
+    #[cfg(windows)]
+    pub fn bring_to_top(&mut self) {
+        use windows_sys::Win32::UI::WindowsAndMessaging::*;
+        use winit::platform::windows::WindowExtWindows;
+
+        if !self.is_always_on_top {
+            let hwnd = self.window.hwnd();
+
+            unsafe {
+                let _ = SetWindowPos(
+                    hwnd as _,
+                    HWND_TOP,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+                );
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
     pub fn bring_to_top(&mut self) {
         if !self.is_always_on_top {
             self.set_always_on_top(true);

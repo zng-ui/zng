@@ -55,6 +55,7 @@ pub struct Windows {
     close_requests: Vec<CloseWindowRequest>,
     close_responders: LinearMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
     focus_request: Option<WindowId>,
+    bring_to_top_request: Option<WindowId>,
     frame_images: Vec<RcVar<Image>>,
     loading_deadline: Option<DeadlineHandle>,
 }
@@ -70,6 +71,7 @@ impl Windows {
             update_sender,
             close_requests: vec![],
             focus_request: None,
+            bring_to_top_request: None,
             frame_images: vec![],
             loading_deadline: None,
         }
@@ -421,11 +423,29 @@ impl Windows {
         }
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>) {
+    /// Move the window to the front of the Z stack.
+    ///
+    /// This is ignored if the window is [`always_on_top`], the window is also not focused, the [`focus`] operation
+    /// also moves the window to the front.
+    ///
+    /// [`always_on_top`]: WindowVars::always_on_top
+    pub fn bring_to_top(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
+        let window_id = window_id.into();
+        if self.windows.contains_key(&window_id) {
+            self.bring_to_top_request = Some(window_id);
+            let _ = self.update_sender.send_ext_update();
+            Ok(())
+        } else {
+            Err(WindowNotFound(window_id))
+        }
+    }
+
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>, Option<WindowId>) {
         (
             mem::take(&mut self.open_requests),
             mem::take(&mut self.close_requests),
             self.focus_request.take(),
+            self.bring_to_top_request.take(),
         )
     }
 
@@ -628,7 +648,7 @@ impl Windows {
             }
         }
 
-        let (open, close, focus) = {
+        let (open, close, focus, bring_to_top) = {
             let wns = Windows::req(ctx.services);
             wns.take_requests()
         };
@@ -700,6 +720,14 @@ impl Windows {
             Self::with_detached_windows(ctx, |ctx, windows| {
                 if let Some(w) = windows.get_mut(&w_id) {
                     w.focus(ctx);
+                }
+            });
+        }
+
+        if let Some(w_id) = bring_to_top {
+            Self::with_detached_windows(ctx, |ctx, windows| {
+                if let Some(w) = windows.get_mut(&w_id) {
+                    w.bring_to_top(ctx);
                 }
             });
         }
@@ -849,6 +877,10 @@ impl AppWindow {
 
     pub fn focus(&mut self, ctx: &mut AppContext) {
         self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.focus(ctx));
+    }
+
+    pub fn bring_to_top(&mut self, ctx: &mut AppContext) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.bring_to_top(ctx));
     }
 
     pub fn close(mut self, ctx: &mut AppContext) {
