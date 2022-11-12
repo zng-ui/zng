@@ -777,13 +777,34 @@ mod blit {
         target_os = "openbsd",
     ))]
     mod linux_blit {
-        use wayland_client::protocol::wl_surface::WlSurface;
+        use std::{
+            fs::File,
+            io::{Seek, SeekFrom, Write},
+            os::unix::prelude::AsRawFd,
+        };
+
+        use wayland_client::protocol::{
+            wl_buffer::WlBuffer,
+            wl_display::WlDisplay,
+            wl_shm::{self, WlShm},
+            wl_shm_pool::WlShmPool,
+            wl_surface::WlSurface,
+        };
         use winit::platform::unix::{x11::ffi::*, WindowExtUnix};
 
         #[allow(clippy::large_enum_variant)]
         pub enum XLibOrWaylandBlit {
             XLib { xlib: Xlib, display: *mut _XDisplay, window: u64 },
-            Wayland { surface: *const WlSurface },
+            Wayland { surface: *const WlSurface, data: WaylandData },
+        }
+
+        pub struct WaylandData {
+            pool: wayland_client::Main<WlShmPool>,
+            buf: wayland_client::Main<WlBuffer>,
+            file: File,
+            width: u32,
+            height: u32,
+            file_size: u32,
         }
 
         impl XLibOrWaylandBlit {
@@ -795,7 +816,33 @@ mod blit {
                         window: window.xlib_window().unwrap(),
                     }
                 } else if let Some(d) = window.wayland_surface() {
-                    Self::Wayland { surface: d as _ }
+                    let display: *const WlDisplay = window.wayland_display().unwrap() as _;
+                    let display = unsafe { &*display };
+                    let shm = display.get_registry().bind::<WlShm>(1, 0);// TODO,review this.
+                    let file = tempfile::tempfile().expect("cannot create file for wayland blit");
+                    let size = window.inner_size();
+                    let file_size = size.width * size.height * 4;
+                    let pool = shm.create_pool(file.as_raw_fd(), file_size as _);
+
+                    let buf = pool.create_buffer(
+                        0,
+                        size.width as _,
+                        size.height as _,
+                        (size.width * 4) as _,
+                        wl_shm::Format::Bgra8888,
+                    );
+
+                    Self::Wayland {
+                        surface: d as _,
+                        data: WaylandData {
+                            pool,
+                            buf,
+                            file,
+                            width: size.width,
+                            height: size.height,
+                            file_size,
+                        },
+                    }
                 } else {
                     panic!("window does not use XLib nor Wayland");
                 }
@@ -810,7 +857,7 @@ mod blit {
                     XLibOrWaylandBlit::XLib { xlib, display, window } => unsafe {
                         Self::xlib_blit(xlib, *display, *window, width as _, height as _, frame)
                     },
-                    XLibOrWaylandBlit::Wayland { surface } => unsafe { Self::wayland_blit(*surface, width, height, frame) },
+                    XLibOrWaylandBlit::Wayland { surface, data } => unsafe { Self::wayland_blit(&**surface, data, width, height, frame) },
                 }
             }
 
@@ -852,9 +899,33 @@ mod blit {
                 // (xlib.XDestroyImage)(img);
             }
 
-            unsafe fn wayland_blit(surface: *const WlSurface, width: i32, height: i32, frame: &super::Bgra8) {
-                let _ = (surface, width, height, frame);
-                todo!("wayland blit not implemented")
+            unsafe fn wayland_blit(surface: &WlSurface, data: &mut WaylandData, width: i32, height: i32, frame: &super::Bgra8) {
+                data.file.seek(SeekFrom::Start(0)).unwrap();
+                data.file.write_all(frame).unwrap();
+                data.file.flush().unwrap();
+
+                let width = width as u32;
+                let height = height as u32;
+
+                if width != data.width || height != data.height {
+                    let new_file_size = width * height * 4;
+                    if new_file_size > data.file_size {
+                        data.file_size = new_file_size;
+                        data.pool.resize(data.file_size as i32);
+                    }
+
+                    data.width = width;
+                    data.height = height;
+
+                    data.buf.destroy();
+                    data.buf = data
+                        .pool
+                        .create_buffer(0, width as i32, height as i32, (width * 4) as i32, wl_shm::Format::Bgra8888);
+
+                    surface.attach(Some(&data.buf), 0, 0);
+                }
+
+                surface.commit();
             }
         }
     }

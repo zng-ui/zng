@@ -134,10 +134,10 @@ pub fn font_aa() -> FontAntiAliasing {
 /// Gets the "double-click" settings.
 #[cfg(windows)]
 pub fn multi_click_config() -> MultiClickConfig {
+    use std::time::Duration;
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
     use zero_ui_view_api::units::*;
-    use std::time::Duration;
 
     unsafe {
         MultiClickConfig {
@@ -158,10 +158,10 @@ pub fn multi_click_config() -> MultiClickConfig {
 
 #[cfg(windows)]
 pub fn animations_config() -> AnimationsConfig {
+    use std::time::Duration;
     use windows_sys::Win32::Foundation::GetLastError;
     use windows_sys::Win32::System::WindowsProgramming::INFINITE;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
-    use std::time::Duration;
 
     let enabled = unsafe {
         let mut enabled = true;
@@ -213,9 +213,9 @@ pub fn animations_config() -> AnimationsConfig {
 
 #[cfg(windows)]
 pub fn key_repeat_config() -> KeyRepeatConfig {
+    use std::time::Duration;
     use windows_sys::Win32::Foundation::GetLastError;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
-    use std::time::Duration;
 
     let start_delay = unsafe {
         let mut index = 0;
