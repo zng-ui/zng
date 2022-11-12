@@ -61,6 +61,7 @@ pub(crate) struct Window {
     prev_monitor: Option<MonitorHandle>,
 
     visible: bool,
+    is_always_on_top: bool,
     waiting_first_frame: bool,
     steal_init_focus: bool,
     init_focus_request: Option<FocusIndicator>,
@@ -271,6 +272,7 @@ impl Window {
             steal_init_focus: req.focus,
             init_focus_request: req.focus_indicator,
             visible: req.visible,
+            is_always_on_top: req.always_on_top,
             taskbar_visible: true,
             movable: req.movable,
             pending_frames: VecDeque::new(),
@@ -433,6 +435,7 @@ impl Window {
 
     pub fn set_always_on_top(&mut self, always_on_top: bool) {
         self.window.set_always_on_top(always_on_top);
+        self.is_always_on_top = true;
     }
 
     pub fn set_movable(&mut self, movable: bool) {
@@ -443,8 +446,11 @@ impl Window {
         self.window.set_resizable(resizable)
     }
 
-    pub fn set_parent(&mut self, parent: Option<winit::window::WindowId>, modal: bool) {
-        todo!("implement parent & modal: {:?}", (parent, modal));
+    pub fn bring_to_top(&mut self) {
+        if !self.is_always_on_top {
+            self.set_always_on_top(true);
+            self.set_always_on_top(false);
+        }
     }
 
     /// Returns `Some(new_pos)` if the window position is different from the previous call to this function.

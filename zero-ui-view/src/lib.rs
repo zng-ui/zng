@@ -1419,9 +1419,8 @@ impl Api for App {
         self.with_window(id, |w| w.set_taskbar_visible(visible), || ())
     }
 
-    fn set_parent(&mut self, id: WindowId, parent: Option<WindowId>, modal: bool) {
-        let parent = parent.and_then(|id| self.windows.iter().find(|w| w.id() == id).map(|w| w.window_id()));
-        self.with_window(id, |w| w.set_parent(parent, modal), || ())
+    fn bring_to_top(&mut self, id: WindowId) {
+        self.with_window(id, |w| w.bring_to_top(), || ())
     }
 
     fn set_state(&mut self, id: WindowId, state: WindowStateAll) {

@@ -811,11 +811,9 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_taskbar_visible(id, visible))
     }
 
-    /// Set the window parent and if `self` has a modal connection to it.
-    ///
-    /// The `parent` window must be already open or this returns `WindowNotFound(0)`.
-    pub fn set_parent(&self, parent: Option<WindowId>, modal: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_parent(id, parent.map(WindowId::get), modal))
+    /// Bring the window the z top.
+    pub fn bring_to_top(&self) -> Result<()> {
+        self.0.call(|id, p| p.bring_to_top(id))
     }
 
     /// Set the window state.

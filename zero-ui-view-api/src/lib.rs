@@ -299,8 +299,8 @@ declare_api! {
     /// Set the window taskbar icon visibility.
     pub fn set_taskbar_visible(&mut self, id: WindowId, visible: bool);
 
-    /// Set the window parent and if `self` blocks the parent events while open (`modal`).
-    pub fn set_parent(&mut self, id: WindowId, parent: Option<WindowId>, modal: bool);
+    /// Bring the window the z top.
+    pub fn bring_to_top(&mut self, id: WindowId);
 
     /// Set the window state, position, size.
     pub fn set_state(&mut self, id: WindowId, state: WindowStateAll);

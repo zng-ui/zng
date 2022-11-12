@@ -818,7 +818,7 @@ mod blit {
                 } else if let Some(d) = window.wayland_surface() {
                     let display: *const WlDisplay = window.wayland_display().unwrap() as _;
                     let display = unsafe { &*display };
-                    let shm = display.get_registry().bind::<WlShm>(1, 0);// TODO,review this.
+                    let shm = display.get_registry().bind::<WlShm>(1, 0); // TODO,review this.
                     let file = tempfile::tempfile().expect("cannot create file for wayland blit");
                     let size = window.inner_size();
                     let file_size = size.width * size.height * 4;
