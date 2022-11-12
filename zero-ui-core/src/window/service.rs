@@ -431,7 +431,7 @@ impl Windows {
     /// [`always_on_top`]: WindowVars::always_on_top
     pub fn bring_to_top(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
-        if self.windows.contains_key(&window_id) {
+        if self.windows_info.contains_key(&window_id) {
             self.bring_to_top_request = Some(window_id);
             let _ = self.update_sender.send_ext_update();
             Ok(())
