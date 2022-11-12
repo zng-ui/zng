@@ -9,9 +9,6 @@
 * Custom resize borders.
 * Parent/child.
     - Z-order, always on-top of parent, but no focus stealing.
-* Modal.
-    - Steal focus back to modal.
-    - Window level "interactivity", parent window must not receive any event (other than forced close).
 * Video rendering.
 * Finish Monitors, needs the window target + update all layouts on change.
 * Implement window close cancel when OS is shutting down.
