@@ -65,6 +65,29 @@
             - Refactor vars to not use `RefCell`, but use `UnsafeCell` and shared var lock.
               - Lock only for value?
               - Hooks need mut access to register.
+```rust
+pub mod shared_var_lock {
+    use std::cell::UnsafeCell;
+
+    use parking_lot::RwLock;
+
+    use super::VarValue;
+
+    static VAR_LOCK: RwLock<()> = RwLock::new(());
+
+    pub struct VarMutex<T: VarValue> {
+        value: UnsafeCell<T>,
+    }
+
+    impl<T: VarValue> VarMutex<T> {
+        pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+            let _lock = VAR_LOCK.read();
+            f(unsafe { &*self.value.get() })
+        }
+    }
+}
+
+```
       - Can remove var buffer, listener does the same thing.
         - Can get from any thread actually.
     * Event `propagation` becomes indeterministic?
