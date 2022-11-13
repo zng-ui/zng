@@ -218,7 +218,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + 'static,
     {
         self.borrow_init().modify(vars, modify)
     }

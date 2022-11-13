@@ -2,6 +2,7 @@
 
 use std::{
     any::{Any, TypeId},
+    borrow::Cow,
     cell::{Cell, RefCell},
     fmt,
     marker::PhantomData,
@@ -242,61 +243,6 @@ impl fmt::Display for VarIsReadOnlyError {
     }
 }
 impl std::error::Error for VarIsReadOnlyError {}
-
-/// Represents a variable value in the [`Var::modify`] closure.
-///
-/// This `struct` provides shared and mutable access to the the value, if mutable access is requested the value
-/// is marked as *touched* and the variable will be *new* in the next app update.
-pub struct VarModifyValue<'a, T: VarValue> {
-    update_id: VarUpdateId,
-    value: &'a mut T,
-    touched: bool,
-}
-impl<'a, T: VarValue> VarModifyValue<'a, T> {
-    /// Gets a shared reference, allows inspecting the value without causing a variable update.
-    pub fn get(&self) -> &T {
-        self.value
-    }
-
-    /// Get the mutable reference, marks the value as new.
-    pub fn get_mut(&mut self) -> &mut T {
-        self.touched = true;
-        self.value
-    }
-
-    /// Causes a variable update.
-    pub fn touch(&mut self) {
-        self.touched = true;
-    }
-
-    /// Update ID that will be used for the variable if the value is touched.
-    pub fn update_id(&self) -> VarUpdateId {
-        self.update_id
-    }
-
-    /// Runs `modify` with a mutable reference `B` derived from `T` using `map`.
-    /// The touched flag is only set if `modify` touches the the value.
-    ///
-    /// Note that modifying the value inside `map` is a logic error, it will not flag as touched
-    /// so the variable will have a new value that is not propagated, only use `map` to borrow the
-    /// map target.
-    pub fn map_ref<B, M, Mo>(&mut self, map: M, modify: Mo)
-    where
-        B: VarValue,
-        M: FnOnce(&mut T) -> &mut B,
-        Mo: FnOnce(&mut VarModifyValue<B>),
-    {
-        let mut inner = VarModifyValue {
-            update_id: self.update_id,
-            value: map(self.value),
-            touched: self.touched,
-        };
-
-        modify(&mut inner);
-
-        self.touched |= inner.touched;
-    }
-}
 
 struct VarHandleData {
     perm: Cell<bool>,
@@ -777,7 +723,7 @@ pub trait IntoVar<T: VarValue> {
 macro_rules! impl_infallible_write {
     (for<$T:ident>) => {
         /// Infallible [`Var::modify`].
-        pub fn modify(&self, vars: &impl WithVars, modify: impl FnOnce(&mut VarModifyValue<$T>) + 'static) {
+        pub fn modify(&self, vars: &impl WithVars, modify: impl FnOnce(&mut Cow<$T>) + 'static) {
             Var::modify(self, vars, modify).unwrap()
         }
 
@@ -832,10 +778,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         F: FnOnce(&T) -> R;
 
     /// Try to schedule a variable update, it will be applied on the end of the current app update.
+    ///
+    /// The variable only updates if the [`Cow`] is upgraded to [`Cow::Owned`].
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static;
+        F: FnOnce(&mut Cow<T>) + 'static;
 
     /// Gets the variable as a [`BoxedVar<T>`], does not double box.
     fn boxed(self) -> BoxedVar<T>
@@ -1537,7 +1485,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn animate<V, A>(&self, vars: &V, animate: A) -> animation::AnimationHandle
     where
         V: WithVars,
-        A: FnMut(&animation::AnimationArgs, &mut VarModifyValue<T>) + 'static,
+        A: FnMut(&animation::AnimationArgs, &mut Cow<T>) + 'static,
     {
         vars.with_vars(move |vars| animation::var_animate(vars, self, animate))
     }
@@ -1901,25 +1849,25 @@ where
         ne
     }
 }
-fn var_set<T>(value: T) -> impl FnOnce(&mut VarModifyValue<T>)
+fn var_set<T>(value: T) -> impl FnOnce(&mut Cow<T>)
 where
     T: VarValue,
 {
     move |var_value| {
-        *var_value.get_mut() = value;
+        *var_value = Cow::Owned(value);
     }
 }
-fn var_set_ne<T>(value: T) -> impl FnOnce(&mut VarModifyValue<T>)
+fn var_set_ne<T>(value: T) -> impl FnOnce(&mut Cow<T>)
 where
     T: VarValue + PartialEq,
 {
     move |var_value| {
-        if var_value.get() != &value {
-            *var_value.get_mut() = value;
+        if var_value.as_ref() != &value {
+            *var_value = Cow::Owned(value);
         }
     }
 }
-fn var_set_any<T>(value: Box<dyn AnyVarValue>) -> impl FnOnce(&mut VarModifyValue<T>)
+fn var_set_any<T>(value: Box<dyn AnyVarValue>) -> impl FnOnce(&mut Cow<T>)
 where
     T: VarValue,
 {
@@ -1929,11 +1877,11 @@ where
     }
 }
 
-fn var_touch<T>(var_value: &mut VarModifyValue<T>)
+fn var_touch<T>(var_value: &mut Cow<T>)
 where
     T: VarValue,
 {
-    var_value.touch()
+    var_value.to_mut();
 }
 
 fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {

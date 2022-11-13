@@ -934,7 +934,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                         if let Ok(parent_vars) = windows.vars(parent_id) {
                             let id = *ctx.window_id;
                             parent_vars.0.children.modify(ctx.vars, move |c| {
-                                c.get_mut().remove(&id);
+                                c.to_mut().remove(&id);
                             });
                         }
                     }
@@ -943,7 +943,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     *parent = Some(parent_id);
                     let id = *ctx.window_id;
                     parent_vars.0.children.modify(ctx.vars, move |c| {
-                        c.get_mut().insert(id);
+                        c.to_mut().insert(id);
                     });
 
                     true
@@ -958,7 +958,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     if let Ok(parent_vars) = Windows::req(ctx.services).vars(parent_id) {
                         let id = *ctx.window_id;
                         parent_vars.0.children.modify(ctx.vars, move |c| {
-                            c.get_mut().remove(&id);
+                            c.to_mut().remove(&id);
                         });
                     }
                     true

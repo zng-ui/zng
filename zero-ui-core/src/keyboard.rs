@@ -4,6 +4,7 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
+use std::borrow::Cow;
 use std::time::{Duration, Instant};
 
 use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
@@ -298,14 +299,14 @@ impl Keyboard {
                 let scan_code = args.scan_code;
                 if !self.codes.with(|c| c.contains(&scan_code)) {
                     self.codes.modify(vars, move |cs| {
-                        cs.get_mut().push(scan_code);
+                        cs.to_mut().push(scan_code);
                     });
                 }
 
                 if let Some(key) = args.key {
                     if !self.keys.with(|c| c.contains(&key)) {
                         self.keys.modify(vars, move |ks| {
-                            ks.get_mut().push(key);
+                            ks.to_mut().push(key);
                         });
                     }
 
@@ -320,8 +321,8 @@ impl Keyboard {
                 let key = args.scan_code;
                 if self.codes.with(|c| c.contains(&key)) {
                     self.codes.modify(vars, move |cs| {
-                        if let Some(i) = cs.get().iter().position(|c| *c == key) {
-                            cs.get_mut().swap_remove(i);
+                        if let Some(i) = cs.as_ref().iter().position(|c| *c == key) {
+                            cs.to_mut().swap_remove(i);
                         }
                     });
                 }
@@ -329,8 +330,8 @@ impl Keyboard {
                 if let Some(key) = args.key {
                     if self.keys.with(|c| c.contains(&key)) {
                         self.keys.modify(vars, move |ks| {
-                            if let Some(i) = ks.get().iter().position(|k| *k == key) {
-                                ks.get_mut().swap_remove(i);
+                            if let Some(i) = ks.as_ref().iter().position(|k| *k == key) {
+                                ks.to_mut().swap_remove(i);
                             }
                         });
                     }
@@ -435,19 +436,20 @@ impl Keyboard {
         let interval_start = Instant::now();
         var.animate(vars, move |a, value| {
             if !a.animations_enabled() {
-                if *value.get() != 1.fct() {
-                    *value.get_mut() = 1.fct();
+                if *value.as_ref() != 1.fct() {
+                    *value = Cow::Owned(1.fct());
                 }
             } else {
                 let (interval, timeout) = cfg.get();
 
                 if interval_start.elapsed() >= interval {
-                    *value.get_mut() = if *value.get() == 1.fct() { 0.fct() } else { 1.fct() };
+                    let val = if *value.as_ref() == 1.fct() { 0.fct() } else { 1.fct() };
+                    *value = Cow::Owned(val);
                 }
 
                 if a.start_time().elapsed() >= timeout {
-                    if *value.get() != 1.fct() {
-                        *value.get_mut() = 1.fct();
+                    if *value.as_ref() != 1.fct() {
+                        *value = Cow::Owned(1.fct());
                     }
                     a.stop();
                 } else {

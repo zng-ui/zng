@@ -188,8 +188,7 @@ impl AppExtension for ImageManager {
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
                                         var.modify(vars, move |v| {
-                                            v.get().view.set(img).unwrap();
-                                            v.touch();
+                                            v.to_mut().view.set(img).unwrap();
                                         });
                                     }
                                     Err(ViewProcessOffline) => {
@@ -201,9 +200,9 @@ impl AppExtension for ImageManager {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
                                 var.modify(vars, move |v| {
-                                    v.get().view.set(img).unwrap();
-                                    v.touch();
-                                    v.get().done_signal.set();
+                                    let v = v.to_mut();
+                                    v.view.set(img).unwrap();
+                                    v.done_signal.set();
                                 });
                             }
                         }
@@ -212,9 +211,9 @@ impl AppExtension for ImageManager {
                             // load error.
                             let img = ViewImage::dummy(Some(e));
                             var.modify(vars, move |v| {
-                                v.get().view.set(img).unwrap();
-                                v.touch();
-                                v.get().done_signal.set();
+                                let v = v.to_mut();
+                                v.view.set(img).unwrap();
+                                v.done_signal.set();
                             });
 
                             // flag error for user retry

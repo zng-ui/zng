@@ -159,7 +159,7 @@ impl Config {
                     ConfigSourceUpdate::RefreshAll => read_all = true,
                     ConfigSourceUpdate::InternalError(e) => {
                         self.status.modify(vars, move |s| {
-                            s.get_mut().set_internal_error(e);
+                            s.to_mut().set_internal_error(e);
                         });
                     }
                 }
@@ -232,8 +232,8 @@ impl Config {
     pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
         vars.with_vars(|vars| {
             self.status.modify(vars, |s| {
-                if s.get().has_errors() {
-                    let s = s.get_mut();
+                if s.as_ref().has_errors() {
+                    let s = s.to_mut();
                     s.read_error = None;
                     s.write_error = None;
                     s.internal_error = None;
@@ -283,7 +283,7 @@ impl Config {
                         }
                         Err(e) => {
                             status.modify(vars, move |s| {
-                                s.get_mut().set_read_error(e);
+                                s.to_mut().set_read_error(e);
                             });
 
                             let respond = respond.take().unwrap();
@@ -324,9 +324,10 @@ impl Config {
 
                     self.once_tasks.push(Box::new(move |vars, _| {
                         var.modify(vars, move |v| {
-                            if v.get().value != value {
-                                v.get_mut().value = value;
-                                v.get().write.set(false);
+                            if v.as_ref().value != value {
+                                let v = v.to_mut();
+                                v.value = value;
+                                v.write.set(false);
                             }
                         });
                     }));
@@ -356,7 +357,7 @@ impl Config {
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |vars, status| {
-                        status.modify(vars, move |s| s.get_mut().set_write_error(ConfigError::new(e)));
+                        status.modify(vars, move |s| s.to_mut().set_write_error(ConfigError::new(e)));
                     }));
                     let _ = self.update.send_ext_update();
                 }
@@ -386,7 +387,7 @@ impl Config {
             if finished {
                 let r = task.take().unwrap().into_result().unwrap();
                 status.modify(vars, move |s| {
-                    let s = s.get_mut();
+                    let s = s.to_mut();
                     s.pending -= count;
                     if let Err(e) = r {
                         s.set_write_error(e);
@@ -395,7 +396,7 @@ impl Config {
             } else if count == 0 {
                 // first try, add pending.
                 count = 1;
-                status.modify(vars, |s| s.get_mut().pending += 1);
+                status.modify(vars, |s| s.to_mut().pending += 1);
             }
 
             !finished
@@ -453,9 +454,10 @@ impl Config {
                 if let Some(source) = wk_source.upgrade() {
                     if let Some(value) = value.as_any().downcast_ref::<T>().cloned() {
                         source.modify(vars, move |val| {
-                            if val.get().value != value {
-                                val.get_mut().value = value;
-                                val.get().write.set(true);
+                            if val.as_ref().value != value {
+                                let val = val.to_mut();
+                                val.value = value;
+                                val.write.set(true);
                             }
                         });
                     }
@@ -508,9 +510,10 @@ impl Config {
             if let Some(rsp) = value.rsp() {
                 if let Some(value) = rsp {
                     var.modify(vars, move |v| {
-                        if v.get().value != value {
-                            v.get_mut().value = value;
-                            v.get().write.set(false);
+                        if v.as_ref().value != value {
+                            let v = v.to_mut();
+                            v.value = value;
+                            v.write.set(false);
                         }
                     });
                 }
@@ -680,9 +683,10 @@ impl ConfigVar {
                         config.read_raw::<T, _>(key, move |vars, value| {
                             if let Some(value) = value {
                                 var.modify(vars, move |v| {
-                                    if v.get().value != value {
-                                        v.get_mut().value = value;
-                                        v.get().write.set(false);
+                                    if v.as_ref().value != value {
+                                        let v = v.to_mut();
+                                        v.value = value;
+                                        v.write.set(false);
                                     }
                                 });
                             }

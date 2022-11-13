@@ -56,7 +56,7 @@ fn app_main() {
                     button! {
                         child = text(count.map(|c| formatx!("Count: {c:?}")));
                         on_click = hn!(count, |ctx, _| {
-                            count.modify(ctx, |c| *c.get_mut() += 1).unwrap();
+                            count.modify(ctx, |c| *c.to_mut() += 1).unwrap();
                         })
                     },
                     separator(),

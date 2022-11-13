@@ -34,7 +34,7 @@ impl Clone for BoxedAnyWeakVar {
 pub trait VarBoxed<T: VarValue>: AnyVar {
     fn clone_boxed(&self) -> BoxedVar<T>;
     fn with_boxed(&self, read: &mut dyn FnMut(&T));
-    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModifyValue<T>)>) -> Result<(), VarIsReadOnlyError>;
+    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut Cow<T>)>) -> Result<(), VarIsReadOnlyError>;
     fn actual_var_boxed(self: Box<Self>) -> BoxedVar<T>;
     fn downgrade_boxed(&self) -> BoxedWeakVar<T>;
     fn read_only_boxed(&self) -> BoxedVar<T>;
@@ -49,7 +49,7 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
         self.with(read)
     }
 
-    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModifyValue<T>)>) -> Result<(), VarIsReadOnlyError> {
+    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut Cow<T>)>) -> Result<(), VarIsReadOnlyError> {
         self.modify(vars, modify)
     }
 
@@ -217,7 +217,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + 'static,
     {
         let modify = Box::new(modify);
         vars.with_vars(move |vars| (**self).modify_boxed(vars, modify))

@@ -44,7 +44,7 @@ pub mod toggle {
 
 /// Properties used in the toggle widget.
 pub mod toggle_properties {
-    use std::{any::Any, cell::RefCell, error::Error, fmt, marker::PhantomData, rc::Rc};
+    use std::{any::Any, borrow::Cow, cell::RefCell, error::Error, fmt, marker::PhantomData, rc::Rc};
 
     use crate::prelude::new_property::*;
 
@@ -104,7 +104,7 @@ pub mod toggle_properties {
                     {
                         args.propagation().stop();
 
-                        let _ = self.checked.modify(ctx, |c| *c.get_mut() = !*c.get());
+                        let _ = self.checked.modify(ctx, |c| *c = Cow::Owned(!*c.as_ref()));
                     }
                 }
             }
@@ -168,18 +168,18 @@ pub mod toggle_properties {
 
                         if IS_TRISTATE_VAR.get() {
                             let _ = self.checked.modify(ctx, |c| {
-                                *c.get_mut() = match *c.get() {
+                                *c = Cow::Owned(match *c.as_ref() {
                                     Some(true) => None,
                                     Some(false) => Some(true),
                                     None => Some(false),
-                                }
+                                });
                             });
                         } else {
                             let _ = self.checked.modify(ctx, |c| {
-                                *c.get_mut() = match *c.get() {
+                                *c = Cow::Owned(match *c.as_ref() {
                                     Some(true) | None => Some(false),
                                     Some(false) => Some(true),
-                                }
+                                });
                             });
                         }
                     }

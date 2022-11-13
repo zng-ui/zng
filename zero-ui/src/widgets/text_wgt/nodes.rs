@@ -258,14 +258,14 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
                     if args.is_backspace() {
                         let _ = self.text.modify(ctx.vars, move |t| {
-                            if !t.get().is_empty() {
-                                t.get_mut().to_mut().pop();
+                            if !t.as_ref().is_empty() {
+                                t.to_mut().to_mut().pop();
                             }
                         });
                     } else {
                         let c = args.character;
                         let _ = self.text.modify(ctx.vars, move |t| {
-                            t.get_mut().to_mut().push(c);
+                            t.to_mut().to_mut().push(c);
                         });
                     }
                 }

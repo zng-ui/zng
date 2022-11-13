@@ -78,8 +78,14 @@ macro_rules! impl_from_and_into_var {
         $crate::__impl_from_and_into_var! { $($tt)* }
     };
 }
+use std::{borrow::Cow, cell::UnsafeCell, mem, ops};
+
+use parking_lot::{RwLock, RwLockReadGuard};
+
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
+
+use super::VarValue;
 
 #[doc(hidden)]
 #[macro_export]
@@ -246,5 +252,83 @@ macro_rules! __impl_from_and_into_var {
     };
     () => {
         // END
+    };
+}
+
+pub(super) struct VarLock<T: VarValue> {
+    value: UnsafeCell<T>,
+}
+impl<T: VarValue> VarLock<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            value: UnsafeCell::new(value),
+        }
+    }
+
+    pub fn into_value(self) -> T {
+        self.value.into_inner()
+    }
+
+    /// Read the value.
+    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        let _lock = VAR_LOCK.read();
+        // SAFETY: safe because we exclusive lock to replace.
+        f(unsafe { &*self.value.get() })
+    }
+
+    /// Replace the value, previous value is returned.
+    pub fn replace(&self, value: T) -> T {
+        let _lock = VAR_LOCK.try_write().expect("recursive var set");
+        // SAFETY: safe because we are holding an exclusive lock.
+        mem::replace(unsafe { &mut *self.value.get() }, value)
+    }
+
+    /// Calls `modify` on the value, if modified the value is replaced and the previous value returned.
+    pub fn modify(&self, modify: impl FnOnce(&mut Cow<T>)) -> Option<T> {
+        let new_value = self.with(|value| {
+            let mut value = Cow::Borrowed(value);
+            modify(&mut value);
+            match value {
+                Cow::Owned(v) => Some(v),
+                Cow::Borrowed(_) => None,
+            }
+        });
+
+        if let Some(new_value) = new_value {
+            Some(self.replace(new_value))
+        } else {
+            None
+        }
+    }
+}
+
+static VAR_LOCK: RwLock<()> = RwLock::new(());
+
+macro_rules! idea {
+    () => {
+        /// Represents a read locked variable value.
+        pub struct VarReadGuard<'a, T: VarValue> {
+            value: &'a T,
+            _guard: Option<RwLockReadGuard<'a, ()>>,
+        }
+        impl<'a, T: VarValue> VarReadGuard<'a, T> {
+            pub(super) fn new_mutable(value: &'a T, guard: RwLockReadGuard<'a, ()>) -> Self {
+                Self {
+                    value,
+                    _guard: Some(guard),
+                }
+            }
+
+            pub(super) fn new_imutable(value: &'a T) -> Self {
+                Self { value, _guard: None }
+            }
+        }
+        impl<'a, T: VarValue> ops::Deref for VarReadGuard<'a, T> {
+            type Target = T;
+
+            fn deref(&self) -> &Self::Target {
+                self.value
+            }
+        }
     };
 }

@@ -239,7 +239,7 @@ where
     fn modify<V2, F>(&self, vars: &V2, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         V2: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + 'static,
     {
         self.0.borrow().var.modify(vars, modify)
     }

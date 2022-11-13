@@ -145,7 +145,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
     fn modify<V2, F>(&self, _: &V2, _: F) -> Result<(), VarIsReadOnlyError>
     where
         V2: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + 'static,
     {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),

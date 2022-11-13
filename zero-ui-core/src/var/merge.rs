@@ -292,7 +292,7 @@ impl<T: VarValue> Var<T> for RcMergeVar<T> {
     fn modify<V, F>(&self, _: &V, _: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + 'static,
     {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),

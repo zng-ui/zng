@@ -202,7 +202,7 @@ where
     T: VarValue,
 {
     wake: AppEventSender,
-    sender: flume::Sender<Box<dyn FnOnce(&mut VarModifyValue<T>) + Send>>,
+    sender: flume::Sender<Box<dyn FnOnce(&mut Cow<T>) + Send>>,
 }
 impl<T: VarValue> Clone for VarModifySender<T> {
     fn clone(&self) -> Self {
@@ -255,7 +255,7 @@ where
     /// modification is sent before the app can process then, they all are applied in order sent.
     pub fn send<F>(&self, modify: F) -> Result<(), AppDisconnected<()>>
     where
-        F: FnOnce(&mut VarModifyValue<T>) + Send + 'static,
+        F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
         self.sender.send(Box::new(modify)).map_err(|_| AppDisconnected(()))?;
         let _ = self.wake.send_var();

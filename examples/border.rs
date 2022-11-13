@@ -71,7 +71,7 @@ fn clip_to_bounds_demo() -> impl UiNode {
         border = 0.5, colors::RED.darken(20.pct());
         clip_to_bounds = clip.clone();
         on_click = hn!(clip, |ctx, _| {
-            clip.modify(ctx, |c| *c.get_mut() = !*c.get())
+            clip.modify(ctx, |c| *c.to_mut() = !**c)
         });
         child = text! {
             corner_radius = 0;

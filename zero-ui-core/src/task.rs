@@ -136,6 +136,7 @@
 //! [`async-fs`]: https://docs.rs/async-fs
 
 use std::{
+    borrow::Cow,
     fmt,
     future::Future,
     mem, panic,
@@ -508,7 +509,7 @@ where
 
     spawn(async move {
         let ctor = task.await;
-        let _ = modify_sender.send(move |v| *v.get_mut() = crate::var::types::Response::Done(ctor()));
+        let _ = modify_sender.send(move |v| *v = Cow::Owned(crate::var::types::Response::Done(ctor())));
     });
 
     response

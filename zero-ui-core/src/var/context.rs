@@ -329,7 +329,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + 'static,
     {
         self.with_var(move |v| v.modify(vars, modify))
     }

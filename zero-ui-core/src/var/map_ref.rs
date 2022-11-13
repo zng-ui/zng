@@ -160,7 +160,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
     fn modify<V, F>(&self, _: &V, _: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<O>) + 'static,
+        F: FnOnce(&mut Cow<O>) + 'static,
     {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),
@@ -363,10 +363,17 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<O>) + 'static,
+        F: FnOnce(&mut Cow<O>) + 'static,
     {
+        let map = self.map.clone();
         let map_mut = self.map_mut.clone();
-        self.source.modify(vars, move |value| value.map_ref(&*map_mut, modify))
+        self.source.modify(vars, move |value| {
+            let mut inner = Cow::Borrowed(map(value.as_ref()));
+            modify(&mut inner);
+            if let Cow::Owned(inner) = inner {
+                *map_mut(value.to_mut()) = inner;
+            }
+        })
     }
 
     fn actual_var(self) -> Self::ActualVar {

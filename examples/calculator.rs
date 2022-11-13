@@ -71,21 +71,21 @@ fn controls(calc: RcVar<Calculator>) -> impl UiNode {
 
 fn btn_square(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square()));
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().square()));
         child = text("x²");
     }
 }
 
 fn btn_square_root(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().square_root()));
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().square_root()));
         child = text("√x");
     }
 }
 
 fn btn_clear(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.get_mut().clear()));
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().clear()));
         click_shortcut = shortcut!(Escape);
         child = text("C");
     }
@@ -93,7 +93,7 @@ fn btn_clear(calc: RcVar<Calculator>) -> impl UiNode {
 
 fn btn_backspace(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().backspace()));
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.to_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
         child = text("⌫");
     }
@@ -102,7 +102,7 @@ fn btn_backspace(calc: RcVar<Calculator>) -> impl UiNode {
 fn btn(calc: RcVar<Calculator>, c: char) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| {
-            calc.modify(ctx.vars, move |b| b.get_mut().push(c))
+            calc.modify(ctx.vars, move |b| b.to_mut().push(c))
         });
         click_shortcut = {
             let shortcuts: Shortcuts = c.try_into().unwrap_or_default();
@@ -115,7 +115,7 @@ fn btn(calc: RcVar<Calculator>, c: char) -> impl UiNode {
 
 fn btn_eval(calc: RcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.get_mut().eval()));
+        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.to_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
         child = text("=");
     }

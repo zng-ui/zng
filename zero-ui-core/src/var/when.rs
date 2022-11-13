@@ -499,7 +499,7 @@ impl<T: VarValue> Var<T> for RcWhenVar<T> {
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         V: WithVars,
-        F: FnOnce(&mut VarModifyValue<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + 'static,
     {
         self.active().modify(vars, modify)
     }
