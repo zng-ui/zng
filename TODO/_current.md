@@ -1,4 +1,5 @@
-* Restore and focus parent window when child is restored. 
+* Restore parent window when child is restored. 
+    - Need to bring_to_front, parent, siblings, self on focus of a child.
 * Implement window `modal`.
     - Mark the parent window as not interactive.
     - Focus modal child when the parent gets focused.

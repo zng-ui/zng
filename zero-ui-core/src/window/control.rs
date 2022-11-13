@@ -431,10 +431,8 @@ impl HeadedCtrl {
                             (WindowState::Minimized, _) => {
                                 // restored, restore children.
                                 self.vars.0.children.with(|c| {
-                                    let w = Windows::req(ctx.services);
                                     for &c in c {
                                         RESTORE_CMD.scoped(c).notify(ctx.events);
-                                        let _ = w.bring_to_top(c);
                                     }
                                 });
 
@@ -503,7 +501,7 @@ impl HeadedCtrl {
                     for &c in c {
                         let _ = w.bring_to_top(c);
                     }
-                });                
+                });
             }
         } else if let Some(args) = MONITORS_CHANGED_EVENT.on(update) {
             if let Some(m) = &self.monitor {
