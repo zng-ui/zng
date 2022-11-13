@@ -1539,7 +1539,11 @@ impl WindowStateAll {
     fn compute_restore_state(restore_state: WindowState, prev_state: WindowState, new_state: WindowState) -> WindowState {
         if new_state == WindowState::Minimized {
             // restore to previous state from minimized.
-            prev_state
+            if prev_state != WindowState::Minimized {
+                prev_state
+            } else {
+                WindowState::Normal
+            }
         } else if new_state.is_fullscreen() && !prev_state.is_fullscreen() {
             // restore to maximized or normal from fullscreen.
             if prev_state == WindowState::Maximized {

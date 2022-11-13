@@ -493,6 +493,12 @@ impl HeadedCtrl {
                     );
                     WINDOW_CHANGED_EVENT.notify(ctx.events, args);
                 }
+            } else if self.actual_state.unwrap_or(WindowState::Normal) == WindowState::Minimized
+                && args.state.as_ref().map(|s| s.state != WindowState::Minimized).unwrap_or(false)
+                && self.vars.0.children.with(|c| c.contains(&args.window_id))
+            {
+                // child restored.
+                RESTORE_CMD.scoped(self.window_id).notify(ctx.events);
             }
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus == Some(self.window_id) {
@@ -500,6 +506,21 @@ impl HeadedCtrl {
                     let w = Windows::req(ctx.services);
                     for &c in c {
                         let _ = w.bring_to_top(c);
+                    }
+                });
+            } else if let Some(new_focus) = args.new_focus {
+                self.vars.0.children.with(|c| {
+                    if c.contains(&new_focus) {
+                        let w = Windows::req(ctx.services);
+                        let _ = w.bring_to_top(self.window_id);
+
+                        for c in c {
+                            if *c != new_focus {
+                                let _ = w.bring_to_top(self.window_id);
+                            }
+                        }
+
+                        let _ = w.bring_to_top(new_focus);
                     }
                 });
             }

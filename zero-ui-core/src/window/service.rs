@@ -55,7 +55,7 @@ pub struct Windows {
     close_requests: Vec<CloseWindowRequest>,
     close_responders: LinearMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
     focus_request: Option<WindowId>,
-    bring_to_top_request: Option<WindowId>,
+    bring_to_top_requests: Vec<WindowId>,
     frame_images: Vec<RcVar<Image>>,
     loading_deadline: Option<DeadlineHandle>,
 }
@@ -71,7 +71,7 @@ impl Windows {
             update_sender,
             close_requests: vec![],
             focus_request: None,
-            bring_to_top_request: None,
+            bring_to_top_requests: vec![],
             frame_images: vec![],
             loading_deadline: None,
         }
@@ -396,6 +396,8 @@ impl Windows {
     ///
     /// If the `window_id` is only associated with an open request it is modified to focus the window on open.
     ///
+    /// If more than one focus request is made in the same update cycle only the last request is processed.
+    ///
     /// [`Focus`]: crate::focus::Focus
     /// [`FocusRequest`]: crate::focus::FocusRequest
     pub fn focus(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
@@ -428,11 +430,13 @@ impl Windows {
     /// This is ignored if the window is [`always_on_top`], the window is also not focused, the [`focus`] operation
     /// also moves the window to the front.
     ///
+    /// Multiple requests can be made in the same update cycle, they are processed in order.
+    ///
     /// [`always_on_top`]: WindowVars::always_on_top
     pub fn bring_to_top(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
         if self.windows_info.contains_key(&window_id) {
-            self.bring_to_top_request = Some(window_id);
+            self.bring_to_top_requests.push(window_id);
             let _ = self.update_sender.send_ext_update();
             Ok(())
         } else {
@@ -440,12 +444,12 @@ impl Windows {
         }
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>, Option<WindowId>) {
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>, Vec<WindowId>) {
         (
             mem::take(&mut self.open_requests),
             mem::take(&mut self.close_requests),
             self.focus_request.take(),
-            self.bring_to_top_request.take(),
+            mem::take(&mut self.bring_to_top_requests),
         )
     }
 
@@ -724,7 +728,7 @@ impl Windows {
             });
         }
 
-        if let Some(w_id) = bring_to_top {
+        for w_id in bring_to_top {
             Self::with_detached_windows(ctx, |ctx, windows| {
                 if let Some(w) = windows.get_mut(&w_id) {
                     w.bring_to_top(ctx);
