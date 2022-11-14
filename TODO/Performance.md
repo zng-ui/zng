@@ -49,47 +49,7 @@
 
 * How much overhead needed to add `rayon` join support for UiNode methods?
     * Need to make everything `Send + Sync`.
-    * `VarValue: Send + Sync` too?
-      - Yes, `RwLock` requires it.
-    * Can we have a global lock in `Vars`?
-      - Every var that can MODIFY checks this lock.
-      - `Vars` exclusive locks to modify?
-        - Need to clone to modify, can clone on `get_mut`, then exclusive lock to update the value.
-        - Can have a `set`, that avoids cloning for replacement.
-        - Can just have modify closure take a `&mut Cow`.
-        - Can implement this first, to remove the RefCell?
-          - Need to be a `RwLock` from the start, a shared `RefCell` needs to be placed in a thread-local, because `get` does not requests `&Vars`.
-          - **Can** use this to get a sense of the perf impact of locks, smaller refactor than making everything Send+Sync.
-            - **TODO**
-            - Refactor `Var::modify` to work using `&mut Cow<T>`.
-            - Refactor vars to not use `RefCell`, but use `UnsafeCell` and shared var lock.
-              - Lock only for value?
-              - Hooks need mut access to register.
-```rust
-pub mod shared_var_lock {
-    use std::cell::UnsafeCell;
-
-    use parking_lot::RwLock;
-
-    use super::VarValue;
-
-    static VAR_LOCK: RwLock<()> = RwLock::new(());
-
-    pub struct VarMutex<T: VarValue> {
-        value: UnsafeCell<T>,
-    }
-
-    impl<T: VarValue> VarMutex<T> {
-        pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-            let _lock = VAR_LOCK.read();
-            f(unsafe { &*self.value.get() })
-        }
-    }
-}
-
-```
-      - Can remove var buffer, listener does the same thing.
-        - Can get from any thread actually.
+      - Do it in stages, we benefit from just Var<T> being Send+Sync.
     * Event `propagation` becomes indeterministic?
       - Could make event notification linear, most nodes are not visited.
     * Services must become sync.

@@ -1,32 +1,20 @@
 use std::rc::{Rc, Weak};
 
-use super::{animation::AnimateModifyInfo, util::VarLock, *};
-
-struct Data<T: VarValue> {
-    value: VarLock<T>,
-    last_update: VarUpdateId,
-    hooks: Vec<VarHook>,
-    animation: AnimateModifyInfo,
-}
+use super::{util::VarData, *};
 
 /// Reference counted read/write variable.
 ///
 /// This is the primary variable type, it can be instantiated using the [`var`] and [`var_from`] functions.
 #[derive(Clone)]
-pub struct RcVar<T: VarValue>(Rc<RefCell<Data<T>>>);
+pub struct RcVar<T: VarValue>(Rc<VarData<T>>);
 
 /// Weak reference to a [`RcVar<T>`].
 #[derive(Clone)]
-pub struct WeakRcVar<T: VarValue>(Weak<RefCell<Data<T>>>);
+pub struct WeakRcVar<T: VarValue>(Weak<VarData<T>>);
 
 /// New ref counted read/write variable with initial `value`.
 pub fn var<T: VarValue>(value: T) -> RcVar<T> {
-    RcVar(Rc::new(RefCell::new(Data {
-        value: VarLock::new(value),
-        last_update: VarUpdateId::never(),
-        hooks: vec![],
-        animation: AnimateModifyInfo::never(),
-    })))
+    RcVar(Rc::new(VarData::new(value)))
 }
 
 /// New ref counted read/write variable with initial value converted from `source`.
@@ -84,7 +72,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn last_update(&self) -> VarUpdateId {
-        self.0.borrow().last_update
+        self.0.last_update()
     }
 
     fn capabilities(&self) -> VarCapabilities {
@@ -92,9 +80,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
-        let (hook, weak) = VarHandle::new(pos_modify_action);
-        self.0.borrow_mut().hooks.push(weak);
-        hook
+        self.0.push_hook(pos_modify_action)
     }
 
     fn strong_count(&self) -> usize {
@@ -114,7 +100,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn is_animating(&self) -> bool {
-        self.0.borrow().animation.is_animating()
+        self.0.is_animating()
     }
 
     fn var_ptr(&self) -> VarPtr {
@@ -156,23 +142,7 @@ impl<T: VarValue> RcVar<T> {
     fn modify_impl(&self, vars: &Vars, modify: impl FnOnce(&mut Cow<T>) + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
         vars.schedule_update(Box::new(move |vars, updates| {
-            let mut data = me.0.borrow_mut();
-            let data = &mut *data;
-
-            let curr_anim = vars.current_animation();
-            if curr_anim.importance() < data.animation.importance() {
-                return;
-            }
-
-            data.animation = curr_anim;
-
-            if data.value.modify(modify).is_some() {
-                data.last_update = vars.update_id();
-                data.value.with(|val| {
-                    data.hooks.retain(|h| h.call(vars, updates, val));
-                });
-                updates.update_ext();
-            }
+            me.0.apply_modify(vars, updates, modify);
         }));
         Ok(())
     }
@@ -193,7 +163,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        self.0.borrow().value.with(read)
+        self.0.with(read)
     }
 
     fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
@@ -214,7 +184,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     fn into_value(self) -> T {
         match Rc::try_unwrap(self.0) {
-            Ok(data) => data.into_inner().value.into_value(),
+            Ok(data) => data.into_value(),
             Err(rc) => Self(rc).get(),
         }
     }

@@ -78,14 +78,15 @@ macro_rules! impl_from_and_into_var {
         $crate::__impl_from_and_into_var! { $($tt)* }
     };
 }
-use std::{borrow::Cow, cell::UnsafeCell, mem, ops};
+use std::{borrow::Cow, cell::UnsafeCell, mem};
 
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{Mutex, RwLock};
 
+use crate::context::Updates;
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
 
-use super::VarValue;
+use super::{animation::AnimateModifyInfo, AnyVarValue, VarHandle, VarHook, VarUpdateId, VarValue, Vars};
 
 #[doc(hidden)]
 #[macro_export]
@@ -255,36 +256,73 @@ macro_rules! __impl_from_and_into_var {
     };
 }
 
-pub(super) struct VarLock<T: VarValue> {
-    value: UnsafeCell<T>,
+struct VarMeta {
+    last_update: VarUpdateId,
+    hooks: Vec<VarHook>,
+    animation: AnimateModifyInfo,
 }
-impl<T: VarValue> VarLock<T> {
+
+pub(super) struct VarData<T: VarValue> {
+    value: VarLock<T>,
+    meta: Mutex<VarMeta>,
+}
+impl<T: VarValue> VarData<T> {
     pub fn new(value: T) -> Self {
         Self {
-            value: UnsafeCell::new(value),
+            value: VarLock::new(value),
+            meta: Mutex::new(VarMeta {
+                last_update: VarUpdateId::never(),
+                hooks: vec![],
+                animation: AnimateModifyInfo::never(),
+            }),
+        }
+    }
+
+    pub fn new_modified(vars: &Vars, hooks: Vec<VarHook>, value: T) -> Self {
+        Self {
+            value: VarLock::new(value),
+            meta: Mutex::new(VarMeta {
+                last_update: vars.update_id(),
+                hooks,
+                animation: vars.current_animation(),
+            }),
         }
     }
 
     pub fn into_value(self) -> T {
-        self.value.into_inner()
+        self.value.value.into_inner()
     }
 
     /// Read the value.
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        let _lock = VAR_LOCK.read();
-        // SAFETY: safe because we exclusive lock to replace.
-        f(unsafe { &*self.value.get() })
+        self.value.with(f)
     }
 
-    /// Replace the value, previous value is returned.
-    pub fn replace(&self, value: T) -> T {
-        let _lock = VAR_LOCK.try_write().expect("recursive var set");
-        // SAFETY: safe because we are holding an exclusive lock.
-        mem::replace(unsafe { &mut *self.value.get() }, value)
+    pub fn last_update(&self) -> VarUpdateId {
+        self.meta.lock().last_update
+    }
+
+    pub fn is_animating(&self) -> bool {
+        self.meta.lock().animation.is_animating()
+    }
+
+    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+        let (hook, weak) = VarHandle::new(pos_modify_action);
+        self.meta.lock().hooks.push(weak);
+        hook
     }
 
     /// Calls `modify` on the value, if modified the value is replaced and the previous value returned.
-    pub fn modify(&self, modify: impl FnOnce(&mut Cow<T>)) -> Option<T> {
+    pub fn apply_modify(&self, vars: &Vars, updates: &mut Updates, modify: impl FnOnce(&mut Cow<T>)) {
+        {
+            let mut meta = self.meta.lock();
+            let curr_anim = vars.current_animation();
+            if curr_anim.importance() < meta.animation.importance() {
+                return;
+            }
+            meta.animation = curr_anim;
+        }
+
         let new_value = self.with(|value| {
             let mut value = Cow::Borrowed(value);
             modify(&mut value);
@@ -295,40 +333,38 @@ impl<T: VarValue> VarLock<T> {
         });
 
         if let Some(new_value) = new_value {
-            Some(self.replace(new_value))
-        } else {
-            None
+            let mut meta = self.meta.lock();
+            let _ = self.value.replace(new_value);
+            meta.last_update = vars.update_id();
+            self.with(|val| {
+                meta.hooks.retain(|h| h.call(vars, updates, val));
+            });
+            updates.update_ext();
         }
     }
 }
 
-static VAR_LOCK: RwLock<()> = RwLock::new(());
-
-macro_rules! idea {
-    () => {
-        /// Represents a read locked variable value.
-        pub struct VarReadGuard<'a, T: VarValue> {
-            value: &'a T,
-            _guard: Option<RwLockReadGuard<'a, ()>>,
-        }
-        impl<'a, T: VarValue> VarReadGuard<'a, T> {
-            pub(super) fn new_mutable(value: &'a T, guard: RwLockReadGuard<'a, ()>) -> Self {
-                Self {
-                    value,
-                    _guard: Some(guard),
-                }
-            }
-
-            pub(super) fn new_imutable(value: &'a T) -> Self {
-                Self { value, _guard: None }
-            }
-        }
-        impl<'a, T: VarValue> ops::Deref for VarReadGuard<'a, T> {
-            type Target = T;
-
-            fn deref(&self) -> &Self::Target {
-                self.value
-            }
-        }
-    };
+struct VarLock<T: VarValue> {
+    value: UnsafeCell<T>,
 }
+impl<T: VarValue> VarLock<T> {
+    pub fn new(value: T) -> Self {
+        VarLock {
+            value: UnsafeCell::new(value),
+        }
+    }
+
+    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        let _lock = VAR_LOCK.read();
+        // SAFETY: safe because we exclusive lock to replace.
+        f(unsafe { &*self.value.get() })
+    }
+
+    pub fn replace(&self, new_value: T) -> T {
+        let _lock = VAR_LOCK.try_write().expect("recursive var modify");
+        // SAFETY: safe because we are holding an exclusive lock.
+        mem::replace(unsafe { &mut *self.value.get() }, new_value)
+    }
+}
+
+static VAR_LOCK: RwLock<()> = RwLock::new(());

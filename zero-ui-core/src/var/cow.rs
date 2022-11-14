@@ -3,7 +3,7 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use super::{animation::AnimateModifyInfo, util::VarLock, *};
+use super::{util::VarData, *};
 
 enum Data<T: VarValue, S> {
     Source {
@@ -11,12 +11,7 @@ enum Data<T: VarValue, S> {
         source_handle: VarHandle,
         hooks: Vec<VarHook>,
     },
-    Value {
-        value: VarLock<T>,
-        last_update: VarUpdateId,
-        hooks: Vec<VarHook>,
-        animation: AnimateModifyInfo,
-    },
+    Owned(VarData<T>),
 }
 
 /// See [`Var::cow`].
@@ -43,7 +38,7 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
                                 hooks.retain(|h| h.call(vars, updates, value));
                                 true
                             }
-                            Data::Value { .. } => false,
+                            Data::Owned { .. } => false,
                         }
                     } else {
                         false
@@ -71,48 +66,15 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
                         }
                     });
                     if let Some(value) = modified {
-                        *data = Data::Value {
-                            last_update: vars.update_id(),
-                            value: VarLock::new(value),
-                            hooks: mem::take(hooks),
-                            animation: vars.current_animation(),
-                        }
+                        *data = Data::Owned(VarData::new_modified(vars, mem::take(hooks), value));
                     }
                 }
-                Data::Value {
-                    value,
-                    last_update,
-                    hooks,
-                    animation,
-                } => {
-                    let curr_anim = vars.current_animation();
-                    if curr_anim.importance() < animation.importance() {
-                        return;
-                    }
-
-                    *animation = curr_anim;
-
-                    if VarLock::modify(value, modify).is_some() {
-                        *last_update = vars.update_id();
-                        hooks.retain(|h| value.with(|val| h.call(vars, updates, val)));
-                        updates.update_ext();
-                    }
+                Data::Owned(data) => {
+                    data.apply_modify(vars, updates, modify);
                 }
             }
         }));
         Ok(())
-    }
-
-    fn push_hook(&self, weak: VarHook) {
-        let mut data = self.0.borrow_mut();
-        match &mut *data {
-            Data::Source { hooks, .. } => {
-                hooks.push(weak);
-            }
-            Data::Value { hooks, .. } => {
-                hooks.push(weak);
-            }
-        }
     }
 
     impl_infallible_write! {
@@ -164,7 +126,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     fn last_update(&self) -> VarUpdateId {
         match &*self.0.borrow() {
             Data::Source { source, .. } => source.last_update(),
-            Data::Value { last_update, .. } => *last_update,
+            Data::Owned(data) => data.last_update(),
         }
     }
 
@@ -173,9 +135,15 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
-        let (handle, weak) = VarHandle::new(pos_modify_action);
-        self.push_hook(weak);
-        handle
+        let mut data = self.0.borrow_mut();
+        match &mut *data {
+            Data::Source { hooks, .. } => {
+                let (hook, weak) = VarHandle::new(pos_modify_action);
+                hooks.push(weak);
+                hook
+            }
+            Data::Owned(data) => data.push_hook(pos_modify_action),
+        }
     }
 
     fn strong_count(&self) -> usize {
@@ -197,7 +165,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     fn is_animating(&self) -> bool {
         match &*self.0.borrow() {
             Data::Source { source, .. } => source.is_animating(),
-            Data::Value { animation, .. } => animation.is_animating(),
+            Data::Owned(value) => value.is_animating(),
         }
     }
 
@@ -249,7 +217,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
     {
         match &*self.0.borrow() {
             Data::Source { source, .. } => source.with(read),
-            Data::Value { value, .. } => value.with(read),
+            Data::Owned(value) => value.with(read),
         }
     }
 
@@ -273,7 +241,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
         match Rc::try_unwrap(self.0) {
             Ok(state) => match state.into_inner() {
                 Data::Source { source, .. } => source.into_value(),
-                Data::Value { value, .. } => value.into_value(),
+                Data::Owned(value) => value.into_value(),
             },
             Err(rc) => Self(rc).get(),
         }
