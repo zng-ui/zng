@@ -344,7 +344,7 @@ impl<T: VarValue> VarLock<T> {
     }
 
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        let _lock = VAR_LOCK.read();
+        let _lock = VAR_LOCK.read_recursive();
         // SAFETY: safe because we exclusive lock to replace.
         f(unsafe { &*self.value.get() })
     }

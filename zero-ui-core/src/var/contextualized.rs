@@ -44,7 +44,7 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<S> {
         let current_ctx = ContextInitHandle::current().downgrade();
 
-        let act = self.actual.read();
+        let act = self.actual.read_recursive();
         if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
             return RwLockReadGuard::map(act, move |m| &m[i].1);
         }
@@ -56,7 +56,7 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         act.push((current_ctx, (self.init)()));
         drop(act);
 
-        let act = self.actual.read();
+        let act = self.actual.read_recursive();
         RwLockReadGuard::map(act, move |m| &m[i].1)
     }
 
@@ -88,7 +88,7 @@ impl<T: VarValue, S: Var<T>> WeakContextualizedVar<T, S> {
 impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
     fn clone(&self) -> Self {
         let current_ctx_id = ContextInitHandle::current().downgrade();
-        let act = self.actual.read();
+        let act = self.actual.read_recursive();
         if let Some(i) = act.iter().position(|(id, _)| *id == current_ctx_id) {
             return Self {
                 _type: PhantomData,

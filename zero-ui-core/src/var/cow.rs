@@ -163,7 +163,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn last_update(&self) -> VarUpdateId {
-        match &*self.0.read() {
+        match &*self.0.read_recursive() {
             Data::Source { source, .. } => source.last_update(),
             Data::Owned { last_update, .. } => *last_update,
         }
@@ -206,7 +206,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn is_animating(&self) -> bool {
-        match &*self.0.read() {
+        match &*self.0.read_recursive() {
             Data::Source { source, .. } => source.is_animating(),
             Data::Owned { animation, .. } => animation.is_animating(),
         }
@@ -258,7 +258,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
     where
         F: FnOnce(&T) -> R,
     {
-        match &*self.0.read() {
+        match &*self.0.read_recursive() {
             Data::Source { source, .. } => source.with(read),
             Data::Owned { value, .. } => read(value),
         }
