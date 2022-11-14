@@ -6,6 +6,7 @@
 * Refactor ContextVar to don't use RefCell and LocalKey?
     - How does parallel context var works?
         - Use https://crates.io/crates/execution-context ?
+        - Using `flow_local` for every thing also solves or cleanup problem.
 * Review if all lock usages are as free of deadlock as the VarLock impl.
     - Mostly don't hold exclusive lock calling closures (modify and hooks).
 * Make `VarValue: Send + Sync`.

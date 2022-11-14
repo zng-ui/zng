@@ -1,4 +1,4 @@
-//! Events directly from `winit` targeting the app windows.
+//! Events directly from the view-process targeting the app windows.
 //!
 //! These events get processed by [app extensions] to generate the events used in widgets, for example
 //! the [`KeyboardManager`] uses the [`RAW_KEY_INPUT_EVENT`] into focus targeted events.

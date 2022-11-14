@@ -1,4 +1,4 @@
-//! Events directly from `winit` not targeting any windows.
+//! Events directly from view-process not targeting any windows.
 //!
 //! These events get emitted only if the app [`enable_device_events`]. When enabled they
 //! can be used like [`raw_events`].
@@ -154,7 +154,7 @@ event! {
 
     /// Motion on some analog axis.
     ///
-    /// This event will be reported for all arbitrary input devices that `winit` supports on this platform,
+    /// This event will be reported for all arbitrary input devices that the view-process supports on this platform,
     /// including mouse devices. If the device is a mouse device then this will be reported alongside the [`MOUSE_MOTION_EVENT`].
     pub static MOTION_EVENT: MotionArgs;
 
