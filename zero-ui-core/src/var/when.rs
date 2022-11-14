@@ -1,4 +1,4 @@
-use std::{cell::Ref, rc::Weak};
+use std::rc::Weak;
 
 use super::*;
 
@@ -70,6 +70,7 @@ macro_rules! when_var {
 #[doc(inline)]
 pub use crate::when_var;
 
+use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zero_ui_proc_macros::when_var as __when_var;
 
@@ -99,41 +100,44 @@ impl<T: VarValue> WhenVarBuilder<T> {
     /// Finish the build.
     pub fn build(mut self) -> RcWhenVar<T> {
         self.conditions.shrink_to_fit();
-        let rc_when = Rc::new(RefCell::new(Data {
+        for (c, v) in self.conditions.iter_mut() {
+            fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
+                types::ContextualizedVar::<T, BoxedVar<T>>::new(Rc::new(|| unreachable!())).boxed()
+            }
+            take_mut::take_or_recover(c, panic_placeholder::<bool>, Var::actual_var);
+            take_mut::take_or_recover(v, panic_placeholder::<T>, Var::actual_var);
+        }
+
+        let rc_when = Rc::new(Data {
             default: self.default,
             conditions: self.conditions,
-            input_handles: Box::new([]),
-            hooks: vec![],
-            last_update: VarUpdateId::never(),
-            last_apply_request: VarApplyUpdateId::initial(),
-            active: usize::MAX,
-        }));
+            w: Mutex::new(WhenData {
+                input_handles: Box::new([]),
+                hooks: vec![],
+                last_update: VarUpdateId::never(),
+                last_apply_request: VarApplyUpdateId::initial(),
+                active: usize::MAX,
+            }),
+        });
         let wk_when = Rc::downgrade(&rc_when);
 
         {
-            let mut data = rc_when.borrow_mut();
+            let mut data = rc_when.w.lock();
             let data = &mut *data;
 
             // capacity can be n*2+1, but we only bet on conditions being `NEW`.
-            let mut input_handles = Vec::with_capacity(data.conditions.len());
-            if data.default.capabilities().contains(VarCapabilities::NEW) {
-                input_handles.push(data.default.hook(RcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
+            let mut input_handles = Vec::with_capacity(rc_when.conditions.len());
+            if rc_when.default.capabilities().contains(VarCapabilities::NEW) {
+                input_handles.push(rc_when.default.hook(RcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
             }
-            for (i, (c, v)) in data.conditions.iter_mut().enumerate() {
+            for (i, (c, v)) in rc_when.conditions.iter().enumerate() {
                 if c.get() && data.active > i {
                     data.active = i;
                 }
 
-                fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
-                    types::ContextualizedVar::<T, BoxedVar<T>>::new(Rc::new(|| unreachable!())).boxed()
-                }
-                take_mut::take_or_recover(c, panic_placeholder::<bool>, Var::actual_var);
-                take_mut::take_or_recover(v, panic_placeholder::<T>, Var::actual_var);
-
                 if c.capabilities().contains(VarCapabilities::NEW) {
                     input_handles.push(c.hook(RcWhenVar::handle_condition(wk_when.clone(), i)));
                 }
-
                 if v.capabilities().contains(VarCapabilities::NEW) {
                     input_handles.push(v.hook(RcWhenVar::handle_value(wk_when.clone(), i)));
                 }
@@ -172,11 +176,10 @@ impl AnyWhenVarBuilder {
 
     /// Create a builder from the parts of a formed [`when_var!`].
     pub fn from_var<O: VarValue>(var: &types::ContextualizedVar<O, RcWhenVar<O>>) -> Self {
-        let data = var.borrow_init();
-        let data = data.0.borrow();
+        let var = var.borrow_init();
         Self {
-            default: data.default.clone_any(),
-            conditions: data.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
+            default: var.0.default.clone_any(),
+            conditions: var.0.conditions.iter().map(|(c, v)| (c.clone(), v.clone_any())).collect(),
         }
     }
 
@@ -263,38 +266,40 @@ impl Clone for AnyWhenVarBuilder {
     }
 }
 
-struct Data<T> {
-    default: BoxedVar<T>,
-    conditions: Vec<(BoxedVar<bool>, BoxedVar<T>)>,
+struct WhenData {
     input_handles: Box<[VarHandle]>,
     hooks: Vec<VarHook>,
-
     last_update: VarUpdateId,
     last_apply_request: VarApplyUpdateId,
     active: usize,
 }
 
+struct Data<T> {
+    default: BoxedVar<T>,
+    conditions: Vec<(BoxedVar<bool>, BoxedVar<T>)>,
+    w: Mutex<WhenData>,
+}
+
 /// See [`when_var!`].
-pub struct RcWhenVar<T>(Rc<RefCell<Data<T>>>);
+pub struct RcWhenVar<T>(Rc<Data<T>>);
 
 /// Weak reference to a [`RcWhenVar<T>`].
-pub struct WeakWhenVar<T>(Weak<RefCell<Data<T>>>);
+pub struct WeakWhenVar<T>(Weak<Data<T>>);
 
 impl<T: VarValue> RcWhenVar<T> {
-    fn active(&self) -> Ref<BoxedVar<T>> {
-        Ref::map(self.0.borrow(), |data| {
-            if data.active == usize::MAX {
-                &data.default
-            } else {
-                &data.conditions[data.active].1
-            }
-        })
+    fn active(&self) -> &BoxedVar<T> {
+        let active = self.0.w.lock().active;
+        if active == usize::MAX {
+            &self.0.default
+        } else {
+            &self.0.conditions[active].1
+        }
     }
 
-    fn handle_condition(wk_when: Weak<RefCell<Data<T>>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
+    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
         Box::new(move |vars, _, value| {
             if let Some(rc_when) = wk_when.upgrade() {
-                let mut data_mut = rc_when.borrow_mut();
+                let mut data_mut = rc_when.w.lock();
                 let mut update = false;
 
                 match data_mut.active.cmp(&i) {
@@ -324,10 +329,10 @@ impl<T: VarValue> RcWhenVar<T> {
         })
     }
 
-    fn handle_value(wk_when: Weak<RefCell<Data<T>>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
+    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
         Box::new(move |vars, _, _| {
             if let Some(rc_when) = wk_when.upgrade() {
-                let mut data_mut = rc_when.borrow_mut();
+                let mut data_mut = rc_when.w.lock();
                 if data_mut.active == i && data_mut.last_apply_request != vars.apply_update_id() {
                     data_mut.last_apply_request = vars.apply_update_id();
                     drop(data_mut);
@@ -340,13 +345,13 @@ impl<T: VarValue> RcWhenVar<T> {
         })
     }
 
-    fn apply_update(rc_merge: Rc<RefCell<Data<T>>>) -> VarUpdateFn {
+    fn apply_update(rc_merge: Rc<Data<T>>) -> VarUpdateFn {
         Box::new(move |vars, updates| {
-            let mut data = rc_merge.borrow_mut();
+            let mut data = rc_merge.w.lock();
             let data = &mut *data;
 
             data.active = usize::MAX;
-            for (i, (c, _)) in data.conditions.iter().enumerate() {
+            for (i, (c, _)) in rc_merge.conditions.iter().enumerate() {
                 if c.get() {
                     data.active = i;
                     break;
@@ -355,9 +360,9 @@ impl<T: VarValue> RcWhenVar<T> {
             data.last_update = vars.update_id();
 
             let active = if data.active == usize::MAX {
-                &data.default
+                &rc_merge.default
             } else {
-                &data.conditions[data.active].1
+                &rc_merge.conditions[data.active].1
             };
 
             active.with(|value| {
@@ -409,13 +414,12 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
     }
 
     fn last_update(&self) -> VarUpdateId {
-        self.0.borrow().last_update
+        self.0.w.lock().last_update
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        let data = self.0.borrow();
-        if data.conditions.is_empty() {
-            data.default.capabilities()
+        if self.0.conditions.is_empty() {
+            self.0.default.capabilities()
         } else {
             self.active().capabilities() | VarCapabilities::NEW | VarCapabilities::CAPS_CHANGE
         }
@@ -423,7 +427,7 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
         let (handle, hook) = VarHandle::new(pos_modify_action);
-        self.0.borrow_mut().hooks.push(hook);
+        self.0.w.lock().hooks.push(hook);
         handle
     }
 
@@ -515,12 +519,12 @@ impl<T: VarValue> Var<T> for RcWhenVar<T> {
 
     fn into_value(self) -> T {
         match Rc::try_unwrap(self.0) {
-            Ok(data) => {
-                let mut data = data.into_inner();
-                if data.active == usize::MAX {
-                    data.default.into_value()
+            Ok(mut v) => {
+                let active = v.w.into_inner().active;
+                if active == usize::MAX {
+                    v.default.into_value()
                 } else {
-                    data.conditions.swap_remove(data.active).1.into_value()
+                    v.conditions.swap_remove(active).1.into_value()
                 }
             }
             Err(rc) => Self(rc).get(),
