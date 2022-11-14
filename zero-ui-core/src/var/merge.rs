@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, rc::Weak};
 
-use super::{animation::AnimateModifyInfo, *};
+use super::{util::VarData, *};
 
 ///<span data-del-macro-root></span> Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
@@ -40,9 +40,11 @@ macro_rules! merge_var {
 #[doc(inline)]
 pub use crate::merge_var;
 
+use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zero_ui_proc_macros::merge_var as __merge_var;
 
+// used by the __merge_var! proc-macro.
 #[doc(hidden)]
 pub struct RcMergeVarInput<T: VarValue, V: Var<T>>(PhantomData<(V, T)>);
 impl<T: VarValue, V: Var<T>> RcMergeVarInput<T, V> {
@@ -56,25 +58,26 @@ impl<T: VarValue, V: Var<T>> RcMergeVarInput<T, V> {
     }
 }
 
-struct Data<T> {
+struct MergeData<T> {
     inputs: Box<[Box<dyn AnyVarValue>]>,
     input_handles: Box<[VarHandle]>,
     merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T>,
-    value: T,
-    last_update: VarUpdateId,
     last_apply_request: VarApplyUpdateId,
-    hooks: Vec<VarHook>,
-    animation: AnimateModifyInfo,
+}
+
+struct Data<T: VarValue> {
+    m: Mutex<MergeData<T>>,
+    value: VarData<T>,
 }
 
 /// See [`merge_var!`].
-pub struct RcMergeVar<T>(Rc<RefCell<Data<T>>>);
+pub struct RcMergeVar<T: VarValue>(Rc<Data<T>>);
 
 #[doc(hidden)]
 pub type ContextualizedRcMergeVar<T> = types::ContextualizedVar<T, RcMergeVar<T>>;
 
 /// Weak reference to [`RcMergeVar<T>`].
-pub struct WeakMergeVar<T>(Weak<RefCell<Data<T>>>);
+pub struct WeakMergeVar<T: VarValue>(Weak<Data<T>>);
 
 impl<T: VarValue> RcMergeVar<T> {
     #[doc(hidden)]
@@ -94,16 +97,15 @@ impl<T: VarValue> RcMergeVar<T> {
 
     fn new_contextualized(input_vars: &[Box<dyn AnyVar>], mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T>) -> Self {
         let inputs: Box<[_]> = input_vars.iter().map(|v| v.get_any()).collect();
-        let rc_merge = Rc::new(RefCell::new(Data {
-            value: merge(&inputs),
-            inputs,
-            input_handles: Box::new([]),
-            merge,
-            last_update: VarUpdateId::never(),
-            last_apply_request: VarApplyUpdateId::initial(),
-            hooks: vec![],
-            animation: AnimateModifyInfo::never(),
-        }));
+        let rc_merge = Rc::new(Data {
+            value: VarData::new(merge(&inputs)),
+            m: Mutex::new(MergeData {
+                inputs,
+                input_handles: Box::new([]),
+                merge,
+                last_apply_request: VarApplyUpdateId::initial(),
+            }),
+        });
         let wk_merge = Rc::downgrade(&rc_merge);
 
         let input_handles: Box<[_]> = input_vars
@@ -114,7 +116,7 @@ impl<T: VarValue> RcMergeVar<T> {
                     let wk_merge = wk_merge.clone();
                     let handle = var.hook(Box::new(move |vars, _, value| {
                         if let Some(rc_merge) = wk_merge.upgrade() {
-                            let mut data = rc_merge.borrow_mut();
+                            let mut data = rc_merge.m.lock();
                             let data_mut = &mut *data;
                             if value.as_any().type_id() == data_mut.inputs[i].as_any().type_id() {
                                 data_mut.inputs[i] = value.clone_boxed();
@@ -140,21 +142,17 @@ impl<T: VarValue> RcMergeVar<T> {
             })
             .collect();
 
-        rc_merge.borrow_mut().input_handles = input_handles;
+        rc_merge.m.lock().input_handles = input_handles;
 
         Self(rc_merge)
     }
 
-    fn update_merge(rc_merge: Rc<RefCell<Data<T>>>) -> VarUpdateFn {
+    fn update_merge(rc_merge: Rc<Data<T>>) -> VarUpdateFn {
         Box::new(move |vars, updates| {
-            let mut data = rc_merge.borrow_mut();
-            let data = &mut *data;
-            data.value = (data.merge)(&data.inputs);
-            data.last_update = vars.update_id();
-            data.animation = vars.current_animation();
-
-            data.hooks.retain(|h| h.call(vars, updates, &data.value));
-            updates.update_ext();
+            let mut m = rc_merge.m.lock();
+            let m = &mut *m;
+            let new_value = (m.merge)(&m.inputs);
+            rc_merge.value.apply_modify(vars, updates, |v| *v = Cow::Owned(new_value));
         })
     }
 }
@@ -203,11 +201,11 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
     }
 
     fn last_update(&self) -> VarUpdateId {
-        self.0.borrow().last_update
+        self.0.value.last_update()
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        if self.0.borrow().inputs.is_empty() {
+        if self.0.m.lock().inputs.is_empty() {
             VarCapabilities::empty()
         } else {
             VarCapabilities::NEW
@@ -215,9 +213,7 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
-        let (handle, weak) = VarHandle::new(pos_modify_action);
-        self.0.borrow_mut().hooks.push(weak);
-        handle
+        self.0.value.push_hook(pos_modify_action)
     }
 
     fn strong_count(&self) -> usize {
@@ -237,7 +233,7 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
     }
 
     fn is_animating(&self) -> bool {
-        self.0.borrow().animation.is_animating()
+        self.0.value.is_animating()
     }
 
     fn var_ptr(&self) -> VarPtr {
@@ -286,7 +282,7 @@ impl<T: VarValue> Var<T> for RcMergeVar<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        read(&self.0.borrow().value)
+        self.0.value.with(read)
     }
 
     fn modify<V, F>(&self, _: &V, _: F) -> Result<(), VarIsReadOnlyError>
@@ -309,7 +305,7 @@ impl<T: VarValue> Var<T> for RcMergeVar<T> {
 
     fn into_value(self) -> T {
         match Rc::try_unwrap(self.0) {
-            Ok(data) => data.into_inner().value,
+            Ok(data) => data.value.into_value(),
             Err(rc) => Self(rc).get(),
         }
     }
