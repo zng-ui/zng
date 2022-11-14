@@ -1,4 +1,6 @@
-use std::{cell::Ref, marker::PhantomData, rc::Weak};
+use std::{marker::PhantomData, rc::Weak};
+
+use parking_lot::{RwLock, RwLockReadGuard};
 
 use super::{types::WeakContextInitHandle, *};
 
@@ -23,7 +25,7 @@ use super::{types::WeakContextInitHandle, *};
 pub struct ContextualizedVar<T, S> {
     _type: PhantomData<T>,
     init: Rc<dyn Fn() -> S>,
-    actual: RefCell<Vec<(WeakContextInitHandle, S)>>,
+    actual: RwLock<Vec<(WeakContextInitHandle, S)>>,
 }
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     /// New with initialization function.
@@ -34,28 +36,28 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
         Self {
             _type: PhantomData,
             init,
-            actual: RefCell::new(Vec::with_capacity(1)),
+            actual: RwLock::new(Vec::with_capacity(1)),
         }
     }
 
     /// Borrow/initialize the actual var.
-    pub fn borrow_init(&self) -> Ref<S> {
+    pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<S> {
         let current_ctx = ContextInitHandle::current().downgrade();
 
-        let act = self.actual.borrow();
+        let act = self.actual.read();
         if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
-            return Ref::map(act, move |m| &m[i].1);
+            return RwLockReadGuard::map(act, move |m| &m[i].1);
         }
         drop(act);
 
-        let mut act = self.actual.borrow_mut();
+        let mut act = self.actual.write();
         act.retain(|(h, _)| h.is_alive());
         let i = act.len();
         act.push((current_ctx, (self.init)()));
         drop(act);
 
-        let act = self.actual.borrow();
-        Ref::map(act, move |m| &m[i].1)
+        let act = self.actual.read();
+        RwLockReadGuard::map(act, move |m| &m[i].1)
     }
 
     /// Unwraps the initialized actual var or initializes it now.
@@ -86,12 +88,12 @@ impl<T: VarValue, S: Var<T>> WeakContextualizedVar<T, S> {
 impl<T: VarValue, S: Var<T>> Clone for ContextualizedVar<T, S> {
     fn clone(&self) -> Self {
         let current_ctx_id = ContextInitHandle::current().downgrade();
-        let act = self.actual.borrow();
+        let act = self.actual.read();
         if let Some(i) = act.iter().position(|(id, _)| *id == current_ctx_id) {
             return Self {
                 _type: PhantomData,
                 init: self.init.clone(),
-                actual: RefCell::new(vec![act[i].clone()]),
+                actual: RwLock::new(vec![act[i].clone()]),
             };
         }
         Self::new(self.init.clone())
