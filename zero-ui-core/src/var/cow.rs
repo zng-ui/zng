@@ -3,7 +3,9 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use super::{util::VarData, *};
+use parking_lot::RwLock;
+
+use super::{animation::AnimateModifyInfo, *};
 
 enum Data<T: VarValue, S> {
     Source {
@@ -11,29 +13,34 @@ enum Data<T: VarValue, S> {
         source_handle: VarHandle,
         hooks: Vec<VarHook>,
     },
-    Owned(VarData<T>),
+    Owned {
+        value: T,
+        last_update: VarUpdateId,
+        hooks: Vec<VarHook>,
+        animation: AnimateModifyInfo,
+    },
 }
 
 /// See [`Var::cow`].
-pub struct RcCowVar<T: VarValue, S>(Rc<RefCell<Data<T, S>>>);
+pub struct RcCowVar<T: VarValue, S>(Rc<RwLock<Data<T, S>>>);
 
 /// Weak reference to a [`RcCowVar<T>`].
-pub struct WeakCowVar<T: VarValue, S>(Weak<RefCell<Data<T, S>>>);
+pub struct WeakCowVar<T: VarValue, S>(Weak<RwLock<Data<T, S>>>);
 
 impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
     pub(super) fn new(source: S) -> Self {
-        let cow = Rc::new(RefCell::new(Data::Source {
+        let cow = Rc::new(RwLock::new(Data::Source {
             source,
             source_handle: VarHandle::dummy(),
             hooks: vec![],
         }));
         {
-            let mut data = cow.borrow_mut();
+            let mut data = cow.write();
             if let Data::Source { source, source_handle, .. } = &mut *data {
                 let weak_cow = Rc::downgrade(&cow);
                 *source_handle = source.hook(Box::new(move |vars, updates, value| {
                     if let Some(cow) = weak_cow.upgrade() {
-                        match &mut *cow.borrow_mut() {
+                        match &mut *cow.write() {
                             Data::Source { hooks, .. } => {
                                 hooks.retain(|h| h.call(vars, updates, value));
                                 true
@@ -52,7 +59,7 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
     fn modify_impl(&self, vars: &Vars, modify: impl FnOnce(&mut Cow<T>) + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
         vars.schedule_update(Box::new(move |vars, updates| {
-            let mut data = me.0.borrow_mut();
+            let mut data = me.0.write();
             let data = &mut *data;
 
             match data {
@@ -66,11 +73,43 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
                         }
                     });
                     if let Some(value) = modified {
-                        *data = Data::Owned(VarData::new_modified(vars, mem::take(hooks), value));
+                        *data = Data::Owned {
+                            value,
+                            last_update: vars.update_id(),
+                            hooks: mem::take(hooks),
+                            animation: vars.current_animation(),
+                        };
                     }
                 }
-                Data::Owned(data) => {
-                    data.apply_modify(vars, updates, modify);
+                Data::Owned {
+                    value,
+                    last_update,
+                    hooks,
+                    animation,
+                } => {
+                    {
+                        let curr_anim = vars.current_animation();
+                        if curr_anim.importance() < animation.importance() {
+                            return;
+                        }
+                        *animation = curr_anim;
+                    }
+
+                    let new_value = {
+                        let mut value = Cow::Borrowed(value);
+                        modify(&mut value);
+                        match value {
+                            Cow::Owned(v) => Some(v),
+                            Cow::Borrowed(_) => None,
+                        }
+                    };
+
+                    if let Some(new_value) = new_value {
+                        *value = new_value;
+                        *last_update = vars.update_id();
+                        hooks.retain(|h| h.call(vars, updates, value));
+                        updates.update_ext();
+                    }
                 }
             }
         }));
@@ -124,9 +163,9 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn last_update(&self) -> VarUpdateId {
-        match &*self.0.borrow() {
+        match &*self.0.read() {
             Data::Source { source, .. } => source.last_update(),
-            Data::Owned(data) => data.last_update(),
+            Data::Owned { last_update, .. } => *last_update,
         }
     }
 
@@ -135,14 +174,18 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
-        let mut data = self.0.borrow_mut();
+        let mut data = self.0.write();
         match &mut *data {
             Data::Source { hooks, .. } => {
                 let (hook, weak) = VarHandle::new(pos_modify_action);
                 hooks.push(weak);
                 hook
             }
-            Data::Owned(data) => data.push_hook(pos_modify_action),
+            Data::Owned { hooks, .. } => {
+                let (hook, weak) = VarHandle::new(pos_modify_action);
+                hooks.push(weak);
+                hook
+            }
         }
     }
 
@@ -163,9 +206,9 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn is_animating(&self) -> bool {
-        match &*self.0.borrow() {
+        match &*self.0.read() {
             Data::Source { source, .. } => source.is_animating(),
-            Data::Owned(value) => value.is_animating(),
+            Data::Owned { animation, .. } => animation.is_animating(),
         }
     }
 
@@ -215,9 +258,9 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
     where
         F: FnOnce(&T) -> R,
     {
-        match &*self.0.borrow() {
+        match &*self.0.read() {
             Data::Source { source, .. } => source.with(read),
-            Data::Owned(value) => value.with(read),
+            Data::Owned { value, .. } => read(value),
         }
     }
 
@@ -241,7 +284,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
         match Rc::try_unwrap(self.0) {
             Ok(state) => match state.into_inner() {
                 Data::Source { source, .. } => source.into_value(),
-                Data::Owned(value) => value.into_value(),
+                Data::Owned { value, .. } => value,
             },
             Err(rc) => Self(rc).get(),
         }

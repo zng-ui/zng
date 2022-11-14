@@ -1,7 +1,15 @@
 * Refactor variables to use global lock.
-    - Using the lock AND RefCell at the same time has no noticeable performance impact.
-        - Need merge-var to truly test.
-    - Remove RefCell of more vars.
+    - CowVar can't use global lock.
+    - ContextualizedVar, needs an outer RwLock.
+    - The contextualized-var is used heavily and had no performance impact.
+        - So the VarLock only really saves alloc space?
+* Refactor ContextVar to don't use RefCell and LocalKey?
+    - How does parallel context var works?
+* Review if all lock usages are as free of deadlock as the VarLock impl.
+    - Mostly don't hold exclusive lock calling closures (modify and hooks).
+* Make `VarValue: Send + Sync`.
+* Make `AnyVar: Send + Sync`.
+* Merge
 
 * Replace `Var::with` with `Var::read(&self) -> VarReadGuard<T>`?
     - Need something new in ContextVar, an extra lock?

@@ -278,17 +278,6 @@ impl<T: VarValue> VarData<T> {
         }
     }
 
-    pub fn new_modified(vars: &Vars, hooks: Vec<VarHook>, value: T) -> Self {
-        Self {
-            value: VarLock::new(value),
-            meta: Mutex::new(VarMeta {
-                last_update: vars.update_id(),
-                hooks,
-                animation: vars.current_animation(),
-            }),
-        }
-    }
-
     pub fn into_value(self) -> T {
         self.value.value.into_inner()
     }
