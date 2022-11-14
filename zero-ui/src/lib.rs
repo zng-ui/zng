@@ -263,7 +263,7 @@
 //! let moving_btn = button! {
 //!     margin = offset.clone();
 //!     on_click = hn!(|ctx, _| {
-//!         offset.modify(ctx, |m|m.get_mut().left += 50.0);
+//!         offset.modify(ctx, |m|m.to_mut().left += 50.0);
 //!     });
 //!     child = text("Click to Move!")
 //! };
@@ -305,6 +305,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # use std::borrow::Cow;
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text(flag.map_to_text());
@@ -313,7 +314,7 @@
 //!         // 3 methods doing the same thing.
 //!         flag.set(ctx.vars, new_value);
 //!         flag.set_ne(ctx.vars, new_value);
-//!         flag.modify(ctx.vars, move |f| *f.get_mut() = new_value);
+//!         flag.modify(ctx.vars, move |f| *f = Cow::Owned(new_value));
 //!     });
 //! };
 //! ```
@@ -368,7 +369,7 @@
 //!         child = button! {
 //!             child = text(count_text);
 //!             on_click = hn!(|ctx, _| {
-//!                 count.modify(ctx, |c| *c.get_mut() += 1);
+//!                 count.modify(ctx, |c| *c.to_mut() += 1);
 //!             });
 //!         }
 //!     }
@@ -506,7 +507,7 @@
 //!
 //! button! {
 //!     on_click = hn!(count, |ctx, _| {
-//!         count.modify(ctx, |c| *c.get_mut() += 1);
+//!         count.modify(ctx, |c| *c.to_mut() += 1);
 //!     });
 //!     child = text(count.map_to_text());
 //! }
