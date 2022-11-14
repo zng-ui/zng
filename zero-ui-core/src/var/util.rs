@@ -350,7 +350,7 @@ impl<T: VarValue> VarLock<T> {
     }
 
     pub fn replace(&self, new_value: T) -> T {
-        let _lock = VAR_LOCK.try_write().expect("recursive var modify");
+        let _lock = VAR_LOCK.write();
         // SAFETY: safe because we are holding an exclusive lock.
         mem::replace(unsafe { &mut *self.value.get() }, new_value)
     }
