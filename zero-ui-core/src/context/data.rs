@@ -77,7 +77,7 @@ impl DataContext {
         })
     }
 
-    /// Register a `callback` to run when this context is dropped.
+    /// Register a `callback` to run when all clones of this context are dropped.
     pub fn on_drop(&self, callback: Box<dyn FnOnce(DataContextId)>) {
         self.0.drop_handlers.borrow_mut().push(callback)
     }

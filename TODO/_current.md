@@ -7,6 +7,11 @@
         - Can't depend on the call stack to parent values?
         - If we create a new context for each context-var assign we can end-up with a large amount of contexts to check.
             - Can we mitigate this?
+            - Why don't we have the context-var be a `DataContext`?
+                - Because future `rayon::join` needs to explicitly call `DataContext::with_context` to propagate the context in
+                  other threads.
+            - Can we make the `DataContext` load all "var contexts" only for `rayon::join`.
+                - Then most of the time, it is only a stack.
     - TODO:
         - Make it `Send+Sync` after it is shown to work.
 
