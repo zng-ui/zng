@@ -14,6 +14,7 @@ use crate::{
 use std::{cell::Cell, fmt, ops::Deref, rc::Rc};
 
 mod contextual;
+pub mod data;
 pub use contextual::*;
 
 mod update;
