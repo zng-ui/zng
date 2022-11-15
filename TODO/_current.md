@@ -1,19 +1,18 @@
 * New idea for contextual values, `DataContext`.
-    - Good:
-        - Encapsulate cleanup if used to implement events.
-        - Can be made multi-thread.
-        - Same impl for ContextVar, ContextValue, ContextualizedVar.
-    - Bad:
-        - Can't depend on the call stack to parent values?
-        - If we create a new context for each context-var assign we can end-up with a large amount of contexts to check.
-            - Can we mitigate this?
-            - Why don't we have the context-var be a `DataContext`?
-                - Because future `rayon::join` needs to explicitly call `DataContext::with_context` to propagate the context in
-                  other threads.
-            - Can we make the `DataContext` load all "var contexts" only for `rayon::join`.
-                - Then most of the time, it is only a stack.
-    - TODO:
-        - Make it `Send+Sync` after it is shown to work.
+    - Causes linear search of parent IDs.
+    - Replace with something better.
+
+* We are trying to solve 3 problems here:
+    - `app_local!` that works like `thread_local!`, but across all UI threads and with the lifetime of the app.
+        - This one can be solved using the `DataContext`, can call it `AppScope`.
+        - The `AppLocalKey` is a map of `AppId`, and registers cleanup in `AppScope`.
+    - ContextVar context ID for `ContextualizedVar`.
+        - This is just a `ContextValue<ContextId>`?
+    - Propagation of `ContextVar` and `ContextValue` across UI threads.
+        - UI threads can be inserted at any point (`rayon::join`).
+        - Can we do something with `ThreadId`?
+        - Can we always load contexts in all UI threads.
+            - No, we can use the same context var in multiple contexts in parallel.
 
 * Refactor variables to use global lock.
     - CowVar can't use global lock.

@@ -3,7 +3,9 @@
 mod intrinsic;
 pub mod raw_device_events;
 pub mod raw_events;
+mod scope;
 pub mod view_process;
+pub use scope::*;
 
 pub use intrinsic::*;
 
@@ -538,7 +540,6 @@ event! {
 /// [`blank`]: App::blank
 /// [`default`]: App::default
 pub struct App;
-
 impl App {
     /// If an app is already running in the current thread.
     ///
@@ -577,7 +578,10 @@ impl App {
     /// Application without any extension.
     pub fn blank() -> AppExtended<()> {
         assert_not_view_process();
+        let scope = AppScope::new_unique();
+        scope.load_into_thread();
         AppExtended {
+            scope,
             extensions: (),
             view_process_exe: None,
         }
@@ -617,7 +621,10 @@ impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         assert_not_view_process();
+        let scope = AppScope::new_unique();
+        scope.load_in_thread();
         AppExtended {
+            scope,
             extensions: vec![],
             view_process_exe: None,
         }
@@ -654,6 +661,7 @@ impl App {
 ///
 /// See [`App`].
 pub struct AppExtended<E: AppExtension> {
+    scope: AppScope,
     extensions: E,
     view_process_exe: Option<PathBuf>,
 }
@@ -705,6 +713,7 @@ impl<E: AppExtension> AppExtended<E> {
             panic!("app already extended with `{}`", type_name::<F>())
         }
         AppExtended {
+            scope: self.scope,
             extensions: (self.extensions, TraceAppExt(extension)),
             view_process_exe: self.view_process_exe,
         }
@@ -754,7 +763,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     pub fn run(self, start: impl FnOnce(&mut AppContext)) {
-        let mut app = RunningApp::start(self.extensions, true, true, self.view_process_exe);
+        let mut app = RunningApp::start(self.scope, self.extensions, true, true, self.view_process_exe);
 
         start(&mut app.ctx());
 
@@ -771,7 +780,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// If called in a test (`cfg(test)`) this blocks until no other instance of [`HeadlessApp`] and
     /// [`TestWidgetContext`] are running in the current thread.
     pub fn run_headless(self, with_renderer: bool) -> HeadlessApp {
-        let app = RunningApp::start(self.extensions.boxed(), false, with_renderer, self.view_process_exe);
+        let app = RunningApp::start(self.scope, self.extensions.boxed(), false, with_renderer, self.view_process_exe);
 
         HeadlessApp { app }
     }
@@ -780,22 +789,25 @@ impl<E: AppExtension> AppExtended<E> {
 /// Represents a running app controlled by an external event loop.
 struct RunningApp<E: AppExtension> {
     extensions: (AppIntrinsic, E),
-
+    
     device_events: bool,
     owned_ctx: OwnedAppContext,
     receiver: flume::Receiver<AppEvent>,
 
     loop_timer: LoopTimer,
     loop_monitor: LoopMonitor,
-
+    
     pending_view_events: Vec<zero_ui_view_api::Event>,
     pending_view_frame_events: Vec<zero_ui_view_api::EventFrameRendered>,
     pending_app_events: Vec<EventUpdate>,
     pending_layout: bool,
     pending_render: bool,
+    
+    // cleans on drop
+    scope: AppScope,
 }
 impl<E: AppExtension> RunningApp<E> {
-    fn start(mut extensions: E, is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>) -> Self {
+    fn start(scope: AppScope, mut extensions: E, is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>) -> Self {
         if App::is_running() {
             if cfg!(any(test, doc, feature = "test_util")) {
                 panic!("only one app or `TestWidgetContext` is allowed per thread")
@@ -820,6 +832,7 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         RunningApp {
+            scope,
             extensions: (process, extensions),
 
             device_events,
@@ -1507,6 +1520,8 @@ impl<E: AppExtension> Drop for RunningApp<E> {
         let _s = tracing::debug_span!("extensions.deinit").entered();
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
+
+        self.scope.unload_in_thread();
     }
 }
 
