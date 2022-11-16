@@ -7,8 +7,12 @@ use std::{
     marker::PhantomData,
     mem,
     ops::Deref,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread::LocalKey,
-    time::Instant, sync::{atomic::{AtomicBool, Ordering}, Arc},
+    time::Instant,
 };
 
 use crate::{

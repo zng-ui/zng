@@ -12,6 +12,7 @@ use super::text_properties::*;
 use crate::core::{
     focus::FocusInfoBuilder,
     keyboard::{Keyboard, CHAR_INPUT_EVENT},
+    task::Mutex,
     text::*,
 };
 use crate::prelude::new_widget::*;
@@ -145,7 +146,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     struct ResolveTextNode<C, T> {
         child: C,
         text: T,
-        resolved: RefCell<Option<ResolvedText>>,
+        resolved: Mutex<Option<ResolvedText>>,
         event_handles: EventHandles,
         caret_opacity_handle: Option<VarHandle>,
     }
@@ -154,7 +155,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             RESOLVED_TEXT.with_context_opt(self.resolved.get_mut(), || f(&mut self.child))
         }
         fn with<R>(&self, f: impl FnOnce(&C) -> R) -> R {
-            RESOLVED_TEXT.with_context_opt(&mut *self.resolved.borrow_mut(), || f(&self.child))
+            RESOLVED_TEXT.with_context_opt(&mut *self.resolved.lock(), || f(&self.child))
         }
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
@@ -617,7 +618,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
     #[ui_node(struct LayoutTextNode {
         child: impl UiNode,
-        txt: RefCell<FinalText>,
+        txt: Mutex<FinalText>,
         pending: Layout,
     })]
     impl LayoutTextNode {
@@ -625,7 +626,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             LAYOUT_TEXT.with_context_opt(&mut self.txt.get_mut().layout, || f(&mut self.child))
         }
         fn with(&self, f: impl FnOnce(&T_child)) {
-            LAYOUT_TEXT.with_context_opt(&mut self.txt.borrow_mut().layout, || f(&self.child))
+            LAYOUT_TEXT.with_context_opt(&mut self.txt.lock().layout, || f(&self.child))
         }
 
         #[UiNode]

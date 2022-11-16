@@ -1,7 +1,8 @@
-use std::{cell::Cell, fmt, rc::Rc, sync::Arc, time::Duration};
+use std::{fmt, sync::Arc, time::Duration};
 
 use crate::core::{
     context::{context_value, with_context_value, StaticStateId},
+    task::Mutex,
     units::*,
     var::{animation::*, *},
     widget_info::WidgetInfo,
@@ -324,13 +325,13 @@ impl<'a> WidgetInfoExt for WidgetInfo<'a> {
 
 #[derive(Debug, Default)]
 struct ScrollData {
-    viewport_transform: Cell<PxTransform>,
-    viewport_size: Cell<PxSize>,
+    viewport_transform: PxTransform,
+    viewport_size: PxSize,
 }
 
 /// Shared reference to the viewport bounds of a scroll.
 #[derive(Clone, Default, Debug)]
-pub struct ScrollInfo(Rc<ScrollData>);
+pub struct ScrollInfo(Arc<Mutex<ScrollData>>);
 impl ScrollInfo {
     /// Gets the viewport bounds in the window space.
     pub fn viewport(&self) -> PxRect {

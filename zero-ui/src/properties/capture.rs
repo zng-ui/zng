@@ -1,8 +1,8 @@
 use crate::core::mouse::{CaptureMode, Mouse, MOUSE_INPUT_EVENT};
 use crate::prelude::new_property::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::core::task::Mutex;
+use std::sync::Arc;
 
 /// Capture mouse for the widget on mouse down.
 ///
@@ -105,7 +105,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 /// [allows interaction]: crate::core::widget_info::WidgetInfo::interactivity
 #[property(CONTEXT, default(false))]
 pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    static MODAL_WIDGETS: StaticStateId<Rc<RefCell<ModalWidgetsData>>> = StaticStateId::new_unique();
+    static MODAL_WIDGETS: StaticStateId<Arc<Mutex<ModalWidgetsData>>> = StaticStateId::new_unique();
     #[derive(Default)]
     struct ModalWidgetsData {
         widgets: linear_map::set::LinearSet<WidgetId>,

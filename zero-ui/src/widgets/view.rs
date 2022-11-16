@@ -120,12 +120,12 @@ where
     D: VarValue,
     U: UiNode,
     V: Var<D>,
-    P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
+    P: FnMut(&mut WidgetContext, &V) -> View<U> + Send + 'static,
 {
     #[ui_node(struct ViewNode<D: VarValue> {
         #[var] data: impl Var<D>,
         child: impl UiNode,
-        presenter: impl FnMut(&mut WidgetContext, &T_data) -> View<T_child> + 'static,
+        presenter: impl FnMut(&mut WidgetContext, &T_data) -> View<T_child> + Send + 'static,
         _d: std::marker::PhantomData<D>,
     })]
     impl UiNode for ViewNode {
@@ -269,8 +269,8 @@ impl<D> ViewGenerator<D> {
     /// [`presenter`]: ViewGenerator::presenter
     pub fn presenter_map<V>(
         generator: impl IntoVar<ViewGenerator<D>>,
-        update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
-        map: impl FnMut(BoxedUiNode) -> V + 'static,
+        update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + Send + 'static,
+        map: impl FnMut(BoxedUiNode) -> V + Send + 'static,
     ) -> impl UiNode
     where
         D: 'static,
@@ -278,8 +278,8 @@ impl<D> ViewGenerator<D> {
     {
         #[ui_node(struct ViewGenVarPresenter<D: 'static, V: UiNode> {
             #[var] gen: impl Var<ViewGenerator<D>>,
-            update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
-            map: impl FnMut(BoxedUiNode) -> V + 'static,
+            update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + Send + 'static,
+            map: impl FnMut(BoxedUiNode) -> V + Send + 'static,
             child: Option<V>,
         })]
         impl UiNode for ViewGenVarPresenter {

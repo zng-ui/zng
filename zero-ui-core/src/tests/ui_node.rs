@@ -241,10 +241,8 @@ pub fn default_no_child() {
 }
 
 mod util {
-    use std::{
-        sync::Arc,
-    };
     use parking_lot::Mutex;
+    use std::sync::Arc;
 
     use crate::{
         context::{

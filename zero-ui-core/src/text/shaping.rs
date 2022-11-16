@@ -1369,7 +1369,8 @@ impl Font {
             let seg = self.shape_segment_no_cache(seg, lang, features);
             out(&seg);
         } else if let Some(small) = Self::to_small_word(seg) {
-            let mut cache = self.small_word_cache.borrow_mut();
+            let mut m = self.m.lock();
+            let cache = &mut m.small_word_cache;
 
             if cache.len() > WORD_CACHE_MAX_ENTRIES {
                 cache.clear();
@@ -1398,7 +1399,8 @@ impl Font {
 
             out(seg)
         } else {
-            let mut cache = self.word_cache.borrow_mut();
+            let mut m = self.m.lock();
+            let cache = &mut m.word_cache;
 
             if cache.len() > WORD_CACHE_MAX_ENTRIES {
                 cache.clear();

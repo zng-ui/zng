@@ -1,14 +1,13 @@
 use std::{
-    cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
     fmt,
     path::PathBuf,
-    rc::Rc,
     slice::SliceIndex,
     sync::Arc,
 };
 
 use font_kit::properties::Weight;
+use parking_lot::Mutex;
 
 use super::{
     font_features::RFontVariations, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight,
@@ -312,11 +311,13 @@ pub struct FontFace {
     is_monospace: bool,
     properties: font_kit::properties::Properties,
     metrics: FontFaceMetrics,
-
-    instances: RefCell<FxHashMap<FontInstanceKey, FontRef>>,
-    render_keys: RefCell<Vec<RenderFontFace>>,
-
-    unregistered: Cell<bool>,
+    m: Mutex<FontFaceMut>,
+}
+#[derive(Default)]
+struct FontFaceMut {
+    instances: FxHashMap<FontInstanceKey, FontRef>,
+    render_keys: Vec<RenderFontFace>,
+    unregistered: bool,
 }
 
 impl fmt::Debug for FontFace {
@@ -328,9 +329,9 @@ impl fmt::Debug for FontFace {
             .field("is_monospace", &self.is_monospace)
             .field("properties", &self.properties)
             .field("metrics", &self.metrics)
-            .field("instances.len()", &self.instances.borrow().len())
-            .field("render_keys.len()", &self.render_keys.borrow().len())
-            .field("unregistered", &self.unregistered.get())
+            .field("instances.len()", &self.m.lock().instances.len())
+            .field("render_keys.len()", &self.m.lock().render_keys.len())
+            .field("unregistered", &self.m.lock().unregistered)
             .finish_non_exhaustive()
     }
 }
@@ -363,9 +364,7 @@ impl FontFace {
                     properties: other_font.properties,
                     is_monospace: other_font.is_monospace,
                     metrics: other_font.metrics.clone(),
-                    instances: Default::default(),
-                    render_keys: Default::default(),
-                    unregistered: Cell::new(false),
+                    m: Default::default(),
                 });
             }
         }
@@ -398,9 +397,7 @@ impl FontFace {
             },
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
-            instances: Default::default(),
-            render_keys: Default::default(),
-            unregistered: Cell::new(false),
+            m: Default::default(),
             font_kit: font,
         })
     }
@@ -446,16 +443,15 @@ impl FontFace {
             properties: font.properties(),
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
-            instances: Default::default(),
             font_kit: font,
-            render_keys: Default::default(),
-            unregistered: Cell::new(false),
+            m: Default::default(),
         })
     }
 
     fn on_refresh(&self) {
-        self.instances.borrow_mut().clear();
-        self.unregistered.set(true);
+        let mut m = self.m.lock();
+        m.instances.clear();
+        m.unregistered = true;
     }
 
     const DUMMY_FONT_KEY: wr::FontKey = wr::FontKey(wr::IdNamespace(0), 0);
@@ -468,8 +464,9 @@ impl FontFace {
                 return Self::DUMMY_FONT_KEY;
             }
         };
-        let mut keys = self.render_keys.borrow_mut();
-        for r in keys.iter() {
+
+        let mut m = self.m.lock();
+        for r in m.render_keys.iter() {
             if r.key.0 == namespace {
                 return r.key;
             }
@@ -483,7 +480,7 @@ impl FontFace {
             }
         };
 
-        keys.push(RenderFontFace::new(renderer, key));
+        m.render_keys.push(RenderFontFace::new(renderer, key));
 
         key
     }
@@ -556,17 +553,18 @@ impl FontFace {
     /// during shaping and rendering.
     ///
     /// [font variations]: crate::text::font_features::FontVariations::finalize
-    pub fn sized(self: &Rc<Self>, font_size: Px, variations: RFontVariations) -> FontRef {
+    pub fn sized(self: &Arc<Self>, font_size: Px, variations: RFontVariations) -> FontRef {
         let key = FontInstanceKey::new(font_size, &variations);
-        if !self.unregistered.get() {
-            let mut instances = self.instances.borrow_mut();
-            let f = instances
+        let mut m = self.m.lock();
+        if !m.unregistered {
+            let f = m
+                .instances
                 .entry(key)
-                .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), font_size, variations)));
-            Rc::clone(f)
+                .or_insert_with(|| Arc::new(Font::new(Arc::clone(self), font_size, variations)));
+            Arc::clone(f)
         } else {
             tracing::debug!(target: "font_loading", "creating font from unregistered `{}`, will not cache", self.display_name);
-            Rc::new(Font::new(Rc::clone(self), font_size, variations))
+            Arc::new(Font::new(Arc::clone(self), font_size, variations))
         }
     }
 
@@ -588,15 +586,15 @@ impl FontFace {
     }
 
     /// If both font faces are the same.
-    pub fn ptr_eq(self: &Rc<Self>, other: &Rc<Self>) -> bool {
-        Rc::ptr_eq(self, other)
+    pub fn ptr_eq(self: &Arc<Self>, other: &Arc<Self>) -> bool {
+        Arc::ptr_eq(self, other)
     }
 
     /// If this font face is cached. All font faces are cached by default, a font face can be detached from
     /// cache when a [`FONT_CHANGED_EVENT`] event happens, in this case the font can still be used normally, but
     /// a request for the same font name will return a different reference.
     pub fn is_cached(&self) -> bool {
-        !self.unregistered.get()
+        !self.m.lock().unregistered
     }
 
     /// Returns the number of glyphs in the font.
@@ -618,7 +616,7 @@ impl FontFace {
 }
 
 /// A shared [`FontFace`].
-pub type FontFaceRef = Rc<FontFace>;
+pub type FontFaceRef = Arc<FontFace>;
 
 /// A sized font face.
 ///
@@ -629,10 +627,13 @@ pub struct Font {
     size: Px,
     variations: RFontVariations,
     metrics: FontMetrics,
-    render_keys: RefCell<Vec<RenderFont>>,
-
-    pub(super) small_word_cache: RefCell<FxHashMap<WordCacheKey<[u8; Self::SMALL_WORD_LEN]>, ShapedSegmentData>>,
-    pub(super) word_cache: RefCell<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>>,
+    pub(super) m: Mutex<FontMut>,
+}
+#[derive(Default)]
+pub(super) struct FontMut {
+    render_keys: Vec<RenderFont>,
+    pub(super) small_word_cache: FxHashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>,
+    pub(super) word_cache: hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -640,9 +641,9 @@ impl fmt::Debug for Font {
             .field("face", &self.face)
             .field("size", &self.size)
             .field("metrics", &self.metrics)
-            .field("render_keys.len()", &self.render_keys.borrow().len())
-            .field("small_word_cache.len()", &self.small_word_cache.borrow().len())
-            .field("word_cache.len()", &self.word_cache.borrow().len())
+            .field("render_keys.len()", &self.m.lock().render_keys.len())
+            .field("small_word_cache.len()", &self.m.lock().small_word_cache.len())
+            .field("word_cache.len()", &self.m.lock().word_cache.len())
             .finish()
     }
 }
@@ -672,9 +673,7 @@ impl Font {
             face,
             size,
             variations,
-            render_keys: Default::default(),
-            small_word_cache: RefCell::default(),
-            word_cache: RefCell::default(),
+            m: Default::default(),
         }
     }
 
@@ -690,8 +689,8 @@ impl Font {
                 return (Self::DUMMY_FONT_KEY, wr::FontInstanceFlags::empty());
             }
         };
-        let mut keys = self.render_keys.borrow_mut();
-        for r in keys.iter() {
+        let mut m = self.m.lock();
+        for r in m.render_keys.iter() {
             if r.key.0 == namespace && r.synthesis == synthesis {
                 return (r.key, r.flags);
             }
@@ -726,7 +725,7 @@ impl Font {
             }
         };
 
-        keys.push(RenderFont::new(renderer, synthesis, key, flags));
+        m.render_keys.push(RenderFont::new(renderer, synthesis, key, flags));
 
         (key, flags)
     }
@@ -757,8 +756,8 @@ impl Font {
     }
 
     /// If both fonts are the same.
-    pub fn ptr_eq(self: &Rc<Self>, other: &Rc<Self>) -> bool {
-        Rc::ptr_eq(self, other)
+    pub fn ptr_eq(self: &Arc<Self>, other: &Arc<Self>) -> bool {
+        Arc::ptr_eq(self, other)
     }
 }
 impl crate::render::Font for Font {
@@ -769,7 +768,7 @@ impl crate::render::Font for Font {
 }
 
 /// A shared [`Font`].
-pub type FontRef = Rc<Font>;
+pub type FontRef = Arc<Font>;
 
 impl crate::render::Font for FontRef {
     fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> (wr::FontInstanceKey, wr::FontInstanceFlags) {
@@ -849,7 +848,7 @@ impl PartialEq for FontFaceList {
             && self.requested_weight == other.requested_weight
             && self.requested_stretch == other.requested_stretch
             && self.fonts.len() == other.fonts.len()
-            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Arc::ptr_eq(a, b))
     }
 }
 impl Eq for FontFaceList {}
@@ -955,7 +954,7 @@ impl PartialEq for FontList {
             && self.requested_weight == other.requested_weight
             && self.requested_stretch == other.requested_stretch
             && self.fonts.len() == other.fonts.len()
-            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Arc::ptr_eq(a, b))
     }
 }
 impl Eq for FontList {}
@@ -1016,9 +1015,10 @@ impl FontFaceLoader {
             }
         });
         for face in self.custom_fonts.values().flatten().chain(sys_fonts) {
-            face.render_keys.borrow_mut().clear();
-            for inst in face.instances.borrow().values() {
-                inst.render_keys.borrow_mut().clear();
+            let mut m = face.m.lock();
+            m.render_keys.clear();
+            for inst in m.instances.values() {
+                inst.m.lock().render_keys.clear();
             }
         }
     }
@@ -1036,7 +1036,7 @@ impl FontFaceLoader {
     fn on_prune(&mut self) {
         self.system_fonts_cache.retain(|_, v| {
             v.retain(|sff| match sff {
-                SystemFontFace::Found(.., font_face) => Rc::strong_count(font_face) > 1,
+                SystemFontFace::Found(.., font_face) => Arc::strong_count(font_face) > 1,
                 SystemFontFace::NotFound(..) => true,
             });
             !v.is_empty()
@@ -1044,7 +1044,7 @@ impl FontFaceLoader {
     }
 
     fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
-        let face = Rc::new(FontFace::load_custom(custom_font, self)?);
+        let face = Arc::new(FontFace::load_custom(custom_font, self)?);
 
         let family = self.custom_fonts.entry(face.family_name.clone()).or_default();
 
@@ -1134,7 +1134,7 @@ impl FontFaceLoader {
                 match sys_face {
                     SystemFontFace::Found(m_style, m_weight, m_stretch, face) => {
                         if *m_style == style && *m_weight == weight && *m_stretch == stretch {
-                            return Some(Rc::clone(face)); // cached match
+                            return Some(Arc::clone(face)); // cached match
                         }
                     }
                     SystemFontFace::NotFound(n_style, n_weight, n_stretch) => {
@@ -1156,8 +1156,8 @@ impl FontFaceLoader {
         if let Some(handle) = handle {
             match FontFace::load(handle) {
                 Ok(f) => {
-                    let f = Rc::new(f);
-                    sys_family.push(SystemFontFace::Found(style, weight, stretch, Rc::clone(&f)));
+                    let f = Arc::new(f);
+                    sys_family.push(SystemFontFace::Found(style, weight, stretch, Arc::clone(&f)));
                     return Some(f); // new match
                 }
                 Err(FontLoadingError::UnknownFormat) => {
@@ -1207,7 +1207,7 @@ impl FontFaceLoader {
     fn match_custom(faces: &[FontFaceRef], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceRef {
         if faces.len() == 1 {
             // it is common for custom font names to only have one face.
-            return Rc::clone(&faces[0]);
+            return Arc::clone(&faces[0]);
         }
 
         let mut set = Vec::with_capacity(faces.len());
@@ -1242,7 +1242,7 @@ impl FontFaceLoader {
             }
         }
         if set.len() == 1 {
-            return Rc::clone(set[0]);
+            return Arc::clone(set[0]);
         }
 
         // # Filter Style
@@ -1263,7 +1263,7 @@ impl FontFaceLoader {
         }
         set.retain(|f| f.style() == style_pref[best_style]);
         if set.len() == 1 {
-            return Rc::clone(set[0]);
+            return Arc::clone(set[0]);
         }
 
         // # Filter Weight
@@ -1316,7 +1316,7 @@ impl FontFaceLoader {
             }
         }
 
-        Rc::clone(best)
+        Arc::clone(best)
     }
 }
 

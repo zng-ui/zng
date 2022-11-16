@@ -67,12 +67,12 @@ pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 
 fn show_widget_tree(
     child: impl UiNode,
-    render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
+    render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + Send + 'static,
     enabled: impl IntoVar<bool>,
 ) -> impl UiNode {
     #[ui_node(struct RenderWidgetTreeNode {
         child: impl UiNode,
-        render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
+        render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + Send + 'static,
         #[var] enabled: impl Var<bool>,
         valid: bool,
     })]

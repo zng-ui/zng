@@ -1,4 +1,4 @@
-use std::{fmt, marker::PhantomData, any::Any};
+use std::{any::Any, fmt, marker::PhantomData};
 
 use crate::{
     context::{WidgetContext, WidgetUpdates},

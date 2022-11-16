@@ -702,9 +702,8 @@ impl WidgetBoundsInfo {
         let mut m = self.0.lock();
 
         // if actually changed from previous global pass
-        let changed = m.prev_outer_offset != m.outer_offset
-            || m.prev_inner_offset != m.inner_offset
-            || m.prev_child_offset != m.child_offset;
+        let changed =
+            m.prev_outer_offset != m.outer_offset || m.prev_inner_offset != m.inner_offset || m.prev_child_offset != m.child_offset;
 
         // if already processed one end_pass request and returned +1
         let believed_changed = m.offsets_pass == m.working_pass;

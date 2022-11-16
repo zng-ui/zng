@@ -776,12 +776,12 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
 pub fn stack_nodes_layout_by(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
-    constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+    constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct StackNodesFillNode {
         children: impl UiNodeList,
         #[var] index: impl Var<usize>,
-        constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+        constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
     })]
     impl UiNode for StackNodesFillNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
