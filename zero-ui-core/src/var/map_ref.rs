@@ -3,17 +3,17 @@ use super::*;
 /// See [`Var::map_ref`].
 pub struct MapRef<I, O, S> {
     source: S,
-    map: Rc<dyn Fn(&I) -> &O>,
+    map: Arc<dyn Fn(&I) -> &O + Send + Sync>,
 }
 
 /// Weak var that can upgrade to [`MapRef<I, O, S>`] if the source is not dropped.
 pub struct WeakMapRef<I, O, S> {
     source: S,
-    map: Rc<dyn Fn(&I) -> &O>,
+    map: Arc<dyn Fn(&I) -> &O + Send + Sync>,
 }
 
 impl<I: VarValue, O: VarValue, S: Var<I>> MapRef<I, O, S> {
-    pub(super) fn new(source: S, map: Rc<dyn Fn(&I) -> &O>) -> Self {
+    pub(super) fn new(source: S, map: Arc<dyn Fn(&I) -> &O + Send + Sync>) -> Self {
         MapRef { source, map }
     }
 }
@@ -74,7 +74,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.source.capabilities().as_read_only()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
         self.source.hook(Box::new(move |vars, updates, value| {
             if let Some(value) = value.as_any().downcast_ref() {
@@ -204,19 +204,19 @@ impl<I: VarValue, O: VarValue, S: WeakVar<I>> WeakVar<O> for WeakMapRef<I, O, S>
 /// See [`Var::map_ref_bidi`].
 pub struct MapRefBidi<I, O, S> {
     source: S,
-    map: Rc<dyn Fn(&I) -> &O>,
-    map_mut: Rc<dyn Fn(&mut I) -> &mut O>,
+    map: Arc<dyn Fn(&I) -> &O + Send + Sync>,
+    map_mut: Arc<dyn Fn(&mut I) -> &mut O + Send + Sync>,
 }
 
 /// Weak var that can upgrade to [`MapRefBidi<I, O, S>`] if the source is not dropped.
 pub struct WeakMapRefBidi<I, O, S> {
     source: S,
-    map: Rc<dyn Fn(&I) -> &O>,
-    map_mut: Rc<dyn Fn(&mut I) -> &mut O>,
+    map: Arc<dyn Fn(&I) -> &O + Send + Sync>,
+    map_mut: Arc<dyn Fn(&mut I) -> &mut O + Send + Sync>,
 }
 
 impl<I: VarValue, O: VarValue, S: Var<I>> MapRefBidi<I, O, S> {
-    pub(super) fn new(source: S, map: Rc<dyn Fn(&I) -> &O>, map_mut: Rc<dyn Fn(&mut I) -> &mut O>) -> Self {
+    pub(super) fn new(source: S, map: Arc<dyn Fn(&I) -> &O + Send + Sync>, map_mut: Arc<dyn Fn(&mut I) -> &mut O + Send + Sync>) -> Self {
         MapRefBidi { source, map, map_mut }
     }
 }
@@ -277,7 +277,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self.source.capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
         self.source.hook(Box::new(move |vars, updates, value| {
             if let Some(value) = value.as_any().downcast_ref() {

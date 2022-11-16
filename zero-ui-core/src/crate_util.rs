@@ -1261,4 +1261,4 @@ macro_rules! measure_time {
     };
 }
 
-pub type BoxedFut<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T>>>;
+pub type BoxedFut<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + Sync>>;

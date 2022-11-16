@@ -65,7 +65,7 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.capabilities().as_read_only()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.1.hook(pos_modify_action)
     }
 

@@ -1,7 +1,9 @@
 use std::{
     marker::PhantomData,
-    rc::{Rc, Weak},
+    sync::{Arc, Weak},
 };
+
+use parking_lot::RwLock;
 
 use super::*;
 
@@ -15,10 +17,10 @@ struct Data<T, V> {
 }
 
 /// See [`Var::flat_map`].
-pub struct RcFlatMapVar<T, V>(Rc<RefCell<Data<T, V>>>);
+pub struct RcFlatMapVar<T, V>(Arc<RwLock<Data<T, V>>>);
 
 /// Weak reference to a [`RcFlatMapVar<T, V>`].
-pub struct WeakFlatMapVar<T, V>(Weak<RefCell<Data<T, V>>>);
+pub struct WeakFlatMapVar<T, V>(Weak<RwLock<Data<T, V>>>);
 
 impl<T, V> RcFlatMapVar<T, V>
 where
@@ -26,8 +28,8 @@ where
     V: Var<T>,
 {
     /// New.
-    pub fn new<I: VarValue>(source: &impl Var<I>, mut map: impl FnMut(&I) -> V + 'static) -> Self {
-        let flat = Rc::new(RefCell::new(Data {
+    pub fn new<I: VarValue>(source: &impl Var<I>, mut map: impl FnMut(&I) -> V + Send + 'static) -> Self {
+        let flat = Arc::new(RwLock::new(Data {
             _t: PhantomData,
             var: source.with(&mut map),
             last_update: VarUpdateId::never(),
@@ -37,16 +39,16 @@ where
         }));
 
         {
-            let mut data = flat.borrow_mut();
-            let weak_flat = Rc::downgrade(&flat);
-            let map = RefCell::new(map);
+            let mut data = flat.write();
+            let weak_flat = Arc::downgrade(&flat);
+            let map = Mutex::new(map);
             data.var_handle = data.var.hook(RcFlatMapVar::on_var_hook(weak_flat.clone()));
             data.source_handle = source.hook(Box::new(move |vars, updates, value| {
                 if let Some(flat) = weak_flat.upgrade() {
                     if let Some(value) = value.as_any().downcast_ref() {
-                        let mut data = flat.borrow_mut();
+                        let mut data = flat.write();
                         let data = &mut *data;
-                        data.var = map.borrow_mut()(value);
+                        data.var = map.lock()(value);
                         data.var_handle = data.var.hook(RcFlatMapVar::on_var_hook(weak_flat.clone()));
                         data.last_update = vars.update_id();
                         data.var.with(|value| {
@@ -63,10 +65,10 @@ where
         Self(flat)
     }
 
-    fn on_var_hook(weak_flat: Weak<RefCell<Data<T, V>>>) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
+    fn on_var_hook(weak_flat: Weak<RwLock<Data<T, V>>>) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
         Box::new(move |vars, updates, value| {
             if let Some(flat) = weak_flat.upgrade() {
-                let mut data = flat.borrow_mut();
+                let mut data = flat.write();
                 data.last_update = vars.update_id();
                 data.hooks.retain(|h| h.call(vars, updates, value));
                 true
@@ -142,25 +144,25 @@ where
     }
 
     fn last_update(&self) -> VarUpdateId {
-        self.0.borrow().last_update
+        self.0.read().last_update
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        self.0.borrow().var.capabilities() | VarCapabilities::CAPS_CHANGE
+        self.0.read().var.capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let (handle, weak_handle) = VarHandle::new(pos_modify_action);
-        self.0.borrow_mut().hooks.push(weak_handle);
+        self.0.write().hooks.push(weak_handle);
         handle
     }
 
     fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
+        Arc::strong_count(&self.0)
     }
 
     fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
+        Arc::weak_count(&self.0)
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
@@ -172,11 +174,11 @@ where
     }
 
     fn is_animating(&self) -> bool {
-        self.0.borrow().var.is_animating()
+        self.0.read().var.is_animating()
     }
 
     fn var_ptr(&self) -> VarPtr {
-        VarPtr::new_rc(&self.0)
+        VarPtr::new_arc(&self.0)
     }
 }
 
@@ -233,7 +235,7 @@ where
     where
         F: FnOnce(&T) -> R,
     {
-        self.0.borrow().var.with(read)
+        self.0.read_recursive().var.with(read)
     }
 
     fn modify<V2, F>(&self, vars: &V2, modify: F) -> Result<(), VarIsReadOnlyError>
@@ -241,7 +243,7 @@ where
         V2: WithVars,
         F: FnOnce(&mut Cow<T>) + 'static,
     {
-        self.0.borrow().var.modify(vars, modify)
+        self.0.read_recursive().var.modify(vars, modify)
     }
 
     fn actual_var(self) -> Self {
@@ -249,11 +251,11 @@ where
     }
 
     fn downgrade(&self) -> Self::Downgrade {
-        WeakFlatMapVar(Rc::downgrade(&self.0))
+        WeakFlatMapVar(Arc::downgrade(&self.0))
     }
 
     fn into_value(self) -> T {
-        match Rc::try_unwrap(self.0) {
+        match Arc::try_unwrap(self.0) {
             Ok(state) => state.into_inner().var.into_value(),
             Err(rc) => Self(rc).get(),
         }

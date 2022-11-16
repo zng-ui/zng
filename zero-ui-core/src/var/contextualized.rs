@@ -1,4 +1,7 @@
-use std::{marker::PhantomData, rc::Weak};
+use std::{
+    marker::PhantomData,
+    sync::{Arc, Weak},
+};
 
 use parking_lot::{RwLock, RwLockReadGuard};
 
@@ -24,7 +27,7 @@ use super::{types::WeakContextInitHandle, *};
 /// the context at the moment the widget is instantiated.
 pub struct ContextualizedVar<T, S> {
     _type: PhantomData<T>,
-    init: Rc<dyn Fn() -> S>,
+    init: Arc<dyn Fn() -> S + Send + Sync>,
     actual: RwLock<Vec<(WeakContextInitHandle, S)>>,
 }
 impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
@@ -32,7 +35,7 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
     ///
     /// The `init` closure will be called on the first usage of the var, once after the var is cloned and any time
     /// a parent contextualized var is initializing.
-    pub fn new(init: Rc<dyn Fn() -> S>) -> Self {
+    pub fn new(init: Arc<dyn Fn() -> S + Send + Sync>) -> Self {
         Self {
             _type: PhantomData,
             init,
@@ -76,11 +79,11 @@ impl<T: VarValue, S: Var<T>> ContextualizedVar<T, S> {
 /// Weak var that upgrades to an uninitialized [`ContextualizedVar<T, S>`].
 pub struct WeakContextualizedVar<T, S> {
     _type: PhantomData<T>,
-    init: Weak<dyn Fn() -> S>,
+    init: Weak<dyn Fn() -> S + Send + Sync>,
 }
 impl<T: VarValue, S: Var<T>> WeakContextualizedVar<T, S> {
     /// New with weak init function.
-    pub fn new(init: Weak<dyn Fn() -> S>) -> Self {
+    pub fn new(init: Weak<dyn Fn() -> S + Send + Sync>) -> Self {
         Self { _type: PhantomData, init }
     }
 }
@@ -145,16 +148,16 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         self.borrow_init().capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.borrow_init().hook(pos_modify_action)
     }
 
     fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.init)
+        Arc::strong_count(&self.init)
     }
 
     fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.init)
+        Arc::weak_count(&self.init)
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
@@ -170,7 +173,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
     }
 
     fn var_ptr(&self) -> VarPtr {
-        VarPtr::new_rc(&self.init)
+        VarPtr::new_arc(&self.init)
     }
 }
 impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {
@@ -230,7 +233,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
     }
 
     fn downgrade(&self) -> Self::Downgrade {
-        WeakContextualizedVar::new(Rc::downgrade(&self.init))
+        WeakContextualizedVar::new(Arc::downgrade(&self.init))
     }
 
     fn into_value(self) -> T {

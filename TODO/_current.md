@@ -10,6 +10,7 @@
 
 * Merge.
 
+* Review `AppContextMut`.
 * Use `app_local!` everywhere.
     - Same for `ContextValue<T>`.
 * Use `ThreadContext` in `core::task`.

@@ -1,6 +1,6 @@
 use std::{
     mem,
-    rc::{Rc, Weak},
+    sync::{Arc, Weak},
 };
 
 use parking_lot::RwLock;
@@ -22,14 +22,14 @@ enum Data<T: VarValue, S> {
 }
 
 /// See [`Var::cow`].
-pub struct RcCowVar<T: VarValue, S>(Rc<RwLock<Data<T, S>>>);
+pub struct RcCowVar<T: VarValue, S>(Arc<RwLock<Data<T, S>>>);
 
 /// Weak reference to a [`RcCowVar<T>`].
 pub struct WeakCowVar<T: VarValue, S>(Weak<RwLock<Data<T, S>>>);
 
 impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
     pub(super) fn new(source: S) -> Self {
-        let cow = Rc::new(RwLock::new(Data::Source {
+        let cow = Arc::new(RwLock::new(Data::Source {
             source,
             source_handle: VarHandle::dummy(),
             hooks: vec![],
@@ -37,7 +37,7 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
         {
             let mut data = cow.write();
             if let Data::Source { source, source_handle, .. } = &mut *data {
-                let weak_cow = Rc::downgrade(&cow);
+                let weak_cow = Arc::downgrade(&cow);
                 *source_handle = source.hook(Box::new(move |vars, updates, value| {
                     if let Some(cow) = weak_cow.upgrade() {
                         match &mut *cow.write() {
@@ -190,11 +190,11 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
+        Arc::strong_count(&self.0)
     }
 
     fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
+        Arc::weak_count(&self.0)
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
@@ -202,7 +202,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakCowVar(Rc::downgrade(&self.0)))
+        Box::new(WeakCowVar(Arc::downgrade(&self.0)))
     }
 
     fn is_animating(&self) -> bool {
@@ -213,7 +213,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
     }
 
     fn var_ptr(&self) -> VarPtr {
-        VarPtr::new_rc(&self.0)
+        VarPtr::new_arc(&self.0)
     }
 }
 
@@ -277,11 +277,11 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
     }
 
     fn downgrade(&self) -> Self::Downgrade {
-        WeakCowVar(Rc::downgrade(&self.0))
+        WeakCowVar(Arc::downgrade(&self.0))
     }
 
     fn into_value(self) -> T {
-        match Rc::try_unwrap(self.0) {
+        match Arc::try_unwrap(self.0) {
             Ok(state) => match state.into_inner() {
                 Data::Source { source, .. } => source.into_value(),
                 Data::Owned { value, .. } => value,

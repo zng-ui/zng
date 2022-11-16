@@ -157,7 +157,7 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         (**self).hook(pos_modify_action)
     }
 

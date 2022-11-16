@@ -70,7 +70,7 @@ pub use crate::context_var;
 ///
 /// [`ContextualizedVar`]: crate::var::types::ContextualizedVar
 #[derive(Clone, Default)]
-pub struct ContextInitHandle(Rc<()>);
+pub struct ContextInitHandle(Arc<()>);
 crate::context_value! {
     static CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
 }
@@ -94,30 +94,30 @@ impl ContextInitHandle {
 
     /// Create a weak handle that can be used to monitor `self`, but does not hold it.
     pub fn downgrade(&self) -> WeakContextInitHandle {
-        WeakContextInitHandle(Rc::downgrade(&self.0))
+        WeakContextInitHandle(Arc::downgrade(&self.0))
     }
 }
 impl fmt::Debug for ContextInitHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ContextInitHandle").field(&Rc::as_ptr(&self.0)).finish()
+        f.debug_tuple("ContextInitHandle").field(&Arc::as_ptr(&self.0)).finish()
     }
 }
 impl PartialEq for ContextInitHandle {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 impl Eq for ContextInitHandle {}
 impl std::hash::Hash for ContextInitHandle {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let i = Rc::as_ptr(&self.0) as usize;
+        let i = Arc::as_ptr(&self.0) as usize;
         std::hash::Hash::hash(&i, state)
     }
 }
 
 /// Weak [`ContextInitHandle`].
 #[derive(Clone, Default)]
-pub struct WeakContextInitHandle(std::rc::Weak<()>);
+pub struct WeakContextInitHandle(std::sync::Weak<()>);
 impl WeakContextInitHandle {
     /// Returns `true` if the strong handle still exists.
     pub fn is_alive(&self) -> bool {
@@ -127,19 +127,19 @@ impl WeakContextInitHandle {
 impl fmt::Debug for WeakContextInitHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("WeakContextInitHandle")
-            .field(&std::rc::Weak::as_ptr(&self.0))
+            .field(&std::sync::Weak::as_ptr(&self.0))
             .finish()
     }
 }
 impl PartialEq for WeakContextInitHandle {
     fn eq(&self, other: &Self) -> bool {
-        std::rc::Weak::ptr_eq(&self.0, &other.0)
+        std::sync::Weak::ptr_eq(&self.0, &other.0)
     }
 }
 impl Eq for WeakContextInitHandle {}
 impl std::hash::Hash for WeakContextInitHandle {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let i = std::rc::Weak::as_ptr(&self.0) as usize;
+        let i = std::sync::Weak::as_ptr(&self.0) as usize;
         std::hash::Hash::hash(&i, state)
     }
 }
@@ -271,7 +271,7 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.with_var(AnyVar::capabilities) | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.with_var(|v| v.hook(pos_modify_action))
     }
 

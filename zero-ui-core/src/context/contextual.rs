@@ -1,4 +1,6 @@
-use std::{cell::Cell, ptr, rc::Rc};
+use std::{ptr, sync::{Arc, atomic::{AtomicPtr, Ordering}}};
+
+use parking_lot::Mutex;
 
 use crate::{crate_util::RunOnDrop, task, widget_instance::WidgetId, window::WindowId};
 
@@ -14,12 +16,12 @@ macro_rules! contextual_ctx {
 /// to provide the context for that update. Inside the future you can then call [`with`](Self::with) to get the exclusive
 /// reference to the context.
 pub struct [<$Context Mut>] {
-    ctx: Rc<[<$Context ScopeData>]>,
+    ctx: Arc<Mutex<[<$Context ScopeData>]>>,
 }
 impl Clone for [<$Context Mut>] {
     fn clone(&self) -> Self {
         Self {
-            ctx: Rc::clone(&self.ctx)
+            ctx: Arc::clone(&self.ctx)
         }
     }
 }
@@ -35,19 +37,15 @@ impl [<$Context Mut>] {
     where
         A: FnOnce(&mut $Context) -> R,
     {
-        if self.ctx.borrowed.get() {
+        let mut ctx = self.ctx.try_lock().unwrap_or_else(|| {
             panic!("already in `{0}Mut::with`, cannot borrow `&mut {0}` twice", stringify!($Context));
-        }
+        });
 
-        let ptr = self.ctx.ptr.get();
+        let ptr = ctx.ptr.load(Ordering::Relaxed);
+
         if ptr.is_null() {
             panic!("no `&mut {0}` loaded for `{0}Mut`", stringify!($Context));
         }
-
-        self.ctx.borrowed.set(true);
-        let _r = RunOnDrop::new(|| {
-            self.ctx.borrowed.set(false);
-        });
 
         let ctx = unsafe { &mut *(ptr as *mut $Context) };
         action(ctx)
@@ -56,21 +54,19 @@ impl [<$Context Mut>] {
 
 #[doc = "Pair of [`"$Context "Mut`] that can setup its reference."]
 pub struct [<$Context Scope>] {
-    ctx: Rc<[<$Context ScopeData>]>,
+    ctx: Arc<Mutex<[<$Context ScopeData>]>>,
 }
 struct [<$Context ScopeData>] {
-    ptr: Cell<*mut ()>,
-    borrowed: Cell<bool>,
+    ptr: AtomicPtr<()>,
 }
 impl [<$Context Scope>] {
     #[doc = "Create a new [`"$Context "Scope`], [`"$Context "Mut`] pair."]
     pub fn new() -> (Self, [<$Context Mut>]) {
-        let ctx = Rc::new([<$Context ScopeData>] {
-            ptr: Cell::new(ptr::null_mut()),
-            borrowed: Cell::new(false)
-        });
+        let ctx = Arc::new(Mutex::new([<$Context ScopeData>] {
+            ptr: AtomicPtr::new(ptr::null_mut()),
+        }));
 
-        (Self { ctx: Rc::clone(&ctx) }, [<$Context Mut>] { ctx })
+        (Self { ctx: Arc::clone(&ctx) }, [<$Context Mut>] { ctx })
     }
 
     #[doc = "Runs `action` while the paired [`"$Context "Mut`] points to `ctx`."]
@@ -78,9 +74,9 @@ impl [<$Context Scope>] {
     where
         F: FnOnce() -> R,
     {
-        let prev = self.ctx.ptr.replace(ctx as *mut $Context as *mut ());
+        let prev = self.ctx.lock().ptr.swap(ctx as *mut $Context as *mut (), Ordering::Relaxed);
         let _r = RunOnDrop::new(|| {
-            self.ctx.ptr.set(prev)
+            self.ctx.lock().ptr.store(prev, Ordering::Relaxed);
         });
         action()
     }

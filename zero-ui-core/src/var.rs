@@ -8,7 +8,11 @@ use std::{
     marker::PhantomData,
     ops,
     rc::Rc,
-    time::Duration, sync::{Arc, atomic::{AtomicBool, Ordering}},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
 };
 
 use crate::{
@@ -38,6 +42,7 @@ mod when;
 #[macro_use]
 mod util;
 
+use parking_lot::Mutex;
 #[doc(inline)]
 pub use util::impl_from_and_into_var;
 
@@ -118,7 +123,7 @@ pub trait VarValue: fmt::Debug + Clone + Any + Send + Sync {}
 impl<T: fmt::Debug + Clone + Any + Send + Sync> VarValue for T {}
 
 /// Trait implemented for all [`VarValue`] types.
-pub trait AnyVarValue: fmt::Debug + Any {
+pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
     /// Access to `dyn Any` methods.
     fn as_any(&self) -> &dyn Any;
 
@@ -394,7 +399,7 @@ impl IntoIterator for VarHandles {
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
 ///
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
-pub trait AnyVar: Any + crate::private::Sealed {
+pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Clone the variable into a type erased box, this is never [`BoxedVar<T>`].
     fn clone_any(&self) -> BoxedAnyVar;
 
@@ -494,17 +499,10 @@ pub struct VarPtr<'a> {
     eq: VarPtrData,
 }
 impl<'a> VarPtr<'a> {
-    fn new_rc<T: ?Sized>(rc: &'a Rc<T>) -> Self {
-        Self {
-            _lt: std::marker::PhantomData,
-            eq: VarPtrData::Rc(Rc::as_ptr(rc) as _),
-        }
-    }
-
     fn new_arc<T: ?Sized>(rc: &'a Arc<T>) -> Self {
         Self {
             _lt: std::marker::PhantomData,
-            eq: VarPtrData::Rc(Arc::as_ptr(rc) as _),
+            eq: VarPtrData::Arc(Arc::as_ptr(rc) as _),
         }
     }
 
@@ -536,21 +534,21 @@ impl<'a> fmt::Debug for VarPtr<'a> {
 #[derive(Debug)]
 enum VarPtrData {
     Static(*const ()),
-    Rc(*const ()),
+    Arc(*const ()),
     NeverEq,
 }
 impl PartialEq for VarPtrData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Static(l0), Self::Static(r0)) => l0 == r0,
-            (Self::Rc(l0), Self::Rc(r0)) => l0 == r0,
+            (Self::Arc(l0), Self::Arc(r0)) => l0 == r0,
             _ => false,
         }
     }
 }
 
 /// Represents a weak reference to a boxed [`AnyVar`].
-pub trait AnyWeakVar: Any + crate::private::Sealed {
+pub trait AnyWeakVar: Any + Send + Sync + crate::private::Sealed {
     /// Clone the weak reference.
     fn clone_any(&self) -> BoxedAnyWeakVar;
 
@@ -1026,14 +1024,14 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
     where
         O: VarValue,
-        M: FnMut(&T) -> O + 'static,
+        M: FnMut(&T) -> O + 'static + Send,
     {
         let me = self.clone();
-        let map = Rc::new(RefCell::new(map));
-        types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.with(&mut *map.borrow_mut()));
+        let map = Arc::new(Mutex::new(map));
+        types::ContextualizedVar::new(Arc::new(move || {
+            let other = var(me.with(&mut *map.lock()));
             let map = map.clone();
-            me.bind_map(&other, move |t| map.borrow_mut()(t)).perm();
+            me.bind_map(&other, move |t| map.lock()(t)).perm();
             other.read_only()
         }))
     }
@@ -1090,18 +1088,17 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> types::ContextualizedVar<O, RcVar<O>>
     where
         O: VarValue,
-        M: FnMut(&T) -> O + 'static,
-        B: FnMut(&O) -> T + 'static,
+        M: FnMut(&T) -> O + Send + 'static,
+        B: FnMut(&O) -> T + Send + 'static,
     {
         let me = self.clone();
-        let map = Rc::new(RefCell::new(map));
-        let map_back = Rc::new(RefCell::new(map_back));
-        types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.with(&mut *map.borrow_mut()));
+        let map = Arc::new(Mutex::new(map));
+        let map_back = Arc::new(Mutex::new(map_back));
+        types::ContextualizedVar::new(Arc::new(move || {
+            let other = var(me.with(&mut *map.lock()));
             let map = map.clone();
             let map_back = map_back.clone();
-            me.bind_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o))
-                .perm();
+            me.bind_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o)).perm();
             other
         }))
     }
@@ -1120,13 +1117,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         O: VarValue,
         V: Var<O>,
-        M: FnMut(&T) -> V + 'static,
+        M: FnMut(&T) -> V + Send + 'static,
     {
         let me = self.clone();
-        let map = Rc::new(RefCell::new(map));
-        types::ContextualizedVar::new(Rc::new(move || {
+        let map = Arc::new(Mutex::new(map));
+        types::ContextualizedVar::new(Arc::new(move || {
             let map = map.clone();
-            types::RcFlatMapVar::new(&me, move |i| map.borrow_mut()(i))
+            types::RcFlatMapVar::new(&me, move |i| map.lock()(i))
         }))
     }
 
@@ -1147,15 +1144,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn filter_map<O, M, I>(&self, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
     where
         O: VarValue,
-        M: FnMut(&T) -> Option<O> + 'static,
-        I: Fn() -> O + 'static,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
     {
         let me = self.clone();
-        let map = Rc::new(RefCell::new(map));
-        types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&fallback));
+        let map = Arc::new(Mutex::new(map));
+        types::ContextualizedVar::new(Arc::new(move || {
+            let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
             let map = map.clone();
-            me.bind_filter_map(&other, move |i| map.borrow_mut()(i)).perm();
+            me.bind_filter_map(&other, move |i| map.lock()(i)).perm();
             other.read_only()
         }))
     }
@@ -1167,7 +1164,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         O: VarValue,
         T: TryInto<O>,
-        I: Fn() -> O + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
     {
         self.filter_map(|v| v.clone().try_into().ok(), fallback)
     }
@@ -1180,7 +1177,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         O: VarValue + std::str::FromStr,
         T: AsRef<str>,
-        I: Fn() -> O + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
     {
         self.filter_map(|v| v.as_ref().parse().ok(), fallback)
     }
@@ -1201,18 +1198,18 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, RcVar<O>>
     where
         O: VarValue,
-        M: FnMut(&T) -> Option<O> + 'static,
-        B: FnMut(&O) -> Option<T> + 'static,
-        I: Fn() -> O + 'static,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        B: FnMut(&O) -> Option<T> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
     {
         let me = self.clone();
-        let map = Rc::new(RefCell::new(map));
-        let map_back = Rc::new(RefCell::new(map_back));
-        types::ContextualizedVar::new(Rc::new(move || {
-            let other = var(me.with(&mut *map.borrow_mut()).unwrap_or_else(&fallback));
+        let map = Arc::new(Mutex::new(map));
+        let map_back = Arc::new(Mutex::new(map_back));
+        types::ContextualizedVar::new(Arc::new(move || {
+            let other = var(me.with(&mut *map.lock()).unwrap_or_else(&fallback));
             let map = map.clone();
             let map_back = map_back.clone();
-            me.bind_filter_map_bidi(&other, move |i| map.borrow_mut()(i), move |o| map_back.borrow_mut()(o))
+            me.bind_filter_map_bidi(&other, move |i| map.lock()(i), move |o| map_back.lock()(o))
                 .perm();
             other
         }))
@@ -1223,9 +1220,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn map_ref<O, M>(&self, map: M) -> types::MapRef<T, O, Self>
     where
         O: VarValue,
-        M: Fn(&T) -> &O + 'static,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
     {
-        types::MapRef::new(self.clone(), Rc::new(map))
+        types::MapRef::new(self.clone(), Arc::new(map))
     }
 
     /// Create a mapping wrapper around `self`. The `map` closure is called for each value access, it must reference the
@@ -1234,10 +1231,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn map_ref_bidi<O, M, B>(&self, map: M, map_mut: B) -> types::MapRefBidi<T, O, Self>
     where
         O: VarValue,
-        M: Fn(&T) -> &O + 'static,
-        B: Fn(&mut T) -> &mut O + 'static,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+        B: Fn(&mut T) -> &mut O + Send + Sync + 'static,
     {
-        types::MapRefBidi::new(self.clone(), Rc::new(map), Rc::new(map_mut))
+        types::MapRefBidi::new(self.clone(), Arc::new(map), Arc::new(map_mut))
     }
 
     /// Setup a hook that assigns `other` with the new values of `self` transformed by `map`.
@@ -1250,7 +1247,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T2: VarValue,
         V2: Var<T2>,
-        M: FnMut(&T) -> T2 + 'static,
+        M: FnMut(&T) -> T2 + Send + 'static,
     {
         var_bind(self, other, move |vars, _, value, other| {
             let _ = other.set(vars, map(value));
@@ -1267,7 +1264,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T2: VarValue,
         V2: Var<T2>,
-        F: FnMut(&T) -> Option<T2> + 'static,
+        F: FnMut(&T) -> Option<T2> + Send + 'static,
     {
         var_bind(self, other, move |vars, _, value, other| {
             if let Some(value) = map(value) {
@@ -1288,8 +1285,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T2: VarValue,
         V2: Var<T2>,
-        M: FnMut(&T) -> T2 + 'static,
-        B: FnMut(&T2) -> T + 'static,
+        M: FnMut(&T) -> T2 + Send + 'static,
+        B: FnMut(&T2) -> T + Send + 'static,
     {
         let mut last_update = VarUpdateId::never();
         let self_to_other = var_bind(self, other, move |vars, _, value, other| {
@@ -1321,8 +1318,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         T2: VarValue,
         V2: Var<T2>,
-        M: FnMut(&T) -> Option<T2> + 'static,
-        B: FnMut(&T2) -> Option<T> + 'static,
+        M: FnMut(&T) -> Option<T2> + Send + 'static,
+        B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
         let mut last_update = VarUpdateId::never();
         let self_to_other = var_bind(self, other, move |vars, _, value, other| {
@@ -1469,7 +1466,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`actual_var`]: Var::actual_var
     fn trace_value<E, S>(&self, mut enter_value: E) -> VarHandle
     where
-        E: FnMut(&T) -> S + 'static,
+        E: FnMut(&T) -> S + Send + 'static,
         S: 'static,
     {
         let mut span = Some(self.with(&mut enter_value));
@@ -1763,11 +1760,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn easing<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
     where
         T: animation::Transitionable,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
         let source = self.clone();
-        let easing_fn = Rc::new(easing);
-        types::ContextualizedVar::new(Rc::new(move || {
+        let easing_fn = Arc::new(easing);
+        types::ContextualizedVar::new(Arc::new(move || {
             let easing_var = var(source.get());
 
             let easing_fn = easing_fn.clone();
@@ -1788,11 +1785,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn easing_ne<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
     where
         T: animation::Transitionable + PartialEq,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
     {
         let source = self.clone();
-        let easing_fn = Rc::new(easing);
-        types::ContextualizedVar::new(Rc::new(move || {
+        let easing_fn = Arc::new(easing);
+        types::ContextualizedVar::new(Arc::new(move || {
             let easing_var = var(source.get());
 
             let easing_fn = easing_fn.clone();
@@ -1901,7 +1898,7 @@ fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn An
 fn var_bind<I: VarValue, O: VarValue, V: Var<O>>(
     input: &impl Var<I>,
     output: &V,
-    update_output: impl FnMut(&Vars, &mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + Sync + 'static,
+    update_output: impl FnMut(&Vars, &mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
 ) -> VarHandle {
     if input.capabilities().is_always_static() || output.capabilities().is_always_read_only() {
         VarHandle::dummy()
@@ -1913,14 +1910,14 @@ fn var_bind<I: VarValue, O: VarValue, V: Var<O>>(
 fn var_bind_ok<I: VarValue, O: VarValue, W: WeakVar<O>>(
     input: &impl Var<I>,
     wk_output: W,
-    update_output: impl FnMut(&Vars, &mut Updates, &I, W::Upgrade) + Send + Sync + 'static,
+    update_output: impl FnMut(&Vars, &mut Updates, &I, W::Upgrade) + Send + 'static,
 ) -> VarHandle {
-    let update_output = RefCell::new(update_output);
+    let update_output = Mutex::new(update_output);
     input.hook(Box::new(move |vars, updates, value| {
         if let Some(output) = wk_output.upgrade() {
             if output.capabilities().contains(VarCapabilities::MODIFY) {
                 if let Some(value) = value.as_any().downcast_ref::<I>() {
-                    update_output.borrow_mut()(vars, updates, value, output);
+                    update_output.lock()(vars, updates, value, output);
                 }
             }
             true
@@ -1935,7 +1932,7 @@ fn var_on_new<T: VarValue>(var: &impl Var<T>, handler: impl AppHandler<T>, is_pr
         return VarHandle::dummy();
     }
 
-    let handler = Rc::new(RefCell::new(handler));
+    let handler = Arc::new(Mutex::new(handler));
     let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
     var.hook(Box::new(move |_, updates, value| {
         if inner_handle_owner.is_dropped() {
@@ -1945,7 +1942,7 @@ fn var_on_new<T: VarValue>(var: &impl Var<T>, handler: impl AppHandler<T>, is_pr
         if let Some(value) = value.as_any().downcast_ref::<T>() {
             let handle = inner_handle.downgrade();
             let update_once = app_hn_once!(handler, value, |ctx, _| {
-                handler.borrow_mut().event(
+                handler.lock().event(
                     ctx,
                     &value,
                     &AppHandlerArgs {

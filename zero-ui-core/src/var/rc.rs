@@ -79,7 +79,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.0.push_hook(pos_modify_action)
     }
 

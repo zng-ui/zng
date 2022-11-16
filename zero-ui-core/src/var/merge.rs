@@ -1,4 +1,7 @@
-use std::{marker::PhantomData, rc::Weak};
+use std::{
+    marker::PhantomData,
+    sync::{Arc, Weak},
+};
 
 use super::{util::VarData, *};
 
@@ -61,7 +64,7 @@ impl<T: VarValue, V: Var<T>> RcMergeVarInput<T, V> {
 struct MergeData<T> {
     inputs: Box<[Box<dyn AnyVarValue>]>,
     input_handles: Box<[VarHandle]>,
-    merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T>,
+    merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + Sync>,
     last_apply_request: VarApplyUpdateId,
 }
 
@@ -71,7 +74,7 @@ struct Data<T: VarValue> {
 }
 
 /// See [`merge_var!`].
-pub struct RcMergeVar<T: VarValue>(Rc<Data<T>>);
+pub struct RcMergeVar<T: VarValue>(Arc<Data<T>>);
 
 #[doc(hidden)]
 pub type ContextualizedRcMergeVar<T> = types::ContextualizedVar<T, RcMergeVar<T>>;
@@ -81,23 +84,26 @@ pub struct WeakMergeVar<T: VarValue>(Weak<Data<T>>);
 
 impl<T: VarValue> RcMergeVar<T> {
     #[doc(hidden)]
-    pub fn new(inputs: Box<[Box<dyn AnyVar>]>, merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + 'static) -> ContextualizedRcMergeVar<T> {
-        Self::new_impl(inputs, Rc::new(RefCell::new(merge)))
+    pub fn new(
+        inputs: Box<[Box<dyn AnyVar>]>,
+        merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static,
+    ) -> ContextualizedRcMergeVar<T> {
+        Self::new_impl(inputs, Arc::new(Mutex::new(merge)))
     }
 
     fn new_impl(
         inputs: Box<[Box<dyn AnyVar>]>,
-        merge: Rc<RefCell<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + 'static>>,
+        merge: Arc<Mutex<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static>>,
     ) -> types::ContextualizedVar<T, RcMergeVar<T>> {
-        types::ContextualizedVar::new(Rc::new(move || {
+        types::ContextualizedVar::new(Arc::new(move || {
             let merge = merge.clone();
-            RcMergeVar::new_contextualized(&inputs, Box::new(move |values| merge.borrow_mut()(values)))
+            RcMergeVar::new_contextualized(&inputs, Box::new(move |values| merge.lock()(values)))
         }))
     }
 
-    fn new_contextualized(input_vars: &[Box<dyn AnyVar>], mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T>) -> Self {
+    fn new_contextualized(input_vars: &[Box<dyn AnyVar>], mut merge: Box<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + Sync>) -> Self {
         let inputs: Box<[_]> = input_vars.iter().map(|v| v.get_any()).collect();
-        let rc_merge = Rc::new(Data {
+        let rc_merge = Arc::new(Data {
             value: VarData::new(merge(&inputs)),
             m: Mutex::new(MergeData {
                 inputs,
@@ -106,7 +112,7 @@ impl<T: VarValue> RcMergeVar<T> {
                 last_apply_request: VarApplyUpdateId::initial(),
             }),
         });
-        let wk_merge = Rc::downgrade(&rc_merge);
+        let wk_merge = Arc::downgrade(&rc_merge);
 
         let input_handles: Box<[_]> = input_vars
             .iter()
@@ -147,7 +153,7 @@ impl<T: VarValue> RcMergeVar<T> {
         Self(rc_merge)
     }
 
-    fn update_merge(rc_merge: Rc<Data<T>>) -> VarUpdateFn {
+    fn update_merge(rc_merge: Arc<Data<T>>) -> VarUpdateFn {
         Box::new(move |vars, updates| {
             let mut m = rc_merge.m.lock();
             let m = &mut *m;
@@ -212,16 +218,16 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.0.value.push_hook(pos_modify_action)
     }
 
     fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
+        Arc::strong_count(&self.0)
     }
 
     fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
+        Arc::weak_count(&self.0)
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
@@ -229,7 +235,7 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakMergeVar(Rc::downgrade(&self.0)))
+        Box::new(WeakMergeVar(Arc::downgrade(&self.0)))
     }
 
     fn is_animating(&self) -> bool {
@@ -237,7 +243,7 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
     }
 
     fn var_ptr(&self) -> VarPtr {
-        VarPtr::new_rc(&self.0)
+        VarPtr::new_arc(&self.0)
     }
 }
 
@@ -300,11 +306,11 @@ impl<T: VarValue> Var<T> for RcMergeVar<T> {
     }
 
     fn downgrade(&self) -> WeakMergeVar<T> {
-        WeakMergeVar(Rc::downgrade(&self.0))
+        WeakMergeVar(Arc::downgrade(&self.0))
     }
 
     fn into_value(self) -> T {
-        match Rc::try_unwrap(self.0) {
+        match Arc::try_unwrap(self.0) {
             Ok(data) => data.value.into_value(),
             Err(rc) => Self(rc).get(),
         }

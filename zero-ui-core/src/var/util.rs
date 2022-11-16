@@ -295,7 +295,7 @@ impl<T: VarValue> VarData<T> {
         self.meta.lock().animation.is_animating()
     }
 
-    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let (hook, weak) = VarHandle::new(pos_modify_action);
         self.meta.lock().hooks.push(weak);
         hook

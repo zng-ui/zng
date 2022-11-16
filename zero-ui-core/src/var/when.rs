@@ -1,4 +1,4 @@
-use std::rc::Weak;
+use std::sync::{Arc, Weak};
 
 use super::*;
 
@@ -102,13 +102,13 @@ impl<T: VarValue> WhenVarBuilder<T> {
         self.conditions.shrink_to_fit();
         for (c, v) in self.conditions.iter_mut() {
             fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
-                types::ContextualizedVar::<T, BoxedVar<T>>::new(Rc::new(|| unreachable!())).boxed()
+                types::ContextualizedVar::<T, BoxedVar<T>>::new(Arc::new(|| unreachable!())).boxed()
             }
             take_mut::take_or_recover(c, panic_placeholder::<bool>, Var::actual_var);
             take_mut::take_or_recover(v, panic_placeholder::<T>, Var::actual_var);
         }
 
-        let rc_when = Rc::new(Data {
+        let rc_when = Arc::new(Data {
             default: self.default,
             conditions: self.conditions,
             w: Mutex::new(WhenData {
@@ -119,7 +119,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
                 active: usize::MAX,
             }),
         });
-        let wk_when = Rc::downgrade(&rc_when);
+        let wk_when = Arc::downgrade(&rc_when);
 
         {
             let mut data = rc_when.w.lock();
@@ -151,7 +151,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
 
     /// Defer build to a [`types::ContextualizedVar`] first use.
     pub fn contextualized_build(self) -> types::ContextualizedVar<T, RcWhenVar<T>> {
-        types::ContextualizedVar::new(Rc::new(move || self.clone().build()))
+        types::ContextualizedVar::new(Arc::new(move || self.clone().build()))
     }
 }
 
@@ -244,7 +244,7 @@ impl AnyWhenVarBuilder {
     /// Defer build to a [`types::ContextualizedVar`] first use.
     pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T, RcWhenVar<T>>> {
         if self.default.var_type_id() == TypeId::of::<T>() {
-            Some(types::ContextualizedVar::new(Rc::new(move || self.build().unwrap())))
+            Some(types::ContextualizedVar::new(Arc::new(move || self.build().unwrap())))
         } else {
             None
         }
@@ -281,7 +281,7 @@ struct Data<T> {
 }
 
 /// See [`when_var!`].
-pub struct RcWhenVar<T>(Rc<Data<T>>);
+pub struct RcWhenVar<T>(Arc<Data<T>>);
 
 /// Weak reference to a [`RcWhenVar<T>`].
 pub struct WeakWhenVar<T>(Weak<Data<T>>);
@@ -296,7 +296,7 @@ impl<T: VarValue> RcWhenVar<T> {
         }
     }
 
-    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
+    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
         Box::new(move |vars, _, value| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.w.lock();
@@ -329,7 +329,7 @@ impl<T: VarValue> RcWhenVar<T> {
         })
     }
 
-    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
+    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
         Box::new(move |vars, _, _| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.w.lock();
@@ -345,7 +345,7 @@ impl<T: VarValue> RcWhenVar<T> {
         })
     }
 
-    fn apply_update(rc_merge: Rc<Data<T>>) -> VarUpdateFn {
+    fn apply_update(rc_merge: Arc<Data<T>>) -> VarUpdateFn {
         Box::new(move |vars, updates| {
             let mut data = rc_merge.w.lock();
             let data = &mut *data;
@@ -425,18 +425,18 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let (handle, hook) = VarHandle::new(pos_modify_action);
         self.0.w.lock().hooks.push(hook);
         handle
     }
 
     fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
+        Arc::strong_count(&self.0)
     }
 
     fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
+        Arc::weak_count(&self.0)
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
@@ -444,7 +444,7 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakWhenVar(Rc::downgrade(&self.0)))
+        Box::new(WeakWhenVar(Arc::downgrade(&self.0)))
     }
 
     fn is_animating(&self) -> bool {
@@ -452,7 +452,7 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
     }
 
     fn var_ptr(&self) -> VarPtr {
-        VarPtr::new_rc(&self.0)
+        VarPtr::new_arc(&self.0)
     }
 }
 
@@ -514,11 +514,11 @@ impl<T: VarValue> Var<T> for RcWhenVar<T> {
     }
 
     fn downgrade(&self) -> WeakWhenVar<T> {
-        WeakWhenVar(Rc::downgrade(&self.0))
+        WeakWhenVar(Arc::downgrade(&self.0))
     }
 
     fn into_value(self) -> T {
-        match Rc::try_unwrap(self.0) {
+        match Arc::try_unwrap(self.0) {
             Ok(mut v) => {
                 let active = v.w.into_inner().active;
                 if active == usize::MAX {

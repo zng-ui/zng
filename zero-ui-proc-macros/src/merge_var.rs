@@ -32,7 +32,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 O: #vars_mod::VarValue,
                 F: FnMut(
                     #(&#type_idents,)*
-                ) -> O + 'static
+                ) -> O + Send + 'static
             >(
                 #(#input_idents: #var_idents,)*
                 mut merge: F

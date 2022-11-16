@@ -5,9 +5,11 @@ use std::{
     cell::RefCell,
     fmt, ops,
     rc::Rc,
+    sync::Arc,
 };
 
 use linear_map::{set::LinearSet, LinearMap};
+use parking_lot::Mutex;
 
 use crate::{
     handler::WidgetHandler,
@@ -992,7 +994,7 @@ enum WhenInputVarActual<T: VarValue> {
     None,
     Some(BoxedVar<T>),
 }
-trait AnyWhenInputVarInner: Any {
+trait AnyWhenInputVarInner: Any + Send {
     fn as_any(&self) -> &dyn Any;
     fn is_some(&self) -> bool;
     fn set(&mut self, var: BoxedAnyVar);
@@ -1018,7 +1020,7 @@ impl<T: VarValue> AnyWhenInputVarInner for WhenInputVarActual<T> {
 /// Represents a [`WhenInput`] variable that can be rebound.
 #[derive(Clone)]
 pub struct WhenInputVar {
-    var: Rc<RefCell<dyn AnyWhenInputVarInner>>,
+    var: Arc<Mutex<dyn AnyWhenInputVarInner>>,
 }
 impl WhenInputVar {
     /// New input setter and input var.
@@ -1028,11 +1030,11 @@ impl WhenInputVar {
     ///
     /// [`can_use`]: Self::can_use
     pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
-        let rc: Rc<RefCell<dyn AnyWhenInputVarInner>> = Rc::new(RefCell::new(WhenInputVarActual::<T>::None));
+        let rc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputVarActual::<T>::None));
         (
             WhenInputVar { var: rc.clone() },
-            crate::var::types::ContextualizedVar::new(Rc::new(move || {
-                match rc.borrow().as_any().downcast_ref::<WhenInputVarActual<T>>().unwrap() {
+            crate::var::types::ContextualizedVar::new(Arc::new(move || {
+                match rc.lock().as_any().downcast_ref::<WhenInputVarActual<T>>().unwrap() {
                     WhenInputVarActual::Some(var) => var.read_only(),
                     WhenInputVarActual::None => panic!("when expr input not inited"),
                 }
@@ -1042,7 +1044,7 @@ impl WhenInputVar {
 
     /// Returns `true` an actual var is configured, trying to use the input var when this is `false` panics.
     pub fn can_use(&self) -> bool {
-        self.var.borrow().is_some()
+        self.var.lock().is_some()
     }
 
     /// Set the actual input var.
@@ -1054,7 +1056,7 @@ impl WhenInputVar {
     /// [`can_use`]: Self::can_use
     /// [`new`]: Self::new
     pub fn set(&self, var: BoxedAnyVar) {
-        self.var.borrow_mut().set(var);
+        self.var.lock().set(var);
     }
 }
 

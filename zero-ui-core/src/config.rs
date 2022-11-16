@@ -8,12 +8,15 @@
 //! [default app]: crate::app::App::default
 
 use std::{
-    cell::{RefCell},
+    cell::RefCell,
     collections::{hash_map::Entry, HashMap, HashSet},
     error::Error,
     fmt,
     rc::Rc,
-    sync::{Arc, atomic::{AtomicBool, Ordering}},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use crate::{

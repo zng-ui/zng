@@ -159,8 +159,8 @@ impl<T: VarValue> ResponseVar<T> {
     pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> impl Var<O>
     where
         O: VarValue,
-        I: Fn() -> O + 'static,
-        M: FnOnce(&T) -> O + 'static,
+        I: Fn() -> O + Send + Sync + 'static,
+        M: FnOnce(&T) -> O + Send + 'static,
     {
         let mut map = Some(map);
         self.filter_map(

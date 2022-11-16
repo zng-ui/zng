@@ -1790,7 +1790,7 @@ impl HeadlessApp {
     pub fn run_task<R, F, T>(&mut self, task: T) -> Option<R>
     where
         R: 'static,
-        F: Future<Output = R> + 'static,
+        F: Future<Output = R> + Send + Sync + 'static,
         T: FnOnce(AppContextMut) -> F,
     {
         let mut task = self.ctx().async_task(task);
