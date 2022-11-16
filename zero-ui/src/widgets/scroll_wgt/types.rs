@@ -1,4 +1,4 @@
-use std::{cell::Cell, fmt, rc::Rc, time::Duration, sync::Arc};
+use std::{cell::Cell, fmt, rc::Rc, sync::Arc, time::Duration};
 
 use crate::core::{
     context::{context_value, with_context_value, StaticStateId},

@@ -1,4 +1,10 @@
-use std::{ptr, sync::{Arc, atomic::{AtomicPtr, Ordering}}};
+use std::{
+    ptr,
+    sync::{
+        atomic::{AtomicPtr, Ordering},
+        Arc,
+    },
+};
 
 use parking_lot::Mutex;
 

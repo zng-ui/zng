@@ -75,8 +75,8 @@ pub fn image(source: impl IntoVar<ImageSource>) -> impl UiNode {
 mod tests {
     use crate::core::image::Images;
     use crate::prelude::*;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     #[test]
     fn error_view_recursion() {

@@ -604,7 +604,6 @@ impl ViewImage {
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
     /// [`image_encoders`]: View::image_encoders.
-    #[allow(clippy::await_holding_lock)] // false positive
     pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
         self.awaiter().await;
 
@@ -612,27 +611,29 @@ impl ViewImage {
             return Err(EncodeError::Encode(e));
         }
 
-        let img = self.0.lock();
-        if let Some(app) = &img.app {
-            let mut app = app.lock();
-            app.process.encode_image(img.id, format.clone())?;
+        let receiver = {
+            let img = self.0.lock();
+            if let Some(app) = &img.app {
+                let mut app = app.lock();
+                app.process.encode_image(img.id, format.clone())?;
 
-            let (sender, receiver) = flume::bounded(1);
-            if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == img.id && r.format == format) {
-                entry.listeners.push(sender);
+                let (sender, receiver) = flume::bounded(1);
+                if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == img.id && r.format == format) {
+                    entry.listeners.push(sender);
+                } else {
+                    app.encoding_images.push(EncodeRequest {
+                        image_id: img.id,
+                        format,
+                        listeners: vec![sender],
+                    });
+                }
+                receiver
             } else {
-                app.encoding_images.push(EncodeRequest {
-                    image_id: img.id,
-                    format,
-                    listeners: vec![sender],
-                });
+                return Err(EncodeError::Dummy);
             }
-            drop(app);
-            drop(img);
-            receiver.recv_async().await?
-        } else {
-            Err(EncodeError::Dummy)
-        }
+        };
+
+        receiver.recv_async().await?
     }
 
     pub(crate) fn done_signal(&self) -> SignalOnce {

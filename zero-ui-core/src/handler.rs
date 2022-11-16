@@ -894,7 +894,8 @@ where
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsynAppHn<A> = Box<dyn FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+type BoxedAsynAppHn<A> =
+    Box<dyn FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]

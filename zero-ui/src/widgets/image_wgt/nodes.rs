@@ -169,18 +169,14 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
             } else if is_new {
                 // init or generator changed.
                 if let Some(e) = CONTEXT_IMAGE_VAR.get().error() {
-                    DataUpdate::Update(ImageErrorArgs {
-                        error: e,
-                    })
+                    DataUpdate::Update(ImageErrorArgs { error: e })
                 } else {
                     DataUpdate::None
                 }
             } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 // image var update.
                 if let Some(e) = new.error() {
-                    DataUpdate::Update(ImageErrorArgs {
-                        error: e,
-                    })
+                    DataUpdate::Update(ImageErrorArgs { error: e })
                 } else {
                     DataUpdate::None
                 }
