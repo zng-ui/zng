@@ -9,7 +9,7 @@ use std::{
     ops::Deref,
     rc::Rc,
     thread::LocalKey,
-    time::Instant,
+    time::Instant, sync::{atomic::{AtomicBool, Ordering}, Arc},
 };
 
 use crate::{
@@ -678,19 +678,19 @@ impl IntoIterator for EventHandles {
 }
 
 struct EventHandleData {
-    perm: Cell<bool>,
-    hook: Option<Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool>>,
+    perm: AtomicBool,
+    hook: Option<Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync>>,
 }
 
 /// Represents an event widget subscription, handler callback or hook.
 #[derive(Clone)]
-pub struct EventHandle(Option<Rc<EventHandleData>>);
+pub struct EventHandle(Option<Arc<EventHandleData>>);
 impl PartialEq for EventHandle {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
             (None, None) => true,
             (None, Some(_)) | (Some(_), None) => false,
-            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
         }
     }
 }
@@ -698,7 +698,7 @@ impl Eq for EventHandle {}
 impl std::hash::Hash for EventHandle {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let i = match &self.0 {
-            Some(rc) => Rc::as_ptr(rc) as usize,
+            Some(rc) => Arc::as_ptr(rc) as usize,
             None => 0,
         };
         state.write_usize(i);
@@ -707,24 +707,24 @@ impl std::hash::Hash for EventHandle {
 impl fmt::Debug for EventHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let i = match &self.0 {
-            Some(rc) => Rc::as_ptr(rc) as usize,
+            Some(rc) => Arc::as_ptr(rc) as usize,
             None => 0,
         };
         f.debug_tuple("EventHandle").field(&i).finish()
     }
 }
 impl EventHandle {
-    fn new(hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool>) -> (Self, EventHook) {
-        let rc = Rc::new(EventHandleData {
-            perm: Cell::new(false),
+    fn new(hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync>) -> (Self, EventHook) {
+        let rc = Arc::new(EventHandleData {
+            perm: AtomicBool::new(false),
             hook: Some(hook),
         });
         (Self(Some(rc.clone())), EventHook(rc))
     }
 
     fn new_none() -> Self {
-        Self(Some(Rc::new(EventHandleData {
-            perm: Cell::new(false),
+        Self(Some(Arc::new(EventHandleData {
+            perm: AtomicBool::new(false),
             hook: None,
         })))
     }
@@ -743,7 +743,7 @@ impl EventHandle {
     /// the process.
     pub fn perm(self) {
         if let Some(rc) = self.0 {
-            rc.perm.set(true);
+            rc.perm.store(true, Ordering::Relaxed);
         }
     }
 
@@ -754,14 +754,14 @@ impl EventHandle {
 
     fn retain(&self) -> bool {
         let rc = self.0.as_ref().unwrap();
-        Rc::strong_count(rc) > 1 || rc.perm.get()
+        Arc::strong_count(rc) > 1 || rc.perm.load(Ordering::Relaxed)
     }
 }
 
-struct EventHook(Rc<EventHandleData>);
+struct EventHook(Arc<EventHandleData>);
 impl EventHook {
     /// Callback, returns `true` if the handle must be retained.
     fn call(&self, events: &mut Events, update: &mut EventUpdate) -> bool {
-        (Rc::strong_count(&self.0) > 1 || self.0.perm.get()) && (self.0.hook.as_ref().unwrap())(events, update)
+        (Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)) && (self.0.hook.as_ref().unwrap())(events, update)
     }
 }

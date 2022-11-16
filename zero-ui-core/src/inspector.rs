@@ -7,7 +7,7 @@ pub mod prompt;
 
 #[cfg(inspector)]
 mod inspector_only {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::{
         context::InfoContext,
@@ -19,7 +19,7 @@ mod inspector_only {
     pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
         #[ui_node(struct InsertInfoNode {
             child: BoxedUiNode,
-            info: Rc<super::InspectorInfo>,
+            info: Arc<super::InspectorInfo>,
         })]
         impl UiNode for InsertInfoNode {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -29,14 +29,14 @@ mod inspector_only {
         }
         InsertInfoNode {
             child,
-            info: Rc::new(info),
+            info: Arc::new(info),
         }
     }
 }
 #[cfg(inspector)]
 pub(crate) use inspector_only::*;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{
     context::StaticStateId,
@@ -44,7 +44,7 @@ use crate::{
     widget_info::WidgetInfo,
 };
 
-pub(super) static INSPECTOR_INFO_ID: StaticStateId<Rc<InspectorInfo>> = StaticStateId::new_unique();
+pub(super) static INSPECTOR_INFO_ID: StaticStateId<Arc<InspectorInfo>> = StaticStateId::new_unique();
 
 /// Widget instance item.
 ///
@@ -96,7 +96,7 @@ pub trait WidgetInfoInspectorExt<'a> {
     ///
     /// Returns `None` if not build with the `"inspector"` feature, or if the widget instance was not created using
     /// the standard builder.
-    fn inspector_info(self) -> Option<Rc<InspectorInfo>>;
+    fn inspector_info(self) -> Option<Arc<InspectorInfo>>;
 
     /// If a [`inspector_info`] is defined for the widget.
     ///
@@ -155,7 +155,7 @@ pub trait WidgetInfoInspectorExt<'a> {
     fn parent_property(self) -> Option<(PropertyId, usize)>;
 }
 impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
-    fn inspector_info(self) -> Option<Rc<InspectorInfo>> {
+    fn inspector_info(self) -> Option<Arc<InspectorInfo>> {
         self.meta().get_clone(&INSPECTOR_INFO_ID)
     }
 

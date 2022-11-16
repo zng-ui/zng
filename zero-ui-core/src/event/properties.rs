@@ -170,13 +170,13 @@ pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) ->
 where
     C: UiNode,
     A: EventArgs,
-    F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
+    F: FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
     #[ui_node(struct OnEventNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
-        filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,
+        filter: impl FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
         handler: impl WidgetHandler<A>,
     })]
     impl UiNode for OnEventNode {
@@ -196,7 +196,7 @@ where
     }
 
     #[cfg(dyn_closure)]
-    let filter: Box<dyn FnMut(&mut WidgetContext, &A) -> bool> = Box::new(filter);
+    let filter: Box<dyn FnMut(&mut WidgetContext, &A) -> bool + Send> = Box::new(filter);
 
     OnEventNode {
         child: child.cfg_boxed(),
@@ -236,13 +236,13 @@ pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H
 where
     C: UiNode,
     A: EventArgs,
-    F: FnMut(&mut WidgetContext, &A) -> bool + 'static,
+    F: FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
     #[ui_node(struct OnPreviewEventNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
-        filter: impl FnMut(&mut WidgetContext, &A) -> bool + 'static,
+        filter: impl FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
         handler: impl WidgetHandler<A>,
     })]
     impl UiNode for OnPreviewEventNode {
@@ -262,7 +262,7 @@ where
     }
 
     #[cfg(dyn_closure)]
-    let filter: Box<dyn FnMut(&mut WidgetContext, &A) -> bool> = Box::new(filter);
+    let filter: Box<dyn FnMut(&mut WidgetContext, &A) -> bool + Send> = Box::new(filter);
 
     OnPreviewEventNode {
         child: child.cfg_boxed(),

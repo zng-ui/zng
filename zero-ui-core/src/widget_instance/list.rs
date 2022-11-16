@@ -2,7 +2,7 @@ use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
     mem, ops,
-    rc::Rc,
+    sync::Arc,
 };
 
 use crate::{
@@ -351,7 +351,7 @@ context_value! {
 pub struct SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + 'static,
+    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + Send + 'static,
 {
     list: L,
 
@@ -361,7 +361,7 @@ where
 impl<L, S> SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + 'static,
+    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + Send + 'static,
 {
     /// New from list and sort function.
     pub fn new(list: L, sort: S) -> Self {
@@ -439,7 +439,7 @@ where
 impl<L, S> UiNodeList for SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + 'static,
+    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + Send + 'static,
 {
     fn with_node<R, F>(&self, index: usize, f: F) -> R
     where
@@ -1027,7 +1027,7 @@ impl Default for EditableUiNodeList {
 }
 impl Drop for EditableUiNodeList {
     fn drop(&mut self) {
-        self.ctrl.0.borrow_mut().alive = false;
+        self.ctrl.0.lock().alive = false;
     }
 }
 impl EditableUiNodeList {
@@ -1229,12 +1229,12 @@ impl UiNodeList for EditableUiNodeList {
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.ctrl.0.borrow_mut().target = Some(ctx.path.widget_id());
+        self.ctrl.0.lock().target = Some(ctx.path.widget_id());
         self.vec.init_all(ctx);
     }
 
     fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.ctrl.0.borrow_mut().target = None;
+        self.ctrl.0.lock().target = None;
         self.vec.deinit_all(ctx);
     }
 
@@ -1249,7 +1249,7 @@ type NodeMoveToFn = fn(usize, usize) -> usize;
 
 /// Represents a sender to an [`EditableUiNodeList`].
 #[derive(Clone)]
-pub struct EditableUiNodeListRef(Rc<RefCell<EditRequests>>);
+pub struct EditableUiNodeListRef(Arc<Mutex<EditRequests>>);
 struct EditRequests {
     target: Option<WidgetId>,
     insert: Vec<(usize, BoxedUiNode)>,
@@ -1263,7 +1263,7 @@ struct EditRequests {
 }
 impl EditableUiNodeListRef {
     fn new() -> Self {
-        Self(Rc::new(RefCell::new(EditRequests {
+        Self(Arc::new(Mutex::new(EditRequests {
             target: None,
             insert: vec![],
             push: vec![],
@@ -1277,7 +1277,7 @@ impl EditableUiNodeListRef {
 
     /// Returns `true` if the [`EditableUiNodeList`] still exists.
     pub fn alive(&self) -> bool {
-        self.0.borrow().alive
+        self.0.lock().alive
     }
 
     /// Request an update for the insertion of the `widget`.
@@ -1289,7 +1289,7 @@ impl EditableUiNodeListRef {
     /// [`remove`]: Self::remove
     pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl UiNode) {
         updates.with_updates(|u| {
-            let mut s = self.0.borrow_mut();
+            let mut s = self.0.lock();
             s.insert.push((index, widget.boxed()));
             u.update(s.target);
         })
@@ -1304,7 +1304,7 @@ impl EditableUiNodeListRef {
     /// [`insert`]: Self::insert
     pub fn push(&self, updates: &mut impl WithUpdates, widget: impl UiNode) {
         updates.with_updates(|u| {
-            let mut s = self.0.borrow_mut();
+            let mut s = self.0.lock();
             s.push.push(widget.boxed());
             u.update(s.target);
         })
@@ -1316,7 +1316,7 @@ impl EditableUiNodeListRef {
     /// if the widget is not found.
     pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
         updates.with_updates(|u| {
-            let mut s = self.0.borrow_mut();
+            let mut s = self.0.lock();
             s.remove.push(id.into());
             u.update(s.target);
         })
@@ -1331,7 +1331,7 @@ impl EditableUiNodeListRef {
     pub fn move_index(&self, updates: &mut impl WithUpdates, remove_index: usize, insert_index: usize) {
         if remove_index != insert_index {
             updates.with_updates(|u| {
-                let mut s = self.0.borrow_mut();
+                let mut s = self.0.lock();
                 s.move_index.push((remove_index, insert_index));
                 u.update(s.target);
             })
@@ -1379,7 +1379,7 @@ impl EditableUiNodeListRef {
     /// ```
     pub fn move_id(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>, get_move_to: NodeMoveToFn) {
         updates.with_updates(|u| {
-            let mut s = self.0.borrow_mut();
+            let mut s = self.0.lock();
             s.move_id.push((id.into(), get_move_to));
             u.update(s.target);
         })
@@ -1390,14 +1390,14 @@ impl EditableUiNodeListRef {
     /// All other requests will happen after the clear.
     pub fn clear(&self, updates: &mut impl WithUpdates) {
         updates.with_updates(|u| {
-            let mut s = self.0.borrow_mut();
+            let mut s = self.0.lock();
             s.clear = true;
             u.update(s.target);
         })
     }
 
     fn take_requests(&self) -> Option<EditRequests> {
-        let mut s = self.0.borrow_mut();
+        let mut s = self.0.lock();
 
         if s.clear
             || !s.insert.is_empty()

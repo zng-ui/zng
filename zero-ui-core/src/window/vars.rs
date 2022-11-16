@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use linear_map::set::LinearSet;
 
@@ -76,7 +76,7 @@ pub(super) struct WindowVarsData {
 /// [`Windows::vars`]: crate::window::Windows::vars
 /// [`req`]: WindowVars::req
 /// [`get`]: WindowVars::get
-pub struct WindowVars(pub(super) Rc<WindowVarsData>);
+pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
     pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor) -> Self {
         let vars = Rc::new(WindowVarsData {

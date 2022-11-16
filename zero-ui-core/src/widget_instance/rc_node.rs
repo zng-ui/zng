@@ -1,7 +1,5 @@
-use std::{
-    cell::RefCell,
-    rc::{Rc, Weak},
-};
+use parking_lot::Mutex;
+use std::sync::{Arc, Weak};
 
 use crate::{
     app::AppEventSender,
@@ -13,8 +11,8 @@ use crate::{
 type SlotId = usize;
 
 struct SlotData<U> {
-    item: RefCell<U>,
-    slots: RefCell<SlotsData<U>>,
+    item: Mutex<U>,
+    slots: Mutex<SlotsData<U>>,
 }
 struct SlotsData<U> {
     // id of the next slot created.
@@ -55,7 +53,7 @@ impl<U> Default for SlotsData<U> {
 /// When a slot takes the node it is deinited in the previous UI tree place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the node when they have it as their child and a weak reference when they don't.
-pub struct RcNode<U: UiNode>(Rc<SlotData<U>>);
+pub struct RcNode<U: UiNode>(Arc<SlotData<U>>);
 impl<U: UiNode> Clone for RcNode<U> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -64,9 +62,9 @@ impl<U: UiNode> Clone for RcNode<U> {
 impl<U: UiNode> RcNode<U> {
     /// New node.
     pub fn new(node: U) -> Self {
-        RcNode(Rc::new(SlotData {
-            item: RefCell::new(node),
-            slots: RefCell::default(),
+        RcNode(Arc::new(SlotData {
+            item: Mutex::new(node),
+            slots: Mutex::default(),
         }))
     }
 
@@ -74,25 +72,25 @@ impl<U: UiNode> RcNode<U> {
     ///
     /// **Note** the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
     pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
-        Self(Rc::new_cyclic(|wk| {
+        Self(Arc::new_cyclic(|wk| {
             let node = node(WeakNode(wk.clone()));
             SlotData {
-                item: RefCell::new(node),
-                slots: RefCell::default(),
+                item: Mutex::new(node),
+                slots: Mutex::default(),
             }
         }))
     }
 
     /// Creates a [`WeakNode<U>`] reference to this node.
     pub fn downgrade(&self) -> WeakNode<U> {
-        WeakNode(Rc::downgrade(&self.0))
+        WeakNode(Arc::downgrade(&self.0))
     }
 
     /// Replace the current node with the `new_node` in the current slot.
     ///
     /// The previous node is deinited and the `new_node` is inited.
     pub fn set(&self, new_node: U) {
-        let mut slots = self.0.slots.borrow_mut();
+        let mut slots = self.0.slots.lock();
         let slots = &mut *slots;
         if let Some((_, id, u)) = &slots.owner {
             // current node inited on a slot, signal it to replace.
@@ -100,7 +98,7 @@ impl<U: UiNode> RcNode<U> {
             let _ = u.send_update(vec![*id]);
         } else {
             // node already not inited, just replace.
-            *self.0.item.borrow_mut() = new_node;
+            *self.0.item.lock() = new_node;
         }
     }
 
@@ -111,7 +109,7 @@ impl<U: UiNode> RcNode<U> {
     /// The return type implements [`UiNode`].
     pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<U, impl TakeOn> {
         impls::TakeSlot {
-            slot: self.0.slots.borrow_mut().next_slot(),
+            slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init(ctx),
@@ -129,11 +127,11 @@ impl<U: UiNode> RcNode<U> {
     pub fn take_on<A: EventArgs>(
         &self,
         event: Event<A>,
-        filter: impl FnMut(&A) -> bool + 'static,
+        filter: impl FnMut(&A) -> bool + Send + 'static,
         take_on_init: bool,
     ) -> TakeSlot<U, impl TakeOn> {
         impls::TakeSlot {
-            slot: self.0.slots.borrow_mut().next_slot(),
+            slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeOnEvent {
                 event,
@@ -154,14 +152,14 @@ impl<U: UiNode> RcNode<U> {
         self.take_when(true)
     }
 
-    /// Calls `f` in the context of the node, it it can be borrowed and is a full widget.
+    /// Calls `f` in the context of the node, it it can be locked and is a full widget.
     pub fn try_context<R>(&self, f: impl FnOnce(&mut WidgetNodeContext) -> R) -> Option<R> {
-        self.0.item.try_borrow().ok()?.with_context(f)
+        self.0.item.try_lock().ok()?.with_context(f)
     }
 
-    /// Calls `f` in the context of the node, it it can be borrowed and is a full widget.
+    /// Calls `f` in the context of the node, it it can be locked and is a full widget.
     pub fn try_context_mut<R>(&self, f: impl FnOnce(&mut WidgetNodeMutContext) -> R) -> Option<R> {
-        self.0.item.try_borrow_mut().ok()?.with_context_mut(f)
+        self.0.item.try_lock().ok()?.with_context_mut(f)
     }
 }
 
@@ -188,7 +186,7 @@ impl<U: UiNode> WeakNode<U> {
 /// When a slot takes the list it is deinited in the previous UI tree place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the list when they have it as their child and a weak reference when they don't.
-pub struct RcNodeList<L: UiNodeList>(Rc<SlotData<L>>);
+pub struct RcNodeList<L: UiNodeList>(Arc<SlotData<L>>);
 impl<L: UiNodeList> Clone for RcNodeList<L> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -197,9 +195,9 @@ impl<L: UiNodeList> Clone for RcNodeList<L> {
 impl<L: UiNodeList> RcNodeList<L> {
     /// New list.
     pub fn new(list: L) -> Self {
-        RcNodeList(Rc::new(SlotData {
-            item: RefCell::new(list),
-            slots: RefCell::default(),
+        RcNodeList(Arc::new(SlotData {
+            item: Mutex::new(list),
+            slots: Mutex::default(),
         }))
     }
 
@@ -207,25 +205,25 @@ impl<L: UiNodeList> RcNodeList<L> {
     ///
     /// **Note** the weak reference cannot be [upgraded](WeakNodeList::upgrade) during the call to `list`.
     pub fn new_cyclic(list: impl FnOnce(WeakNodeList<L>) -> L) -> Self {
-        Self(Rc::new_cyclic(|wk| {
+        Self(Arc::new_cyclic(|wk| {
             let list = list(WeakNodeList(wk.clone()));
             SlotData {
-                item: RefCell::new(list),
-                slots: RefCell::default(),
+                item: Mutex::new(list),
+                slots: Mutex::default(),
             }
         }))
     }
 
     /// Creates a [`WeakNodeList<L>`] reference to this list.
     pub fn downgrade(&self) -> WeakNodeList<L> {
-        WeakNodeList(Rc::downgrade(&self.0))
+        WeakNodeList(Arc::downgrade(&self.0))
     }
 
     /// Replace the current list with the `new_list` in the current slot.
     ///
     /// The previous list is deinited and the `new_list` is inited.
     pub fn set(&self, new_list: L) {
-        let mut slots = self.0.slots.borrow_mut();
+        let mut slots = self.0.slots.lock();
         let slots = &mut *slots;
         if let Some((_, id, u)) = &slots.owner {
             // current node inited on a slot, signal it to replace.
@@ -233,7 +231,7 @@ impl<L: UiNodeList> RcNodeList<L> {
             let _ = u.send_update(vec![*id]);
         } else {
             // node already not inited, just replace.
-            *self.0.item.borrow_mut() = new_list;
+            *self.0.item.lock() = new_list;
         }
     }
 
@@ -244,7 +242,7 @@ impl<L: UiNodeList> RcNodeList<L> {
     /// The return type implements [`UiNodeList`].
     pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<L, impl TakeOn> {
         impls::TakeSlot {
-            slot: self.0.slots.borrow_mut().next_slot(),
+            slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeWhenVar { var: var.into_var() },
             delegate_init: |n, ctx| n.init_all(ctx),
@@ -262,11 +260,11 @@ impl<L: UiNodeList> RcNodeList<L> {
     pub fn take_on<A: EventArgs>(
         &self,
         event: Event<A>,
-        filter: impl FnMut(&A) -> bool + 'static,
+        filter: impl FnMut(&A) -> bool + Send + 'static,
         take_on_init: bool,
     ) -> TakeSlot<L, impl TakeOn> {
         impls::TakeSlot {
-            slot: self.0.slots.borrow_mut().next_slot(),
+            slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeOnEvent {
                 event,
@@ -287,16 +285,16 @@ impl<L: UiNodeList> RcNodeList<L> {
         self.take_when(true)
     }
 
-    /// Iterate over node contexts, if the list can be borrowed and the node is a full widget.
+    /// Iterate over node contexts, if the list can be locked and the node is a full widget.
     pub fn for_each_ctx(&self, mut f: impl FnMut(usize, &mut WidgetNodeContext) -> bool) {
-        if let Ok(list) = self.0.item.try_borrow() {
+        if let Ok(list) = self.0.item.try_lock() {
             list.for_each(|i, n| n.with_context(|ctx| f(i, ctx)).unwrap_or(true))
         }
     }
 
-    /// Iterate over node contexts, if the list can be borrowed and the node is a full widget.
+    /// Iterate over node contexts, if the list can be locked and the node is a full widget.
     pub fn for_each_ctx_mut(&self, mut f: impl FnMut(usize, &mut WidgetNodeMutContext) -> bool) {
-        if let Ok(mut list) = self.0.item.try_borrow_mut() {
+        if let Ok(mut list) = self.0.item.try_lock() {
             list.for_each_mut(|i, n| n.with_context_mut(|ctx| f(i, ctx)).unwrap_or(true))
         }
     }
@@ -319,7 +317,7 @@ impl<L: UiNodeList> WeakNodeList<L> {
 pub use impls::*;
 
 mod impls {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::{
         context::*,
@@ -334,7 +332,7 @@ mod impls {
     use super::{SlotData, SlotId};
 
     #[doc(hidden)]
-    pub trait TakeOn: 'static {
+    pub trait TakeOn: Send + 'static {
         fn take_on_init(&mut self, ctx: &mut WidgetContext) -> bool {
             let _ = ctx;
             false
@@ -365,12 +363,12 @@ mod impls {
         }
     }
 
-    pub(super) struct TakeOnEvent<A: EventArgs, F: FnMut(&A) -> bool + 'static> {
+    pub(super) struct TakeOnEvent<A: EventArgs, F: FnMut(&A) -> bool + Send + 'static> {
         pub(super) event: Event<A>,
         pub(super) filter: F,
         pub(super) take_on_init: bool,
     }
-    impl<A: EventArgs, F: FnMut(&A) -> bool + 'static> TakeOn for TakeOnEvent<A, F> {
+    impl<A: EventArgs, F: FnMut(&A) -> bool + Send + Send + 'static> TakeOn for TakeOnEvent<A, F> {
         fn take_on_init(&mut self, ctx: &mut WidgetContext) -> bool {
             ctx.sub_event(&self.event);
             self.take_on_init
@@ -388,7 +386,7 @@ mod impls {
     #[doc(hidden)]
     pub struct TakeSlot<U, T: TakeOn> {
         pub(super) slot: SlotId,
-        pub(super) rc: Rc<SlotData<U>>,
+        pub(super) rc: Arc<SlotData<U>>,
         pub(super) take: T,
 
         pub(super) delegate_init: fn(&mut U, &mut WidgetContext),
@@ -406,7 +404,7 @@ mod impls {
         fn on_deinit(&mut self, ctx: &mut WidgetContext) {
             let mut was_owner = false;
             {
-                let mut slots = self.rc.slots.borrow_mut();
+                let mut slots = self.rc.slots.lock();
                 let slots = &mut *slots;
                 if let Some((slot, _, _)) = &slots.owner {
                     if *slot == self.slot {
@@ -418,7 +416,7 @@ mod impls {
 
             if was_owner {
                 ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                    (self.delegate_deinit)(&mut *self.rc.item.borrow_mut(), ctx)
+                    (self.delegate_deinit)(&mut *self.rc.item.lock(), ctx)
                 });
             }
 
@@ -435,7 +433,7 @@ mod impls {
 
         fn on_update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.is_owner() {
-                let mut slots = self.rc.slots.borrow_mut();
+                let mut slots = self.rc.slots.lock();
                 if let Some((_, id)) = slots.move_request {
                     // deinit to move to other slot.
 
@@ -444,7 +442,7 @@ mod impls {
 
                     drop(slots);
 
-                    let mut node = self.rc.item.borrow_mut();
+                    let mut node = self.rc.item.lock();
                     (self.delegate_deinit)(&mut node, ctx);
 
                     ctx.updates.info_layout_and_render();
@@ -459,7 +457,7 @@ mod impls {
 
                     drop(slots);
 
-                    let mut node = self.rc.item.borrow_mut();
+                    let mut node = self.rc.item.lock();
                     ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
                         (self.delegate_deinit)(&mut node, ctx);
                     });
@@ -477,7 +475,7 @@ mod impls {
                 // request ownership.
                 self.take(ctx);
             } else {
-                let mut slots = self.rc.slots.borrow_mut();
+                let mut slots = self.rc.slots.lock();
                 if let Some((slot, _)) = &slots.move_request {
                     if *slot == self.slot && slots.owner.is_none() {
                         slots.move_request = None;
@@ -491,7 +489,7 @@ mod impls {
 
         fn take(&mut self, ctx: &mut WidgetContext) {
             {
-                let mut slots = self.rc.slots.borrow_mut();
+                let mut slots = self.rc.slots.lock();
                 let slots = &mut *slots;
                 if let Some((_, id, _)) = &slots.owner {
                     // currently inited in another slot, signal it to deinit.
@@ -505,7 +503,7 @@ mod impls {
 
             if self.is_owner() {
                 ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                    (self.delegate_init)(&mut *self.rc.item.borrow_mut(), ctx);
+                    (self.delegate_init)(&mut *self.rc.item.lock(), ctx);
                 });
                 ctx.updates.info_layout_and_render();
             }
@@ -530,7 +528,7 @@ mod impls {
         }
         fn delegate_owned_mut<R>(&mut self, del: impl FnOnce(&mut U) -> R) -> Option<R> {
             if self.is_owner() {
-                Some(del(&mut *self.rc.item.borrow_mut()))
+                Some(del(&mut *self.rc.item.lock()))
             } else {
                 None
             }
@@ -543,7 +541,7 @@ mod impls {
         ) -> Option<R> {
             if self.is_owner() {
                 ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                    Some(del(ctx, &mut *self.rc.item.borrow_mut()))
+                    Some(del(ctx, &mut *self.rc.item.lock()))
                 })
             } else {
                 None

@@ -17,6 +17,8 @@ use crate::{
     window::WIDGET_INFO_CHANGED_EVENT,
 };
 
+use parking_lot::Mutex;
+
 /// Base widget that implements the necessary core API.
 ///
 /// The base widget does [`nodes::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
@@ -54,8 +56,6 @@ pub mod base {
 ///
 /// [`base`]: mod@base
 pub mod nodes {
-    use std::cell::{Cell, RefCell};
-
     use super::*;
 
     /// Insert [`child_layout`] and [`inner`] in the widget.
@@ -259,6 +259,11 @@ pub mod nodes {
     ///
     /// [`base`]: mod@base
     pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
+        struct MtxData {
+            pending_updates: InfoLayoutRenderUpdates,
+            offsets_pass: LayoutPassId,
+            reuse: Option<ReuseRange>,
+        }
         struct WidgetNode<C> {
             id: WidgetId,
             state: OwnedStateMap<state_map::Widget>,
@@ -270,10 +275,7 @@ pub mod nodes {
 
             #[cfg(debug_assertions)]
             inited: bool,
-            pending_updates: RefCell<InfoLayoutRenderUpdates>,
-            offsets_pass: Cell<LayoutPassId>,
-
-            reuse: RefCell<Option<ReuseRange>>,
+            m: Mutex<MtxData>,
         }
         impl<C: UiNode> UiNode for WidgetNode<C> {
             fn init(&mut self, ctx: &mut WidgetContext) {
@@ -290,7 +292,7 @@ pub mod nodes {
                     &mut self.event_handles,
                     |ctx| self.child.init(ctx),
                 );
-                *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::all();
+                *self.m.get_mut().pending_updates.get_mut() = InfoLayoutRenderUpdates::all();
 
                 #[cfg(debug_assertions)]
                 {
@@ -312,10 +314,10 @@ pub mod nodes {
                     &mut self.event_handles,
                     |ctx| self.child.deinit(ctx),
                 );
-                *self.pending_updates.get_mut() = InfoLayoutRenderUpdates::none();
+                self.m.get_mut().pending_updates.get_mut() = InfoLayoutRenderUpdates::none();
                 self.var_handles.clear();
                 self.var_handles.clear();
-                *self.reuse.get_mut() = None;
+                self.m.get_mut().reuse = None;
 
                 #[cfg(debug_assertions)]
                 {
@@ -330,7 +332,7 @@ pub mod nodes {
                 }
 
                 ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    if mem::take(&mut self.pending_updates.borrow_mut().info) {
+                    if mem::take(&mut self.m.lock().pending_updates.info) {
                         info.push_widget(self.id, self.info.bounds.clone(), self.info.border.clone(), |info| {
                             self.child.info(ctx, info)
                         });
@@ -358,7 +360,7 @@ pub mod nodes {
                         });
                     },
                 );
-                *self.pending_updates.get_mut() |= updates;
+                self.get_mut().pending_updates |= updates;
 
                 if reinit {
                     self.deinit(ctx);
@@ -384,7 +386,7 @@ pub mod nodes {
                         });
                     },
                 );
-                *self.pending_updates.get_mut() |= updates;
+                self.get_mut().pending_updates |= updates;
 
                 if reinit {
                     self.deinit(ctx);
@@ -409,12 +411,12 @@ pub mod nodes {
                     tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", self.id);
                 }
 
-                let reuse = !mem::take(&mut self.pending_updates.get_mut().layout);
+                let reuse = !mem::take(&mut self.m.get_mut().pending_updates.layout);
 
                 let (child_size, updates) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
                     wl.with_widget(ctx, reuse, |ctx, wl| self.child.layout(ctx, wl))
                 });
-                *self.pending_updates.get_mut() |= updates;
+                self.m.get_mut().pending_updates |= updates;
 
                 child_size
             }
@@ -425,16 +427,16 @@ pub mod nodes {
                     tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
                 }
 
-                let mut reuse_range = self.reuse.borrow_mut();
-                if !self.pending_updates.borrow_mut().render.take().is_none() || self.offsets_pass.get() != self.info.bounds.offsets_pass()
+                let mut m = self.m.lock();
+                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass()
                 {
                     // cannot reuse.
-                    *reuse_range = None;
-                    self.offsets_pass.set(self.info.bounds.offsets_pass());
+                    m.reuse = None;
+                    m.offsets_pass = self.info.bounds.offsets_pass();
                 }
 
                 ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    frame.push_widget(ctx, &mut reuse_range, |ctx, frame| self.child.render(ctx, frame));
+                    frame.push_widget(ctx, &mut m.reuse, |ctx, frame| self.child.render(ctx, frame));
                 });
             }
 
@@ -444,11 +446,12 @@ pub mod nodes {
                     tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                 }
 
+                let mut m = self.m.lock();
                 let mut reuse = true;
-                if !self.pending_updates.borrow_mut().render.take().is_none() || self.offsets_pass.get() != self.info.bounds.offsets_pass()
+                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass()
                 {
                     reuse = false;
-                    self.offsets_pass.set(self.info.bounds.offsets_pass());
+                    m.offsets_pass = self.info.bounds.offsets_pass();
                 }
 
                 ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
@@ -502,9 +505,7 @@ pub mod nodes {
             event_handles: EventHandles::default(),
             #[cfg(debug_assertions)]
             inited: false,
-            pending_updates: RefCell::default(),
-            offsets_pass: Cell::default(),
-            reuse: RefCell::default(),
+            m: Default::default(),
         }
         .cfg_boxed()
     }

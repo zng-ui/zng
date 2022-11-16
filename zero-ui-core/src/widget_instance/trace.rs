@@ -34,7 +34,7 @@ where
 impl<N, E, S> UiNode for TraceNode<N, E>
 where
     N: UiNode,
-    E: Fn(&mut InfoContext, &'static str) -> S + 'static,
+    E: Fn(&mut InfoContext, &'static str) -> S + Send + 'static,
 {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let _span = (self.enter_mtd)(ctx, "info");

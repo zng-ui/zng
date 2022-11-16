@@ -1,11 +1,11 @@
 use super::*;
-use std::{cell::RefCell, mem, rc::Rc};
+use std::{mem, sync::Arc};
 
 /// Represents a node setup to dynamically swap child.
 ///
 /// Any property node can be made adoptive by wrapping it with this node.
 pub struct AdoptiveNode<U> {
-    child: Rc<RefCell<BoxedUiNode>>,
+    child: Arc<Mutex<BoxedUiNode>>,
     node: U,
     is_inited: bool,
 }
@@ -48,13 +48,13 @@ impl<U: UiNode> AdoptiveNode<U> {
     }
 
     /// Into child reference, node and if it is inited.
-    pub fn into_parts(self) -> (Rc<RefCell<BoxedUiNode>>, U) {
+    pub fn into_parts(self) -> (Arc<Mutex<BoxedUiNode>>, U) {
         assert!(!self.is_inited);
         (self.child, self.node)
     }
 
     /// From parts, assumes not inited.
-    pub fn from_parts(child: Rc<RefCell<BoxedUiNode>>, node: U) -> Self {
+    pub fn from_parts(child: Arc<Mutex<BoxedUiNode>>, node: U) -> Self {
         Self {
             child,
             node,
@@ -81,17 +81,17 @@ impl<U: UiNode> UiNode for AdoptiveNode<U> {
 ///
 /// This node must be used as the property child of the adoptive node.
 pub struct AdoptiveChildNode {
-    child: Rc<RefCell<BoxedUiNode>>,
+    child: Arc<Mutex<BoxedUiNode>>,
 }
 impl AdoptiveChildNode {
     fn nil() -> Self {
         Self {
-            child: Rc::new(RefCell::new(NilUiNode.boxed())),
+            child: Arc::new(Mutex::new(NilUiNode.boxed())),
         }
     }
 }
 #[ui_node(
-    delegate = self.child.borrow(),
-    delegate_mut = self.child.borrow_mut(),
+    delegate = self.child.lock(),
+    delegate_mut = self.child.lock(),
 )]
 impl UiNode for AdoptiveChildNode {}

@@ -1,4 +1,4 @@
-use std::{fmt, marker::PhantomData};
+use std::{fmt, marker::PhantomData, any::Any};
 
 use crate::{
     context::{WidgetContext, WidgetUpdates},
@@ -13,8 +13,8 @@ use crate::{
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-pub trait StateValue: 'static {}
-impl<T: 'static> StateValue for T {}
+pub trait StateValue: Any + Send + 'static {}
+impl<T: Any + Send + 'static> StateValue for T {}
 
 unique_id_64! {
     /// Unique identifier of a value in a state map.
@@ -410,7 +410,7 @@ pub mod state_map {
 
     use super::*;
 
-    type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any>>;
+    type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any + Send>>;
 
     /// App state-map tag.
     pub enum App {}
@@ -669,13 +669,13 @@ pub fn set_widget_state_update<U, T, H>(child: U, id: impl Into<StateId<T>>, val
 where
     U: UiNode,
     T: StateValue + VarValue,
-    H: FnMut(&mut WidgetContext, &T) + 'static,
+    H: FnMut(&mut WidgetContext, &T) + Send + 'static,
 {
     #[ui_node(struct SetWidgetStateNode<T: StateValue + VarValue> {
         child: impl UiNode,
         id: StateId<T>,
         #[var] value: impl Var<T>,
-        on_update: impl FnMut(&mut WidgetContext, &T) + 'static,
+        on_update: impl FnMut(&mut WidgetContext, &T) + Send + 'static,
     })]
     impl UiNode for SetWidgetStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {

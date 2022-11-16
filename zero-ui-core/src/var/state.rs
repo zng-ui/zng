@@ -20,14 +20,14 @@ pub fn event_state<A: EventArgs>(
     state: StateVar,
     default: bool,
     event: Event<A>,
-    on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
+    on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct EventStateNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
         default: bool,
         state: StateVar,
-        on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + 'static,
+        on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + Send + 'static,
     })]
     impl UiNode for EventStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -66,11 +66,11 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
     default: bool,
     event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
     event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
-    merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
+    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
+    merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct EventState2Node<A0: EventArgs, A1: EventArgs,> {
         child: impl UiNode,
@@ -78,9 +78,9 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
         #[event] event1: Event<A1>,
         default: bool,
         state: StateVar,
-        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
-        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
-        merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + 'static,
+        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
+        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
+        merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + Send + 'static,
         partial: (bool, bool),
         partial_default: (bool, bool),
     })]
@@ -145,14 +145,14 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     default: bool,
     event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
+    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
     event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
+    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
     event2: Event<A2>,
     default2: bool,
-    on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
-    merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
+    on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + Send + 'static,
+    merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct EventState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
         child: impl UiNode,
@@ -161,12 +161,12 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         #[event] event2: Event<A2>,
         default: bool,
         state: StateVar,
-        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + 'static,
-        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + 'static,
-        on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + 'static,
+        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
+        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
+        on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + Send + 'static,
         partial_default: (bool, bool, bool),
         partial: (bool, bool, bool),
-        merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + 'static,
+        merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + Send + 'static,
     })]
     impl UiNode for EventState3Node {
         fn init(&mut self, ctx: &mut WidgetContext) {

@@ -130,7 +130,7 @@ fn ease_btn(
     l: &RcVar<Length>,
     color: &RcVar<Rgba>,
     name: impl Into<Text>,
-    easing: impl Fn(EasingTime) -> EasingStep + Copy + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + Copy + Send + Sync + 'static,
     easing_mod: &RcVar<easing::EasingModifierFn>,
 ) -> impl UiNode {
     let in_plot = plot(easing);

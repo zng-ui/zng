@@ -205,8 +205,8 @@ impl<T: Any> Clone for ContextValue<T> {
 impl<T: Any> Copy for ContextValue<T> {}
 
 /// Helper for declaring nodes that sets a context value.
-pub fn with_context_value<T: Any>(child: impl UiNode, context: ContextValue<T>, value: impl Into<T>) -> impl UiNode {
-    #[ui_node(struct WithContextValueNode<T: Any> {
+pub fn with_context_value<T: Any + Send>(child: impl UiNode, context: ContextValue<T>, value: impl Into<T>) -> impl UiNode {
+    #[ui_node(struct WithContextValueNode<T: Any + Send> {
         child: impl UiNode,
         context: ContextValue<T>,
         value: RefCell<Option<T>>,

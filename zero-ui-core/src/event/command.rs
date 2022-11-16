@@ -1146,17 +1146,17 @@ impl Default for ScopedValue {
 pub fn on_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
-    CB: FnMut(&mut WidgetContext) -> Command + 'static,
+    CB: FnMut(&mut WidgetContext) -> Command + Send + 'static,
     E: Var<bool>,
-    EB: FnMut(&mut WidgetContext) -> E + 'static,
+    EB: FnMut(&mut WidgetContext) -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     #[ui_node(struct OnCommandNode<E: Var<bool>> {
         child: impl UiNode,
         command: Option<Command>,
-        command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,
+        command_builder: impl FnMut(&mut WidgetContext) -> Command + Send + 'static,
         enabled: Option<E>,
-        enabled_builder: impl FnMut(&mut WidgetContext) -> E + 'static,
+        enabled_builder: impl FnMut(&mut WidgetContext) -> E + Send + 'static,
         handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
     })]
@@ -1215,17 +1215,17 @@ where
 pub fn on_pre_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
-    CB: FnMut(&mut WidgetContext) -> Command + 'static,
+    CB: FnMut(&mut WidgetContext) -> Command + Send + 'static,
     E: Var<bool>,
-    EB: FnMut(&mut WidgetContext) -> E + 'static,
+    EB: FnMut(&mut WidgetContext) -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     #[ui_node(struct OnPreCommandNode<E: Var<bool>> {
         child: impl UiNode,
         command: Option<Command>,
-        command_builder: impl FnMut(&mut WidgetContext) -> Command + 'static,
+        command_builder: impl FnMut(&mut WidgetContext) -> Command + Send + 'static,
         enabled: Option<E>,
-        enabled_builder: impl FnMut(&mut WidgetContext) -> E + 'static,
+        enabled_builder: impl FnMut(&mut WidgetContext) -> E + Send + 'static,
         handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
     })]

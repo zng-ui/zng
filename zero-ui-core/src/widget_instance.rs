@@ -175,7 +175,7 @@ impl fmt::Debug for StaticWidgetId {
 impl crate::var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 
 /// An Ui tree node.
-pub trait UiNode: Any {
+pub trait UiNode: Any + Send {
     /// Called every time the node is plugged into the UI tree.
     ///
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the initializing node it self
@@ -570,7 +570,7 @@ pub mod ui_node_list_default {
 }
 
 #[doc(hidden)]
-pub trait UiNodeBoxed: Any {
+pub trait UiNodeBoxed: Any + Send {
     fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
@@ -653,7 +653,7 @@ impl<U: UiNode> UiNodeBoxed for U {
 }
 
 #[doc(hidden)]
-pub trait UiNodeListBoxed: Any {
+pub trait UiNodeListBoxed: Any + Send {
     fn with_node_boxed(&self, index: usize, f: &mut dyn FnMut(&BoxedUiNode));
     fn with_node_mut_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode));
     fn for_each_boxed(&self, f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool);

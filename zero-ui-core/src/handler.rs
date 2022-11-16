@@ -24,7 +24,7 @@ use crate::task::ui::{AppTask, WidgetTask};
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`hn!`], [`hn_once!`] or [`async_hn!`], [`async_hn_once!`] to start.
-pub trait WidgetHandler<A: Clone + 'static>: Any {
+pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// Called every time the handler's event happens in the widget context.
     ///
     /// Returns `true` when the event handler is async and it has not finished handing the event, if this

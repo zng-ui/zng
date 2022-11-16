@@ -7,6 +7,7 @@ use std::{
     marker::PhantomData,
     mem, ops,
     rc::Rc,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -22,6 +23,7 @@ use crate::{
 };
 
 mod tree;
+use parking_lot::Mutex;
 use tree::Tree;
 
 mod path;
@@ -294,43 +296,43 @@ impl fmt::Debug for WidgetInfoTree {
 
 #[derive(Default, Debug)]
 struct WidgetBoundsData {
-    prev_offsets_pass: Cell<LayoutPassId>,
-    prev_outer_offset: Cell<PxVector>,
-    prev_inner_offset: Cell<PxVector>,
-    prev_child_offset: Cell<PxVector>,
-    working_pass: Cell<LayoutPassId>,
+    prev_offsets_pass: LayoutPassId,
+    prev_outer_offset: PxVector,
+    prev_inner_offset: PxVector,
+    prev_child_offset: PxVector,
+    working_pass: LayoutPassId,
 
-    outer_offset: Cell<PxVector>,
-    inner_offset: Cell<PxVector>,
-    child_offset: Cell<PxVector>,
-    offsets_pass: Cell<LayoutPassId>,
+    outer_offset: PxVector,
+    inner_offset: PxVector,
+    child_offset: PxVector,
+    offsets_pass: LayoutPassId,
 
-    childs_changed: Cell<bool>,
+    childs_changed: bool,
 
-    measure_outer_size: Cell<PxSize>,
-    outer_size: Cell<PxSize>,
-    inner_size: Cell<PxSize>,
-    baseline: Cell<Px>,
-    inner_offset_baseline: Cell<bool>,
+    measure_outer_size: PxSize,
+    outer_size: PxSize,
+    inner_size: PxSize,
+    baseline: Px,
+    inner_offset_baseline: bool,
 
-    measure_metrics: Cell<Option<LayoutMetricsSnapshot>>,
-    measure_metrics_used: Cell<LayoutMask>,
-    metrics: Cell<Option<LayoutMetricsSnapshot>>,
-    metrics_used: Cell<LayoutMask>,
+    measure_metrics: Option<LayoutMetricsSnapshot>,
+    measure_metrics_used: LayoutMask,
+    metrics: Option<LayoutMetricsSnapshot>,
+    metrics_used: LayoutMask,
 
-    outer_transform: Cell<PxTransform>,
-    inner_transform: Cell<PxTransform>,
-    rendered: Cell<Option<WidgetRenderInfo>>,
+    outer_transform: PxTransform,
+    inner_transform: PxTransform,
+    rendered: Option<WidgetRenderInfo>,
 
-    outer_bounds: Cell<PxRect>,
-    inner_bounds: Cell<PxRect>,
+    outer_bounds: PxRect,
+    inner_bounds: PxRect,
 
-    hit_clips: RefCell<HitTestClips>,
-    hit_index: Cell<u32>,
+    hit_clips: HitTestClips,
+    hit_index: u32,
 
-    is_in_bounds: Cell<Option<bool>>,
-    is_partially_culled: Cell<bool>,
-    cannot_auto_hide: Cell<bool>,
+    is_in_bounds: Option<bool>,
+    is_partially_culled: bool,
+    cannot_auto_hide: bool,
 }
 
 /// Info abound the last time a widget was rendered.
@@ -358,7 +360,7 @@ pub struct WidgetRenderInfo {
 ///
 /// Can be retrieved in the [`WidgetContextInfo`] and [`WidgetInfo`].
 #[derive(Default, Clone, Debug)]
-pub struct WidgetBoundsInfo(Rc<WidgetBoundsData>);
+pub struct WidgetBoundsInfo(Arc<Mutex<WidgetBoundsData>>);
 impl WidgetBoundsInfo {
     /// New default.
     pub fn new() -> Self {
@@ -405,16 +407,16 @@ impl WidgetBoundsInfo {
 
     /// Gets the widget's outer bounds offset inside the parent widget.
     pub fn outer_offset(&self) -> PxVector {
-        self.0.outer_offset.get()
+        self.0.lock().outer_offset
     }
 
     pub(crate) fn measure_outer_size(&self) -> PxSize {
-        self.0.measure_outer_size.get()
+        self.0.lock().measure_outer_size
     }
 
     /// Gets the widget's outer bounds size.
     pub fn outer_size(&self) -> PxSize {
-        self.0.outer_size.get()
+        self.0.lock().outer_size
     }
 
     /// Gets the widget's inner bounds offset inside the outer bounds.
@@ -424,7 +426,7 @@ impl WidgetBoundsInfo {
     /// [`inner_offset_baseline`]: Self::baseline
     /// [`baseline`]: Self::baseline
     pub fn inner_offset(&self) -> PxVector {
-        let mut r = self.0.inner_offset.get();
+        let mut r = self.0.lock().inner_offset;
         if self.inner_offset_baseline() {
             r.y += self.baseline();
         }
@@ -436,19 +438,19 @@ impl WidgetBoundsInfo {
     /// [`baseline`]: Self::baseline
     /// [`inner_offset`]: Self::inner_offset
     pub fn inner_offset_baseline(&self) -> bool {
-        self.0.inner_offset_baseline.get()
+        self.0.lock().inner_offset_baseline
     }
 
     /// Gets the widget's child offset inside the inner bounds.
     ///
     /// If the widget's child is another widget this is zero and the offset is added to that child's outer offset instead.
     pub fn child_offset(&self) -> PxVector {
-        self.0.child_offset.get()
+        self.0.lock().child_offset
     }
 
     /// Gets the widget's inner bounds size.
     pub fn inner_size(&self) -> PxSize {
-        self.0.inner_size.get()
+        self.0.lock().inner_size
     }
 
     /// The baseline offset up from the inner bounds bottom line.
@@ -458,29 +460,29 @@ impl WidgetBoundsInfo {
     /// [`inner_offset_baseline`]: Self::inner_offset_baseline
     /// [`inner_offset`]: Self::inner_offset
     pub fn baseline(&self) -> Px {
-        self.0.baseline.get()
+        self.0.lock().baseline
     }
 
     /// Gets the global transform of the widget's outer bounds during the last render or render update.
     pub fn outer_transform(&self) -> PxTransform {
-        self.0.outer_transform.get()
+        self.0.lock().outer_transform
     }
 
     /// Gets the global transform of the widget's inner bounds during the last render or render update.
     pub fn inner_transform(&self) -> PxTransform {
-        self.0.inner_transform.get()
+        self.0.lock().inner_transform
     }
 
     /// Gets the widget's latest render info, if it was rendered visible or hidden. Returns `None` if the widget was collapsed.
     pub fn rendered(&self) -> Option<WidgetRenderInfo> {
-        self.0.rendered.get()
+        self.0.lock().rendered
     }
 
     /// Gets if the [`inner_bounds`] are fully inside the parent inner bounds.
     ///
     /// [`inner_bounds`]: Self::inner_bounds
     pub fn is_in_bounds(&self) -> bool {
-        self.0.is_in_bounds.get().unwrap_or(false)
+        self.0.lock().is_in_bounds.unwrap_or(false)
     }
 
     /// Gets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
@@ -492,26 +494,27 @@ impl WidgetBoundsInfo {
     /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
     /// [`allow_auto_hide`]: WidgetLayoutTranslation::allow_auto_hide
     pub fn can_auto_hide(&self) -> bool {
-        !self.0.cannot_auto_hide.get()
+        !self.0.lock().cannot_auto_hide
     }
 
     fn set_can_auto_hide(&self, enabled: bool) {
-        self.0.cannot_auto_hide.set(!enabled)
+        self.0.lock().cannot_auto_hide = !enabled;
     }
 
     pub(super) fn is_actually_out_of_bounds(&self) -> bool {
-        self.0.is_in_bounds.get().map(|is| !is).unwrap_or(false)
+        self.0.lock().is_in_bounds.map(|is| !is).unwrap_or(false)
     }
 
     pub(super) fn set_rendered(&self, rendered: Option<WidgetRenderInfo>, info: &WidgetInfoTree) {
-        if self.0.rendered.get().map(|i| i.visible) != rendered.map(|i| i.visible) {
+        let mut m = self.0.lock();
+        if m.rendered.map(|i| i.visible) != rendered.map(|i| i.visible) {
             info.visibility_changed();
         }
-        self.0.rendered.set(rendered);
+        m.rendered = rendered;
     }
     #[cfg(test)]
     fn init_rendered(&self, rendered: Option<WidgetRenderInfo>) {
-        self.0.rendered.set(rendered);
+        self.0.lock().rendered = rendered;
     }
 
     pub(super) fn set_outer_transform(&self, transform: PxTransform, info: &WidgetInfoTree) {
@@ -520,12 +523,14 @@ impl WidgetBoundsInfo {
             .unwrap_or_default()
             .to_rect();
 
-        if self.0.outer_bounds.get().size.is_empty() != bounds.size.is_empty() {
+        let mut m = self.0.lock();
+
+        if m.outer_bounds.size.is_empty() != bounds.size.is_empty() {
             info.visibility_changed();
         }
 
-        self.0.outer_bounds.set(bounds);
-        self.0.outer_transform.set(transform);
+        m.outer_bounds = bounds;
+        m.outer_transform = transform;
     }
     #[cfg(test)]
     fn init_outer_transform(&self, transform: PxTransform) {
@@ -534,8 +539,10 @@ impl WidgetBoundsInfo {
             .unwrap_or_default()
             .to_rect();
 
-        self.0.outer_bounds.set(bounds);
-        self.0.outer_transform.set(transform);
+        let mut m = self.0.lock();
+
+        m.outer_bounds = bounds;
+        m.outer_transform = transform;
     }
 
     pub(super) fn set_inner_transform(
@@ -550,24 +557,26 @@ impl WidgetBoundsInfo {
             .unwrap_or_default()
             .to_rect();
 
-        if self.0.inner_bounds.get() != bounds {
-            self.0.inner_bounds.set(bounds);
+        let mut m = self.0.lock();
+
+        if m.inner_bounds != bounds {
+            m.inner_bounds = bounds;
             info.bounds_changed();
         }
         let in_bounds = parent_inner.map(|r| r.contains_rect(&bounds)).unwrap_or(true);
-        if let Some(prev) = self.0.is_in_bounds.get() {
+        if let Some(prev) = m.is_in_bounds {
             if prev != in_bounds {
-                self.0.is_in_bounds.set(Some(in_bounds));
+                m.is_in_bounds = Some(in_bounds);
                 info.in_bounds_changed(widget_id, in_bounds);
             }
         } else {
-            self.0.is_in_bounds.set(Some(in_bounds));
+            m.is_in_bounds = Some(in_bounds);
             if !in_bounds {
                 info.in_bounds_changed(widget_id, in_bounds);
             }
         }
 
-        self.0.inner_transform.set(transform);
+        m.inner_transform = transform;
     }
 
     #[cfg(test)]
@@ -577,18 +586,20 @@ impl WidgetBoundsInfo {
             .unwrap_or_default()
             .to_rect();
 
-        self.0.inner_bounds.set(bounds);
-        self.0.inner_transform.set(transform);
+        let mut m = self.0.lock();
+
+        m.inner_bounds = bounds;
+        m.inner_transform = transform;
     }
 
     /// Outer bounding box, updated after every render.
     pub fn outer_bounds(&self) -> PxRect {
-        self.0.outer_bounds.get()
+        self.0.lock().outer_bounds
     }
 
     /// Calculate the bounding box that envelops the actual size and position of the inner bounds last rendered.
     pub fn inner_bounds(&self) -> PxRect {
-        self.0.inner_bounds.get()
+        self.0.lock().inner_bounds
     }
 
     /// Last layout pass that updated the offsets or any of the descendant offsets.
@@ -599,10 +610,10 @@ impl WidgetBoundsInfo {
     ///
     /// [`widget_base::nodes::widget`]: crate::widget_base::nodes::widget
     pub fn offsets_pass(&self) -> LayoutPassId {
-        if self.0.childs_changed.get() {
-            self.0.working_pass.get()
+        if self.0.lock().childs_changed {
+            self.0.lock().working_pass
         } else {
-            self.0.offsets_pass.get()
+            self.0.lock().offsets_pass
         }
     }
 
@@ -615,21 +626,21 @@ impl WidgetBoundsInfo {
     /// [`LayoutMetrics`]: crate::context::LayoutMetrics
     /// [`metrics_used`]: Self::metrics_used
     pub fn metrics(&self) -> Option<LayoutMetricsSnapshot> {
-        self.0.metrics.get()
+        self.0.lock().metrics
     }
 
     /// All [`metrics`] fields used by the widget or descendants on the last layout.
     ///
     /// [`metrics`]: Self::metrics
     pub fn metrics_used(&self) -> LayoutMask {
-        self.0.metrics_used.get()
+        self.0.lock().metrics_used
     }
 
     /// Gets the relative hit-test Z for `window_point` against the hit-test shapes rendered for the widget.
     pub fn hit_test_z(&self, window_point: PxPoint) -> RelativeHitZ {
-        let hit_clips = self.0.hit_clips.borrow();
-        if hit_clips.is_hit_testable() {
-            hit_clips.hit_test_z(&self.0.inner_transform.get(), window_point)
+        let m = self.0.lock();
+        if m.hit_clips.is_hit_testable() {
+            m.hit_clips.hit_test_z(&m.inner_transform.get(), window_point)
         } else {
             RelativeHitZ::NoHit
         }
@@ -637,41 +648,44 @@ impl WidgetBoundsInfo {
 
     /// Index of this widget in the parent hit-test items.
     fn hit_test_index(&self) -> usize {
-        self.0.hit_index.get() as usize
+        self.0.lock().hit_index as usize
     }
 
     /// Returns `true` if a hit-test clip that affects the `child` removes the `window_point` hit on the child.
     pub fn hit_test_clip_child(&self, child: WidgetInfo, window_point: PxPoint) -> bool {
-        let hit_clips = self.0.hit_clips.borrow();
-        if hit_clips.is_hit_testable() {
-            hit_clips.clip_child(child.bounds_info().hit_test_index(), &self.0.inner_transform.get(), window_point)
+        let m = self.0.lock();
+        if m.hit_clips.is_hit_testable() {
+            m.hit_clips
+                .clip_child(child.bounds_info().hit_test_index(), &m.inner_transform.get(), window_point)
         } else {
             false
         }
     }
 
     pub(crate) fn update_hit_test_transform(&self, value: FrameValueUpdate<PxTransform>) {
-        self.0.hit_clips.borrow_mut().update_transform(value);
+        self.0.lock().hit_clips.update_transform(value);
     }
 
     pub(crate) fn measure_metrics(&self) -> Option<LayoutMetricsSnapshot> {
-        self.0.measure_metrics.get()
+        self.0.lock().measure_metrics
     }
     pub(crate) fn measure_metrics_used(&self) -> LayoutMask {
-        self.0.measure_metrics_used.get()
+        self.0.lock().measure_metrics_used
     }
 
     fn begin_pass(&self, pass: LayoutPassId) {
         // Record current state as previous state on the first call of the `pass`, see `Self::end_pass`.
 
-        if self.0.working_pass.get() != pass {
-            self.0.working_pass.set(pass);
-            self.0.childs_changed.set(false);
+        let mut m = self.0.lock();
 
-            self.0.prev_outer_offset.set(self.0.outer_offset.get());
-            self.0.prev_inner_offset.set(self.0.inner_offset.get());
-            self.0.prev_child_offset.set(self.0.child_offset.get());
-            self.0.prev_offsets_pass.set(self.0.offsets_pass.get());
+        if m.working_pass != pass {
+            m.working_pass = pass;
+            m.childs_changed = false;
+
+            m.prev_outer_offset = m.outer_offset;
+            m.prev_inner_offset = m.inner_offset;
+            m.prev_child_offset = m.child_offset;
+            m.prev_offsets_pass = m.offsets_pass;
         }
     }
 
@@ -685,24 +699,26 @@ impl WidgetBoundsInfo {
         // usage of `with_outer`, so an end pass can detect an intermediary value change, and return +1 to add to the parent,
         // then on the *intrinsic pass*, it detects that actually there was no change, and return -1 to fix the parent count.
 
+        let mut m = self.0.lock();
+
         // if actually changed from previous global pass
-        let changed = self.0.prev_outer_offset.get() != self.0.outer_offset.get()
-            || self.0.prev_inner_offset.get() != self.0.inner_offset.get()
-            || self.0.prev_child_offset.get() != self.0.child_offset.get();
+        let changed = m.prev_outer_offset.get() != m.outer_offset.get()
+            || m.prev_inner_offset.get() != m.inner_offset.get()
+            || m.prev_child_offset.get() != m.child_offset.get();
 
         // if already processed one end_pass request and returned +1
-        let believed_changed = self.0.offsets_pass.get() == self.0.working_pass.get();
+        let believed_changed = m.offsets_pass.get() == m.working_pass.get();
 
         if changed {
             if believed_changed {
                 0 // already updated, no need to add to the parent counter.
             } else {
                 //
-                self.0.offsets_pass.set(self.0.working_pass.get());
+                m.offsets_pass = m.working_pass.get();
                 1
             }
         } else if believed_changed {
-            self.0.offsets_pass.set(self.0.prev_offsets_pass.get());
+            m.offsets_pass = m.prev_offsets_pass.get();
             -1 // second intrinsic pass returned value to previous, need to remove one from the parent counter.
         } else {
             0 // did not update the parent incorrectly.
@@ -710,77 +726,77 @@ impl WidgetBoundsInfo {
     }
 
     fn set_changed_child(&self) {
-        self.0.childs_changed.set(true);
+        self.0.lock().childs_changed = true;
     }
 
     fn set_outer_offset(&self, offset: PxVector) {
-        self.0.outer_offset.set(offset);
+        self.0.lock().outer_offset = offset;
     }
 
     fn set_outer_size(&self, size: PxSize) {
-        self.0.outer_size.set(size);
+        self.0.lock().outer_size = size;
     }
 
     pub(crate) fn set_measure_outer_size(&self, size: PxSize) {
-        self.0.measure_outer_size.set(size);
+        self.0.lock().measure_outer_size = size;
     }
 
     fn set_inner_offset(&self, offset: PxVector) {
-        self.0.inner_offset.set(offset);
+        self.0.lock().inner_offset = offset;
     }
 
     fn set_child_offset(&self, offset: PxVector) {
-        self.0.child_offset.set(offset);
+        self.0.lock().child_offset = offset;
     }
 
     fn set_inner_size(&self, size: PxSize) {
-        self.0.inner_size.set(size);
+        self.0.lock().inner_size = size;
     }
 
     fn set_baseline(&self, baseline: Px) {
-        self.0.baseline.set(baseline);
+        self.0.lock().baseline = baseline;
     }
 
     fn set_inner_offset_baseline(&self, enabled: bool) {
-        self.0.inner_offset_baseline.set(enabled);
+        self.0.lock().inner_offset_baseline = enabled;
     }
 
     fn set_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
-        self.0.metrics.set(metrics);
-        self.0.metrics_used.set(used);
+        self.0.lock().metrics = metrics;
+        self.0.lock().metrics_used = used;
     }
 
     pub(crate) fn set_measure_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
-        self.0.measure_metrics.set(metrics);
-        self.0.measure_metrics_used.set(used);
+        self.0.lock().measure_metrics = metrics;
+        self.0.lock().measure_metrics_used = used;
     }
 
     pub(crate) fn set_hit_clips(&self, clips: HitTestClips) {
-        *self.0.hit_clips.borrow_mut() = clips;
+        *self.0.lock().hit_clips = clips;
     }
 
     pub(crate) fn set_hit_index(&self, index: usize) {
-        self.0.hit_index.set(index as u32);
+        self.0.lock().hit_index = index as u32;
     }
 
     pub(crate) fn is_partially_culled(&self) -> bool {
-        self.0.is_partially_culled.get()
+        self.0.lock().is_partially_culled
     }
 
     pub(crate) fn set_is_partially_culled(&self, is: bool) {
-        self.0.is_partially_culled.set(is);
+        self.0.lock().is_partially_culled = is;
     }
 }
 
 #[derive(Default, Debug)]
 struct WidgetBorderData {
-    offsets: Cell<PxSideOffsets>,
-    corner_radius: Cell<PxCornerRadius>,
+    offsets: PxSideOffsets,
+    corner_radius: PxCornerRadius,
 }
 
 /// Shared reference to the combined *border* and corner radius of a [`WidgetInfo`].
 #[derive(Default, Clone, Debug)]
-pub struct WidgetBorderInfo(Rc<WidgetBorderData>);
+pub struct WidgetBorderInfo(Arc<Mutex<WidgetBorderData>>);
 impl WidgetBorderInfo {
     /// New default.
     pub fn new() -> Self {
@@ -798,12 +814,12 @@ impl WidgetBorderInfo {
 
     /// Sum of the widths of all borders set on the widget.
     pub fn offsets(&self) -> PxSideOffsets {
-        self.0.offsets.get()
+        self.0.lock().offsets
     }
 
     /// Corner radius set on the widget, this is the *outer* curve of border corners.
     pub fn corner_radius(&self) -> PxCornerRadius {
-        self.0.corner_radius.get()
+        self.0.lock().corner_radius
     }
 
     /// Computes the [`corner_radius`] deflated by [`offsets`], this is the *inner* curve of border corners.
@@ -841,11 +857,11 @@ impl WidgetBorderInfo {
     }
 
     pub(super) fn set_offsets(&self, widths: PxSideOffsets) {
-        self.0.offsets.set(widths);
+        self.0.lock().offsets = widths;
     }
 
     pub(super) fn set_corner_radius(&self, radius: PxCornerRadius) {
-        self.0.corner_radius.set(radius)
+        self.0.lock().corner_radius = radius;
     }
 }
 

@@ -2,9 +2,7 @@
 
 use std::{
     any::{Any, TypeId},
-    cell::RefCell,
     fmt, ops,
-    rc::Rc,
     sync::Arc,
 };
 
@@ -354,11 +352,11 @@ pub enum InputKind {
 /// context that spawned then. This `struct` is cloneable to support handler properties in styleable widgets, but the
 /// general expectation is that the handler will be used on one property instance at a time.
 #[derive(Clone)]
-pub struct RcWidgetHandler<A: Clone + 'static>(Rc<RefCell<dyn WidgetHandler<A>>>);
+pub struct RcWidgetHandler<A: Clone + 'static>(Arc<Mutex<dyn WidgetHandler<A>>>);
 impl<A: Clone + 'static> RcWidgetHandler<A> {
     /// New from `handler`.
     pub fn new(handler: impl WidgetHandler<A>) -> Self {
-        Self(Rc::new(RefCell::new(handler)))
+        Self(Arc::new(Mutex::new(handler)))
     }
 }
 impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
@@ -577,7 +575,7 @@ impl PropertyInput {
 }
 
 /// Represents a property instantiation request.
-pub trait PropertyArgs {
+pub trait PropertyArgs: Send + Sync {
     /// Clones the arguments.
     fn clone_boxed(&self) -> Box<dyn PropertyArgs>;
 
@@ -1164,7 +1162,7 @@ enum WidgetItem {
     },
     Intrinsic {
         name: &'static str,
-        new: Box<dyn FnOnce(BoxedUiNode) -> BoxedUiNode>,
+        new: Box<dyn FnOnce(BoxedUiNode) -> BoxedUiNode + Send + Sync>,
     },
 }
 impl Clone for WidgetItem {
@@ -1192,8 +1190,8 @@ pub struct WidgetBuilder {
     unset: LinearMap<PropertyId, Importance>,
     whens: Vec<WhenItemPositioned>,
     when_insert_idx: u32,
-    build_actions: Vec<Rc<RefCell<dyn FnMut(&mut WidgetBuilding)>>>,
-    custom_build: Option<Rc<RefCell<dyn FnMut(WidgetBuilder) -> BoxedUiNode>>>,
+    build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
+    custom_build: Option<Arc<Mutex<dyn FnMut(WidgetBuilder) -> BoxedUiNode + Send>>>,
 }
 impl Clone for WidgetBuilder {
     fn clone(&self) -> Self {
@@ -1357,8 +1355,8 @@ impl WidgetBuilder {
     }
 
     /// Add an `action` closure that is called every time this builder or a clone of it builds a widget instance.
-    pub fn push_build_action(&mut self, action: impl FnMut(&mut WidgetBuilding) + 'static) {
-        self.build_actions.push(Rc::new(RefCell::new(action)))
+    pub fn push_build_action(&mut self, action: impl FnMut(&mut WidgetBuilding) + Send + 'static) {
+        self.build_actions.push(Arc::new(Mutex::new(action)))
     }
 
     /// Remove all registered build actions.
@@ -1377,8 +1375,8 @@ impl WidgetBuilder {
     ///
     /// [`build`]: Self::build
     /// [`default_build`]: Self::default_build
-    pub fn set_custom_build<R: UiNode>(&mut self, mut build: impl FnMut(WidgetBuilder) -> R + 'static) {
-        self.custom_build = Some(Rc::new(RefCell::new(move |b| build(b).boxed())));
+    pub fn set_custom_build<R: UiNode>(&mut self, mut build: impl FnMut(WidgetBuilder) -> R + Send + 'static) {
+        self.custom_build = Some(Arc::new(Mutex::new(move |b| build(b).boxed())));
     }
 
     /// Remove the custom build handler, if any was set.

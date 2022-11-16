@@ -530,13 +530,13 @@ mod helpers {
     pub fn with_context_var_init<T: VarValue>(
         child: impl UiNode,
         var: ContextVar<T>,
-        init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
+        init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + Send + 'static,
     ) -> impl UiNode {
         #[ui_node(struct WithContextVarInitNode<T: VarValue> {
             child: impl UiNode,
             context_var: ContextVar<T>,
             id: Option<ContextInitHandle>,
-            init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + 'static,
+            init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + Send + 'static,
             value: RefCell<Option<BoxedVar<T>>>,
         })]
         impl WithContextVarInitNode {
