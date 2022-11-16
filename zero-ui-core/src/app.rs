@@ -789,20 +789,20 @@ impl<E: AppExtension> AppExtended<E> {
 /// Represents a running app controlled by an external event loop.
 struct RunningApp<E: AppExtension> {
     extensions: (AppIntrinsic, E),
-    
+
     device_events: bool,
     owned_ctx: OwnedAppContext,
     receiver: flume::Receiver<AppEvent>,
 
     loop_timer: LoopTimer,
     loop_monitor: LoopMonitor,
-    
+
     pending_view_events: Vec<zero_ui_view_api::Event>,
     pending_view_frame_events: Vec<zero_ui_view_api::EventFrameRendered>,
     pending_app_events: Vec<EventUpdate>,
     pending_layout: bool,
     pending_render: bool,
-    
+
     // cleans on drop
     scope: AppScope,
 }

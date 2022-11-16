@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt, sync::Arc};
+use std::{cell::RefCell, fmt, mem, sync::Arc, thread::ThreadId};
 
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -203,6 +203,146 @@ macro_rules! app_local {
 pub use app_local;
 
 use crate::{
-    crate_util::{IdNameError, NameIdMap},
+    crate_util::{IdNameError, NameIdMap, RunOnDrop},
     text::Text,
 };
+
+/// Represents an [`AppLocal<T>`] value that can be temporarily overridden in a context.
+///
+/// The *context* works across threads, as long as the threads are instrumented using [`ThreadContext`].
+pub struct ContextLocal<T: Send + Sync + 'static> {
+    data: AppLocal<Vec<(ThreadId, T)>>,
+    default: RwLock<Option<T>>,
+    init: fn() -> T,
+}
+impl<T: Send + Sync + 'static> ContextLocal<T> {
+    #[doc(hidden)]
+    pub const fn new(init: fn() -> T) -> Self {
+        Self {
+            data: AppLocal::new(Vec::new),
+            default: RwLock::new(None),
+            init,
+        }
+    }
+
+    /// Calls `f` with the `value` loaded in context.
+    pub fn with_override<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
+        let new_value = value.take().expect("no override provided");
+        let thread_id = std::thread::current().id();
+
+        let i;
+        let prev_value;
+
+        let mut write = self.data.write();
+        if let Some(idx) = write.iter_mut().position(|(id, _)| *id == thread_id) {
+            // already contextualized in this thread
+
+            i = idx;
+            prev_value = mem::replace(&mut write[i].1, new_value);
+
+            drop(write);
+
+            let _restore = RunOnDrop::new(move || {
+                let mut write = self.data.write();
+                *value = Some(mem::replace(&mut write[i].1, prev_value));
+            });
+
+            f()
+        } else {
+            // first contextualization in this thread
+            write.push((thread_id, new_value));
+
+            let _restore = RunOnDrop::new(move || {
+                let mut write = self.data.write();
+                let i = write.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
+                *value = Some(write.swap_remove(i).1);
+            });
+
+            f()
+        }
+    }
+
+    /// Read the contextual value.
+    pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
+        let read = self.data.read();
+        for thread_id in ThreadContext::capture().context() {
+            if let Some(i) = read.iter().position(|(id, _)| id == thread_id) {
+                // contextualized in thread or task parent thread.
+                return MappedRwLockReadGuard::map(read, move |v| &v[i].1);
+            }
+        }
+        drop(read);
+
+        let read = self.default.read_recursive();
+        if read.is_some() {
+            return RwLockReadGuard::map(read, move |v| v.as_ref().unwrap());
+        }
+        drop(read);
+
+        let mut write = self.default.write();
+        *write = Some((self.init)());
+        let read = RwLockWriteGuard::downgrade(write);
+        RwLockReadGuard::map(read, move |v| v.as_ref().unwrap())
+    }
+}
+
+/// Tracks current thread and current task *owner* threads.
+pub struct ThreadContext {
+    context: Vec<ThreadId>,
+}
+thread_local! {
+    static THREAD_CONTEXT: RefCell<Vec<ThreadId>> = RefCell::new(vec![]);
+}
+impl ThreadContext {
+    /// The current thread, followed by the thread that logically *owns* the current executing task, recursive over nested tasks.
+    pub fn context(&self) -> &[ThreadId] {
+        &self.context
+    }
+
+    /// Capture the current context.
+    ///
+    /// A context must be captured and recorded by tasks that may run in other threads, the context can then be loaded
+    /// in the other thread using [`with_context`].
+    ///
+    /// [`with_context`]: ThreadContext::with_context
+    pub fn capture() -> ThreadContext {
+        THREAD_CONTEXT.with(|s| {
+            let mut r = ThreadContext {
+                context: s.borrow().clone(),
+            };
+            let current = std::thread::current().id();
+            if r.context.last() != Some(&current) {
+                r.context.push(current);
+            }
+            r
+        })
+    }
+
+    /// Runs `f` within the context.
+    ///
+    /// This method must be used every time there is the possibility that the caller is running in a different thread.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::thread;
+    /// use zero_ui_core::app::ThreadContext;
+    ///
+    /// let outer_id = thread::current().id();
+    /// let ctx = ThreadContext::capture();
+    ///
+    /// assert_eq!(&[outer_id], ctx.context());
+    ///
+    /// thread::spawn(|| ctx.with_context(|| {
+    ///     let inner_id = thread::current().id();
+    ///     let ctx = ThreadContext::capture();
+    ///
+    ///     assert_eq!(&[inner_id, outer_id], ctx.context());
+    /// })).join();
+    /// ```
+    pub fn with_context<R>(&self, f: impl FnOnce() -> R) -> R {
+        let prev = THREAD_CONTEXT.with(|s| mem::replace(&mut *s.borrow_mut(), self.context.clone()));
+        let _restore = RunOnDrop::new(move || THREAD_CONTEXT.with(|s| *s.borrow_mut() = prev));
+        f()
+    }
+}
