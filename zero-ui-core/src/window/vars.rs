@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use linear_map::set::LinearSet;
 
@@ -79,7 +79,7 @@ pub(super) struct WindowVarsData {
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
     pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor) -> Self {
-        let vars = Rc::new(WindowVarsData {
+        let vars = Arc::new(WindowVarsData {
             chrome: var(WindowChrome::Default),
             icon: var(WindowIcon::Default),
             actual_icon: var(None),
@@ -137,7 +137,7 @@ impl WindowVars {
     }
 
     pub(super) fn clone(&self) -> Self {
-        Self(Rc::clone(&self.0))
+        Self(Arc::clone(&self.0))
     }
 
     /// Require the window vars from the window state.

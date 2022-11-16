@@ -7,7 +7,6 @@ use std::{
     marker::PhantomData,
     mem,
     ops::Deref,
-    rc::Rc,
     thread::LocalKey,
     time::Instant, sync::{atomic::{AtomicBool, Ordering}, Arc},
 };
@@ -35,6 +34,7 @@ mod channel;
 pub use channel::*;
 
 mod properties;
+use parking_lot::Mutex;
 pub use properties::*;
 
 ///<span data-del-macro-root></span> Declares new [`Event<A>`] keys.
@@ -304,7 +304,7 @@ impl<A: EventArgs> Event<A> {
     }
 
     fn on_event_impl(&self, handler: impl AppHandler<A>, is_preview: bool) -> EventHandle {
-        let handler = Rc::new(RefCell::new(handler));
+        let handler = Arc::new(Mutex::new(handler));
         let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
         self.as_any().hook(move |_, update| {
             if inner_handle_owner.is_dropped() {
@@ -316,7 +316,7 @@ impl<A: EventArgs> Event<A> {
                 Box::new(clone_move!(handler, |ctx, update| {
                     let args = update.args().as_any().downcast_ref::<A>().unwrap();
                     if !args.propagation().is_stopped() {
-                        handler.borrow_mut().event(
+                        handler.lock().event(
                             ctx,
                             args,
                             &AppHandlerArgs {
@@ -331,30 +331,6 @@ impl<A: EventArgs> Event<A> {
 
             true
         })
-    }
-
-    /// Create a buffer that retains a clone of each notified args until it is drained.
-    ///
-    /// New args are pushed to the buffer as soon as the event update cycle starts. Note that the buffer
-    /// is UI thread bound, you can use a [`receiver`] instead for `Send` args.
-    ///
-    /// [`receiver`]: Self::receiver
-    pub fn buffer(&self) -> EventBuffer<A> {
-        let buf = EventBuffer::never(*self);
-        let weak = Rc::downgrade(&buf.queue);
-
-        self.as_any()
-            .hook(move |_, update| match weak.upgrade() {
-                Some(rc) => {
-                    rc.borrow_mut()
-                        .push_back(update.args().as_any().downcast_ref::<A>().unwrap().clone());
-                    true
-                }
-                None => false,
-            })
-            .perm();
-
-        buf
     }
 
     /// Creates a receiver that can listen to the event from another thread. The event updates are sent as soon as the
@@ -429,11 +405,11 @@ impl AnyEvent {
     }
 
     /// Register a callback that is called just before an event begins notifying.
-    pub fn hook(&self, hook: impl Fn(&mut Events, &mut EventUpdate) -> bool + 'static) -> EventHandle {
+    pub fn hook(&self, hook: impl Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync + 'static) -> EventHandle {
         self.init_app();
         self.hook_impl(Box::new(hook))
     }
-    fn hook_impl(&self, hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool>) -> EventHandle {
+    fn hook_impl(&self, hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync>) -> EventHandle {
         let (handle, hook) = EventHandle::new(hook);
         self.local.with(move |l| l.hooks.borrow_mut().push(hook));
         handle

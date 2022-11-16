@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc, time::Duration};
+use std::time::Duration;
 
 use crate::{
     app::{AppDisconnected, AppEventSender, RecvFut, TimeoutOrAppDisconnected},
@@ -193,58 +193,5 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.receiver.into_iter()
-    }
-}
-
-/// A buffered event listener.
-///
-/// This `struct` is a refence to the buffer, clones of it point to the same buffer. This `struct`
-/// is not `Send`, you can use an [`Event::receiver`] for that.
-#[derive(Clone)]
-pub struct EventBuffer<A: EventArgs> {
-    event: Event<A>,
-    pub(super) queue: Rc<RefCell<VecDeque<A>>>,
-}
-impl<A: EventArgs> EventBuffer<A> {
-    /// If there are any updates in the buffer.
-    pub fn has_updates(&self) -> bool {
-        !RefCell::borrow(&self.queue).is_empty()
-    }
-
-    /// Take the oldest event in the buffer.
-    pub fn pop_oldest(&self) -> Option<A> {
-        self.queue.borrow_mut().pop_front()
-    }
-
-    /// Take the oldest `n` events from the buffer.
-    ///
-    /// The result is sorted from oldest to newer.
-    pub fn pop_oldest_n(&self, n: usize) -> Vec<A> {
-        self.queue.borrow_mut().drain(..n).collect()
-    }
-
-    /// Take all the events from the buffer.
-    ///
-    /// The result is sorted from oldest to newest.
-    pub fn pop_all(&self) -> Vec<A> {
-        self.queue.borrow_mut().drain(..).collect()
-    }
-
-    /// Create an empty buffer that will always stay empty.
-    pub fn never(event: Event<A>) -> Self {
-        EventBuffer {
-            event,
-            queue: Default::default(),
-        }
-    }
-
-    /// Event that is buffered.
-    pub fn event(&self) -> Event<A> {
-        self.event
-    }
-}
-impl<A: EventArgs> fmt::Debug for EventBuffer<A> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "EventBuffer({:?})", self.event)
     }
 }

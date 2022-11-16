@@ -640,7 +640,7 @@ impl WidgetBoundsInfo {
     pub fn hit_test_z(&self, window_point: PxPoint) -> RelativeHitZ {
         let m = self.0.lock();
         if m.hit_clips.is_hit_testable() {
-            m.hit_clips.hit_test_z(&m.inner_transform.get(), window_point)
+            m.hit_clips.hit_test_z(&m.inner_transform, window_point)
         } else {
             RelativeHitZ::NoHit
         }
@@ -656,7 +656,7 @@ impl WidgetBoundsInfo {
         let m = self.0.lock();
         if m.hit_clips.is_hit_testable() {
             m.hit_clips
-                .clip_child(child.bounds_info().hit_test_index(), &m.inner_transform.get(), window_point)
+                .clip_child(child.bounds_info().hit_test_index(), &m.inner_transform, window_point)
         } else {
             false
         }
@@ -702,23 +702,23 @@ impl WidgetBoundsInfo {
         let mut m = self.0.lock();
 
         // if actually changed from previous global pass
-        let changed = m.prev_outer_offset.get() != m.outer_offset.get()
-            || m.prev_inner_offset.get() != m.inner_offset.get()
-            || m.prev_child_offset.get() != m.child_offset.get();
+        let changed = m.prev_outer_offset != m.outer_offset
+            || m.prev_inner_offset != m.inner_offset
+            || m.prev_child_offset != m.child_offset;
 
         // if already processed one end_pass request and returned +1
-        let believed_changed = m.offsets_pass.get() == m.working_pass.get();
+        let believed_changed = m.offsets_pass == m.working_pass;
 
         if changed {
             if believed_changed {
                 0 // already updated, no need to add to the parent counter.
             } else {
                 //
-                m.offsets_pass = m.working_pass.get();
+                m.offsets_pass = m.working_pass;
                 1
             }
         } else if believed_changed {
-            m.offsets_pass = m.prev_offsets_pass.get();
+            m.offsets_pass = m.prev_offsets_pass;
             -1 // second intrinsic pass returned value to previous, need to remove one from the parent counter.
         } else {
             0 // did not update the parent incorrectly.
@@ -772,7 +772,7 @@ impl WidgetBoundsInfo {
     }
 
     pub(crate) fn set_hit_clips(&self, clips: HitTestClips) {
-        *self.0.lock().hit_clips = clips;
+        self.0.lock().hit_clips = clips;
     }
 
     pub(crate) fn set_hit_index(&self, index: usize) {

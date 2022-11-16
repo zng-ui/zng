@@ -241,7 +241,10 @@ pub fn default_no_child() {
 }
 
 mod util {
-    use std::{cell::RefCell, rc::Rc};
+    use std::{
+        sync::Arc,
+    };
+    use parking_lot::Mutex;
 
     use crate::{
         context::{
@@ -258,7 +261,7 @@ mod util {
 
     pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();
 
-    type TraceRef = Rc<RefCell<Vec<&'static str>>>;
+    type TraceRef = Arc<Mutex<Vec<&'static str>>>;
 
     /// Asserts that only `method` was traced and clears the trace.
     #[macro_export]
@@ -269,7 +272,7 @@ mod util {
                 if let Some(db) = ctx.widget_state.get(&util::TRACE_ID) {
                     for (i, trace_ref) in db.iter().enumerate() {
                         let mut any = false;
-                        for trace_entry in trace_ref.borrow_mut().drain(..) {
+                        for trace_entry in trace_ref.lock().drain(..) {
                             assert_eq!(trace_entry, method, "tracer_0 traced `{trace_entry}`, expected only `{method}`");
                             any = true;
                         }
@@ -292,7 +295,7 @@ mod util {
                 if let Some(db) = ctx.widget_state.get(&util::TRACE_ID) {
                     for (i, trace_ref) in db.iter().enumerate() {
                         let mut any = false;
-                        for trace_entry in trace_ref.borrow().iter() {
+                        for trace_entry in trace_ref.lock().iter() {
                             assert!(any, "tracer_{i} traced `{trace_entry}`, expected nothing");
                             any = true;
                         }
@@ -312,7 +315,7 @@ mod util {
     }
     impl TestTraceNode {
         fn test_trace(&self, method: &'static str) {
-            self.trace.borrow_mut().push(method);
+            self.trace.lock().push(method);
         }
 
         pub fn notify_render_update(wgt: &mut impl UiNode, ctx: &mut TestWidgetContext) {
@@ -324,8 +327,8 @@ mod util {
     impl UiNode for TestTraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             let db = ctx.widget_state.entry(&TRACE_ID).or_default();
-            assert!(db.iter().all(|t| !Rc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
-            db.push(Rc::clone(&self.trace));
+            assert!(db.iter().all(|t| !Arc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
+            db.push(Arc::clone(&self.trace));
 
             self.test_trace("init");
         }

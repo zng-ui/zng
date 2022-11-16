@@ -361,11 +361,11 @@ impl<A: Clone + 'static> RcWidgetHandler<A> {
 }
 impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
     fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
-        self.0.borrow_mut().event(ctx, args)
+        self.0.lock().event(ctx, args)
     }
 
     fn update(&mut self, ctx: &mut crate::context::WidgetContext) -> bool {
-        self.0.borrow_mut().update(ctx)
+        self.0.lock().update(ctx)
     }
 }
 
@@ -1544,9 +1544,9 @@ impl WidgetBuilder {
     /// [`default_build`]: Self::default_build
     pub fn build(self) -> BoxedUiNode {
         if let Some(cust) = self.custom_build.clone() {
-            match cust.try_borrow_mut() {
-                Ok(mut c) => c(self),
-                Err(_) => self.default_build(),
+            match cust.try_lock() {
+                Some(mut c) => c(self),
+                None => self.default_build(),
             }
         } else {
             self.default_build()
@@ -1578,7 +1578,7 @@ impl WidgetBuilder {
         }
 
         for action in self.build_actions {
-            (action.borrow_mut())(&mut building);
+            (action.lock())(&mut building);
         }
 
         building.build()
@@ -1661,7 +1661,12 @@ impl WidgetBuilding {
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     ///
     /// The `name` is used for inspector/trace only.
-    pub fn push_intrinsic<I: UiNode>(&mut self, group: NestGroup, name: &'static str, intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static) {
+    pub fn push_intrinsic<I: UiNode>(
+        &mut self,
+        group: NestGroup,
+        name: &'static str,
+        intrinsic: impl FnOnce(BoxedUiNode) -> I + Send + Sync + 'static,
+    ) {
         self.push_intrinsic_positioned(NestPosition::intrinsic(group), name, intrinsic)
     }
 
@@ -1672,7 +1677,7 @@ impl WidgetBuilding {
         &mut self,
         position: NestPosition,
         name: &'static str,
-        intrinsic: impl FnOnce(BoxedUiNode) -> I + 'static,
+        intrinsic: impl FnOnce(BoxedUiNode) -> I + Send + Sync + 'static,
     ) {
         self.items.push(WidgetItemPositioned {
             position,

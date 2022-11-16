@@ -39,7 +39,7 @@ impl<U: UiNode> AdoptiveNode<U> {
     /// Returns the previous child, the initial child is a [`NilUiNode`].
     pub fn replace_child(&mut self, new_child: impl UiNode) -> BoxedUiNode {
         assert!(!self.is_inited);
-        mem::replace(&mut *self.child.borrow_mut(), new_child.boxed())
+        mem::replace(&mut *self.child.lock(), new_child.boxed())
     }
 
     /// Returns `true` if this node is initialized in a UI tree.

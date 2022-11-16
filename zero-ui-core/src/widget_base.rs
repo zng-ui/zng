@@ -259,6 +259,7 @@ pub mod nodes {
     ///
     /// [`base`]: mod@base
     pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
+        #[derive(Default)]
         struct MtxData {
             pending_updates: InfoLayoutRenderUpdates,
             offsets_pass: LayoutPassId,
@@ -292,7 +293,7 @@ pub mod nodes {
                     &mut self.event_handles,
                     |ctx| self.child.init(ctx),
                 );
-                *self.m.get_mut().pending_updates.get_mut() = InfoLayoutRenderUpdates::all();
+                self.m.get_mut().pending_updates = InfoLayoutRenderUpdates::all();
 
                 #[cfg(debug_assertions)]
                 {
@@ -314,7 +315,7 @@ pub mod nodes {
                     &mut self.event_handles,
                     |ctx| self.child.deinit(ctx),
                 );
-                self.m.get_mut().pending_updates.get_mut() = InfoLayoutRenderUpdates::none();
+                self.m.get_mut().pending_updates = InfoLayoutRenderUpdates::none();
                 self.var_handles.clear();
                 self.var_handles.clear();
                 self.m.get_mut().reuse = None;
@@ -360,7 +361,7 @@ pub mod nodes {
                         });
                     },
                 );
-                self.get_mut().pending_updates |= updates;
+                self.m.get_mut().pending_updates |= updates;
 
                 if reinit {
                     self.deinit(ctx);
@@ -386,7 +387,7 @@ pub mod nodes {
                         });
                     },
                 );
-                self.get_mut().pending_updates |= updates;
+                self.m.get_mut().pending_updates |= updates;
 
                 if reinit {
                     self.deinit(ctx);
@@ -400,7 +401,7 @@ pub mod nodes {
                     tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
                 }
 
-                let reuse = !self.pending_updates.borrow().layout;
+                let reuse = !self.m.lock().pending_updates.layout;
 
                 ctx.with_widget(self.id, &self.info, &self.state, reuse, |ctx| self.child.measure(ctx))
             }
@@ -428,8 +429,7 @@ pub mod nodes {
                 }
 
                 let mut m = self.m.lock();
-                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass()
-                {
+                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass() {
                     // cannot reuse.
                     m.reuse = None;
                     m.offsets_pass = self.info.bounds.offsets_pass();
@@ -448,8 +448,7 @@ pub mod nodes {
 
                 let mut m = self.m.lock();
                 let mut reuse = true;
-                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass()
-                {
+                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass() {
                     reuse = false;
                     m.offsets_pass = self.info.bounds.offsets_pass();
                 }

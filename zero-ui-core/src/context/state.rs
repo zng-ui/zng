@@ -499,7 +499,7 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct OccupiedStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::OccupiedEntry<'a, u64, Box<dyn Any>>,
+        entry: std::collections::hash_map::OccupiedEntry<'a, u64, Box<dyn Any + Send>>,
     }
     impl<'a, T: StateValue> OccupiedStateMapEntry<'a, T> {
         /// Gets a reference to the value in the entry.
@@ -550,7 +550,7 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct VacantStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::VacantEntry<'a, u64, Box<dyn Any>>,
+        entry: std::collections::hash_map::VacantEntry<'a, u64, Box<dyn Any + Send>>,
     }
     impl<'a, T: StateValue> VacantStateMapEntry<'a, T> {
         /// Sets the value of the entry and returns a mutable reference to it.

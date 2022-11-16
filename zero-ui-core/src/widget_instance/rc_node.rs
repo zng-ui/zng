@@ -154,12 +154,12 @@ impl<U: UiNode> RcNode<U> {
 
     /// Calls `f` in the context of the node, it it can be locked and is a full widget.
     pub fn try_context<R>(&self, f: impl FnOnce(&mut WidgetNodeContext) -> R) -> Option<R> {
-        self.0.item.try_lock().ok()?.with_context(f)
+        self.0.item.try_lock()?.with_context(f)
     }
 
     /// Calls `f` in the context of the node, it it can be locked and is a full widget.
     pub fn try_context_mut<R>(&self, f: impl FnOnce(&mut WidgetNodeMutContext) -> R) -> Option<R> {
-        self.0.item.try_lock().ok()?.with_context_mut(f)
+        self.0.item.try_lock()?.with_context_mut(f)
     }
 }
 
@@ -287,14 +287,14 @@ impl<L: UiNodeList> RcNodeList<L> {
 
     /// Iterate over node contexts, if the list can be locked and the node is a full widget.
     pub fn for_each_ctx(&self, mut f: impl FnMut(usize, &mut WidgetNodeContext) -> bool) {
-        if let Ok(list) = self.0.item.try_lock() {
+        if let Some(list) = self.0.item.try_lock() {
             list.for_each(|i, n| n.with_context(|ctx| f(i, ctx)).unwrap_or(true))
         }
     }
 
     /// Iterate over node contexts, if the list can be locked and the node is a full widget.
     pub fn for_each_ctx_mut(&self, mut f: impl FnMut(usize, &mut WidgetNodeMutContext) -> bool) {
-        if let Ok(mut list) = self.0.item.try_lock() {
+        if let Some(mut list) = self.0.item.try_lock() {
             list.for_each_mut(|i, n| n.with_context_mut(|ctx| f(i, ctx)).unwrap_or(true))
         }
     }
@@ -512,7 +512,7 @@ mod impls {
         fn is_owner(&self) -> bool {
             self.rc
                 .slots
-                .borrow()
+                .lock()
                 .owner
                 .as_ref()
                 .map(|(sl, _, _)| *sl == self.slot)
@@ -521,7 +521,7 @@ mod impls {
 
         fn delegate_owned<R>(&self, del: impl FnOnce(&U) -> R) -> Option<R> {
             if self.is_owner() {
-                Some(del(&*self.rc.item.borrow()))
+                Some(del(&*self.rc.item.lock()))
             } else {
                 None
             }
