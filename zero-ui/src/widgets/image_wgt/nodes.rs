@@ -170,7 +170,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 // init or generator changed.
                 if let Some(e) = CONTEXT_IMAGE_VAR.get().error() {
                     DataUpdate::Update(ImageErrorArgs {
-                        error: e.to_owned().into(),
+                        error: e,
                     })
                 } else {
                     DataUpdate::None
@@ -179,7 +179,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 // image var update.
                 if let Some(e) = new.error() {
                     DataUpdate::Update(ImageErrorArgs {
-                        error: e.to_owned().into(),
+                        error: e,
                     })
                 } else {
                     DataUpdate::None

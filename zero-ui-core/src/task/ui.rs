@@ -18,7 +18,7 @@ impl<'a> AppContext<'a> {
     pub fn async_task<R, F, T>(&mut self, task: T) -> AppTask<R>
     where
         R: 'static,
-        F: Future<Output = R> + Send + Sync + 'static,
+        F: Future<Output = R> + Send + 'static,
         T: FnOnce(AppContextMut) -> F,
     {
         AppTask::new(self, task)
@@ -33,7 +33,7 @@ impl<'a> WidgetContext<'a> {
     pub fn async_task<R, F, T>(&mut self, task: T) -> WidgetTask<R>
     where
         R: 'static,
-        F: Future<Output = R> + Send + Sync + 'static,
+        F: Future<Output = R> + Send + 'static,
         T: FnOnce(WidgetContextMut) -> F,
     {
         WidgetTask::new(self, task)
@@ -42,7 +42,7 @@ impl<'a> WidgetContext<'a> {
 
 enum UiTaskState<R> {
     Pending {
-        future: Pin<Box<dyn Future<Output = R> + Send + Sync>>,
+        future: Pin<Box<dyn Future<Output = R> + Send>>,
         event_loop_waker: Waker,
     },
     Ready(R),
@@ -77,7 +77,10 @@ impl<R> UiTask<R> {
     /// [`UiNode::update`]: crate::widget_instance::UiNode::update
     /// [`UiNode::info`]: crate::widget_instance::UiNode::info
     /// [`subscribe`]: Self::subscribe
-    pub fn new<F: Future<Output = R> + Send + Sync + 'static>(updates: &AppEventSender, target: Option<WidgetId>, task: F) -> Self {
+    pub fn new<F>(updates: &AppEventSender, target: Option<WidgetId>, task: F) -> Self
+    where
+        F: Future<Output = R> + Send + 'static,
+    {
         UiTask(UiTaskState::Pending {
             future: Box::pin(task),
             event_loop_waker: updates.waker(target.into_iter().collect()),
@@ -147,7 +150,7 @@ impl<R> WidgetTask<R> {
     pub fn new<F, T>(ctx: &mut WidgetContext, task: T) -> WidgetTask<R>
     where
         R: 'static,
-        F: Future<Output = R> + Send + Sync + 'static,
+        F: Future<Output = R> + Send + 'static,
         T: FnOnce(WidgetContextMut) -> F,
     {
         let (scope, mut_) = WidgetContextScope::new();
@@ -209,7 +212,7 @@ impl<R> AppTask<R> {
     pub fn new<F, T>(ctx: &mut AppContext, task: T) -> AppTask<R>
     where
         R: 'static,
-        F: Future<Output = R> + Send + Sync + 'static,
+        F: Future<Output = R> + Send + 'static,
         T: FnOnce(AppContextMut) -> F,
     {
         let (scope, mut_) = AppContextScope::new();

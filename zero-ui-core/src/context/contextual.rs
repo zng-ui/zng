@@ -37,7 +37,7 @@ impl [<$Context Mut>] {
     where
         A: FnOnce(&mut $Context) -> R,
     {
-        let mut ctx = self.ctx.try_lock().unwrap_or_else(|| {
+        let ctx = self.ctx.try_lock().unwrap_or_else(|| {
             panic!("already in `{0}Mut::with`, cannot borrow `&mut {0}` twice", stringify!($Context));
         });
 

@@ -1,7 +1,6 @@
 use std::{
     env, fmt, fs, io, mem, ops,
     path::{Path, PathBuf},
-    rc::Rc,
     sync::Arc,
 };
 
@@ -147,9 +146,9 @@ impl Image {
     }
 
     /// Returns an error message if the image failed to load.
-    pub fn error(&self) -> Option<&str> {
+    pub fn error(&self) -> Option<Text> {
         match self.view.get() {
-            Some(v) => v.error(),
+            Some(v) => v.error().map(Text::from),
             None => None,
         }
     }
@@ -226,7 +225,7 @@ impl Image {
     }
 
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer.
-    pub fn bgra8(&self) -> Option<&[u8]> {
+    pub fn bgra8(&self) -> Option<zero_ui_view_api::IpcBytes> {
         self.view.get().and_then(|v| v.bgra8())
     }
 
@@ -263,7 +262,7 @@ impl Image {
     pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
         self.done_signal.clone().await;
         if let Some(e) = self.error() {
-            Err(EncodeError::Encode(e.to_owned()))
+            Err(EncodeError::Encode(e.into()))
         } else {
             self.view.get().unwrap().encode(format).await
         }
@@ -820,14 +819,14 @@ pub enum ImageSourceFilter<U> {
     /// Allow all requests of this type.
     AllowAll,
     /// Custom filter, returns `true` to allow a request, `false` to block.
-    Custom(Rc<dyn Fn(&U) -> bool>),
+    Custom(Arc<dyn Fn(&U) -> bool + Send + Sync>),
 }
 impl<U> ImageSourceFilter<U> {
     /// New [`Custom`] filter.
     ///
     /// [`Custom`]: Self::Custom
-    pub fn custom(allow: impl Fn(&U) -> bool + 'static) -> Self {
-        Self::Custom(Rc::new(allow))
+    pub fn custom(allow: impl Fn(&U) -> bool + Send + Sync + 'static) -> Self {
+        Self::Custom(Arc::new(allow))
     }
 
     /// Combine `self` with `other`, if they both are [`Custom`], otherwise is [`BlockAll`] if any is [`BlockAll`], else
@@ -846,7 +845,7 @@ impl<U> ImageSourceFilter<U> {
         match (self, other) {
             (BlockAll, _) | (_, BlockAll) => BlockAll,
             (AllowAll, _) | (_, AllowAll) => AllowAll,
-            (Custom(c0), Custom(c1)) => Custom(Rc::new(move |u| c0(u) && c1(u))),
+            (Custom(c0), Custom(c1)) => Custom(Arc::new(move |u| c0(u) && c1(u))),
         }
     }
 
@@ -866,7 +865,7 @@ impl<U> ImageSourceFilter<U> {
         match (self, other) {
             (AllowAll, _) | (_, AllowAll) => AllowAll,
             (BlockAll, _) | (_, BlockAll) => BlockAll,
-            (Custom(c0), Custom(c1)) => Custom(Rc::new(move |u| c0(u) || c1(u))),
+            (Custom(c0), Custom(c1)) => Custom(Arc::new(move |u| c0(u) || c1(u))),
         }
     }
 
@@ -974,14 +973,14 @@ impl UriFilter {
     }
 }
 
-impl<F: Fn(&PathBuf) -> bool + 'static> From<F> for PathFilter {
+impl<F: Fn(&PathBuf) -> bool + Send + Sync + 'static> From<F> for PathFilter {
     fn from(custom: F) -> Self {
         PathFilter::custom(custom)
     }
 }
 
 #[cfg(http)]
-impl<F: Fn(&task::http::Uri) -> bool + 'static> From<F> for UriFilter {
+impl<F: Fn(&task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFilter {
     fn from(custom: F) -> Self {
         UriFilter::custom(custom)
     }

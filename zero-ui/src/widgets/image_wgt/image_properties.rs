@@ -334,7 +334,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
 
             CONTEXT_IMAGE_VAR.with(|i| {
                 if let Some(error) = i.error() {
-                    self.error = error.to_owned().into();
+                    self.error = error;
                     self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
                 }
             });
@@ -345,7 +345,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
                 if let Some(error) = new_img.error() {
                     if self.error != error {
-                        self.error = error.to_owned().into();
+                        self.error = error;
                         self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
                     }
                 } else {

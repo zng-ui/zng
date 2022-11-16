@@ -387,11 +387,7 @@ impl ViewProcess {
 
         let i = app.frame_images.iter().position(|i| i.upgrade().unwrap().lock().id == id);
 
-        if let Some(i) = i {
-            Some(ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
-        } else {
-            None
-        }
+        i.map(|i| ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
     }
 
     pub(super) fn on_image_encoded(&self, id: ImageId, format: String, data: Vec<u8>) {
@@ -514,8 +510,8 @@ impl ViewImage {
     }
 
     /// Returns the load error if one happened.
-    pub fn error(&self) -> Option<&str> {
-        self.0.lock().bgra8.as_ref().and_then(|s| s.as_ref().err().map(|s| s.as_str()))
+    pub fn error(&self) -> Option<String> {
+        self.0.lock().bgra8.as_ref().and_then(|s| s.as_ref().err().cloned())
     }
 
     /// Returns the pixel size, or zero if is not loaded or error.
@@ -555,13 +551,7 @@ impl ViewImage {
     /// partially decoded bytes.
     ///
     /// [`partial_bgra8`]: Self::partial_bgra8
-    pub fn bgra8(&self) -> Option<&[u8]> {
-        self.0.lock().bgra8.as_ref().and_then(|r| r.as_ref().ok()).map(|m| &m[..])
-    }
-
-    /// Clone the reference to the inter-process shared memory that contains
-    /// the image BGRA8 pixel buffer.
-    pub fn shared_bgra8(&self) -> Option<IpcBytes> {
+    pub fn bgra8(&self) -> Option<IpcBytes> {
         self.0.lock().bgra8.as_ref().and_then(|r| r.as_ref().ok()).cloned()
     }
 
@@ -614,12 +604,12 @@ impl ViewImage {
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
     /// [`image_encoders`]: View::image_encoders.
-    #[allow(clippy::await_holding_refcell_ref)] // false positive
+    #[allow(clippy::await_holding_lock)] // false positive
     pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
         self.awaiter().await;
 
         if let Some(e) = self.error() {
-            return Err(EncodeError::Encode(e.to_owned()));
+            return Err(EncodeError::Encode(e));
         }
 
         let img = self.0.lock();
@@ -638,6 +628,7 @@ impl ViewImage {
                 });
             }
             drop(app);
+            drop(img);
             receiver.recv_async().await?
         } else {
             Err(EncodeError::Dummy)

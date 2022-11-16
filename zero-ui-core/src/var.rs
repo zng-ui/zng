@@ -1467,7 +1467,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn trace_value<E, S>(&self, mut enter_value: E) -> VarHandle
     where
         E: FnMut(&T) -> S + Send + 'static,
-        S: 'static,
+        S: Send + 'static,
     {
         let mut span = Some(self.with(&mut enter_value));
         self.on_pre_new(app_hn!(|_, value, _| {

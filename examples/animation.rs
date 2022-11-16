@@ -167,7 +167,7 @@ fn ease_btn(
         });
     }
 }
-fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
+fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> ImageSource {
     let size = (64, 64);
     ImageSource::render_node(
         RenderMode::Software,

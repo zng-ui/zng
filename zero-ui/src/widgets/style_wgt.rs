@@ -1,6 +1,7 @@
 //! Style building blocks.
 
-use std::{fmt, rc::Rc};
+use std::fmt;
+use std::sync::Arc;
 
 use crate::core::widget_builder::widget_mod;
 use crate::prelude::new_widget::*;
@@ -292,7 +293,7 @@ pub struct StyleArgs {}
 ///
 /// You can also use the [`style_generator!`] macro, it has the advantage of being clone move.
 #[derive(Clone)]
-pub struct StyleGenerator(Option<Rc<dyn Fn(&mut WidgetContext, &StyleArgs) -> Style>>);
+pub struct StyleGenerator(Option<Arc<dyn Fn(&mut WidgetContext, &StyleArgs) -> Style + Send + Sync>>);
 impl Default for StyleGenerator {
     fn default() -> Self {
         Self::nil()
@@ -310,8 +311,8 @@ impl StyleGenerator {
     }
 
     /// New style generator, the `generate` closure is called for each styleable widget, before the widget is inited.
-    pub fn new(generate: impl Fn(&mut WidgetContext, &StyleArgs) -> Style + 'static) -> Self {
-        Self(Some(Rc::new(generate)))
+    pub fn new(generate: impl Fn(&mut WidgetContext, &StyleArgs) -> Style + Send + Sync + 'static) -> Self {
+        Self(Some(Arc::new(generate)))
     }
 
     /// Generate a style for the styleable widget in the context.

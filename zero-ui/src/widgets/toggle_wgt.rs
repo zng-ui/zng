@@ -44,7 +44,10 @@ pub mod toggle {
 
 /// Properties used in the toggle widget.
 pub mod toggle_properties {
-    use std::{any::Any, borrow::Cow, cell::RefCell, error::Error, fmt, marker::PhantomData, rc::Rc};
+    use std::sync::Arc;
+    use std::{any::Any, borrow::Cow, error::Error, fmt, marker::PhantomData, rc::Rc};
+
+    use crate::core::task::Mutex;
 
     use crate::prelude::new_property::*;
 
@@ -532,7 +535,7 @@ pub mod toggle_properties {
     }
 
     /// Represents a [`Selector`] implementation.
-    pub trait SelectorImpl: 'static {
+    pub trait SelectorImpl: Send + 'static {
         /// Add the selector subscriptions for a widget.
         fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles);
 
@@ -553,11 +556,11 @@ pub mod toggle_properties {
     /// [`value`]: fn@value
     /// [`selector`]: fn@selector
     #[derive(Clone)]
-    pub struct Selector(Rc<RefCell<dyn SelectorImpl>>);
+    pub struct Selector(Arc<Mutex<dyn SelectorImpl>>);
     impl Selector {
         /// New custom selector.
         pub fn new(selector: impl SelectorImpl) -> Self {
-            Self(Rc::new(RefCell::new(selector)))
+            Self(Arc::new(Mutex::new(selector)))
         }
 
         /// Represents no selector and the inability to select any item.
@@ -714,22 +717,22 @@ pub mod toggle_properties {
 
         /// Add the selector subscriptions for a widget.
         pub fn subscribe(&self, widget_id: WidgetId, handles: &mut WidgetHandles) {
-            self.0.borrow().subscribe(widget_id, handles);
+            self.0.lock().subscribe(widget_id, handles);
         }
 
         /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
         fn select(&self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
-            self.0.borrow_mut().select(ctx, value)
+            self.0.lock().select(ctx, value)
         }
 
         /// Remove the `value` from the selection, returns `Ok(())` if the value was removed or was not selected.
-        fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
-            self.0.borrow_mut().deselect(ctx, value)
+        fn deselect(&self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
+            self.0.lock().deselect(ctx, value)
         }
 
         /// Returns `true` if the `value` is selected.
         fn is_selected(&self, ctx: &mut InfoContext, value: &dyn Any) -> bool {
-            self.0.borrow().is_selected(ctx, value)
+            self.0.lock().is_selected(ctx, value)
         }
     }
     impl<S: SelectorImpl> From<S> for Selector {

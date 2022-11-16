@@ -75,8 +75,8 @@ pub fn image(source: impl IntoVar<ImageSource>) -> impl UiNode {
 mod tests {
     use crate::core::image::Images;
     use crate::prelude::*;
-    use std::cell::Cell;
-    use std::rc::Rc;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     #[test]
     fn error_view_recursion() {
@@ -86,13 +86,13 @@ mod tests {
 
         let mut app = App::default().run_headless(false);
         Images::req(&mut app).load_in_headless = true;
-        let ok = Rc::new(Cell::new(false));
+        let ok = Arc::new(AtomicBool::new(false));
         let window_id = app.open_window(clone_move!(ok, |_| {
             window! {
                 child = image! {
                     source = img.clone();
                     img_error_view = view_generator!(ok, |_, _| {
-                        ok.set(true);
+                        ok.store(true, Ordering::Relaxed);
                         image! {
                             source = img.clone();
                         }
@@ -104,6 +104,6 @@ mod tests {
         let _ = app.update(false);
         app.close_window(window_id);
 
-        assert!(ok.get());
+        assert!(ok.load(Ordering::Relaxed));
     }
 }

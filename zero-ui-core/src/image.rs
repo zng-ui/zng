@@ -148,7 +148,7 @@ impl AppExtension for ImageManager {
                             ppi: view.ppi(),
                         };
 
-                        let data = view.shared_bgra8().unwrap();
+                        let data = view.bgra8().unwrap();
                         let img = match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
                             Ok(img) => img,
                             Err(ViewProcessOffline) => return, // we will receive another event.
@@ -751,7 +751,7 @@ impl Images {
         key: ImageHash,
         mode: ImageCacheMode,
         max_decoded_size: ByteLength,
-        fetch_bytes: impl Future<Output = ImageData> + 'static,
+        fetch_bytes: impl Future<Output = ImageData> + Send + 'static,
     ) -> ImageVar {
         let img = self.new_cache_image(key, mode, max_decoded_size);
 

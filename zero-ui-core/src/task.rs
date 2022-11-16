@@ -148,7 +148,8 @@ use std::{
     task::Poll,
 };
 
-use parking_lot::Mutex;
+#[doc(no_inline)]
+pub use parking_lot::{Mutex, RwLock};
 
 use crate::{
     crate_util::{panic_str, PanicResult},

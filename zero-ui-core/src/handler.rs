@@ -99,7 +99,7 @@ pub struct FnMutWidgetHandler<H> {
 impl<A, H> WidgetHandler<A> for FnMutWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut WidgetContext, &A) + 'static,
+    H: FnMut(&mut WidgetContext, &A) + Send + 'static,
 {
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         (self.handler)(ctx, args);
@@ -112,16 +112,16 @@ where
 pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut WidgetContext, &A) + 'static,
+    H: FnMut(&mut WidgetContext, &A) + Send + 'static,
 {
     FnMutWidgetHandler { handler }
 }
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<Box<dyn FnMut(&mut WidgetContext, &A)>>
+pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<Box<dyn FnMut(&mut WidgetContext, &A) + Send>>
 where
     A: Clone + 'static,
-    H: FnMut(&mut WidgetContext, &A) + 'static,
+    H: FnMut(&mut WidgetContext, &A) + Send + 'static,
 {
     FnMutWidgetHandler {
         handler: Box::new(handler),
@@ -204,7 +204,7 @@ pub struct FnOnceWidgetHandler<H> {
 impl<A, H> WidgetHandler<A> for FnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut WidgetContext, &A) + 'static,
+    H: FnOnce(&mut WidgetContext, &A) + Send + 'static,
 {
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         if let Some(handler) = self.handler.take() {
@@ -218,16 +218,16 @@ where
 pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut WidgetContext, &A) + 'static,
+    H: FnOnce(&mut WidgetContext, &A) + Send + 'static,
 {
     FnOnceWidgetHandler { handler: Some(handler) }
 }
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<Box<dyn FnOnce(&mut WidgetContext, &A)>>
+pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<Box<dyn FnOnce(&mut WidgetContext, &A) + Send>>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut WidgetContext, &A) + 'static,
+    H: FnOnce(&mut WidgetContext, &A) + Send + 'static,
 {
     FnOnceWidgetHandler {
         handler: Some(Box::new(handler)),
@@ -293,8 +293,8 @@ pub struct AsyncFnMutWidgetHandler<H> {
 impl<A, F, H> WidgetHandler<A> for AsyncFnMutWidgetHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnMut(WidgetContextMut, A) -> F + Send + 'static,
 {
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         let handler = &mut self.handler;
@@ -316,22 +316,22 @@ where
 pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutWidgetHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnMut(WidgetContextMut, A) -> F + Send + 'static,
 {
     AsyncFnMutWidgetHandler { handler, tasks: vec![] }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsyncHn<A> = Box<dyn FnMut(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+type BoxedAsyncHn<A> = Box<dyn FnMut(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
 pub fn async_hn<A, F, H>(mut handler: H) -> AsyncFnMutWidgetHandler<BoxedAsyncHn<A>>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnMut(WidgetContextMut, A) -> F + Send + 'static,
 {
     AsyncFnMutWidgetHandler {
         handler: Box::new(move |ctx, args| Box::pin(handler(ctx, args))),
@@ -447,8 +447,8 @@ pub struct AsyncFnOnceWidgetHandler<H> {
 impl<A, F, H> WidgetHandler<A> for AsyncFnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnOnce(WidgetContextMut, A) -> F + Send + 'static,
 {
     fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
         if let AsyncFnOnceWhState::NotCalled(handler) = mem::replace(&mut self.state, AsyncFnOnceWhState::Done) {
@@ -479,8 +479,8 @@ where
 pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnOnce(WidgetContextMut, A) -> F + Send + 'static,
 {
     AsyncFnOnceWidgetHandler {
         state: AsyncFnOnceWhState::NotCalled(handler),
@@ -488,15 +488,15 @@ where
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsyncHnOnce<A> = Box<dyn FnOnce(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+type BoxedAsyncHnOnce<A> = Box<dyn FnOnce(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
 pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<BoxedAsyncHnOnce<A>>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnOnce(WidgetContextMut, A) -> F + Send + 'static,
 {
     AsyncFnOnceWidgetHandler {
         state: AsyncFnOnceWhState::NotCalled(Box::new(move |ctx, args| Box::pin(handler(ctx, args)))),
@@ -598,7 +598,7 @@ pub struct AppHandlerArgs<'a> {
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`app_hn!`], [`app_hn_once!`] or [`async_app_hn!`], [`async_app_hn_once!`] to start.
-pub trait AppHandler<A: Clone + 'static>: Any {
+pub trait AppHandler<A: Clone + 'static>: Any + Send {
     /// Called every time the event happens.
     ///
     /// The `handler_args` can be used to unsubscribe the handler. Async handlers are expected to schedule
@@ -654,7 +654,7 @@ pub struct FnMutAppHandler<H> {
 impl<A, H> AppHandler<A> for FnMutAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
+    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send + 'static,
 {
     fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
         (self.handler)(ctx, args, handler_args.handle);
@@ -665,20 +665,20 @@ where
 pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
+    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send + 'static,
 {
     FnMutAppHandler { handler }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAppHn<A> = Box<dyn FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static>;
+type BoxedAppHn<A> = Box<dyn FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
 pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<BoxedAppHn<A>>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
+    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send + 'static,
 {
     FnMutAppHandler {
         handler: Box::new(handler),
@@ -763,7 +763,7 @@ pub struct FnOnceAppHandler<H> {
 impl<A, H> AppHandler<A> for FnOnceAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut AppContext, &A) + 'static,
+    H: FnOnce(&mut AppContext, &A) + Send + 'static,
 {
     fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
         if let Some(handler) = self.handler.take() {
@@ -779,16 +779,16 @@ where
 pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut AppContext, &A) + 'static,
+    H: FnOnce(&mut AppContext, &A) + Send + 'static,
 {
     FnOnceAppHandler { handler: Some(handler) }
 }
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<Box<dyn FnOnce(&mut AppContext, &A)>>
+pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<Box<dyn FnOnce(&mut AppContext, &A) + Send>>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut AppContext, &A) + 'static,
+    H: FnOnce(&mut AppContext, &A) + Send + 'static,
 {
     FnOnceAppHandler {
         handler: Some(Box::new(handler)),
@@ -855,8 +855,8 @@ pub struct AsyncFnMutAppHandler<H> {
 impl<A, F, H> AppHandler<A> for AsyncFnMutAppHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
 {
     fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
         let handler = &mut self.handler;
@@ -887,22 +887,22 @@ where
 pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
 {
     AsyncFnMutAppHandler { handler }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsynAppHn<A> = Box<dyn FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+type BoxedAsynAppHn<A> = Box<dyn FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
 pub fn async_app_hn<A, F, H>(mut handler: H) -> AsyncFnMutAppHandler<BoxedAsynAppHn<A>>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
 {
     AsyncFnMutAppHandler {
         handler: Box::new(move |ctx, args, handle| Box::pin(handler(ctx, args, handle))),
@@ -1020,8 +1020,8 @@ pub struct AsyncFnOnceAppHandler<H> {
 impl<A, F, H> AppHandler<A> for AsyncFnOnceAppHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(AppContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnOnce(AppContextMut, A) -> F + Send + 'static,
 {
     fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
         if let Some(handler) = self.handler.take() {
@@ -1057,22 +1057,22 @@ where
 pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<H>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(AppContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnOnce(AppContextMut, A) -> F + Send + 'static,
 {
     AsyncFnOnceAppHandler { handler: Some(handler) }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsynAppHnOnce<A> = Box<dyn FnOnce(AppContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+type BoxedAsynAppHnOnce<A> = Box<dyn FnOnce(AppContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
 pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<BoxedAsynAppHnOnce<A>>
 where
     A: Clone + 'static,
-    F: Future<Output = ()> + 'static,
-    H: FnOnce(AppContextMut, A) -> F + 'static,
+    F: Future<Output = ()> + Send + 'static,
+    H: FnOnce(AppContextMut, A) -> F + Send + 'static,
 {
     AsyncFnOnceAppHandler {
         handler: Some(Box::new(move |ctx, args| Box::pin(handler(ctx, args)))),

@@ -315,7 +315,7 @@ where
     C: UiNode,
     S: VarValue,
     V: IntoVar<S>,
-    D: FnMut(&mut FontFeatures, S) -> S + 'static,
+    D: FnMut(&mut FontFeatures, S) -> S + Send + 'static,
 {
     let mut set_feature = set_feature;
     with_context_var(

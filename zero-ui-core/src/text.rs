@@ -11,7 +11,6 @@ use std::{
     borrow::Cow,
     fmt, mem,
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::Arc,
 };
 
@@ -777,7 +776,7 @@ pub enum TextTransformFn {
     /// to lowercase.
     Lowercase,
     /// Custom transform function.
-    Custom(Rc<dyn Fn(Text) -> Text>),
+    Custom(Arc<dyn Fn(Text) -> Text + Send + Sync>),
 }
 impl TextTransformFn {
     /// Apply the text transform.
@@ -791,8 +790,8 @@ impl TextTransformFn {
     }
 
     /// New [`Custom`](Self::Custom).
-    pub fn custom(fn_: impl Fn(Text) -> Text + 'static) -> Self {
-        TextTransformFn::Custom(Rc::new(fn_))
+    pub fn custom(fn_: impl Fn(Text) -> Text + Send + Sync + 'static) -> Self {
+        TextTransformFn::Custom(Arc::new(fn_))
     }
 }
 impl fmt::Debug for TextTransformFn {

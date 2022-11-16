@@ -1,5 +1,5 @@
 use pretty_type_name::*;
-use std::{fmt, rc::Rc};
+use std::{fmt, sync::Arc};
 
 use zero_ui_core::widget_instance::{BoxedUiNode, NilUiNode};
 
@@ -161,7 +161,7 @@ where
     .cfg_boxed()
 }
 
-type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, D) -> BoxedUiNode>;
+type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, D) -> BoxedUiNode + Send + Sync>;
 
 /// Boxed shared closure that generates a view for a given data.
 ///
@@ -183,7 +183,7 @@ type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, D) -> BoxedUiNode>;
 /// ```
 ///
 /// You can also use the [`view_generator!`] macro, it has the advantage of being clone move.
-pub struct ViewGenerator<D: ?Sized>(Option<Rc<BoxedGenerator<D>>>);
+pub struct ViewGenerator<D: ?Sized>(Option<Arc<BoxedGenerator<D>>>);
 impl<D> Clone for ViewGenerator<D> {
     fn clone(&self) -> Self {
         ViewGenerator(self.0.clone())
@@ -196,8 +196,8 @@ impl<D> fmt::Debug for ViewGenerator<D> {
 }
 impl<D> ViewGenerator<D> {
     /// New from a closure that generates a [`View`] update from data.
-    pub fn new<U: UiNode>(generator: impl Fn(&mut WidgetContext, D) -> U + 'static) -> Self {
-        ViewGenerator(Some(Rc::new(Box::new(move |ctx, data| generator(ctx, data).boxed()))))
+    pub fn new<U: UiNode>(generator: impl Fn(&mut WidgetContext, D) -> U + Send + Sync + 'static) -> Self {
+        ViewGenerator(Some(Arc::new(Box::new(move |ctx, data| generator(ctx, data).boxed()))))
     }
 
     /// Generator that always produces the [`NilUiNode`].

@@ -1,4 +1,4 @@
-use std::{cell::Cell, fmt, rc::Rc, time::Duration};
+use std::{cell::Cell, fmt, rc::Rc, time::Duration, sync::Arc};
 
 use crate::core::{
     context::{context_value, with_context_value, StaticStateId},
@@ -375,7 +375,7 @@ pub struct SmoothScrolling {
     /// Chase transition easing function.
     ///
     /// Default is linear.
-    pub easing: Rc<dyn Fn(EasingTime) -> EasingStep>,
+    pub easing: Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>,
 }
 impl fmt::Debug for SmoothScrolling {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -391,10 +391,10 @@ impl Default for SmoothScrolling {
 }
 impl SmoothScrolling {
     /// New custom smooth scrolling config.
-    pub fn new(duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + 'static) -> Self {
+    pub fn new(duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Self {
         Self {
             duration,
-            easing: Rc::new(easing),
+            easing: Arc::new(easing),
         }
     }
 
@@ -430,7 +430,7 @@ impl_from_and_into_var! {
         }
     }
 
-    fn from<F: Fn(EasingTime) -> EasingStep + Clone + 'static>((duration, easing): (Duration, F)) -> SmoothScrolling {
+    fn from<F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static>((duration, easing): (Duration, F)) -> SmoothScrolling {
         SmoothScrolling::new(duration, easing)
     }
 
