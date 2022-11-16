@@ -173,7 +173,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let mut data = self.0.write();
         match &mut *data {
             Data::Source { hooks, .. } => {

@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::{fmt, sync::Arc};
 
 use linear_map::LinearMap;
 
@@ -378,12 +378,12 @@ pub enum MonitorQuery {
     ///
     /// If the closure returns `None` the primary monitor is used, if there is any.
     #[allow(clippy::type_complexity)]
-    Query(Rc<dyn Fn(&mut Monitors) -> Option<&MonitorInfo>>),
+    Query(Arc<dyn Fn(&mut Monitors) -> Option<&MonitorInfo> + Send + Sync>),
 }
 impl MonitorQuery {
     /// New query.
-    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorInfo> + 'static) -> Self {
-        Self::Query(Rc::new(query))
+    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorInfo> + Send + Sync + 'static) -> Self {
+        Self::Query(Arc::new(query))
     }
 
     /// Runs the query.

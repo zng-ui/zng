@@ -4,6 +4,10 @@
 * Make `AnyVar: Send + Sync`.
 * Remove `Var::with`, make `Var::read(&self) -> VarReadLock<T>`.
     - More ergonomic, removes a boat load of LLVM lines.
+
+* Can't change only Var to be Send+Sync.
+    - Image related vars contaminate the entire UiNode because they can have "render" closure that output UiNode and must be send.
+
 * Merge.
 
 * Use `app_local!` everywhere.

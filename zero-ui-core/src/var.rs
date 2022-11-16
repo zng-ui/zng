@@ -8,7 +8,7 @@ use std::{
     marker::PhantomData,
     ops,
     rc::Rc,
-    time::Duration,
+    time::Duration, sync::{Arc, atomic::{AtomicBool, Ordering}},
 };
 
 use crate::{
@@ -114,8 +114,8 @@ pub mod types {
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-pub trait VarValue: fmt::Debug + Clone + Any {}
-impl<T: fmt::Debug + Clone + Any> VarValue for T {}
+pub trait VarValue: fmt::Debug + Clone + Any + Send + Sync {}
+impl<T: fmt::Debug + Clone + Any + Send + Sync> VarValue for T {}
 
 /// Trait implemented for all [`VarValue`] types.
 pub trait AnyVarValue: fmt::Debug + Any {
@@ -245,15 +245,15 @@ impl fmt::Display for VarIsReadOnlyError {
 impl std::error::Error for VarIsReadOnlyError {}
 
 struct VarHandleData {
-    perm: Cell<bool>,
-    pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>,
+    perm: AtomicBool,
+    pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>,
 }
 
-struct VarHook(Rc<VarHandleData>);
+struct VarHook(Arc<VarHandleData>);
 impl VarHook {
     /// Callback, returns `true` if the handle must be retained.
     fn call(&self, vars: &Vars, update: &mut Updates, value: &dyn AnyVarValue) -> bool {
-        (Rc::strong_count(&self.0) > 1 || self.0.perm.get()) && (self.0.pos_modify_action)(vars, update, value)
+        (Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)) && (self.0.pos_modify_action)(vars, update, value)
     }
 }
 
@@ -263,11 +263,11 @@ impl VarHook {
 /// the behavior it represents.
 #[derive(Clone)]
 #[must_use = "var handle stops the behaviour it represents on drop"]
-pub struct VarHandle(Option<Rc<VarHandleData>>);
+pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
-    fn new(pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> (VarHandle, VarHook) {
-        let c = Rc::new(VarHandleData {
-            perm: Cell::new(false),
+    fn new(pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
+        let c = Arc::new(VarHandleData {
+            perm: AtomicBool::new(false),
             pos_modify_action,
         });
         (VarHandle(Some(c.clone())), VarHook(c))
@@ -290,7 +290,7 @@ impl VarHandle {
     /// Note that the behavior can still be stopped by dropping the involved variables.
     pub fn perm(self) {
         if let Some(s) = &self.0 {
-            s.perm.set(true)
+            s.perm.store(true, Ordering::Relaxed);
         }
     }
 
@@ -304,7 +304,7 @@ impl PartialEq for VarHandle {
         match (&self.0, &other.0) {
             (None, None) => true,
             (None, Some(_)) | (Some(_), None) => false,
-            (Some(a), Some(b)) => Rc::ptr_eq(a, b),
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
         }
     }
 }
@@ -312,7 +312,7 @@ impl Eq for VarHandle {}
 impl std::hash::Hash for VarHandle {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let i = match &self.0 {
-            Some(rc) => Rc::as_ptr(rc) as usize,
+            Some(rc) => Arc::as_ptr(rc) as usize,
             None => 0,
         };
         state.write_usize(i);
@@ -321,7 +321,7 @@ impl std::hash::Hash for VarHandle {
 impl fmt::Debug for VarHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let i = match &self.0 {
-            Some(rc) => Rc::as_ptr(rc) as usize,
+            Some(rc) => Arc::as_ptr(rc) as usize,
             None => 0,
         };
         f.debug_tuple("VarHandle").field(&i).finish()
@@ -445,7 +445,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     ///
     /// [`on_new`]: Var::on_new
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool>) -> VarHandle;
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
 
     /// Register the widget to receive update when this variable is new.
     ///
@@ -498,6 +498,13 @@ impl<'a> VarPtr<'a> {
         Self {
             _lt: std::marker::PhantomData,
             eq: VarPtrData::Rc(Rc::as_ptr(rc) as _),
+        }
+    }
+
+    fn new_arc<T: ?Sized>(rc: &'a Arc<T>) -> Self {
+        Self {
+            _lt: std::marker::PhantomData,
+            eq: VarPtrData::Rc(Arc::as_ptr(rc) as _),
         }
     }
 
@@ -1884,7 +1891,7 @@ where
     var_value.to_mut();
 }
 
-fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool> {
+fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
     Box::new(move |_, updates, _| {
         updates.update(widget_id);
         true
@@ -1894,7 +1901,7 @@ fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn An
 fn var_bind<I: VarValue, O: VarValue, V: Var<O>>(
     input: &impl Var<I>,
     output: &V,
-    update_output: impl FnMut(&Vars, &mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + 'static,
+    update_output: impl FnMut(&Vars, &mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + Sync + 'static,
 ) -> VarHandle {
     if input.capabilities().is_always_static() || output.capabilities().is_always_read_only() {
         VarHandle::dummy()
@@ -1906,7 +1913,7 @@ fn var_bind<I: VarValue, O: VarValue, V: Var<O>>(
 fn var_bind_ok<I: VarValue, O: VarValue, W: WeakVar<O>>(
     input: &impl Var<I>,
     wk_output: W,
-    update_output: impl FnMut(&Vars, &mut Updates, &I, W::Upgrade) + 'static,
+    update_output: impl FnMut(&Vars, &mut Updates, &I, W::Upgrade) + Send + Sync + 'static,
 ) -> VarHandle {
     let update_output = RefCell::new(update_output);
     input.hook(Box::new(move |vars, updates, value| {

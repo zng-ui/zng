@@ -488,7 +488,7 @@ impl WindowIcon {
     pub fn render<I, F>(new_icon: F) -> Self
     where
         I: UiNode,
-        F: Fn(&mut WindowContext) -> I + 'static,
+        F: Fn(&mut WindowContext) -> I + Send + Sync + 'static,
     {
         Self::Image(ImageSource::render_node(RenderMode::Software, move |ctx, args| {
             let node = new_icon(ctx);

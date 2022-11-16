@@ -355,5 +355,8 @@ impl<T: VarValue> VarLock<T> {
         mem::replace(unsafe { &mut *self.value.get() }, new_value)
     }
 }
+// SAFETY: safe because all data access is gated by `VAR_LOCK`.
+unsafe impl<T: VarValue> Send for VarLock<T> {}
+unsafe impl<T: VarValue> Sync for VarLock<T> {}
 
 static VAR_LOCK: RwLock<()> = RwLock::new(());

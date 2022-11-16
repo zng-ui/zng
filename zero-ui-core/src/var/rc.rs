@@ -1,4 +1,4 @@
-use std::rc::{Rc, Weak};
+use std::sync::{Arc, Weak};
 
 use super::{util::VarData, *};
 
@@ -6,7 +6,7 @@ use super::{util::VarData, *};
 ///
 /// This is the primary variable type, it can be instantiated using the [`var`] and [`var_from`] functions.
 #[derive(Clone)]
-pub struct RcVar<T: VarValue>(Rc<VarData<T>>);
+pub struct RcVar<T: VarValue>(Arc<VarData<T>>);
 
 /// Weak reference to a [`RcVar<T>`].
 #[derive(Clone)]
@@ -14,7 +14,7 @@ pub struct WeakRcVar<T: VarValue>(Weak<VarData<T>>);
 
 /// New ref counted read/write variable with initial `value`.
 pub fn var<T: VarValue>(value: T) -> RcVar<T> {
-    RcVar(Rc::new(VarData::new(value)))
+    RcVar(Arc::new(VarData::new(value)))
 }
 
 /// New ref counted read/write variable with initial value converted from `source`.
@@ -84,11 +84,11 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
+        Arc::strong_count(&self.0)
     }
 
     fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
+        Arc::weak_count(&self.0)
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
@@ -96,7 +96,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakRcVar(Rc::downgrade(&self.0)))
+        Box::new(WeakRcVar(Arc::downgrade(&self.0)))
     }
 
     fn is_animating(&self) -> bool {
@@ -104,7 +104,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn var_ptr(&self) -> VarPtr {
-        VarPtr::new_rc(&self.0)
+        VarPtr::new_arc(&self.0)
     }
 }
 
@@ -179,11 +179,11 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     fn downgrade(&self) -> WeakRcVar<T> {
-        WeakRcVar(Rc::downgrade(&self.0))
+        WeakRcVar(Arc::downgrade(&self.0))
     }
 
     fn into_value(self) -> T {
-        match Rc::try_unwrap(self.0) {
+        match Arc::try_unwrap(self.0) {
             Ok(data) => data.into_value(),
             Err(rc) => Self(rc).get(),
         }

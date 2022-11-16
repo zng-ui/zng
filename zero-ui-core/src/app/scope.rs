@@ -301,7 +301,7 @@ impl ThreadContext {
 
     /// Capture the current context.
     ///
-    /// A context must be captured and recorded by tasks that may run in other threads, the context can then be loaded
+    /// A context must be captured and recorded by tasks that may run in other threads, the context must be loaded
     /// in the other thread using [`with_context`].
     ///
     /// [`with_context`]: ThreadContext::with_context

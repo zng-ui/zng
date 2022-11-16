@@ -1,12 +1,12 @@
 use std::{
-    cell::RefCell,
     env, fmt, fs, io, mem, ops,
     path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
 };
 
-use once_cell::unsync::OnceCell;
+use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 use zero_ui_view_api::{webrender_api::ImageKey, ViewProcessOffline};
 
 use crate::{
@@ -85,7 +85,7 @@ pub type ImageVar = ReadOnlyRcVar<Image>;
 #[derive(Debug, Clone)]
 pub struct Image {
     pub(super) view: OnceCell<ViewImage>,
-    render_keys: Rc<RefCell<Vec<RenderImage>>>,
+    render_keys: Arc<Mutex<Vec<RenderImage>>>,
     pub(super) done_signal: SignalOnce,
     pub(super) cache_key: Option<ImageHash>,
 }
@@ -98,7 +98,7 @@ impl Image {
     pub(super) fn new_none(cache_key: Option<ImageHash>) -> Self {
         Image {
             view: OnceCell::new(),
-            render_keys: Rc::default(),
+            render_keys: Arc::default(),
             done_signal: SignalOnce::new(),
             cache_key,
         }
@@ -111,7 +111,7 @@ impl Image {
         let _ = v.set(view);
         Image {
             view: v,
-            render_keys: Rc::default(),
+            render_keys: Arc::default(),
             done_signal: sig,
             cache_key: None,
         }
@@ -312,7 +312,7 @@ impl crate::render::Image for Image {
                     return ImageKey::DUMMY;
                 }
             };
-            let mut rms = self.render_keys.borrow_mut();
+            let mut rms = self.render_keys.lock();
             if let Some(rm) = rms.iter().find(|k| k.key.0 == namespace) {
                 return rm.key;
             }
@@ -449,8 +449,8 @@ impl std::hash::Hasher for ImageHasher {
     }
 }
 
-// We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderFn = Rc<Box<dyn Fn(&mut WindowContext, &ImageRenderArgs) -> Window>>;
+// We don't use Arc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
+type RenderFn = Arc<Box<dyn Fn(&mut WindowContext, &ImageRenderArgs) -> Window + Send + Sync>>;
 
 /// Arguments for the [`ImageSource::Render`] closure.
 ///
@@ -525,10 +525,10 @@ impl ImageSource {
     /// [`Images::render`]: crate::image::Images::render
     pub fn render<F>(new_img: F) -> Self
     where
-        F: Fn(&mut WindowContext, &ImageRenderArgs) -> Window + 'static,
+        F: Fn(&mut WindowContext, &ImageRenderArgs) -> Window + Send + Sync + 'static,
     {
         Self::Render(
-            Rc::new(Box::new(move |ctx, args| {
+            Arc::new(Box::new(move |ctx, args| {
                 WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
                 let r = new_img(ctx, args);
                 WindowVars::req(&ctx.window_state)
@@ -568,7 +568,7 @@ impl ImageSource {
     pub fn render_node<U, N>(render_mode: RenderMode, render: N) -> Self
     where
         U: UiNode,
-        N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + 'static,
+        N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + Send + Sync + 'static,
     {
         Self::render(move |ctx, args| {
             WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
@@ -634,7 +634,7 @@ impl ImageSource {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         2u8.hash(&mut h);
-        (Rc::as_ptr(rfn) as usize).hash(&mut h);
+        (Arc::as_ptr(rfn) as usize).hash(&mut h);
         args.hash(&mut h);
         h.finish()
     }
@@ -645,7 +645,7 @@ impl PartialEq for ImageSource {
             (Self::Read(l), Self::Read(r)) => l == r,
             #[cfg(http)]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
-            (Self::Render(lf, la), Self::Render(rf, ra)) => Rc::ptr_eq(lf, rf) && la == ra,
+            (Self::Render(lf, la), Self::Render(rf, ra)) => Arc::ptr_eq(lf, rf) && la == ra,
             (Self::Image(l), Self::Image(r)) => l.var_ptr() == r.var_ptr(),
             (l, r) => {
                 let l_hash = match l {

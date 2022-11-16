@@ -8,12 +8,12 @@
 //! [default app]: crate::app::App::default
 
 use std::{
-    cell::{Cell, RefCell},
+    cell::{RefCell},
     collections::{hash_map::Entry, HashMap, HashSet},
     error::Error,
     fmt,
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, atomic::{AtomicBool, Ordering}},
 };
 
 use crate::{
@@ -327,7 +327,7 @@ impl Config {
                             if v.as_ref().value != value {
                                 let v = v.to_mut();
                                 v.value = value;
-                                v.write.set(false);
+                                v.write.store(false, Ordering::Relaxed);
                             }
                         });
                     }));
@@ -418,7 +418,7 @@ impl Config {
         self.var_with_source(key.into(), default_value).map_ref_bidi(
             |v| &v.value,
             |v| {
-                v.write.set(true);
+                v.write.store(true, Ordering::Relaxed);
                 &mut v.value
             },
         )
@@ -457,7 +457,7 @@ impl Config {
                             if val.as_ref().value != value {
                                 let val = val.to_mut();
                                 val.value = value;
-                                val.write.set(true);
+                                val.write.store(true, Ordering::Relaxed);
                             }
                         });
                     }
@@ -513,7 +513,7 @@ impl Config {
                         if v.as_ref().value != value {
                             let v = v.to_mut();
                             v.value = value;
-                            v.write.set(false);
+                            v.write.store(false, Ordering::Relaxed);
                         }
                     });
                 }
@@ -629,20 +629,20 @@ impl Drop for ConfigAlt {
 type VarUpdateTask = Box<dyn FnOnce(&mut Config)>;
 
 /// ConfigVar actual value, tracks if updates need to be send to source.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 struct ValueWithSource<T: ConfigValue> {
     value: T,
-    write: Rc<Cell<bool>>,
+    write: Arc<AtomicBool>,
 }
 
 struct ConfigVar {
     var: Box<dyn AnyWeakVar>,
-    write: Rc<Cell<bool>>,
+    write: Arc<AtomicBool>,
     run_task: Box<dyn Fn(ConfigVarTask, ConfigVarTaskArgs) -> VarUpdateTask>,
 }
 impl ConfigVar {
     fn new<T: ConfigValue>(initial_value: T) -> (Self, RcVar<ValueWithSource<T>>) {
-        let write = Rc::new(Cell::new(false));
+        let write = Arc::new(AtomicBool::new(false));
         let var = var(ValueWithSource {
             value: initial_value,
             write: write.clone(),
@@ -658,7 +658,7 @@ impl ConfigVar {
     /// Returns var and if it needs to write.
     fn upgrade(&mut self, vars: &Vars) -> Option<(Box<dyn AnyVar>, bool)> {
         self.var.upgrade_any().map(|v| {
-            let write = self.write.get() && v.last_update() == vars.update_id();
+            let write = self.write.load(Ordering::Relaxed) && v.last_update() == vars.update_id();
             (v, write)
         })
     }
@@ -686,7 +686,7 @@ impl ConfigVar {
                                     if v.as_ref().value != value {
                                         let v = v.to_mut();
                                         v.value = value;
-                                        v.write.set(false);
+                                        v.write.store(false, Ordering::Relaxed);
                                     }
                                 });
                             }
