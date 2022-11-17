@@ -1,7 +1,7 @@
 use crate::core::mouse::{CaptureMode, Mouse, MOUSE_INPUT_EVENT};
 use crate::prelude::new_property::*;
 
-use crate::core::task::Mutex;
+use crate::core::task::parking_lot::Mutex;
 use std::sync::Arc;
 
 /// Capture mouse for the widget on mouse down.

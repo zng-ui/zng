@@ -12,7 +12,7 @@ use super::text_properties::*;
 use crate::core::{
     focus::FocusInfoBuilder,
     keyboard::{Keyboard, CHAR_INPUT_EVENT},
-    task::Mutex,
+    task::parking_lot::Mutex,
     text::*,
 };
 use crate::prelude::new_widget::*;

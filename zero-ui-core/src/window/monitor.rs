@@ -421,7 +421,7 @@ impl Default for MonitorQuery {
 }
 impl fmt::Debug for MonitorQuery {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "MonitorQuery(Rc<..>)")
+        write!(f, "MonitorQuery(Arc<..>)")
     }
 }
 

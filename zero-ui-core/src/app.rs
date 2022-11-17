@@ -32,7 +32,6 @@ use self::view_process::{ViewProcess, ViewProcessInitedArgs, VIEW_PROCESS_INITED
 use once_cell::sync::Lazy;
 use pretty_type_name::*;
 use std::future::Future;
-use std::marker::PhantomData;
 use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -2251,10 +2250,7 @@ impl AppEventSender {
                 update: self.clone(),
                 sender,
             },
-            AppExtReceiver {
-                _not_send: PhantomData,
-                receiver,
-            },
+            AppExtReceiver { receiver },
         )
     }
 
@@ -2267,10 +2263,7 @@ impl AppEventSender {
                 update: self.clone(),
                 sender,
             },
-            AppExtReceiver {
-                _not_send: PhantomData,
-                receiver,
-            },
+            AppExtReceiver { receiver },
         )
     }
 }
@@ -2334,15 +2327,13 @@ impl<T: Send> AppExtSender<T> {
 
 /// Represents a channel receiver in an app extension.
 ///
-/// See [`AppExtReceiver`] for details.
+/// See [`AppExtSender`] for details.
 pub struct AppExtReceiver<T> {
-    _not_send: PhantomData<std::rc::Rc<T>>,
     receiver: flume::Receiver<T>,
 }
 impl<T> Clone for AppExtReceiver<T> {
     fn clone(&self) -> Self {
         Self {
-            _not_send: PhantomData,
             receiver: self.receiver.clone(),
         }
     }

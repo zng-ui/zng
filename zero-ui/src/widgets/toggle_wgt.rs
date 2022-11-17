@@ -45,9 +45,9 @@ pub mod toggle {
 /// Properties used in the toggle widget.
 pub mod toggle_properties {
     use std::sync::Arc;
-    use std::{any::Any, borrow::Cow, error::Error, fmt, marker::PhantomData, rc::Rc};
+    use std::{any::Any, borrow::Cow, error::Error, fmt, marker::PhantomData};
 
-    use crate::core::task::Mutex;
+    use crate::core::task::parking_lot::Mutex;
 
     use crate::prelude::new_property::*;
 
@@ -756,14 +756,14 @@ pub mod toggle_properties {
         /// Cannot deselect item because the selection cannot be empty.
         CannotClear,
         /// Cannot select item because of a selector specific reason.
-        Custom(Rc<dyn Error + 'static>),
+        Custom(Arc<dyn Error + Send + Sync>),
     }
     impl SelectorError {
         /// New custom error from string.
         pub fn custom_str(str: impl Into<String>) -> SelectorError {
             let str = str.into();
-            let e: Box<dyn Error> = str.into();
-            let e: Rc<dyn Error> = e.into();
+            let e: Box<dyn Error + Send + Sync> = str.into();
+            let e: Arc<dyn Error + Send + Sync> = e.into();
             SelectorError::Custom(e)
         }
     }

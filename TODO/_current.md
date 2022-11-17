@@ -2,10 +2,10 @@
     - Use `ContextLocal`, this causes context-var to be Send+Sync.
 * Remove `Var::with`, make `Var::read(&self) -> VarReadLock<T>`.
     - More ergonomic, removes a boat load of LLVM lines.
+    - Need to return an enum of various types of borrow that deref T?
 * Use `app_local!` everywhere.
     - Same for `ContextValue<T>`.
 
-* Review `task::respond_ctor`.
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.
     - It is not just for UI threads?

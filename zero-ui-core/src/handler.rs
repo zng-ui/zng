@@ -1188,15 +1188,15 @@ pub use crate::async_app_hn_once;
 ///
 /// ```
 /// # use zero_ui_core::handler::clone_move;
-/// # use std::rc::Rc;
+/// # use std::sync::Arc;
 /// fn foo(mut f: impl FnMut(bool) + 'static) {
 ///     f(true);
 /// }
 ///
-/// let bar = Rc::new("Cool!".to_string());
+/// let bar = Arc::new("Cool!".to_string());
 /// foo(clone_move!(mut *bar, |p| {
 ///     bar.push_str("!");
-///     if p { println!("cloned String not Rc: {bar}") }
+///     if p { println!("cloned String not Arc: {bar}") }
 /// }));
 ///
 /// println!("original: {bar}");
@@ -1206,16 +1206,16 @@ pub use crate::async_app_hn_once;
 ///
 /// ```
 /// # use zero_ui_core::handler::clone_move;
-/// # use std::rc::Rc;
+/// # use std::sync::Arc;
 /// # fn foo(mut f: impl FnMut(bool) + 'static) {
 /// #     f(true);
 /// # }
-/// # let bar = Rc::new("Cool!".to_string());
+/// # let bar = Arc::new("Cool!".to_string());
 /// foo({
 ///     let mut bar = (*bar).clone();
 ///     move |p| {
 ///         bar.push_str("!");
-///         if p { println!("cloned String not Rc: {bar}") }
+///         if p { println!("cloned String not Arc: {bar}") }
 ///     }
 ///});
 /// # println!("original: {bar}");
@@ -1868,7 +1868,7 @@ const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(5);
 mod async_clone_move_fn_tests {
     // if it build it passes
 
-    use std::{future::ready, rc::Rc};
+    use std::{future::ready, sync::Arc};
 
     fn no_clones_no_input() {
         let _ = async_clone_move_fn!(|| ready(true).await);
@@ -1882,7 +1882,7 @@ mod async_clone_move_fn_tests {
         let _ = a;
     }
 
-    fn one_clone_with_derefs_no_input(a: &Rc<String>) {
+    fn one_clone_with_derefs_no_input(a: &Arc<String>) {
         let _ = async_clone_move_fn!(**a, || {
             let _: String = a;
             ready(true).await
@@ -1890,10 +1890,10 @@ mod async_clone_move_fn_tests {
         let _ = a;
     }
 
-    fn two_derefs_no_input(a: &String, b: Rc<String>) {
+    fn two_derefs_no_input(a: &String, b: Arc<String>) {
         let _ = async_clone_move_fn!(a, b, || {
             let _: String = a;
-            let _: Rc<String> = b;
+            let _: Arc<String> = b;
             ready(true).await
         });
         let _ = (a, b);
@@ -1922,7 +1922,7 @@ mod async_clone_move_fn_tests {
 mod async_clone_move_fn_once_tests {
     // if it build it passes
 
-    use std::{future::ready, rc::Rc};
+    use std::{future::ready, sync::Arc};
 
     fn no_clones_no_input() {
         let _ = async_clone_move_fn_once!(|| ready(true).await);
@@ -1936,7 +1936,7 @@ mod async_clone_move_fn_once_tests {
         let _ = a;
     }
 
-    fn one_clone_with_derefs_no_input(a: &Rc<String>) {
+    fn one_clone_with_derefs_no_input(a: &Arc<String>) {
         let _ = async_clone_move_fn_once!(**a, || {
             let _: String = a;
             ready(true).await
@@ -1944,10 +1944,10 @@ mod async_clone_move_fn_once_tests {
         let _ = a;
     }
 
-    fn two_derefs_no_input(a: &String, b: Rc<String>) {
+    fn two_derefs_no_input(a: &String, b: Arc<String>) {
         let _ = async_clone_move_fn_once!(a, b, || {
             let _: String = a;
-            let _: Rc<String> = b;
+            let _: Arc<String> = b;
             ready(true).await
         });
         let _ = (a, b);

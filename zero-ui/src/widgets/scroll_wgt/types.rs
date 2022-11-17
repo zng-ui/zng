@@ -2,7 +2,7 @@ use std::{fmt, sync::Arc, time::Duration};
 
 use crate::core::{
     context::{context_value, with_context_value, StaticStateId},
-    task::Mutex,
+    task::parking_lot::Mutex,
     units::*,
     var::{animation::*, *},
     widget_info::WidgetInfo,

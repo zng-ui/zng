@@ -243,7 +243,10 @@ fn delayed_focus() -> impl UiNode {
     }
 }
 fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetContext) + Send + 'static) -> impl UiNode {
-    let on_timeout = std::sync::Arc::new(zero_ui::core::task::Mutex::new(Box::new(on_timeout)));
+    use std::sync::Arc;
+    use zero_ui::core::task::parking_lot::Mutex;
+
+    let on_timeout = Arc::new(Mutex::new(Box::new(on_timeout)));
     let enabled = var(true);
     button! {
         child = text(content.into());

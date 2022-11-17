@@ -3,7 +3,7 @@
 //! Use the [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
 //! IO operations, use [`http`] for async HTTP, and use [`ui`] to create async properties.
 //!
-//! This module also re-exports the [`rayon`] crate for convenience.
+//! This module also re-exports the [`rayon`] and [`parking_lot`] crates for convenience.
 //!
 //! # Examples
 //!
@@ -136,7 +136,6 @@
 //! [`async-fs`]: https://docs.rs/async-fs
 
 use std::{
-    borrow::Cow,
     fmt,
     future::Future,
     mem, panic,
@@ -149,12 +148,12 @@ use std::{
 };
 
 #[doc(no_inline)]
-pub use parking_lot::{Mutex, RwLock};
+pub use parking_lot;
 
 use crate::{
     crate_util::{panic_str, PanicResult},
     units::Deadline,
-    var::{response_channel, response_var, ResponseVar, Var, VarValue, WithVars},
+    var::{response_channel, ResponseVar, VarValue, WithVars},
 };
 
 #[doc(no_inline)]
@@ -246,7 +245,7 @@ where
     type Fut = Pin<Box<dyn Future<Output = ()> + Send>>;
 
     // A future that is its own waker that polls inside the rayon primary thread-pool.
-    struct RayonTask(Mutex<Option<Fut>>);
+    struct RayonTask(parking_lot::Mutex<Option<Fut>>);
     impl RayonTask {
         fn poll(self: Arc<RayonTask>) {
             rayon::spawn(move || {
@@ -274,7 +273,7 @@ where
         }
     }
 
-    Arc::new(RayonTask(Mutex::new(Some(Box::pin(task))))).poll()
+    Arc::new(RayonTask(parking_lot::Mutex::new(Some(Box::pin(task))))).poll()
 }
 
 /// Spawn a parallel async task that can also be `.await` for the task result.
@@ -367,7 +366,7 @@ where
     type Fut<R> = Pin<Box<dyn Future<Output = R> + Send>>;
 
     // A future that is its own waker that polls inside the rayon primary thread-pool.
-    struct RayonCatchTask<R>(Mutex<Option<Fut<R>>>, flume::Sender<PanicResult<R>>);
+    struct RayonCatchTask<R>(parking_lot::Mutex<Option<Fut<R>>>, flume::Sender<PanicResult<R>>);
     impl<R: Send + 'static> RayonCatchTask<R> {
         fn poll(self: Arc<Self>) {
             let sender = self.1.clone();
@@ -408,7 +407,7 @@ where
 
     let (sender, receiver) = channel::bounded(1);
 
-    Arc::new(RayonCatchTask(Mutex::new(Some(Box::pin(task))), sender.into())).poll();
+    Arc::new(RayonCatchTask(parking_lot::Mutex::new(Some(Box::pin(task))), sender.into())).poll();
 
     receiver.recv().await.unwrap()
 }
@@ -452,11 +451,6 @@ where
 /// If the `task` panics the panic is logged but otherwise ignored and the variable never responds. See
 /// [`spawn`] for more information about the panic handling of this function.
 ///
-/// # Send
-///
-/// The response value must be [`Send`], if the `!Send` part of the result is trivial you can use
-/// [`respond_ctor`] to workaround this constrain by sending a *constructor* closure to run in the UI thread.
-///
 /// [`resume_unwind`]: panic::resume_unwind
 pub fn respond<Vw: WithVars, R, F>(vars: &Vw, task: F) -> ResponseVar<R>
 where
@@ -468,49 +462,6 @@ where
     spawn(async move {
         let r = task.await;
         let _ = sender.send_response(r);
-    });
-
-    response
-}
-
-/// Like [`respond`] but sends a response constructor closure.
-///
-/// The response constructor is a closure that is the result of `task`. It is send to, and evaluated in the UI thread,
-/// this removes the [`Send`] constrain from the response value for cases where the expensive values of the response
-/// are [`Send`], just the final response that is not.
-///
-/// # Examples
-///
-/// Construct a `!Send` struct in the UI thread using a *constructor* closure:
-///
-/// ```
-/// # use std::rc::Rc;
-/// # use zero_ui_core::task;
-/// #[derive(Clone, Debug)]
-/// pub struct NotSend {
-///     pub send_value: bool,
-///     not_send_part: Rc<()>
-/// }
-///
-/// # fn demo(vars: &zero_ui_core::var::Vars) { let _ =
-/// task::respond_ctor(vars, async {
-///     let send_value = task::wait(|| true).await;
-///     move || NotSend { send_value, not_send_part: Rc::new(()) }
-/// })
-/// # ; }
-/// ```
-pub fn respond_ctor<Vw: WithVars, R, C, F>(vars: &Vw, task: F) -> ResponseVar<R>
-where
-    R: VarValue + 'static,
-    C: FnOnce() -> R + Send + 'static,
-    F: Future<Output = C> + Send + 'static,
-{
-    let (responder, response) = response_var();
-    let modify_sender = responder.modify_sender(vars);
-
-    spawn(async move {
-        let ctor = task.await;
-        let _ = modify_sender.send(move |v| *v = Cow::Owned(crate::var::types::Response::Done(ctor())));
     });
 
     response
@@ -1829,7 +1780,7 @@ impl Future for SignalOnce {
 #[derive(Default)]
 struct SignalInner {
     signaled: AtomicBool,
-    listeners: Mutex<Vec<std::task::Waker>>,
+    listeners: parking_lot::Mutex<Vec<std::task::Waker>>,
 }
 
 /// A [`Waker`] that dispatches a wake call to multiple other wakers.
@@ -1842,7 +1793,7 @@ struct SignalInner {
 pub struct McWaker(Arc<WakeVec>);
 
 #[derive(Default)]
-struct WakeVec(Mutex<Vec<std::task::Waker>>);
+struct WakeVec(parking_lot::Mutex<Vec<std::task::Waker>>);
 impl WakeVec {
     fn push(&self, waker: std::task::Waker) -> bool {
         let mut v = self.0.lock();
