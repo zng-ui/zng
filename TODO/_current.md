@@ -1,5 +1,3 @@
-* Merge.
-
 * Refactor ContextVar to don't use RefCell and LocalKey?
     - Use `ContextLocal`, this causes context-var to be Send+Sync.
 * Remove `Var::with`, make `Var::read(&self) -> VarReadLock<T>`.
