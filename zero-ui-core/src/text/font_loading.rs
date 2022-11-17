@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     path::PathBuf,
+    rc::Rc,
     slice::SliceIndex,
     sync::Arc,
 };
@@ -10,8 +11,8 @@ use font_kit::properties::Weight;
 use parking_lot::Mutex;
 
 use super::{
-    font_features::RFontVariations, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight,
-    InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey,
+    font_features::RFontVariations, font_kit_cache::FontKitCache, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle,
+    FontSynthesis, FontWeight, InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey,
 };
 use crate::{
     app::{
@@ -312,8 +313,8 @@ pub struct FontFace {
     metrics: FontFaceMetrics,
     m: Mutex<FontFaceMut>,
 }
-#[derive(Default)]
 struct FontFaceMut {
+    font_kit: FontKitCache,
     instances: FxHashMap<FontInstanceKey, FontRef>,
     render_keys: Vec<RenderFontFace>,
     unregistered: bool,
@@ -362,7 +363,12 @@ impl FontFace {
                     properties: other_font.properties,
                     is_monospace: other_font.is_monospace,
                     metrics: other_font.metrics.clone(),
-                    m: Default::default(),
+                    m: Mutex::new(FontFaceMut {
+                        font_kit: other_font.m.lock().font_kit.clone(),
+                        instances: Default::default(),
+                        render_keys: Default::default(),
+                        unregistered: Default::default(),
+                    }),
                 });
             }
         }
@@ -395,7 +401,16 @@ impl FontFace {
             },
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
-            m: Default::default(),
+            m: Mutex::new(FontFaceMut {
+                font_kit: {
+                    let mut font_kit = FontKitCache::default();
+                    font_kit.get_or_init(move || font);
+                    font_kit
+                },
+                instances: Default::default(),
+                render_keys: Default::default(),
+                unregistered: Default::default(),
+            }),
         })
     }
 
@@ -440,7 +455,16 @@ impl FontFace {
             properties: font.properties(),
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
-            m: Default::default(),
+            m: Mutex::new(FontFaceMut {
+                font_kit: {
+                    let mut font_kit = FontKitCache::default();
+                    font_kit.get_or_init(move || font);
+                    font_kit
+                },
+                instances: Default::default(),
+                render_keys: Default::default(),
+                unregistered: Default::default(),
+            }),
         })
     }
 
@@ -486,18 +510,21 @@ impl FontFace {
         &self.face
     }
 
-    /// Reload the `font_kit` face.
+    /// Get the `font_kit` loaded in the current thread, or loads it.
     ///
-    /// Loads from the cached [`bytes`], unfortunately the font itself cannot be cached because it is `!Send + !Sync`.
+    /// Loads from the cached [`bytes`], unfortunately the font itself is `!Send`, to a different instance is generated
+    /// for each thread.
     ///
     /// [`bytes`]: Self::bytes
-    pub fn load_font_kit(&self) -> font_kit::font::Font {
-        font_kit::handle::Handle::Memory {
-            bytes: Arc::clone(&self.data.0),
-            font_index: self.face_index,
-        }
-        .load()
-        .unwrap()
+    pub fn font_kit(&self) -> Rc<font_kit::font::Font> {
+        self.m.lock().font_kit.get_or_init(|| {
+            font_kit::handle::Handle::Memory {
+                bytes: Arc::clone(&self.data.0),
+                font_index: self.face_index,
+            }
+            .load()
+            .unwrap()
+        })
     }
 
     /// Reference the font file bytes.

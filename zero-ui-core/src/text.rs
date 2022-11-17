@@ -211,6 +211,7 @@ pub use zero_ui_proc_macros::lang as __lang;
 pub use unic_langid;
 #[doc(hidden)]
 pub mod font_features;
+mod font_kit_cache;
 pub use font_features::FontFeatures;
 
 mod font_loading;

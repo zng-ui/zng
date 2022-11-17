@@ -1456,7 +1456,7 @@ impl Font {
     /// Gets the distance from the origin of the glyph with the given ID to the next.
     pub fn advance(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
         self.face()
-            .load_font_kit()
+            .font_kit()
             .advance(index)
             .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
     }
@@ -1464,7 +1464,7 @@ impl Font {
     /// Gets the amount that the given glyph should be displaced from the origin.
     pub fn origin(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
         self.face()
-            .load_font_kit()
+            .font_kit()
             .origin(index)
             .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
     }
@@ -1629,7 +1629,7 @@ impl Font {
         let scale = self.metrics().size_scale;
 
         self.face()
-            .load_font_kit()
+            .font_kit()
             .outline(glyph_id, hinting_options, &mut AdapterSink { sink, scale })
     }
 
@@ -1637,7 +1637,7 @@ impl Font {
     ///
     /// The rectangle origin is the bottom-left of the bounds relative to the baseline.
     pub fn typographic_bounds(&self, glyph_id: GlyphIndex) -> Result<euclid::Rect<f32, Px>, GlyphLoadingError> {
-        let rect = self.face().load_font_kit().typographic_bounds(glyph_id)?;
+        let rect = self.face().font_kit().typographic_bounds(glyph_id)?;
 
         let scale = self.metrics().size_scale;
         let bounds = euclid::rect::<f32, Px>(
