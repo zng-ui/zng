@@ -5,7 +5,7 @@ use std::{fmt, mem};
 use crate::{
     color::*,
     context::{LayoutContext, LayoutMetrics, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
-    context_value, property,
+    context_local, property,
     render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId},
     ui_list, ui_node,
     units::*,
@@ -892,24 +892,22 @@ impl ContextBorders {
     ///
     /// This is only valid to call during layout.
     pub fn border_offsets(widget_id: WidgetId) -> PxSideOffsets {
-        BORDER_DATA.with(|data| {
-            if data.widget_id == Some(widget_id) {
-                data.wgt_offsets
-            } else {
-                PxSideOffsets::zero()
-            }
-        })
+        let data = BORDER_DATA.read();
+        if data.widget_id == Some(widget_id) {
+            data.wgt_offsets
+        } else {
+            PxSideOffsets::zero()
+        }
     }
 
     /// Gets the accumulated border offsets including the current border.
     pub fn inner_offsets(widget_id: WidgetId) -> PxSideOffsets {
-        BORDER_DATA.with(|data| {
-            if data.widget_id == Some(widget_id) {
-                data.wgt_inner_offsets
-            } else {
-                PxSideOffsets::zero()
-            }
-        })
+        let data = BORDER_DATA.read();
+        if data.widget_id == Some(widget_id) {
+            data.wgt_inner_offsets
+        } else {
+            PxSideOffsets::zero()
+        }
     }
 
     /// Gets the corner radius for the border at the current context.
@@ -917,14 +915,15 @@ impl ContextBorders {
     /// This value is influenced by [`CORNER_RADIUS_VAR`], [`CORNER_RADIUS_FIT_VAR`] and all contextual borders.
     pub fn border_radius(ctx: &mut LayoutContext) -> PxCornerRadius {
         match CORNER_RADIUS_FIT_VAR.get() {
-            CornerRadiusFit::Tree => BORDER_DATA.with(BorderOffsetsData::border_radius),
-            CornerRadiusFit::Widget => BORDER_DATA.with(|data| {
+            CornerRadiusFit::Tree => BORDER_DATA.read().border_radius(),
+            CornerRadiusFit::Widget => {
+                let data = BORDER_DATA.read();
                 if data.widget_id == Some(ctx.path.widget_id()) {
                     data.border_radius()
                 } else {
                     CORNER_RADIUS_VAR.get().layout(ctx.metrics, |_| PxCornerRadius::zero())
                 }
-            }),
+            }
             _ => CORNER_RADIUS_VAR.get().layout(ctx.metrics, |_| PxCornerRadius::zero()),
         }
     }
@@ -932,14 +931,15 @@ impl ContextBorders {
     /// Gets the corner radius for the inside of the current border at the current context.
     pub fn inner_radius(ctx: &mut LayoutContext) -> PxCornerRadius {
         match CORNER_RADIUS_FIT_VAR.get() {
-            CornerRadiusFit::Tree => BORDER_DATA.with(BorderOffsetsData::inner_radius),
-            CornerRadiusFit::Widget => BORDER_DATA.with(|data| {
+            CornerRadiusFit::Tree => BORDER_DATA.read().inner_radius(),
+            CornerRadiusFit::Widget => {
+                let data = BORDER_DATA.read();
                 if data.widget_id == Some(ctx.path.widget_id()) {
                     data.inner_radius()
                 } else {
                     CORNER_RADIUS_VAR.get().layout(ctx.metrics, |_| PxCornerRadius::zero())
                 }
-            }),
+            }
             _ => CORNER_RADIUS_VAR.get().layout(ctx.metrics, |_| PxCornerRadius::zero()),
         }
     }
@@ -999,7 +999,7 @@ impl ContextBorders {
     }
 }
 
-context_value! {
+context_local! {
     static BORDER_DATA: BorderOffsetsData = BorderOffsetsData::default();
     static BORDER_LAYOUT: Option<(PxRect, PxSideOffsets)> = None;
 }

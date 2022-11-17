@@ -39,9 +39,9 @@ use super::*;
 ///
 /// # Context Only
 ///
-/// Note that if you are only interested in sharing a contextual value you can use the [`context_value!`] macro instead.
+/// Note that if you are only interested in sharing a contextual value you can use the [`context_local!`] macro instead.
 ///
-/// [`context_value!`]: crate::context::context_value
+/// [`context_local!`]: crate::context::context_value
 #[macro_export]
 macro_rules! context_var {
     ($(
@@ -71,7 +71,7 @@ pub use crate::context_var;
 /// [`ContextualizedVar`]: crate::var::types::ContextualizedVar
 #[derive(Clone, Default)]
 pub struct ContextInitHandle(Arc<()>);
-crate::context_value! {
+crate::context_local! {
     static CONTEXT_INIT_ID: ContextInitHandle = ContextInitHandle::new();
 }
 impl ContextInitHandle {

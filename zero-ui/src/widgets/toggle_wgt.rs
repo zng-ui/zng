@@ -300,52 +300,50 @@ pub mod toggle_properties {
         impl ValueNode {
             // Returns `true` if selected.
             fn select(ctx: &mut WidgetContext, value: &T) -> bool {
-                SELECTOR.with_mut(|selector| {
-                    match selector.select(ctx, Box::new(value.clone())) {
-                        Ok(()) => true,
-                        Err(e) => {
-                            let selected = selector.is_selected(&mut ctx.as_info(), value);
-                            if selected {
-                                tracing::error!("selected `{value:?}` with error, {e}");
-                            } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
-                                // ignore
-                            } else {
-                                tracing::error!("failed to select `{value:?}`, {e}");
-                            }
-                            selected
+                let selector = SELECTOR.read();
+                match selector.select(ctx, Box::new(value.clone())) {
+                    Ok(()) => true,
+                    Err(e) => {
+                        let selected = selector.is_selected(&mut ctx.as_info(), value);
+                        if selected {
+                            tracing::error!("selected `{value:?}` with error, {e}");
+                        } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                            // ignore
+                        } else {
+                            tracing::error!("failed to select `{value:?}`, {e}");
                         }
+                        selected
                     }
-                })
+                }
             }
 
             /// Returns `true` if deselected.
             fn deselect(ctx: &mut WidgetContext, value: &T) -> bool {
-                SELECTOR.with_mut(|selector| {
-                    match selector.deselect(ctx, value) {
-                        Ok(()) => true,
-                        Err(e) => {
-                            let deselected = !selector.is_selected(&mut ctx.as_info(), value);
-                            if deselected {
-                                tracing::error!("deselected `{value:?}` with error, {e}");
-                            } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
-                                // ignore
-                            } else {
-                                tracing::error!("failed to deselect `{value:?}`, {e}");
-                            }
-                            deselected
+                let selector = SELECTOR.read();
+                match selector.deselect(ctx, value) {
+                    Ok(()) => true,
+                    Err(e) => {
+                        let deselected = !selector.is_selected(&mut ctx.as_info(), value);
+                        if deselected {
+                            tracing::error!("deselected `{value:?}` with error, {e}");
+                        } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                            // ignore
+                        } else {
+                            tracing::error!("failed to deselect `{value:?}`, {e}");
                         }
+                        deselected
                     }
-                })
+                }
             }
 
             fn is_selected(ctx: &mut WidgetContext, value: &T) -> bool {
-                SELECTOR.with(|sel| sel.is_selected(&mut ctx.as_info(), value))
+                SELECTOR.read().is_selected(&mut ctx.as_info(), value)
             }
 
             #[UiNode]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.sub_var(&self.value).sub_var(&DESELECT_ON_NEW_VAR);
-                SELECTOR.with(|s| s.subscribe(ctx.path.widget_id(), &mut ctx.handles));
+                SELECTOR.read().subscribe(ctx.path.widget_id(), &mut ctx.handles);
 
                 self.value.with(|value| {
                     let selected = if SELECT_ON_INIT_VAR.get() {
@@ -461,7 +459,7 @@ pub mod toggle_properties {
     /// [`value`]: fn@value
     #[property(CONTEXT, default(Selector::nil()))]
     pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
-        with_context_value(child, SELECTOR, selector)
+        with_context_local(child, &SELECTOR, selector)
     }
 
     /// If [`value`] is selected when the widget that has the value is inited.
@@ -496,7 +494,7 @@ pub mod toggle_properties {
         with_context_var(child, DESELECT_ON_NEW_VAR, enabled)
     }
 
-    context_value! {
+    context_local! {
         static SELECTOR: Selector = Selector::nil();
     }
 

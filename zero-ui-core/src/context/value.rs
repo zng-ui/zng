@@ -1,9 +1,4 @@
-use std::{
-    any::Any,
-    cell::RefCell,
-    mem,
-    thread::{LocalKey, ThreadId},
-};
+use std::{any::Any, cell::RefCell, mem, thread::ThreadId};
 
 use parking_lot::*;
 
@@ -58,7 +53,7 @@ impl ThreadContext {
     ///
     /// ```
     /// use std::thread;
-    /// use zero_ui_core::app::ThreadContext;
+    /// use zero_ui_core::context::ThreadContext;
     ///
     /// let outer_id = thread::current().id();
     /// let ctx = ThreadContext::capture();
@@ -82,6 +77,8 @@ impl ThreadContext {
 /// Represents an [`AppLocal<T>`] value that can be temporarily overridden in a context.
 ///
 /// The *context* works across threads, as long as the threads are instrumented using [`ThreadContext`].
+///
+/// Use the [`context_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 pub struct ContextLocal<T: Send + Sync + 'static> {
     data: AppLocal<Vec<(ThreadId, T)>>,
     default: RwLock<Option<T>>,
@@ -103,8 +100,10 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     ///
     /// # Panics
     ///
-    /// If `value` is `None`.
-    pub fn with_override<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
+    /// If `value` is `None`. Note that if `T: Option<I>` you can use [`with_context_opt`].
+    ///
+    /// [`with_context_opt`]: Self::with_context_opt
+    pub fn with_context<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
         let new_value = value.take().expect("no override provided");
         let thread_id = std::thread::current().id();
 
@@ -130,6 +129,8 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
             // first contextualization in this thread
             write.push((thread_id, new_value));
 
+            drop(write);
+
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
                 let i = write.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
@@ -142,8 +143,10 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 
     /// Calls  `f` with the `value` loaded in context, even if it is `None`.
     ///
-    /// This behave similar to [`with_override`], but where `T: Option<I>`.
-    pub fn with_override_opt<R, I: Send + Sync + 'static>(&'static self, value: &mut Option<I>, f: impl FnOnce() -> R) -> R
+    /// This behave similar to [`with_context`], but where `T: Option<I>`.
+    ///
+    /// [`with_context`]: Self::with_context
+    pub fn with_context_opt<R, I: Send + Sync + 'static>(&'static self, value: &mut Option<I>, f: impl FnOnce() -> R) -> R
     where
         T: option::Option<I>,
     {
@@ -172,6 +175,8 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
             // first contextualization in this thread
             write.push((thread_id, new_value));
 
+            drop(write);
+
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
                 let i = write.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
@@ -185,9 +190,9 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// Lock the context local for read.
     ///
     /// The value can be read locked more than once at the same time, including on the same thread. While the
-    /// read guard is alive calls to [`with_override`] and [`write`] are blocked.
+    /// read guard is alive calls to [`with_context`] and [`write`] are blocked.
     ///
-    /// [`with_override`]: Self::with_override
+    /// [`with_context`]: Self::with_context
     /// [`write`]: Self::write
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         let read = self.data.read();
@@ -214,9 +219,9 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// Exclusive lock the context local for write.
     ///
     /// The value can only be locked once at the same time, deadlocks if called twice in the same thread, blocks calls
-    /// to [`with_override`] and [`write`].
+    /// to [`with_context`] and [`write`].
     ///
-    /// [`with_override`]: Self::with_override
+    /// [`with_context`]: Self::with_context
     /// [`write`]: Self::write
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
         let write = self.data.write();
@@ -237,15 +242,30 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 
         RwLockWriteGuard::map(write, |v| v.as_mut().unwrap())
     }
+
+    /// Get a clone of the current contextual value.
+    pub fn get(&'static self) -> T
+    where
+        T: Clone,
+    {
+        self.read().clone()
+    }
+
+    /// Set the current contextual value.
+    ///
+    /// This changes the current contextual value or the **default value**.
+    pub fn set(&'static self, value: T) {
+        *self.write() = value;
+    }
 }
 
-///<span data-del-macro-root></span> Declares new thread local static that facilitates sharing *contextual* values.
+///<span data-del-macro-root></span> Declares new app and context local variable.
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::context_value;
-/// context_value! {
+/// # use zero_ui_core::context::context_local;
+/// context_local! {
 ///     /// A public documented value.
 ///     pub static FOO: u8 = 10u8;
 ///
@@ -258,15 +278,15 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 ///
 /// All contextual values must have a fallback value that is used when no context is loaded.
 ///
-/// The default value is instantiated once per thread, the expression can be any static value that converts [`Into<T>`].
+/// The default value is instantiated once per app, the expression can be any static value that converts [`Into<T>`].
 ///
 /// # Usage
 ///
 /// After you declare the contextual value you can use it by loading a context, calling a closure and inside it *visiting* the value.
 ///
 /// ```
-/// # use zero_ui_core::context_value;
-/// context_value! { static FOO: String = "default"; }
+/// # use zero_ui_core::context::context_local;
+/// context_local! { static FOO: String = "default"; }
 ///
 /// fn print_value() {
 ///     FOO.with(|val| println!("value is {val}!"));
@@ -288,44 +308,25 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 /// in context, value is other!
 /// out of context, value is default!
 /// ```
+///
+/// See [`ContextLocal<T>`] for more details.
 #[macro_export]
-macro_rules! context_value {
-($(
-    $(#[$attr:meta])*
-    $vis:vis static $NAME:ident: $Type:ty = $default:expr;
-)+) => {$(
-    $crate::paste! {
-        std::thread_local! {
-            #[doc(hidden)]
-            static [<$NAME _LOCAL>]: $crate::context::ContextValueData<$Type> = $crate::context::ContextValueData::init($default);
-        }
-    }
-
-    $(#[$attr])*
-    $vis static $NAME: $crate::context::ContextValue<$Type> = paste::paste! { $crate::context::ContextValue::new(&[<$NAME _LOCAL>]) };
-)+}
+macro_rules! context_local {
+    ($(
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+    )+) => {$(
+        $(#[$meta])*
+        $vis static $IDENT: $crate::context::ContextLocal<$T> = {
+            fn init() -> $T {
+                std::convert::Into::into($init)
+            }
+            $crate::context::ContextLocal::new(init)
+        };
+    )+};
 }
 #[doc(inline)]
-pub use context_value;
-
-#[doc(hidden)]
-pub struct ContextValueData<T: Any> {
-    value: RefCell<T>,
-}
-impl<T: Any> ContextValueData<T> {
-    pub fn init(default: impl Into<T>) -> Self {
-        Self {
-            value: RefCell::new(default.into()),
-        }
-    }
-}
-
-/// Represents value that can only be read in a context.
-///
-/// See [`context_value!`] for more details.
-pub struct ContextValue<T: Any> {
-    local: &'static LocalKey<ContextValueData<T>>,
-}
+pub use context_local;
 
 #[doc(hidden)]
 pub mod option {
@@ -348,104 +349,18 @@ pub mod option {
     }
 }
 
-impl<T: Any> ContextValue<T> {
-    #[doc(hidden)]
-    pub const fn new(local: &'static LocalKey<ContextValueData<T>>) -> Self {
-        ContextValue { local }
-    }
-
-    /// Calls `f` with read-only access to the contextual value.
-    ///
-    /// Returns the result of `f`.
-    pub fn with<R>(self, f: impl FnOnce(&T) -> R) -> R {
-        self.local.with(|l| f(&*l.value.borrow()))
-    }
-
-    /// Like [`with`] but only calls `f` if the value is `Some(I)`.
-    ///
-    /// [`with`]: Self::with
-    pub fn with_opt<I: Any, R>(self, f: impl FnOnce(&I) -> R) -> Option<R>
-    where
-        T: option::Option<I>,
-    {
-        self.with(|opt| opt.get().as_ref().map(f))
-    }
-
-    /// Calls `f` with exclusive access to the contextual value.
-    ///
-    /// Returns the result of `f`.
-    pub fn with_mut<R>(self, f: impl FnOnce(&mut T) -> R) -> R {
-        self.local.with(|l| f(&mut *l.value.borrow_mut()))
-    }
-
-    /// Like [`with_mut`] but only calls `f` if the value is `Some(I)`.
-    ///
-    /// [`with_mut`]: Self::with_mut
-    pub fn with_mut_opt<I: Any, R>(self, f: impl FnOnce(&mut I) -> R) -> Option<R>
-    where
-        T: option::Option<I>,
-    {
-        self.with_mut(|opt| opt.get_mut().as_mut().map(f))
-    }
-
-    /// Runs `action` while the `value` is moved into context, restores the `value` if `action` does not panic.
-    ///
-    /// Returns the result of `action`, panics if `value` is `None`.
-    pub fn with_context<R>(self, value: &mut Option<T>, action: impl FnOnce() -> R) -> R {
-        let prev = self.set_context(value.take().expect("no contextual value to load"));
-        let r = action();
-        *value = Some(self.set_context(prev));
-        r
-    }
-
-    /// Like [`with_context`], but for context values that are `T: Option<I>`.
-    ///
-    /// [`with_context`]: Self::with_context
-    pub fn with_context_opt<I: Any, R>(self, value: &mut Option<I>, action: impl FnOnce() -> R) -> R
-    where
-        T: option::Option<I>,
-    {
-        let prev = self.set_context_opt(value.take());
-        let r = action();
-        *value = self.set_context_opt(prev);
-        r
-    }
-
-    /// Get a clone of the current contextual value.
-    pub fn get(self) -> T
-    where
-        T: Clone,
-    {
-        self.with(Clone::clone)
-    }
-
-    fn set_context(&self, val: T) -> T {
-        self.local.with(|l| mem::replace(&mut *l.value.borrow_mut(), val))
-    }
-
-    fn set_context_opt<I>(&self, val: Option<I>) -> Option<I>
-    where
-        T: option::Option<I>,
-    {
-        self.local.with(|l| mem::replace(l.value.borrow_mut().get_mut(), val))
-    }
-}
-
-impl<T: Any> Clone for ContextValue<T> {
-    fn clone(&self) -> Self {
-        Self { local: self.local }
-    }
-}
-impl<T: Any> Copy for ContextValue<T> {}
-
-/// Helper for declaring nodes that sets a context value.
-pub fn with_context_value<T: Any + Send>(child: impl UiNode, context: ContextValue<T>, value: impl Into<T>) -> impl UiNode {
-    #[ui_node(struct WithContextValueNode<T: Any + Send> {
+/// Helper for declaring nodes that sets a [`ContextLocal`].
+pub fn with_context_local<T: Any + Send + Sync + 'static>(
+    child: impl UiNode,
+    context: &'static ContextLocal<T>,
+    value: impl Into<T>,
+) -> impl UiNode {
+    #[ui_node(struct WithContextLocalNode<T: Any + Send + Sync + 'static> {
         child: impl UiNode,
-        context: ContextValue<T>,
+        context: &'static ContextLocal<T>,
         value: RefCell<Option<T>>,
     })]
-    impl WithContextValueNode {
+    impl WithContextLocalNode {
         fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
             let mut value = self.value.borrow_mut();
             self.context.with_context(&mut value, move || mtd(&self.child))
@@ -501,7 +416,7 @@ pub fn with_context_value<T: Any + Send>(child: impl UiNode, context: ContextVal
             self.with(|c| c.render_update(ctx, update))
         }
     }
-    WithContextValueNode {
+    WithContextLocalNode {
         child,
         context,
         value: RefCell::new(Some(value.into())),

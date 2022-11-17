@@ -40,19 +40,13 @@ pub struct ResolvedText {
     baseline: Px,
 }
 impl ResolvedText {
-    /// If any [`ResolvedText`] is set in the current context.
+    /// Read lock the contextual resolved text.
     ///
-    /// This is `true` for any property within [`NestGroup::EVENT`] set in a `text!` widget or
-    /// any widget that uses the [`resolve_text`] node.
-    pub fn is_some() -> bool {
-        RESOLVED_TEXT.with(Option::is_some)
-    }
-
-    /// Calls `f` if [`is_some`], returns the result of `f`.
-    ///
-    /// [`is_some`]: Self::is_some
-    pub fn with<R>(f: impl FnOnce(&Self) -> R) -> Option<R> {
-        RESOLVED_TEXT.with(|opt| opt.as_ref().map(f))
+    /// The text can be read locked more than once at the same time, including on the same thread. The read lock
+    /// **must not** be held across node delegation, a nested text may be inserted by any child node and it needs write
+    /// access to setup its own context, if a read-lock is held it will deadlock.
+    pub fn read() -> crate::core::task::parking_lot::MappedRwLockReadGuard<'static, Option<ResolvedText>> {
+        RESOLVED_TEXT.read()
     }
 }
 impl fmt::Debug for ResolvedText {
@@ -113,23 +107,17 @@ pub struct LayoutText {
     pub underline_thickness: Px,
 }
 impl LayoutText {
-    /// If any [`ResolvedText`] is set in the current context.
+    /// Read lock the contextual layout text.
     ///
-    /// This is `true` only during layout & render, in properties in [`NestGroup::BORDER`] or [`NestGroup::FILL`] set in a `text!` widget or
-    /// any widget that uses the [`layout_text`] node.
-    pub fn is_some() -> bool {
-        LAYOUT_TEXT.with(Option::is_some)
-    }
-
-    /// Calls `f` if [`is_some`], returns the result of `f`.
-    ///
-    /// [`is_some`]: Self::is_some
-    pub fn with<R>(f: impl FnOnce(&Self) -> R) -> Option<R> {
-        LAYOUT_TEXT.with(|opt| opt.as_ref().map(f))
+    /// The text can be read locked more than once at the same time, including on the same thread. The read lock
+    /// **must not** be held across node delegation, a nested text may be inserted by any child node and it needs write
+    /// access to setup its own context, if a read-lock is held it will deadlock.
+    pub fn read() -> crate::core::task::parking_lot::MappedRwLockReadGuard<'static, Option<LayoutText>> {
+        LAYOUT_TEXT.read()
     }
 }
 
-context_value! {
+context_local! {
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
     static RESOLVED_TEXT: Option<ResolvedText> = None;
     /// Represents the contextual [`LayoutText`] setup by the [`layout_text`] node.
@@ -685,37 +673,34 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if let Some(size) = txt.measure(ctx) {
                 size
             } else {
-                RESOLVED_TEXT
-                    .with_mut_opt(|t| {
-                        let mut pending = self.pending;
-                        txt.layout(ctx.metrics, t, &mut pending)
-                    })
-                    .expect("expected `ResolvedText` in `measure`")
+                let mut write = RESOLVED_TEXT.write();
+                let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
+                let mut pending = self.pending;
+                txt.layout(ctx.metrics, t, &mut pending)
             }
         }
         #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            RESOLVED_TEXT
-                .with_mut_opt(|t| {
-                    let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending);
+            let mut write = RESOLVED_TEXT.write();
+            let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
 
-                    if self.pending != Layout::empty() {
-                        ctx.updates.render();
-                        self.pending = Layout::empty();
-                    }
+            let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending);
 
-                    wl.set_baseline(t.baseline);
+            if self.pending != Layout::empty() {
+                ctx.updates.render();
+                self.pending = Layout::empty();
+            }
 
-                    ctx.with_constrains(
-                        |_| PxConstrains2d::new_fill_size(size),
-                        |ctx| {
-                            self.with_mut(|c| c.layout(ctx, wl));
-                        },
-                    );
+            wl.set_baseline(t.baseline);
 
-                    size
-                })
-                .expect("expected `ResolvedText` in `layout`")
+            ctx.with_constrains(
+                |_| PxConstrains2d::new_fill_size(size),
+                |ctx| {
+                    self.with_mut(|c| c.layout(ctx, wl));
+                },
+            );
+
+            size
         }
 
         #[UiNode]
@@ -759,7 +744,10 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            LayoutText::with(|t| {
+            {
+                let read = LayoutText::read();
+                let t = read.as_ref().expect("expected `LayoutText` in `render_underlines`");
+
                 if !t.underlines.is_empty() {
                     let style = UNDERLINE_STYLE_VAR.get();
                     if style != LineStyle::Hidden {
@@ -774,8 +762,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
                         }
                     }
                 }
-            })
-            .expect("expected `LayoutText` in `render_underlines`");
+            }
 
             self.child.render(ctx, frame);
         }
@@ -803,7 +790,9 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            LayoutText::with(|t| {
+            {
+                let read = LayoutText::read();
+                let t = read.as_ref().expect("expected `LayoutText` in `render_strikethroughs`");
                 if !t.strikethroughs.is_empty() {
                     let style = STRIKETHROUGH_STYLE_VAR.get();
                     if style != LineStyle::Hidden {
@@ -818,8 +807,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
                         }
                     }
                 }
-            })
-            .expect("expected `LayoutText` in `render_strikethroughs`");
+            }
 
             self.child.render(ctx, frame);
         }
@@ -847,7 +835,9 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            LayoutText::with(|t| {
+            {
+                let read = LayoutText::read();
+                let t = read.as_ref().expect("expected `LayoutText` in `render_overlines`");
                 if !t.overlines.is_empty() {
                     let style = OVERLINE_STYLE_VAR.get();
                     if style != LineStyle::Hidden {
@@ -862,8 +852,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
                         }
                     }
                 }
-            })
-            .expect("expected `LayoutText` in `render_overlines`");
+            }
 
             self.child.render(ctx, frame);
         }
@@ -887,7 +876,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
-                c.alpha *= ResolvedText::with(|t| t.caret_opacity.get().0).unwrap_or(0.0);
+                c.alpha *= ResolvedText::read().as_ref().map(|t| t.caret_opacity.get().0).unwrap_or(0.0);
                 c
             } else {
                 rgba(0, 0, 0, 0)
@@ -899,7 +888,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             let color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
-                c.alpha *= ResolvedText::with(|t| t.caret_opacity.get().0).unwrap_or(0.0);
+                c.alpha *= ResolvedText::read().as_ref().map(|t| t.caret_opacity.get().0).unwrap_or(0.0);
                 c
             } else {
                 rgba(0, 0, 0, 0)
@@ -917,18 +906,18 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render(ctx, frame);
 
             if TEXT_EDITABLE_VAR.get() {
-                LayoutText::with(|t| {
-                    let mut clip_rect = t.shaped_text.align_box();
-                    clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
-                    clip_rect.size.height = t.shaped_text.line_height();
+                let read = LayoutText::read();
+                let t = read.as_ref().expect("expected `LayoutText` in `render_text`");
 
-                    let txt_padding = t.shaped_text.padding();
-                    clip_rect.origin.x += txt_padding.left;
-                    clip_rect.origin.y += txt_padding.top;
+                let mut clip_rect = t.shaped_text.align_box();
+                clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
+                clip_rect.size.height = t.shaped_text.line_height();
 
-                    frame.push_color(clip_rect, self.color_key.bind(self.color.into(), true));
-                })
-                .expect("expected `LayoutText` in `render_text`");
+                let txt_padding = t.shaped_text.padding();
+                clip_rect.origin.x += txt_padding.left;
+                clip_rect.origin.y += txt_padding.top;
+
+                frame.push_color(clip_rect, self.color_key.bind(self.color.into(), true));
             }
         }
 
@@ -1018,8 +1007,12 @@ pub fn render_text() -> impl UiNode {
                 });
             };
 
-            ResolvedText::with(move |r| LayoutText::with(move |t| render(r, t)).expect("expected `LayoutText` in `render_text`"))
-                .expect("expected `ResolvedText` in `render_text`");
+            let read = ResolvedText::read();
+            let r = read.as_ref().expect("expected `ResolvedText` in `render_text`");
+            let read = LayoutText::read();
+            let t = read.as_ref().expect("expected `LayoutText` in `render_text`");
+
+            render(r, t)
         }
 
         fn render_update(&self, _: &mut RenderContext, update: &mut FrameUpdate) {

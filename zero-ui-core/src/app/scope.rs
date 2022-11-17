@@ -113,7 +113,9 @@ static NO_APP_ID: StaticAppId = StaticAppId::new_unique();
 
 /// An app local storage.
 ///
-/// This is similar to [`std::thread::LocalKey`], but works across all UI threads of the [`App::current_id`].
+/// This is similar to [`std::thread::LocalKey`], but works across all threads of the app.
+///
+/// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 pub struct AppLocal<T: Send + Sync + 'static> {
     value: RwLock<Vec<(AppId, T)>>,
     init: fn() -> T,
@@ -184,25 +186,51 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
         RwLockWriteGuard::map(write, |v| &mut v[i].1)
     }
+
+    /// Get a clone of the value.
+    pub fn get(&'static self) -> T
+    where
+        T: Clone,
+    {
+        self.read().clone()
+    }
+
+    /// Set the value.
+    pub fn set(&'static self, value: T) {
+        *self.write() = value;
+    }
 }
 
 ///<span data-del-macro-root></span> Declares new app local variable.
 ///
 /// See [`AppLocal<T>`] for more details.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::app::app_local;
+/// app_local! {
+///     /// A public documented value.
+///     pub static FOO: u8 = 10u8;
+///
+///     // A private value.
+///     static BAR: String = "Into!";
+/// }
+/// ```
 #[macro_export]
 macro_rules! app_local {
-    (
+    ($(
         $(#[$meta:meta])*
         $vis:vis static $IDENT:ident : $T:ty = $init:expr;
-    ) => {
+    )+) => {$(
         $(#[$meta])*
         $vis static $IDENT: $crate::app::AppLocal<$T> = {
             fn init() -> $T {
-                $init
+                std::convert::Into::into($init)
             }
             $crate::app::AppLocal::new(init)
         };
-    };
+    )+};
 }
 #[doc(inline)]
 pub use app_local;

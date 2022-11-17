@@ -132,7 +132,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     .cfg_boxed()
 }
 
-context_value! {
+context_local! {
     /// Used to avoid recursion in [`image_error_presenter`].
     static IN_ERROR_VIEW: bool = false;
     /// Used to avoid recursion in [`image_loading_presenter`].
@@ -184,7 +184,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 DataUpdate::Same
             }
         },
-        |view| with_context_value(view, IN_ERROR_VIEW, true),
+        |view| with_context_local(view, &IN_ERROR_VIEW, true),
     );
 
     stack_nodes_layout_by(ui_list![view, child], 1, |constrains, _, img_size| {
@@ -241,7 +241,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                 DataUpdate::Same
             }
         },
-        |view| with_context_value(view, IN_LOADING_VIEW, true),
+        |view| with_context_local(view, &IN_LOADING_VIEW, true),
     );
 
     stack_nodes_layout_by(ui_list![view, child], 1, |constrains, _, img_size| {

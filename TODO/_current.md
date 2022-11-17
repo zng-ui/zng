@@ -4,7 +4,9 @@
     - More ergonomic, removes a boat load of LLVM lines.
     - Need to return an enum of various types of borrow that deref T?
 * Use `app_local!` everywhere.
-    - Same for `ContextValue<T>`.
+    - Events.
+    - Remove `APP_ON_EXITED`.
+* Review `ContextLocal`, default is not app-local?
 
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.

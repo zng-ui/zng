@@ -1,7 +1,7 @@
 use std::{fmt, sync::Arc, time::Duration};
 
 use crate::core::{
-    context::{context_value, with_context_value, StaticStateId},
+    context::{context_local, with_context_local, StaticStateId},
     task::parking_lot::Mutex,
     units::*,
     var::{animation::*, *},
@@ -79,7 +79,7 @@ context_var! {
 
 }
 
-context_value! {
+context_local! {
     static SCROLL_CONFIG: ScrollConfig = ScrollConfig::default();
 }
 
@@ -98,7 +98,7 @@ impl ScrollContext {
     ///
     /// Scroll implementers must add this node to their context.
     pub fn config_node(child: impl UiNode) -> impl UiNode {
-        with_context_value(child, SCROLL_CONFIG, ScrollConfig::default())
+        with_context_local(child, &SCROLL_CONFIG, ScrollConfig::default())
     }
 
     /// Ratio of the scroll parent viewport height to its content.
@@ -191,7 +191,8 @@ impl ScrollContext {
             if smooth.is_disabled() {
                 let _ = SCROLL_VERTICAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                SCROLL_CONFIG.with_mut(|config| match &config.vertical {
+                let mut config = SCROLL_CONFIG.write();
+                match &config.vertical {
                     Some(anim) if !anim.handle.is_stopped() => {
                         anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
                     }
@@ -206,7 +207,7 @@ impl ScrollContext {
                         );
                         config.vertical = Some(anim);
                     }
-                })
+                }
             }
         })
     }
@@ -222,7 +223,8 @@ impl ScrollContext {
             if smooth.is_disabled() {
                 let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(vars, new_offset);
             } else {
-                SCROLL_CONFIG.with_mut(|config| match &config.horizontal {
+                let mut config = SCROLL_CONFIG.write();
+                match &config.horizontal {
                     Some(anim) if !anim.handle.is_stopped() => {
                         anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
                     }
@@ -237,7 +239,7 @@ impl ScrollContext {
                         );
                         config.horizontal = Some(anim);
                     }
-                })
+                }
             }
         })
     }

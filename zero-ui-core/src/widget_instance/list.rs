@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    context_value, property,
+    context_local, property,
     var::{IntoVar, Var},
 };
 
@@ -324,12 +324,14 @@ pub struct SortingListParent {}
 impl SortingListParent {
     /// If the current call has a parent list.
     pub fn is_inside_list() -> bool {
-        SORTING_LIST_PARENT.with_opt(|_| true).unwrap_or(false)
+        SORTING_LIST_PARENT.get().is_some()
     }
 
     /// Calls [`SortingList::invalidate_sort`] on the parent list.
     pub fn invalidate_sort() {
-        SORTING_LIST_PARENT.with_mut_opt(|s| *s = true);
+        if let Some(s) = &mut *SORTING_LIST_PARENT.write() {
+            *s = true;
+        }
     }
 
     fn with<R>(action: impl FnOnce() -> R) -> (R, bool) {
@@ -338,7 +340,7 @@ impl SortingListParent {
         (r, resort.unwrap())
     }
 }
-context_value! {
+context_local! {
     static SORTING_LIST_PARENT: Option<bool> = false;
 }
 
@@ -748,7 +750,7 @@ impl ZIndexContext {
         })
     }
 }
-context_value! {
+context_local! {
     static Z_INDEX: ZIndexContext = ZIndexContext::default();
 }
 
@@ -879,34 +881,32 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     })]
     impl UiNode for ZIndexNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            Z_INDEX.with_mut(|z_ctx| {
-                if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
-                    tracing::error!(
-                        "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
-                        ctx.path.widget_id()
-                    );
-                    self.valid = false;
-                } else {
-                    self.valid = true;
-                    self.init_handles(ctx);
+            let mut z_ctx = Z_INDEX.write();
+            if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
+                tracing::error!(
+                    "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
+                    ctx.path.widget_id()
+                );
+                self.valid = false;
+            } else {
+                self.valid = true;
+                self.init_handles(ctx);
 
-                    let index = self.index.get();
-                    if index != ZIndex::DEFAULT {
-                        z_ctx.resort = true;
-                        ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
-                    }
+                let index = self.index.get();
+                if index != ZIndex::DEFAULT {
+                    z_ctx.resort = true;
+                    ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
                 }
-            });
+            }
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
                 if let Some(i) = self.index.get_new(ctx) {
-                    Z_INDEX.with_mut(|z_ctx| {
-                        debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
-                        z_ctx.resort = true;
-                    });
+                    let mut z_ctx = Z_INDEX.write();
+                    debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
+                    z_ctx.resort = true;
                     ctx.widget_state.set(&Z_INDEX_ID, i);
                 }
             }
