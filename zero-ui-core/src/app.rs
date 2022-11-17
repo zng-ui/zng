@@ -608,7 +608,7 @@ impl App {
         assert_not_view_process();
         check_deadlock();
         let scope = AppScope::new_unique();
-        scope.load_into_thread();
+        scope.load_in_thread();
         AppExtended {
             scope,
             extensions: (),

@@ -1,7 +1,3 @@
-* Very slow text font size change.
-    - See `text` example.
-    - We stopped caching `font_kit::Font` because it is not `Send`.
-      Now it loads for every use, probably the cause of the perf-hit.
 * Merge.
 
 * Refactor ContextVar to don't use RefCell and LocalKey?
@@ -16,6 +12,8 @@
 * Use `ThreadContext` in `core::task`.
     - It is not just for UI threads?
 * Continue "#Parallel UI" in `./Performance.md`.
+* Review all docs.
+    - Mentions of threads in particular.
 
 # Other
 
