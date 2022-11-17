@@ -1,7 +1,7 @@
 use zero_ui::{
     core::{
         app::HeadlessApp,
-        event::EventBuffer,
+        event::EventReceiver,
         focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT},
         gesture::HeadlessAppGestureExt,
         keyboard::HeadlessAppKeyboardExt,
@@ -1527,8 +1527,8 @@ struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
 
-    focus_changed: EventBuffer<FocusChangedArgs>,
-    return_focus_changed: EventBuffer<ReturnFocusChangedArgs>,
+    focus_changed: EventReceiver<FocusChangedArgs>,
+    return_focus_changed: EventReceiver<ReturnFocusChangedArgs>,
 }
 impl TestApp {
     pub fn new(child: impl UiNode) -> Self {
@@ -1538,8 +1538,8 @@ impl TestApp {
         let mut app = App::default().run_headless(false);
 
         let (focus_changed, return_focus_changed) = {
-            let a = FOCUS_CHANGED_EVENT.buffer();
-            let b = RETURN_FOCUS_CHANGED_EVENT.buffer();
+            let a = FOCUS_CHANGED_EVENT.receiver();
+            let b = RETURN_FOCUS_CHANGED_EVENT.receiver();
             (a, b)
         };
 
@@ -1580,11 +1580,11 @@ impl TestApp {
     */
 
     pub fn take_focus_changed(&mut self) -> Vec<FocusChangedArgs> {
-        self.focus_changed.pop_all()
+        self.focus_changed.try_iter().collect()
     }
 
     pub fn take_return_focus_changed(&mut self) -> Vec<ReturnFocusChangedArgs> {
-        self.return_focus_changed.pop_all()
+        self.return_focus_changed.try_iter().collect()
     }
 
     pub fn focused(&mut self) -> Option<WidgetId> {

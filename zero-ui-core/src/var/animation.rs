@@ -82,36 +82,36 @@ impl WeakAnimationHandle {
 }
 
 struct AnimationData {
-    start_time: Cell<Instant>,
-    restart_count: Cell<usize>,
-    stop: Cell<bool>,
-    sleep: Cell<Option<Deadline>>,
-    animations_enabled: Cell<bool>,
-    now: Cell<Instant>,
-    time_scale: Cell<Factor>,
+    start_time: Instant,
+    restart_count: usize,
+    stop: bool,
+    sleep: Option<Deadline>,
+    animations_enabled: bool,
+    now: Instant,
+    time_scale: Factor,
 }
 
 /// Represents an animation in its closure.
 ///
 /// See the [`Vars.animate`] method for more details.
 #[derive(Clone)]
-pub struct AnimationArgs(Rc<AnimationData>);
+pub struct AnimationArgs(Arc<Mutex<AnimationData>>);
 impl AnimationArgs {
     pub(super) fn new(animations_enabled: bool, now: Instant, time_scale: Factor) -> Self {
-        AnimationArgs(Rc::new(AnimationData {
-            start_time: Cell::new(now),
-            restart_count: Cell::new(0),
-            stop: Cell::new(false),
-            now: Cell::new(now),
-            sleep: Cell::new(None),
-            animations_enabled: Cell::new(animations_enabled),
-            time_scale: Cell::new(time_scale),
-        }))
+        AnimationArgs(Arc::new(Mutex::new(AnimationData {
+            start_time: now,
+            restart_count: 0,
+            stop: false,
+            now,
+            sleep: None,
+            animations_enabled,
+            time_scale,
+        })))
     }
 
     /// Instant this animation (re)started.
     pub fn start_time(&self) -> Instant {
-        self.0.start_time.get()
+        self.0.lock().start_time
     }
 
     /// Instant the current animation update started.
@@ -119,23 +119,24 @@ impl AnimationArgs {
     /// Use this value instead of [`Instant::now`], animations update sequentially, but should behave as if
     /// they are updating exactly in parallel, using this timestamp ensures that.
     pub fn now(&self) -> Instant {
-        self.0.now.get()
+        self.0.lock().now
     }
 
     /// Global time scale for animations.
     pub fn time_scale(&self) -> Factor {
-        self.0.time_scale.get()
+        self.0.lock().time_scale
     }
 
     pub(crate) fn reset_state(&self, enabled: bool, now: Instant, time_scale: Factor) {
-        self.0.animations_enabled.set(enabled);
-        self.0.now.set(now);
-        self.0.time_scale.set(time_scale);
-        self.0.sleep.set(None);
+        let mut m = self.0.lock();
+        m.animations_enabled = enabled;
+        m.now = now;
+        m.time_scale = time_scale;
+        m.sleep = None;
     }
 
     pub(crate) fn reset_sleep(&self) {
-        self.0.sleep.set(None);
+        self.0.lock().sleep = None;
     }
 
     /// Set the duration to the next animation update. The animation will *sleep* until `duration` elapses.
@@ -144,18 +145,19 @@ impl AnimationArgs {
     /// a multiple of the frame duration it will delay an extra `frame_duration - 1ns` in the worst case. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     pub fn sleep(&self, duration: Duration) {
-        self.0.sleep.set(Some(Deadline(self.0.now.get() + duration)));
+        let mut me = self.0.lock();
+        me.sleep = Some(Deadline(me.now + duration));
     }
 
     pub(crate) fn sleep_deadline(&self) -> Option<Deadline> {
-        self.0.sleep.get()
+        self.0.lock().sleep
     }
 
     /// Returns a value that indicates if animations are enabled in the operating system.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
     pub fn animations_enabled(&self) -> bool {
-        self.0.animations_enabled.get()
+        self.0.lock().animations_enabled
     }
 
     /// Compute the time elapsed from [`start_time`] to [`now`].
@@ -163,7 +165,8 @@ impl AnimationArgs {
     /// [`start_time`]: Self::start_time
     /// [`now`]: Self::now
     pub fn elapsed_dur(&self) -> Duration {
-        self.0.now.get() - self.0.start_time.get()
+        let me = self.0.lock();
+        me.now - me.start_time
     }
 
     /// Compute the elapsed [`EasingTime`], in the span of the total `duration`, if [`animations_enabled`].
@@ -172,8 +175,9 @@ impl AnimationArgs {
     ///
     /// [`animations_enabled`]: Self::animations_enabled
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
-        if self.0.animations_enabled.get() {
-            EasingTime::elapsed(duration, self.elapsed_dur(), self.0.time_scale.get())
+        let me = self.0.lock();
+        if me.animations_enabled {
+            EasingTime::elapsed(duration, self.elapsed_dur(), me.time_scale)
         } else {
             EasingTime::end()
         }
@@ -219,30 +223,31 @@ impl AnimationArgs {
 
     /// Drop the animation after applying the current update.
     pub fn stop(&self) {
-        self.0.stop.set(true);
+        self.0.lock().stop = true;
     }
 
     /// If the animation will be dropped after applying the update.
     pub fn stop_requested(&self) -> bool {
-        self.0.stop.get()
+        self.0.lock().stop
     }
 
     /// Set the animation start time to now.
     pub fn restart(&self) {
-        self.set_start_time(self.0.now.get());
-        self.0.restart_count.set(self.0.restart_count.get() + 1);
+        self.set_start_time(self.0.lock().now);
+        let mut me = self.0.lock();
+        me.restart_count += 1;
     }
 
     /// Number of times the animation restarted.
     pub fn restart_count(&self) -> usize {
-        self.0.restart_count.get()
+        self.0.lock().restart_count
     }
 
     /// Change the start time to an arbitrary value.
     ///
     /// Note that this does not affect the restart count.
     pub fn set_start_time(&self, instant: Instant) {
-        self.0.start_time.set(instant)
+        self.0.lock().start_time = instant;
     }
 
     /// Change the start to an instant that computes the `elapsed` for the `duration` at the moment
@@ -250,7 +255,7 @@ impl AnimationArgs {
     ///
     /// Note that this does not affect the restart count.
     pub fn set_elapsed(&self, elapsed: EasingTime, duration: Duration) {
-        self.set_start_time(self.0.now.get() - (duration * elapsed.fct()));
+        self.set_start_time(self.0.lock().now - (duration * elapsed.fct()));
     }
 }
 
@@ -759,19 +764,19 @@ where
 pub struct ChaseAnimation<T> {
     /// Underlying animation handle.
     pub handle: AnimationHandle,
-    pub(super) next_target: Rc<RefCell<ChaseMsg<T>>>,
+    pub(super) next_target: Arc<Mutex<ChaseMsg<T>>>,
 }
 impl<T: VarValue> ChaseAnimation<T> {
     /// Sets a new target value for the easing animation and restarts the time.
     ///
     /// The animation will update to lerp between the current variable value to the `new_target`.
     pub fn reset(&self, new_target: T) {
-        *self.next_target.borrow_mut() = ChaseMsg::Replace(new_target);
+        *self.next_target.lock() = ChaseMsg::Replace(new_target);
     }
 
     /// Adds `increment` to the current target value for the easing animation and restarts the time.
     pub fn add(&self, increment: T) {
-        *self.next_target.borrow_mut() = ChaseMsg::Add(increment);
+        *self.next_target.lock() = ChaseMsg::Add(increment);
     }
 }
 #[derive(Debug)]
@@ -791,17 +796,17 @@ pub(super) fn var_chase<T>(
     first_target: T,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> (impl FnMut(&AnimationArgs, &mut Cow<T>) + 'static, Rc<RefCell<ChaseMsg<T>>>)
+) -> (impl FnMut(&AnimationArgs, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
     T: VarValue + animation::Transitionable,
 {
     let mut prev_step = 0.fct();
-    let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+    let next_target = Arc::new(Mutex::new(ChaseMsg::None));
     let mut transition = Transition::new(from, first_target);
 
     let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut Cow<T>| {
         let step = easing(args.elapsed_stop(duration));
-        match mem::take(&mut *next_target.borrow_mut()) {
+        match mem::take(&mut *next_target.lock()) {
             ChaseMsg::Add(inc) => {
                 args.restart();
                 let from = transition.sample(step);
@@ -839,7 +844,7 @@ pub(super) fn var_chase_bounded<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     bounds: ops::RangeInclusive<T>,
-) -> (impl FnMut(&AnimationArgs, &mut Cow<T>) + 'static, Rc<RefCell<ChaseMsg<T>>>)
+) -> (impl FnMut(&AnimationArgs, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
     T: VarValue + animation::Transitionable + std::cmp::PartialOrd<T>,
 {
@@ -847,12 +852,12 @@ where
     let mut check_linear = !bounds.contains(&first_target);
     let mut transition = Transition::new(from, first_target);
 
-    let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+    let next_target = Arc::new(Mutex::new(ChaseMsg::None));
 
     let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut Cow<T>| {
         let mut time = args.elapsed_stop(duration);
         let mut step = easing(time);
-        match mem::take(&mut *next_target.borrow_mut()) {
+        match mem::take(&mut *next_target.lock()) {
             // to > bounds
             // stop animation when linear sampling > bounds
             ChaseMsg::Add(inc) => {

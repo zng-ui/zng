@@ -376,7 +376,7 @@ pub trait UiNode: Any + Send {
     fn trace<E, S>(self, enter_mtd: E) -> TraceNode<Self, E>
     where
         Self: Sized,
-        E: Fn(&mut InfoContext, &'static str) -> S + 'static,
+        E: Fn(&mut InfoContext, &'static str) -> S + Send + 'static,
     {
         TraceNode::new(self, enter_mtd)
     }

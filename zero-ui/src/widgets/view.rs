@@ -103,7 +103,7 @@ where
     D: VarValue,
     U: UiNode,
     V: Var<D>,
-    P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
+    P: FnMut(&mut WidgetContext, &V) -> View<U> + Send + 'static,
 {
     use crate::core::widget_base::nodes;
 
@@ -245,7 +245,7 @@ impl<D> ViewGenerator<D> {
     /// [`generate`]: ViewGenerator::generate
     pub fn presenter(
         generator: impl IntoVar<ViewGenerator<D>>,
-        update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + 'static,
+        update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + Send + 'static,
     ) -> impl UiNode
     where
         D: 'static,

@@ -343,20 +343,20 @@ impl ScrollInfo {
 
     /// Gets the layout size of the viewport.
     pub fn viewport_size(&self) -> PxSize {
-        self.0.viewport_size.get()
+        self.0.lock().viewport_size
     }
 
     /// Gets the render transform of the viewport.
     pub fn viewport_transform(&self) -> PxTransform {
-        self.0.viewport_transform.get()
+        self.0.lock().viewport_transform
     }
 
     pub(super) fn set_viewport_size(&self, size: PxSize) {
-        self.0.viewport_size.set(size)
+        self.0.lock().viewport_size = size;
     }
 
     pub(super) fn set_viewport_transform(&self, transform: PxTransform) {
-        self.0.viewport_transform.set(transform)
+        self.0.lock().viewport_transform = transform;
     }
 }
 

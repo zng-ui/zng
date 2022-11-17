@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 
 use super::{
     font_features::RFontVariations, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight,
-    GlyphIndex, InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey,
+    InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey,
 };
 use crate::{
     app::{
@@ -303,7 +303,6 @@ impl FontInstanceKey {
 pub struct FontFace {
     data: FontDataRef,
     face: harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>,
-    font_kit: font_kit::font::Font,
     face_index: u32,
     display_name: FontName,
     family_name: FontName,
@@ -355,7 +354,6 @@ impl FontFace {
                     .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
                     data: other_font.data.clone(),
-                    font_kit: other_font.font_kit.clone(),
                     face: harfbuzz_rs::Face::new(other_font.data.clone(), other_font.face_index).to_shared(),
                     face_index: other_font.face_index,
                     display_name: custom_font.name.clone(),
@@ -398,7 +396,6 @@ impl FontFace {
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
             m: Default::default(),
-            font_kit: font,
         })
     }
 
@@ -443,7 +440,6 @@ impl FontFace {
             properties: font.properties(),
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
-            font_kit: font,
             m: Default::default(),
         })
     }
@@ -490,9 +486,18 @@ impl FontFace {
         &self.face
     }
 
-    /// Reference the `font_kit` face.
-    pub fn font_kit(&self) -> &font_kit::font::Font {
-        &self.font_kit
+    /// Reload the `font_kit` face.
+    ///
+    /// Loads from the cached [`bytes`], unfortunately the font itself cannot be cached because it is `!Send + !Sync`.
+    ///
+    /// [`bytes`]: Self::bytes
+    pub fn load_font_kit(&self) -> font_kit::font::Font {
+        font_kit::handle::Handle::Memory {
+            bytes: Arc::clone(&self.data.0),
+            font_index: self.face_index,
+        }
+        .load()
+        .unwrap()
     }
 
     /// Reference the font file bytes.
@@ -595,23 +600,6 @@ impl FontFace {
     /// a request for the same font name will return a different reference.
     pub fn is_cached(&self) -> bool {
         !self.m.lock().unregistered
-    }
-
-    /// Returns the number of glyphs in the font.
-    ///
-    /// The [`GlyphIndex`] range for this font is from 0 inclusive to this value exclusive.
-    pub fn glyph_count(&self) -> u32 {
-        self.font_kit.glyph_count()
-    }
-
-    /// Returns the usual [`GlyphIndex`] for a Unicode character.
-    ///
-    /// Be careful with this function; typographically correct character-to-glyph mapping must be done using the [`shape_text`] method.
-    /// This function is only useful for best-effort simple use cases like “what does character X look like on its own”.
-    ///
-    /// [`shape_text`]: Font::shape_text
-    pub fn glyph_for_char(&self, character: char) -> Option<GlyphIndex> {
-        self.font_kit.glyph_for_char(character)
     }
 }
 

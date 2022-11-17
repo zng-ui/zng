@@ -11,7 +11,7 @@ use crate::core::window::{
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
 
-fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + 'static) -> impl UiNode
+fn bind_window_var<T, V>(child: impl UiNode, user_var: impl IntoVar<T>, select: impl Fn(&WindowVars) -> V + Send + 'static) -> impl UiNode
 where
     T: VarValue + PartialEq,
     V: Var<T>,
@@ -20,7 +20,7 @@ where
         _t: PhantomData<T>,
         child: impl UiNode,
         user_var: impl Var<T>,
-        select: impl Fn(&WindowVars) -> SV + 'static,
+        select: impl Fn(&WindowVars) -> SV + Send + 'static,
     })]
     impl UiNode for BindWindowVarNode {
         fn init(&mut self, ctx: &mut WidgetContext) {

@@ -29,7 +29,7 @@ pub trait UpdatesTraceUiNodeExt {
     fn instrument<S: Into<String>>(
         self,
         tag: S,
-    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>>
+    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan + Send>>
     where
         Self: Sized;
 }
@@ -37,7 +37,7 @@ impl<U: UiNode> UpdatesTraceUiNodeExt for U {
     fn instrument<S: Into<String>>(
         self,
         tag: S,
-    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>> {
+    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan + Send>> {
         #[cfg(inspector)]
         {
             let tag = tag.into();

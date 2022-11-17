@@ -22,7 +22,7 @@ pub struct TraceNode<N, E> {
 impl<N, E, S> TraceNode<N, E>
 where
     N: UiNode,
-    E: Fn(&mut InfoContext, &'static str) -> S + 'static,
+    E: Fn(&mut InfoContext, &'static str) -> S + Send + 'static,
 {
     /// Wrap the `node`.
     ///

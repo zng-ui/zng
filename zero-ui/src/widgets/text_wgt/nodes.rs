@@ -389,7 +389,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     ResolveTextNode {
         child: child.cfg_boxed(),
         text: text.into_var(),
-        resolved: RefCell::new(None),
+        resolved: Mutex::new(None),
         event_handles: EventHandles::default(),
         caret_opacity_handle: None,
     }
@@ -680,7 +680,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         #[UiNode]
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let mut txt = self.txt.borrow_mut();
+            let mut txt = self.txt.lock();
 
             if let Some(size) = txt.measure(ctx) {
                 size
@@ -729,7 +729,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     }
     LayoutTextNode {
         child: child.cfg_boxed(),
-        txt: RefCell::new(FinalText {
+        txt: Mutex::new(FinalText {
             layout: None,
             shaping_args: TextShapingArgs::default(),
         }),

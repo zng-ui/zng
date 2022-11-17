@@ -242,8 +242,8 @@ fn delayed_focus() -> impl UiNode {
         ]
     }
 }
-fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
-    let on_timeout = std::rc::Rc::new(std::cell::RefCell::new(Box::new(on_timeout)));
+fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetContext) + Send + 'static) -> impl UiNode {
+    let on_timeout = std::sync::Arc::new(zero_ui::core::task::Mutex::new(Box::new(on_timeout)));
     let enabled = var(true);
     button! {
         child = text(content.into());
@@ -251,7 +251,7 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
             enabled.set(&ctx, false);
             task::deadline(4.secs()).await;
             ctx.with(|ctx| {
-                let mut on_timeout = on_timeout.borrow_mut();
+                let mut on_timeout = on_timeout.lock();
                 on_timeout(ctx);
             });
             enabled.set(&ctx, true);

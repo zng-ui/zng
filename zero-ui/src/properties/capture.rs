@@ -122,7 +122,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
             if self.enabled.get() {
                 let insert_filter = {
-                    let mut mws = mws.borrow_mut();
+                    let mut mws = mws.lock();
                     if mws.widgets.insert(ctx.path.widget_id()) {
                         mws.last_in_tree = None;
                         mws.widgets.len() == 1
@@ -134,7 +134,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     // just registered and we are the first, insert the filter:
 
                     info.push_interactivity_filter(clone_move!(mws, |a| {
-                        let mut mws = mws.borrow_mut();
+                        let mut mws = mws.lock();
 
                         // caches the top-most modal.
                         if mws.last_in_tree.is_none() {
@@ -173,7 +173,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                 }
             } else {
                 // maybe unregister.
-                let mut mws = mws.borrow_mut();
+                let mut mws = mws.lock();
                 let widget_id = ctx.path.widget_id();
                 if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
                     mws.last_in_tree = None;
@@ -193,7 +193,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                 let mws = ctx.window_state.get(&MODAL_WIDGETS).unwrap();
 
                 // maybe unregister.
-                let mut mws = mws.borrow_mut();
+                let mut mws = mws.lock();
                 let widget_id = ctx.path.widget_id();
                 if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
                     mws.last_in_tree = None;

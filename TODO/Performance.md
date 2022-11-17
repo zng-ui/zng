@@ -48,8 +48,6 @@
 # Parallel UI
 
 * How much overhead needed to add `rayon` join support for UiNode methods?
-    * Need to make everything `Send + Sync`.
-      - Do it in stages, we benefit from just Var<T> being Send+Sync.
     * Event `propagation` becomes indeterministic?
       - Could make event notification linear, most nodes are not visited.
     * Services must become sync.

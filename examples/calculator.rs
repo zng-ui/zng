@@ -245,7 +245,7 @@ fn set_fallback_font(ctx: &mut WindowContext) {
             &und,
         )
         .iter()
-        .all(|f| f.glyph_for_char('⌫').is_none())
+        .all(|f| f.load_font_kit().glyph_for_char('⌫').is_none())
     {
         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 
