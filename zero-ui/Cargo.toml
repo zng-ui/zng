@@ -58,6 +58,11 @@ trace_widget = ["zero-ui-core/trace_widget"]
 # Note that this can cause very large trace files and bad performance.
 trace_wgt_item = ["zero-ui-core/trace_wgt_item"]
 
+# Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
+#
+# Not enabled by default.
+deadlock_detection = ["zero-ui-core/deadlock_detection"]
+
 [dependencies]
 # local
 zero-ui-core = { path = "../zero-ui-core", default-features = false }

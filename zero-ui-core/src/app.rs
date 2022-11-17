@@ -571,6 +571,34 @@ fn assert_not_view_process() {
     }
 }
 
+#[cfg(feature = "deadlock_detection")]
+fn check_deadlock() {
+    use parking_lot::deadlock;
+    use std::{thread, time::*};
+
+    println!("deadlock detection enabled, 10s interval");
+
+    thread::spawn(|| loop {
+        thread::sleep(Duration::from_secs(10));
+
+        let deadlocks = deadlock::check_deadlock();
+        if deadlocks.is_empty() {
+            continue;
+        }
+
+        println!("{} deadlocks detected", deadlocks.len());
+        for (i, threads) in deadlocks.iter().enumerate() {
+            println!("Deadlock #{}", i);
+            for t in threads {
+                println!("Thread Id {:#?}", t.thread_id());
+                println!("{:#?}", t.backtrace());
+            }
+        }
+    });
+}
+#[cfg(not(feature = "deadlock_detection"))]
+fn check_deadlock() {}
+
 // In release mode we use generics tricks to compile all app extensions with
 // static dispatch optimized to a direct call to the extension handle.
 #[cfg(not(dyn_app_extension))]
@@ -578,6 +606,7 @@ impl App {
     /// Application without any extension.
     pub fn blank() -> AppExtended<()> {
         assert_not_view_process();
+        check_deadlock();
         let scope = AppScope::new_unique();
         scope.load_into_thread();
         AppExtended {
@@ -621,6 +650,7 @@ impl App {
     /// Application without any extension and without device events.
     pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         assert_not_view_process();
+        check_deadlock();
         let scope = AppScope::new_unique();
         scope.load_in_thread();
         AppExtended {

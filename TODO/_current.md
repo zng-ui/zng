@@ -1,16 +1,17 @@
+* Very slow text font size change.
+    - See `text` example.
+    - We stopped caching `font_kit::Font` because it is not `Send`.
+      Now it loads for every use, probably the cause of the perf-hit.
+* Merge.
+
 * Refactor ContextVar to don't use RefCell and LocalKey?
     - Use `ContextLocal`, this causes context-var to be Send+Sync.
 * Remove `Var::with`, make `Var::read(&self) -> VarReadLock<T>`.
     - More ergonomic, removes a boat load of LLVM lines.
-
-* Tests.
-* Docs.
-    - Links only.
-* Merge.
-
 * Use `app_local!` everywhere.
     - Same for `ContextValue<T>`.
 
+* Review `task::respond_ctor`.
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.
     - It is not just for UI threads?

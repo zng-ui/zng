@@ -333,7 +333,7 @@ impl ThreadContext {
     ///
     /// assert_eq!(&[outer_id], ctx.context());
     ///
-    /// thread::spawn(|| ctx.with_context(|| {
+    /// thread::spawn(move || ctx.with_context(move || {
     ///     let inner_id = thread::current().id();
     ///     let ctx = ThreadContext::capture();
     ///

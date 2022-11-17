@@ -433,6 +433,7 @@ impl Windows {
     /// Multiple requests can be made in the same update cycle, they are processed in order.
     ///
     /// [`always_on_top`]: WindowVars::always_on_top
+    /// [`focus`]: Self::focus
     pub fn bring_to_top(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
         if self.windows_info.contains_key(&window_id) {
