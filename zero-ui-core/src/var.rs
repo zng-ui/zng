@@ -71,7 +71,7 @@ use crate::{context::Updates, widget_instance::WidgetId};
 /// Other variable types.
 pub mod types {
     pub use super::boxed::{VarBoxed, WeakVarBoxed};
-    pub use super::context::{with_new_context_init_id, ContextData, WeakContextInitHandle};
+    pub use super::context::{context_var_init, with_new_context_init_id, WeakContextInitHandle};
     pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
     pub use super::cow::{RcCowVar, WeakCowVar};
     pub use super::expr::__expr_var;
@@ -506,10 +506,10 @@ impl<'a> VarPtr<'a> {
         }
     }
 
-    fn new_thread_local<T>(tl: &'static std::thread::LocalKey<T>) -> Self {
+    fn new_ctx_local<T: Send + Sync>(tl: &'static crate::context::ContextLocal<T>) -> Self {
         Self {
             _lt: std::marker::PhantomData,
-            eq: VarPtrData::Static((tl as *const std::thread::LocalKey<T>) as _),
+            eq: VarPtrData::Static((tl as *const crate::context::ContextLocal<T>) as _),
         }
     }
 

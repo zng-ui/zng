@@ -9,6 +9,8 @@ use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, RwLock, 
 
 unique_id_32! {
     /// Identifies an [`App`] instance.
+    /// 
+    /// [`App`]: crate::app::App
     pub struct AppId;
 }
 impl AppId {

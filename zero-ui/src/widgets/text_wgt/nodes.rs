@@ -127,7 +127,7 @@ context_local! {
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///
 /// This node setups the [`ResolvedText`] for all inner nodes, the `text!` widget introduces this node at the `new_event` constructor,
-/// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::with`] function.
+/// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::read`] function.
 ///
 /// This node also subscribes to all the text context vars so other `text!` properties don't need to.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
@@ -387,7 +387,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
 ///
 /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
-/// node at the `new_fill` constructor, so all properties in [`NestGroup::FILL`] have access to the [`LayoutText::with`] function.
+/// node at the `new_fill` constructor, so all properties in [`NestGroup::FILL`] have access to the [`LayoutText::read`] function.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
     bitflags::bitflags! {
         struct Layout: u8 {

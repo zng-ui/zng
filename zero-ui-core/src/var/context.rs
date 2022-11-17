@@ -1,4 +1,4 @@
-use std::thread::LocalKey;
+use crate::context::ContextLocal;
 
 use super::*;
 
@@ -41,26 +41,178 @@ use super::*;
 ///
 /// Note that if you are only interested in sharing a contextual value you can use the [`context_local!`] macro instead.
 ///
-/// [`context_local!`]: crate::context::context_value
+/// [`context_local!`]: crate::context::context_local
 #[macro_export]
 macro_rules! context_var {
     ($(
         $(#[$attr:meta])*
         $vis:vis static $NAME:ident: $Type:ty = $default:expr;
     )+) => {$(
-        $crate::paste! {
-            std::thread_local! {
-                #[doc(hidden)]
-                static [<$NAME _LOCAL>]: $crate::var::types::ContextData<$Type> = $crate::var::types::ContextData::init($default);
-            }
-        }
-
         $(#[$attr])*
-        $vis static $NAME: $crate::var::ContextVar<$Type> = paste::paste! { $crate::var::ContextVar::new(&[<$NAME _LOCAL>]) };
+        $vis static $NAME: $crate::var::ContextVar<$Type> = {
+            $crate::context::context_local! {
+                static VAR: $crate::var::BoxedVar<$Type> = $crate::var::types::context_var_init::<$Type>($default);
+            }
+            $crate::var::ContextVar::new(&VAR)
+        };
     )+}
 }
 #[doc(inline)]
 pub use crate::context_var;
+
+#[doc(hidden)]
+pub fn context_var_init<T: VarValue>(init: impl IntoVar<T>) -> BoxedVar<T> {
+    init.into_var().boxed()
+}
+
+/// Represents another variable in a context.
+///
+/// Context variables are [`Var<T>`] implementers that represent a contextual value, unlike other variables it does not own
+/// the value it represents.
+///
+/// See [`context_var!`] for more details.
+#[derive(Clone)]
+pub struct ContextVar<T: VarValue>(&'static ContextLocal<BoxedVar<T>>);
+impl<T: VarValue> ContextVar<T> {
+    #[doc(hidden)]
+    pub const fn new(var: &'static ContextLocal<BoxedVar<T>>) -> Self {
+        Self(var)
+    }
+
+    /// Runs `action` with this context var representing the other `var` in the current thread.
+    ///
+    /// Returns the actual var that was used and the result of `action`.
+    ///
+    /// Note that the `var` must be the same for subsequent calls in the same *context*, otherwise [contextualized]
+    /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
+    ///
+    /// [contextualized]: types::ContextualizedVar
+    pub fn with_context<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
+        let mut var = Some(var.into_var().actual_var().boxed());
+        let r = self.0.with_context(&mut var, move || id.with_context(action));
+        (var.unwrap(), r)
+    }
+}
+impl<T: VarValue> Copy for ContextVar<T> {}
+
+impl<T: VarValue> crate::private::Sealed for ContextVar<T> {}
+
+impl<T: VarValue> AnyVar for ContextVar<T> {
+    fn clone_any(&self) -> BoxedAnyVar {
+        Box::new(*self)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
+        let me: BoxedVar<T> = self;
+        Box::new(me)
+    }
+
+    fn var_type_id(&self) -> TypeId {
+        TypeId::of::<T>()
+    }
+
+    fn get_any(&self) -> Box<dyn AnyVarValue> {
+        Box::new(self.get())
+    }
+
+    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(vars, var_set_any(value))
+    }
+
+    fn last_update(&self) -> VarUpdateId {
+        self.0.read().last_update()
+    }
+
+    fn capabilities(&self) -> VarCapabilities {
+        self.0.read().capabilities() | VarCapabilities::CAPS_CHANGE
+    }
+
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+        self.0.read().hook(pos_modify_action)
+    }
+
+    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
+        self.0.read().subscribe(widget_id)
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.read().strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.read().weak_count()
+    }
+
+    fn actual_var_any(&self) -> BoxedAnyVar {
+        self.0.read().actual_var_any()
+    }
+
+    fn downgrade_any(&self) -> BoxedAnyWeakVar {
+        self.0.read().downgrade_any()
+    }
+
+    fn is_animating(&self) -> bool {
+        self.0.read().is_animating()
+    }
+
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_ctx_local(self.0)
+    }
+}
+
+impl<T: VarValue> IntoVar<T> for ContextVar<T> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
+
+impl<T: VarValue> Var<T> for ContextVar<T> {
+    type ReadOnly = types::ReadOnlyVar<T, Self>;
+
+    type ActualVar = BoxedVar<T>;
+
+    type Downgrade = BoxedWeakVar<T>;
+
+    fn with<R, F>(&self, read: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        self.0.read().with(read)
+    }
+
+    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    where
+        V: WithVars,
+        F: FnOnce(&mut Cow<T>) + 'static,
+    {
+        self.0.read().modify(vars, modify)
+    }
+
+    fn actual_var(self) -> BoxedVar<T> {
+        self.0.read().clone().actual_var()
+    }
+
+    fn downgrade(&self) -> BoxedWeakVar<T> {
+        self.0.read().downgrade()
+    }
+
+    fn into_value(self) -> T {
+        self.get()
+    }
+
+    fn read_only(&self) -> Self::ReadOnly {
+        types::ReadOnlyVar::new(*self)
+    }
+}
+
+/// Context var that is always read-only, even if it is representing a read-write var.
+pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
 
 /// Identifies the unique context a [`ContextualizedVar`] is in.
 ///
@@ -143,217 +295,6 @@ impl std::hash::Hash for WeakContextInitHandle {
         std::hash::Hash::hash(&i, state)
     }
 }
-
-struct ContextEntry<T> {
-    var: BoxedVar<T>,
-    busy: Cell<bool>,
-}
-
-#[doc(hidden)]
-pub struct ContextData<T: VarValue> {
-    stack: RefCell<Vec<ContextEntry<T>>>,
-}
-impl<T: VarValue> ContextData<T> {
-    pub fn init(default: impl IntoVar<T>) -> Self {
-        Self {
-            stack: RefCell::new(vec![ContextEntry {
-                var: default.into_var().boxed(),
-                busy: Cell::new(false),
-            }]),
-        }
-    }
-}
-
-/// Represents another variable in a context.
-///
-/// Context variables are [`Var<T>`] implementers that represent a contextual value, unlike other variables it does not own
-/// the value it represents.
-///
-/// See [`context_var!`] for more details.
-pub struct ContextVar<T: VarValue> {
-    local: &'static LocalKey<ContextData<T>>,
-}
-
-impl<T: VarValue> ContextVar<T> {
-    #[doc(hidden)]
-    pub const fn new(local: &'static LocalKey<ContextData<T>>) -> Self {
-        ContextVar { local }
-    }
-
-    /// Runs `action` with this context var representing the other `var` in the current thread.
-    ///
-    /// Returns the actual var that was used and the result of `action`.
-    ///
-    /// Note that the `var` must be the same for subsequent calls in the same *context*, otherwise [contextualized]
-    /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
-    ///
-    /// [contextualized]: types::ContextualizedVar
-    pub fn with_context<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
-        self.push_context(var.into_var().actual_var().boxed());
-        let r = id.with_context(action);
-        let var = self.pop_context();
-        (var, r)
-    }
-
-    fn push_context(self, var: BoxedVar<T>) {
-        self.local.with(move |l| {
-            l.stack.borrow_mut().push(ContextEntry {
-                var,
-                busy: Cell::new(false),
-            })
-        })
-    }
-
-    fn pop_context(self) -> BoxedVar<T> {
-        self.local.with(move |l| l.stack.borrow_mut().pop()).unwrap().var
-    }
-
-    fn with_var<R>(self, f: impl FnOnce(&BoxedVar<T>) -> R) -> R {
-        let i = self.lock_idx();
-        let r = self.local.with(move |l| f(&l.stack.borrow()[i].var));
-        self.free_idx(i);
-        r
-    }
-
-    fn lock_idx(self) -> usize {
-        let i = self.local.with(|l| {
-            let stack = l.stack.borrow();
-            stack.iter().rposition(|f| !f.busy.replace(true))
-        });
-        i.expect("context var recursion in default value")
-    }
-
-    fn free_idx(self, i: usize) {
-        self.local.with(|l| l.stack.borrow()[i].busy.set(false));
-    }
-}
-
-impl<T: VarValue> Clone for ContextVar<T> {
-    fn clone(&self) -> Self {
-        Self { local: self.local }
-    }
-}
-impl<T: VarValue> Copy for ContextVar<T> {}
-
-impl<T: VarValue> crate::private::Sealed for ContextVar<T> {}
-
-impl<T: VarValue> AnyVar for ContextVar<T> {
-    fn clone_any(&self) -> BoxedAnyVar {
-        Box::new(*self)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn double_boxed_any(self: Box<Self>) -> Box<dyn Any> {
-        let me: BoxedVar<T> = self;
-        Box::new(me)
-    }
-
-    fn var_type_id(&self) -> TypeId {
-        TypeId::of::<T>()
-    }
-
-    fn get_any(&self) -> Box<dyn AnyVarValue> {
-        Box::new(self.get())
-    }
-
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value))
-    }
-
-    fn last_update(&self) -> VarUpdateId {
-        self.with_var(AnyVar::last_update)
-    }
-
-    fn capabilities(&self) -> VarCapabilities {
-        self.with_var(AnyVar::capabilities) | VarCapabilities::CAPS_CHANGE
-    }
-
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
-        self.with_var(|v| v.hook(pos_modify_action))
-    }
-
-    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        self.with_var(|v| v.subscribe(widget_id))
-    }
-
-    fn strong_count(&self) -> usize {
-        self.with_var(AnyVar::strong_count)
-    }
-
-    fn weak_count(&self) -> usize {
-        self.with_var(AnyVar::weak_count)
-    }
-
-    fn actual_var_any(&self) -> BoxedAnyVar {
-        self.with_var(AnyVar::actual_var_any)
-    }
-
-    fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        self.with_var(AnyVar::downgrade_any)
-    }
-
-    fn is_animating(&self) -> bool {
-        self.with_var(AnyVar::is_animating)
-    }
-
-    fn var_ptr(&self) -> VarPtr {
-        VarPtr::new_thread_local(self.local)
-    }
-}
-
-impl<T: VarValue> IntoVar<T> for ContextVar<T> {
-    type Var = Self;
-
-    fn into_var(self) -> Self::Var {
-        self
-    }
-}
-
-impl<T: VarValue> Var<T> for ContextVar<T> {
-    type ReadOnly = types::ReadOnlyVar<T, Self>;
-
-    type ActualVar = BoxedVar<T>;
-
-    type Downgrade = BoxedWeakVar<T>;
-
-    fn with<R, F>(&self, read: F) -> R
-    where
-        F: FnOnce(&T) -> R,
-    {
-        self.with_var(move |v| v.with(read))
-    }
-
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
-    where
-        V: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static,
-    {
-        self.with_var(move |v| v.modify(vars, modify))
-    }
-
-    fn actual_var(self) -> BoxedVar<T> {
-        self.with_var(|v| v.clone().actual_var())
-    }
-
-    fn downgrade(&self) -> BoxedWeakVar<T> {
-        self.with_var(Var::downgrade)
-    }
-
-    fn into_value(self) -> T {
-        self.get()
-    }
-
-    fn read_only(&self) -> Self::ReadOnly {
-        types::ReadOnlyVar::new(*self)
-    }
-}
-
-/// Context var that is always read-only, even if it is representing a read-write var.
-pub type ReadOnlyContextVar<T> = types::ReadOnlyVar<T, ContextVar<T>>;
-
 pub use helpers::*;
 mod helpers {
     use std::cell::RefCell;
