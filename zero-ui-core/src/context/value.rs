@@ -289,7 +289,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 /// context_local! { static FOO: String = "default"; }
 ///
 /// fn print_value() {
-///     FOO.with(|val| println!("value is {val}!"));
+///     println!("value is {}!", FOO.read());
 /// }
 ///
 /// let mut value = Some(String::from("other"));
