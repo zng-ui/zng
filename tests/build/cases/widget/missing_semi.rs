@@ -13,6 +13,7 @@ pub mod test_widget {
 }
 
 fn main() {
+    let _scope = zero_ui::core::app::App::blank();
     let _ = test_widget! {
         cursor = zero_ui::core::window::CursorIcon::Hand;
         margin = 5;

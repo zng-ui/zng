@@ -10,8 +10,8 @@ use zero_ui::prelude::new_property::*;
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
-///
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// button! {
 ///     margin = 10;
 ///     child = text("Click Me!")
@@ -24,6 +24,7 @@ use zero_ui::prelude::new_property::*;
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// container! {
 ///     child = button! {
 ///         margin = (10, 5.pct());
@@ -85,8 +86,9 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
-///
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
+/// #
 /// container! {
 ///     child = button! {
 ///         align = Align::TOP;
@@ -145,7 +147,8 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 ///
 /// button! {
 ///     offset = (100, 20.pct());
@@ -202,7 +205,8 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 ///
 /// button! {
 ///     x = 20.pct();
@@ -256,7 +260,8 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 ///
 /// button! {
 ///     y = 20.pct();
@@ -314,7 +319,8 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # let label = formatx!("");
 ///
 /// button! {
@@ -380,7 +386,8 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # let label = formatx!("");
 ///
 /// button! {
@@ -447,9 +454,10 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # let btn_content = text("");
-///
+/// #
 /// button! {
 ///     child = btn_content;
 ///     min_height = 50;
@@ -514,9 +522,10 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # let btn_content = text("");
-///
+/// #
 /// button! {
 ///     child = btn_content;
 ///     max_size = (200, 100);
@@ -580,7 +589,8 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # let btn_content = text("");
 ///
 /// button! {
@@ -649,7 +659,8 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # let btn_content = text("");
 ///
 /// button! {
@@ -717,7 +728,8 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// button! {
 ///     background_color = rgb(255, 0, 0);
 ///     size = (200, 300);
@@ -782,7 +794,8 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// button! {
 ///     background_color = rgb(255, 0, 0);
 ///     width = 200;
@@ -851,7 +864,8 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// button! {
 ///     background_color = rgb(255, 0, 0);
 ///     height = 300;

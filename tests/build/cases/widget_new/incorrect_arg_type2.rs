@@ -7,6 +7,7 @@ pub fn simple_type(child: impl UiNode, simple: impl IntoVar<u32>) -> impl UiNode
 }
 
 fn main() {
+    let _scope = zero_ui::core::app::App::blank();
     let _ = blank! {
         simple_type = true
     };

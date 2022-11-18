@@ -12,6 +12,7 @@ use crate::prelude::new_widget::*;
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let text = v_stack! {
 ///     spacing = 5.0;
 ///     children = ui_list![
@@ -262,6 +263,7 @@ pub mod h_stack {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let text = h_stack! {
 ///     spacing = 5.0;
 ///     children = ui_list![
@@ -508,6 +510,7 @@ pub mod v_stack {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let text = h_stack(ui_list![
 ///     text("Hello "),
 ///     text("World"),
@@ -530,6 +533,7 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let text = v_stack(ui_list![
 ///     text("1. Hello"),
 ///     text("2. World"),
@@ -557,6 +561,7 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let text = z_stack! {
 ///     padding = 5.0;
 ///     children = ui_list![
@@ -735,6 +740,7 @@ pub mod z_stack {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let text = z_stack(ui_list![
 ///     text("back"),
 ///     text("front"),

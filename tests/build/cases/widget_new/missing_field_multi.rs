@@ -3,6 +3,7 @@ use zero_ui::properties::background_gradient;
 use zero_ui::widgets::blank;
 
 fn main() {
+    let _scope = zero_ui::core::app::App::blank();
     let _ = blank! {
         // background_gradient has two fields
         // the error highlights the property

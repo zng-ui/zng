@@ -473,11 +473,11 @@ mod context {
         }
     }
 
-    fn test_app(root: impl UiNode) -> HeadlessApp {
+    fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
         test_log();
 
         use crate::window::*;
-        let mut app = App::default().run_headless(false);
+        let mut app = app.run_headless(false);
         Windows::req(app.ctx().services).open(move |_| crate::window::Window::new_test(root));
         let _ = app.update(false);
         app
@@ -485,106 +485,128 @@ mod context {
 
     #[test]
     fn context_var_basic() {
-        let mut test = test_app(test_wgt! {
-            test_prop = "test!";
+        let mut test = test_app(
+            App::default(),
+            test_wgt! {
+                test_prop = "test!";
 
-            child = test_wgt! {
-                probe = TEST_VAR;
-            }
-        });
+                child = test_wgt! {
+                    probe = TEST_VAR;
+                }
+            },
+        );
 
         assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("test!")));
     }
 
     #[test]
     fn context_var_map() {
-        let mut test = test_app(test_wgt! {
-            test_prop = "test!";
+        let mut test = test_app(
+            App::default(),
+            test_wgt! {
+                test_prop = "test!";
 
-            child = test_wgt! {
-                probe = TEST_VAR.map(|t| formatx!("map {t}"));
-            }
-        });
+                child = test_wgt! {
+                    probe = TEST_VAR.map(|t| formatx!("map {t}"));
+                }
+            },
+        );
 
         assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map test!")));
     }
 
     #[test]
     fn context_var_map_cloned() {
+        let app = App::default();
+
         // mapped context var should depend on the context.
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
-        let mut test = test_app(test_wgt! {
-            test_prop_a = "A!";
-
-            child = test_wgt! {
-                probe = mapped.clone();
-                test_prop_b = "B!";
+        let mut test = test_app(
+            app,
+            test_wgt! {
+                test_prop_a = "A!";
 
                 child = test_wgt! {
-                    probe = mapped;
+                    probe = mapped.clone();
+                    test_prop_b = "B!";
+
+                    child = test_wgt! {
+                        probe = mapped;
+                    }
                 }
-            }
-        });
+            },
+        );
 
         assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
     }
 
     #[test]
     fn context_var_map_cloned3() {
+        let app = App::default();
         // mapped context var should depend on the context.
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        let mut test = test_app(test_wgt! {
-            test_prop = "A!";
-
-            child = test_wgt! {
-                probe = mapped.clone();
-                test_prop = "B!";
+        let mut test = test_app(
+            app,
+            test_wgt! {
+                test_prop = "A!";
 
                 child = test_wgt! {
                     probe = mapped.clone();
-                    test_prop = "C!";
+                    test_prop = "B!";
 
                     child = test_wgt! {
-                        probe = mapped;
-                        test_prop = "D!";
+                        probe = mapped.clone();
+                        test_prop = "C!";
+
+                        child = test_wgt! {
+                            probe = mapped;
+                            test_prop = "D!";
+                        }
                     }
                 }
-            }
-        });
+            },
+        );
 
         assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map C!")));
     }
 
     #[test]
     fn context_var_map_not_cloned() {
+        let app = App::default();
+
         // sanity check for `context_var_map_cloned`
 
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
-        let mut test = test_app(test_wgt! {
-            test_prop_a = "A!";
-
-            child = test_wgt! {
-                probe = TEST_VAR.map(|t| formatx!("map {t}"));
-                test_prop_b = "B!";
+        let mut test = test_app(
+            app,
+            test_wgt! {
+                test_prop_a = "A!";
 
                 child = test_wgt! {
                     probe = TEST_VAR.map(|t| formatx!("map {t}"));
+                    test_prop_b = "B!";
+
+                    child = test_wgt! {
+                        probe = TEST_VAR.map(|t| formatx!("map {t}"));
+                    }
                 }
-            }
-        });
+            },
+        );
 
         assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
     }
 
     #[test]
     fn context_var_map_moved_app_ctx() {
+        let _app = App::blank();
+
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         let (_, a) = TEST_VAR.with_context(ContextInitHandle::new(), "A", || mapped.get());
 
@@ -595,25 +617,30 @@ mod context {
 
     #[test]
     fn context_var_cloned_same_widget() {
+        let app = App::default();
+
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         use self::probe as probe_a;
         use self::probe as probe_b;
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
-        let mut test = test_app(test_wgt! {
-            test_prop_a = "A!";
-            probe_a = mapped.clone();
-            test_prop_b = "B!";
-            probe_b = mapped;
-        });
+        let mut test = test_app(
+            app,
+            test_wgt! {
+                test_prop_a = "A!";
+                probe_a = mapped.clone();
+                test_prop_b = "B!";
+                probe_b = mapped;
+            },
+        );
 
         assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
     }
 
     #[test]
     fn context_var_set() {
-        let mut app = test_app(NilUiNode);
+        let mut app = test_app(App::default(), NilUiNode);
 
         let backing_var = var(Text::from(""));
 
@@ -631,16 +658,21 @@ mod context {
 
     #[test]
     fn context_var_binding() {
+        let app = App::default();
+
         let input_var = var("Input!".to_text());
         let other_var = var(".".to_text());
 
-        let mut test = test_app(test_wgt! {
-            test_prop = input_var.clone();
-            on_init = hn_once!(other_var, |_, _| {
-                TEST_VAR.bind(&other_var).perm();
-            });
-            child = NilUiNode;
-        });
+        let mut test = test_app(
+            app,
+            test_wgt! {
+                test_prop = input_var.clone();
+                on_init = hn_once!(other_var, |_, _| {
+                    TEST_VAR.bind(&other_var).perm();
+                });
+                child = NilUiNode;
+            },
+        );
 
         test.update(false).assert_wait();
 

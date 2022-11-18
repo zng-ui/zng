@@ -102,6 +102,8 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     ///
     /// If `value` is `None`. Note that if `T: Option<I>` you can use [`with_context_opt`].
     ///
+    /// If no app is running, see [`App::is_running`] for more details.
+    ///
     /// [`with_context_opt`]: Self::with_context_opt
     pub fn with_context<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
         let new_value = value.take().expect("no override provided");
@@ -285,12 +287,14 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 /// After you declare the contextual value you can use it by loading a context, calling a closure and inside it *visiting* the value.
 ///
 /// ```
-/// # use zero_ui_core::context::context_local;
+/// # use zero_ui_core::{context::context_local, app::App};
 /// context_local! { static FOO: String = "default"; }
 ///
 /// fn print_value() {
 ///     println!("value is {}!", FOO.read());
 /// }
+///
+/// let _scope = App::blank();
 ///
 /// let mut value = Some(String::from("other"));
 /// FOO.with_context(&mut value, || {

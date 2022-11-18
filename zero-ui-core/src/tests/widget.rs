@@ -56,8 +56,10 @@ pub mod bar_wgt {
 }
 #[test]
 pub fn wgt_with_mixin_default_values() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut default = bar_wgt!();
-    TestWidgetContext::new().init(&mut default);
+    ctx.init(&mut default);
 
     // test default values used.
     assert!(util::traced(&default, "foo_mixin"));
@@ -65,12 +67,14 @@ pub fn wgt_with_mixin_default_values() {
 }
 #[test]
 pub fn wgt_with_mixin_assign_values() {
+    let mut ctx = TestWidgetContext::new();
+
     let foo_trace = "foo!";
     let mut default = bar_wgt! {
         foo_trace; // shorthand assign test.
         bar_trace = "bar!";
     };
-    TestWidgetContext::new().init(&mut default);
+    ctx.init(&mut default);
 
     // test new values used.
     assert!(util::traced(&default, "foo!"));
@@ -95,8 +99,10 @@ pub mod reset_wgt {
 }
 #[test]
 pub fn wgt_with_new_value_for_inherited() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut default = reset_wgt!();
-    TestWidgetContext::new().init(&mut default);
+    ctx.init(&mut default);
 
     assert!(util::traced(&default, "reset_wgt"));
     assert!(!util::traced(&default, "foo_mixin"));
@@ -116,8 +122,10 @@ pub mod alias_inherit_wgt {
 }
 #[test]
 pub fn wgt_alias_inherit() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut default = alias_inherit_wgt!();
-    TestWidgetContext::new().init(&mut default);
+    ctx.init(&mut default);
 
     assert!(util::traced(&default, "foo_mixin"));
     assert!(util::traced(&default, "alias_inherit_wgt"));
@@ -126,7 +134,7 @@ pub fn wgt_alias_inherit() {
         foo_trace = "foo!";
         alias_trace = "alias!";
     );
-    TestWidgetContext::new().init(&mut assigned);
+    ctx.init(&mut assigned);
 
     assert!(util::traced(&assigned, "foo!"));
     assert!(util::traced(&assigned, "alias!"));
@@ -145,10 +153,12 @@ pub mod property_from_path_wgt {
 }
 #[test]
 pub fn wgt_property_from_path() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut assigned = property_from_path_wgt!(
         trace = "trace!";
     );
-    TestWidgetContext::new().init(&mut assigned);
+    ctx.init(&mut assigned);
 
     assert!(util::traced(&assigned, "trace!"));
 }
@@ -166,15 +176,17 @@ pub mod default_value_wgt {
 }
 #[test]
 pub fn unset_default_value() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut default = default_value_wgt!();
-    TestWidgetContext::new().init(&mut default);
+    ctx.init(&mut default);
 
     assert!(util::traced(&default, "default_value_wgt"));
 
     let mut no_default = default_value_wgt! {
         trace = unset!;
     };
-    TestWidgetContext::new().init(&mut no_default);
+    ctx.init(&mut no_default);
 
     assert!(!util::traced(&no_default, "default_value_wgt"));
 }
@@ -184,12 +196,14 @@ pub fn unset_default_value() {
  */
 #[test]
 pub fn value_init_order() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
     let mut wgt = empty_wgt! {
         util::count_border = Position::next("count_border");
         util::count_context = Position::next("count_context");
     };
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["count_border", "count_context"]);
@@ -200,13 +214,15 @@ pub fn value_init_order() {
 
 #[test]
 pub fn wgt_child_property_init_order() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
     let mut wgt = empty_wgt! {
         util::count_border = Position::next("count_border");
         util::count_child_layout = Position::next("count_child_layout");
         util::count_context = Position::next("count_context");
     };
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     // values evaluated in typed order.
     assert_eq!(
@@ -235,12 +251,14 @@ pub mod same_nest_group_order_wgt {
 }
 #[test]
 pub fn wgt_same_nest_group_order() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
     let mut wgt = same_nest_group_order_wgt! {
         border_a = Position::next("border_a");
         border_b = Position::next("border_b");
     };
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["border_a", "border_b"]);
@@ -258,7 +276,7 @@ pub fn wgt_same_nest_group_order() {
         border_b = Position::next("border_b");
         border_a = Position::next("border_a");
     };
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert_eq!(util::sorted_value_init(&wgt), ["border_b", "border_a"]);
     assert_eq!(util::sorted_node_init(&wgt), ["border_b", "border_a"]);
@@ -284,8 +302,9 @@ pub mod when_wgt {
 }
 #[test]
 pub fn wgt_when() {
-    let mut wgt = when_wgt!();
     let mut ctx = TestWidgetContext::new();
+
+    let mut wgt = when_wgt!();
     ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "boo!"));
@@ -306,6 +325,8 @@ pub fn wgt_when() {
 }
 #[test]
 pub fn widget_user_when() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
         util::live_trace = "A";
 
@@ -313,7 +334,6 @@ pub fn widget_user_when() {
             util::live_trace = "B";
         }
     };
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "A"));
@@ -353,8 +373,9 @@ pub mod multi_when_wgt {
 }
 #[test]
 pub fn wgt_multi_when() {
-    let mut wgt = multi_when_wgt!();
     let mut ctx = TestWidgetContext::new();
+
+    let mut wgt = multi_when_wgt!();
     ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "default"));
@@ -400,14 +421,18 @@ pub mod cfg_property_wgt {
 }
 #[test]
 pub fn wgt_cfg_property() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = cfg_property_wgt!();
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "always-trace"));
     assert!(!util::traced(&wgt, "never-trace"));
 }
 #[test]
 pub fn user_cfg_property() {
+    let mut ctx = TestWidgetContext::new();
+
     #[allow(unused_imports)]
     use util::trace as never_trace;
     use util::trace as always_trace;
@@ -426,7 +451,7 @@ pub fn user_cfg_property() {
         };
     };
 
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "always-trace"));
     assert!(!util::traced(&wgt, "never-trace"));
@@ -464,9 +489,10 @@ pub mod cfg_when_wgt {
 }
 #[test]
 pub fn wgt_cfg_when() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = cfg_when_wgt!();
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "trace"));
@@ -488,6 +514,8 @@ pub fn wgt_cfg_when() {
 
 #[test]
 pub fn user_cfg_when() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
         util::live_trace = "trace";
 
@@ -507,7 +535,6 @@ pub fn user_cfg_when() {
         }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "trace"));
@@ -560,8 +587,10 @@ pub mod capture_properties_wgt {
 }
 #[test]
 pub fn wgt_capture_properties() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = capture_properties_wgt!();
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "property"));
     assert!(util::traced(&wgt, "custom new"));
@@ -569,11 +598,13 @@ pub fn wgt_capture_properties() {
 }
 #[test]
 pub fn wgt_capture_properties_reassign() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = capture_properties_wgt! {
         property_trace = "user-property";
         new_trace = "user-new";
     };
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert!(util::traced(&wgt, "user-property"));
     assert!(util::traced(&wgt, "custom new (user)"));
@@ -628,10 +659,12 @@ fn property_nest_group_sorting_init1() -> impl UiNode {
 }
 #[test]
 pub fn property_nest_group_sorting_value_init1() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
 
     let mut wgt = property_nest_group_sorting_init1();
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     // assert that value init is the same as typed.
     pretty_assertions::assert_eq!(
@@ -675,10 +708,12 @@ fn property_nest_group_sorting_init2() -> impl UiNode {
 }
 #[test]
 pub fn property_nest_group_sorting_value_init2() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
 
     let mut wgt = property_nest_group_sorting_init2();
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     // assert that value init is the same as typed.
     pretty_assertions::assert_eq!(
@@ -728,19 +763,23 @@ fn assert_node_order(wgt: &impl UiNode) {
 }
 #[test]
 pub fn property_nest_group_sorting_node_init1() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
 
     let mut wgt = property_nest_group_sorting_init1();
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert_node_order(&wgt);
 }
 #[test]
 pub fn property_nest_group_sorting_node_init2() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
 
     let mut wgt = property_nest_group_sorting_init2();
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert_node_order(&wgt);
 }
@@ -750,6 +789,8 @@ pub mod property_nest_group_sorting_inherited_wgt {
 }
 #[test]
 pub fn property_nest_group_sorting_node_inherited_init() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
 
     let mut wgt = property_nest_group_sorting_inherited_wgt! {
@@ -769,7 +810,7 @@ pub fn property_nest_group_sorting_node_inherited_init() {
         count_border1 = Position::next("count_border1");
         count_border2 = Position::next("count_border2");
     };
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
 
     assert_node_order(&wgt);
 }
@@ -800,10 +841,12 @@ pub mod property_nest_group_sorting_defaults_wgt {
 }
 #[test]
 pub fn property_nest_group_sorting_defaults() {
+    let mut ctx = TestWidgetContext::new();
+
     Position::reset();
 
     let mut wgt = property_nest_group_sorting_defaults_wgt!();
-    TestWidgetContext::new().init(&mut wgt);
+    ctx.init(&mut wgt);
     assert_node_order(&wgt);
 }
 
@@ -813,6 +856,8 @@ pub fn property_nest_group_sorting_defaults() {
 
 #[test]
 pub fn when_property_member_default() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
        util::duo_members = "a", "b";
        util::live_trace = "";
@@ -824,13 +869,14 @@ pub fn when_property_member_default() {
        }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_index() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
        util::duo_members = "a", "b";
        util::live_trace = "";
@@ -843,13 +889,14 @@ pub fn when_property_member_index() {
        }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_named() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
        util::duo_members = "a", "b";
        util::live_trace = "";
@@ -862,13 +909,14 @@ pub fn when_property_member_named() {
        }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_default_method() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
        util::duo_members = "a", "b";
        util::live_trace = "";
@@ -880,13 +928,14 @@ pub fn when_property_member_default_method() {
        }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_indexed_method() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
        util::duo_members = "a", "b";
        util::live_trace = "";
@@ -898,7 +947,6 @@ pub fn when_property_member_indexed_method() {
        }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "true"));
 }
@@ -915,18 +963,18 @@ pub mod get_builder {
 
 #[test]
 pub fn when_reuse() {
-    let builder = get_builder! {
-        util::live_trace = "false";
-
-        when *#util::is_state {
-            util::live_trace = "true";
-        }
-    };
-
     let test = |pass: &str| {
-        let mut wgt = builder.clone().build();
-
         let mut ctx = TestWidgetContext::new();
+
+        let builder = get_builder! {
+            util::live_trace = "false";
+
+            when *#util::is_state {
+                util::live_trace = "true";
+            }
+        };
+        let mut wgt = builder.build();
+
         ctx.init(&mut wgt);
         assert!(!util::traced(&wgt, "true"), "traced `true` in {pass} pass");
         assert!(util::traced(&wgt, "false"), "did not trace `false` in {pass} pass");
@@ -980,9 +1028,10 @@ pub mod inherit_override_wgt2 {
 }
 #[test]
 pub fn inherit_override() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = inherit_override_wgt1!();
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "base_b::property"));
     assert!(!util::traced(&wgt, "base_a::property"));
@@ -1000,6 +1049,8 @@ pub fn inherit_override() {
 
 #[test]
 pub fn allowed_in_when_without_wgt_assign1() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
         // util::live_trace_default = "default-trace";
         when *#util::is_state {
@@ -1007,7 +1058,6 @@ pub fn allowed_in_when_without_wgt_assign1() {
         }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "default-trace"));
     assert!(!util::traced(&wgt, "when-trace"));
@@ -1031,6 +1081,8 @@ pub mod declare_prop_with_default_wgt {
 
 #[test]
 pub fn allowed_in_when_without_wgt_assign2() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = declare_prop_with_default_wgt! {
         // live_trace_default = "default-trace";
         when *#util::is_state {
@@ -1038,7 +1090,6 @@ pub fn allowed_in_when_without_wgt_assign2() {
         }
     };
 
-    let mut ctx = TestWidgetContext::new();
     ctx.init(&mut wgt);
     assert!(util::traced(&wgt, "default-trace"));
     assert!(!util::traced(&wgt, "when-trace"));
@@ -1064,11 +1115,12 @@ pub fn util_live_trace(
 
 #[test]
 pub fn generated_name_collision() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
         util::live_trace = "!";
         util_live_trace = false;
     };
-    let mut ctx = TestWidgetContext::new();
 
     ctx.init(&mut wgt);
 
@@ -1078,6 +1130,8 @@ pub fn generated_name_collision() {
 
 #[test]
 pub fn generated_name_collision_in_when() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
         util::live_trace = "1";
         when *#util::is_state {
@@ -1087,7 +1141,6 @@ pub fn generated_name_collision_in_when() {
             util::live_trace = "3";
         }
     };
-    let mut ctx = TestWidgetContext::new();
 
     ctx.init(&mut wgt);
     util::set_state(&mut ctx, &mut wgt, true);
@@ -1101,6 +1154,8 @@ pub fn generated_name_collision_in_when() {
 
 #[test]
 pub fn generated_name_collision_in_when_assign() {
+    let mut ctx = TestWidgetContext::new();
+
     let mut wgt = empty_wgt! {
         util::live_trace = "0";
         util_live_trace = false;
@@ -1110,7 +1165,6 @@ pub fn generated_name_collision_in_when_assign() {
             util_live_trace = true;
         }
     };
-    let mut ctx = TestWidgetContext::new();
 
     ctx.init(&mut wgt);
     util::set_state(&mut ctx, &mut wgt, true);
@@ -1141,8 +1195,9 @@ pub mod name_collision_wgt_when {
 }
 #[test]
 pub fn name_collision_wgt_when() {
-    let mut wgt = name_collision_wgt_when!();
     let mut ctx = TestWidgetContext::new();
+
+    let mut wgt = name_collision_wgt_when!();
 
     ctx.init(&mut wgt);
     util::set_state(&mut ctx, &mut wgt, true);

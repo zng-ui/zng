@@ -24,6 +24,8 @@
 //! ```
 //! use zero_ui::prelude::*;
 //!
+//! let _app = App::blank();
+//!
 //! let txt = var_from("Click Me!");
 //! let btn = button! {
 //!     child = text(txt.clone());
@@ -37,6 +39,8 @@
 //!
 //! ```
 //! use zero_ui::prelude::*;
+//!
+//! let _app = App::blank();
 //!
 //! let enabled = var(true);
 //! let btn = button! {

@@ -50,9 +50,10 @@ pub mod image {
 /// Create an image button:
 ///
 /// ```
-/// use zero_ui::prelude::*;
-/// use zero_ui::widgets::image::*;
-///
+/// # use zero_ui::prelude::*;
+/// # use zero_ui::widgets::image::*;
+/// # let _scope = App::blank();
+/// #
 /// # let _ =
 /// button! {
 ///     child = image("https://httpbin.org/image");

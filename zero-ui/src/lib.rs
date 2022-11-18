@@ -58,6 +58,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! button! {
 //!     on_click = hn!(|_, _| println!("Clicked!"));
 //!     child = text("Click Me!");
@@ -87,6 +88,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! let text_a = text! {
 //!     txt = "Hello!";
 //!     txt_color = colors::BLACK;
@@ -129,6 +131,7 @@
 //! }
 //!
 //! # fn main() {
+//! # let _scope = App::blank();
 //! let btn = red_button! {
 //!     child = text("!");
 //!     on_click = hn!(|_, _| println!("Alert!"));
@@ -146,7 +149,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! #
+//! # let _scope = App::blank();
 //! let menu = v_stack! {
 //!     spacing = 5;
 //!     children = ui_list![
@@ -169,6 +172,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! #
 //! let wgt = blank! {
 //!     // single value assign:
@@ -211,6 +215,7 @@
 //! ```
 //! # use zero_ui::prelude::*;
 //! # use blank as foo;
+//! # let _scope = App::blank();
 //! let wgt = foo! {
 //!     margin = 10;
 //! };
@@ -233,6 +238,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! # let _ = blank! {
 //! // Same margin all around:
 //! margin = 10;
@@ -259,6 +265,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! let offset = var(SideOffsets::from(10));
 //! let moving_btn = button! {
 //!     margin = offset.clone();
@@ -281,6 +288,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text(flag.map_to_text());
@@ -306,6 +314,7 @@
 //! ```
 //! # use zero_ui::prelude::*;
 //! # use std::borrow::Cow;
+//! # let _scope = App::blank();
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text(flag.map_to_text());
@@ -328,6 +337,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! let count = var(0u32);
 //! let clicker = button! {
 //!     child = text(count.map(|c| {
@@ -390,6 +400,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! #[derive(Clone, Debug)]
 //! enum Status {
 //!     Idle,
@@ -450,7 +461,8 @@
 //! handlers, they essentially declare a `FnMut` and `FnOnce` that capture by `move`. The macros can be used to *capture-by-clone* too.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! let mut count = 0;
 //!
 //! button! {
@@ -468,6 +480,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! let mut count = 0;
 //! let data = vec![0, 1, 0];
 //!
@@ -488,6 +501,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! # button! {
 //! on_click = hn!(|ctx, args: &ClickArgs| {
 //!     args.propagation().stop();
@@ -503,6 +517,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! let count = var(0u32);
 //!
 //! button! {
@@ -522,6 +537,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! # let status = var("Waiting Click..".to_text());
 //! button! {
 //!     on_click = async_hn!(status, |ctx, _| {
@@ -545,6 +561,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! # let status = var("Waiting Double Click..".to_text());
 //! # async fn some_task(status: RcVar<Text>) { }
 //! button! {
@@ -569,6 +586,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! # let status = var("Waiting Click..".to_text());
 //! let data = vec![0, 1];
 //! button! {
@@ -588,6 +606,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! button! {
 //!     on_pre_click = hn!(|_, a: &ClickArgs|{
 //!         if a.is_double() {
@@ -611,6 +630,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! window! {
 //!     on_pre_click = hn!(|_, _| println!("window.on_pre_click"));
 //!     on_click = hn!(|_, _| println!("window.on_click"));
@@ -656,8 +676,9 @@
 //! provides a [`shortcut`][cmd_shortcut] that enables command activation using shortcut presses.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//!
+//! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
+//! #
 //! button! {
 //!     on_click = hn!(|ctx, _| COPY_CMD.notify(ctx));
 //!     child = text(COPY_CMD.name());
@@ -685,6 +706,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! # fn test() -> impl WidgetHandler<()> {
 //! # let foo_var = var(true);
 //! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
@@ -712,8 +734,8 @@
 //! and close windows, list the open windows and control if the app is exited when all windows are closed.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//!
+//! # use zero_ui::prelude::*;
+//! # let _scope = App::blank();
 //! # let _ =
 //! button! {
 //!     child = text("Open Window");

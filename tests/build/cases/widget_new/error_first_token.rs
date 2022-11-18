@@ -16,6 +16,7 @@ fn test_2() {
 }
 
 fn main() {
+    let _scope = zero_ui::core::app::App::blank();
     test_1();
     test_2();
 }

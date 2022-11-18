@@ -18,8 +18,9 @@ pub mod button {
         /// # Examples
         ///
         /// ```
-        /// use zero_ui::prelude::*;
-        ///
+        /// # use zero_ui::prelude::*;
+        /// # let _scope = App::blank();
+        /// #
         /// button! {
         ///     on_click = hn!(|ctx, args: &ClickArgs| {
         ///         assert!(args.is_primary());

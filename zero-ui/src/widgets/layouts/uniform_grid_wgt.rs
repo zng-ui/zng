@@ -13,6 +13,7 @@ use crate::prelude::new_widget::*;
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let grid = uniform_grid!{
 ///     columns = 3;
 ///     rows = 2;
@@ -59,6 +60,7 @@ pub mod uniform_grid {
         ///
         /// ```
         /// # use zero_ui::prelude::*;
+        /// # let _scope = App::blank();
         /// let grid = uniform_grid!{
         ///     columns = 3;
         ///     rows = 2;
@@ -377,6 +379,7 @@ pub mod uniform_grid {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// let grid = uniform_grid(ui_list![
 ///     text("0,0"), text("1,0"),
 ///     text("0,1"), text("1,1"),

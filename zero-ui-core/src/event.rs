@@ -223,9 +223,10 @@ impl<A: EventArgs> Event<A> {
     ///
     /// ```
     /// # use zero_ui_core::event::*;
+    /// # use zero_ui_core::app::App;
     /// # use zero_ui_core::handler::app_hn;
     /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
-    /// #
+    /// # let _scope = App::blank();
     /// let handle = FOCUS_CHANGED_EVENT.on_pre_event(app_hn!(|_ctx, args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));
@@ -268,9 +269,10 @@ impl<A: EventArgs> Event<A> {
     ///
     /// ```
     /// # use zero_ui_core::event::*;
+    /// # use zero_ui_core::app::App;
     /// # use zero_ui_core::handler::app_hn;
     /// # use zero_ui_core::focus::{FOCUS_CHANGED_EVENT, FocusChangedArgs};
-    /// #
+    /// # let _scope = App::blank();
     /// let handle = FOCUS_CHANGED_EVENT.on_event(app_hn!(|_ctx, args: &FocusChangedArgs, _| {
     ///     println!("focused: {:?}", args.new_focus);
     /// }));

@@ -11,7 +11,7 @@ use crate::{
     widget_instance::WidgetId,
     window::{WindowId, WindowMode},
 };
-use std::{cell::Cell, fmt, marker::PhantomData, ops::Deref, rc::Rc};
+use std::{cell::Cell, fmt, ops::Deref, rc::Rc};
 
 mod contextual;
 pub use contextual::*;
@@ -411,7 +411,7 @@ pub struct TestWidgetContext {
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
 
-    _no_send: PhantomData<std::rc::Rc<()>>,
+    _no_send: std::marker::PhantomData<std::rc::Rc<()>>,
     _scope: AppScope,
 }
 #[cfg(any(test, doc, feature = "test_util"))]
@@ -460,7 +460,7 @@ impl TestWidgetContext {
             receiver,
             loop_timer: LoopTimer::default(),
 
-            _no_send: PhantomData,
+            _no_send: std::marker::PhantomData,
             _scope: scope,
         }
     }

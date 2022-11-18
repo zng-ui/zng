@@ -14,9 +14,10 @@ use super::hit_test_mode;
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # fn foo() -> impl UiNode { blank!() }
-///
+/// #
 /// container! {
 ///     child = foo();
 ///     background = text! {
@@ -79,9 +80,10 @@ pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # fn foo() -> impl UiNode { blank!() }
-///
+/// #
 /// container! {
 ///     child = foo();
 ///     background_color = hex!(#ADF0B0);
@@ -102,9 +104,10 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # fn foo() -> impl UiNode { blank!() }
-///
+/// #
 /// container! {
 ///     child = foo();
 ///     background_gradient = {
@@ -133,9 +136,10 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # fn foo() -> impl UiNode { blank!() }
-///
+/// #
 /// container! {
 ///     child = foo();
 ///     foreground = text! {
@@ -188,7 +192,8 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # fn foo() -> impl UiNode { blank!() }
 /// container! {
 ///     child = foo();
@@ -285,9 +290,10 @@ pub fn foreground_highlight(
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # fn foo() -> impl UiNode { blank!() }
-///
+/// #
 /// container! {
 ///     child = foo();
 ///     foreground_color = rgba(0, 240, 0, 10.pct())
@@ -310,9 +316,10 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
 /// # fn foo() -> impl UiNode { blank!() }
-///
+/// #
 /// container! {
 ///     child = foo();
 ///     foreground_gradient = {
@@ -343,8 +350,9 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::*;
-///
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::blank();
+/// #
 /// container! {
 ///     background_color = rgb(255, 0, 0);
 ///     size = (200, 300);

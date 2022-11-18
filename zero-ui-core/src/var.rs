@@ -641,6 +641,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// # #[widget($crate::blank)]
 /// # mod blank { inherit!(zero_ui_core::widget_base::base); }
 /// # fn main() {
+/// # let _scope = zero_ui_core::app::App::blank();
 /// // shorthand #1:
 /// let wgt = blank! {
 ///     size = (800, 600);
@@ -688,6 +689,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// # #[widget($crate::blank)]
 /// # pub mod blank { inherit!(zero_ui_core::widget_base::base); }
 /// # fn main() {
+/// # let _scope = zero_ui_core::app::App::blank();
 /// // literal assign:
 /// let wgt = blank! {
 ///     foo = 42;

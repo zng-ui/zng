@@ -67,6 +67,7 @@ pub mod toggle_properties {
     ///
     /// ```
     /// # use zero_ui::prelude::*;
+    /// # let _scope = App::blank();
     /// let foo = var(false);
     ///
     /// toggle! {
@@ -132,6 +133,7 @@ pub mod toggle_properties {
     ///
     /// ```
     /// # use zero_ui::prelude::*;
+    /// # let _scope = App::blank();
     /// let foo = var(Some(false));
     ///
     /// toggle! {
@@ -226,6 +228,7 @@ pub mod toggle_properties {
     ///
     /// ```
     /// # use zero_ui::prelude::*;
+    /// # let _scope = App::blank();
     /// toggle! {
     ///     checked = var(false);
     ///     // checked_opt = var(Some(false));
@@ -264,6 +267,7 @@ pub mod toggle_properties {
     ///
     /// ```
     /// # use zero_ui::prelude::*;
+    /// # let _scope = App::blank();
     /// let foo = var(1_i32);
     ///
     /// v_stack! {
