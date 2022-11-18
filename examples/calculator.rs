@@ -9,6 +9,8 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
 
+    unsafe { backtrace_on_stack_overflow::enable() };
+
     //let rec = examples_util::record_profile("calculator");
 
     // zero_ui_view::run_same_process(app_main);

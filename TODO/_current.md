@@ -1,8 +1,5 @@
 * Test app_local event and commands.
-    - Stack overflow in -t command.
-    - Subtraction overflow in window example.
-    - thread panicked while panicking. aborting in -t focus.
-    - App scope unloaded before app drop (because it happens in `drop` impl).
+    - Stack overflow in calculator, focus, text.
 
 * Review `ContextLocal`, default is not app-local?
 
