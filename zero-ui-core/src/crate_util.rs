@@ -10,7 +10,7 @@ use std::{
     num::{NonZeroU32, NonZeroU64},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering},
+        atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering, AtomicUsize},
         Arc, Weak,
     },
     thread,
@@ -1262,3 +1262,38 @@ macro_rules! measure_time {
 }
 
 pub type BoxedFut<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + Sync>>;
+
+#[allow(unused)]
+pub(crate) struct RecursionCheck {
+    count: AtomicUsize,
+    limit: usize,
+}
+impl RecursionCheck {
+    pub const fn new(limit: usize) -> Self {
+        RecursionCheck {
+            count: AtomicUsize::new(0),
+            limit,
+        }
+    }   
+
+    pub fn enter(&'static self) -> RecursionCheckExitOnDrop {
+        let c = self.count.fetch_add(1, Ordering::Relaxed);
+        if c >= self.limit {
+            panic!("reached {} limit, probably recursing", self.limit);
+        }
+        RecursionCheckExitOnDrop {
+            check: self
+        }
+    }
+}
+
+#[must_use = "must be held while calling inner"]
+#[allow(unused)]
+pub(crate) struct RecursionCheckExitOnDrop {
+    check: &'static RecursionCheck,
+}
+impl Drop for RecursionCheckExitOnDrop {
+    fn drop(&mut self) {
+        self.check.count.fetch_sub(1, Ordering::Relaxed);
+    }
+}
