@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt};
+use std::fmt;
 
 use crate::app::*;
 use crate::event::*;
@@ -54,7 +54,6 @@ impl AppIntrinsic {
                 pending.response.respond(vars, ExitCancelled);
                 false
             } else {
-                AppOnExited::run();
                 true
             }
         } else {
@@ -121,39 +120,6 @@ impl AppProcess {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
         self.exit_requests.take()
     }
-
-    /// Register the `cleanup` closure to run after the app exits.
-    ///
-    /// The closure runs on graceful shutdowns or when the app is dropped and Rust calls the drop methods.
-    pub fn on_exited(cleanup: impl FnOnce() + 'static) {
-        AppOnExited::register(Box::new(cleanup))
-    }
-}
-impl Drop for AppProcess {
-    fn drop(&mut self) {
-        AppOnExited::run();
-    }
-}
-
-#[derive(Default)]
-struct AppOnExited {
-    cleanup: Vec<Box<dyn FnOnce()>>,
-}
-impl AppOnExited {
-    fn register(cleanup: Box<dyn FnOnce()>) {
-        APP_ON_EXITED.with(|c| c.borrow_mut().cleanup.push(cleanup));
-    }
-
-    fn run() {
-        APP_ON_EXITED.with(|c| {
-            for cleanup in c.borrow_mut().cleanup.drain(..) {
-                cleanup();
-            }
-        });
-    }
-}
-thread_local! {
-    static APP_ON_EXITED: RefCell<AppOnExited> = RefCell::new(AppOnExited::default())
 }
 
 command! {

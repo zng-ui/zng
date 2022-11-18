@@ -1,6 +1,8 @@
 * Use `app_local!` everywhere.
     - Events.
     - Remove `APP_ON_EXITED`.
+* Update webrender to Fx107.
+
 * Review `ContextLocal`, default is not app-local?
 
 * Review `AppContextMut`.
