@@ -1,6 +1,3 @@
-* Remove `Var::with`, make `Var::read(&self) -> VarReadLock<T>`.
-    - More ergonomic, removes a boat load of LLVM lines.
-    - Need to return an enum of various types of borrow that deref T?
 * Use `app_local!` everywhere.
     - Events.
     - Remove `APP_ON_EXITED`.
