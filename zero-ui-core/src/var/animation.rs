@@ -233,7 +233,8 @@ impl AnimationArgs {
 
     /// Set the animation start time to now.
     pub fn restart(&self) {
-        self.set_start_time(self.0.lock().now);
+        let now = self.0.lock().now;
+        self.set_start_time(now);
         let mut me = self.0.lock();
         me.restart_count += 1;
     }
@@ -255,7 +256,8 @@ impl AnimationArgs {
     ///
     /// Note that this does not affect the restart count.
     pub fn set_elapsed(&self, elapsed: EasingTime, duration: Duration) {
-        self.set_start_time(self.0.lock().now - (duration * elapsed.fct()));
+        let now = self.0.lock().now;
+        self.set_start_time(now - (duration * elapsed.fct()));
     }
 }
 
