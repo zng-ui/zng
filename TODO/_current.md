@@ -2,10 +2,12 @@
     - Stack overflow in -t command.
     - Subtraction overflow in window example.
     - thread panicked while panicking. aborting in -t focus.
-* Update webrender to Fx107.
+    - App scope unloaded before app drop (because it happens in `drop` impl).
 
 * Review `ContextLocal`, default is not app-local?
 * Review `CommandHandle`, can reconnect with different app?
+
+* Update webrender to Fx107.
 
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.
