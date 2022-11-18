@@ -614,8 +614,7 @@ impl Drop for CommandHandle {
     fn drop(&mut self) {
         if let Some(command) = self.command {
             if !crate::app::App::is_running() {
-                // handles can be held outside app.
-                panic!("trace me!");
+                // handles can end up outside app.
                 return;
             }
 

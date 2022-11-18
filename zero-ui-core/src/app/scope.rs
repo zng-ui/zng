@@ -60,25 +60,39 @@ struct AppScopeData {
 
 pub(crate) struct AppScope(Arc<AppScopeData>);
 impl AppScope {
-    pub(crate) fn new_unique() -> Self {
-        Self(Arc::new(AppScopeData {
+    pub(crate) fn new_loaded() -> Self {
+        let me = Self(Arc::new(AppScopeData {
             id: AppId::new_unique(),
             cleanup: Mutex::new(vec![]),
-        }))
+        }));
+        me.load_in_thread();
+        me
     }
 
     pub(crate) fn load_in_thread(&self) {
         CURRENT_SCOPE.with(|s| {
             if let Some(other) = s.borrow_mut().replace(AppScope(self.0.clone())) {
-                tracing::error!("displaced app `{:?}` in thread {:?}", other.0.id, std::thread::current())
+                if other.0.id != self.0.id {
+                    tracing::error!("displaced app `{:?}` in thread {:?}", other.0.id, std::thread::current())
+                }
             }
         })
     }
 
     pub(crate) fn unload_in_thread(&self) {
         CURRENT_SCOPE.with(|s| {
-            if s.borrow_mut().take().is_none() {
-                tracing::error!("no app loaded in thread {:?}", std::thread::current());
+            let mut s = s.borrow_mut();
+            if let Some(other) = s.take() {
+                if other.0.id != self.0.id {
+                    tracing::error!(
+                        "tried to unload wrong scope in thread {:?}, expected scope {:?}, but was {:?}",
+                        std::thread::current(),
+                        self.0.id,
+                        other.0.id
+                    );
+                    *s = Some(other);
+                }
+                drop(s);
             }
         })
     }
@@ -100,6 +114,8 @@ impl AppScope {
 }
 impl Drop for AppScope {
     fn drop(&mut self) {
+        self.unload_in_thread();
+
         let id = self.0.id;
         for c in self.0.cleanup.lock().drain(..) {
             c(id);

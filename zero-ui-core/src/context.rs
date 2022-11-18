@@ -412,7 +412,7 @@ pub struct TestWidgetContext {
     loop_timer: crate::app::LoopTimer,
 
     _no_send: PhantomData<std::rc::Rc<()>>,
-    scope: AppScope,
+    _scope: AppScope,
 }
 #[cfg(any(test, doc, feature = "test_util"))]
 impl Default for TestWidgetContext {
@@ -434,8 +434,7 @@ impl TestWidgetContext {
         if crate::app::App::is_running() {
             panic!("only one `TestWidgetContext` or app is allowed per thread")
         }
-        let scope = AppScope::new_unique();
-        scope.load_in_thread();
+        let scope = AppScope::new_loaded();
 
         let (sender, receiver) = AppEventSender::new();
         let window_id = WindowId::new_unique();
@@ -462,7 +461,7 @@ impl TestWidgetContext {
             loop_timer: LoopTimer::default(),
 
             _no_send: PhantomData,
-            scope,
+            _scope: scope,
         }
     }
 
@@ -670,11 +669,6 @@ impl TestWidgetContext {
                 node.render_update(ctx, update);
             });
         });
-    }
-}
-impl Drop for TestWidgetContext {
-    fn drop(&mut self) {
-        self.scope.unload_in_thread();
     }
 }
 

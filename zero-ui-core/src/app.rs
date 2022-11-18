@@ -621,13 +621,12 @@ impl App {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
-        let scope = AppScope::new_unique();
-        scope.load_in_thread();
+        let scope = AppScope::new_loaded();
         AppExtended {
             _not_send: PhantomData,
-            extensions: Some(()),
+            extensions: (),
             view_process_exe: None,
-            scope: Some(scope),
+            scope,
         }
     }
 
@@ -667,13 +666,12 @@ impl App {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
-        let scope = AppScope::new_unique();
-        scope.load_in_thread();
+        let scope = AppScope::new_loaded();
         AppExtended {
             _not_send: PhantomData,
-            extensions: Some(vec![]),
+            extensions: vec![],
             view_process_exe: None,
-            scope: Some(scope),
+            scope,
         }
     }
 
@@ -708,20 +706,13 @@ impl App {
 ///
 /// See [`App`].
 pub struct AppExtended<E: AppExtension> {
-    extensions: Option<E>,
+    extensions: E,
     view_process_exe: Option<PathBuf>,
 
     // app scope must be unloaded in the same thread if a builder is dropped without running.
     _not_send: PhantomData<std::rc::Rc<()>>,
     // cleanup on drop.
-    scope: Option<AppScope>,
-}
-impl<E: AppExtension> Drop for AppExtended<E> {
-    fn drop(&mut self) {
-        if let Some(scope) = self.scope.take() {
-            scope.unload_in_thread();
-        }
-    }
+    scope: AppScope,
 }
 #[cfg(dyn_app_extension)]
 impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
@@ -736,7 +727,7 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
             panic!("app already extended with `{}`", type_name::<F>())
         }
 
-        self.extensions.as_mut().unwrap().push(TraceAppExt(extension).boxed());
+        self.extensions.push(TraceAppExt(extension).boxed());
 
         self
     }
@@ -765,15 +756,15 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
-    pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<impl AppExtension> {
+    pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
         if self.extended_with::<F>() {
             panic!("app already extended with `{}`", type_name::<F>())
         }
         AppExtended {
             _not_send: PhantomData,
-            scope: self.scope.take(),
-            extensions: Some((self.extensions.take().unwrap(), TraceAppExt(extension))),
-            view_process_exe: self.view_process_exe.take(),
+            scope: self.scope,
+            extensions: (self.extensions, TraceAppExt(extension)),
+            view_process_exe: self.view_process_exe,
         }
     }
 
@@ -795,7 +786,7 @@ impl<E: AppExtension> AppExtended<E> {
 impl<E: AppExtension> AppExtended<E> {
     /// Gets if the application is already extended with the extension type.
     pub fn extended_with<F: AppExtension>(&self) -> bool {
-        self.extensions.as_ref().unwrap().is_or_contain(TypeId::of::<F>())
+        self.extensions.is_or_contain(TypeId::of::<F>())
     }
 
     /// Set the path to the executable for the *View Process*.
@@ -821,13 +812,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     pub fn run(mut self, start: impl FnOnce(&mut AppContext)) {
-        let mut app = RunningApp::start(
-            self.scope.take().unwrap(),
-            self.extensions.take().unwrap(),
-            true,
-            true,
-            self.view_process_exe.take(),
-        );
+        let mut app = RunningApp::start(self.scope, self.extensions, true, true, self.view_process_exe.take());
 
         start(&mut app.ctx());
 
@@ -845,8 +830,8 @@ impl<E: AppExtension> AppExtended<E> {
     /// [`TestWidgetContext`] are running in the current thread.
     pub fn run_headless(mut self, with_renderer: bool) -> HeadlessApp {
         let app = RunningApp::start(
-            self.scope.take().unwrap(),
-            self.extensions.take().unwrap().boxed(),
+            self.scope,
+            self.extensions.boxed(),
             false,
             with_renderer,
             self.view_process_exe.take(),
@@ -876,7 +861,7 @@ struct RunningApp<E: AppExtension> {
     // app scope must be unloaded in this thread on drop.
     _not_send: PhantomData<std::rc::Rc<()>>,
     // cleans on drop
-    scope: AppScope,
+    _scope: AppScope,
 }
 impl<E: AppExtension> RunningApp<E> {
     fn start(scope: AppScope, mut extensions: E, is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>) -> Self {
@@ -912,7 +897,7 @@ impl<E: AppExtension> RunningApp<E> {
             pending_render: false,
 
             _not_send: PhantomData,
-            scope,
+            _scope: scope,
         }
     }
 
@@ -1586,8 +1571,6 @@ impl<E: AppExtension> Drop for RunningApp<E> {
         let _s = tracing::debug_span!("extensions.deinit").entered();
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
-
-        self.scope.unload_in_thread();
     }
 }
 
