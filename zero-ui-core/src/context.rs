@@ -1,7 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{
-    app::{AppEventSender, LoopTimer, AppScope},
+    app::{AppEventSender, AppScope, LoopTimer},
     event::{EventHandle, EventHandles, Events},
     service::Services,
     timer::Timers,
@@ -11,7 +11,7 @@ use crate::{
     widget_instance::WidgetId,
     window::{WindowId, WindowMode},
 };
-use std::{cell::Cell, fmt, ops::Deref, rc::Rc, marker::PhantomData};
+use std::{cell::Cell, fmt, marker::PhantomData, ops::Deref, rc::Rc};
 
 mod contextual;
 pub use contextual::*;

@@ -116,7 +116,7 @@ thread_local! {
 /// This is similar to [`std::thread::LocalKey`], but works across all threads of the app.
 ///
 /// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
-/// 
+///
 /// Note that an app local can only be used if [`App::is_running`] in the thread, if no app is running read and write **will panic**.
 pub struct AppLocal<T: Send + Sync + 'static> {
     value: RwLock<Vec<(AppId, T)>>,
@@ -141,9 +141,9 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Read lock the value associated with the current app.
     ///
     /// Initializes the default value for the app if this is the first read.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if no app is running, see [`App::is_running`] for more details.
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
@@ -175,9 +175,9 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Write lock the value associated with the current app.
     ///
     /// Initializes the default value for the app if this is the first read.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if no app is running, see [`App::is_running`] for more details.
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
         let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
@@ -226,12 +226,12 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 ///     // A private value.
 ///     static BAR: String = "Into!";
 /// }
-/// 
+///
 /// let app = App::blank();
-/// 
+///
 /// assert_eq!(10, FOO.get());
 /// ```
-/// 
+///
 /// Note that app locals can only be used when an app exists in the thread, as soon as an app starts building a new app scope is created,
 /// the app scope is the last thing that is "dropped" after the app exits or the app builder is dropped.
 #[macro_export]

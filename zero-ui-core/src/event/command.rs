@@ -613,6 +613,11 @@ impl fmt::Debug for CommandHandle {
 impl Drop for CommandHandle {
     fn drop(&mut self) {
         if let Some(command) = self.command {
+            if !crate::app::App::is_running() {
+                // handles can be held outside app.
+                return;
+            }
+
             let mut write = command.local.write();
             match command.scope {
                 CommandScope::App => {

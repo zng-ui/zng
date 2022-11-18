@@ -5,6 +5,7 @@
 * Update webrender to Fx107.
 
 * Review `ContextLocal`, default is not app-local?
+* Review `CommandHandle`, can reconnect with different app?
 
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.

@@ -858,9 +858,6 @@ impl<E: AppExtension> AppExtended<E> {
 
 /// Represents a running app controlled by an external event loop.
 struct RunningApp<E: AppExtension> {
-    // app scope must be unloaded in this thread on drop.
-    _not_send: PhantomData<std::rc::Rc<()>>,
-
     extensions: (AppIntrinsic, E),
 
     device_events: bool,
@@ -876,6 +873,8 @@ struct RunningApp<E: AppExtension> {
     pending_layout: bool,
     pending_render: bool,
 
+    // app scope must be unloaded in this thread on drop.
+    _not_send: PhantomData<std::rc::Rc<()>>,
     // cleans on drop
     scope: AppScope,
 }
@@ -911,7 +910,7 @@ impl<E: AppExtension> RunningApp<E> {
             pending_app_events: Vec::with_capacity(100),
             pending_layout: false,
             pending_render: false,
-            
+
             _not_send: PhantomData,
             scope,
         }
@@ -1266,7 +1265,7 @@ impl<E: AppExtension> RunningApp<E> {
             wait = match self.poll(wait, &mut ()) {
                 ControlFlow::Poll => false,
                 ControlFlow::Wait => true,
-                ControlFlow::Exit => return,
+                ControlFlow::Exit => break,
             };
         }
     }
