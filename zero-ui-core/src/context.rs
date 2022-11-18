@@ -1,7 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{
-    app::{AppEventSender, LoopTimer},
+    app::{AppEventSender, LoopTimer, AppScope},
     event::{EventHandle, EventHandles, Events},
     service::Services,
     timer::Timers,
@@ -11,7 +11,7 @@ use crate::{
     widget_instance::WidgetId,
     window::{WindowId, WindowMode},
 };
-use std::{cell::Cell, fmt, ops::Deref, rc::Rc};
+use std::{cell::Cell, fmt, ops::Deref, rc::Rc, marker::PhantomData};
 
 mod contextual;
 pub use contextual::*;
@@ -410,6 +410,9 @@ pub struct TestWidgetContext {
     pub(crate) root_translation_key: crate::render::FrameValueKey<PxTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
+
+    _no_send: PhantomData<std::rc::Rc<()>>,
+    scope: AppScope,
 }
 #[cfg(any(test, doc, feature = "test_util"))]
 impl Default for TestWidgetContext {
@@ -431,6 +434,8 @@ impl TestWidgetContext {
         if crate::app::App::is_running() {
             panic!("only one `TestWidgetContext` or app is allowed per thread")
         }
+        let scope = AppScope::new_unique();
+        scope.load_in_thread();
 
         let (sender, receiver) = AppEventSender::new();
         let window_id = WindowId::new_unique();
@@ -455,6 +460,9 @@ impl TestWidgetContext {
 
             receiver,
             loop_timer: LoopTimer::default(),
+
+            _no_send: PhantomData,
+            scope,
         }
     }
 
@@ -662,6 +670,11 @@ impl TestWidgetContext {
                 node.render_update(ctx, update);
             });
         });
+    }
+}
+impl Drop for TestWidgetContext {
+    fn drop(&mut self) {
+        self.scope.unload_in_thread();
     }
 }
 

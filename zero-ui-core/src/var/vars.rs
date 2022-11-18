@@ -68,11 +68,6 @@ pub struct Vars {
     modify_receivers: RefCell<Vec<Box<dyn Fn(&Vars) -> bool>>>,
 }
 impl Vars {
-    /// If an instance of `Vars` already exists in the  current thread.
-    pub(crate) fn instantiated() -> bool {
-        SingletonVars::in_use()
-    }
-
     /// Id of the current vars update in the app scope.
     ///
     /// Variable with [`AnyVar::last_update`] equal to this are *new*.

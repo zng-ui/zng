@@ -16,11 +16,6 @@ pub struct Events {
     _singleton: SingletonEvents,
 }
 impl Events {
-    /// If an instance of `Events` already exists in the  current thread.
-    pub(crate) fn instantiated() -> bool {
-        SingletonEvents::in_use()
-    }
-
     /// Produces the instance of `Events`. Only a single
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.

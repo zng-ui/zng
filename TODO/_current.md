@@ -1,6 +1,7 @@
-* Use `app_local!` everywhere.
-    - Events.
-    - Remove `APP_ON_EXITED`.
+* Test app_local event and commands.
+    - Stack overflow in -t command.
+    - Subtraction overflow in window example.
+    - thread panicked while panicking. aborting in -t focus.
 * Update webrender to Fx107.
 
 * Review `ContextLocal`, default is not app-local?

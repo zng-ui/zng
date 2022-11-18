@@ -58,16 +58,16 @@ struct AppScopeData {
     cleanup: Mutex<Vec<Box<dyn FnOnce(AppId) + Send + Sync>>>,
 }
 
-pub(super) struct AppScope(Arc<AppScopeData>);
+pub(crate) struct AppScope(Arc<AppScopeData>);
 impl AppScope {
-    pub(super) fn new_unique() -> Self {
+    pub(crate) fn new_unique() -> Self {
         Self(Arc::new(AppScopeData {
             id: AppId::new_unique(),
             cleanup: Mutex::new(vec![]),
         }))
     }
 
-    pub(super) fn load_in_thread(&self) {
+    pub(crate) fn load_in_thread(&self) {
         CURRENT_SCOPE.with(|s| {
             if let Some(other) = s.borrow_mut().replace(AppScope(self.0.clone())) {
                 tracing::error!("displaced app `{:?}` in thread {:?}", other.0.id, std::thread::current())
@@ -75,7 +75,7 @@ impl AppScope {
         })
     }
 
-    pub(super) fn unload_in_thread(&self) {
+    pub(crate) fn unload_in_thread(&self) {
         CURRENT_SCOPE.with(|s| {
             if s.borrow_mut().take().is_none() {
                 tracing::error!("no app loaded in thread {:?}", std::thread::current());
@@ -111,13 +111,13 @@ thread_local! {
     static CURRENT_SCOPE: RefCell<Option<AppScope>> = RefCell::new(None);
 }
 
-static NO_APP_ID: StaticAppId = StaticAppId::new_unique();
-
 /// An app local storage.
 ///
 /// This is similar to [`std::thread::LocalKey`], but works across all threads of the app.
 ///
 /// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
+/// 
+/// Note that an app local can only be used if [`App::is_running`] in the thread, if no app is running read and write **will panic**.
 pub struct AppLocal<T: Send + Sync + 'static> {
     value: RwLock<Vec<(AppId, T)>>,
     init: fn() -> T,
@@ -141,8 +141,12 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Read lock the value associated with the current app.
     ///
     /// Initializes the default value for the app if this is the first read.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if no app is running, see [`App::is_running`] for more details.
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
-        let id = AppScope::current_id().unwrap_or_else(|| NO_APP_ID.get());
+        let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
 
         {
             let read = self.value.read_recursive();
@@ -171,8 +175,12 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Write lock the value associated with the current app.
     ///
     /// Initializes the default value for the app if this is the first read.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if no app is running, see [`App::is_running`] for more details.
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
-        let id = AppScope::current_id().unwrap_or_else(|| NO_APP_ID.get());
+        let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
 
         let mut write = self.value.write();
 
@@ -210,7 +218,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::app::app_local;
+/// # use zero_ui_core::app::*;
 /// app_local! {
 ///     /// A public documented value.
 ///     pub static FOO: u8 = 10u8;
@@ -218,7 +226,14 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 ///     // A private value.
 ///     static BAR: String = "Into!";
 /// }
+/// 
+/// let app = App::blank();
+/// 
+/// assert_eq!(10, FOO.get());
 /// ```
+/// 
+/// Note that app locals can only be used when an app exists in the thread, as soon as an app starts building a new app scope is created,
+/// the app scope is the last thing that is "dropped" after the app exits or the app builder is dropped.
 #[macro_export]
 macro_rules! app_local {
     ($(

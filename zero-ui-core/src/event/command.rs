@@ -989,7 +989,6 @@ pub struct CommandData {
 
     scopes: FxHashMap<CommandScope, ScopedValue>,
 }
-
 impl CommandData {
     pub fn new(meta_init: Box<dyn Fn(Command) + Send + Sync>) -> Self {
         CommandData {
