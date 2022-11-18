@@ -1,6 +1,7 @@
 use std::{any::TypeId, mem, rc::Rc};
 
 use crate::{
+    app::{App, AppId},
     context::*,
     crate_util::FxHashMap,
     gesture::CommandShortcutExt,
@@ -544,6 +545,7 @@ impl CommandArgs {
 pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: AtomicBool,
+    app_id: Option<AppId>,
     _event_handle: EventHandle,
 }
 impl CommandHandle {
@@ -558,6 +560,10 @@ impl CommandHandle {
     pub fn set_enabled(&self, enabled: bool) {
         if let Some(command) = self.command {
             if self.local_enabled.swap(enabled, Ordering::Relaxed) != enabled {
+                if self.app_id != App::current_id() {
+                    return;
+                }
+
                 UpdatesTrace::log_var::<bool>();
 
                 let mut write = command.local.write();
@@ -592,6 +598,7 @@ impl CommandHandle {
     pub fn dummy() -> Self {
         CommandHandle {
             command: None,
+            app_id: None,
             local_enabled: AtomicBool::new(false),
             _event_handle: EventHandle::dummy(),
         }
@@ -613,8 +620,7 @@ impl fmt::Debug for CommandHandle {
 impl Drop for CommandHandle {
     fn drop(&mut self) {
         if let Some(command) = self.command {
-            if !crate::app::App::is_running() {
-                // handles can end up outside app.
+            if self.app_id != App::current_id() {
                 return;
             }
 
@@ -1043,6 +1049,7 @@ impl CommandData {
 
         CommandHandle {
             command: Some(command),
+            app_id: App::current_id(),
             local_enabled: AtomicBool::new(enabled),
             _event_handle: target.map(|t| command.event.subscribe(t)).unwrap_or_else(EventHandle::dummy),
         }

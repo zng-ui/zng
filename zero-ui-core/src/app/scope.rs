@@ -10,7 +10,10 @@ use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, RwLock, 
 unique_id_32! {
     /// Identifies an [`App`] instance.
     ///
+    /// You can get the current app ID from [`App::current_id`].
+    ///
     /// [`App`]: crate::app::App
+    /// [`App::current_id`]: crate::app::App::current_id
     pub struct AppId;
 }
 impl AppId {

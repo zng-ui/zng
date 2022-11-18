@@ -5,7 +5,6 @@
     - App scope unloaded before app drop (because it happens in `drop` impl).
 
 * Review `ContextLocal`, default is not app-local?
-* Review `CommandHandle`, can reconnect with different app?
 
 * Update webrender to Fx107.
 

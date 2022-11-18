@@ -551,6 +551,15 @@ impl App {
         AppScope::current_id().is_some()
     }
 
+    /// Gets an unique ID for the current app.
+    ///
+    /// This ID usually does not change as most apps only run once per process, but it can change often during tests.
+    /// Resources that interact with [`app_local!`] values can use this ID to ensure that they are still operating in the same
+    /// app.
+    pub fn current_id() -> Option<AppId> {
+        AppScope::current_id()
+    }
+
     fn assert_can_run() {
         if App::is_running() {
             if cfg!(any(test, doc, feature = "test_util")) {
