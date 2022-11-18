@@ -1,11 +1,11 @@
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
- --> cases/widget_new/malformed_fields1.rs:6:16
+ --> cases/widget_new/malformed_fields1.rs:7:16
   |
-6 |           margin = {
+7 |           margin = {
   |           -      ^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
   |  _________|
   | |
-7 | |             margin: 0;
+8 | |             margin: 0;
   | |__________________- required by a bound introduced by this call
   |
   = help: the following other types implement trait `IntoVar<T>`:

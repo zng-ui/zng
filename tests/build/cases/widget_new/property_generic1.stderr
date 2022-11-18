@@ -1,7 +1,7 @@
 error[E0283]: type annotations needed
- --> cases/widget_new/property_generic1.rs:6:9
+ --> cases/widget_new/property_generic1.rs:7:9
   |
-6 |         value = 0;
+7 |         value = 0;
   |         ^^^^^ cannot infer type of the type parameter `T` declared on the struct `value`
   |
   = note: cannot satisfy `_: VarValue`
@@ -12,13 +12,13 @@ note: required by a bound in `zero_ui::widgets::checkbox::value::<T>::__new__`
   |                     ^^^^^^^^ required by this bound in `zero_ui::widgets::checkbox::value::<T>::__new__`
 help: consider specifying the generic argument
     |
-6   |         value::<T> = 0;
+7   |         value::<T> = 0;
     |              +++++
 
 error[E0283]: type annotations needed
- --> cases/widget_new/property_generic1.rs:6:9
+ --> cases/widget_new/property_generic1.rs:7:9
   |
-6 |         value = 0;
+7 |         value = 0;
   |         ^^^^^ cannot infer type of the type parameter `T` declared on the struct `value`
   |
   = note: multiple `impl`s satisfying `i32: IntoVar<_>` found in the `zero_ui_core` crate:
@@ -34,5 +34,5 @@ note: required by a bound in `zero_ui::widgets::checkbox::value::<T>::__new__`
   |                                                                           ^^^^^^^^^^ required by this bound in `zero_ui::widgets::checkbox::value::<T>::__new__`
 help: consider specifying the generic argument
     |
-6   |         value::<T> = 0;
+7   |         value::<T> = 0;
     |              +++++

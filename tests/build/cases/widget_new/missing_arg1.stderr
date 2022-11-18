@@ -1,7 +1,7 @@
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
- --> cases/widget_new/missing_arg1.rs:7:9
+ --> cases/widget_new/missing_arg1.rs:8:9
   |
-7 |         background_gradient = 0.deg(), ;
+8 |         background_gradient = 0.deg(), ;
   |         ^^^^^^^^^^^^^^^^^^^ an argument is missing
   |
 note: associated function defined here
@@ -15,5 +15,5 @@ note: associated function defined here
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
     |
-7   |         background_gradient(=, /* value */) = 0.deg(), ;
+8   |         background_gradient(=, /* value */) = 0.deg(), ;
     |                            ++++++++++++++++

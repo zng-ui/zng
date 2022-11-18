@@ -1,5 +1,5 @@
 error: expected property or when
- --> cases/widget_new/malformed_property_path1.rs:5:9
+ --> cases/widget_new/malformed_property_path1.rs:6:9
   |
-5 |         _ = 0;
+6 |         _ = 0;
   |         ^

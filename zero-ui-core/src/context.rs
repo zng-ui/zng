@@ -1,7 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{
-    app::{AppEventSender, AppScope, LoopTimer},
+    app::{AppEventSender, LoopTimer},
     event::{EventHandle, EventHandles, Events},
     service::Services,
     timer::Timers,
@@ -412,7 +412,7 @@ pub struct TestWidgetContext {
     loop_timer: crate::app::LoopTimer,
 
     _no_send: std::marker::PhantomData<std::rc::Rc<()>>,
-    _scope: AppScope,
+    _scope: crate::app::AppScope,
 }
 #[cfg(any(test, doc, feature = "test_util"))]
 impl Default for TestWidgetContext {
@@ -434,7 +434,7 @@ impl TestWidgetContext {
         if crate::app::App::is_running() {
             panic!("only one `TestWidgetContext` or app is allowed per thread")
         }
-        let scope = AppScope::new_loaded();
+        let scope = crate::app::AppScope::new_loaded();
 
         let (sender, receiver) = AppEventSender::new();
         let window_id = WindowId::new_unique();

@@ -1,12 +1,12 @@
 error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
-  --> cases/widget_new/incorrect_arg_type4.rs:8:29
+  --> cases/widget_new/incorrect_arg_type4.rs:9:29
    |
-8  |           background_gradient = {
+9  |           background_gradient = {
    |           -                   ^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
    |  _________|
    | |
-9  | |             axis: 0.deg(),
-10 | |             stops: true
+10 | |             axis: 0.deg(),
+11 | |             stops: true
    | |_________________- required by a bound introduced by this call
    |
    = help: the following other types implement trait `IntoVar<T>`:

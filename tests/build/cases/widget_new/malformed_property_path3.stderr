@@ -1,13 +1,13 @@
 error: expected `;`
- --> cases/widget_new/malformed_property_path3.rs:5:28
+ --> cases/widget_new/malformed_property_path3.rs:6:28
   |
-5 |         zero_ui::properties:margin = 0;
+6 |         zero_ui::properties:margin = 0;
   |                            ^
 
 error[E0433]: failed to resolve: use of undeclared crate or module `margin`
- --> cases/widget_new/malformed_property_path3.rs:5:29
+ --> cases/widget_new/malformed_property_path3.rs:6:29
   |
-5 |         zero_ui::properties:margin = 0;
+6 |         zero_ui::properties:margin = 0;
   |                             ^^^^^^ not found in this scope
   |
 help: consider importing this struct

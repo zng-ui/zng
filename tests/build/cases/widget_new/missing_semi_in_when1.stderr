@@ -1,5 +1,5 @@
 error: expected `,`
-  --> $DIR/missing_semi_in_when1.rs:11:13
+  --> cases/widget_new/missing_semi_in_when1.rs:12:13
    |
-11 |             cursor = CursorIcon::Hand;
+12 |             cursor = CursorIcon::Hand;
    |             ^^^^^^

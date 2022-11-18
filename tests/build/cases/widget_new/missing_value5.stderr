@@ -1,13 +1,13 @@
 error: expected expression, found `)`
- --> cases/widget_new/missing_value5.rs:6:9
+ --> cases/widget_new/missing_value5.rs:7:9
   |
-6 |         cursor =
+7 |         cursor =
   |         ^^^^^^ expected expression
 
 error: expected `;`
- --> cases/widget_new/missing_value5.rs:8:9
+ --> cases/widget_new/missing_value5.rs:9:9
   |
-8 |         margin = {
+9 |         margin = {
   |         ^^^^^^
 
 warning: unused import: `cursor`
@@ -19,7 +19,7 @@ warning: unused import: `cursor`
   = note: `#[warn(unused_imports)]` on by default
 
 warning: unused import: `zero_ui::core::units::PxPoint`
- --> cases/widget_new/missing_value5.rs:9:17
-  |
-9 |             use zero_ui::core::units::PxPoint;
-  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  --> cases/widget_new/missing_value5.rs:10:17
+   |
+10 |             use zero_ui::core::units::PxPoint;
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

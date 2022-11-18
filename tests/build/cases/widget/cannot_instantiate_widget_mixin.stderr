@@ -4,7 +4,7 @@ error: cannot instantiate mix-in
 3 | #[widget_mixin($crate::test_mixin)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ...
-7 |     let _ = test_mixin!();
+8 |     let _ = test_mixin!();
   |             ------------- in this macro invocation
   |
   = note: this error originates in the macro `test_mixin` (in Nightly builds, run with -Z macro-backtrace for more info)

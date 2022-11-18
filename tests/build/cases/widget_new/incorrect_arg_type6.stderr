@@ -1,12 +1,12 @@
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
-  --> cases/widget_new/incorrect_arg_type6.rs:11:21
+  --> cases/widget_new/incorrect_arg_type6.rs:12:21
    |
-11 |           simple_type = {
+12 |           simple_type = {
    |           -           ^ the trait `IntoVar<u32>` is not implemented for `bool`
    |  _________|
    | |
-12 | |             simple_a: 42,
-13 | |             simple_b: true,
+13 | |             simple_a: 42,
+14 | |             simple_b: true,
    | |____________________- required by a bound introduced by this call
    |
    = help: the following other types implement trait `IntoVar<T>`:

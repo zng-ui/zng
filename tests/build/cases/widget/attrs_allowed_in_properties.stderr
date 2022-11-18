@@ -1,7 +1,7 @@
 error[E0433]: failed to resolve: use of undeclared crate or module `disabled_cfg`
-  --> cases/widget/attrs_allowed_in_properties.rs:36:9
+  --> cases/widget/attrs_allowed_in_properties.rs:37:9
    |
-36 |         disabled_cfg = 0;
+37 |         disabled_cfg = 0;
    |         ^^^^^^^^^^^^ use of undeclared crate or module `disabled_cfg`
 
 warning: unused import: `zero_ui::properties::margin`

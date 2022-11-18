@@ -1,7 +1,7 @@
 error[E0599]: no associated item named `__w_1__` found for struct `is_pressed` in the current scope
- --> cases/widget_new/unknown_member_in_when_expr1.rs:7:16
+ --> cases/widget_new/unknown_member_in_when_expr1.rs:8:16
   |
-7 |         when *#is_pressed.1 { // only .0 or .state allowed.
+8 |         when *#is_pressed.1 { // only .0 or .state allowed.
   |                ^^^^^^^^^^
   |                |
   |                associated item not found in `is_pressed`

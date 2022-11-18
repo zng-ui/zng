@@ -1,5 +1,5 @@
 error[E0599]: no function or associated item named `unknown` found for struct `margin` in the current scope
- --> cases/widget_new/unknown_field.rs:7:13
+ --> cases/widget_new/unknown_field.rs:8:13
   |
-7 |             unknown: 0,
+8 |             unknown: 0,
   |             ^^^^^^^ function or associated item not found in `margin`

@@ -1,5 +1,5 @@
 error: expected identifier or index
- --> cases/widget_new/error_in_when_expr3.rs:7:23
+ --> cases/widget_new/error_in_when_expr3.rs:8:23
   |
-7 |         when *#margin.0. {
+8 |         when *#margin.0. {
   |                       ^^

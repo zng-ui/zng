@@ -1,5 +1,5 @@
 error[E0433]: failed to resolve: use of undeclared crate or module `unknown`
- --> cases/widget_new/unknown_property1.rs:5:9
+ --> cases/widget_new/unknown_property1.rs:6:9
   |
-5 |         unknown = 0;
+6 |         unknown = 0;
   |         ^^^^^^^ use of undeclared crate or module `unknown`

@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `{integer}: IntoVar<bool>` is not satisfied
- --> cases/widget_new/property_generic2.rs:6:23
+ --> cases/widget_new/property_generic2.rs:7:23
   |
-6 |         value::<bool> = 0;
+7 |         value::<bool> = 0;
   |         -----         ^ the trait `IntoVar<bool>` is not implemented for `{integer}`
   |         |
   |         required by a bound introduced by this call

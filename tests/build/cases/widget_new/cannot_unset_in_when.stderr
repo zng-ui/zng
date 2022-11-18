@@ -1,5 +1,5 @@
 error: cannot unset in when assign
- --> cases/widget_new/cannot_unset_in_when.rs:8:22
+ --> cases/widget_new/cannot_unset_in_when.rs:9:22
   |
-8 |             margin = unset!;
+9 |             margin = unset!;
   |                      ^^^^^

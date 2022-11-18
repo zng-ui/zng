@@ -1,7 +1,7 @@
 error[E0061]: this function takes 1 argument but 0 arguments were supplied
- --> cases/widget_new/missing_value3.rs:7:9
+ --> cases/widget_new/missing_value3.rs:8:9
   |
-7 |         cursor = ;
+8 |         cursor = ;
   |         ^^^^^^ an argument is missing
   |
 note: associated function defined here
@@ -12,5 +12,5 @@ note: associated function defined here
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-7  |         cursor(/* value */) = ;
+8  |         cursor(/* value */) = ;
    |               +++++++++++++
