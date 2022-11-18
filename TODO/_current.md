@@ -1,5 +1,10 @@
 * Test app_local event and commands.
     - Stack overflow in calculator, focus, text.
+        - Recursion in ContextVar, review previous impl.
+        - Bug is on master already
+        - Before we kept all context values in a vec, and marked each as busy on borrow.
+            - So nested borrows went for each ancestor.
+            - This only works with the delegate style `with`, can't tell if the var is already read-locked.
 
 * Review `ContextLocal`, default is not app-local?
 

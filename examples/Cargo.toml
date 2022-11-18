@@ -14,7 +14,7 @@ zero-ui-material-icons = { path = "../zero-ui-material-icons" }
 zero-ui-view = { path = "../zero-ui-view" }
 zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
 examples-util = { path = "util" }
-backtrace-on-stack-overflow = "0.2"
+# backtrace-on-stack-overflow = "0.2"
 
 [[example]]
 name = "animation"
