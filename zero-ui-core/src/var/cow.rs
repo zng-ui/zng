@@ -5,7 +5,7 @@ use std::{
 
 use parking_lot::RwLock;
 
-use super::{animation::AnimateModifyInfo, *};
+use super::{animation::ModifyInfo, *};
 
 enum Data<T: VarValue, S> {
     Source {
@@ -17,7 +17,7 @@ enum Data<T: VarValue, S> {
         value: T,
         last_update: VarUpdateId,
         hooks: Vec<VarHook>,
-        animation: AnimateModifyInfo,
+        animation: ModifyInfo,
     },
 }
 
@@ -77,7 +77,7 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
                             value,
                             last_update: vars.update_id(),
                             hooks: mem::take(hooks),
-                            animation: vars.current_animation(),
+                            animation: vars.current_modify(),
                         };
                     }
                 }
@@ -88,7 +88,7 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
                     animation,
                 } => {
                     {
-                        let curr_anim = vars.current_animation();
+                        let curr_anim = vars.current_modify();
                         if curr_anim.importance() < animation.importance() {
                             return;
                         }
@@ -209,6 +209,13 @@ impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
         match &*self.0.read_recursive() {
             Data::Source { source, .. } => source.is_animating(),
             Data::Owned { animation, .. } => animation.is_animating(),
+        }
+    }
+
+    fn modify_importance(&self) -> usize {
+        match &*self.0.read_recursive() {
+            Data::Source { source, .. } => source.modify_importance(),
+            Data::Owned { animation, .. } => animation.importance(),
         }
     }
 

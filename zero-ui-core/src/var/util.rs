@@ -86,7 +86,7 @@ use crate::context::Updates;
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
 
-use super::{animation::AnimateModifyInfo, AnyVarValue, VarHandle, VarHook, VarUpdateId, VarValue, Vars};
+use super::{animation::ModifyInfo, AnyVarValue, VarHandle, VarHook, VarUpdateId, VarValue, Vars};
 
 #[doc(hidden)]
 #[macro_export]
@@ -259,7 +259,7 @@ macro_rules! __impl_from_and_into_var {
 struct VarMeta {
     last_update: VarUpdateId,
     hooks: Vec<VarHook>,
-    animation: AnimateModifyInfo,
+    animation: ModifyInfo,
 }
 
 pub(super) struct VarData<T: VarValue> {
@@ -273,7 +273,7 @@ impl<T: VarValue> VarData<T> {
             meta: Mutex::new(VarMeta {
                 last_update: VarUpdateId::never(),
                 hooks: vec![],
-                animation: AnimateModifyInfo::never(),
+                animation: ModifyInfo::never(),
             }),
         }
     }
@@ -295,6 +295,10 @@ impl<T: VarValue> VarData<T> {
         self.meta.lock().animation.is_animating()
     }
 
+    pub fn modify_importance(&self) -> usize {
+        self.meta.lock().animation.importance()
+    }
+
     pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let (hook, weak) = VarHandle::new(pos_modify_action);
         self.meta.lock().hooks.push(weak);
@@ -305,7 +309,7 @@ impl<T: VarValue> VarData<T> {
     pub fn apply_modify(&self, vars: &Vars, updates: &mut Updates, modify: impl FnOnce(&mut Cow<T>)) {
         {
             let mut meta = self.meta.lock();
-            let curr_anim = vars.current_animation();
+            let curr_anim = vars.current_modify();
             if curr_anim.importance() < meta.animation.importance() {
                 return;
             }

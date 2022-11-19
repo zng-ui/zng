@@ -359,7 +359,7 @@ where
 pub(super) struct Animations {
     animations: RefCell<Vec<AnimationFn>>,
     animation_id: Cell<usize>,
-    pub(super) current_animation: RefCell<AnimateModifyInfo>,
+    pub(super) current_modify: RefCell<ModifyInfo>,
     pub(super) animation_start_time: Cell<Option<Instant>>,
     next_frame: Cell<Option<Deadline>>,
     pub(super) animations_enabled: RcVar<bool>,
@@ -371,7 +371,7 @@ impl Animations {
         Self {
             animations: RefCell::default(),
             animation_id: Cell::new(1),
-            current_animation: RefCell::new(AnimateModifyInfo {
+            current_modify: RefCell::new(ModifyInfo {
                 handle: None,
                 importance: 1,
             }),
@@ -474,13 +474,13 @@ impl Animations {
             next_set_id = 1;
         }
         vars.ans.animation_id.set(next_set_id);
-        vars.ans.current_animation.borrow_mut().importance = next_set_id;
+        vars.ans.current_modify.borrow_mut().importance = next_set_id;
 
         let handle_owner;
         let handle;
         let weak_handle;
 
-        if let Some(parent_handle) = vars.ans.current_animation.borrow().handle.clone() {
+        if let Some(parent_handle) = vars.ans.current_modify.borrow().handle.clone() {
             // is `animate` request inside other animate closure,
             // in this case we give it the same animation handle as the *parent*
             // animation, that holds the actual handle owner.
@@ -525,13 +525,13 @@ impl Animations {
                 anim.reset_state(info.animations_enabled, info.now, info.time_scale);
 
                 let prev = mem::replace(
-                    &mut *vars.ans.current_animation.borrow_mut(),
-                    AnimateModifyInfo {
+                    &mut *vars.ans.current_modify.borrow_mut(),
+                    ModifyInfo {
                         handle: Some(weak_handle.clone()),
                         importance: id,
                     },
                 );
-                let _cleanup = crate_util::RunOnDrop::new(|| *vars.ans.current_animation.borrow_mut() = prev);
+                let _cleanup = crate_util::RunOnDrop::new(|| *vars.ans.current_modify.borrow_mut() = prev);
 
                 animation(vars, &anim);
 
@@ -918,14 +918,14 @@ where
 
 /// Represents the current *modify* operation when it is applying.
 #[derive(Clone)]
-pub struct AnimateModifyInfo {
+pub struct ModifyInfo {
     handle: Option<WeakAnimationHandle>,
     importance: usize,
 }
-impl AnimateModifyInfo {
+impl ModifyInfo {
     /// Initial value, is always of lowest importance.
     pub fn never() -> Self {
-        AnimateModifyInfo {
+        ModifyInfo {
             handle: None,
             importance: 0,
         }

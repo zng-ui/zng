@@ -185,6 +185,10 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        (**self).modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         (**self).var_ptr()
     }

@@ -172,6 +172,10 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         self.borrow_init().is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        self.borrow_init().modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_arc(&self.init)
     }

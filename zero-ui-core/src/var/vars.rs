@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    animation::{AnimateModifyInfo, Animations},
+    animation::{Animations, ModifyInfo},
     *,
 };
 
@@ -62,8 +62,8 @@ pub struct Vars {
     update_id: VarUpdateId,
     apply_update_id: VarApplyUpdateId,
 
-    updates: RefCell<Vec<(AnimateModifyInfo, VarUpdateFn)>>,
-    spare_updates: Vec<(AnimateModifyInfo, VarUpdateFn)>,
+    updates: RefCell<Vec<(ModifyInfo, VarUpdateFn)>>,
+    spare_updates: Vec<(ModifyInfo, VarUpdateFn)>,
 
     modify_receivers: RefCell<Vec<Box<dyn Fn(&Vars) -> bool>>>,
 }
@@ -92,10 +92,16 @@ impl Vars {
         &self.ans.animation_time_scale
     }
 
-    /// Gets info about the [`Vars::animate`] closure that is currently running or that generated the var modify closure
-    /// that is currently running.
-    pub fn current_animation(&self) -> AnimateModifyInfo {
-        self.ans.current_animation.borrow().clone()
+    /// Info about the current context when requesting variable modification.
+    ///
+    /// If is current inside a [`Vars::animate`] closure, or inside a [`Var::modify`] closure requested by an animation, returns
+    /// the info that was collected at the moment the animation was requested. Outside of animations gets an info with [`importance`]
+    /// guaranteed to override the [`modify_importance`].
+    ///
+    /// [`importance`]: ModifyInfo::importance
+    /// [`modify_importance`]: AnyVar::modify_importance
+    pub fn current_modify(&self) -> ModifyInfo {
+        self.ans.current_modify.borrow().clone()
     }
 
     /// Adds an animation handler that is called every frame to update captured variables.
@@ -191,8 +197,8 @@ impl Vars {
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn) {
-        let curr_anim = self.current_animation();
-        self.updates.borrow_mut().push((curr_anim, update));
+        let curr_modify = self.current_modify();
+        self.updates.borrow_mut().push((curr_modify, update));
     }
 
     /// Id of each `schedule_update` cycle during `apply_updates`
@@ -214,8 +220,8 @@ impl Vars {
 
             for (animation_info, update) in var_updates.drain(..) {
                 // load animation priority that was current when the update was requested.
-                let prev_info = mem::replace(&mut *self.ans.current_animation.borrow_mut(), animation_info);
-                let _cleanup = crate_util::RunOnDrop::new(|| *self.ans.current_animation.borrow_mut() = prev_info);
+                let prev_info = mem::replace(&mut *self.ans.current_modify.borrow_mut(), animation_info);
+                let _cleanup = crate_util::RunOnDrop::new(|| *self.ans.current_modify.borrow_mut() = prev_info);
 
                 // apply.
                 update(self, updates);

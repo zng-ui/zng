@@ -159,6 +159,10 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.read().is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        self.0.read().modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_ctx_local(self.0)
     }

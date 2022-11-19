@@ -242,6 +242,10 @@ impl<T: VarValue> AnyVar for RcMergeVar<T> {
         self.0.value.is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        self.0.value.modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_arc(&self.0)
     }

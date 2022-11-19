@@ -93,6 +93,10 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        self.1.modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         self.1.var_ptr()
     }

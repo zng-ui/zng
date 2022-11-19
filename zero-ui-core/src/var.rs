@@ -206,7 +206,9 @@ bitflags! {
 
         /// Var can be modified.
         ///
-        /// If this is set [`Var::modify`] does succeeds, if this is set `NEW` is also set.
+        /// If this is set [`Var::modify`] always returns `Ok`, if this is set `NEW` is also set.
+        ///
+        /// Note that modify requests from inside overridden animations can still be ignored, see [`Var::modify_importance`].
         const MODIFY = 0b0000_0011;
 
         /// Var capabilities can change.
@@ -432,13 +434,30 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Flags that indicate what operations the variable is capable of.
     fn capabilities(&self) -> VarCapabilities;
 
-    /// if the variable current value was set by an active animation.
+    /// If the variable current value was set by an active animation.
     ///
     /// The variable [`is_new`] when this changes to `true`, but it can change to `false` at any time
     /// without the value updating.
     ///
     /// [`is_new`]: Var::is_new
     fn is_animating(&self) -> bool;
+
+    /// Gets a value that indicates the *importance* clearance that is needed to modify this variable.
+    ///
+    /// If the variable has the [`MODIFY`] capability, the requests will return `Ok(())`, but they will be ignored
+    /// if the [`Vars::current_modify`] importance is less than the variable's at the moment the request is made.
+    ///
+    /// Note that [`Vars::current_modify`] outside animations always overrides this value, so direct modify requests
+    /// always override running animations.
+    ///
+    /// This is the mechanism that ensures that only the latest animation has *ownership* of the variable value, most animations
+    /// check this value and automatically cancel if overridden, but event assigns from custom animations made using [`Vars::animate`]
+    /// are ignored if the variable is modified from a newer source then the animation.
+    ///
+    /// If the variable does not have [`MODIFY`] capability the value returned is undefined.
+    ///
+    /// [`MODIFY`]: VarCapabilities::MODIFY
+    fn modify_importance(&self) -> usize;
 
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
     /// the `modify` closure.

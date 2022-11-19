@@ -177,6 +177,10 @@ where
         self.0.read().var.is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        self.0.read().var.modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_arc(&self.0)
     }

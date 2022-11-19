@@ -451,6 +451,10 @@ impl<T: VarValue> AnyVar for RcWhenVar<T> {
         self.active().is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        self.active().modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_arc(&self.0)
     }

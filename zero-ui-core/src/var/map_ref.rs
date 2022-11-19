@@ -106,6 +106,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.source.is_animating()
     }
 
+    fn modify_importance(&self) -> usize {
+        self.source.modify_importance()
+    }
+
     fn var_ptr(&self) -> VarPtr {
         self.source.var_ptr()
     }
@@ -307,6 +311,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
 
     fn is_animating(&self) -> bool {
         self.source.is_animating()
+    }
+
+    fn modify_importance(&self) -> usize {
+        self.source.modify_importance()
     }
 
     fn var_ptr(&self) -> VarPtr {
