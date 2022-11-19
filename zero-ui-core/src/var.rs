@@ -450,7 +450,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Note that [`Vars::current_modify`] outside animations always overrides this value, so direct modify requests
     /// always override running animations.
     ///
-    /// This is the mechanism that ensures that only the latest animation has *ownership* of the variable value, most animations
+    /// This is the mechanism that ensures that only the latest animation has *control* of the variable value, most animations
     /// check this value and automatically cancel if overridden, but event assigns from custom animations made using [`Vars::animate`]
     /// are ignored if the variable is modified from a newer source then the animation.
     ///
