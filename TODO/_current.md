@@ -1,6 +1,10 @@
 * Review "overridden" animations.
     - Do they keep running?
     - Right now vars ignore assigns depending on how recent the assigner is, but the animation keeps running.
+        - We call this "importance"?
+    - Let animations check if they are still having an effect?
+        - Can't be automatic, animation can skip assigning any var as part of their behavior.
+    - Expose the `AnimateModifyInfo` of vars?
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.
     - It is not just for UI threads?

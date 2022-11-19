@@ -74,3 +74,12 @@
     - Render needs "nested display list", to avoid double alloc (insert).
     - Info needs double alloc, one for the partial tree in a thread branch, other for when it is inserted in the actual tree.
       - Probably not an issue.
+
+* Rayon:
+  - We can run the app in a rayon thread-pool made for the app.
+  - Rayon automatically uses the thread-pool it is in.
+  - But we don't load the `ThreadContext` for rayon internal jobs.
+    - Maybe we can use a trace API to inject the context, see https://github.com/rayon-rs/rayon/issues/915.
+    - We could have an parallel iter adapter that loads the context? see https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs
+  - So `core::task` spawned from the app end-up running in the UI threads?
+    - The idea was to avoid blocking the UI at all costs, need a different thread-pool for `task`?
