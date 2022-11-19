@@ -93,7 +93,6 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
             init,
         }
     }
-
     /// Calls `f` with the `value` loaded in context.
     ///
     /// The `value` is moved in context, `f` is called, then restores the `value`.
@@ -105,6 +104,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// If no app is running, see [`App::is_running`] for more details.
     ///
     /// [`with_context_opt`]: Self::with_context_opt
+    /// [`App::is_running`]: crate::app::App::is_running
     pub fn with_context<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
         let new_value = value.take().expect("no override provided");
         let thread_id = std::thread::current().id();

@@ -1,5 +1,3 @@
-* Test app_local event and commands.
-
 * Review `ContextLocal`, default is not app-local?
 
 * Update webrender to Fx107.

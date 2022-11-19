@@ -137,6 +137,8 @@ thread_local! {
 /// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 ///
 /// Note that an app local can only be used if [`App::is_running`] in the thread, if no app is running read and write **will panic**.
+///
+/// [`App::is_running`]: crate::app::App::is_running
 pub struct AppLocal<T: Send + Sync + 'static> {
     value: RwLock<Vec<(AppId, T)>>,
     init: fn() -> T,
@@ -164,6 +166,8 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// # Panics
     ///
     /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
 
@@ -198,6 +202,8 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// # Panics
     ///
     /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
         let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
 
