@@ -82,6 +82,8 @@ fn example(vars: &Vars) -> impl UiNode {
                         mode(EaseOut),
                         mode(EaseInOut),
                         mode(EaseOutIn),
+                        mode(Reverse),
+                        mode(ReverseOut),
                     ]
                 }
             },
@@ -137,6 +139,8 @@ fn ease_btn(
     let out_plot = plot(move |t| easing::ease_out(easing, t));
     let in_out_plot = plot(move |t| easing::ease_in_out(easing, t));
     let out_in_plot = plot(move |t| easing::ease_out_in(easing, t));
+    let reverse_plot = plot(move |t| easing::reverse(easing, t));
+    let reverse_out_plot = plot(move |t| easing::reverse_out(easing, t));
 
     use easing::EasingModifierFn::*;
 
@@ -157,6 +161,8 @@ fn ease_btn(
                         EaseOut => out_plot.clone(),
                         EaseInOut => in_out_plot.clone(),
                         EaseOutIn => out_in_plot.clone(),
+                        Reverse => reverse_plot.clone(),
+                        ReverseOut => reverse_out_plot.clone(),
                     });
                 },
             ]

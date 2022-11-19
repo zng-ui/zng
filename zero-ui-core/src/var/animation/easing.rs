@@ -17,6 +17,10 @@ pub enum EasingModifierFn {
     EaseInOut,
     /// [`easing::ease_out_in`].
     EaseOutIn,
+    /// [`easing::reverse`].
+    Reverse,
+    /// [`easing::reverse_out`].
+    ReverseOut,
 }
 impl EasingModifierFn {
     /// Calls the easing function with the modifier `self` represents.
@@ -26,6 +30,8 @@ impl EasingModifierFn {
             EasingModifierFn::EaseOut => easing::ease_out(easing, time),
             EasingModifierFn::EaseInOut => easing::ease_in_out(easing, time),
             EasingModifierFn::EaseOutIn => easing::ease_out_in(easing, time),
+            EasingModifierFn::Reverse => easing::reverse(easing, time),
+            EasingModifierFn::ReverseOut => easing::reverse_out(easing, time),
         }
     }
 
@@ -41,6 +47,8 @@ impl fmt::Display for EasingModifierFn {
             EasingModifierFn::EaseOut => write!(f, "ease_out"),
             EasingModifierFn::EaseInOut => write!(f, "ease_in_out"),
             EasingModifierFn::EaseOutIn => write!(f, "ease_out_in"),
+            EasingModifierFn::Reverse => write!(f, "reverse"),
+            EasingModifierFn::ReverseOut => write!(f, "reverse_out"),
         }
     }
 }
@@ -285,6 +293,16 @@ pub fn ease_out_in(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime)
     } else {
         ease_in(ease_fn, EasingTime::new((t - 0.5.fct()) * 2.fct())) / 2.fct() + 0.5.fct()
     }
+}
+
+/// Applies the `ease_fn` in reverse.
+pub fn reverse(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+    ease_fn(time.reverse())
+}
+
+/// Applies the `ease_fn` flipped.
+pub fn reverse_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+    ease_fn(time).flip()
 }
 
 pub use bezier::*;

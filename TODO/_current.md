@@ -1,3 +1,6 @@
+* Review "overridden" animations.
+    - Do they keep running?
+    - Right now vars ignore assigns depending on how recent the assigner is, but the animation keeps running.
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.
     - It is not just for UI threads?
