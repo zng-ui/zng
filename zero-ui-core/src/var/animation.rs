@@ -95,10 +95,10 @@ struct AnimationData {
 ///
 /// See the [`Vars.animate`] method for more details.
 #[derive(Clone)]
-pub struct AnimationArgs(Arc<Mutex<AnimationData>>);
-impl AnimationArgs {
+pub struct Animation(Arc<Mutex<AnimationData>>);
+impl Animation {
     pub(super) fn new(animations_enabled: bool, now: Instant, time_scale: Factor) -> Self {
-        AnimationArgs(Arc::new(Mutex::new(AnimationData {
+        Animation(Arc::new(Mutex::new(AnimationData {
             start_time: now,
             restart_count: 0,
             stop: false,
@@ -429,7 +429,7 @@ impl Animations {
 
     pub(crate) fn animate<A>(vars: &Vars, mut animation: A) -> AnimationHandle
     where
-        A: FnMut(&Vars, &AnimationArgs) + 'static,
+        A: FnMut(&Vars, &Animation) + 'static,
     {
         // # Animation ID
         //
@@ -501,7 +501,7 @@ impl Animations {
             handle = h;
         };
 
-        let anim = AnimationArgs::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
+        let anim = Animation::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
         vars.ans.animations.borrow_mut().push(Box::new(move |vars, info| {
             let _handle_owner = &handle_owner; // capture and own the handle owner.
 
@@ -567,7 +567,7 @@ struct AnimationUpdateInfo {
 pub(super) fn var_animate<T: VarValue>(
     vars: &Vars,
     target: &impl Var<T>,
-    animate: impl FnMut(&AnimationArgs, &mut Cow<T>) + 'static,
+    animate: impl FnMut(&Animation, &mut Cow<T>) + 'static,
 ) -> AnimationHandle {
     if !target.capabilities().is_always_read_only() {
         let target = target.clone().actual_var();
@@ -602,7 +602,7 @@ pub(super) fn var_set_ease<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
-) -> impl FnMut(&AnimationArgs, &mut Cow<T>)
+) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue + Transitionable,
 {
@@ -624,7 +624,7 @@ pub(super) fn var_set_ease_ne<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
-) -> impl FnMut(&AnimationArgs, &mut Cow<T>)
+) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue + Transitionable + PartialEq,
 {
@@ -648,7 +648,7 @@ pub(super) fn var_set_ease_keyed<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep,
-) -> impl FnMut(&AnimationArgs, &mut Cow<T>)
+) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue + Transitionable,
 {
@@ -668,7 +668,7 @@ pub(super) fn var_set_ease_keyed_ne<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     init_step: EasingStep,
-) -> impl FnMut(&AnimationArgs, &mut Cow<T>)
+) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue + Transitionable + PartialEq,
 {
@@ -686,7 +686,7 @@ where
     }
 }
 
-pub(super) fn var_step<T>(new_value: T, delay: Duration) -> impl FnMut(&AnimationArgs, &mut Cow<T>)
+pub(super) fn var_step<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue,
 {
@@ -703,7 +703,7 @@ where
     }
 }
 
-pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&AnimationArgs, &mut Cow<T>)
+pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue + PartialEq,
 {
@@ -726,7 +726,7 @@ pub(super) fn var_steps<T: VarValue>(
     steps: Vec<(Factor, T)>,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> impl FnMut(&AnimationArgs, &mut Cow<T>) {
+) -> impl FnMut(&Animation, &mut Cow<T>) {
     let mut prev_step = 999.fct();
     move |args, value| {
         let step = easing(args.elapsed_stop(duration));
@@ -743,7 +743,7 @@ pub(super) fn var_steps_ne<T>(
     steps: Vec<(Factor, T)>,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> impl FnMut(&AnimationArgs, &mut Cow<T>)
+) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue + PartialEq,
 {
@@ -798,7 +798,7 @@ pub(super) fn var_chase<T>(
     first_target: T,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> (impl FnMut(&AnimationArgs, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
+) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
     T: VarValue + animation::Transitionable,
 {
@@ -806,7 +806,7 @@ where
     let next_target = Arc::new(Mutex::new(ChaseMsg::None));
     let mut transition = Transition::new(from, first_target);
 
-    let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut Cow<T>| {
+    let anim = clone_move!(next_target, |args: &Animation, value: &mut Cow<T>| {
         let step = easing(args.elapsed_stop(duration));
         match mem::take(&mut *next_target.lock()) {
             ChaseMsg::Add(inc) => {
@@ -846,7 +846,7 @@ pub(super) fn var_chase_bounded<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     bounds: ops::RangeInclusive<T>,
-) -> (impl FnMut(&AnimationArgs, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
+) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
     T: VarValue + animation::Transitionable + std::cmp::PartialOrd<T>,
 {
@@ -856,7 +856,7 @@ where
 
     let next_target = Arc::new(Mutex::new(ChaseMsg::None));
 
-    let anim = clone_move!(next_target, |args: &AnimationArgs, value: &mut Cow<T>| {
+    let anim = clone_move!(next_target, |args: &Animation, value: &mut Cow<T>| {
         let mut time = args.elapsed_stop(duration);
         let mut step = easing(time);
         match mem::take(&mut *next_target.lock()) {

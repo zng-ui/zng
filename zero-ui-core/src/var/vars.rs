@@ -148,7 +148,7 @@ impl Vars {
     /// }
     /// ```
     ///
-    /// Note that the animation can be stopped from the inside, the closure second parameter is an [`AnimationArgs`]. In
+    /// Note that the animation can be stopped from the inside, the closure second parameter is an [`Animation`]. In
     /// the example this is the only way to stop the animation, because we called [`perm`]. Animations hold a clone
     /// of the variables they affect and exist for the duration of the app if not stopped, causing the app to wake and call the
     /// animation closure for every frame.
@@ -167,12 +167,12 @@ impl Vars {
     /// ```
     ///
     /// [`AnimationHandle`]: animation::AnimationHandle
-    /// [`AnimationArgs`]: animation::AnimationArgs
+    /// [`Animation`]: animation::Animation
     /// [`stop`]: animation::AnimationHandle::stop
     /// [`perm`]: animation::AnimationHandle::perm
     pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
     where
-        A: FnMut(&Vars, &animation::AnimationArgs) + 'static,
+        A: FnMut(&Vars, &animation::Animation) + 'static,
     {
         Animations::animate(self, animation)
     }
