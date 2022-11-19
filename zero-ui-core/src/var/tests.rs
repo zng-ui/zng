@@ -403,6 +403,8 @@ mod bindings {
 }
 
 mod context {
+    use when::AnyWhenVarBuilder;
+
     use crate::{app::*, context::*, text::*, var::*, widget_instance::*, *};
 
     context_var! {
@@ -684,6 +686,58 @@ mod context {
 
         assert_eq!("Update!", input_var.get());
         assert_eq!("Update!", other_var.get());
+    }
+
+    #[test]
+    fn context_var_recursion_when1() {
+        let _scope = App::blank();
+
+        let var = when_var! {
+            false => var("hello".to_text()),
+            _ => TEST_VAR,
+        };
+
+        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+
+        assert_eq!("", r);
+    }
+
+    #[test]
+    fn context_var_recursion_when2() {
+        let _scope = App::blank();
+
+        let var = when_var! {
+            true => TEST_VAR,
+            _ => var("hello".to_text()),
+        };
+
+        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+
+        assert_eq!("", r);
+    }
+
+    #[test]
+    fn context_var_recursion_issue_when_any() {
+        let _scope = App::blank();
+
+        let mut var = AnyWhenVarBuilder::new(TEST_VAR);
+        var.push(self::var(false), self::var("hello".to_text()));
+        let var = var.contextualized_build().unwrap();
+
+        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+
+        assert_eq!("", r);
+    }
+
+    #[test]
+    fn context_var_recursion_merge() {
+        let _scope = App::blank();
+
+        let var = merge_var!(TEST_VAR, var(true), |t, _| t.clone());
+
+        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+
+        assert_eq!("", r);
     }
 }
 

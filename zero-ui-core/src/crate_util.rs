@@ -10,7 +10,7 @@ use std::{
     num::{NonZeroU32, NonZeroU64},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering, AtomicUsize},
+        atomic::{AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering},
         Arc, Weak,
     },
     thread,
@@ -1268,22 +1268,21 @@ pub(crate) struct RecursionCheck {
     count: AtomicUsize,
     limit: usize,
 }
+#[allow(unused)]
 impl RecursionCheck {
     pub const fn new(limit: usize) -> Self {
         RecursionCheck {
             count: AtomicUsize::new(0),
             limit,
         }
-    }   
+    }
 
     pub fn enter(&'static self) -> RecursionCheckExitOnDrop {
         let c = self.count.fetch_add(1, Ordering::Relaxed);
         if c >= self.limit {
             panic!("reached {} limit, probably recursing", self.limit);
         }
-        RecursionCheckExitOnDrop {
-            check: self
-        }
+        RecursionCheckExitOnDrop { check: self }
     }
 }
 

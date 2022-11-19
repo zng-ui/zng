@@ -128,10 +128,6 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        // !!: 
-        static CHECK: crate::crate_util::RecursionCheck = crate::crate_util::RecursionCheck::new(100);
-        let _scope = CHECK.enter();
-
         self.0.read().capabilities() | VarCapabilities::CAPS_CHANGE
     }
 

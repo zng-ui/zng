@@ -109,7 +109,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
         }
 
         let rc_when = Arc::new(Data {
-            default: self.default,
+            default: self.default.actual_var(),
             conditions: self.conditions,
             w: Mutex::new(WhenData {
                 input_handles: Box::new([]),
