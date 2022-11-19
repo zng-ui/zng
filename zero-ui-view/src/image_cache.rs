@@ -584,7 +584,7 @@ mod external {
         api::{
             units::{ImageDirtyRect, TexelRect},
             DocumentId, ExternalImage, ExternalImageData, ExternalImageHandler, ExternalImageId, ExternalImageSource, ExternalImageType,
-            ImageKey, ImageRendering,
+            ImageKey,
         },
         RenderApi,
     };
@@ -605,7 +605,7 @@ mod external {
         }
     }
     impl ExternalImageHandler for WrImageCache {
-        fn lock(&mut self, key: ExternalImageId, _channel_index: u8, _rendering: ImageRendering) -> ExternalImage {
+        fn lock(&mut self, key: ExternalImageId, _channel_index: u8) -> ExternalImage {
             debug_assert!(self.locked.is_none());
 
             // SAFETY: this is safe because the Arc is kept alive in `ImageUseMap`.

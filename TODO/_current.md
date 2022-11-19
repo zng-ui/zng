@@ -1,5 +1,3 @@
-* Update webrender to Fx107.
-
 * Review `AppContextMut`.
 * Use `ThreadContext` in `core::task`.
     - It is not just for UI threads?
