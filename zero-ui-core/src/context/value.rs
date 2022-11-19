@@ -74,22 +74,33 @@ impl ThreadContext {
     }
 }
 
+struct ContextLocalData<T: Send + Sync + 'static> {
+    values: Vec<(ThreadId, T)>,
+    default: Option<T>,
+}
+impl<T: Send + Sync + 'static> ContextLocalData<T> {
+    fn new() -> Self {
+        Self {
+            values: vec![],
+            default: None,
+        }
+    }
+}
+
 /// Represents an [`AppLocal<T>`] value that can be temporarily overridden in a context.
 ///
 /// The *context* works across threads, as long as the threads are instrumented using [`ThreadContext`].
 ///
 /// Use the [`context_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 pub struct ContextLocal<T: Send + Sync + 'static> {
-    data: AppLocal<Vec<(ThreadId, T)>>,
-    default: RwLock<Option<T>>,
+    data: AppLocal<ContextLocalData<T>>,
     init: fn() -> T,
 }
 impl<T: Send + Sync + 'static> ContextLocal<T> {
     #[doc(hidden)]
     pub const fn new(init: fn() -> T) -> Self {
         Self {
-            data: AppLocal::new(Vec::new),
-            default: RwLock::new(None),
+            data: AppLocal::new(ContextLocalData::new),
             init,
         }
     }
@@ -113,30 +124,30 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         let prev_value;
 
         let mut write = self.data.write();
-        if let Some(idx) = write.iter_mut().position(|(id, _)| *id == thread_id) {
+        if let Some(idx) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
             // already contextualized in this thread
 
             i = idx;
-            prev_value = mem::replace(&mut write[i].1, new_value);
+            prev_value = mem::replace(&mut write.values[i].1, new_value);
 
             drop(write);
 
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
-                *value = Some(mem::replace(&mut write[i].1, prev_value));
+                *value = Some(mem::replace(&mut write.values[i].1, prev_value));
             });
 
             f()
         } else {
             // first contextualization in this thread
-            write.push((thread_id, new_value));
+            write.values.push((thread_id, new_value));
 
             drop(write);
 
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
-                let i = write.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
-                *value = Some(write.swap_remove(i).1);
+                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
+                *value = Some(write.values.swap_remove(i).1);
             });
 
             f()
@@ -159,30 +170,30 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         let prev_value;
 
         let mut write = self.data.write();
-        if let Some(idx) = write.iter_mut().position(|(id, _)| *id == thread_id) {
+        if let Some(idx) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
             // already contextualized in this thread
 
             i = idx;
-            prev_value = mem::replace(&mut write[i].1, new_value);
+            prev_value = mem::replace(&mut write.values[i].1, new_value);
 
             drop(write);
 
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
-                *value = mem::replace(&mut write[i].1, prev_value).get_mut().take();
+                *value = mem::replace(&mut write.values[i].1, prev_value).get_mut().take();
             });
 
             f()
         } else {
             // first contextualization in this thread
-            write.push((thread_id, new_value));
+            write.values.push((thread_id, new_value));
 
             drop(write);
 
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
-                let i = write.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
-                *value = write.swap_remove(i).1.get_mut().take();
+                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
+                *value = write.values.swap_remove(i).1.get_mut().take();
             });
 
             f()
@@ -199,23 +210,23 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         let read = self.data.read();
         for thread_id in ThreadContext::capture().context() {
-            if let Some(i) = read.iter().position(|(id, _)| id == thread_id) {
+            if let Some(i) = read.values.iter().position(|(id, _)| id == thread_id) {
                 // contextualized in thread or task parent thread.
-                return MappedRwLockReadGuard::map(read, move |v| &v[i].1);
+                return MappedRwLockReadGuard::map(read, move |v| &v.values[i].1);
             }
         }
-        drop(read);
 
-        let read = self.default.read_recursive();
-        if read.is_some() {
-            return RwLockReadGuard::map(read, move |v| v.as_ref().unwrap());
+        if read.default.is_some() {
+            return MappedRwLockReadGuard::map(read, move |v| v.default.as_ref().unwrap());
         }
         drop(read);
 
-        let mut write = self.default.write();
-        *write = Some((self.init)());
-        let read = RwLockWriteGuard::downgrade(write);
-        RwLockReadGuard::map(read, move |v| v.as_ref().unwrap())
+        let mut write = self.data.write();
+        write.default = Some((self.init)());
+
+        drop(write);
+        let read = self.data.read();
+        MappedRwLockReadGuard::map(read, move |v| v.default.as_ref().unwrap())
     }
 
     /// Exclusive lock the context local for write.
@@ -226,23 +237,21 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// [`with_context`]: Self::with_context
     /// [`write`]: Self::write
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
-        let write = self.data.write();
+        let mut write = self.data.write();
         for thread_id in ThreadContext::capture().context() {
-            if let Some(i) = write.iter().position(|(id, _)| id == thread_id) {
+            if let Some(i) = write.values.iter().position(|(id, _)| id == thread_id) {
                 // contextualized in thread or task parent thread.
-                return MappedRwLockWriteGuard::map(write, move |v| &mut v[i].1);
+                return MappedRwLockWriteGuard::map(write, move |v| &mut v.values[i].1);
             }
         }
-        drop(write);
 
-        let mut write = self.default.write();
-        if write.is_some() {
-            return RwLockWriteGuard::map(write, |v| v.as_mut().unwrap());
+        if write.default.is_some() {
+            return MappedRwLockWriteGuard::map(write, |v| v.default.as_mut().unwrap());
         }
 
-        *write = Some((self.init)());
+        write.default = Some((self.init)());
 
-        RwLockWriteGuard::map(write, |v| v.as_mut().unwrap())
+        MappedRwLockWriteGuard::map(write, |v| v.default.as_mut().unwrap())
     }
 
     /// Get a clone of the current contextual value.

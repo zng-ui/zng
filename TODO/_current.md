@@ -1,5 +1,3 @@
-* Review `ContextLocal`, default is not app-local?
-
 * Update webrender to Fx107.
 
 * Review `AppContextMut`.
