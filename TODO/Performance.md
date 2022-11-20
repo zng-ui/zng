@@ -87,3 +87,8 @@
     - We could have an parallel iter adapter that loads the context? see https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs
   - So `core::task` spawned from the app end-up running in the UI threads?
     - The idea was to avoid blocking the UI at all costs, need a different thread-pool for `task`?
+
+* How we can start:
+  - We can implement parallel var and event hooks.
+  - And parallel var modify + animations.
+  - Just need to figure out the thread pool.
