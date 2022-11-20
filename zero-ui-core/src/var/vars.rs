@@ -115,8 +115,8 @@ impl Vars {
     /// # Variable Control
     ///
     /// Animations assume *control* of a variable on the first time they cause its value to be new, after this
-    /// moment the [`AnyVar::is_animating`] value is `true` and [`AnyVar::modify_importance`] is the animation's importance, 
-    /// until the animation stops. Only one animation can control a variable at a time, if an animation loses control of a 
+    /// moment the [`AnyVar::is_animating`] value is `true` and [`AnyVar::modify_importance`] is the animation's importance,
+    /// until the animation stops. Only one animation can control a variable at a time, if an animation loses control of a
     /// variable all attempts to modify it from inside the animation are ignored.
     ///
     /// Later started animations steal control from previous animations, direct touch, modify or set calls also remove the variable
@@ -172,18 +172,18 @@ impl Vars {
     /// value.ease_ne(vars, 100, 1.secs(), easing::expo);
     /// # }
     /// ```
-    /// 
+    ///
     /// # Optimization Tips
-    /// 
+    ///
     /// When no animation is running the app *sleeps* awaiting for an external event, update request or timer elapse, when at least one
-    /// animation is running the app awakes every [`Vars::frame_duration`]. You can use [`Animation::sleep`] to *pause* the animation 
+    /// animation is running the app awakes every [`Vars::frame_duration`]. You can use [`Animation::sleep`] to *pause* the animation
     /// for a duration, if all animations are sleeping the app is also sleeping.
-    /// 
+    ///
     /// Animations have their control over a variable permanently overridden when a newer animation modifies it or
     /// it is modified directly, but even if overridden **the animation keeps running**. This happens because the system has no insight of
-    /// all side effects caused by the `animation` closure. You can use the [`Vars::current_modify`] and [`AnyVar::modify_importance`] 
+    /// all side effects caused by the `animation` closure. You can use the [`Vars::current_modify`] and [`AnyVar::modify_importance`]
     /// to detect when the animation no longer affects any variables and stop it.
-    /// 
+    ///
     /// These optimizations are implemented by the animations provided as methods of [`Var<T>`].
     ///
     /// [`AnimationHandle`]: animation::AnimationHandle

@@ -75,6 +75,10 @@
     - Info needs double alloc, one for the partial tree in a thread branch, other for when it is inserted in the actual tree.
       - Probably not an issue.
 
+* Review `AppContextMut`.
+* Use `ThreadContext` in `core::task`.
+    - It is not just for UI threads?
+
 * Rayon:
   - We can run the app in a rayon thread-pool made for the app.
   - Rayon automatically uses the thread-pool it is in.

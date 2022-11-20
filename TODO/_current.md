@@ -1,8 +1,3 @@
-* Use `Var::modify_importance` to cancel animations from the inside.
-    - This can't be automatic at the [`Vars::animate`]
-* Review `AppContextMut`.
-* Use `ThreadContext` in `core::task`.
-    - It is not just for UI threads?
 * Continue "#Parallel UI" in `./Performance.md`.
 * Review all docs.
     - Mentions of threads in particular.

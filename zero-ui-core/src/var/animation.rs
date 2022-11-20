@@ -431,16 +431,16 @@ impl Animations {
     where
         A: FnMut(&Vars, &Animation) + 'static,
     {
-        // # Animation ID
+        // # Modify Importance
         //
-        // Variables only accept modifications from an animation ID >= the previous animation ID that modified it.
+        // Variables only accept modifications from an importance (IM) >= the previous IM that modified it.
         //
-        // Direct modifications always overwrite previous animations, so we advance the ID for each call to
-        // this method **and then** advance the ID again for all subsequent direct modifications.
+        // Direct modifications always overwrite previous animations, so we advance the IM for each call to
+        // this method **and then** advance the IM again for all subsequent direct modifications.
         //
         // Example sequence of events:
         //
-        // |ID| Modification  | Accepted
+        // |IM| Modification  | Accepted
         // |--|---------------|----------
         // | 1| Var::set      | YES
         // | 2| Var::ease     | YES
@@ -572,16 +572,32 @@ pub(super) fn var_animate<T: VarValue>(
     if !target.capabilities().is_always_read_only() {
         let target = target.clone().actual_var();
         if !target.capabilities().is_always_read_only() {
+            // target var can be animated.
+
             let wk_target = target.downgrade();
             let animate = Rc::new(RefCell::new(animate));
+
             return vars.animate(move |vars, args| {
+                // animation
+
                 if let Some(target) = wk_target.upgrade() {
+                    // target still exists
+
+                    if target.modify_importance() > vars.current_modify().importance {
+                        // var modified by a more recent animation or directly, this animation cannot
+                        // affect it anymore.
+                        args.stop();
+                        return;
+                    }
+
+                    // try update
                     let r = target.modify(
                         vars,
                         clone_move!(animate, args, |value| {
                             (animate.borrow_mut())(&args, value);
                         }),
                     );
+
                     if let Err(VarIsReadOnlyError { .. }) = r {
                         // var can maybe change to allow write again, but we wipe all animations anyway.
                         args.stop();
@@ -608,8 +624,8 @@ where
 {
     let transition = Transition::new(start_value, end_value);
     let mut prev_step = init_step;
-    move |args, value| {
-        let step = easing(args.elapsed_stop(duration));
+    move |a, value| {
+        let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
             *value = Cow::Owned(transition.sample(step));
@@ -630,8 +646,8 @@ where
 {
     let transition = Transition::new(start_value, end_value);
     let mut prev_step = init_step;
-    move |args, value| {
-        let step = easing(args.elapsed_stop(duration));
+    move |a, value| {
+        let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
             let val = transition.sample(step);
@@ -653,8 +669,8 @@ where
     T: VarValue + Transitionable,
 {
     let mut prev_step = init_step;
-    move |args, value| {
-        let step = easing(args.elapsed_stop(duration));
+    move |a, value| {
+        let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
             *value = Cow::Owned(transition.sample(step));
@@ -673,8 +689,8 @@ where
     T: VarValue + Transitionable + PartialEq,
 {
     let mut prev_step = init_step;
-    move |args, value| {
-        let step = easing(args.elapsed_stop(duration));
+    move |a, value| {
+        let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
             let val = transition.sample(step);
@@ -691,14 +707,14 @@ where
     T: VarValue,
 {
     let mut new_value = Some(new_value);
-    move |args, value| {
-        if !args.animations_enabled() || args.elapsed_dur() >= delay {
-            args.stop();
+    move |a, value| {
+        if !a.animations_enabled() || a.elapsed_dur() >= delay {
+            a.stop();
             if let Some(nv) = new_value.take() {
                 *value = Cow::Owned(nv);
             }
         } else {
-            args.sleep(delay);
+            a.sleep(delay);
         }
     }
 }
@@ -708,16 +724,16 @@ where
     T: VarValue + PartialEq,
 {
     let mut new_value = Some(new_value);
-    move |args, value| {
-        if !args.animations_enabled() || args.elapsed_dur() >= delay {
-            args.stop();
+    move |a, value| {
+        if !a.animations_enabled() || a.elapsed_dur() >= delay {
+            a.stop();
             if let Some(nv) = new_value.take() {
                 if value.as_ref() != &nv {
                     *value = Cow::Owned(nv);
                 }
             }
         } else {
-            args.sleep(delay);
+            a.sleep(delay);
         }
     }
 }
@@ -728,8 +744,8 @@ pub(super) fn var_steps<T: VarValue>(
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
 ) -> impl FnMut(&Animation, &mut Cow<T>) {
     let mut prev_step = 999.fct();
-    move |args, value| {
-        let step = easing(args.elapsed_stop(duration));
+    move |a, value| {
+        let step = easing(a.elapsed_stop(duration));
         if step != prev_step {
             prev_step = step;
             if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
@@ -748,8 +764,8 @@ where
     T: VarValue + PartialEq,
 {
     let mut prev_step = 999.fct();
-    move |args, value| {
-        let step = easing(args.elapsed_stop(duration));
+    move |a, value| {
+        let step = easing(a.elapsed_stop(duration));
         if step != prev_step {
             prev_step = step;
             if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
