@@ -5,35 +5,38 @@
 # Widget Property Transition
 
 * How do we define a transition that gets applied to a widget's property?
-    - Use a *fake* attribute, `#[easing(..)]`.
-* How do we apply the ease attribute?
-    - Use the `Var::ease` on the `when_var!` just before passing it to the property?
-    - This forces us to call `IntoVar` early, like we do for the Inspector instrumentation, can use the same type validation?
-    - Also causes contextualization early.
+    - Property attribute, `#[easing(..)]`.
+    - Applies `Var::easing`.
+    - Need to implement var build post-process?
+        - A hook in the builder, associated with the property assign.
+        - Overridden just like assign overrides.
+            - So we wipe the animation just by assigning in widget instance?
+        - Attribute operates on the expanded widget build code.
+            - Modifies push property to include the custom hook.
+    - Right now `T` is provided by the property builder.
+        - We need `T` to assert that the type can be animated.
+        - Also if we have custom build, how does the property builder downcast?
+            - Right now it tries 
 
 
-## Transition Attribute
-
-Attribute that configures the transition of a property changed by `when`.
-
-### Usage
+## Usage
 
 ```rust
 // in widget-decl
 properties! {
-    #[transition(150.ms(), easing::linear)]// ease applied in the when-generated when_var!.
+    #[easing(150.ms(), linear)]// easing applied after the when_var is build, auto `use core::{units::TimeUnits, var::easing::*}`.
     background_color = colors::RED;
 
-    #[transition(150.ms(), easing::linear)]// ease applied to all when_vars of this property, (error is not all transitionable).
+    #[easing(150.ms(), linear)]// ease applied to all of this property, (error is not all transitionable).
     margin = {
-        #[transition(1.secs(), easing::expo)] // ease applied just to this witch_var!, replaces the outer one.
+        #[easing(1.secs(), easing::expo)] // ease applied just to this var? Need to implement property member direct access first
         top: 0,
         right: 0,
         bottom: 0,
         left: 0,
     }
 
-    when *#is_hovered { // properties switch with ease defined on-top.
+    when *#is_hovered { // color animates to green when this is `true`.
         background_color = colors::GREEN;
         margin = 10;
     }
@@ -41,10 +44,12 @@ properties! {
 
 // in widget-new
 foo! {
-    #[transition(300.ms(), easing::linear)] // overwrites the ease for just this instance.
+    #[easing(300.ms(), linear)] // override the ease for just this instance.
     background_color = colors::RED;
 
-    #[no_transition] // disables ease forjust this instance.
+    // what happens here?
+    //  - If override with just by assign the easing is wiped.
+    //  - In CSS transition is its own property.
     margin = 0;
 }
 ```

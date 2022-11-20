@@ -12,6 +12,7 @@ Implement syntax to allow assigning only one of the property inputs.
 * Use cases:
     - Borders usually don't change widths in `when`, an assign of `border.sides = colors::GREEN;` is more compact.
         - Maybe we need better names for the border inputs..
+    - Animations may target just one member.
 
 ## Property Value Map
 
