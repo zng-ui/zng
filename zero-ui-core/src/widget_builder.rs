@@ -1354,6 +1354,16 @@ impl WidgetBuilder {
         }
     }
 
+    /// Add or override a `custom_builder` that is used to finalize the inputs for a property.
+    pub fn push_property_build_action(
+        &mut self,
+        property_id: PropertyId,
+        action_name: &'static str,
+        input_builders: Vec<Box<dyn AnyPropertyBuildAction>>,
+    ) {
+        todo!()
+    }
+
     /// Add an `action` closure that is called every time this builder or a clone of it builds a widget instance.
     pub fn push_build_action(&mut self, action: impl FnMut(&mut WidgetBuilding) + Send + 'static) {
         self.build_actions.push(Arc::new(Mutex::new(action)))
@@ -1660,7 +1670,7 @@ impl WidgetBuilding {
 
     /// Insert intrinsic node, that is a core functionality node of the widget that cannot be overridden.
     ///
-    /// The `name` is used for inspector/trace only.
+    /// The `name` is used for inspector/trace only, intrinsic nodes are not deduplicated.
     pub fn push_intrinsic<I: UiNode>(
         &mut self,
         group: NestGroup,
@@ -1672,7 +1682,7 @@ impl WidgetBuilding {
 
     /// Insert intrinsic node with custom nest position.
     ///
-    /// The `name` is used for inspector/trace only.
+    /// The `name` is used for inspector/trace only, intrinsic nodes are not deduplicated.
     pub fn push_intrinsic_positioned<I: UiNode>(
         &mut self,
         position: NestPosition,
@@ -2257,4 +2267,35 @@ impl WidgetBuilderProperties {
             WidgetItem::Intrinsic { .. } => false,
         })
     }
+}
+
+/// Represents any [`PropertyBuildAction<I>`].
+pub trait AnyPropertyBuildAction: Any + Send {
+    /// As any.
+    fn as_any(&mut self) -> &mut dyn Any;
+}
+/// Represents a custom build action targeting a property input that is applied after `when` is build.
+///
+/// The type `I` depends on the input kind:
+///
+/// The expected types for each [`InputKind`] are:
+///
+/// | Kind                | Expected Type
+/// |---------------------|-------------------------------------------------
+/// | [`Var`]             | `BoxedVar<T>`
+/// | [`StateVar`]        | `StateVar`
+/// | [`Value`]           | `T`
+/// | [`UiNode`]          | `RcNode<BoxedUiNode>`
+/// | [`UiNodeList`]      | `RcNodeList<BoxedUiNodeList>`
+/// | [`WidgetHandler`]   | `RcWidgetHandler<A>`
+///
+/// [`Var`]: InputKind::Var
+/// [`StateVar`]: InputKind::StateVar
+/// [`Value`]: InputKind::Value
+/// [`UiNode`]: InputKind::UiNode
+/// [`UiNodeList`]: InputKind::UiNodeList
+/// [`WidgetHandler`]: InputKind::WidgetHandler
+pub trait PropertyBuildAction<I: Any + Send>: AnyPropertyBuildAction {
+    /// Build action.
+    fn build(&mut self, input: I) -> I;
 }

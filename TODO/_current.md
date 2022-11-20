@@ -1,3 +1,8 @@
+* Implement `#[easing(..)]`.
+    - See `.Variables.md#widget-property-easing`.
+* Rename all `Rc` prefixed stuff to `Arc`.
+    - `RcVar`, `RcWidgetHandler`, etc.
+
 * Continue "#Parallel UI" in `./Performance.md`.
 * Review all docs.
     - Mentions of threads in particular.

@@ -8,17 +8,12 @@
     - Property attribute, `#[easing(..)]`.
     - Applies `Var::easing`.
     - Using a new widget builder API:
-       - `fn push_property_build_action(&mut self, property_id: PropertyId, action_id: PropertyBuildActionId, action: impl ?)`.
-       - Action type could be a trait with a `fn build<T>(&self, var: BoxedVar<T>) -> BoxedVar<T>` function.
-         - Nope, need to be `Transitionable` for easing, but need to be `VarValue` for other custom uses.
-            - Remove custom uses?
-    - Right now `T` is provided by the property builder.
-        - We need `T` to assert that the type can be animated.
-            - Any trait the represents all possible custom property build actions can't be constrained to animation only.
-        - Also if we have custom build, how does the property builder downcast?
-            - Right now it tries to downcast to a when builder, after down casts to a BoxedVar.
-            - Maybe the property builder only sees this new custom interface.
-                - Downcast to `<Box<dyn PropertyBuildAtction>>`.
+        - `push_property_build_action`.
+        - Need to be implemented as `PropertyBuildAction`.
+            - Can't be, need to box action.
+        - Actually tricky to do because we need more bound restrictions (`Transitionable`).
+            - If we can't figure out a way to downcast to `Transitionable` from `VarValue` we need something generated in properties to give `T`.
+        - The build action is passed to the property, it gives the `T`.
 
 
 ## Usage
