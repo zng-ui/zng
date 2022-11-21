@@ -127,31 +127,46 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
 
     let mut include_items = quote!();
+    let importance = quote!(#crate_core::widget_builder::Importance::WIDGET);
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
+        let is_unset = prop.is_unset();
+
         if prop.has_args() {
             let attrs = prop.attrs.cfg_and_lints();
             let args = prop.args_new(quote!(#crate_core::widget_builder));
+
             include_items.extend(quote! {
                 #attrs
-                __wgt__.push_property(#crate_core::widget_builder::Importance::WIDGET, #args);
+                __wgt__.push_property(#importance, #args);
             });
-        } else if prop.is_unset() {
+        } else if is_unset {
             let attrs = prop.attrs.cfg_and_lints();
             let id = prop.property_id();
             include_items.extend(quote! {
                 #attrs
-                __wgt__.push_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
+                __wgt__.push_unset(#importance, #id);
             });
         }
+
+        if prop.has_custom_attrs() {
+            include_items.extend(prop.custom_attrs_expand(ident!("__wgt__"), is_unset, parse_quote!(#importance)));
+        }
     }
+
+    let builder = ident!("__wgt__");
+    let importance = quote!(#crate_core::widget_builder::Importance::WIDGET);
+    let importance_expr: Expr = parse_quote!(#importance);
 
     for when in properties.iter().flat_map(|i| i.whens.iter()) {
         let attrs = when.attrs.cfg_and_lints();
         let args = when.when_new(quote!(#crate_core::widget_builder));
+        let custom_attr_expand = when.custom_assign_expand(&builder, &importance_expr);
         include_items.extend(quote! {
             #attrs
-            __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #args);
+            __wgt__.push_when(#importance, #args);
+
+            #custom_attr_expand
         });
     }
 
@@ -694,13 +709,16 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let mut init = quote!();
+    let importance = quote!(#widget::__widget__::widget_builder::Importance::INSTANCE);
     for p in &p.properties {
+        let is_unset = p.is_unset();
+
         let attrs = p.attrs.cfg_and_lints();
         if p.is_unset() {
             let id = p.property_id();
             init.extend(quote! {
                 #attrs
-                __wgt__.push_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
+                __wgt__.push_unset(#importance, #id);
             });
         } else if p.has_args() {
             let args = p.args_new(quote!(#widget::__widget__::widget_builder));
@@ -708,6 +726,10 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #attrs
                 __wgt__.push_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
             });
+        }
+
+        if p.has_custom_attrs() {
+            init.extend(p.custom_attrs_expand(ident!("__wgt__"), is_unset, parse_quote!(#importance)))
         }
     }
 

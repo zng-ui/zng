@@ -12,20 +12,20 @@ use proc_macro::TokenStream;
 mod util;
 
 mod derive_service;
-pub(crate) mod expr_var;
+mod expr_var;
 mod hex_color;
 mod merge_var;
 mod when_var;
 
 mod property;
 mod ui_node;
+mod wgt_property_attrs;
 mod widget;
 mod widget_util;
 
 mod any_all;
 
 mod lang;
-mod property_attrs;
 
 /// Expands an impl into a `UiNode` impl.
 ///
@@ -86,7 +86,7 @@ pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Read the documentation in the [`zero_ui_core::var::easing`](../zero_ui_core/var/attr.easing.html) page.
 #[proc_macro_attribute]
 pub fn easing(args: TokenStream, input: TokenStream) -> TokenStream {
-    property_attrs::expand_easing(args, input)
+    wgt_property_attrs::expand_easing(args, input)
 }
 
 #[doc(hidden)]

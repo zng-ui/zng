@@ -2,54 +2,6 @@
 
 Proc-macros are mostly implemented, there are some improvements we can make:
 
-# Custom Property Attributes
-
-* Property attributes can't be set in statements and expressions.
-    - See this fossil of an issue: https://github.com/rust-lang/rust/issues/54727
-* We can expand to a "data mod", something that has items describing the property assign.
-    - Disadvantages:
-        - Can't modify property assign.
-            - We don't need this for now.
-    - Advantages:
-        - Can support property declaration only.
-            `#[easing(..)] my_property;`
-            - Does generate "push" expression, but we can expand it now.
-
-* Data mod layout:
-```rust
-// this:
-properties! {
-    #[easing(500.ms())]
-    background_color = colors::RED;
-}
-
-// expands to:
-
-// .. the normal property expancion
-
-// PLUS
-
-#[easing(500.ms())]
-mod __property_custom_expand_data_p_background_color__ {
-    fn is_unset() {
-        true
-    }
-
-    fn builder_ident() {
-        __builder__
-    }
-
-    fn property_path() {
-        background_color
-    }
-}
-
-// * It only needs to be syntactically valid Rust.
-// * The mod is declared just after the `push_property` or `push_unset`.
-// * For properties without value we now still generate this expansion.
-// * Custom attributes need to re-generate the data mod if there are other attributes in it?
-```
-
 ## Partial Assign
 
 Implement syntax to allow assigning only one of the property inputs.

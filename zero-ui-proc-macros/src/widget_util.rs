@@ -10,7 +10,10 @@ use syn::{
     *,
 };
 
-use crate::util::{self, parse_outer_attrs, parse_punct_terminated2, path_span, peek_any3, Attributes, ErrorRecoverable, Errors};
+use crate::{
+    util::{self, parse_outer_attrs, parse_punct_terminated2, path_span, peek_any3, Attributes, ErrorRecoverable, Errors},
+    wgt_property_attrs::PropertyAttrData,
+};
 
 /// Represents a property assign.
 pub struct WgtProperty {
@@ -286,6 +289,30 @@ impl WgtProperty {
                 #path #generics::__new__(#ident).__build__(#instance)
             }
         }
+    }
+
+    /// If `custom_attrs_expand` is needed.
+    pub fn has_custom_attrs(&self) -> bool {
+        !self.attrs.others.is_empty()
+    }
+
+    /// Gets custom attributes expansion data if any was present in the property.
+    pub fn custom_attrs_expand(&self, builder: Ident, is_when_assign: bool, importance: Expr) -> TokenStream {
+        debug_assert!(self.has_custom_attrs());
+
+        let attrs = &self.attrs.others;
+
+        let path_slug = util::display_path(&self.path).replace("::", "_");
+        PropertyAttrData {
+            pending_attrs: attrs.clone(),
+            data_ident: ident!("__property_custom_expand_data_p{}__", path_slug),
+            builder,
+            is_unset: self.is_unset(),
+            is_when_assign,
+            property: self.path.clone(),
+            importance,
+        }
+        .to_token_stream()
     }
 }
 impl Parse for WgtProperty {
@@ -694,6 +721,16 @@ impl WgtWhen {
                 }
             }
         }
+    }
+
+    pub fn custom_assign_expand(&self, builder: &Ident, importance: &Expr) -> TokenStream {
+        let mut r = quote!();
+        for a in &self.assigns {
+            if a.has_custom_attrs() {
+                r.extend(a.custom_attrs_expand(builder.clone(), true, importance.clone()));
+            }
+        }
+        r
     }
 }
 
