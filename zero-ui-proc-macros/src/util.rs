@@ -406,17 +406,12 @@ impl Attributes {
         );
     }
 
-    pub fn to_token_stream_no_docs(&self) -> TokenStream {
-        let mut r = self.inline.to_token_stream();
-        self.inline.to_tokens(&mut r);
-        self.cfg.to_tokens(&mut r);
-        for lint in &self.lints {
-            lint.to_tokens(&mut r);
+    pub(crate) fn cfg_and_lints(&self) -> TokenStream {
+        let mut tts = self.cfg.to_token_stream();
+        for l in &self.lints {
+            l.to_tokens(&mut tts);
         }
-        for attr in &self.others {
-            attr.to_tokens(&mut r);
-        }
-        r
+        tts
     }
 }
 impl ToTokens for Attributes {

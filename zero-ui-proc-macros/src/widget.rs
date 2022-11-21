@@ -130,14 +130,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
         if prop.has_args() {
-            let attrs = prop.attrs.to_token_stream_no_docs();
+            let attrs = prop.attrs.cfg_and_lints();
             let args = prop.args_new(quote!(#crate_core::widget_builder));
             include_items.extend(quote! {
                 #attrs
                 __wgt__.push_property(#crate_core::widget_builder::Importance::WIDGET, #args);
             });
         } else if prop.is_unset() {
-            let attrs = prop.attrs.to_token_stream_no_docs();
+            let attrs = prop.attrs.cfg_and_lints();
             let id = prop.property_id();
             include_items.extend(quote! {
                 #attrs
@@ -147,7 +147,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
 
     for when in properties.iter().flat_map(|i| i.whens.iter()) {
-        let attrs = when.attrs.to_token_stream_no_docs();
+        let attrs = when.attrs.cfg_and_lints();
         let args = when.when_new(quote!(#crate_core::widget_builder));
         include_items.extend(quote! {
             #attrs
@@ -695,7 +695,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut init = quote!();
     for p in &p.properties {
-        let attrs = p.attrs.to_token_stream_no_docs();
+        let attrs = p.attrs.cfg_and_lints();
         if p.is_unset() {
             let id = p.property_id();
             init.extend(quote! {
@@ -712,7 +712,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     for w in &p.whens {
-        let attrs = w.attrs.to_token_stream_no_docs();
+        let attrs = w.attrs.cfg_and_lints();
         let args = w.when_new(quote!(#widget::__widget__::widget_builder));
         init.extend(quote! {
             #attrs
