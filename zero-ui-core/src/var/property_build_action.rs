@@ -9,3 +9,7 @@ pub fn easing_property_build_action(
 ) -> Vec<Box<dyn AnyPropertyBuildAction>> {
     todo!()
 }
+
+pub trait PropertyInputTypeSampler {
+    fn sample<T: Send + 'static>(&mut self, index: usize);
+}

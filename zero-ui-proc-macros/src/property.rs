@@ -471,6 +471,22 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     }
                 }
 
+                #[doc(hidden)]
+                pub fn __property__() -> #core::widget_builder::PropertyInfo {
+                    #core::widget_builder::PropertyInfo {
+                        group: #core::widget_builder::NestGroup::#nest_group,
+                        capture: #capture,
+                        impl_id: Self::__id__("").impl_id,
+                        name: std::stringify!(#ident),
+                        location: #core::widget_builder::source_location!(),
+                        default: #default_fn,
+                        new: Self::__new_dyn__,
+                        inputs: std::boxed::Box::new([
+                            #input_info
+                        ]),
+                    }
+                }
+
                 #[allow(clippy::too_many_arguments)]
                 pub fn __new__(
                     #(#input_idents: #input_tys),*
@@ -520,18 +536,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 fn property(&self) -> #core::widget_builder::PropertyInfo {
-                    #core::widget_builder::PropertyInfo {
-                        group: #core::widget_builder::NestGroup::#nest_group,
-                        capture: #capture,
-                        impl_id: Self::__id__("").impl_id,
-                        name: std::stringify!(#ident),
-                        location: #core::widget_builder::source_location!(),
-                        default: #default_fn,
-                        new: Self::__new_dyn__,
-                        inputs: std::boxed::Box::new([
-                            #input_info
-                        ]),
-                    }
+                    Self::__property__()
                 }
 
                 fn instance(&self) -> #core::widget_builder::PropertyInstInfo {

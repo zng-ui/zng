@@ -65,7 +65,7 @@ pub use when_condition_expr_var;
 ///
 /// # Syntax
 ///
-/// * `property::path`: Gets the ID for the standalone property function.
+/// * `property::path`: Gets the ID for the property function.
 /// * `property::path as rename`: Gets the ID, but with the new name.
 ///
 /// # Examples
@@ -114,6 +114,46 @@ macro_rules! property_id {
 #[doc(inline)]
 pub use crate::property_id;
 
+///<span data-del-macro-root></span> New [`PropertyInfo`] from property path.
+///
+/// # Syntax
+///
+/// * `property::path`: Gets the info for the property function.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::{property, widget_builder::property_id, widget_instance::UiNode, var::IntoValue};
+/// # pub mod path {
+/// #   use super::*;
+/// #[property(CONTEXT)]
+/// pub fn foo(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
+/// #     child
+/// }
+/// # }
+/// # fn main() {
+///
+/// let foo_info = property_info!(path::foo);
+///
+/// assert_eq!(foo_info.inputs[0].name, "bar");
+/// # }
+/// ```
+#[macro_export]
+macro_rules! property_info {
+    ($($property:ident)::+) => {{
+        // Rust does not expand the macro if we remove the braces.
+        #[rustfmt::skip] use $($property)::+ as property;
+        property::__property__()
+    }};
+    ($($property:ident)::+ ::<$($generics:ty),*>) => {{
+        // Rust does not expand the macro if we remove the braces.
+        #[rustfmt::skip] use $($property)::+ as property;
+        property::<$($generics),*>::__property__()
+    }};
+}
+#[doc(inline)]
+pub use crate::property_info;
+
 #[doc(hidden)]
 pub fn property_id_name(path: &'static str) -> &'static str {
     path.rsplit(':').next().unwrap_or("").trim()
@@ -125,8 +165,8 @@ pub fn property_id_name(path: &'static str) -> &'static str {
 ///
 /// The syntax is similar to a property assign in a widget, with some extra means to reference widget properties.
 ///
-/// * `property::path = <value>;`: Args for the standalone property function.
-/// * `property::path as rename = <value>;`: Args for the standalone property, but the ID is renamed.
+/// * `property::path = <value>;`: Args for the property function.
+/// * `property::path as rename = <value>;`: Args for the property, but the ID is renamed.
 ///
 /// In all of these the `<value>` is the standard property init expression or named fields patterns that are used in widget assigns.
 ///
@@ -465,6 +505,8 @@ impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
 pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
 
 /// Property info.
+/// 
+/// You can use the [`property_info!`] macro to retrieve a property ID.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
     /// Property nest position group.
