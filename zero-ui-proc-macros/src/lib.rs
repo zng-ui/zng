@@ -25,6 +25,7 @@ mod widget_util;
 mod any_all;
 
 mod lang;
+mod property_attrs;
 
 /// Expands an impl into a `UiNode` impl.
 ///
@@ -76,6 +77,16 @@ pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
     widget::expand(args, input, true)
+}
+
+/// Expands a property assign to include a build action that applies an easing transition to the variable inputs.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui_core::var::easing`](../zero_ui_core/var/attr.easing.html) page.
+#[proc_macro_attribute]
+pub fn easing(args: TokenStream, input: TokenStream) -> TokenStream {
+    property_attrs::expand_easing(args, input)
 }
 
 #[doc(hidden)]

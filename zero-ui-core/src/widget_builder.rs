@@ -1013,6 +1013,8 @@ impl fmt::Debug for PropertyImplId {
 
 /// Unique identifier of a property, properties with the same id override each other in a widget and are joined
 /// into a single instance is assigned in when blocks.
+///
+/// You can use the [`property_id!`] macro to retrieve a property ID.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PropertyId {
     /// The [`PropertyInfo::impl_id`].

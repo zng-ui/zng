@@ -830,7 +830,7 @@ impl_from_and_into_var! {
 ///
 /// Note that all the common easing functions are implemented in [`var::easing`].
 ///
-/// [`var::easing`]: crate::var::easing
+/// [`var::easing`]: mod@crate::var::easing
 pub type EasingStep = Factor;
 
 /// Easing function input.

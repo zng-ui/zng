@@ -41,6 +41,7 @@ mod when;
 
 #[macro_use]
 mod util;
+mod property_build_action;
 
 use parking_lot::Mutex;
 #[doc(inline)]
@@ -49,6 +50,48 @@ pub use util::impl_from_and_into_var;
 mod tests;
 
 pub use animation::easing;
+
+/// Expands a property assign to include an easing animation.
+///
+/// The attribute generates a [property build action] that applies [`Var::easing`] to the final variable inputs of the property.
+///
+/// # Arguments
+///
+/// The attribute takes two arguments that match the [`Var::easing`] parameters, a duration and easing function. The easing
+/// function can be omitted, if not present the [`easing::linear`] is used.
+///
+/// Some items are auto-imported in the arguments cope, the [`TimeUnits`] and a block import for the [`easing::*`] functions, this
+/// means you can just name.
+///
+/// ## Unset
+///
+/// An alternative argument `unset` can be used instead to remove animations set by the inherited context or styles.
+///
+/// [`TimeUnits`]: crate::units::TimeUnits
+/// [`easing::*`]: mod@crate::var::easing
+/// [property build action]: crate::widget_builder::WidgetBuilder::push_property_build_action
+///
+/// # Examples
+///
+/// The example demonstrates setting and removing easing animations.
+///
+/// ```
+/// # use zero_ui_core::{*, var::easing};
+/// # #[widget($crate::foo)]
+/// # pub mod foo { inherit!(zero_ui_core::widget_base::base); }
+/// foo! {
+///     #[easing(300.ms(), expo)] // set/override the easing.
+///     background_color = colors::RED;
+///
+///     #[easing(unset)] // remove easing set by style or widget defaults.
+///     margin = 0;
+/// }
+/// ```
+///
+/// <div style='display:none'>
+#[doc(inline)]
+pub use zero_ui_proc_macros::easing;
+
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
 #[doc(inline)]
@@ -79,6 +122,7 @@ pub mod types {
     pub use super::future::{WaitIsNewFut, WaitIsNotAnimatingFut, WaitNewFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
     pub use super::merge::{ContextualizedRcMergeVar, RcMergeVar, RcMergeVarInput, WeakMergeVar, __merge_var};
+    pub use super::property_build_action::easing_property_build_action;
     pub use super::rc::WeakRcVar;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
