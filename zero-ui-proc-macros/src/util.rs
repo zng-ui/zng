@@ -405,6 +405,19 @@ impl Attributes {
             },
         );
     }
+
+    pub fn to_token_stream_no_docs(&self) -> TokenStream {
+        let mut r = self.inline.to_token_stream();
+        self.inline.to_tokens(&mut r);
+        self.cfg.to_tokens(&mut r);
+        for lint in &self.lints {
+            lint.to_tokens(&mut r);
+        }
+        for attr in &self.others {
+            attr.to_tokens(&mut r);
+        }
+        r
+    }
 }
 impl ToTokens for Attributes {
     fn to_tokens(&self, tokens: &mut TokenStream) {

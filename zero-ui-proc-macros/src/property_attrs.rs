@@ -51,7 +51,16 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                 #core::widget_builder::property_id!(#property),
                 #name,
                 #importance,
-                #core::var::types::easing_property_build_action(#duration, #easing), // !!: TODO
+                #core::var::types::easing_property_build_action(
+                    {
+                        use #core::units::TimeUnits as _;
+                        #duration
+                    },
+                    {
+                        use #core::var::easing::*;
+                        #easing
+                    }
+                ), // !!: TODO
             );
             #target
         }

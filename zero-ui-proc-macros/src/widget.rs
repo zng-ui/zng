@@ -130,31 +130,27 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
         if prop.has_args() {
-            let cfg = &prop.attrs.cfg;
-            let lints = &prop.attrs.lints;
+            let attrs = prop.attrs.to_token_stream_no_docs();
             let args = prop.args_new(quote!(#crate_core::widget_builder));
             include_items.extend(quote! {
-                #cfg
-                #(#lints)*
+                #attrs
                 __wgt__.push_property(#crate_core::widget_builder::Importance::WIDGET, #args);
             });
         } else if prop.is_unset() {
-            let cfg = &prop.attrs.cfg;
+            let attrs = prop.attrs.to_token_stream_no_docs();
             let id = prop.property_id();
             include_items.extend(quote! {
-                #cfg
+                #attrs
                 __wgt__.push_unset(#crate_core::widget_builder::Importance::WIDGET, #id);
             });
         }
     }
 
     for when in properties.iter().flat_map(|i| i.whens.iter()) {
-        let cfg = &when.attrs.cfg;
-        let lints = &when.attrs.lints;
+        let attrs = when.attrs.to_token_stream_no_docs();
         let args = when.when_new(quote!(#crate_core::widget_builder));
         include_items.extend(quote! {
-            #cfg
-            #(#lints)*
+            #attrs
             __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #args);
         });
     }
@@ -699,27 +695,27 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut init = quote!();
     for p in &p.properties {
-        let cfg = &p.attrs.cfg;
+        let attrs = p.attrs.to_token_stream_no_docs();
         if p.is_unset() {
             let id = p.property_id();
             init.extend(quote! {
-                #cfg
+                #attrs
                 __wgt__.push_unset(#widget::__widget__::widget_builder::Importance::INSTANCE, #id);
             });
         } else if p.has_args() {
             let args = p.args_new(quote!(#widget::__widget__::widget_builder));
             init.extend(quote! {
-                #cfg
+                #attrs
                 __wgt__.push_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
             });
         }
     }
 
     for w in &p.whens {
-        let cfg = &w.attrs.cfg;
+        let attrs = w.attrs.to_token_stream_no_docs();
         let args = w.when_new(quote!(#widget::__widget__::widget_builder));
         init.extend(quote! {
-            #cfg
+            #attrs
             __wgt__.push_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
         });
     }

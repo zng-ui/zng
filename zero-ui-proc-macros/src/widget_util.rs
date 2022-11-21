@@ -90,12 +90,9 @@ impl WgtProperty {
             format!("__{extra_prefix}p_{path_str}_")
         };
 
-        let mut attrs = quote!();
-        self.attrs.cfg.to_tokens(&mut attrs);
-        self.attrs.lints.iter().for_each(|a| a.to_tokens(&mut attrs));
+        let mut attrs = self.attrs.to_token_stream_no_docs();
         if let Some(extra) = extra_attrs {
-            extra.cfg.to_tokens(&mut attrs);
-            extra.lints.iter().for_each(|a| a.to_tokens(&mut attrs));
+            attrs.extend(extra.to_token_stream_no_docs())
         }
 
         let mut r = quote!();
@@ -172,20 +169,12 @@ impl WgtProperty {
                 quote_spanned!(id_.span()=> as #id_)
             }
         };
-        let cfg = &self.attrs.cfg;
-        let lints = &self.attrs.lints;
-        let docs = &self.attrs.docs;
-        let clippy_nag = if !lints.is_empty() {
-            quote!(#[allow(clippy::useless_attribute)])
-        } else {
-            quote!()
-        };
+        let attrs = self.attrs.to_token_stream_no_docs();
+        let clippy_nag = quote!(#[allow(clippy::useless_attribute)]);
 
         quote_spanned! {self.path.span()=>
-            #(#docs)*
-            #cfg
             #clippy_nag
-            #(#lints)*
+            #attrs
             #[allow(unused_imports)]
             #[doc(inline)]
             #vis use #path #name;
@@ -669,8 +658,9 @@ impl WgtWhen {
             let args = a.args_new(wgt_builder_mod.clone());
             let generics = &a.generics;
             let cfg = &a.attrs.cfg;
+            let attrs = a.attrs.to_token_stream_no_docs();
             assigns.extend(quote! {
-                #cfg
+                #attrs
                 #args,
             });
 
