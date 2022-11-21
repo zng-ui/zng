@@ -1,5 +1,8 @@
 * Implement `#[easing(..)]`.
     - See `.Variables.md#widget-property-easing`.
+* Sort property build actions by importance?
+    - Right now we just have one, `easing` but can be many.
+
 * Rename all `Rc` prefixed stuff to `Arc`.
     - `RcVar`, `RcWidgetHandler`, etc.
 

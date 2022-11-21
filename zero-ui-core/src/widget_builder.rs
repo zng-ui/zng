@@ -1182,6 +1182,9 @@ impl Clone for WidgetItem {
     }
 }
 
+type PropertyBuildActionsMap = LinearMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>)>;
+type PropertyBuildActionsVec = Vec<((PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>))>;
+
 /// Widget instance builder.
 pub struct WidgetBuilder {
     widget_mod: WidgetMod,
@@ -1193,7 +1196,7 @@ pub struct WidgetBuilder {
     whens: Vec<WhenItemPositioned>,
     when_insert_idx: u32,
 
-    p_build_actions: LinearMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>)>,
+    p_build_actions: PropertyBuildActionsMap,
     p_build_actions_unset: LinearMap<(PropertyId, &'static str), Importance>,
 
     build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
@@ -1640,8 +1643,14 @@ impl WidgetBuilder {
             child: None,
         };
 
+        let mut p_build_actions = self.p_build_actions.into();
+
         if !self.whens.is_empty() {
-            building.build_whens(self.whens);
+            building.build_whens(self.whens, &mut p_build_actions);
+        }
+
+        if !p_build_actions.is_empty() {
+            building.build_p_actions(p_build_actions);
         }
 
         for action in self.build_actions {
@@ -1869,7 +1878,7 @@ impl WidgetBuilding {
         Some(handler)
     }
 
-    fn build_whens(&mut self, mut whens: Vec<WhenItemPositioned>) {
+    fn build_whens(&mut self, mut whens: Vec<WhenItemPositioned>, build_actions: &mut PropertyBuildActionsVec) {
         whens.sort_unstable_by_key(|w| w.sort_key());
 
         struct Input<'a> {
@@ -2040,8 +2049,33 @@ impl WidgetBuilding {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
-            let new = args.property().new;
-            *args = new(args.instance(), builder);
+
+            let mut actions = vec![];
+            if !build_actions.is_empty() {
+                let p_id = args.id();
+                while let Some(i) = build_actions.iter().position(|((id, _), _)| *id == p_id) {
+                    let (_, (_, a)) = build_actions.swap_remove(i);
+                    actions.push(a);
+                }
+
+                todo!("add a third parameter `actions` on `new`")
+            }
+
+            *args = (args.property().new)(args.instance(), builder);
+        }
+    }
+
+    fn build_p_actions(&mut self, mut build_actions: PropertyBuildActionsVec) {
+        while !build_actions.is_empty() {
+            let ((p_id, _), (_, a)) = build_actions.swap_remove(0);
+            let mut actions = vec![a];
+
+            while let Some(i) = build_actions.iter().position(|((id, _), _)| *id == p_id) {
+                let (_, (_, a)) = build_actions.swap_remove(i);
+                actions.push(a);
+            }
+
+            todo!("get current args, call `new` again")
         }
     }
 
