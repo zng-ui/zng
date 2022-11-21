@@ -68,3 +68,7 @@ A way to coordinate multiple animations together. Starting animations inside oth
     - Second biggest problem was the "type-erased" lock for `BoxedVar<T>`.
         - Without any kind of alloc, `Var::read` should be at worst just as efficient as `RwLock::read`.
     - Trying using "ouroboros" crate, generated a lot of code and the var type leaked into the lock type.
+
+## Other Property Attributes
+
+* Trace?

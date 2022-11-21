@@ -459,6 +459,11 @@ impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
     }
 }
 
+/// Property builder actions that must be applied to property args.
+///
+/// Each outer vec item is a vec of builder for each property input, see [`PropertyInfo::new`] for more details.
+pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
+
 /// Property info.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
@@ -484,7 +489,13 @@ pub struct PropertyInfo {
 
     /// New property args from dynamically typed args.
     ///
-    /// The args vec must have a value for each input in the same order they appear in [`inputs`], type types must match
+    /// # Param 0 - Instance Info
+    ///
+    /// The first parameter is a [`PropertyInstInfo`] that defines the [`PropertyArgs::instance`] value.
+    ///
+    /// # Param 1 - Args
+    ///
+    /// The args vec must have a value for each input in the same order they appear in [`inputs`], types must match
     /// the input kind and type, the function panics if the types don't match or not all inputs are provided.
     ///
     /// The expected types for each [`InputKind`] are:
@@ -500,6 +511,27 @@ pub struct PropertyInfo {
     ///
     /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
     ///
+    /// # Param 3 - Build Actions
+    ///
+    /// The property build actions can be empty or each item must contain one builder for each input in the same order they
+    /// appear in [`inputs`], the function panics if the types don't match or not all inputs are provided.
+    ///
+    /// The expected types for each [`InputKind`] are:
+    ///
+    /// | Kind                | Expected Type
+    /// |---------------------|-------------------------------------------------
+    /// | [`Var`]             | `Box<PropertyBuildAction<BoxedVar<T>>>`
+    /// | [`StateVar`]        | `Box<PropertyBuildAction<StateVar>>`
+    /// | [`Value`]           | `Box<PropertyBuildAction<T>>`
+    /// | [`UiNode`]          | `Box<PropertyBuildAction<RcNode<BoxedUiNode>>>`
+    /// | [`UiNodeList`]      | `Box<PropertyBuildAction<RcNodeList<BoxedUiNodeList>>>`
+    /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<RcWidgetHandler<A>>>`
+    ///
+    /// The expected type must be casted as `Box<dyn AnyPropertyBuildAction>`, the new function will downcast and unbox the args.
+    ///
+    /// # Instance
+    ///
+    /// This function outputs build property args, not a property node instance.
     /// You can use [`PropertyArgs::instantiate`] on the output to generate a property node from the args. If the
     /// property is known at compile time you can use [`property_args!`] to generate args instead, and you can just
     /// call the property function directly to instantiate a node.
@@ -511,7 +543,7 @@ pub struct PropertyInfo {
     /// [`UiNode`]: InputKind::UiNode
     /// [`UiNodeList`]: InputKind::UiNodeList
     /// [`WidgetHandler`]: InputKind::WidgetHandler
-    pub new: fn(PropertyInstInfo, Vec<Box<dyn Any>>) -> Box<dyn PropertyArgs>,
+    pub new: fn(PropertyInstInfo, Vec<Box<dyn Any>>, PropertyBuildActions) -> Box<dyn PropertyArgs>,
 
     /// Property inputs info, always at least one.
     pub inputs: Box<[PropertyInput]>,
@@ -713,6 +745,27 @@ impl dyn PropertyArgs + '_ {
             InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name()),
         }
     }
+
+    /// Call [`new`] with the same instance info and args, but with the `build_actions`.
+    ///
+    /// [`new`]: PropertyInfo::new
+    pub fn new_build(&self, build_actions: PropertyBuildActions) -> Box<dyn PropertyArgs> {
+        let p = self.property();
+
+        let mut args: Vec<Box<dyn Any>> = Vec::with_capacity(p.inputs.len());
+        for (i, input) in p.inputs.iter().enumerate() {
+            match input.kind {
+                InputKind::Var => args.push(self.var(i).clone_any().double_boxed_any()),
+                InputKind::StateVar => args.push(Box::new(self.state_var(i).clone())),
+                InputKind::Value => args.push(self.value(i).clone_boxed().into_any()),
+                InputKind::UiNode => args.push(Box::new(self.ui_node(i).clone())),
+                InputKind::UiNodeList => args.push(Box::new(self.ui_node_list(i).clone())),
+                InputKind::WidgetHandler => args.push(self.widget_handler(i).clone_boxed().into_any()),
+            }
+        }
+
+        (p.new)(self.instance(), args, build_actions)
+    }
 }
 
 #[doc(hidden)]
@@ -755,58 +808,100 @@ pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>
 }
 
 #[doc(hidden)]
-pub fn new_dyn_var<T: VarValue>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> BoxedVar<T> {
-    let item = inputs.next().expect("missing input");
+pub fn iter_input_build_actions(actions: &mut PropertyBuildActions, index: usize) -> impl Iterator<Item = &mut dyn AnyPropertyBuildAction> {
+    actions.iter_mut().map(move |a| &mut *a[index])
+}
 
-    match item.downcast::<AnyWhenVarBuilder>() {
-        Ok(builder) => builder.contextualized_build::<T>().expect("invalid when builder").boxed(),
-        Err(item) => *item.downcast::<BoxedVar<T>>().expect("input did not match expected var types"),
+fn apply_build_actions<'a, I: Any + Send>(mut item: I, mut actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>) -> I {
+    if let Some(action) = actions.next() {
+        let action = action
+            .as_any()
+            .downcast_mut::<PropertyBuildAction<I>>()
+            .expect("property build action type did not match expected var type");
+
+        item = action.build(item);
     }
+    item
 }
 
 #[doc(hidden)]
-pub fn new_dyn_ui_node(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> RcNode<BoxedUiNode> {
+pub fn new_dyn_var<'a, T: VarValue>(
+    inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
+    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+) -> BoxedVar<T> {
     let item = inputs.next().expect("missing input");
 
-    match item.downcast::<WhenUiNodeBuilder>() {
+    let item = match item.downcast::<AnyWhenVarBuilder>() {
+        Ok(builder) => builder.contextualized_build::<T>().expect("invalid when builder").boxed(),
+        Err(item) => *item.downcast::<BoxedVar<T>>().expect("input did not match expected var types"),
+    };
+
+    apply_build_actions(item, actions)
+}
+
+#[doc(hidden)]
+pub fn new_dyn_ui_node<'a>(
+    inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
+    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+) -> RcNode<BoxedUiNode> {
+    let item = inputs.next().expect("missing input");
+
+    let item = match item.downcast::<WhenUiNodeBuilder>() {
         Ok(builder) => RcNode::new(builder.build().boxed()),
         Err(item) => *item
             .downcast::<RcNode<BoxedUiNode>>()
             .expect("input did not match expected UiNode types"),
-    }
+    };
+
+    apply_build_actions(item, actions)
 }
 
 #[doc(hidden)]
-pub fn new_dyn_ui_node_list(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> RcNodeList<BoxedUiNodeList> {
+pub fn new_dyn_ui_node_list<'a>(
+    inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
+    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+) -> RcNodeList<BoxedUiNodeList> {
     let item = inputs.next().expect("missing input");
 
-    match item.downcast::<WhenUiNodeListBuilder>() {
+    let item = match item.downcast::<WhenUiNodeListBuilder>() {
         Ok(builder) => RcNodeList::new(builder.build().boxed()),
         Err(item) => *item
             .downcast::<RcNodeList<BoxedUiNodeList>>()
             .expect("input did not match expected UiNodeList types"),
-    }
+    };
+
+    apply_build_actions(item, actions)
 }
 
 #[doc(hidden)]
-pub fn new_dyn_widget_handler<A: Clone + 'static>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> RcWidgetHandler<A> {
+pub fn new_dyn_widget_handler<'a, A: Clone + 'static>(
+    inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
+    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+) -> RcWidgetHandler<A> {
     let item = inputs.next().expect("missing input");
 
-    match item.downcast::<AnyWhenRcWidgetHandlerBuilder>() {
+    let item = match item.downcast::<AnyWhenRcWidgetHandlerBuilder>() {
         Ok(builder) => builder.build(),
         Err(item) => *item
             .downcast::<RcWidgetHandler<A>>()
             .expect("input did not match expected WidgetHandler types"),
-    }
+    };
+
+    apply_build_actions(item, actions)
 }
 
 #[doc(hidden)]
-pub fn new_dyn_other<T: Any>(inputs: &mut std::vec::IntoIter<Box<dyn Any>>) -> T {
-    *inputs
+pub fn new_dyn_other<'a, T: Any + Send>(
+    inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
+    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+) -> T {
+    let item = *inputs
         .next()
         .expect("missing input")
         .downcast::<T>()
-        .expect("input did not match expected var type")
+        .expect("input did not match expected var type");
+
+    apply_build_actions(item, actions)
 }
 
 /// Error value used in a reference to an [`UiNode`] property input is made in `when` expression.
@@ -2057,11 +2152,9 @@ impl WidgetBuilding {
                     let (_, (_, a)) = build_actions.swap_remove(i);
                     actions.push(a);
                 }
-
-                todo!("add a third parameter `actions` on `new`")
             }
 
-            *args = (args.property().new)(args.instance(), builder);
+            *args = (args.property().new)(args.instance(), builder, actions);
         }
     }
 
@@ -2075,7 +2168,12 @@ impl WidgetBuilding {
                 actions.push(a);
             }
 
-            todo!("get current args, call `new` again")
+            if let Some(i) = self.property_index(p_id) {
+                match &mut self.items[i].item {
+                    WidgetItem::Property { args, .. } => *args = args.new_build(actions),
+                    WidgetItem::Intrinsic { .. } => unreachable!(),
+                }
+            }
         }
     }
 

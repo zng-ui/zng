@@ -217,7 +217,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         }
                     });
                     input_new_dyn.push(quote! {
-                        #core::widget_builder::new_dyn_var(&mut __inputs__)
+                        let __actions__ = #core::widget_builder::iter_input_build_actions(&mut __actions__, #i);
+                        #core::widget_builder::new_dyn_var(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -247,7 +248,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         std::clone::Clone::clone(&self.#ident),
                     });
                     input_new_dyn.push(quote! {
-                        #core::widget_builder::new_dyn_other(&mut __inputs__)
+                        let __actions__ = #core::widget_builder::iter_input_build_actions(&mut __actions__, #i);
+                        #core::widget_builder::new_dyn_other(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -274,7 +276,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         std::clone::Clone::clone(&self.#ident),
                     });
                     input_new_dyn.push(quote! {
-                        #core::widget_builder::new_dyn_other(&mut __inputs__)
+                        let __actions__ = #core::widget_builder::iter_input_build_actions(&mut __actions__, #i);
+                        #core::widget_builder::new_dyn_other(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -301,7 +304,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         self.#ident.take_on_init(),
                     });
                     input_new_dyn.push(quote! {
-                        #core::widget_builder::new_dyn_ui_node(&mut __inputs__)
+                        let __actions__ = #core::widget_builder::iter_input_build_actions(&mut __actions__, #i);
+                        #core::widget_builder::new_dyn_ui_node(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -328,7 +332,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         self.#ident.take_on_init(),
                     });
                     input_new_dyn.push(quote! {
-                        #core::widget_builder::new_dyn_ui_node_list(&mut __inputs__)
+                        let __actions__ = #core::widget_builder::iter_input_build_actions(&mut __actions__, #i);
+                        #core::widget_builder::new_dyn_ui_node_list(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -355,7 +360,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         std::clone::Clone::clone(&self.#ident),
                     });
                     input_new_dyn.push(quote! {
-                        #core::widget_builder::new_dyn_widget_handler(&mut __inputs__)
+                        let __actions__ = #core::widget_builder::iter_input_build_actions(&mut __actions__, #i);
+                        #core::widget_builder::new_dyn_widget_handler(&mut __inputs__, __actions__)
                     });
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
@@ -482,13 +488,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 pub fn __new_dyn__(
                     __instance__: #core::widget_builder::PropertyInstInfo,
-                    __inputs__: std::vec::Vec<std::boxed::Box<dyn std::any::Any>>
+                    __inputs__: std::vec::Vec<std::boxed::Box<dyn std::any::Any>>,
+                    mut __actions__: #core::widget_builder::PropertyBuildActions,
                 ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     let mut __inputs__ = __inputs__.into_iter();
 
                     Box::new(Self {
                         __instance__,
-                        #(#input_idents: #input_new_dyn,)*
+                        #(#input_idents: { #input_new_dyn },)*
                     })
                 }
 
