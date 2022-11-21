@@ -1185,12 +1185,19 @@ impl Clone for WidgetItem {
 /// Widget instance builder.
 pub struct WidgetBuilder {
     widget_mod: WidgetMod,
-    p: WidgetBuilderProperties,
+
     insert_idx: u32,
+    p: WidgetBuilderProperties,
     unset: LinearMap<PropertyId, Importance>,
+
     whens: Vec<WhenItemPositioned>,
     when_insert_idx: u32,
+
+    p_build_actions: LinearMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>)>,
+    p_build_actions_unset: LinearMap<(PropertyId, &'static str), Importance>,
+
     build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
+
     custom_build: Option<Arc<Mutex<dyn FnMut(WidgetBuilder) -> BoxedUiNode + Send>>>,
 }
 impl Clone for WidgetBuilder {
@@ -1198,8 +1205,10 @@ impl Clone for WidgetBuilder {
         Self {
             widget_mod: self.widget_mod,
             p: WidgetBuilderProperties { items: self.items.clone() },
+            p_build_actions: self.p_build_actions.clone(),
             insert_idx: self.insert_idx,
             unset: self.unset.clone(),
+            p_build_actions_unset: self.p_build_actions_unset.clone(),
             whens: self.whens.clone(),
             when_insert_idx: self.when_insert_idx,
             build_actions: self.build_actions.clone(),
@@ -1233,6 +1242,8 @@ impl WidgetBuilder {
             insert_idx: 0,
             unset: Default::default(),
             whens: Default::default(),
+            p_build_actions: Default::default(),
+            p_build_actions_unset: Default::default(),
             when_insert_idx: 0,
             build_actions: Default::default(),
             custom_build: Default::default(),
@@ -1354,14 +1365,60 @@ impl WidgetBuilder {
         }
     }
 
-    /// Add or override a `custom_builder` that is used to finalize the inputs for a property.
+    /// Add or override custom builder actions that are called to finalize the inputs for a property.
+    ///
+    /// The `importance` overrides previous build action of the same name and property. The `input_builders` vec must
+    /// contain one build for each property input.
     pub fn push_property_build_action(
         &mut self,
         property_id: PropertyId,
         action_name: &'static str,
+        importance: Importance,
         input_builders: Vec<Box<dyn AnyPropertyBuildAction>>,
     ) {
-        todo!()
+        match self.p_build_actions.entry((property_id, action_name)) {
+            linear_map::Entry::Occupied(mut e) => {
+                if e.get().0 < importance {
+                    e.insert((importance, input_builders));
+                }
+            }
+            linear_map::Entry::Vacant(e) => {
+                if let Some(imp) = self.p_build_actions_unset.get(&(property_id, action_name)) {
+                    if *imp >= importance {
+                        // blocked by unset
+                        return;
+                    }
+                }
+                e.insert((importance, input_builders));
+            }
+        }
+    }
+
+    /// Insert a [property build action] filter.
+    ///
+    /// [property build action]: Self::push_property_build_action
+    pub fn push_unset_property_build_action(&mut self, property_id: PropertyId, action_name: &'static str, importance: Importance) {
+        let mut check = false;
+        match self.p_build_actions_unset.entry((property_id, action_name)) {
+            linear_map::Entry::Occupied(mut e) => {
+                if *e.get() < importance {
+                    e.insert(importance);
+                    check = true;
+                }
+            }
+            linear_map::Entry::Vacant(e) => {
+                e.insert(importance);
+                check = true;
+            }
+        }
+        if check {
+            self.p_build_actions.retain(|_, (imp, _)| *imp > importance);
+        }
+    }
+
+    /// Remove all registered property build actions.
+    pub fn clear_property_build_actions(&mut self) {
+        self.p_build_actions.clear();
     }
 
     /// Add an `action` closure that is called every time this builder or a clone of it builds a widget instance.
@@ -2270,10 +2327,14 @@ impl WidgetBuilderProperties {
 }
 
 /// Represents any [`PropertyBuildAction<I>`].
-pub trait AnyPropertyBuildAction: Any + Send {
+pub trait AnyPropertyBuildAction: crate::private::Sealed + Any + Send + Sync {
     /// As any.
     fn as_any(&mut self) -> &mut dyn Any;
+
+    /// Clone the action into a new box.
+    fn clone_boxed(&self) -> Box<dyn AnyPropertyBuildAction>;
 }
+
 /// Represents a custom build action targeting a property input that is applied after `when` is build.
 ///
 /// The type `I` depends on the input kind:
@@ -2295,7 +2356,35 @@ pub trait AnyPropertyBuildAction: Any + Send {
 /// [`UiNode`]: InputKind::UiNode
 /// [`UiNodeList`]: InputKind::UiNodeList
 /// [`WidgetHandler`]: InputKind::WidgetHandler
-pub trait PropertyBuildAction<I: Any + Send>: AnyPropertyBuildAction {
-    /// Build action.
-    fn build(&mut self, input: I) -> I;
+pub struct PropertyBuildAction<I: Any + Send>(Arc<Mutex<dyn FnMut(I) -> I + Send>>);
+impl<I: Any + Send> crate::private::Sealed for PropertyBuildAction<I> {}
+impl<I: Any + Send> Clone for PropertyBuildAction<I> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<I: Any + Send> AnyPropertyBuildAction for PropertyBuildAction<I> {
+    fn clone_boxed(&self) -> Box<dyn AnyPropertyBuildAction> {
+        Box::new(self.clone())
+    }
+
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+impl<I: Any + Send> PropertyBuildAction<I> {
+    /// New build action.
+    pub fn new(build: impl FnMut(I) -> I + Send + 'static) -> Self {
+        Self(Arc::new(Mutex::new(build)))
+    }
+
+    /// Run the build action on a input.
+    pub fn build(&self, input: I) -> I {
+        (self.0.lock())(input)
+    }
+}
+impl Clone for Box<dyn AnyPropertyBuildAction> {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
+    }
 }
