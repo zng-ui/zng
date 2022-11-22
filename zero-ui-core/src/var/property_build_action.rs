@@ -7,18 +7,14 @@ use crate::{
 
 use super::{animation::Transitionable, BoxedVar, Var, VarValue};
 
+type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
+
 #[doc(hidden)]
-pub fn easing_property_build_action(
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
-) -> Vec<Box<dyn AnyPropertyBuildAction>> {
-    todo!()
+pub trait EasingPropertyCompatible {
+    fn build_easing_property_actions(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
 }
 
-type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
-pub trait EasingPropertyCompatible {
-    fn build(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
-}
+#[doc(hidden)]
 pub trait EasingInputCompatible: Any + Send {
     fn easing(self, duration: Duration, easing: EasingFn) -> Self;
 }
@@ -30,7 +26,7 @@ impl<T: VarValue + Transitionable> EasingInputCompatible for BoxedVar<T> {
 
 // default fallback
 impl<Tuple> EasingPropertyCompatible for PropertyInputTypes<Tuple> {
-    fn build(self, _: Duration, _: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
+    fn build_easing_property_actions(self, _: Duration, _: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
         vec![]
     }
 }
@@ -41,7 +37,7 @@ macro_rules! impl_easing_property_inputs {
         }
 
         impl<'a, $T0: EasingInputCompatible, $($T: EasingInputCompatible),*> EasingPropertyCompatible for &'a PropertyInputTypes<($T0, $($T,)*)> {
-            fn build(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
+            fn build_easing_property_actions(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
                 vec![
                     Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |v| EasingInputCompatible::easing(v, duration, easing.clone())))),
                     $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |v| EasingInputCompatible::easing(v, duration, easing.clone())))),)*

@@ -45,21 +45,28 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         }
     } else {
         quote! {
-            #builder.push_property_build_action(
-                #core::widget_builder::property_id!(#property),
-                #name,
-                #importance,
-                #core::var::types::easing_property_build_action(
+            {
+                use #core::var::types::EasingPropertyCompatible;
+                let __input_types__ = #core::widget_builder::property_input_types!(#property);
+                let __actions__ = (&__input_types__).build_easing_property_actions(
                     {
                         use #core::units::TimeUnits as _;
                         #duration
                     },
-                    {
+                    std::sync::Arc::new({
                         use #core::var::easing::*;
                         #easing
-                    }
-                ), // !!: TODO, pass the property types to the build action
-            );
+                    }),
+                );
+                if !__actions__.is_empty() {
+                    #builder.push_property_build_action(
+                        #core::widget_builder::property_id!(#property),
+                        #name,
+                        #importance,
+                        __actions__
+                    );
+                }
+            }
             #data
         }
     };

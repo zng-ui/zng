@@ -6,6 +6,8 @@
 * Rename all `Rc` prefixed stuff to `Arc`.
     - `RcVar`, `RcWidgetHandler`, etc.
 
+* `is_hovered` in `window!` causes continuous activation/deactivation of when state.
+
 * Continue "#Parallel UI" in `./Performance.md`.
 * Review all docs.
     - Mentions of threads in particular.

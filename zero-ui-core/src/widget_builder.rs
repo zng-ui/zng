@@ -155,7 +155,7 @@ macro_rules! property_info {
 pub use crate::property_info;
 
 ///<span data-del-macro-root></span> Gets the strong input storage types from a property path.
-/// 
+///
 /// See [`PropertyInputTypes<Tuple>`] for more details.
 ///
 /// # Syntax
@@ -528,7 +528,7 @@ impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
 pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
 
 /// Property info.
-/// 
+///
 /// You can use the [`property_info!`] macro to retrieve a property ID.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
