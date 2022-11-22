@@ -10,37 +10,36 @@ use super::{animation::Transitionable, BoxedVar, Var, VarValue};
 type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 
 #[doc(hidden)]
-pub trait EasingPropertyCompatible {
-    fn build_easing_property_actions(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
+#[allow(non_camel_case_types)]
+pub trait easing_property {
+    fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
 }
 
 #[doc(hidden)]
-pub trait EasingInputCompatible: Any + Send {
+#[allow(non_camel_case_types)]
+pub trait easing_property_input_Transitionable: Any + Send {
     fn easing(self, duration: Duration, easing: EasingFn) -> Self;
 }
-impl<T: VarValue + Transitionable> EasingInputCompatible for BoxedVar<T> {
+impl<T: VarValue + Transitionable> easing_property_input_Transitionable for BoxedVar<T> {
     fn easing(self, duration: Duration, easing: EasingFn) -> Self {
         Var::easing(&self, duration, move |t| easing(t)).boxed()
     }
 }
 
-// default fallback
-impl<Tuple> EasingPropertyCompatible for PropertyInputTypes<Tuple> {
-    fn build_easing_property_actions(self, _: Duration, _: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
-        vec![]
-    }
-}
 macro_rules! impl_easing_property_inputs {
     ($T0:ident, $($T:ident,)*) => {
         impl_easing_property_inputs! {
             $($T,)*
         }
 
-        impl<'a, $T0: EasingInputCompatible, $($T: EasingInputCompatible),*> EasingPropertyCompatible for &'a PropertyInputTypes<($T0, $($T,)*)> {
-            fn build_easing_property_actions(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
+        impl<
+            $T0: easing_property_input_Transitionable,
+            $($T: easing_property_input_Transitionable),*
+        > easing_property for PropertyInputTypes<($T0, $($T,)*)> {
+            fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
                 vec![
-                    Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |v| EasingInputCompatible::easing(v, duration, easing.clone())))),
-                    $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |v| EasingInputCompatible::easing(v, duration, easing.clone())))),)*
+                    Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),
+                    $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),)*
                 ]
             }
         }

@@ -488,7 +488,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 #[doc(hidden)]
-                pub fn __input_types__() -> #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> {
+                pub const fn __input_types__() -> #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> {
                     #core::widget_builder::PropertyInputTypes::unit()
                 }
 

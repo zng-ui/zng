@@ -4,7 +4,8 @@
 
 # Widget Property Easing
 
-* Implement compile time validation of `#[easing]`.
+* Test `#[easing(unset)]`.
+* Merge.
 
 ## Storyboard/Sequencer
 

@@ -81,7 +81,7 @@ pub mod types {
     pub use super::future::{WaitIsNewFut, WaitIsNotAnimatingFut, WaitNewFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
     pub use super::merge::{ContextualizedRcMergeVar, RcMergeVar, RcMergeVarInput, WeakMergeVar, __merge_var};
-    pub use super::property_build_action::EasingPropertyCompatible;
+    pub use super::property_build_action::easing_property;
     pub use super::rc::WeakRcVar;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;

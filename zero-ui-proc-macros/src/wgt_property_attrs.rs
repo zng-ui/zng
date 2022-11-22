@@ -46,9 +46,8 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     } else {
         quote! {
             {
-                use #core::var::types::EasingPropertyCompatible;
-                let __input_types__ = #core::widget_builder::property_input_types!(#property);
-                let __actions__ = (&__input_types__).build_easing_property_actions(
+                let __actions__ = #core::var::types::easing_property::easing_property(
+                    #core::widget_builder::property_input_types!(#property),
                     {
                         use #core::units::TimeUnits as _;
                         #duration
