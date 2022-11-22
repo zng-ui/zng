@@ -4,7 +4,6 @@
 
 # Widget Property Easing
 
-* Assert applicable on unset.
 * Merge.
 
 ## Transitionable

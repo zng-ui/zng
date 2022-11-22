@@ -36,6 +36,9 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
 
     let r = if args.is_unset() {
         quote! {
+            #core::var::types::easing_property::easing_property_unset(
+                #core::widget_builder::property_input_types!(#property)
+            );
             #builder.push_unset_property_build_action(
                 #core::widget_builder::property_id!(#property),
                 #name,

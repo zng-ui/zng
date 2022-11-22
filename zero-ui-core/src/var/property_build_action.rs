@@ -12,6 +12,7 @@ type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 #[doc(hidden)]
 #[allow(non_camel_case_types)]
 pub trait easing_property {
+    fn easing_property_unset(self);
     fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
 }
 
@@ -36,6 +37,7 @@ macro_rules! impl_easing_property_inputs {
             $T0: easing_property_input_Transitionable,
             $($T: easing_property_input_Transitionable),*
         > easing_property for PropertyInputTypes<($T0, $($T,)*)> {
+            fn easing_property_unset(self) { }
             fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
                 vec![
                     Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),
