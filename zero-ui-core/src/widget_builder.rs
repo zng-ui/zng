@@ -2554,6 +2554,11 @@ impl<I: Any + Send> PropertyBuildAction<I> {
         Self(Arc::new(Mutex::new(build)))
     }
 
+    /// New build action that just pass the input.
+    pub fn no_op() -> Self {
+        Self::new(|i| i)
+    }
+
     /// Run the build action on a input.
     pub fn build(&self, input: I) -> I {
         (self.0.lock())(input)
