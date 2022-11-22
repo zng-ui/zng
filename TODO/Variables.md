@@ -2,15 +2,6 @@
 
 * `Var::repeat` animation.
 
-# Widget Property Easing
-
-* Merge.
-
-## Transitionable
-
-* Targets of easing are limited right now, `BorderSides`, `SideOffsets` are not supported.
-    - Maybe we want a more manual trait?
-
 ## Storyboard/Sequencer
 
 A way to coordinate multiple animations together. Starting animations inside other animations already gives then all the same animation handle, need to implement some helpers.

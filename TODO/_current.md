@@ -1,5 +1,7 @@
-* Implement `#[easing(..)]`.
-    - See `.Variables.md#widget-property-easing`.
+* Improve `Transitionable`.
+    -Targets of easing are limited right now, `BorderSides`, `SideOffsets` are not supported.
+    - Maybe we want a more manual trait?
+
 * Sort property build actions by importance?
     - Right now we just have one, `easing` but can be many.
 
