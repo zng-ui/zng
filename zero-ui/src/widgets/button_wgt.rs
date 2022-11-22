@@ -115,6 +115,7 @@ pub mod vis {
             pub super::base_colors;
 
             /// Button background.
+            #[easing(300.ms())]
             pub crate::properties::background_color = color_scheme_pair(BASE_COLORS_VAR);
 
             /// Button border.

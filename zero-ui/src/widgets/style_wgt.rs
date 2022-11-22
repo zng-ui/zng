@@ -243,7 +243,7 @@ impl Style {
 
     /// New style from a widget builder.
     ///
-    /// The importance index of properties is adjusted, any custom build or build action is ignored.
+    /// The importance index of properties is adjusted, any custom build or widget build action is ignored.
     pub fn from_builder(mut wgt: WidgetBuilder) -> Style {
         wgt.clear_build_actions();
         wgt.clear_custom_build();

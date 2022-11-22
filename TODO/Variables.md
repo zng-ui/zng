@@ -4,8 +4,13 @@
 
 # Widget Property Easing
 
-* Test `#[easing(unset)]`.
+* Assert applicable on unset.
 * Merge.
+
+## Transitionable
+
+* Targets of easing are limited right now, `BorderSides`, `SideOffsets` are not supported.
+    - Maybe we want a more manual trait?
 
 ## Storyboard/Sequencer
 

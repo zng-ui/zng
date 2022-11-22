@@ -36,9 +36,18 @@ pub mod easing;
 /// The example demonstrates setting and removing easing animations.
 ///
 /// ```
-/// # use zero_ui_core::{*, var::easing};
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*, units::SideOffsets};
 /// # #[widget($crate::foo)]
 /// # pub mod foo { inherit!(zero_ui_core::widget_base::base); }
+/// # #[property(FILL, default(colors::BLACK))]
+/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// #    child
+/// # }
+/// # #[property(LAYOUT, default(0))]
+/// # pub fn margin(child: impl UiNode, color: impl IntoVar<SideOffsets>) -> impl UiNode {
+/// #    child
+/// # }
+/// # fn main() {
 /// foo! {
 ///     #[easing(300.ms(), expo)] // set/override the easing.
 ///     background_color = colors::RED;
@@ -46,6 +55,7 @@ pub mod easing;
 ///     #[easing(unset)] // remove easing set by style or widget defaults.
 ///     margin = 0;
 /// }
+/// # ; }
 /// ```
 ///
 /// <div style='display:none'>

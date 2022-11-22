@@ -123,7 +123,7 @@ pub use crate::property_id;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{property, widget_builder::property_id, widget_instance::UiNode, var::IntoValue};
+/// # use zero_ui_core::{property, widget_builder::*, widget_instance::*, var::*};
 /// # pub mod path {
 /// #   use super::*;
 /// #[property(CONTEXT)]
@@ -1622,6 +1622,10 @@ impl WidgetBuilder {
             self.push_unset(imp, id);
         }
 
+        for ((id, name), imp) in other.p_build_actions_unset {
+            self.push_unset_property_build_action(id, name, imp);
+        }
+
         for WidgetItemPositioned { position, item, .. } in other.p.items {
             match item {
                 WidgetItem::Property {
@@ -1638,6 +1642,10 @@ impl WidgetBuilder {
 
         for w in other.whens {
             self.push_when(w.importance, w.when);
+        }
+
+        for ((id, name), (imp, action)) in other.p_build_actions {
+            self.push_property_build_action(id, name, imp, action);
         }
 
         for act in other.build_actions {
@@ -2601,7 +2609,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// that the type is a tuple even if there is only one input.
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_instance::*, widget_builder::*};
+/// # use zero_ui_core::{*, widget_instance::*, widget_builder::*, var::*};
 /// # use std::any::Any;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
@@ -2618,7 +2626,7 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// The next example demonstrates a trait that uses auto-deref to convert a trait bound to a `bool`:
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_instance::*, widget_builder::*};
+/// # use zero_ui_core::{*, widget_instance::*, widget_builder::*, var::*};
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
 /// #    child
