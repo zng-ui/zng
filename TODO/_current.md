@@ -1,8 +1,3 @@
-* Impl `Transitionable` for more units, needs review:
-    - text.
-    - time.
-    - transform.
-    - vector.
 * Impl `Transitionable` for composite types that have Transitionable parts.
     - BorderSides.
     - Refactor transitionable to not work only from += -= *= factor?
