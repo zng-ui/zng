@@ -1135,10 +1135,15 @@ impl AppExtension for MouseManager {
                 let frame_info = windows.widget_tree(args.window_id).unwrap();
                 let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
                 self.pos_hits = Some(pos_hits.clone());
-                let target = pos_hits
-                    .target()
-                    .and_then(|t| frame_info.get(t.widget_id))
-                    .and_then(|w| w.interaction_path().unblocked());
+                let target = if let Some(t) = pos_hits.target() {
+                    frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
+                        tracing::error!("hits target `{}` not found", t.widget_id);
+                        frame_info.root().interaction_path()
+                    })
+                } else {
+                    frame_info.root().interaction_path()
+                }
+                .unblocked();
 
                 if self.hovered != target {
                     let capture = self.capture_info(mouse);
