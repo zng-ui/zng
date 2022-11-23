@@ -18,7 +18,7 @@ use super::{util::VarData, *};
 /// # Contextualized
 ///
 /// The merge var is contextualized, meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
-/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, RcMergeVar<T>>`.
+/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, ArcMergeVar<T>>`.
 ///
 /// # Examples
 ///
@@ -26,8 +26,8 @@ use super::{util::VarData, *};
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
 /// # fn text(text: impl IntoVar<Text>) {  }
-/// let var0: RcVar<Text> = var_from("Hello");
-/// let var1: RcVar<Text> = var_from("World");
+/// let var0: ArcVar<Text> = var_from("Hello");
+/// let var1: ArcVar<Text> = var_from("World");
 ///
 /// let greeting_text = text(merge_var!(var0, var1, |a, b| formatx!("{a} {b}!")));
 /// ```
@@ -49,10 +49,10 @@ pub use zero_ui_proc_macros::merge_var as __merge_var;
 
 // used by the __merge_var! proc-macro.
 #[doc(hidden)]
-pub struct RcMergeVarInput<T: VarValue, V: Var<T>>(PhantomData<(V, T)>);
-impl<T: VarValue, V: Var<T>> RcMergeVarInput<T, V> {
+pub struct ArcMergeVarInput<T: VarValue, V: Var<T>>(PhantomData<(V, T)>);
+impl<T: VarValue, V: Var<T>> ArcMergeVarInput<T, V> {
     pub fn new(_: &V) -> Self {
-        RcMergeVarInput(PhantomData)
+        ArcMergeVarInput(PhantomData)
     }
 
     #[allow(clippy::borrowed_box)]
@@ -74,30 +74,30 @@ struct Data<T: VarValue> {
 }
 
 /// See [`merge_var!`].
-pub struct RcMergeVar<T: VarValue>(Arc<Data<T>>);
+pub struct ArcMergeVar<T: VarValue>(Arc<Data<T>>);
 
 #[doc(hidden)]
-pub type ContextualizedRcMergeVar<T> = types::ContextualizedVar<T, RcMergeVar<T>>;
+pub type ContextualizedArcMergeVar<T> = types::ContextualizedVar<T, ArcMergeVar<T>>;
 
-/// Weak reference to [`RcMergeVar<T>`].
+/// Weak reference to [`ArcMergeVar<T>`].
 pub struct WeakMergeVar<T: VarValue>(Weak<Data<T>>);
 
-impl<T: VarValue> RcMergeVar<T> {
+impl<T: VarValue> ArcMergeVar<T> {
     #[doc(hidden)]
     pub fn new(
         inputs: Box<[Box<dyn AnyVar>]>,
         merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static,
-    ) -> ContextualizedRcMergeVar<T> {
+    ) -> ContextualizedArcMergeVar<T> {
         Self::new_impl(inputs, Arc::new(Mutex::new(merge)))
     }
 
     fn new_impl(
         inputs: Box<[Box<dyn AnyVar>]>,
         merge: Arc<Mutex<dyn FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static>>,
-    ) -> types::ContextualizedVar<T, RcMergeVar<T>> {
+    ) -> types::ContextualizedVar<T, ArcMergeVar<T>> {
         types::ContextualizedVar::new(Arc::new(move || {
             let merge = merge.clone();
-            RcMergeVar::new_contextualized(&inputs, Box::new(move |values| merge.lock()(values)))
+            ArcMergeVar::new_contextualized(&inputs, Box::new(move |values| merge.lock()(values)))
         }))
     }
 
@@ -130,7 +130,7 @@ impl<T: VarValue> RcMergeVar<T> {
                                 if data_mut.last_apply_request != vars.apply_update_id() {
                                     data_mut.last_apply_request = vars.apply_update_id();
                                     drop(data);
-                                    vars.schedule_update(RcMergeVar::update_merge(rc_merge));
+                                    vars.schedule_update(ArcMergeVar::update_merge(rc_merge));
                                 }
                             }
                             true
@@ -163,7 +163,7 @@ impl<T: VarValue> RcMergeVar<T> {
     }
 }
 
-impl<T: VarValue> Clone for RcMergeVar<T> {
+impl<T: VarValue> Clone for ArcMergeVar<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
@@ -175,10 +175,10 @@ impl<T: VarValue> Clone for WeakMergeVar<T> {
     }
 }
 
-impl<T: VarValue> crate::private::Sealed for RcMergeVar<T> {}
+impl<T: VarValue> crate::private::Sealed for ArcMergeVar<T> {}
 impl<T: VarValue> crate::private::Sealed for WeakMergeVar<T> {}
 
-impl<T: VarValue> AnyVar for RcMergeVar<T> {
+impl<T: VarValue> AnyVar for ArcMergeVar<T> {
     fn clone_any(&self) -> BoxedAnyVar {
         Box::new(self.clone())
     }
@@ -265,7 +265,7 @@ impl<T: VarValue> AnyWeakVar for WeakMergeVar<T> {
     }
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
-        self.0.upgrade().map(|rc| Box::new(RcMergeVar(rc)) as _)
+        self.0.upgrade().map(|rc| Box::new(ArcMergeVar(rc)) as _)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -273,7 +273,7 @@ impl<T: VarValue> AnyWeakVar for WeakMergeVar<T> {
     }
 }
 
-impl<T: VarValue> IntoVar<T> for RcMergeVar<T> {
+impl<T: VarValue> IntoVar<T> for ArcMergeVar<T> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -281,7 +281,7 @@ impl<T: VarValue> IntoVar<T> for RcMergeVar<T> {
     }
 }
 
-impl<T: VarValue> Var<T> for RcMergeVar<T> {
+impl<T: VarValue> Var<T> for ArcMergeVar<T> {
     type ReadOnly = types::ReadOnlyVar<T, Self>;
 
     type ActualVar = Self;
@@ -326,9 +326,9 @@ impl<T: VarValue> Var<T> for RcMergeVar<T> {
 }
 
 impl<T: VarValue> WeakVar<T> for WeakMergeVar<T> {
-    type Upgrade = RcMergeVar<T>;
+    type Upgrade = ArcMergeVar<T>;
 
-    fn upgrade(&self) -> Option<RcMergeVar<T>> {
-        self.0.upgrade().map(|rc| RcMergeVar(rc))
+    fn upgrade(&self) -> Option<ArcMergeVar<T>> {
+        self.0.upgrade().map(|rc| ArcMergeVar(rc))
     }
 }

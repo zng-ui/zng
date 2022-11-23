@@ -1199,7 +1199,7 @@ pub fn focus_continued_after_widget_move_same_window() {
     let app = TestApp::start();
 
     let id = WidgetId::new_unique();
-    let button = RcNode::new(button! {
+    let button = ArcNode::new(button! {
         id;
         child = text("Click Me!");
     });

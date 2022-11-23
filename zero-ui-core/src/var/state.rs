@@ -12,7 +12,7 @@ pub fn state_var() -> StateVar {
 /// State variables are `bool` probes that are set by the property.
 ///
 /// Use [`state_var`] to init.
-pub type StateVar = RcVar<bool>;
+pub type StateVar = ArcVar<bool>;
 
 /// Helper for declaring state properties that depend on a single event.
 pub fn event_state<A: EventArgs>(

@@ -9,7 +9,7 @@ use crate::{
     keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
     service::*,
     units::*,
-    var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
+    var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, Windows},
@@ -714,7 +714,7 @@ pub struct MouseManager {
     hovered: Option<InteractionPath>,
     pressed: LinearMap<MouseButton, InteractionPath>,
 
-    multi_click_config: RcVar<MultiClickConfig>,
+    multi_click_config: ArcVar<MultiClickConfig>,
 }
 impl Default for MouseManager {
     fn default() -> Self {
@@ -1301,11 +1301,11 @@ pub struct Mouse {
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
     update_sender: AppEventSender,
-    multi_click_config: RcVar<MultiClickConfig>,
-    buttons: RcVar<Vec<MouseButton>>,
+    multi_click_config: ArcVar<MultiClickConfig>,
+    buttons: ArcVar<Vec<MouseButton>>,
 }
 impl Mouse {
-    fn new(update_sender: AppEventSender, multi_click_config: RcVar<MultiClickConfig>) -> Self {
+    fn new(update_sender: AppEventSender, multi_click_config: ArcVar<MultiClickConfig>) -> Self {
         Mouse {
             current_capture: None,
             capture_request: None,
@@ -1319,7 +1319,7 @@ impl Mouse {
     /// Returns a read-only variable that tracks the [buttons] that are currently pressed.
     ///
     /// [buttons]: MouseButton
-    pub fn buttons(&self) -> ReadOnlyRcVar<Vec<MouseButton>> {
+    pub fn buttons(&self) -> ReadOnlyArcVar<Vec<MouseButton>> {
         self.buttons.read_only()
     }
 
@@ -1336,7 +1336,7 @@ impl Mouse {
     ///
     /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable, so you can notify
     /// this event to set this variable, if you really must.
-    pub fn multi_click_config(&self) -> ReadOnlyRcVar<MultiClickConfig> {
+    pub fn multi_click_config(&self) -> ReadOnlyArcVar<MultiClickConfig> {
         self.multi_click_config.read_only()
     }
 

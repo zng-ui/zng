@@ -15,7 +15,7 @@ use crate::{
     text::{formatx, Text},
     var::{types::AnyWhenVarBuilder, *},
     widget_instance::{
-        BoxedUiNode, BoxedUiNodeList, NilUiNode, RcNode, RcNodeList, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
+        ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
     },
 };
 
@@ -401,11 +401,11 @@ pub enum InputKind {
     StateVar,
     /// Input is `impl IntoValue<T>`, build value is `T`.
     Value,
-    /// Input is `impl UiNode`, build value is `RcNode<BoxedUiNode>`.
+    /// Input is `impl UiNode`, build value is `ArcNode<BoxedUiNode>`.
     UiNode,
-    /// Input is `impl UiNodeList`, build value is `RcNodeList<BoxedUiNodeList>`.
+    /// Input is `impl UiNodeList`, build value is `ArcNodeList<BoxedUiNodeList>`.
     UiNodeList,
-    /// Input is `impl WidgetHandler<A>`, build value is `RcWidgetHandler<A>`.
+    /// Input is `impl WidgetHandler<A>`, build value is `ArcWidgetHandler<A>`.
     WidgetHandler,
 }
 
@@ -415,14 +415,14 @@ pub enum InputKind {
 /// context that spawned then. This `struct` is cloneable to support handler properties in styleable widgets, but the
 /// general expectation is that the handler will be used on one property instance at a time.
 #[derive(Clone)]
-pub struct RcWidgetHandler<A: Clone + 'static>(Arc<Mutex<dyn WidgetHandler<A>>>);
-impl<A: Clone + 'static> RcWidgetHandler<A> {
+pub struct ArcWidgetHandler<A: Clone + 'static>(Arc<Mutex<dyn WidgetHandler<A>>>);
+impl<A: Clone + 'static> ArcWidgetHandler<A> {
     /// New from `handler`.
     pub fn new(handler: impl WidgetHandler<A>) -> Self {
         Self(Arc::new(Mutex::new(handler)))
     }
 }
-impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
+impl<A: Clone + 'static> WidgetHandler<A> for ArcWidgetHandler<A> {
     fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
         self.0.lock().event(ctx, args)
     }
@@ -432,8 +432,8 @@ impl<A: Clone + 'static> WidgetHandler<A> for RcWidgetHandler<A> {
     }
 }
 
-/// Represents a type erased [`RcWidgetHandler<A>`].
-pub trait AnyRcWidgetHandler: Any {
+/// Represents a type erased [`ArcWidgetHandler<A>`].
+pub trait AnyArcWidgetHandler: Any {
     /// Access to `dyn Any` methods.
     fn as_any(&self) -> &dyn Any;
 
@@ -441,10 +441,10 @@ pub trait AnyRcWidgetHandler: Any {
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
     /// Clone the handler reference.
-    fn clone_boxed(&self) -> Box<dyn AnyRcWidgetHandler>;
+    fn clone_boxed(&self) -> Box<dyn AnyArcWidgetHandler>;
 }
-impl<A: Clone + 'static> AnyRcWidgetHandler for RcWidgetHandler<A> {
-    fn clone_boxed(&self) -> Box<dyn AnyRcWidgetHandler> {
+impl<A: Clone + 'static> AnyArcWidgetHandler for ArcWidgetHandler<A> {
+    fn clone_boxed(&self) -> Box<dyn AnyArcWidgetHandler> {
         Box::new(self.clone())
     }
 
@@ -457,16 +457,16 @@ impl<A: Clone + 'static> AnyRcWidgetHandler for RcWidgetHandler<A> {
     }
 }
 
-/// When builder for [`AnyRcWidgetHandler`] values.
+/// When builder for [`AnyArcWidgetHandler`] values.
 ///
 /// This builder is used to generate a composite handler that redirects to active `when`
-pub struct AnyWhenRcWidgetHandlerBuilder {
-    default: Box<dyn AnyRcWidgetHandler>,
-    conditions: Vec<(BoxedVar<bool>, Box<dyn AnyRcWidgetHandler>)>,
+pub struct AnyWhenArcWidgetHandlerBuilder {
+    default: Box<dyn AnyArcWidgetHandler>,
+    conditions: Vec<(BoxedVar<bool>, Box<dyn AnyArcWidgetHandler>)>,
 }
-impl AnyWhenRcWidgetHandlerBuilder {
+impl AnyWhenArcWidgetHandlerBuilder {
     /// New from default value.
-    pub fn new(default: Box<dyn AnyRcWidgetHandler>) -> Self {
+    pub fn new(default: Box<dyn AnyArcWidgetHandler>) -> Self {
         Self {
             default,
             conditions: vec![],
@@ -474,22 +474,22 @@ impl AnyWhenRcWidgetHandlerBuilder {
     }
 
     /// Push a conditional handler.
-    pub fn push(&mut self, condition: BoxedVar<bool>, handler: Box<dyn AnyRcWidgetHandler>) {
+    pub fn push(&mut self, condition: BoxedVar<bool>, handler: Box<dyn AnyArcWidgetHandler>) {
         self.conditions.push((condition, handler));
     }
 
     /// Build the handler.
-    pub fn build<A: Clone + 'static>(self) -> RcWidgetHandler<A> {
-        match self.default.into_any().downcast::<RcWidgetHandler<A>>() {
+    pub fn build<A: Clone + 'static>(self) -> ArcWidgetHandler<A> {
+        match self.default.into_any().downcast::<ArcWidgetHandler<A>>() {
             Ok(default) => {
                 let mut conditions = Vec::with_capacity(self.conditions.len());
                 for (c, h) in self.conditions {
-                    match h.into_any().downcast::<RcWidgetHandler<A>>() {
+                    match h.into_any().downcast::<ArcWidgetHandler<A>>() {
                         Ok(h) => conditions.push((c, *h)),
                         Err(_) => continue,
                     }
                 }
-                RcWidgetHandler::new(WhenWidgetHandler {
+                ArcWidgetHandler::new(WhenWidgetHandler {
                     default: *default,
                     conditions,
                 })
@@ -500,8 +500,8 @@ impl AnyWhenRcWidgetHandlerBuilder {
 }
 
 struct WhenWidgetHandler<A: Clone + 'static> {
-    default: RcWidgetHandler<A>,
-    conditions: Vec<(BoxedVar<bool>, RcWidgetHandler<A>)>,
+    default: ArcWidgetHandler<A>,
+    conditions: Vec<(BoxedVar<bool>, ArcWidgetHandler<A>)>,
 }
 impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
     fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
@@ -570,9 +570,9 @@ pub struct PropertyInfo {
     /// | [`Var`]             | `Box<BoxedVar<T>>` or `Box<AnyWhenVarBuilder>`
     /// | [`StateVar`]        | `Box<StateVar>`
     /// | [`Value`]           | `Box<T>`
-    /// | [`UiNode`]          | `Box<RcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
-    /// | [`UiNodeList`]      | `Box<RcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
-    /// | [`WidgetHandler`]   | `Box<RcWidgetHandler<A>>` or `Box<AnyWhenRcWidgetHandlerBuilder>`
+    /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
+    /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
+    /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`
     ///
     /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
     ///
@@ -588,9 +588,9 @@ pub struct PropertyInfo {
     /// | [`Var`]             | `Box<PropertyBuildAction<BoxedVar<T>>>`
     /// | [`StateVar`]        | `Box<PropertyBuildAction<StateVar>>`
     /// | [`Value`]           | `Box<PropertyBuildAction<T>>`
-    /// | [`UiNode`]          | `Box<PropertyBuildAction<RcNode<BoxedUiNode>>>`
-    /// | [`UiNodeList`]      | `Box<PropertyBuildAction<RcNodeList<BoxedUiNodeList>>>`
-    /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<RcWidgetHandler<A>>>`
+    /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
+    /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
+    /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
     ///
     /// The expected type must be casted as `Box<dyn AnyPropertyBuildAction>`, the new function will downcast and unbox the args.
     ///
@@ -700,19 +700,19 @@ pub trait PropertyArgs: Send + Sync {
     }
 
     /// Gets a [`InputKind::UiNode`].
-    fn ui_node(&self, i: usize) -> &RcNode<BoxedUiNode> {
+    fn ui_node(&self, i: usize) -> &ArcNode<BoxedUiNode> {
         panic_input(&self.property(), i, InputKind::UiNode)
     }
 
     /// Gets a [`InputKind::UiNodeList`].
-    fn ui_node_list(&self, i: usize) -> &RcNodeList<BoxedUiNodeList> {
+    fn ui_node_list(&self, i: usize) -> &ArcNodeList<BoxedUiNodeList> {
         panic_input(&self.property(), i, InputKind::UiNodeList)
     }
 
     /// Gets a [`InputKind::WidgetHandler`].
     ///
-    /// Is a `RcWidgetHandler<A>`.
-    fn widget_handler(&self, i: usize) -> &dyn AnyRcWidgetHandler {
+    /// Is a `ArcWidgetHandler<A>`.
+    fn widget_handler(&self, i: usize) -> &dyn AnyArcWidgetHandler {
         panic_input(&self.property(), i, InputKind::WidgetHandler)
     }
 
@@ -755,13 +755,13 @@ impl dyn PropertyArgs + '_ {
     /// Gets a strongly typed [`widget_handler`].
     ///
     /// [`widget_handler`]: PropertyArgs::widget_handler
-    pub fn downcast_handler<A>(&self, i: usize) -> &RcWidgetHandler<A>
+    pub fn downcast_handler<A>(&self, i: usize) -> &ArcWidgetHandler<A>
     where
         A: 'static + Clone,
     {
         self.widget_handler(i)
             .as_any()
-            .downcast_ref::<RcWidgetHandler<A>>()
+            .downcast_ref::<ArcWidgetHandler<A>>()
             .expect("cannot downcast handler to type")
     }
 
@@ -858,18 +858,18 @@ pub fn value_to_args<T: VarValue>(value: impl IntoValue<T>) -> T {
 }
 
 #[doc(hidden)]
-pub fn ui_node_to_args(node: impl UiNode) -> RcNode<BoxedUiNode> {
-    RcNode::new(node.boxed())
+pub fn ui_node_to_args(node: impl UiNode) -> ArcNode<BoxedUiNode> {
+    ArcNode::new(node.boxed())
 }
 
 #[doc(hidden)]
-pub fn ui_node_list_to_args(node_list: impl UiNodeList) -> RcNodeList<BoxedUiNodeList> {
-    RcNodeList::new(node_list.boxed())
+pub fn ui_node_list_to_args(node_list: impl UiNodeList) -> ArcNodeList<BoxedUiNodeList> {
+    ArcNodeList::new(node_list.boxed())
 }
 
 #[doc(hidden)]
-pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>) -> RcWidgetHandler<A> {
-    RcWidgetHandler::new(handler)
+pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>) -> ArcWidgetHandler<A> {
+    ArcWidgetHandler::new(handler)
 }
 
 #[doc(hidden)]
@@ -908,13 +908,13 @@ pub fn new_dyn_var<'a, T: VarValue>(
 pub fn new_dyn_ui_node<'a>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
     actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
-) -> RcNode<BoxedUiNode> {
+) -> ArcNode<BoxedUiNode> {
     let item = inputs.next().expect("missing input");
 
     let item = match item.downcast::<WhenUiNodeBuilder>() {
-        Ok(builder) => RcNode::new(builder.build().boxed()),
+        Ok(builder) => ArcNode::new(builder.build().boxed()),
         Err(item) => *item
-            .downcast::<RcNode<BoxedUiNode>>()
+            .downcast::<ArcNode<BoxedUiNode>>()
             .expect("input did not match expected UiNode types"),
     };
 
@@ -925,13 +925,13 @@ pub fn new_dyn_ui_node<'a>(
 pub fn new_dyn_ui_node_list<'a>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
     actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
-) -> RcNodeList<BoxedUiNodeList> {
+) -> ArcNodeList<BoxedUiNodeList> {
     let item = inputs.next().expect("missing input");
 
     let item = match item.downcast::<WhenUiNodeListBuilder>() {
-        Ok(builder) => RcNodeList::new(builder.build().boxed()),
+        Ok(builder) => ArcNodeList::new(builder.build().boxed()),
         Err(item) => *item
-            .downcast::<RcNodeList<BoxedUiNodeList>>()
+            .downcast::<ArcNodeList<BoxedUiNodeList>>()
             .expect("input did not match expected UiNodeList types"),
     };
 
@@ -942,13 +942,13 @@ pub fn new_dyn_ui_node_list<'a>(
 pub fn new_dyn_widget_handler<'a, A: Clone + 'static>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
     actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
-) -> RcWidgetHandler<A> {
+) -> ArcWidgetHandler<A> {
     let item = inputs.next().expect("missing input");
 
-    let item = match item.downcast::<AnyWhenRcWidgetHandlerBuilder>() {
+    let item = match item.downcast::<AnyWhenArcWidgetHandlerBuilder>() {
         Ok(builder) => builder.build(),
         Err(item) => *item
-            .downcast::<RcWidgetHandler<A>>()
+            .downcast::<ArcWidgetHandler<A>>()
             .expect("input did not match expected WidgetHandler types"),
     };
 
@@ -2042,7 +2042,7 @@ impl WidgetBuilding {
     }
 
     /// Flags the property as captured and downcast the input handler.
-    pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<RcWidgetHandler<A>> {
+    pub fn capture_widget_handler<A: Clone + 'static>(&mut self, property_id: PropertyId) -> Option<ArcWidgetHandler<A>> {
         let p = self.capture_property(property_id)?;
         let handler = p.args.downcast_handler::<A>(0).clone();
         Some(handler)
@@ -2152,7 +2152,7 @@ impl WidgetBuilding {
                                     Box::new(WhenUiNodeListBuilder::new(default_args.ui_node_list(i).take_on_init())) as _
                                 }
                                 InputKind::WidgetHandler => {
-                                    Box::new(AnyWhenRcWidgetHandlerBuilder::new(default_args.widget_handler(i).clone_boxed())) as _
+                                    Box::new(AnyWhenArcWidgetHandlerBuilder::new(default_args.widget_handler(i).clone_boxed())) as _
                                 }
                                 InputKind::StateVar | InputKind::Value => panic!("can only assign vars in when blocks"),
                             })
@@ -2178,7 +2178,7 @@ impl WidgetBuilding {
                             entry.push(when.state.clone(), list);
                         }
                         InputKind::WidgetHandler => {
-                            let entry = entry.downcast_mut::<AnyWhenRcWidgetHandlerBuilder>().unwrap();
+                            let entry = entry.downcast_mut::<AnyWhenArcWidgetHandlerBuilder>().unwrap();
                             let handler = assign.widget_handler(i).clone_boxed();
                             entry.push(when.state.clone(), handler);
                         }
@@ -2553,9 +2553,9 @@ pub trait AnyPropertyBuildAction: crate::private::Sealed + Any + Send + Sync {
 /// | [`Var`]             | `BoxedVar<T>`
 /// | [`StateVar`]        | `StateVar`
 /// | [`Value`]           | `T`
-/// | [`UiNode`]          | `RcNode<BoxedUiNode>`
-/// | [`UiNodeList`]      | `RcNodeList<BoxedUiNodeList>`
-/// | [`WidgetHandler`]   | `RcWidgetHandler<A>`
+/// | [`UiNode`]          | `ArcNode<BoxedUiNode>`
+/// | [`UiNodeList`]      | `ArcNodeList<BoxedUiNodeList>`
+/// | [`WidgetHandler`]   | `ArcWidgetHandler<A>`
 ///
 /// [`Var`]: InputKind::Var
 /// [`StateVar`]: InputKind::StateVar

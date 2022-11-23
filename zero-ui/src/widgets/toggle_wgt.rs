@@ -297,7 +297,7 @@ pub mod toggle_properties {
         #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
             child: impl UiNode,
             value: impl Var<T>,
-            checked: RcVar<Option<bool>>,
+            checked: ArcVar<Option<bool>>,
             prev_value: Option<T>,
             click_handle: Option<EventHandle>,
         })]

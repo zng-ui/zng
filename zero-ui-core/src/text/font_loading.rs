@@ -25,7 +25,7 @@ use crate::{
     event::{event, event_args, EventUpdate},
     service::Service,
     units::*,
-    var::{var, RcVar, Var},
+    var::{var, ArcVar, Var},
 };
 
 event! {
@@ -134,7 +134,7 @@ pub struct Fonts {
     loader: FontFaceLoader,
     generics: GenericFonts,
     prune_requested: bool,
-    font_aa: RcVar<FontAntiAliasing>,
+    font_aa: ArcVar<FontAntiAliasing>,
 }
 impl Fonts {
     fn new(update_sender: AppEventSender) -> Self {

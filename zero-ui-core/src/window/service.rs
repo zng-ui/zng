@@ -56,7 +56,7 @@ pub struct Windows {
     close_responders: LinearMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
-    frame_images: Vec<RcVar<Image>>,
+    frame_images: Vec<ArcVar<Image>>,
     loading_deadline: Option<DeadlineHandle>,
 }
 impl Windows {

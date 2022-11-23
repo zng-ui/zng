@@ -6,7 +6,7 @@ use crate::{
     service::ServiceTuple,
     ui_node,
     units::*,
-    var::{types::WeakRcVar, *},
+    var::{types::WeakArcVar, *},
     widget_instance::{UiNode, WidgetId},
     window::*,
 };
@@ -40,7 +40,7 @@ impl Images {
         result.read_only()
     }
 
-    pub(super) fn render_img<N>(&mut self, render: N, result: &RcVar<Image>)
+    pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Image>)
     where
         N: FnOnce(&mut WindowContext) -> Window + 'static,
     {
@@ -158,13 +158,13 @@ pub(super) struct ImagesRender {
 
 struct ActiveRenderer {
     window_id: WindowId,
-    image: WeakRcVar<Image>,
-    retain: RcVar<bool>,
+    image: WeakArcVar<Image>,
+    retain: ArcVar<bool>,
 }
 
 struct RenderRequest {
     render: Box<dyn FnOnce(&mut WindowContext) -> Window>,
-    image: WeakRcVar<Image>,
+    image: WeakArcVar<Image>,
 }
 
 /// Controls properties of the render window used by [`Images::render`].
@@ -178,7 +178,7 @@ struct RenderRequest {
 /// [`req`]: ImageRenderVars::req
 /// [`get`]: ImageRenderVars::get
 pub struct ImageRenderVars {
-    retain: RcVar<bool>,
+    retain: ArcVar<bool>,
 }
 impl ImageRenderVars {
     fn new() -> Self {
@@ -202,7 +202,7 @@ impl ImageRenderVars {
     /// If the render task is kept alive after a frame is produced, this is `false` by default
     /// meaning the image only renders once, if set to `true` the image will automatically update
     /// when the render widget requests a new frame.
-    pub fn retain(&self) -> &RcVar<bool> {
+    pub fn retain(&self) -> &ArcVar<bool> {
         &self.retain
     }
 }

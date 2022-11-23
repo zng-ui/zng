@@ -22,12 +22,12 @@ enum Data<T: VarValue, S> {
 }
 
 /// See [`Var::cow`].
-pub struct RcCowVar<T: VarValue, S>(Arc<RwLock<Data<T, S>>>);
+pub struct ArcCowVar<T: VarValue, S>(Arc<RwLock<Data<T, S>>>);
 
-/// Weak reference to a [`RcCowVar<T>`].
+/// Weak reference to a [`ArcCowVar<T>`].
 pub struct WeakCowVar<T: VarValue, S>(Weak<RwLock<Data<T, S>>>);
 
-impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
+impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
     pub(super) fn new(source: S) -> Self {
         let cow = Arc::new(RwLock::new(Data::Source {
             source,
@@ -121,7 +121,7 @@ impl<T: VarValue, S: Var<T>> RcCowVar<T, S> {
     }
 }
 
-impl<T: VarValue, S> Clone for RcCowVar<T, S> {
+impl<T: VarValue, S> Clone for ArcCowVar<T, S> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
@@ -132,10 +132,10 @@ impl<T: VarValue, S> Clone for WeakCowVar<T, S> {
     }
 }
 
-impl<T: VarValue, S: Var<T>> crate::private::Sealed for RcCowVar<T, S> {}
+impl<T: VarValue, S: Var<T>> crate::private::Sealed for ArcCowVar<T, S> {}
 impl<T: VarValue, S: Var<T>> crate::private::Sealed for WeakCowVar<T, S> {}
 
-impl<T: VarValue, S: Var<T>> AnyVar for RcCowVar<T, S> {
+impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
     fn clone_any(&self) -> BoxedAnyVar {
         Box::new(self.clone())
     }
@@ -238,7 +238,7 @@ impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakCowVar<T, S> {
     }
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
-        self.0.upgrade().map(|rc| Box::new(RcCowVar(rc)) as _)
+        self.0.upgrade().map(|rc| Box::new(ArcCowVar(rc)) as _)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -246,7 +246,7 @@ impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakCowVar<T, S> {
     }
 }
 
-impl<T: VarValue, S: Var<T>> IntoVar<T> for RcCowVar<T, S> {
+impl<T: VarValue, S: Var<T>> IntoVar<T> for ArcCowVar<T, S> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -254,7 +254,7 @@ impl<T: VarValue, S: Var<T>> IntoVar<T> for RcCowVar<T, S> {
     }
 }
 
-impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
+impl<T: VarValue, S: Var<T>> Var<T> for ArcCowVar<T, S> {
     type ReadOnly = types::ReadOnlyVar<T, Self>;
 
     type ActualVar = Self;
@@ -303,9 +303,9 @@ impl<T: VarValue, S: Var<T>> Var<T> for RcCowVar<T, S> {
 }
 
 impl<T: VarValue, S: Var<T>> WeakVar<T> for WeakCowVar<T, S> {
-    type Upgrade = RcCowVar<T, S>;
+    type Upgrade = ArcCowVar<T, S>;
 
     fn upgrade(&self) -> Option<Self::Upgrade> {
-        self.0.upgrade().map(|rc| RcCowVar(rc))
+        self.0.upgrade().map(|rc| ArcCowVar(rc))
     }
 }

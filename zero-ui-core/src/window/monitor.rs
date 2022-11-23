@@ -250,13 +250,13 @@ impl_from_and_into_var! {
 #[derive(Clone)]
 pub struct MonitorInfo {
     id: MonitorId,
-    is_primary: RcVar<bool>,
-    name: RcVar<Text>,
-    position: RcVar<PxPoint>,
-    size: RcVar<PxSize>,
-    video_modes: RcVar<Vec<VideoMode>>,
-    scale_factor: RcVar<Factor>,
-    ppi: RcVar<f32>,
+    is_primary: ArcVar<bool>,
+    name: ArcVar<Text>,
+    position: ArcVar<PxPoint>,
+    size: ArcVar<PxSize>,
+    video_modes: ArcVar<Vec<VideoMode>>,
+    scale_factor: ArcVar<Factor>,
+    ppi: ArcVar<f32>,
 }
 impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -301,36 +301,36 @@ impl MonitorInfo {
     }
 
     /// If could determine this monitor is the primary.
-    pub fn is_primary(&self) -> ReadOnlyRcVar<bool> {
+    pub fn is_primary(&self) -> ReadOnlyArcVar<bool> {
         self.is_primary.read_only()
     }
 
     /// Name of the monitor.
-    pub fn name(&self) -> ReadOnlyRcVar<Text> {
+    pub fn name(&self) -> ReadOnlyArcVar<Text> {
         self.name.read_only()
     }
     /// Top-left offset of the monitor region in the virtual screen, in pixels.
-    pub fn position(&self) -> ReadOnlyRcVar<PxPoint> {
+    pub fn position(&self) -> ReadOnlyArcVar<PxPoint> {
         self.position.read_only()
     }
     /// Width/height of the monitor region in the virtual screen, in pixels.
-    pub fn size(&self) -> ReadOnlyRcVar<PxSize> {
+    pub fn size(&self) -> ReadOnlyArcVar<PxSize> {
         self.size.read_only()
     }
 
     /// Exclusive fullscreen video modes.
-    pub fn video_modes(&self) -> ReadOnlyRcVar<Vec<VideoMode>> {
+    pub fn video_modes(&self) -> ReadOnlyArcVar<Vec<VideoMode>> {
         self.video_modes.read_only()
     }
 
     /// The monitor scale factor.
     ///
     /// Can update if the user changes system settings.
-    pub fn scale_factor(&self) -> ReadOnlyRcVar<Factor> {
+    pub fn scale_factor(&self) -> ReadOnlyArcVar<Factor> {
         self.scale_factor.read_only()
     }
     /// PPI config var.
-    pub fn ppi(&self) -> RcVar<f32> {
+    pub fn ppi(&self) -> ArcVar<f32> {
         self.ppi.clone()
     }
 

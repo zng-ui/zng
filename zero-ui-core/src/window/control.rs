@@ -56,7 +56,7 @@ struct HeadedCtrl {
     icon_deadline: Deadline,
     actual_state: Option<WindowState>, // for WindowChangedEvent
     system_color_scheme: Option<ColorScheme>,
-    parent_color_scheme: Option<ReadOnlyRcVar<ColorScheme>>,
+    parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
     actual_parent: Option<WindowId>,
 }
 impl HeadedCtrl {

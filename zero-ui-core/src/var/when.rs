@@ -56,7 +56,7 @@ use super::*;
 /// # Contextualized
 ///
 /// The when var is contextualized, meaning is a [`ContextVar<T>`] is used for one of the inputs it will be resolved to the
-/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, RcWhenVar<T>>`.
+/// context where the merge is first used, not where it is created. The full output type of this macro is `ContextualizedVar<T, ArcWhenVar<T>>`.
 #[macro_export]
 macro_rules! when_var {
     ($($tt:tt)*) => {
@@ -75,9 +75,9 @@ use parking_lot::Mutex;
 pub use zero_ui_proc_macros::when_var as __when_var;
 
 #[doc(hidden)]
-pub type ContextualizedRcWhenVar<T> = types::ContextualizedVar<T, RcWhenVar<T>>;
+pub type ContextualizedArcWhenVar<T> = types::ContextualizedVar<T, ArcWhenVar<T>>;
 
-/// Manually build a [`RcWhenVar<T>`].
+/// Manually build a [`ArcWhenVar<T>`].
 #[derive(Clone)]
 pub struct WhenVarBuilder<T: VarValue> {
     default: BoxedVar<T>,
@@ -98,7 +98,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
     }
 
     /// Finish the build.
-    pub fn build(mut self) -> RcWhenVar<T> {
+    pub fn build(mut self) -> ArcWhenVar<T> {
         self.conditions.shrink_to_fit();
         for (c, v) in self.conditions.iter_mut() {
             fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
@@ -128,7 +128,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
             // capacity can be n*2+1, but we only bet on conditions being `NEW`.
             let mut input_handles = Vec::with_capacity(rc_when.conditions.len());
             if rc_when.default.capabilities().contains(VarCapabilities::NEW) {
-                input_handles.push(rc_when.default.hook(RcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
+                input_handles.push(rc_when.default.hook(ArcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
             }
             for (i, (c, v)) in rc_when.conditions.iter().enumerate() {
                 if c.get() && data.active > i {
@@ -136,26 +136,26 @@ impl<T: VarValue> WhenVarBuilder<T> {
                 }
 
                 if c.capabilities().contains(VarCapabilities::NEW) {
-                    input_handles.push(c.hook(RcWhenVar::handle_condition(wk_when.clone(), i)));
+                    input_handles.push(c.hook(ArcWhenVar::handle_condition(wk_when.clone(), i)));
                 }
                 if v.capabilities().contains(VarCapabilities::NEW) {
-                    input_handles.push(v.hook(RcWhenVar::handle_value(wk_when.clone(), i)));
+                    input_handles.push(v.hook(ArcWhenVar::handle_value(wk_when.clone(), i)));
                 }
             }
 
             data.input_handles = input_handles.into_boxed_slice();
         }
 
-        RcWhenVar(rc_when)
+        ArcWhenVar(rc_when)
     }
 
     /// Defer build to a [`types::ContextualizedVar`] first use.
-    pub fn contextualized_build(self) -> types::ContextualizedVar<T, RcWhenVar<T>> {
+    pub fn contextualized_build(self) -> types::ContextualizedVar<T, ArcWhenVar<T>> {
         types::ContextualizedVar::new(Arc::new(move || self.clone().build()))
     }
 }
 
-/// Manually build a [`RcWhenVar<T>`] from type erased parts.
+/// Manually build a [`ArcWhenVar<T>`] from type erased parts.
 pub struct AnyWhenVarBuilder {
     default: BoxedAnyVar,
     conditions: Vec<(BoxedVar<bool>, BoxedAnyVar)>,
@@ -175,7 +175,7 @@ impl AnyWhenVarBuilder {
     }
 
     /// Create a builder from the parts of a formed [`when_var!`].
-    pub fn from_var<O: VarValue>(var: &types::ContextualizedVar<O, RcWhenVar<O>>) -> Self {
+    pub fn from_var<O: VarValue>(var: &types::ContextualizedVar<O, ArcWhenVar<O>>) -> Self {
         let var = var.borrow_init();
         Self {
             default: var.0.default.clone_any(),
@@ -227,7 +227,7 @@ impl AnyWhenVarBuilder {
     }
 
     /// Build the when var if all value variables are of type [`BoxedVar<T>`].
-    pub fn build<T: VarValue>(&self) -> Option<RcWhenVar<T>> {
+    pub fn build<T: VarValue>(&self) -> Option<ArcWhenVar<T>> {
         let default = *self.default.clone().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
 
         let mut when = WhenVarBuilder::new(default);
@@ -242,7 +242,7 @@ impl AnyWhenVarBuilder {
     }
 
     /// Defer build to a [`types::ContextualizedVar`] first use.
-    pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T, RcWhenVar<T>>> {
+    pub fn contextualized_build<T: VarValue>(self) -> Option<types::ContextualizedVar<T, ArcWhenVar<T>>> {
         if self.default.var_type_id() == TypeId::of::<T>() {
             Some(types::ContextualizedVar::new(Arc::new(move || self.build().unwrap())))
         } else {
@@ -281,12 +281,12 @@ struct Data<T> {
 }
 
 /// See [`when_var!`].
-pub struct RcWhenVar<T>(Arc<Data<T>>);
+pub struct ArcWhenVar<T>(Arc<Data<T>>);
 
-/// Weak reference to a [`RcWhenVar<T>`].
+/// Weak reference to a [`ArcWhenVar<T>`].
 pub struct WeakWhenVar<T>(Weak<Data<T>>);
 
-impl<T: VarValue> RcWhenVar<T> {
+impl<T: VarValue> ArcWhenVar<T> {
     fn active(&self) -> &BoxedVar<T> {
         let active = self.0.w.lock().active;
         if active == usize::MAX {
@@ -319,7 +319,7 @@ impl<T: VarValue> RcWhenVar<T> {
                 if update && data_mut.last_apply_request != vars.apply_update_id() {
                     data_mut.last_apply_request = vars.apply_update_id();
                     drop(data_mut);
-                    vars.schedule_update(RcWhenVar::apply_update(rc_when));
+                    vars.schedule_update(ArcWhenVar::apply_update(rc_when));
                 }
 
                 true
@@ -336,7 +336,7 @@ impl<T: VarValue> RcWhenVar<T> {
                 if data_mut.active == i && data_mut.last_apply_request != vars.apply_update_id() {
                     data_mut.last_apply_request = vars.apply_update_id();
                     drop(data_mut);
-                    vars.schedule_update(RcWhenVar::apply_update(rc_when));
+                    vars.schedule_update(ArcWhenVar::apply_update(rc_when));
                 }
                 true
             } else {
@@ -373,7 +373,7 @@ impl<T: VarValue> RcWhenVar<T> {
     }
 }
 
-impl<T> Clone for RcWhenVar<T> {
+impl<T> Clone for ArcWhenVar<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
@@ -384,10 +384,10 @@ impl<T> Clone for WeakWhenVar<T> {
     }
 }
 
-impl<T: VarValue> crate::private::Sealed for RcWhenVar<T> {}
+impl<T: VarValue> crate::private::Sealed for ArcWhenVar<T> {}
 impl<T: VarValue> crate::private::Sealed for WeakWhenVar<T> {}
 
-impl<T: VarValue> AnyVar for RcWhenVar<T> {
+impl<T: VarValue> AnyVar for ArcWhenVar<T> {
     fn clone_any(&self) -> BoxedAnyVar {
         Box::new(self.clone())
     }
@@ -474,7 +474,7 @@ impl<T: VarValue> AnyWeakVar for WeakWhenVar<T> {
     }
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
-        self.0.upgrade().map(|rc| Box::new(RcWhenVar(rc)) as _)
+        self.0.upgrade().map(|rc| Box::new(ArcWhenVar(rc)) as _)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -482,7 +482,7 @@ impl<T: VarValue> AnyWeakVar for WeakWhenVar<T> {
     }
 }
 
-impl<T: VarValue> IntoVar<T> for RcWhenVar<T> {
+impl<T: VarValue> IntoVar<T> for ArcWhenVar<T> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -490,7 +490,7 @@ impl<T: VarValue> IntoVar<T> for RcWhenVar<T> {
     }
 }
 
-impl<T: VarValue> Var<T> for RcWhenVar<T> {
+impl<T: VarValue> Var<T> for ArcWhenVar<T> {
     type ReadOnly = types::ReadOnlyVar<T, Self>;
 
     type ActualVar = Self;
@@ -541,9 +541,9 @@ impl<T: VarValue> Var<T> for RcWhenVar<T> {
 }
 
 impl<T: VarValue> WeakVar<T> for WeakWhenVar<T> {
-    type Upgrade = RcWhenVar<T>;
+    type Upgrade = ArcWhenVar<T>;
 
-    fn upgrade(&self) -> Option<RcWhenVar<T>> {
-        self.0.upgrade().map(|rc| RcWhenVar(rc))
+    fn upgrade(&self) -> Option<ArcWhenVar<T>> {
+        self.0.upgrade().map(|rc| ArcWhenVar(rc))
     }
 }

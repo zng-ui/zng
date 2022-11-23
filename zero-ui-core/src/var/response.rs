@@ -15,12 +15,12 @@ pub fn response_done_var<T: VarValue>(response: T) -> ResponseVar<T> {
 /// Variable used to notify the completion of an UI operation.
 ///
 /// Use [`response_var`] to init.
-pub type ResponderVar<T> = RcVar<Response<T>>;
+pub type ResponderVar<T> = ArcVar<Response<T>>;
 
 /// Variable used to listen to a one time signal that an UI operation has completed.
 ///
 /// Use [`response_var`] or [`response_done_var`] to init.
-pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, RcVar<Response<T>>>;
+pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, ArcVar<Response<T>>>;
 
 /// Raw value in a [`ResponseVar`] or [`ResponseSender`].
 #[derive(Clone, Copy)]

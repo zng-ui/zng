@@ -13,7 +13,7 @@ use crate::event::*;
 use crate::focus::Focus;
 use crate::service::*;
 use crate::units::*;
-use crate::var::{var, var_default, RcVar, ReadOnlyRcVar, Var, Vars, WithVars};
+use crate::var::{var, var_default, ArcVar, ReadOnlyArcVar, Var, Vars, WithVars};
 use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, widget_instance::WidgetId};
@@ -253,11 +253,11 @@ impl AppExtension for KeyboardManager {
 pub struct Keyboard {
     current_modifiers: LinearSet<Key>,
 
-    modifiers: RcVar<ModifiersState>,
-    codes: RcVar<Vec<ScanCode>>,
-    keys: RcVar<Vec<Key>>,
-    repeat_config: RcVar<KeyRepeatConfig>,
-    caret_animation_config: RcVar<(Duration, Duration)>,
+    modifiers: ArcVar<ModifiersState>,
+    codes: ArcVar<Vec<ScanCode>>,
+    keys: ArcVar<Vec<Key>>,
+    repeat_config: ArcVar<KeyRepeatConfig>,
+    caret_animation_config: ArcVar<(Duration, Duration)>,
 
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
@@ -386,17 +386,17 @@ impl Keyboard {
     }
 
     /// Returns a read-only variable that tracks the currently pressed modifier keys.
-    pub fn modifiers(&self) -> ReadOnlyRcVar<ModifiersState> {
+    pub fn modifiers(&self) -> ReadOnlyArcVar<ModifiersState> {
         self.modifiers.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
-    pub fn codes(&self) -> ReadOnlyRcVar<Vec<ScanCode>> {
+    pub fn codes(&self) -> ReadOnlyArcVar<Vec<ScanCode>> {
         self.codes.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
-    pub fn keys(&self) -> ReadOnlyRcVar<Vec<Key>> {
+    pub fn keys(&self) -> ReadOnlyArcVar<Vec<Key>> {
         self.keys.read_only()
     }
 
@@ -407,7 +407,7 @@ impl Keyboard {
     ///
     /// [`is_repeat`]: KeyInputArgs::is_repeat
     /// [`repeat_speed`]: Self::repeat_speed
-    pub fn repeat_config(&self) -> ReadOnlyRcVar<KeyRepeatConfig> {
+    pub fn repeat_config(&self) -> ReadOnlyArcVar<KeyRepeatConfig> {
         self.repeat_config.read_only()
     }
 
@@ -419,7 +419,7 @@ impl Keyboard {
     /// You can use the [`caret_animation`] method to generate a new animation.
     ///
     /// [`caret_animation`]: Self::caret_animation
-    pub fn caret_animation_config(&self) -> ReadOnlyRcVar<(Duration, Duration)> {
+    pub fn caret_animation_config(&self) -> ReadOnlyArcVar<(Duration, Duration)> {
         self.caret_animation_config.read_only()
     }
 
@@ -427,10 +427,10 @@ impl Keyboard {
     ///
     /// A new animation must be started after each key press. The value is always 1 or 0, no easing is used by default,
     /// it can be added using the [`Var::easing`] method.
-    pub fn caret_animation(&self, vars: &impl WithVars) -> ReadOnlyRcVar<Factor> {
+    pub fn caret_animation(&self, vars: &impl WithVars) -> ReadOnlyArcVar<Factor> {
         vars.with_vars(|vars| self.caret_animation_impl(vars))
     }
-    fn caret_animation_impl(&self, vars: &Vars) -> ReadOnlyRcVar<Factor> {
+    fn caret_animation_impl(&self, vars: &Vars) -> ReadOnlyArcVar<Factor> {
         let var = var(1.fct());
         let cfg = self.caret_animation_config.clone();
         let interval_start = Instant::now();

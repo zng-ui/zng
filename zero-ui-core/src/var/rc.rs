@@ -6,45 +6,45 @@ use super::{util::VarData, *};
 ///
 /// This is the primary variable type, it can be instantiated using the [`var`] and [`var_from`] functions.
 #[derive(Clone)]
-pub struct RcVar<T: VarValue>(Arc<VarData<T>>);
+pub struct ArcVar<T: VarValue>(Arc<VarData<T>>);
 
-/// Weak reference to a [`RcVar<T>`].
+/// Weak reference to a [`ArcVar<T>`].
 #[derive(Clone)]
-pub struct WeakRcVar<T: VarValue>(Weak<VarData<T>>);
+pub struct WeakArcVar<T: VarValue>(Weak<VarData<T>>);
 
 /// New ref counted read/write variable with initial `value`.
-pub fn var<T: VarValue>(value: T) -> RcVar<T> {
-    RcVar(Arc::new(VarData::new(value)))
+pub fn var<T: VarValue>(value: T) -> ArcVar<T> {
+    ArcVar(Arc::new(VarData::new(value)))
 }
 
 /// New ref counted read/write variable with initial value converted from `source`.
-pub fn var_from<T: VarValue, U: Into<T>>(source: U) -> RcVar<T> {
+pub fn var_from<T: VarValue, U: Into<T>>(source: U) -> ArcVar<T> {
     var(source.into())
 }
 
 /// New ref counted read/write variable with default initial value.
-pub fn var_default<T: VarValue + Default>() -> RcVar<T> {
+pub fn var_default<T: VarValue + Default>() -> ArcVar<T> {
     var(T::default())
 }
 
-impl<T: VarValue> WeakRcVar<T> {
+impl<T: VarValue> WeakArcVar<T> {
     /// New reference to nothing.
     pub fn new() -> Self {
         Self(Weak::new())
     }
 }
 
-impl<T: VarValue> Default for WeakRcVar<T> {
+impl<T: VarValue> Default for WeakArcVar<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: VarValue> crate::private::Sealed for RcVar<T> {}
+impl<T: VarValue> crate::private::Sealed for ArcVar<T> {}
 
-impl<T: VarValue> crate::private::Sealed for WeakRcVar<T> {}
+impl<T: VarValue> crate::private::Sealed for WeakArcVar<T> {}
 
-impl<T: VarValue> AnyVar for RcVar<T> {
+impl<T: VarValue> AnyVar for ArcVar<T> {
     fn clone_any(&self) -> BoxedAnyVar {
         Box::new(self.clone())
     }
@@ -96,7 +96,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakRcVar(Arc::downgrade(&self.0)))
+        Box::new(WeakArcVar(Arc::downgrade(&self.0)))
     }
 
     fn is_animating(&self) -> bool {
@@ -112,7 +112,7 @@ impl<T: VarValue> AnyVar for RcVar<T> {
     }
 }
 
-impl<T: VarValue> AnyWeakVar for WeakRcVar<T> {
+impl<T: VarValue> AnyWeakVar for WeakArcVar<T> {
     fn clone_any(&self) -> BoxedAnyWeakVar {
         Box::new(self.clone())
     }
@@ -126,7 +126,7 @@ impl<T: VarValue> AnyWeakVar for WeakRcVar<T> {
     }
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
-        self.0.upgrade().map(|rc| Box::new(RcVar(rc)) as _)
+        self.0.upgrade().map(|rc| Box::new(ArcVar(rc)) as _)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -134,7 +134,7 @@ impl<T: VarValue> AnyWeakVar for WeakRcVar<T> {
     }
 }
 
-impl<T: VarValue> IntoVar<T> for RcVar<T> {
+impl<T: VarValue> IntoVar<T> for ArcVar<T> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -142,7 +142,7 @@ impl<T: VarValue> IntoVar<T> for RcVar<T> {
     }
 }
 
-impl<T: VarValue> RcVar<T> {
+impl<T: VarValue> ArcVar<T> {
     fn modify_impl(&self, vars: &Vars, modify: impl FnOnce(&mut Cow<T>) + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
         vars.schedule_update(Box::new(move |vars, updates| {
@@ -156,12 +156,12 @@ impl<T: VarValue> RcVar<T> {
     }
 }
 
-impl<T: VarValue> Var<T> for RcVar<T> {
+impl<T: VarValue> Var<T> for ArcVar<T> {
     type ReadOnly = types::ReadOnlyVar<T, Self>;
 
     type ActualVar = Self;
 
-    type Downgrade = WeakRcVar<T>;
+    type Downgrade = WeakArcVar<T>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -182,8 +182,8 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         self
     }
 
-    fn downgrade(&self) -> WeakRcVar<T> {
-        WeakRcVar(Arc::downgrade(&self.0))
+    fn downgrade(&self) -> WeakArcVar<T> {
+        WeakArcVar(Arc::downgrade(&self.0))
     }
 
     fn into_value(self) -> T {
@@ -198,10 +198,10 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 }
 
-impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
-    type Upgrade = RcVar<T>;
+impl<T: VarValue> WeakVar<T> for WeakArcVar<T> {
+    type Upgrade = ArcVar<T>;
 
-    fn upgrade(&self) -> Option<RcVar<T>> {
-        self.0.upgrade().map(|rc| RcVar(rc))
+    fn upgrade(&self) -> Option<ArcVar<T>> {
+        self.0.upgrade().map(|rc| ArcVar(rc))
     }
 }

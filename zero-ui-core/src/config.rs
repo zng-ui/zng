@@ -73,8 +73,8 @@ pub trait ConfigValue: VarValue + PartialEq + serde::Serialize + serde::de::Dese
 impl<T: VarValue + PartialEq + serde::Serialize + serde::de::DeserializeOwned> ConfigValue for T {}
 
 /// Return `true` to retain, `false` to drop.
-type ConfigTask = Box<dyn FnMut(&Vars, &RcVar<ConfigStatus>) -> bool>;
-type OnceConfigTask = Box<dyn FnOnce(&Vars, &RcVar<ConfigStatus>)>;
+type ConfigTask = Box<dyn FnMut(&Vars, &ArcVar<ConfigStatus>) -> bool>;
+type OnceConfigTask = Box<dyn FnOnce(&Vars, &ArcVar<ConfigStatus>)>;
 
 /// Represents the configuration of the app.
 ///
@@ -120,7 +120,7 @@ pub struct Config {
     source: Option<(Box<dyn ConfigSource>, AppExtReceiver<ConfigSourceUpdate>)>,
     vars: HashMap<ConfigKey, ConfigVar>,
 
-    status: RcVar<ConfigStatus>,
+    status: ArcVar<ConfigStatus>,
 
     once_tasks: Vec<OnceConfigTask>,
     tasks: Vec<ConfigTask>,
@@ -225,7 +225,7 @@ impl Config {
     }
 
     /// Gets a variable that tracks the source write tasks.
-    pub fn status(&self) -> ReadOnlyRcVar<ConfigStatus> {
+    pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
         self.status.read_only()
     }
 
@@ -476,7 +476,7 @@ impl Config {
         }
     }
 
-    fn var_with_source<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> RcVar<ValueWithSource<T>> {
+    fn var_with_source<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> ArcVar<ValueWithSource<T>> {
         let refresh;
 
         let r = match self.vars.entry(key) {
@@ -553,7 +553,7 @@ impl ConfigAlt {
     }
 
     /// Gets a variable that tracks the source write tasks.
-    pub fn status(&self) -> ReadOnlyRcVar<ConfigStatus> {
+    pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
         self.0.borrow().status()
     }
 
@@ -644,7 +644,7 @@ struct ConfigVar {
     run_task: Box<dyn Fn(ConfigVarTask, ConfigVarTaskArgs) -> VarUpdateTask>,
 }
 impl ConfigVar {
-    fn new<T: ConfigValue>(initial_value: T) -> (Self, RcVar<ValueWithSource<T>>) {
+    fn new<T: ConfigValue>(initial_value: T) -> (Self, ArcVar<ValueWithSource<T>>) {
         let write = Arc::new(AtomicBool::new(false));
         let var = var(ValueWithSource {
             value: initial_value,
@@ -666,8 +666,8 @@ impl ConfigVar {
         })
     }
 
-    fn downcast<T: ConfigValue>(&self) -> Option<RcVar<ValueWithSource<T>>> {
-        self.var.as_any().downcast_ref::<types::WeakRcVar<ValueWithSource<T>>>()?.upgrade()
+    fn downcast<T: ConfigValue>(&self) -> Option<ArcVar<ValueWithSource<T>>> {
+        self.var.as_any().downcast_ref::<types::WeakArcVar<ValueWithSource<T>>>()?.upgrade()
     }
 
     fn read(&self, args: ConfigVarTaskArgs) -> VarUpdateTask {
@@ -677,7 +677,7 @@ impl ConfigVar {
         (self.run_task)(ConfigVarTask::Write, args)
     }
     fn run_task_impl<T: ConfigValue>(task: ConfigVarTask, args: ConfigVarTaskArgs) -> VarUpdateTask {
-        if let Some(var) = args.var.as_any().downcast_ref::<RcVar<ValueWithSource<T>>>() {
+        if let Some(var) = args.var.as_any().downcast_ref::<ArcVar<ValueWithSource<T>>>() {
             match task {
                 ConfigVarTask::Read => {
                     let key = args.key.clone();

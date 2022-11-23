@@ -34,7 +34,7 @@ pub struct ResolvedText {
     /// Caret opacity.
     ///
     /// This variable is replaced often, the text resolver subscribes to it automatically.
-    pub caret_opacity: ReadOnlyRcVar<Factor>,
+    pub caret_opacity: ReadOnlyArcVar<Factor>,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
     baseline: Px,

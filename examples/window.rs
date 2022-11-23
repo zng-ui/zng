@@ -467,7 +467,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     })
 }
 
-fn close_dialog(windows: Vec<WindowId>, state: RcVar<CloseState>) -> impl UiNode {
+fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
     container! {
         id = "close-dialog";
         modal = true;

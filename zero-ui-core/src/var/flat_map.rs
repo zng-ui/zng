@@ -17,12 +17,12 @@ struct Data<T, V> {
 }
 
 /// See [`Var::flat_map`].
-pub struct RcFlatMapVar<T, V>(Arc<RwLock<Data<T, V>>>);
+pub struct ArcFlatMapVar<T, V>(Arc<RwLock<Data<T, V>>>);
 
-/// Weak reference to a [`RcFlatMapVar<T, V>`].
+/// Weak reference to a [`ArcFlatMapVar<T, V>`].
 pub struct WeakFlatMapVar<T, V>(Weak<RwLock<Data<T, V>>>);
 
-impl<T, V> RcFlatMapVar<T, V>
+impl<T, V> ArcFlatMapVar<T, V>
 where
     T: VarValue,
     V: Var<T>,
@@ -42,14 +42,14 @@ where
             let mut data = flat.write();
             let weak_flat = Arc::downgrade(&flat);
             let map = Mutex::new(map);
-            data.var_handle = data.var.hook(RcFlatMapVar::on_var_hook(weak_flat.clone()));
+            data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
             data.source_handle = source.hook(Box::new(move |vars, updates, value| {
                 if let Some(flat) = weak_flat.upgrade() {
                     if let Some(value) = value.as_any().downcast_ref() {
                         let mut data = flat.write();
                         let data = &mut *data;
                         data.var = map.lock()(value);
-                        data.var_handle = data.var.hook(RcFlatMapVar::on_var_hook(weak_flat.clone()));
+                        data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
                         data.last_update = vars.update_id();
                         data.var.with(|value| {
                             data.hooks.retain(|h| h.call(vars, updates, value));
@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<T, V> Clone for RcFlatMapVar<T, V>
+impl<T, V> Clone for ArcFlatMapVar<T, V>
 where
     T: VarValue,
     V: Var<T>,
@@ -99,7 +99,7 @@ where
     }
 }
 
-impl<T, V> crate::private::Sealed for RcFlatMapVar<T, V>
+impl<T, V> crate::private::Sealed for ArcFlatMapVar<T, V>
 where
     T: VarValue,
     V: Var<T>,
@@ -113,7 +113,7 @@ where
 {
 }
 
-impl<T, V> AnyVar for RcFlatMapVar<T, V>
+impl<T, V> AnyVar for ArcFlatMapVar<T, V>
 where
     T: VarValue,
     V: Var<T>,
@@ -204,7 +204,7 @@ where
     }
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
-        self.0.upgrade().map(|rc| Box::new(RcFlatMapVar(rc)) as _)
+        self.0.upgrade().map(|rc| Box::new(ArcFlatMapVar(rc)) as _)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -212,7 +212,7 @@ where
     }
 }
 
-impl<T, V> IntoVar<T> for RcFlatMapVar<T, V>
+impl<T, V> IntoVar<T> for ArcFlatMapVar<T, V>
 where
     T: VarValue,
     V: Var<T>,
@@ -224,7 +224,7 @@ where
     }
 }
 
-impl<T, V> Var<T> for RcFlatMapVar<T, V>
+impl<T, V> Var<T> for ArcFlatMapVar<T, V>
 where
     T: VarValue,
     V: Var<T>,
@@ -275,9 +275,9 @@ where
     T: VarValue,
     V: Var<T>,
 {
-    type Upgrade = RcFlatMapVar<T, V>;
+    type Upgrade = ArcFlatMapVar<T, V>;
 
     fn upgrade(&self) -> Option<Self::Upgrade> {
-        self.0.upgrade().map(|rc| RcFlatMapVar(rc))
+        self.0.upgrade().map(|rc| ArcFlatMapVar(rc))
     }
 }

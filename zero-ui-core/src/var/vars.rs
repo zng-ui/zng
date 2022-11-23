@@ -78,17 +78,17 @@ impl Vars {
     /// Returns a read-only variable that tracks if animations are enabled in the operating system.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
-    pub fn animations_enabled(&self) -> ReadOnlyRcVar<bool> {
+    pub fn animations_enabled(&self) -> ReadOnlyArcVar<bool> {
         self.ans.animations_enabled.read_only()
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
-    pub fn frame_duration(&self) -> &RcVar<Duration> {
+    pub fn frame_duration(&self) -> &ArcVar<Duration> {
         &self.ans.frame_duration
     }
 
     /// Variable that defines a global scale for the elapsed time of animations.
-    pub fn animation_time_scale(&self) -> &RcVar<Factor> {
+    pub fn animation_time_scale(&self) -> &ArcVar<Factor> {
         &self.ans.animation_time_scale
     }
 

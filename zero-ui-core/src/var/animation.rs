@@ -2,6 +2,7 @@
 
 use std::{
     mem, ops,
+    rc::Rc,
     time::{Duration, Instant},
 };
 
@@ -413,9 +414,9 @@ pub(super) struct Animations {
     pub(super) current_modify: RefCell<ModifyInfo>,
     pub(super) animation_start_time: Cell<Option<Instant>>,
     next_frame: Cell<Option<Deadline>>,
-    pub(super) animations_enabled: RcVar<bool>,
-    pub(super) frame_duration: RcVar<Duration>,
-    pub(super) animation_time_scale: RcVar<Factor>,
+    pub(super) animations_enabled: ArcVar<bool>,
+    pub(super) frame_duration: ArcVar<Duration>,
+    pub(super) animation_time_scale: ArcVar<Factor>,
 }
 impl Animations {
     pub(crate) fn new() -> Self {

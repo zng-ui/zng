@@ -79,7 +79,7 @@ fn tab_index() -> impl UiNode {
     }
 }
 
-fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
+fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(F);
@@ -112,7 +112,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
             },
             // Detach Button
             {
-                let detach_focused = RcNode::new_cyclic(|wk| {
+                let detach_focused = ArcNode::new_cyclic(|wk| {
                     let btn = button! {
                         child = text("Detach Button");
                         // focus_on_init = true;
@@ -144,7 +144,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl UiNode {
         ]
     }
 }
-fn disable_window(window_enabled: RcVar<bool>) -> impl UiNode {
+fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
     button! {
         child = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
@@ -155,7 +155,7 @@ fn disable_window(window_enabled: RcVar<bool>) -> impl UiNode {
         });
     }
 }
-fn overlay(window_enabled: RcVar<bool>) -> impl UiNode {
+fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
     container! {
         id = "overlay";
         modal = true;

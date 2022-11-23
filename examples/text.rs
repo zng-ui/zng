@@ -62,8 +62,8 @@ fn app_main() {
     })
 }
 
-fn font_size(font_size: RcVar<Length>) -> impl UiNode {
-    fn change_size(font_size: &RcVar<Length>, change: f32, ctx: &mut WidgetContext) {
+fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
+    fn change_size(font_size: &ArcVar<Length>, change: f32, ctx: &mut WidgetContext) {
         font_size.modify(ctx, move |s| {
             *s.to_mut() += Length::Pt(change);
         });

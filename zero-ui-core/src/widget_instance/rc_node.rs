@@ -53,16 +53,16 @@ impl<U> Default for SlotsData<U> {
 /// When a slot takes the node it is deinited in the previous UI tree place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the node when they have it as their child and a weak reference when they don't.
-pub struct RcNode<U: UiNode>(Arc<SlotData<U>>);
-impl<U: UiNode> Clone for RcNode<U> {
+pub struct ArcNode<U: UiNode>(Arc<SlotData<U>>);
+impl<U: UiNode> Clone for ArcNode<U> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
-impl<U: UiNode> RcNode<U> {
+impl<U: UiNode> ArcNode<U> {
     /// New node.
     pub fn new(node: U) -> Self {
-        RcNode(Arc::new(SlotData {
+        ArcNode(Arc::new(SlotData {
             item: Mutex::new(node),
             slots: Mutex::default(),
         }))
@@ -163,7 +163,7 @@ impl<U: UiNode> RcNode<U> {
     }
 }
 
-/// `Weak` reference to a [`RcNode<U>`].
+/// `Weak` reference to a [`ArcNode<U>`].
 pub struct WeakNode<U: UiNode>(Weak<SlotData<U>>);
 impl<U: UiNode> Clone for WeakNode<U> {
     fn clone(&self) -> Self {
@@ -171,9 +171,9 @@ impl<U: UiNode> Clone for WeakNode<U> {
     }
 }
 impl<U: UiNode> WeakNode<U> {
-    /// Attempts to upgrade to a [`RcNode<U>`].
-    pub fn upgrade(&self) -> Option<RcNode<U>> {
-        self.0.upgrade().map(RcNode)
+    /// Attempts to upgrade to a [`ArcNode<U>`].
+    pub fn upgrade(&self) -> Option<ArcNode<U>> {
+        self.0.upgrade().map(ArcNode)
     }
 }
 
@@ -186,16 +186,16 @@ impl<U: UiNode> WeakNode<U> {
 /// When a slot takes the list it is deinited in the previous UI tree place and reinited in the slot place.
 ///
 /// Slots hold a strong reference to the list when they have it as their child and a weak reference when they don't.
-pub struct RcNodeList<L: UiNodeList>(Arc<SlotData<L>>);
-impl<L: UiNodeList> Clone for RcNodeList<L> {
+pub struct ArcNodeList<L: UiNodeList>(Arc<SlotData<L>>);
+impl<L: UiNodeList> Clone for ArcNodeList<L> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
-impl<L: UiNodeList> RcNodeList<L> {
+impl<L: UiNodeList> ArcNodeList<L> {
     /// New list.
     pub fn new(list: L) -> Self {
-        RcNodeList(Arc::new(SlotData {
+        ArcNodeList(Arc::new(SlotData {
             item: Mutex::new(list),
             slots: Mutex::default(),
         }))
@@ -300,7 +300,7 @@ impl<L: UiNodeList> RcNodeList<L> {
     }
 }
 
-/// `Weak` reference to a [`RcNodeList<U>`].
+/// `Weak` reference to a [`ArcNodeList<U>`].
 pub struct WeakNodeList<L: UiNodeList>(Weak<SlotData<L>>);
 impl<L: UiNodeList> Clone for WeakNodeList<L> {
     fn clone(&self) -> Self {
@@ -308,9 +308,9 @@ impl<L: UiNodeList> Clone for WeakNodeList<L> {
     }
 }
 impl<L: UiNodeList> WeakNodeList<L> {
-    /// Attempts to upgrade to a [`RcNodeList<U>`].
-    pub fn upgrade(&self) -> Option<RcNodeList<L>> {
-        self.0.upgrade().map(RcNodeList)
+    /// Attempts to upgrade to a [`ArcNodeList<U>`].
+    pub fn upgrade(&self) -> Option<ArcNodeList<L>> {
+        self.0.upgrade().map(ArcNodeList)
     }
 }
 

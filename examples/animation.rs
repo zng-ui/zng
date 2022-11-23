@@ -129,11 +129,11 @@ fn example(vars: &Vars) -> impl UiNode {
 }
 
 fn ease_btn(
-    l: &RcVar<Length>,
-    color: &RcVar<Rgba>,
+    l: &ArcVar<Length>,
+    color: &ArcVar<Rgba>,
     name: impl Into<Text>,
     easing: impl Fn(EasingTime) -> EasingStep + Copy + Send + Sync + 'static,
-    easing_mod: &RcVar<easing::EasingModifierFn>,
+    easing_mod: &ArcVar<easing::EasingModifierFn>,
 ) -> impl UiNode {
     let in_plot = plot(easing);
     let out_plot = plot(move |t| easing::ease_out(easing, t));

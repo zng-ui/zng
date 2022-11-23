@@ -278,7 +278,7 @@
 //!
 //! The button moves to the right when clicked, the `margin` starts at `10` and every click the variable is modified, this causes
 //! the `margin` property to request a re-layout and render. Note that the variable is now *shared* between two places, variables
-//! that update are *counted* references to a shared value, the one created in the example is called [`RcVar<T>`].
+//! that update are *counted* references to a shared value, the one created in the example is called [`ArcVar<T>`].
 //!
 //! ### Variable Get/Set
 //!
@@ -563,7 +563,7 @@
 //! # use zero_ui::prelude::*;
 //! # let _scope = App::blank();
 //! # let status = var("Waiting Double Click..".to_text());
-//! # async fn some_task(status: RcVar<Text>) { }
+//! # async fn some_task(status: ArcVar<Text>) { }
 //! button! {
 //!     on_click = async_hn!(status, |ctx, args: ClickArgs| {
 //!         if args.is_double() {
@@ -838,7 +838,7 @@
 //! [`Text`]: crate::core::text::Text
 //! [`Vars`]: crate::core::var::Vars
 //! [`SideOffsets`]: crate::core::units::SideOffsets
-//! [`RcVar<T>`]: crate::core::var::RcVar
+//! [`ArcVar<T>`]: crate::core::var::ArcVar
 //! [#widget]: macro@crate::core::widget
 //! [#property]: macro@crate::core::property
 //! [#ui_node]: macro@crate::core::ui_node
@@ -943,13 +943,13 @@ pub mod prelude {
         },
         var::{
             animation::{self, easing},
-            expr_var, merge_var, state_var, var, var_default, var_from, AnyVar, IntoVar, RcVar, Var, VarReceiver, VarSender, VarValue,
+            expr_var, merge_var, state_var, var, var_default, var_from, AnyVar, ArcVar, IntoVar, Var, VarReceiver, VarSender, VarValue,
             Vars,
         },
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility, WidgetPath},
         widget_instance::{
-            ui_list, z_index, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList,
+            ui_list, z_index, ArcNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, UiNode, UiNodeList,
             UiNodeListChain, WidgetId, ZIndex,
         },
         window::{

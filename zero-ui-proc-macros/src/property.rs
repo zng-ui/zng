@@ -411,7 +411,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_ui_node.is_empty() {
             get_ui_node = quote! {
-                fn ui_node(&self, __index__: usize) -> &#core::widget_instance::RcNode<#core::widget_instance::BoxedUiNode> {
+                fn ui_node(&self, __index__: usize) -> &#core::widget_instance::ArcNode<#core::widget_instance::BoxedUiNode> {
                     match __index__ {
                         #get_ui_node
                         n => #core::widget_builder::panic_input(&self.property(), n, #core::widget_builder::InputKind::UiNode),
@@ -421,7 +421,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_ui_node_list.is_empty() {
             get_ui_node_list = quote! {
-                fn ui_node_list(&self, __index__: usize) -> &#core::widget_instance::RcNodeList<#core::widget_instance::BoxedUiNodeList> {
+                fn ui_node_list(&self, __index__: usize) -> &#core::widget_instance::ArcNodeList<#core::widget_instance::BoxedUiNodeList> {
                     match __index__ {
                         #get_ui_node_list
                         n => #core::widget_builder::panic_input(&self.property(), n, #core::widget_builder::InputKind::UiNodeList),
@@ -431,7 +431,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_widget_handler.is_empty() {
             get_widget_handler = quote! {
-                fn widget_handler(&self, __index__: usize) -> &dyn #core::widget_builder::AnyRcWidgetHandler {
+                fn widget_handler(&self, __index__: usize) -> &dyn #core::widget_builder::AnyArcWidgetHandler {
                     match __index__ {
                         #get_widget_handler
                         n => #core::widget_builder::panic_input(&self.property(), n, #core::widget_builder::InputKind::WidgetHandler),
@@ -722,21 +722,21 @@ impl Input {
                                     "WidgetHandler" if !seg.arguments.is_empty() => {
                                         if ty_from_generic(&mut input, errors, &t.ty, InputKind::WidgetHandler, &seg.arguments) {
                                             let t = &input.info_ty;
-                                            input.storage_ty = quote!(#core::widget_builder::RcWidgetHandler<#t>);
+                                            input.storage_ty = quote!(#core::widget_builder::ArcWidgetHandler<#t>);
                                         }
                                     }
                                     "UiNode" => {
                                         input.kind = InputKind::UiNode;
                                         input.ty = t.ty.to_token_stream();
                                         input.info_ty = quote_spanned!(t.ty.span()=> #core::widget_instance::BoxedUiNode);
-                                        input.storage_ty = quote!(#core::widget_instance::RcNode<#core::widget_instance::BoxedUiNode>);
+                                        input.storage_ty = quote!(#core::widget_instance::ArcNode<#core::widget_instance::BoxedUiNode>);
                                     }
                                     "UiNodeList" => {
                                         input.kind = InputKind::UiNodeList;
                                         input.ty = t.ty.to_token_stream();
                                         input.info_ty = quote_spanned!(t.ty.span()=> #core::widget_instance::BoxedUiNodeList);
                                         input.storage_ty =
-                                            quote!(#core::widget_instance::RcNodeList<#core::widget_instance::BoxedUiNodeList>)
+                                            quote!(#core::widget_instance::ArcNodeList<#core::widget_instance::BoxedUiNodeList>)
                                     }
                                     _ => {
                                         errors.push("property input can only have impl types for: IntoVar<T>, IntoValue<T>, UiNode, WidgetHandler<A>, UiNodeList", seg.span());

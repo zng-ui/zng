@@ -1,4 +1,4 @@
-use rc::WeakRcVar;
+use rc::WeakArcVar;
 
 use super::*;
 
@@ -65,7 +65,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakRcVar::<T>::new())
+        Box::new(WeakArcVar::<T>::new())
     }
 
     fn is_animating(&self) -> bool {
@@ -125,7 +125,7 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
 
     type ActualVar = Self;
 
-    type Downgrade = WeakRcVar<T>;
+    type Downgrade = WeakArcVar<T>;
 
     fn with<R, F>(&self, read: F) -> R
     where
@@ -149,7 +149,7 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
     }
 
     fn downgrade(&self) -> Self::Downgrade {
-        WeakRcVar::new()
+        WeakArcVar::new()
     }
 
     fn into_value(self) -> T {

@@ -8,13 +8,13 @@ mod any {
     #[test]
     fn downcast_ref_rc() {
         let any_var = var(true).boxed_any();
-        assert!(any_var.as_any().downcast_ref::<RcVar<bool>>().is_some())
+        assert!(any_var.as_any().downcast_ref::<ArcVar<bool>>().is_some())
     }
 
     #[test]
     fn downcast_ref_boxed() {
         let any_var = var(true).boxed().boxed_any();
-        assert!(any_var.as_any().downcast_ref::<RcVar<bool>>().is_some())
+        assert!(any_var.as_any().downcast_ref::<ArcVar<bool>>().is_some())
     }
 
     #[test]
@@ -36,14 +36,14 @@ mod any {
     fn downcast_rc() {
         let any_var = var(true).boxed_any();
         let any_box = any_var.as_any();
-        assert!(any_box.downcast_ref::<RcVar<bool>>().is_some());
+        assert!(any_box.downcast_ref::<ArcVar<bool>>().is_some());
     }
 
     #[test]
     fn downcast_boxed() {
         let any_var = var(true).boxed().boxed_any();
         let any_box = any_var.as_any();
-        assert!(any_box.downcast_ref::<RcVar<bool>>().is_some());
+        assert!(any_box.downcast_ref::<ArcVar<bool>>().is_some());
     }
 }
 
@@ -748,7 +748,7 @@ mod flat_map {
     #[derive(Clone)]
     pub struct Foo {
         pub bar: bool,
-        pub var: RcVar<usize>,
+        pub var: ArcVar<usize>,
     }
     impl fmt::Debug for Foo {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

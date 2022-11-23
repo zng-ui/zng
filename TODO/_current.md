@@ -5,9 +5,6 @@
 * Sort property build actions by importance?
     - Right now we just have one, `easing` but can be many.
 
-* Rename all `Rc` prefixed stuff to `Arc`.
-    - `RcVar`, `RcWidgetHandler`, etc.
-
 * `is_hovered` in `window!` causes continuous activation/deactivation of when state.
 
 * Continue "#Parallel UI" in `./Performance.md`.

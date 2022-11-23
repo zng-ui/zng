@@ -7,7 +7,6 @@ use std::{
     fmt,
     marker::PhantomData,
     ops,
-    rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -60,8 +59,8 @@ pub use expr::expr_var;
 pub use local::LocalVar;
 #[doc(inline)]
 pub use merge::merge_var;
-pub use rc::{var, var_default, var_from, RcVar};
-pub use read_only::ReadOnlyRcVar;
+pub use rc::{var, var_default, var_from, ArcVar};
+pub use read_only::ReadOnlyArcVar;
 pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use state::*;
 pub use vars::*;
@@ -75,17 +74,17 @@ pub mod types {
     pub use super::boxed::{VarBoxed, WeakVarBoxed};
     pub use super::context::{context_var_init, with_new_context_init_id, WeakContextInitHandle};
     pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
-    pub use super::cow::{RcCowVar, WeakCowVar};
+    pub use super::cow::{ArcCowVar, WeakCowVar};
     pub use super::expr::__expr_var;
-    pub use super::flat_map::{RcFlatMapVar, WeakFlatMapVar};
+    pub use super::flat_map::{ArcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNewFut, WaitIsNotAnimatingFut, WaitNewFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
-    pub use super::merge::{ContextualizedRcMergeVar, RcMergeVar, RcMergeVarInput, WeakMergeVar, __merge_var};
+    pub use super::merge::{ArcMergeVar, ArcMergeVarInput, ContextualizedArcMergeVar, WeakMergeVar, __merge_var};
     pub use super::property_build_action::easing_property;
-    pub use super::rc::WeakRcVar;
+    pub use super::rc::WeakArcVar;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
-    pub use super::when::{AnyWhenVarBuilder, ContextualizedRcWhenVar, RcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
+    pub use super::when::{AnyWhenVarBuilder, ArcWhenVar, ContextualizedArcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
 
     use super::*;
 
@@ -485,23 +484,23 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
     /// Gets the number of strong references to the variable.
     ///
-    /// This is the [`Rc::strong_count`] for *Rc* variables, the represented var count for [`ContextVar<T>`], the boxed var count
+    /// This is the [`Arc::strong_count`] for *Arc* variables, the represented var count for [`ContextVar<T>`], the boxed var count
     /// for [`BoxedVar<T>`] and `0` for [`LocalVar<T>`].
     fn strong_count(&self) -> usize;
 
     /// Gets the number of weak references to the variable.
     ///
-    /// This is the [`Rc::weak_count`] for *Rc* variables, the represented var count for [`ContextVar<T>`], the boxed var count
+    /// This is the [`Arc::weak_count`] for *Arc* variables, the represented var count for [`ContextVar<T>`], the boxed var count
     /// for [`BoxedVar<T>`] and `0` for [`LocalVar<T>`].
     fn weak_count(&self) -> usize;
 
     /// Gets a clone of the represented var from [`ContextVar<T>`], gets a clone of `self` for other var types.
     fn actual_var_any(&self) -> BoxedAnyVar;
 
-    /// Create a weak reference to this *Rc* variable.
+    /// Create a weak reference to this *Arc* variable.
     ///
     /// The weak reference is made to the [`actual_var`], if the actual var is a [`LocalVar<T>`]
-    /// a [`types::WeakRcVar<T>`] is returned, for *Rc* vars an actual weak reference is made.
+    /// a [`types::WeakArcVar<T>`] is returned, for *Arc* vars an actual weak reference is made.
     ///
     /// [`actual_var`]: Var::actual_var
     fn downgrade_any(&self) -> BoxedAnyWeakVar;
@@ -794,7 +793,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Output of [`Var::actual_var`].
     ///
-    /// This is [`BoxedVar<T>`] for [`ContextVar<T>`], `V` for [`types::RcFlatMapVar<T, V>`] and `Self` for others.
+    /// This is [`BoxedVar<T>`] for [`ContextVar<T>`], `V` for [`types::ArcFlatMapVar<T, V>`] and `Self` for others.
     type ActualVar: Var<T>;
 
     /// Output of [`Var::downgrade`].
@@ -831,13 +830,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 
     /// Gets the current *inner* var represented by this var. This is the same var, except for [`ContextVar<T>`]
-    /// and [`types::RcFlatMapVar<T, V>`].
+    /// and [`types::ArcFlatMapVar<T, V>`].
     fn actual_var(self) -> Self::ActualVar;
 
-    /// Create a weak reference to this *Rc* variable.
+    /// Create a weak reference to this *Arc* variable.
     ///
     /// The weak reference is made to the [`actual_var`], if the actual var is a [`LocalVar<T>`]
-    /// a clone of it is returned, for *Rc* vars an actual weak reference is made.
+    /// a clone of it is returned, for *Arc* vars an actual weak reference is made.
     ///
     /// [`actual_var`]: Var::actual_var
     fn downgrade(&self) -> Self::Downgrade;
@@ -1021,14 +1020,14 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.modify(vars, var_touch)
     }
 
-    /// Create a ref-counted var that redirects to this variable until the first value touch, then it behaves like a [`RcVar<T>`].
+    /// Create a ref-counted var that redirects to this variable until the first value touch, then it behaves like a [`ArcVar<T>`].
     ///
     /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
     /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped
-    /// and the cow var behaves like a [`RcVar<T>`], if the modify closure does not touch the cloned value it is dropped and the cow
+    /// and the cow var behaves like a [`ArcVar<T>`], if the modify closure does not touch the cloned value it is dropped and the cow
     /// continues to redirect to the source variable.
-    fn cow(&self) -> types::RcCowVar<T, Self> {
-        types::RcCowVar::new(self.clone())
+    fn cow(&self) -> types::ArcCowVar<T, Self> {
+        types::ArcCowVar::new(self.clone())
     }
 
     /// Creates a ref-counted var that maps from this variable.
@@ -1045,7 +1044,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`map_bidi`]: Var::map_bidi
     /// [contextualized]: types::ContextualizedVar
-    fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> O + 'static + Send,
@@ -1063,7 +1062,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Creates a [`map`] that converts from `T` to `O` using [`Into<O>`].
     ///
     /// [`map`]: Var::map
-    fn map_into<O>(&self) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    fn map_into<O>(&self) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
     where
         O: VarValue,
         T: Into<O>,
@@ -1076,7 +1075,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`map`]: Var::map
     /// [`Text`]: crate::text::Text
     /// [`ToText`]: crate::text::ToText
-    fn map_to_text(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyRcVar<crate::text::Text>>
+    fn map_to_text(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>>
     where
         T: crate::text::ToText,
     {
@@ -1086,7 +1085,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Create a [`map`] that converts from `T` to [`String`] using [`ToString`].
     ///
     /// [`map`]: Var::map
-    fn map_to_string(&self) -> types::ContextualizedVar<String, ReadOnlyRcVar<String>>
+    fn map_to_string(&self) -> types::ContextualizedVar<String, ReadOnlyArcVar<String>>
     where
         T: ToString,
     {
@@ -1097,7 +1096,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`map`]: Var::map
     /// [`Text`]: crate::text::Text
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyRcVar<crate::text::Text>> {
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
         self.map(|v| crate::text::formatx!("{v:?}"))
     }
 
@@ -1109,7 +1108,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: types::ContextualizedVar
-    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> types::ContextualizedVar<O, RcVar<O>>
+    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> types::ContextualizedVar<O, ArcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> O + Send + 'static,
@@ -1137,7 +1136,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: types::ContextualizedVar
-    fn flat_map<O, V, M>(&self, map: M) -> types::ContextualizedVar<O, types::RcFlatMapVar<O, V>>
+    fn flat_map<O, V, M>(&self, map: M) -> types::ContextualizedVar<O, types::ArcFlatMapVar<O, V>>
     where
         O: VarValue,
         V: Var<O>,
@@ -1147,7 +1146,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         let map = Arc::new(Mutex::new(map));
         types::ContextualizedVar::new(Arc::new(move || {
             let map = map.clone();
-            types::RcFlatMapVar::new(&me, move |i| map.lock()(i))
+            types::ArcFlatMapVar::new(&me, move |i| map.lock()(i))
         }))
     }
 
@@ -1165,7 +1164,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [contextualized]: types::ContextualizedVar
     /// [`map_bidi`]: Var::map_bidi
     /// [`filter_map_bidi`]: Var::filter_map_bidi
-    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + Send + 'static,
@@ -1184,7 +1183,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Create a [`filter_map`] that tries to convert from `T` to `O` using [`TryInto<O>`].
     ///
     /// [`filter_map`]: Var::filter_map
-    fn filter_try_into<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    fn filter_try_into<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
     where
         O: VarValue,
         T: TryInto<O>,
@@ -1197,7 +1196,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`filter_map`]: Var::filter_map
     /// [`FromStr`]: std::str::FromStr
-    fn filter_parse<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyRcVar<O>>
+    fn filter_parse<O, I>(&self, fallback: I) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
     where
         O: VarValue + std::str::FromStr,
         T: AsRef<str>,
@@ -1219,7 +1218,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
     /// [contextualized]: types::ContextualizedVar
-    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, RcVar<O>>
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> types::ContextualizedVar<O, ArcVar<O>>
     where
         O: VarValue,
         M: FnMut(&T) -> Option<O> + Send + 'static,
@@ -1781,7 +1780,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [contextualized]: types::ContextualizedVar
     /// [`ease`]: Var::ease
-    fn easing<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
+    fn easing<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
     where
         T: animation::Transitionable,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,
@@ -1806,7 +1805,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`easing`]: Var::easing
     /// [`ease_ne`]: Var::ease_ne
-    fn easing_ne<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyRcVar<T>>
+    fn easing_ne<F>(&self, duration: Duration, easing: F) -> types::ContextualizedVar<T, ReadOnlyArcVar<T>>
     where
         T: animation::Transitionable + PartialEq,
         F: Fn(EasingTime) -> EasingStep + Send + Sync + 'static,

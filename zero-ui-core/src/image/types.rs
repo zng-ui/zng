@@ -16,7 +16,7 @@ use crate::{
     task::{self, SignalOnce},
     text::Text,
     units::*,
-    var::{AnyVar, ReadOnlyRcVar},
+    var::{AnyVar, ReadOnlyArcVar},
     widget_instance::UiNode,
     window::{FrameCaptureMode, Window, WindowId, WindowVars},
 };
@@ -76,7 +76,7 @@ pub enum ProxyRemoveResult {
 /// The variable updates when the image updates.
 ///
 /// [`Images`]: super::Images
-pub type ImageVar = ReadOnlyRcVar<Image>;
+pub type ImageVar = ReadOnlyArcVar<Image>;
 
 /// State of an [`ImageVar`].
 ///

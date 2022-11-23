@@ -17,7 +17,7 @@ use crate::{
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
     units::*,
-    var::{types::WeakRcVar, *},
+    var::{types::WeakArcVar, *},
 };
 
 mod types;
@@ -265,15 +265,15 @@ pub struct Images {
     updates: AppEventSender,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
-    loading: Vec<(UiTask<ImageData>, RcVar<Image>, ByteLength)>,
-    decoding: Vec<(ImageDataFormat, IpcBytes, RcVar<Image>)>,
+    loading: Vec<(UiTask<ImageData>, ArcVar<Image>, ByteLength)>,
+    decoding: Vec<(ImageDataFormat, IpcBytes, ArcVar<Image>)>,
     cache: IdMap<ImageHash, CacheEntry>,
-    not_cached: Vec<(WeakRcVar<Image>, ByteLength)>,
+    not_cached: Vec<(WeakArcVar<Image>, ByteLength)>,
 
     render: render::ImagesRender,
 }
 struct CacheEntry {
-    img: RcVar<Image>,
+    img: ArcVar<Image>,
     error: Cell<bool>,
     max_decoded_size: ByteLength,
 }
@@ -714,7 +714,7 @@ impl Images {
         }
     }
 
-    fn new_cache_image(&mut self, key: ImageHash, mode: ImageCacheMode, max_decoded_size: ByteLength) -> RcVar<Image> {
+    fn new_cache_image(&mut self, key: ImageHash, mode: ImageCacheMode, max_decoded_size: ByteLength) -> ArcVar<Image> {
         self.cleanup_not_cached(false);
 
         if let ImageCacheMode::Reload = mode {

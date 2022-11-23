@@ -16,7 +16,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,
-    var::{types::WeakRcVar, var, ReadOnlyRcVar, Var, Vars, WeakVar},
+    var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, Vars, WeakVar},
 };
 
 struct DeadlineHandlerEntry {
@@ -33,7 +33,7 @@ struct TimerHandlerEntry {
 
 struct TimerVarEntry {
     handle: HandleOwner<TimerState>,
-    weak_var: WeakRcVar<Timer>,
+    weak_var: WeakArcVar<Timer>,
 }
 
 /// App thread timers, deadlines and timeouts.
@@ -66,7 +66,7 @@ struct TimerVarEntry {
 /// [`async_app_hn!`]: crate::handler::async_app_hn!
 /// [`async_app_hn_once!`]: crate::async_app_hn_once!
 pub struct Timers {
-    deadlines: Vec<WeakRcVar<Deadline>>,
+    deadlines: Vec<WeakArcVar<Deadline>>,
     timers: Vec<TimerVarEntry>,
     deadline_handlers: Vec<DeadlineHandlerEntry>,
     timer_handlers: Vec<TimerHandlerEntry>,
@@ -412,7 +412,7 @@ impl Timers {
 ///
 /// In the example above the variable is mapped to a text, there are many other things you can do with variables,
 /// including `.await` for the update in UI bound async tasks. See [`Var`] for details.
-pub type DeadlineVar = ReadOnlyRcVar<Deadline>;
+pub type DeadlineVar = ReadOnlyArcVar<Deadline>;
 
 /// Represents a [`on_deadline`](Timers::on_deadline) handler.
 ///
@@ -745,7 +745,7 @@ impl WeakTimerHandle {
 /// In the example above the variable updates every second and stops after 20 seconds have elapsed. The variable
 /// is mapped to a text and controls the timer from inside the mapping closure. See [`Var`] for other things you
 /// can do with variables, including `.await` for updates. Also see [`Timer`] for more timer control methods.
-pub type TimerVar = ReadOnlyRcVar<Timer>;
+pub type TimerVar = ReadOnlyArcVar<Timer>;
 
 /// Represents a timer state in a [`TimerVar`] or interval handler.
 ///

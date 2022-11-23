@@ -188,5 +188,5 @@ impl<T: VarValue, V: WeakVar<T>> WeakVar<T> for WeakReadOnlyVar<T, V> {
     }
 }
 
-/// Read-only [`RcVar<T>`].
-pub type ReadOnlyRcVar<T> = ReadOnlyVar<T, RcVar<T>>;
+/// Read-only [`ArcVar<T>`].
+pub type ReadOnlyArcVar<T> = ReadOnlyVar<T, ArcVar<T>>;

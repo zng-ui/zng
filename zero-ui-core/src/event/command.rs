@@ -8,7 +8,7 @@ use crate::{
     handler::WidgetHandler,
     text::Text,
     ui_node,
-    var::{types::RcCowVar, *},
+    var::{types::ArcCowVar, *},
     widget_instance::{UiNode, WidgetId},
     window::WindowId,
 };
@@ -333,7 +333,7 @@ impl Command {
     }
 
     /// Gets a variable that tracks if this command has any live handlers.
-    pub fn has_handlers(&self) -> ReadOnlyRcVar<bool> {
+    pub fn has_handlers(&self) -> ReadOnlyArcVar<bool> {
         let mut write = self.local.write();
         match self.scope {
             CommandScope::App => write.has_handlers.read_only(),
@@ -342,7 +342,7 @@ impl Command {
     }
 
     /// Gets a variable that tracks if this command has any enabled live handlers.
-    pub fn is_enabled(&self) -> ReadOnlyRcVar<bool> {
+    pub fn is_enabled(&self) -> ReadOnlyArcVar<bool> {
         let mut write = self.local.write();
         match self.scope {
             CommandScope::App => write.is_enabled.read_only(),
@@ -682,12 +682,12 @@ unique_id_64! {
     pub struct CommandMetaVarId<T: (StateValue + VarValue)>: StateId;
 }
 impl<T: StateValue + VarValue> CommandMetaVarId<T> {
-    fn app(self) -> StateId<RcVar<T>> {
+    fn app(self) -> StateId<ArcVar<T>> {
         let id = self.get();
         StateId::from_raw(id)
     }
 
-    fn scope(self) -> StateId<RcCowVar<T, RcVar<T>>> {
+    fn scope(self) -> StateId<ArcCowVar<T, ArcVar<T>>> {
         let id = self.get();
         StateId::from_raw(id)
     }
@@ -891,7 +891,7 @@ impl<'a> CommandMeta<'a> {
 /// the value for all scopes. If you get this variable using a scoped command,
 /// setting it overrides only the value for the scope.
 ///
-/// The boxed var is an [`RcVar<T>`] for *app* scope, or [`RcCowVar<T, RcVar<T>>`] for scoped commands.
+/// The boxed var is an [`ArcVar<T>`] for *app* scope, or [`ArcCowVar<T, ArcVar<T>>`] for scoped commands.
 pub type CommandMetaVar<T> = BoxedVar<T>;
 
 /// Read-only command metadata variable.
@@ -995,8 +995,8 @@ pub struct CommandData {
     enabled_count: usize,
     registered: bool,
 
-    has_handlers: RcVar<bool>,
-    is_enabled: RcVar<bool>,
+    has_handlers: ArcVar<bool>,
+    is_enabled: ArcVar<bool>,
 
     scopes: FxHashMap<CommandScope, ScopedValue>,
 }
@@ -1059,8 +1059,8 @@ impl CommandData {
 struct ScopedValue {
     handle_count: usize,
     enabled_count: usize,
-    is_enabled: RcVar<bool>,
-    has_handlers: RcVar<bool>,
+    is_enabled: ArcVar<bool>,
+    has_handlers: ArcVar<bool>,
     meta: Mutex<OwnedStateMap<CommandMetaState>>,
     registered: bool,
 }
