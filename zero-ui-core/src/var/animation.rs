@@ -318,30 +318,33 @@ impl Animation {
     }
 }
 
-/// A type that can animated by a transition.
-///
-/// # Trait Alias
-///
-/// This trait is used like a type alias for traits and is
-/// already implemented for all types it applies to. To be transitionable a type must add and subtract to it self
-/// and be multipliable by [`Factor`].
-pub trait Transitionable:
-    Clone + ops::Add<Self, Output = Self> + std::ops::AddAssign + ops::Sub<Self, Output = Self> + ops::Mul<Factor, Output = Self>
-{
+/// A type that can linear interpolate between two values using an [`EasingStep`] alpha.
+pub trait Transitionable: VarValue {
+    /// Sample the linear interpolation from `self` -> `to` selected by `step`.
+    fn lerp(self, to: &Self, step: EasingStep) -> Self;
+
+    /// Add `increment` to `self` that is the `to` target being used in lerp.
+    fn add_to(&mut self, increment: Self);
 }
-impl<T> Transitionable for T where
-    T: Clone + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>
+impl<T> Transitionable for T
+where
+    T: VarValue + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
 {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        (to.clone() - self) * step
+    }
+
+    fn add_to(&mut self, increment: Self) {
+        *self += increment;
+    }
 }
 
-/// Represents a transition from one value to another that can be sampled using [`EasingStep`].
-#[derive(Clone, Debug)]
 pub struct Transition<T> {
     /// Value sampled at the `0.fct()` step.
-    pub start: T,
+    pub from: T,
     ///
-    /// Value plus start is sampled at the `1.fct()` step.
-    pub increment: T,
+    /// Value sampled at the `1.fct()` step.
+    pub to: T,
 }
 impl<T> Transition<T>
 where
@@ -349,13 +352,12 @@ where
 {
     /// New transition.
     pub fn new(from: T, to: T) -> Self {
-        let increment = to - from.clone();
-        Transition { start: from, increment }
+        Self { from, to }
     }
 
     /// Compute the transition value at the `step`.
     pub fn sample(&self, step: EasingStep) -> T {
-        self.start.clone() + self.increment.clone() * step
+        self.from.clone().lerp(&self.to, step)
     }
 }
 
@@ -400,10 +402,10 @@ where
                 } else {
                     // linear interpolate between steps
 
-                    let (_, to_value) = self.keys[i].clone();
+                    let (_, to_value) = &self.keys[i];
                     let step = step - from_step;
 
-                    from_value.clone() + (to_value - from_value) * step
+                    from_value.lerp(&to_value, step)
                 }
             }
         } else {
@@ -885,8 +887,8 @@ where
             ChaseMsg::Add(inc) => {
                 args.restart();
                 let from = transition.sample(step);
-                transition.start = from.clone();
-                transition.increment += inc;
+                transition.from = from.clone();
+                transition.to.add_to(inc);
                 if step != prev_step {
                     prev_step = step;
                     *value = Cow::Owned(from);
