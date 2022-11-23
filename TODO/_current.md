@@ -1,5 +1,8 @@
 * Have a `last_property_mut` and `last_when_mut` for property action attributes?
     - Useful in general, for example, an attribute that sets the importance.
+    - Can't be done, because properties may be ignored if their importance is less.
+    - Need to change widget expansion to let build action be pushed before properties.
+        - And WhenInfo.
 * When easing attribute.    
     - Right now can't instantly lit a button then ease-out on mouse leave.
     - In CSS we can set the "mouse-out" transition in the default selector and the "mouse-in" transition in the hover selector.
