@@ -322,9 +322,6 @@ impl Animation {
 pub trait Transitionable: VarValue {
     /// Sample the linear interpolation from `self` -> `to` selected by `step`.
     fn lerp(self, to: &Self, step: EasingStep) -> Self;
-
-    /// Add `increment` to `self` that is the `to` target being used in lerp.
-    fn add_to(&mut self, increment: Self);
 }
 impl<T> Transitionable for T
 where
@@ -333,10 +330,11 @@ where
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         (to.clone() - self) * step
     }
+}
 
-    fn add_to(&mut self, increment: Self) {
-        *self += increment;
-    }
+/// A type that is [`Transitionable`] and can adjust its end points mid animation.
+pub trait ChaseTransitionable: Transitionable {
+    // !!: TODO
 }
 
 pub struct Transition<T> {
