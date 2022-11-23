@@ -9,9 +9,9 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let PropertyAttrData {
         builder,
         is_unset,
-        is_when_assign,
         property,
         importance,
+        when,
         ..
     } = &data;
     let Args { duration, easing } = &args;
@@ -23,7 +23,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         }.into();
     }
 
-    if *is_when_assign {
+    if let Some(when) = when {
         return quote! {
             compile_error!{"cannot set `easing` in when assign"}
             #data
@@ -104,13 +104,23 @@ impl Parse for Args {
 }
 
 pub(crate) struct PropertyAttrData {
+    /// Other custom property attributes that must be expanded.
+    ///
+    /// `PropertyAttrData::to_tokens` only generates tokens if there are pending attrs.
     pub pending_attrs: Vec<Attribute>,
+    /// ident of the "fake" data module used to expand this attribute, is unique in scope.
     pub data_ident: Ident,
+
+    /// mut local: WidgetBuilder.
     pub builder: Ident,
+    /// If is property `unset!`.
     pub is_unset: bool,
-    pub is_when_assign: bool,
+    /// path to the property function/struct.
     pub property: Path,
-    pub importance: Expr,
+    /// mut local: Importance. Only set if is property assign (has value and not in when).
+    pub importance: Option<Ident>,
+    /// mut local: WhenInfo. Only set if is when assign.
+    pub when: Option<Ident>,
 }
 impl Parse for PropertyAttrData {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -118,9 +128,9 @@ impl Parse for PropertyAttrData {
 
         let mut builder = None;
         let mut is_unset = false;
-        let mut is_when_assign = false;
         let mut property = None;
         let mut importance = None;
+        let mut when = None;
 
         for item in item_mod.content.unwrap_or_else(|| non_user_error!("")).1 {
             let mut f = match item {
@@ -153,8 +163,30 @@ impl Parse for PropertyAttrData {
                 };
 
                 property = Some(path);
-            } else if f.sig.ident == ident!("importance") {
-                importance = Some(expr);
+            } else if f.sig.ident == ident!("importance_ident") {
+                let path = match expr {
+                    Expr::Path(p) => p.path,
+                    _ => non_user_error!(""),
+                };
+
+                let ident = match path.get_ident() {
+                    Some(i) => i.clone(),
+                    None => non_user_error!(""),
+                };
+
+                importance = Some(ident);
+            } else if f.sig.ident == ident!("when_ident") {
+                let path = match expr {
+                    Expr::Path(p) => p.path,
+                    _ => non_user_error!(""),
+                };
+
+                let ident = match path.get_ident() {
+                    Some(i) => i.clone(),
+                    None => non_user_error!(""),
+                };
+
+                when = Some(ident);
             } else if f.sig.ident == ident!("is_unset") {
                 let lit = match expr {
                     Expr::Lit(l) => l,
@@ -167,18 +199,6 @@ impl Parse for PropertyAttrData {
                 };
 
                 is_unset = lit_bool.value();
-            } else if f.sig.ident == ident!("is_when_assign") {
-                let lit = match expr {
-                    Expr::Lit(l) => l,
-                    _ => non_user_error!(""),
-                };
-
-                let lit_bool = match lit.lit {
-                    Lit::Bool(b) => b,
-                    _ => non_user_error!(""),
-                };
-
-                is_when_assign = lit_bool.value();
             } else {
                 non_user_error!("")
             }
@@ -189,14 +209,9 @@ impl Parse for PropertyAttrData {
             data_ident: item_mod.ident,
             builder: builder.unwrap_or_else(|| non_user_error!("")),
             is_unset,
-            is_when_assign,
             property: property.unwrap_or_else(|| non_user_error!("")),
-            importance: importance.unwrap_or_else(|| {
-                let core = crate_core();
-                parse_quote! {
-                    #core::widget_base::Importance::WIDGET
-                }
-            }),
+            importance,
+            when,
         })
     }
 }
@@ -211,10 +226,29 @@ impl ToTokens for PropertyAttrData {
             data_ident,
             builder,
             is_unset,
-            is_when_assign,
             property,
             importance,
+            when,
         } = self;
+
+        let when = if let Some(when) = when {
+            quote! {
+                fn when_ident() {
+                    #when
+                }
+            }
+        } else {
+            quote!()
+        };
+        let importance = if let Some(importance) = importance {
+            quote! {
+                fn importance_ident() {
+                    #importance
+                }
+            }
+        } else {
+            quote!()
+        };
 
         tokens.extend(quote! {
             #(#pending_attrs)*
@@ -231,13 +265,9 @@ impl ToTokens for PropertyAttrData {
                     #is_unset
                 }
 
-                fn is_when_assign() {
-                    #is_when_assign
-                }
+                #when
 
-                fn importance() {
-                    #importance
-                }
+                #importance
             }
         })
     }

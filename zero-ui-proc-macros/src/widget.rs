@@ -127,10 +127,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
 
     let mut include_items = quote!();
-    let importance = quote!(#crate_core::widget_builder::Importance::WIDGET);
+
+    let builder = ident!("__wgt__");
+    let importance = ident!("__importance__");
 
     for prop in properties.iter().flat_map(|i| i.properties.iter()) {
-        let is_unset = prop.is_unset();
+        let custom_expand = if prop.has_custom_attrs() {
+            prop.custom_attrs_expand(builder.clone(), None, Some(importance.clone()))
+        } else {
+            quote!()
+        };
 
         if prop.has_args() {
             let attrs = prop.attrs.cfg_and_lints();
@@ -138,33 +144,41 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
             include_items.extend(quote! {
                 #attrs
-                __wgt__.push_property(#importance, #args);
+                {
+                    let #importance = #crate_core::widget_builder::Importance::WIDGET;
+                    { #custom_expand }
+                    __wgt__.push_property(#importance, #args);
+                }
             });
-        } else if is_unset {
+        } else if prop.is_unset() {
             let attrs = prop.attrs.cfg_and_lints();
             let id = prop.property_id();
+
             include_items.extend(quote! {
                 #attrs
-                __wgt__.push_unset(#importance, #id);
+                {
+                    let #importance = #crate_core::widget_builder::Importance::WIDGET;
+                    { #custom_expand }
+                    __wgt__.push_unset(#importance, #id);
+                }
             });
-        }
-
-        if prop.has_custom_attrs() {
-            include_items.extend(prop.custom_attrs_expand(ident!("__wgt__"), is_unset, parse_quote!(#importance)));
         }
     }
 
     let builder = ident!("__wgt__");
-    let importance = quote!(#crate_core::widget_builder::Importance::WIDGET);
-    let importance_expr: Expr = parse_quote!(#importance);
+    let when_info = ident!("__when__");
 
     for when in properties.iter().flat_map(|i| i.whens.iter()) {
         let attrs = when.attrs.cfg_and_lints();
         let args = when.when_new(quote!(#crate_core::widget_builder));
-        let custom_attr_expand = when.custom_assign_expand(&builder, &importance_expr);
+        let custom_attr_expand = when.custom_assign_expand(&builder, &when_info);
         include_items.extend(quote! {
             #attrs
-            __wgt__.push_when(#importance, #args);
+            {
+                let #when_info = #args;
+                { #custom_attr_expand }
+                __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #when_info);
+            }
 
             #custom_attr_expand
         });
@@ -709,36 +723,53 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let mut init = quote!();
-    let importance = quote!(#widget::__widget__::widget_builder::Importance::INSTANCE);
+
+    let builder = ident!("__builder__");
+    let when = ident!("__when__");
+    let importance = ident!("__importance__");
+
     for p in &p.properties {
-        let is_unset = p.is_unset();
+        let custom_expand = if p.has_custom_attrs() {
+            p.custom_attrs_expand(builder.clone(), None, Some(importance.clone()))
+        } else {
+            quote!()
+        };
 
         let attrs = p.attrs.cfg_and_lints();
         if p.is_unset() {
             let id = p.property_id();
             init.extend(quote! {
                 #attrs
-                __wgt__.push_unset(#importance, #id);
+                {
+                    let #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
+                    { #custom_expand }
+                    __wgt__.push_unset(#importance, #id);
+                }
             });
         } else if p.has_args() {
             let args = p.args_new(quote!(#widget::__widget__::widget_builder));
             init.extend(quote! {
                 #attrs
-                __wgt__.push_property(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
+                {
+                    let #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
+                    { #custom_expand }
+                    __wgt__.push_property(#importance, #args);
+                }
             });
-        }
-
-        if p.has_custom_attrs() {
-            init.extend(p.custom_attrs_expand(ident!("__wgt__"), is_unset, parse_quote!(#importance)))
         }
     }
 
     for w in &p.whens {
         let attrs = w.attrs.cfg_and_lints();
         let args = w.when_new(quote!(#widget::__widget__::widget_builder));
+        let custom_expr = w.custom_assign_expand(&builder, &when);
         init.extend(quote! {
             #attrs
-            __wgt__.push_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #args);
+            {
+                let #when = #args;
+                { #custom_expr }
+                __wgt__.push_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #when);
+            }
         });
     }
 

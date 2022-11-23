@@ -3,6 +3,7 @@
     - Can't be done, because properties may be ignored if their importance is less.
     - Need to change widget expansion to let build action be pushed before properties.
         - And WhenInfo.
+    - Lets focus, we need to modify the when before push.
 * When easing attribute.    
     - Right now can't instantly lit a button then ease-out on mouse leave.
     - In CSS we can set the "mouse-out" transition in the default selector and the "mouse-in" transition in the hover selector.
