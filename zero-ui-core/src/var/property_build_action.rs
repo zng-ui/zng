@@ -25,7 +25,22 @@ pub trait easing_property_input_Transitionable: Any + Send {
 }
 impl<T: VarValue + Transitionable> easing_property_input_Transitionable for BoxedVar<T> {
     fn easing(self, duration: Duration, easing: EasingFn) -> Self {
-        Var::easing(&self, duration, move |t| easing(t)).boxed()
+        if let Some(when) = self.as_any().downcast_ref::<types::ContextualizedVar<T, types::ArcWhenVar<T>>>() {
+            let when = when.clone();
+            types::ContextualizedVar::new(Arc::new(move || {
+                // !!: TODO
+                let conditions = when
+                    .borrow_init()
+                    .conditions()
+                    .iter()
+                    .map(|_| Some((0.ms(), Arc::new(super::easing::linear) as EasingFn)))
+                    .collect();
+                when.borrow_init().easing_when(conditions, (duration, easing.clone()))
+            }))
+            .boxed()
+        } else {
+            Var::easing(&self, duration, move |t| easing(t)).boxed()
+        }
     }
 }
 
