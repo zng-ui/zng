@@ -195,6 +195,34 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Rect {
         self.size /= rhs;
     }
 }
+impl ops::Add for Rect {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+impl ops::AddAssign for Rect {
+    fn add_assign(&mut self, rhs: Self) {
+        self.origin += rhs.origin;
+        self.size += rhs.size;
+    }
+}
+impl ops::Sub for Rect {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self {
+        self -= rhs;
+        self
+    }
+}
+impl ops::SubAssign for Rect {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.origin -= rhs.origin;
+        self.size -= rhs.size;
+    }
+}
 
 /// Build a [`Rect`] using the syntax `(width, height).at(x, y)`.
 ///

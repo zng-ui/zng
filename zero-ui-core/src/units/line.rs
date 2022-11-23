@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr, Factor2d};
+use super::{Factor2d, LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr};
 
 /// 2D line in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -266,4 +266,3 @@ impl ops::SubAssign for Line {
         self.end -= rhs.end;
     }
 }
-

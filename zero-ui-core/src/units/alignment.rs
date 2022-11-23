@@ -1,8 +1,11 @@
-use std::{fmt::{self, Write}, ops};
+use std::{
+    fmt::{self, Write},
+    ops,
+};
 
 use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
 
-use super::{Factor, FactorPercent, Point, Px, PxConstrains2d, PxSize, PxVector, FactorUnits, Factor2d};
+use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrains2d, PxSize, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -299,8 +302,8 @@ impl<S: Into<Factor2d>> ops::Mul<S> for Align {
 }
 impl<S: Into<Factor2d>> ops::MulAssign<S> for Align {
     fn mul_assign(&mut self, rhs: S) {
-        let rhs : Self = rhs.into().into();
-        
+        let rhs: Self = rhs.into().into();
+
         if self.is_fill_x() {
             if rhs.is_fill_x() {
                 self.x = 0.fct();
@@ -330,8 +333,8 @@ impl<S: Into<Factor2d>> ops::Div<S> for Align {
 }
 impl<S: Into<Factor2d>> ops::DivAssign<S> for Align {
     fn div_assign(&mut self, rhs: S) {
-        let rhs : Self = rhs.into().into();
-        
+        let rhs: Self = rhs.into().into();
+
         if self.is_fill_x() {
             if rhs.is_fill_x() {
                 self.x = 0.fct();

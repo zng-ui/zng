@@ -60,10 +60,10 @@ pub mod easing;
 /// ```
 ///
 /// # Limitations
-/// 
+///
 /// The attribute only works in properties that only have variable inputs of types that are [`Transitionable`], if the attribute
 /// is set in a property that does not match this a cryptic type error occurs, with a mention of `easing_property_input_Transitionable`.
-/// 
+///
 /// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::easing;

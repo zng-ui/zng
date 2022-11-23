@@ -90,21 +90,7 @@ impl ByteUnits for usize {
 ///
 /// The value is stored in bytes, you can use associated functions to convert from other units or
 /// you can use the [`ByteUnits`] extension methods to initialize from an integer literal.
-#[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Default,
-    dm::Add,
-    dm::AddAssign,
-    dm::Sub,
-    dm::SubAssign,
-    dm::FromStr,
-)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::FromStr)]
 pub struct ByteLength(pub usize);
 impl_from_and_into_var! {
     fn from(bytes: usize) -> ByteLength {
@@ -353,7 +339,7 @@ impl<S: Into<Factor>> ops::Mul<S> for ByteLength {
     type Output = Self;
 
     fn mul(mut self, rhs: S) -> Self {
-        self.0  = (self.0 as f64 * rhs.into().0 as f64) as usize;
+        self.0 = (self.0 as f64 * rhs.into().0 as f64) as usize;
         self
     }
 }
@@ -366,7 +352,7 @@ impl<S: Into<Factor>> ops::Div<S> for ByteLength {
     type Output = Self;
 
     fn div(mut self, rhs: S) -> Self {
-        self.0  = (self.0 as f64 / rhs.into().0 as f64) as usize;
+        self.0 = (self.0 as f64 / rhs.into().0 as f64) as usize;
         self
     }
 }

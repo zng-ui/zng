@@ -1,8 +1,4 @@
 * Impl `Transitionable` for more units, needs review:
-    - point.
-    - rect.
-    - resolution.
-    - size.
     - text.
     - time.
     - transform.
