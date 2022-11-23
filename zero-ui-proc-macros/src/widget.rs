@@ -145,7 +145,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             include_items.extend(quote! {
                 #attrs
                 {
-                    let #importance = #crate_core::widget_builder::Importance::WIDGET;
+                    let mut #importance = #crate_core::widget_builder::Importance::WIDGET;
                     { #custom_expand }
                     __wgt__.push_property(#importance, #args);
                 }
@@ -157,7 +157,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             include_items.extend(quote! {
                 #attrs
                 {
-                    let #importance = #crate_core::widget_builder::Importance::WIDGET;
+                    let mut #importance = #crate_core::widget_builder::Importance::WIDGET;
                     { #custom_expand }
                     __wgt__.push_unset(#importance, #id);
                 }
@@ -175,7 +175,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         include_items.extend(quote! {
             #attrs
             {
-                let #when_info = #args;
+                let mut #when_info = #args;
                 { #custom_attr_expand }
                 __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #when_info);
             }
@@ -741,7 +741,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             init.extend(quote! {
                 #attrs
                 {
-                    let #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
+                    let mut #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
                     { #custom_expand }
                     __wgt__.push_unset(#importance, #id);
                 }
@@ -751,7 +751,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             init.extend(quote! {
                 #attrs
                 {
-                    let #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
+                    let mut #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
                     { #custom_expand }
                     __wgt__.push_property(#importance, #args);
                 }
@@ -766,7 +766,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         init.extend(quote! {
             #attrs
             {
-                let #when = #args;
+                let mut #when = #args;
                 { #custom_expr }
                 __wgt__.push_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #when);
             }

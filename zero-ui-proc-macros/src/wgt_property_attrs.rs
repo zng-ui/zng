@@ -8,7 +8,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let args = parse_macro_input!(args as Args);
     let PropertyAttrData {
         builder,
-        is_unset,
+        is_unset: property_is_unset,
         property,
         importance,
         when,
@@ -16,25 +16,56 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     } = &data;
     let Args { duration, easing } = &args;
 
-    if *is_unset {
+    if *property_is_unset {
         return quote! {
             compile_error!{"cannot set `easing` in unset assign\n\n   note: you can use `#[easing(unset)]` to unset in a normal assign to unset easing"}
             #data
         }.into();
     }
 
+    let is_unset = args.is_unset();
+
+    let core = crate_core();
+    let name = "zero_ui::core::var::easing";
+
     if let Some(when) = when {
+        if is_unset {
+            return quote! {
+                compile_error!{"cannot unset `easing` in when assign, try `#[easing(0.ms())]`"}
+                #data
+            }
+            .into();
+        }
+
         return quote! {
-            compile_error!{"cannot set `easing` in when assign"}
+            {
+                let __data__ = #core::var::types::easing_property::easing_when_data(
+                    #core::widget_builder::property_input_types!(#property),
+                    {
+                        use #core::units::TimeUnits as _;
+                        #duration
+                    },
+                    std::sync::Arc::new({
+                        use #core::var::easing::*;
+                        #easing
+                    }),
+                );
+                if let Some(__data__) = #data {
+                    #when.build_action_data.push(
+                        (
+                            #core::widget_builder::property_id!(#property),
+                            #name,
+                        ),
+                        __data__,
+                    );
+                }
+            }
             #data
         }
         .into();
     }
 
-    let core = crate_core();
-    let name = "zero_ui::core::var::easing";
-
-    let r = if args.is_unset() {
+    let r = if is_unset {
         quote! {
             #core::var::types::easing_property::easing_property_unset(
                 #core::widget_builder::property_input_types!(#property)

@@ -1220,6 +1220,43 @@ impl WhenInputVar {
     }
 }
 
+type WhenBuildActionData = Arc<dyn Any + Send + Sync>;
+type WhenBuildDefaultAction = Arc<dyn Fn(&WhenBuildActionData) -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync>;
+
+/// Data for a custom when build action associated with an [`WhenInfo`].
+#[derive(Clone)]
+pub struct WhenBuildAction {
+    /// Data.
+    pub data: WhenBuildActionData,
+    /// Closure that generates the default build actions, used when the final widget has no build action instance.
+    ///
+    /// The closure must generate
+    ///
+    /// If the final widget has no action and all when data for it has no default, the data is ignored.
+    pub default_action: Option<WhenBuildDefaultAction>,
+}
+impl WhenBuildAction {
+    /// New from strongly typed values.
+    pub fn new<D, F>(data: D, default_action: F) -> Self
+    where
+        D: Any + Send + Sync + 'static,
+        F: Fn(&D) -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync + 'static,
+    {
+        Self {
+            data: Arc::new(data),
+            default_action: Some(Arc::new(move |data| default_action(data.downcast_ref::<D>().unwrap()))),
+        }
+    }
+
+    /// New from data, is only used if the action is provided by another data or the widget builder.
+    pub fn new_no_default(data: impl Any + Send + Sync + 'static) -> Self {
+        Self {
+            data: Arc::new(data),
+            default_action: None,
+        }
+    }
+}
+
 /// Represents a `when` block in a widget.
 #[derive(Clone)]
 pub struct WhenInfo {
@@ -1246,7 +1283,7 @@ pub struct WhenInfo {
     pub assigns: Vec<Box<dyn PropertyArgs>>,
 
     /// Data associated with the when condition in the build action.
-    pub build_action_data: Vec<((PropertyId, &'static str), Arc<dyn Any + Send + Sync>)>,
+    pub build_action_data: Vec<((PropertyId, &'static str), WhenBuildAction)>,
 
     /// The condition expression code.
     pub expr: &'static str,
@@ -2683,3 +2720,6 @@ impl<Tuple> Clone for PropertyInputTypes<Tuple> {
     }
 }
 impl<Tuple> Copy for PropertyInputTypes<Tuple> {}
+// SAFETY: PhantomData
+unsafe impl<Tuple> Send for PropertyInputTypes<Tuple> {}
+unsafe impl<Tuple> Sync for PropertyInputTypes<Tuple> {}

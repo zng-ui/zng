@@ -2,7 +2,7 @@ use std::{any::Any, sync::Arc, time::Duration};
 
 use crate::{
     units::*,
-    widget_builder::{AnyPropertyBuildAction, PropertyBuildAction, PropertyInputTypes},
+    widget_builder::{AnyPropertyBuildAction, PropertyBuildAction, PropertyInputTypes, WhenBuildAction},
 };
 
 use super::{animation::Transitionable, BoxedVar, Var, VarValue};
@@ -11,9 +11,10 @@ type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 
 #[doc(hidden)]
 #[allow(non_camel_case_types)]
-pub trait easing_property {
+pub trait easing_property: Send + Sync + Clone + Copy {
     fn easing_property_unset(self);
     fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
+    fn easing_when_data(self, duration: Duration, easing: EasingFn) -> WhenBuildAction;
 }
 
 #[doc(hidden)]
@@ -39,10 +40,26 @@ macro_rules! impl_easing_property_inputs {
         > easing_property for PropertyInputTypes<($T0, $($T,)*)> {
             fn easing_property_unset(self) { }
             fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>> {
-                vec![
-                    Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),
-                    $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),)*
-                ]
+                if duration == Duration::ZERO {
+                    vec![]
+                } else {
+                    vec![
+                        Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),
+                        $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),)*
+                    ]
+                }
+            }
+            fn easing_when_data(self, duration: Duration, easing: EasingFn) -> WhenBuildAction {
+                if duration == Duration::ZERO {
+                    WhenBuildAction::new_no_default((duration, easing))
+                } else {
+                    WhenBuildAction::new(
+                        (duration, easing),
+                        move |(duration, easing)| {
+                            self.easing_property(*duration, easing.clone())
+                        }
+                    )
+                }
             }
         }
     };
