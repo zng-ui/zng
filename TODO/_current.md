@@ -1,6 +1,4 @@
 * Impl `Transitionable` for more units, needs review:
-    - alignment
-    - align.
     - byte.
     - grid.
     - line.

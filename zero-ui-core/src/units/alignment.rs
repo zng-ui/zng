@@ -1,8 +1,8 @@
-use std::fmt::{self, Write};
+use std::{fmt::{self, Write}, ops};
 
 use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
 
-use super::{Factor, FactorPercent, Point, Px, PxConstrains2d, PxSize, PxVector};
+use super::{Factor, FactorPercent, Point, Px, PxConstrains2d, PxSize, PxVector, FactorUnits, Factor2d};
 
 /// `x` and `y` alignment.
 ///
@@ -226,6 +226,128 @@ impl_from_and_into_var! {
         Point {
             x: alignment.x.into(),
             y: alignment.y.into(),
+        }
+    }
+
+    fn from(factor2d: Factor2d) -> Align {
+        Align {
+            x: factor2d.x,
+            y: factor2d.y,
+        }
+    }
+}
+
+impl ops::Add for Align {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+impl ops::AddAssign for Align {
+    fn add_assign(&mut self, rhs: Self) {
+        if self.is_fill_x() || rhs.is_fill_x() {
+            self.x = f32::INFINITY.fct();
+        } else {
+            self.x += rhs.x;
+        }
+
+        if self.is_baseline() || rhs.is_baseline() {
+            self.y = f32::NEG_INFINITY.fct();
+        } else {
+            self.y += rhs.y;
+        }
+    }
+}
+impl ops::Sub for Align {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self {
+        self -= rhs;
+        self
+    }
+}
+impl ops::SubAssign for Align {
+    fn sub_assign(&mut self, rhs: Self) {
+        if self.is_fill_x() {
+            if rhs.is_fill_x() {
+                self.x = 0.fct();
+            }
+            // else stays infinite.
+        } else if rhs.is_fill_x() {
+            self.x = 0.fct();
+        } else {
+            self.x -= rhs.x;
+        }
+
+        if self.is_baseline() || rhs.is_baseline() {
+            // baseline is an special value.
+            self.y = f32::NEG_INFINITY.fct();
+        } else {
+            self.y -= rhs.y;
+        }
+    }
+}
+impl<S: Into<Factor2d>> ops::Mul<S> for Align {
+    type Output = Self;
+
+    fn mul(mut self, rhs: S) -> Self {
+        self *= rhs;
+        self
+    }
+}
+impl<S: Into<Factor2d>> ops::MulAssign<S> for Align {
+    fn mul_assign(&mut self, rhs: S) {
+        let rhs : Self = rhs.into().into();
+        
+        if self.is_fill_x() {
+            if rhs.is_fill_x() {
+                self.x = 0.fct();
+            }
+            // else stays infinite.
+        } else if rhs.is_fill_x() {
+            self.x = 0.fct();
+        } else {
+            self.x *= rhs.x;
+        }
+
+        if self.is_baseline() || rhs.is_baseline() {
+            // baseline is an special value.
+            self.y = f32::NEG_INFINITY.fct();
+        } else {
+            self.y *= rhs.y;
+        }
+    }
+}
+impl<S: Into<Factor2d>> ops::Div<S> for Align {
+    type Output = Self;
+
+    fn div(mut self, rhs: S) -> Self {
+        self /= rhs;
+        self
+    }
+}
+impl<S: Into<Factor2d>> ops::DivAssign<S> for Align {
+    fn div_assign(&mut self, rhs: S) {
+        let rhs : Self = rhs.into().into();
+        
+        if self.is_fill_x() {
+            if rhs.is_fill_x() {
+                self.x = 0.fct();
+            }
+            // else stays infinite.
+        } else if rhs.is_fill_x() {
+            self.x = 0.fct();
+        } else {
+            self.x /= rhs.x;
+        }
+
+        if self.is_baseline() || rhs.is_baseline() {
+            // baseline is an special value.
+            self.y = f32::NEG_INFINITY.fct();
+        } else {
+            self.y /= rhs.y;
         }
     }
 }
