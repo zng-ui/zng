@@ -50,15 +50,13 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                         #easing
                     }),
                 );
-                if let Some(__data__) = #data {
-                    #when.build_action_data.push(
-                        (
-                            #core::widget_builder::property_id!(#property),
-                            #name,
-                        ),
-                        __data__,
-                    );
-                }
+                #when.build_action_data.push((
+                    (
+                        #core::widget_builder::property_id!(#property),
+                        #name,
+                    ),
+                    __data__,
+                ));
             }
             #data
         }

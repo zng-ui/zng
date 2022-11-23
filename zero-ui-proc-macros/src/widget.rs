@@ -179,8 +179,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 { #custom_attr_expand }
                 __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #when_info);
             }
-
-            #custom_attr_expand
         });
     }
 

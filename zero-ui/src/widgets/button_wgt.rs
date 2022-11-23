@@ -129,7 +129,9 @@ pub mod vis {
 
             /// When the pointer device is over this button.
             when *#is_cap_hovered {
+                #[easing(0.ms())]
                 background_color = color_scheme_hovered(BASE_COLORS_VAR);
+                #[easing(0.ms())]
                 border = {
                     widths: 1,
                     sides: color_scheme_pressed(BASE_COLORS_VAR).map_into(),
@@ -137,7 +139,8 @@ pub mod vis {
             }
 
             /// When the button is pressed in a way that press release will cause a button click.
-            when *#is_pressed  {
+            when *#is_pressed {
+                #[easing(0.ms())]
                 background_color = color_scheme_pressed(BASE_COLORS_VAR);
             }
 
