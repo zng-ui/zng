@@ -1245,6 +1245,9 @@ pub struct WhenInfo {
     /// from other when blocks into a single property instance set to `when_var!` inputs.
     pub assigns: Vec<Box<dyn PropertyArgs>>,
 
+    /// Data associated with the when condition in the build action.
+    pub build_action_data: Vec<((PropertyId, &'static str), Arc<dyn Any + Send + Sync>)>,
+
     /// The condition expression code.
     pub expr: &'static str,
 
@@ -1262,10 +1265,18 @@ impl WhenInfo {
 }
 impl fmt::Debug for WhenInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct DebugBuildActions<'a>(&'a WhenInfo);
+        impl<'a> fmt::Debug for DebugBuildActions<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.debug_list().entries(self.0.build_action_data.iter().map(|(k, _)| k)).finish()
+            }
+        }
+
         f.debug_struct("WhenInfo")
             .field("inputs", &self.inputs)
             .field("state", &self.state.debug())
             .field("assigns", &self.assigns)
+            .field("build_action_data", &DebugBuildActions(self))
             .field("expr", &self.expr)
             .finish()
     }
@@ -1344,6 +1355,7 @@ impl Clone for WidgetItem {
     }
 }
 
+// [(PropertyId, "action-key") => (Importance, Vec<{action for each input}>)]
 type PropertyBuildActionsMap = LinearMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>)>;
 type PropertyBuildActionsVec = Vec<((PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>))>;
 
@@ -1532,19 +1544,19 @@ impl WidgetBuilder {
 
     /// Add or override custom builder actions that are called to finalize the inputs for a property.
     ///
-    /// The `importance` overrides previous build action of the same name and property. The `input_builders` vec must
-    /// contain one build for each property input.
+    /// The `importance` overrides previous build action of the same name and property. The `input_actions` vec must
+    /// contain one action for each property input.
     pub fn push_property_build_action(
         &mut self,
         property_id: PropertyId,
         action_name: &'static str,
         importance: Importance,
-        input_builders: Vec<Box<dyn AnyPropertyBuildAction>>,
+        input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
     ) {
         match self.p_build_actions.entry((property_id, action_name)) {
             linear_map::Entry::Occupied(mut e) => {
                 if e.get().0 < importance {
-                    e.insert((importance, input_builders));
+                    e.insert((importance, input_actions));
                 }
             }
             linear_map::Entry::Vacant(e) => {
@@ -1554,7 +1566,7 @@ impl WidgetBuilder {
                         return;
                     }
                 }
-                e.insert((importance, input_builders));
+                e.insert((importance, input_actions));
             }
         }
     }
@@ -1740,6 +1752,7 @@ impl WidgetBuilder {
                         inputs: when.inputs.clone(),
                         state: when.state.clone(),
                         assigns: moved_assigns,
+                        build_action_data: when.build_action_data.clone(),
                         expr: when.expr,
                         location: when.location,
                     };
@@ -2227,6 +2240,8 @@ impl WidgetBuilding {
                     let (_, (_, a)) = build_actions.swap_remove(i);
                     actions.push(a);
                 }
+
+                // !!: collect build actions for conditions too?
             }
 
             *args = (args.property().new)(args.instance(), builder, actions);

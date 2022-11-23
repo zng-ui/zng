@@ -716,6 +716,7 @@ impl WgtWhen {
                     assigns: std::vec![
                         #assigns
                     ],
+                    build_action_data: std::vec![],
                     expr: #expr_str,
                     location: #wgt_builder_mod::source_location!(),
                 }
