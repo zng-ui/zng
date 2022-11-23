@@ -333,8 +333,14 @@ where
 }
 
 /// A type that is [`Transitionable`] and can adjust its end points mid animation.
-pub trait ChaseTransitionable: Transitionable {
-    // !!: TODO
+pub trait ChaseTransitionable:
+    Transitionable + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>
+{
+}
+impl<T> ChaseTransitionable for T
+where
+    T: VarValue + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+{
 }
 
 pub struct Transition<T> {
@@ -873,7 +879,7 @@ pub(super) fn var_chase<T>(
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
 ) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
-    T: VarValue + animation::Transitionable,
+    T: VarValue + animation::ChaseTransitionable,
 {
     let mut prev_step = 0.fct();
     let next_target = Arc::new(Mutex::new(ChaseMsg::None));
@@ -886,7 +892,7 @@ where
                 args.restart();
                 let from = transition.sample(step);
                 transition.from = from.clone();
-                transition.to.add_to(inc);
+                transition.to += inc;
                 if step != prev_step {
                     prev_step = step;
                     *value = Cow::Owned(from);
@@ -921,7 +927,7 @@ pub(super) fn var_chase_bounded<T>(
     bounds: ops::RangeInclusive<T>,
 ) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
-    T: VarValue + animation::Transitionable + std::cmp::PartialOrd<T>,
+    T: VarValue + animation::ChaseTransitionable + std::cmp::PartialOrd<T>,
 {
     let mut prev_step = 0.fct();
     let mut check_linear = !bounds.contains(&first_target);
