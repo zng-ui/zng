@@ -1,6 +1,21 @@
-* Improve `Transitionable`.
-    -Targets of easing are limited right now, `BorderSides`, `SideOffsets` are not supported.
-    - Maybe we want a more manual trait?
+* Impl `Transitionable` for more units, needs review:
+    - alignment
+    - align.
+    - byte.
+    - grid.
+    - line.
+    - point.
+    - rect.
+    - resolution.
+    - size.
+    - text.
+    - time.
+    - transform.
+    - vector.
+* Impl `Transitionable` for composite types that have Transitionable parts.
+    - BorderSides.
+    - Refactor transitionable to not work only from += -= *= factor?
+        - Makes no sense to impl ops::Add to border side just to add the colors.
 
 * Sort property build actions by importance?
     - Right now we just have one, `easing` but can be many.

@@ -1,8 +1,8 @@
-use std::fmt;
+use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, Factor, FactorPercent, LayoutMask, Length, PxSideOffsets};
+use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffsets, LayoutMask, Length, PxSideOffsets};
 
 /// 2D size offsets in [`Length`] units.
 ///
@@ -142,5 +142,86 @@ impl_length_comp_conversions! {
     /// (top, right, bottom, left)
     fn from(top: T, right: R, bottom: B, left: L) -> SideOffsets {
         SideOffsets::new(top, right, bottom, left)
+    }
+}
+
+impl ops::Add for SideOffsets {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+impl ops::AddAssign for SideOffsets {
+    fn add_assign(&mut self, rhs: Self) {
+        self.top += rhs.top;
+        self.right += rhs.right;
+        self.bottom += rhs.bottom;
+        self.left += rhs.left;
+    }
+}
+impl ops::Sub for SideOffsets {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self {
+        self -= rhs;
+        self
+    }
+}
+impl ops::SubAssign for SideOffsets {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.top -= rhs.top;
+        self.right -= rhs.right;
+        self.bottom -= rhs.bottom;
+        self.left -= rhs.left;
+    }
+}
+impl<S: Into<FactorSideOffsets>> ops::Mul<S> for SideOffsets {
+    type Output = Self;
+
+    fn mul(mut self, rhs: S) -> Self {
+        self *= rhs;
+        self
+    }
+}
+impl<'a, S: Into<FactorSideOffsets>> ops::Mul<S> for &'a SideOffsets {
+    type Output = SideOffsets;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self.clone() * rhs
+    }
+}
+impl<S: Into<FactorSideOffsets>> ops::MulAssign<S> for SideOffsets {
+    fn mul_assign(&mut self, rhs: S) {
+        let rhs = rhs.into();
+        self.top *= rhs.top;
+        self.right *= rhs.right;
+        self.bottom *= rhs.bottom;
+        self.left *= rhs.left;
+    }
+}
+impl<S: Into<FactorSideOffsets>> ops::Div<S> for SideOffsets {
+    type Output = Self;
+
+    fn div(mut self, rhs: S) -> Self {
+        self /= rhs;
+        self
+    }
+}
+impl<'a, S: Into<FactorSideOffsets>> ops::Div<S> for &'a SideOffsets {
+    type Output = SideOffsets;
+
+    fn div(self, rhs: S) -> Self::Output {
+        self.clone() / rhs
+    }
+}
+impl<S: Into<FactorSideOffsets>> ops::DivAssign<S> for SideOffsets {
+    fn div_assign(&mut self, rhs: S) {
+        let rhs = rhs.into();
+        self.top /= rhs.top;
+        self.right /= rhs.right;
+        self.bottom /= rhs.bottom;
+        self.left /= rhs.left;
     }
 }
