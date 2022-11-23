@@ -151,6 +151,15 @@ impl From<BorderStyle> for w_api::BorderStyle {
         }
     }
 }
+impl animation::Transitionable for BorderStyle {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        if step >= 1.fct() {
+            *to
+        } else {
+            self
+        }
+    }
+}
 
 /// The line style and color for the sides of a widget's border.
 #[repr(C)]
@@ -241,6 +250,13 @@ impl Default for BorderSide {
     /// Returns [`hidden`](BorderSide::hidden).
     fn default() -> Self {
         Self::hidden()
+    }
+}
+impl animation::Transitionable for BorderSide {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
+        self.color = self.color.lerp(&to.color, step);
+        self.style = self.style.lerp(&to.style, step);
+        self
     }
 }
 
@@ -488,6 +504,15 @@ impl Default for BorderSides {
     /// Returns [`hidden`](BorderSides::hidden).
     fn default() -> Self {
         Self::hidden()
+    }
+}
+impl animation::Transitionable for BorderSides {
+    fn lerp(mut self, to: &Self, step: EasingStep) -> Self {
+        self.top = self.top.lerp(&to.top, step);
+        self.right = self.right.lerp(&to.right, step);
+        self.bottom = self.right.lerp(&to.bottom, step);
+        self.left = self.right.lerp(&to.left, step);
+        self
     }
 }
 

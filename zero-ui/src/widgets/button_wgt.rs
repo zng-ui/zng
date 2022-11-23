@@ -121,6 +121,7 @@ pub mod vis {
             /// Button border.
             ///
             /// Is widths `1`.
+            #[easing(300.ms())]
             pub crate::properties::border = {
                 widths: 1,
                 sides: color_scheme_pair(BASE_COLORS_VAR).map_into()

@@ -325,24 +325,30 @@ pub trait Transitionable: VarValue {
 }
 impl<T> Transitionable for T
 where
-    T: VarValue + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
 {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        (to.clone() - self) * step
+        self.clone() + (to.clone() - self) * step
     }
 }
 
 /// A type that is [`Transitionable`] and can adjust its end points mid animation.
-pub trait ChaseTransitionable:
-    Transitionable + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>
-{
+pub trait ChaseTransitionable: Transitionable {
+    /// Add `increment` to `self`.
+    ///
+    /// Self is the end point of the animation.
+    fn add_to(&mut self, increment: Self);
 }
 impl<T> ChaseTransitionable for T
 where
-    T: VarValue + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + Transitionable + ops::AddAssign,
 {
+    fn add_to(&mut self, increment: Self) {
+        *self += increment;
+    }
 }
 
+/// Represents a simple transition between two values.
 pub struct Transition<T> {
     /// Value sampled at the `0.fct()` step.
     pub from: T,
@@ -409,7 +415,7 @@ where
                     let (_, to_value) = &self.keys[i];
                     let step = step - from_step;
 
-                    from_value.lerp(&to_value, step)
+                    from_value.lerp(to_value, step)
                 }
             }
         } else {
@@ -891,11 +897,11 @@ where
             ChaseMsg::Add(inc) => {
                 args.restart();
                 let from = transition.sample(step);
-                transition.from = from.clone();
-                transition.to += inc;
+                transition.from = from;
+                transition.to.add_to(inc);
                 if step != prev_step {
                     prev_step = step;
-                    *value = Cow::Owned(from);
+                    *value = Cow::Owned(transition.from.clone());
                 }
             }
             ChaseMsg::Replace(new_target) => {
@@ -939,18 +945,14 @@ where
         let mut time = args.elapsed_stop(duration);
         let mut step = easing(time);
         match mem::take(&mut *next_target.lock()) {
-            // to > bounds
-            // stop animation when linear sampling > bounds
             ChaseMsg::Add(inc) => {
                 args.restart();
 
-                let partial_inc = transition.increment.clone() * step;
-                let from = transition.start.clone() + partial_inc.clone();
-                let to = from.clone() + transition.increment.clone() - partial_inc + inc;
+                let from = transition.sample(step);
+                transition.from = from;
+                transition.to.add_to(inc);
 
-                check_linear = !bounds.contains(&to);
-
-                transition = Transition::new(from, to);
+                check_linear = !bounds.contains(&transition.to);
 
                 step = 0.fct();
                 prev_step = 1.fct();

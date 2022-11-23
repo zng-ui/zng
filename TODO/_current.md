@@ -1,10 +1,3 @@
-* Refactor transitionable to allow custom impl.
-    - Makes no sense to impl ops::Add for bBorderSide just to add the colors.
-    - Refactor chase to use new `ChaseTransitionable`.
-
-* Impl `Transitionable` for composite types that have Transitionable parts.
-    - BorderSides.
-
 * Sort property build actions by importance?
     - Right now we just have one, `easing` but can be many.
 
