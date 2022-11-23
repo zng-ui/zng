@@ -1,6 +1,4 @@
 * Impl `Transitionable` for more units, needs review:
-    - grid.
-    - line.
     - point.
     - rect.
     - resolution.

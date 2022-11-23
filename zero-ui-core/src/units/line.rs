@@ -1,8 +1,8 @@
-use std::fmt;
+use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr};
+use super::{LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr, Factor2d};
 
 /// 2D line in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -192,3 +192,78 @@ impl<X1: Into<Length>, Y1: Into<Length>> LineFromTuplesBuilder for (X1, Y1) {
         Line::new(self, (x2, y2))
     }
 }
+
+impl<S: Into<Factor2d>> ops::Mul<S> for Line {
+    type Output = Self;
+
+    fn mul(mut self, rhs: S) -> Self {
+        self *= rhs;
+        self
+    }
+}
+impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Line {
+    type Output = Line;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self.clone() * rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::MulAssign<S> for Line {
+    fn mul_assign(&mut self, rhs: S) {
+        let rhs = rhs.into();
+        self.start *= rhs;
+        self.end *= rhs;
+    }
+}
+impl<S: Into<Factor2d>> ops::Div<S> for Line {
+    type Output = Self;
+
+    fn div(mut self, rhs: S) -> Self {
+        self /= rhs;
+        self
+    }
+}
+impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Line {
+    type Output = Line;
+
+    fn div(self, rhs: S) -> Self::Output {
+        self.clone() / rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::DivAssign<S> for Line {
+    fn div_assign(&mut self, rhs: S) {
+        let rhs = rhs.into();
+        self.start /= rhs;
+        self.end /= rhs;
+    }
+}
+
+impl ops::Add for Line {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+impl ops::AddAssign for Line {
+    fn add_assign(&mut self, rhs: Self) {
+        self.start += rhs.start;
+        self.end += rhs.end;
+    }
+}
+impl ops::Sub for Line {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self {
+        self -= rhs;
+        self
+    }
+}
+impl ops::SubAssign for Line {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.start -= rhs.start;
+        self.end -= rhs.end;
+    }
+}
+
