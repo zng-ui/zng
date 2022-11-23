@@ -1,8 +1,10 @@
-use std::fmt;
+use std::{fmt, ops};
 
 use derive_more as dm;
 
 use crate::impl_from_and_into_var;
+
+use super::Factor;
 
 /// Extension methods for initializing [`ByteLength`] values.
 pub trait ByteUnits {
@@ -101,10 +103,6 @@ impl ByteUnits for usize {
     dm::AddAssign,
     dm::Sub,
     dm::SubAssign,
-    dm::Mul,
-    dm::MulAssign,
-    dm::Div,
-    dm::DivAssign,
     dm::FromStr,
 )]
 pub struct ByteLength(pub usize);
@@ -348,5 +346,32 @@ impl fmt::Display for ByteLength {
         } else {
             write!(f, "{} bytes", self.bytes())
         }
+    }
+}
+
+impl<S: Into<Factor>> ops::Mul<S> for ByteLength {
+    type Output = Self;
+
+    fn mul(mut self, rhs: S) -> Self {
+        self.0  = (self.0 as f64 * rhs.into().0 as f64) as usize;
+        self
+    }
+}
+impl<S: Into<Factor>> ops::MulAssign<S> for ByteLength {
+    fn mul_assign(&mut self, rhs: S) {
+        *self = *self * rhs;
+    }
+}
+impl<S: Into<Factor>> ops::Div<S> for ByteLength {
+    type Output = Self;
+
+    fn div(mut self, rhs: S) -> Self {
+        self.0  = (self.0 as f64 / rhs.into().0 as f64) as usize;
+        self
+    }
+}
+impl<S: Into<Factor>> ops::DivAssign<S> for ByteLength {
+    fn div_assign(&mut self, rhs: S) {
+        *self = *self / rhs;
     }
 }

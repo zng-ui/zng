@@ -1,5 +1,4 @@
 * Impl `Transitionable` for more units, needs review:
-    - byte.
     - grid.
     - line.
     - point.
