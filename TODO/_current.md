@@ -1,7 +1,6 @@
+* When easing attribute, see `./Variables.md`.
 * Sort property build actions by importance?
     - Right now we just have one, `easing` but can be many.
-
-* `is_hovered` in `window!` causes continuous activation/deactivation of when state.
 
 * Continue "#Parallel UI" in `./Performance.md`.
 * Review all docs.
