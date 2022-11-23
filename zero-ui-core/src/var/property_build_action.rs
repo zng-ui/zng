@@ -44,8 +44,8 @@ macro_rules! impl_easing_property_inputs {
                     vec![]
                 } else {
                     vec![
-                        Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),
-                        $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |v| easing_property_input_Transitionable::easing(v, duration, easing.clone())))),)*
+                        Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone())))),
+                        $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone())))),)*
                     ]
                 }
             }

@@ -2594,6 +2594,12 @@ pub trait AnyPropertyBuildAction: crate::private::Sealed + Any + Send + Sync {
     fn clone_boxed(&self) -> Box<dyn AnyPropertyBuildAction>;
 }
 
+/// Arguments for [`PropertyBuildAction<I>`].
+pub struct PropertyBuildActionArgs<I: Any + Send> {
+    /// The property input value.
+    pub input: I,
+}
+
 /// Represents a custom build action targeting a property input that is applied after `when` is build.
 ///
 /// The type `I` depends on the input kind:
@@ -2615,7 +2621,7 @@ pub trait AnyPropertyBuildAction: crate::private::Sealed + Any + Send + Sync {
 /// [`UiNode`]: InputKind::UiNode
 /// [`UiNodeList`]: InputKind::UiNodeList
 /// [`WidgetHandler`]: InputKind::WidgetHandler
-pub struct PropertyBuildAction<I: Any + Send>(Arc<Mutex<dyn FnMut(I) -> I + Send>>);
+pub struct PropertyBuildAction<I: Any + Send>(Arc<Mutex<dyn FnMut(PropertyBuildActionArgs<I>) -> I + Send>>);
 impl<I: Any + Send> crate::private::Sealed for PropertyBuildAction<I> {}
 impl<I: Any + Send> Clone for PropertyBuildAction<I> {
     fn clone(&self) -> Self {
@@ -2633,18 +2639,18 @@ impl<I: Any + Send> AnyPropertyBuildAction for PropertyBuildAction<I> {
 }
 impl<I: Any + Send> PropertyBuildAction<I> {
     /// New build action.
-    pub fn new(build: impl FnMut(I) -> I + Send + 'static) -> Self {
+    pub fn new(build: impl FnMut(PropertyBuildActionArgs<I>) -> I + Send + 'static) -> Self {
         Self(Arc::new(Mutex::new(build)))
     }
 
     /// New build action that just pass the input.
     pub fn no_op() -> Self {
-        Self::new(|i| i)
+        Self::new(|i| i.input)
     }
 
     /// Run the build action on a input.
     pub fn build(&self, input: I) -> I {
-        (self.0.lock())(input)
+        (self.0.lock())(PropertyBuildActionArgs { input })
     }
 }
 impl Clone for Box<dyn AnyPropertyBuildAction> {
