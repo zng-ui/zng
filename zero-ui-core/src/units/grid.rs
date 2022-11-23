@@ -170,3 +170,32 @@ impl PxGridSpacing {
         PxGridSpacing { column: Px(0), row: Px(0) }
     }
 }
+
+impl ops::Add for GridSpacing {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+impl ops::AddAssign for GridSpacing {
+    fn add_assign(&mut self, rhs: Self) {
+        self.column += rhs.column;
+        self.row += rhs.row;
+    }
+}
+impl ops::Sub for GridSpacing {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self {
+        self -= rhs;
+        self
+    }
+}
+impl ops::SubAssign for GridSpacing {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.column -= rhs.column;
+        self.row -= rhs.row;
+    }
+}
