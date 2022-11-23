@@ -371,6 +371,20 @@ impl<T: VarValue> ArcWhenVar<T> {
             updates.update_ext();
         })
     }
+
+    /// Reference condition, value pairs.
+    ///
+    /// The active condition is the first `true`.
+    pub fn conditions(&self) -> &[(BoxedVar<bool>, BoxedVar<T>)] {
+        &self.0.conditions
+    }
+
+    /// The default value var.
+    ///
+    /// When no condition is active this is the backing var.
+    pub fn default(&self) -> &BoxedVar<T> {
+        &self.0.default
+    }
 }
 
 impl<T> Clone for ArcWhenVar<T> {

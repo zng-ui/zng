@@ -1918,11 +1918,16 @@ fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn An
     })
 }
 
-fn var_bind<I: VarValue, O: VarValue, V: Var<O>>(
+fn var_bind<I, O, V>(
     input: &impl Var<I>,
     output: &V,
     update_output: impl FnMut(&Vars, &mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
-) -> VarHandle {
+) -> VarHandle
+where
+    I: VarValue,
+    O: VarValue,
+    V: Var<O>,
+{
     if input.capabilities().is_always_static() || output.capabilities().is_always_read_only() {
         VarHandle::dummy()
     } else {
@@ -1930,11 +1935,16 @@ fn var_bind<I: VarValue, O: VarValue, V: Var<O>>(
     }
 }
 
-fn var_bind_ok<I: VarValue, O: VarValue, W: WeakVar<O>>(
+fn var_bind_ok<I, O, W>(
     input: &impl Var<I>,
     wk_output: W,
     update_output: impl FnMut(&Vars, &mut Updates, &I, W::Upgrade) + Send + 'static,
-) -> VarHandle {
+) -> VarHandle
+where
+    I: VarValue,
+    O: VarValue,
+    W: WeakVar<O>,
+{
     let update_output = Mutex::new(update_output);
     input.hook(Box::new(move |vars, updates, value| {
         if let Some(output) = wk_output.upgrade() {
@@ -1950,7 +1960,10 @@ fn var_bind_ok<I: VarValue, O: VarValue, W: WeakVar<O>>(
     }))
 }
 
-fn var_on_new<T: VarValue>(var: &impl Var<T>, handler: impl AppHandler<T>, is_preview: bool) -> VarHandle {
+fn var_on_new<T>(var: &impl Var<T>, handler: impl AppHandler<T>, is_preview: bool) -> VarHandle
+where
+    T: VarValue,
+{
     if var.capabilities().is_always_static() {
         return VarHandle::dummy();
     }
