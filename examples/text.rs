@@ -149,6 +149,7 @@ fn line_spacing() -> impl UiNode {
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
                 when *#is_hovered {
+                    #[easing(150.ms())]
                     line_spacing = 30.pct();
                 }
             };
@@ -166,6 +167,7 @@ fn word_spacing() -> impl UiNode {
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
             when *#is_hovered {
+                #[easing(150.ms())]
                 word_spacing = 100.pct();
             }
         }],
@@ -180,6 +182,7 @@ fn letter_spacing() -> impl UiNode {
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
             when *#is_hovered {
+                #[easing(150.ms())]
                 letter_spacing = 30.pct();
             }
         }],

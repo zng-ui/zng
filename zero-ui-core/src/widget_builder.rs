@@ -91,24 +91,16 @@ pub use when_condition_expr_var;
 #[macro_export]
 macro_rules! property_id {
     ($($property:ident)::+) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
+        $($property)::+::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
     }};
-    ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
+    ($($property:ident)::+::<$($generics:ty),*>) => {{
+        $($property)::+ ::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
     }};
     ($($property:ident)::+ as $rename:ident) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+        $($property)::+::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
     ($($property:ident)::+ ::<$($generics:ty),*> as $rename:ident) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+        $($property)::+::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
     }};
 }
 #[doc(inline)]
@@ -141,14 +133,10 @@ pub use crate::property_id;
 #[macro_export]
 macro_rules! property_info {
     ($($property:ident)::+) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::__property__()
+        $($property)::+::__property__()
     }};
     ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::<$($generics),*>::__property__()
+        $($property)::+::<$($generics),*>::__property__()
     }};
 }
 #[doc(inline)]
@@ -164,14 +152,10 @@ pub use crate::property_info;
 #[macro_export]
 macro_rules! property_input_types {
     ($($property:ident)::+) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::__input_types__()
+        $($property)::+::__input_types__()
     }};
     ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        // Rust does not expand the macro if we remove the braces.
-        #[rustfmt::skip] use $($property)::+ as property;
-        property::<$($generics),*>::__input_types__()
+        $($property)::+::<$($generics),*>::__input_types__()
     }};
 }
 #[doc(inline)]

@@ -1,10 +1,9 @@
 * Animation lag when text cursor is blinking.
 * Alt scope not working in focus example.
+    - After opening&closing overlay.
     - Disable window in overlay also failed once (stop responding? or did not render?)
 * Transitions from light theme to dark on init.
     - Disable animations when changing theme?
-* Easing in `line_spacing` ambiguous import.
-
 * Continue "#Parallel UI" in `./Performance.md`.
 * Review all docs.
     - Mentions of threads in particular.
