@@ -524,8 +524,62 @@ impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
 
 /// Property builder actions that must be applied to property args.
 ///
-/// Each outer vec item is a vec of builder for each property input, see [`PropertyInfo::new`] for more details.
+/// Each item is a vec of actions for each property input, see [`PropertyNewArgs::build_actions`] for more details.
 pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
+
+/// Args for [`PropertyInfo::new`].
+pub struct PropertyNewArgs {
+    /// Defines the [`PropertyArgs::instance`] value.
+    pub inst_info: PropertyInstInfo,
+
+    /// The args vec must have a value for each input in the same order they appear in [`PropertyInfo::inputs`], types must match
+    /// the input kind and type, the function panics if the types don't match or not all inputs are provided.
+    ///
+    /// The expected types for each [`InputKind`] are:
+    ///
+    /// | Kind                | Expected Type
+    /// |---------------------|-------------------------------------------------
+    /// | [`Var`]             | `Box<BoxedVar<T>>` or `Box<AnyWhenVarBuilder>`
+    /// | [`StateVar`]        | `Box<StateVar>`
+    /// | [`Value`]           | `Box<T>`
+    /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
+    /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
+    /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`
+    ///
+    /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
+    ///
+    /// [`Var`]: InputKind::Var
+    /// [`StateVar`]: InputKind::StateVar
+    /// [`Value`]: InputKind::Value
+    /// [`UiNode`]: InputKind::UiNode
+    /// [`UiNodeList`]: InputKind::UiNodeList
+    /// [`WidgetHandler`]: InputKind::WidgetHandler
+    pub args: Vec<Box<dyn Any>>,
+
+    /// The property build actions can be empty or each item must contain one builder for each input in the same order they
+    /// appear in [`PropertyInfo::inputs`], the function panics if the types don't match or not all inputs are provided.
+    ///
+    /// The expected types for each [`InputKind`] are:
+    ///
+    /// | Kind                | Expected Type
+    /// |---------------------|-------------------------------------------------
+    /// | [`Var`]             | `Box<PropertyBuildAction<BoxedVar<T>>>`
+    /// | [`StateVar`]        | `Box<PropertyBuildAction<StateVar>>`
+    /// | [`Value`]           | `Box<PropertyBuildAction<T>>`
+    /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
+    /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
+    /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
+    ///
+    /// The expected type must be casted as `Box<dyn AnyPropertyBuildAction>`, the new function will downcast and unbox the args.
+    ///
+    /// [`Var`]: InputKind::Var
+    /// [`StateVar`]: InputKind::StateVar
+    /// [`Value`]: InputKind::Value
+    /// [`UiNode`]: InputKind::UiNode
+    /// [`UiNodeList`]: InputKind::UiNodeList
+    /// [`WidgetHandler`]: InputKind::WidgetHandler
+    pub build_actions: PropertyBuildActions,
+}
 
 /// Property info.
 ///
@@ -554,46 +608,6 @@ pub struct PropertyInfo {
 
     /// New property args from dynamically typed args.
     ///
-    /// # Param 0 - Instance Info
-    ///
-    /// The first parameter is a [`PropertyInstInfo`] that defines the [`PropertyArgs::instance`] value.
-    ///
-    /// # Param 1 - Args
-    ///
-    /// The args vec must have a value for each input in the same order they appear in [`inputs`], types must match
-    /// the input kind and type, the function panics if the types don't match or not all inputs are provided.
-    ///
-    /// The expected types for each [`InputKind`] are:
-    ///
-    /// | Kind                | Expected Type
-    /// |---------------------|-------------------------------------------------
-    /// | [`Var`]             | `Box<BoxedVar<T>>` or `Box<AnyWhenVarBuilder>`
-    /// | [`StateVar`]        | `Box<StateVar>`
-    /// | [`Value`]           | `Box<T>`
-    /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
-    /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
-    /// | [`WidgetHandler`]   | `Box<ArcWidgetHandler<A>>` or `Box<AnyWhenArcWidgetHandlerBuilder>`
-    ///
-    /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
-    ///
-    /// # Param 3 - Build Actions
-    ///
-    /// The property build actions can be empty or each item must contain one builder for each input in the same order they
-    /// appear in [`inputs`], the function panics if the types don't match or not all inputs are provided.
-    ///
-    /// The expected types for each [`InputKind`] are:
-    ///
-    /// | Kind                | Expected Type
-    /// |---------------------|-------------------------------------------------
-    /// | [`Var`]             | `Box<PropertyBuildAction<BoxedVar<T>>>`
-    /// | [`StateVar`]        | `Box<PropertyBuildAction<StateVar>>`
-    /// | [`Value`]           | `Box<PropertyBuildAction<T>>`
-    /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
-    /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
-    /// | [`WidgetHandler`]   | `Box<PropertyBuildAction<ArcWidgetHandler<A>>>`
-    ///
-    /// The expected type must be casted as `Box<dyn AnyPropertyBuildAction>`, the new function will downcast and unbox the args.
-    ///
     /// # Instance
     ///
     /// This function outputs build property args, not a property node instance.
@@ -601,14 +615,7 @@ pub struct PropertyInfo {
     /// property is known at compile time you can use [`property_args!`] to generate args instead, and you can just
     /// call the property function directly to instantiate a node.
     ///
-    /// [`inputs`]: Self::inputs
-    /// [`Var`]: InputKind::Var
-    /// [`StateVar`]: InputKind::StateVar
-    /// [`Value`]: InputKind::Value
-    /// [`UiNode`]: InputKind::UiNode
-    /// [`UiNodeList`]: InputKind::UiNodeList
-    /// [`WidgetHandler`]: InputKind::WidgetHandler
-    pub new: fn(PropertyInstInfo, Vec<Box<dyn Any>>, PropertyBuildActions) -> Box<dyn PropertyArgs>,
+    pub new: fn(PropertyNewArgs) -> Box<dyn PropertyArgs>,
 
     /// Property inputs info, always at least one.
     pub inputs: Box<[PropertyInput]>,
@@ -829,7 +836,11 @@ impl dyn PropertyArgs + '_ {
             }
         }
 
-        (p.new)(self.instance(), args, build_actions)
+        (p.new)(PropertyNewArgs {
+            inst_info: self.instance(),
+            args,
+            build_actions,
+        })
     }
 }
 
@@ -2284,7 +2295,11 @@ impl WidgetBuilding {
                 // !!: collect build actions for conditions too?
             }
 
-            *args = (args.property().new)(args.instance(), builder, actions);
+            *args = (args.property().new)(PropertyNewArgs {
+                inst_info: args.instance(),
+                args: builder,
+                build_actions: actions,
+            });
         }
     }
 
