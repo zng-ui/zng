@@ -884,7 +884,10 @@ fn apply_build_actions<'a, I: Any + Send>(mut item: I, mut actions: impl Iterato
             .downcast_mut::<PropertyBuildAction<I>>()
             .expect("property build action type did not match expected var type");
 
-        item = action.build(item);
+        item = action.build(PropertyBuildActionArgs {
+            input: item,
+            when_conditions_data: vec![], // !!: TODO
+        });
     }
     item
 }
@@ -1226,7 +1229,7 @@ type WhenBuildDefaultAction = Arc<dyn Fn(&WhenBuildActionData) -> Vec<Box<dyn An
 /// Data for a custom when build action associated with an [`WhenInfo`].
 #[derive(Clone)]
 pub struct WhenBuildAction {
-    /// Data.
+    /// Data for all inputs.
     pub data: WhenBuildActionData,
     /// Closure that generates the default build actions, used when the final widget has no build action instance.
     ///
@@ -2598,6 +2601,10 @@ pub trait AnyPropertyBuildAction: crate::private::Sealed + Any + Send + Sync {
 pub struct PropertyBuildActionArgs<I: Any + Send> {
     /// The property input value.
     pub input: I,
+    /// The [`WhenBuildAction::data`] for each when assign that affects `input` in the order that `input` was generated.
+    ///
+    /// Items are `None` for when assigns that do not have associated build action data.
+    pub when_conditions_data: Vec<Option<WhenBuildActionData>>,
 }
 
 /// Represents a custom build action targeting a property input that is applied after `when` is build.
@@ -2649,8 +2656,8 @@ impl<I: Any + Send> PropertyBuildAction<I> {
     }
 
     /// Run the build action on a input.
-    pub fn build(&self, input: I) -> I {
-        (self.0.lock())(PropertyBuildActionArgs { input })
+    pub fn build(&self, args: PropertyBuildActionArgs<I>) -> I {
+        (self.0.lock())(args)
     }
 }
 impl Clone for Box<dyn AnyPropertyBuildAction> {

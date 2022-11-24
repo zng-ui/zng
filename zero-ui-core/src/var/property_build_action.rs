@@ -21,26 +21,25 @@ pub trait easing_property: Send + Sync + Clone + Copy {
 #[doc(hidden)]
 #[allow(non_camel_case_types)]
 pub trait easing_property_input_Transitionable: Any + Send {
-    fn easing(self, duration: Duration, easing: EasingFn) -> Self;
+    fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self;
 }
 impl<T: VarValue + Transitionable> easing_property_input_Transitionable for BoxedVar<T> {
-    fn easing(self, duration: Duration, easing: EasingFn) -> Self {
+    fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self {
         if let Some(when) = self.as_any().downcast_ref::<types::ContextualizedVar<T, types::ArcWhenVar<T>>>() {
-            let when = when.clone();
-            types::ContextualizedVar::new(Arc::new(move || {
-                // !!: TODO
-                let conditions = when
-                    .borrow_init()
-                    .conditions()
-                    .iter()
-                    .map(|_| Some((0.ms(), Arc::new(super::easing::linear) as EasingFn)))
-                    .collect();
-                when.borrow_init().easing_when(conditions, (duration, easing.clone()))
-            }))
-            .boxed()
-        } else {
-            Var::easing(&self, duration, move |t| easing(t)).boxed()
+            let conditions: Vec<_> = when_conditions_data
+                .iter()
+                .map(|d| d.as_ref().and_then(|d| d.downcast_ref::<(Duration, EasingFn)>().cloned()))
+                .collect();
+
+            if conditions.iter().any(|c| c.is_some()) {
+                let when = when.clone();
+                return types::ContextualizedVar::new(Arc::new(move || {
+                    when.borrow_init().easing_when(conditions.clone(), (duration, easing.clone()))
+                }))
+                .boxed();
+            }
         }
+        Var::easing(&self, duration, move |t| easing(t)).boxed()
     }
 }
 
@@ -60,8 +59,8 @@ macro_rules! impl_easing_property_inputs {
                     vec![]
                 } else {
                     vec![
-                        Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone())))),
-                        $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone())))),)*
+                        Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),
+                        $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),)*
                     ]
                 }
             }
