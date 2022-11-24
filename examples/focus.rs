@@ -458,7 +458,7 @@ mod inspect {
 mod inspect {
     use super::*;
 
-    pub fn focus(path: &Option<InteractionPath>, _: &mut Services) -> String {
+    pub fn focus(_: &mut Services, path: &Option<InteractionPath>) -> String {
         path.as_ref()
             .map(|p| format!("{:?}", p.widget_id()))
             .unwrap_or_else(|| "<none>".to_owned())
