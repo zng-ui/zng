@@ -305,7 +305,7 @@ impl WgtProperty {
         let path_slug = util::display_path(&self.path).replace("::", "_");
         PropertyAttrData {
             pending_attrs: attrs.clone(),
-            data_ident: ident!("__property_custom_expand_data_p{}__", path_slug),
+            data_ident: ident!("__property_custom_expand_data_p_{}__", path_slug),
             builder,
             is_unset: self.is_unset(),
             when,

@@ -722,7 +722,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut init = quote!();
 
-    let builder = ident!("__builder__");
+    let builder = ident!("__wgt__");
     let when = ident!("__when__");
     let importance = ident!("__importance__");
 

@@ -2156,6 +2156,9 @@ impl WidgetBuilding {
         struct Assign {
             item_idx: usize,
             builder: Vec<Box<dyn Any>>,
+            when_count: usize,
+            /// map of key:action set in the property, in at least one when, and value:vec of data for each when in order.
+            actions_data: LinearMap<&'static str, Vec<Option<WhenBuildActionData>>>,
         }
         let mut assigns = LinearMap::new();
 
@@ -2253,8 +2256,11 @@ impl WidgetBuilding {
                                 InputKind::StateVar | InputKind::Value => panic!("can only assign vars in when blocks"),
                             })
                             .collect(),
+                        when_count: 0,
+                        actions_data: Default::default(),
                     }),
                 };
+                entry.when_count += 1;
 
                 for (i, (input, entry)) in info.inputs.iter().zip(entry.builder.iter_mut()).enumerate() {
                     match input.kind {
@@ -2278,7 +2284,29 @@ impl WidgetBuilding {
                             let handler = assign.widget_handler(i).clone_boxed();
                             entry.push(when.state.clone(), handler);
                         }
-                        InputKind::StateVar | InputKind::Value => panic!("can only assign vars in when blocks"),
+                        InputKind::StateVar | InputKind::Value => panic!("cannot assign `StateVar`, `Value` in when blocks"),
+                    }
+                }
+
+                for ((property_id, action_key), action) in &when.build_action_data {
+                    if *property_id == id {
+                        match entry.actions_data.entry(*action_key) {
+                            linear_map::Entry::Occupied(mut e) => {
+                                let e = e.get_mut();
+                                for _ in e.len()..entry.when_count {
+                                    e.push(None);
+                                }
+                                e.push(Some(action.data.clone()));
+                            }
+                            linear_map::Entry::Vacant(e) => {
+                                let mut a = Vec::with_capacity(entry.when_count);
+                                for _ in 0..entry.when_count {
+                                    a.push(None);
+                                }
+                                a.push(Some(action.data.clone()));
+                                e.insert(a);
+                            }
+                        }
                     }
                 }
             }
@@ -2310,29 +2338,46 @@ impl WidgetBuilding {
             input.var.set(actual);
         }
 
-        for (_, Assign { item_idx, builder }) in assigns {
+        for (
+            _,
+            Assign {
+                item_idx,
+                builder,
+                when_count,
+                actions_data,
+            },
+        ) in assigns
+        {
             let args = match &mut self.items[item_idx].item {
                 WidgetItem::Property { args, .. } => args,
                 WidgetItem::Intrinsic { .. } => unreachable!(),
             };
 
             let mut actions = vec![];
-            let mut data = vec![];
+            let mut b_actions_data = vec![];
             if !build_actions.is_empty() {
                 let p_id = args.id();
                 while let Some(i) = build_actions.iter().position(|((id, _), _)| *id == p_id) {
-                    let (_, (_, a)) = build_actions.swap_remove(i);
+                    let ((_, action_key), (_, a)) = build_actions.swap_remove(i);
                     actions.push(a);
-                }
 
-                // !!: collect build actions for conditions too?
+                    if let Some(data) = actions_data.get(action_key) {
+                        let mut data = data.clone();
+                        for _ in data.len()..when_count {
+                            data.push(None);
+                        }
+                        b_actions_data.push(data);
+                    }
+                }
             }
+
+            // !!: TODO action data without instance (default)
 
             *args = (args.property().new)(PropertyNewArgs {
                 inst_info: args.instance(),
                 args: builder,
                 build_actions: actions,
-                build_actions_when_data: data,
+                build_actions_when_data: b_actions_data,
             });
         }
     }

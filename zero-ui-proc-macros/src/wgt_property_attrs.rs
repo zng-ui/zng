@@ -250,6 +250,8 @@ impl ToTokens for PropertyAttrData {
             return;
         }
 
+        let span = self.pending_attrs[0].pound_token.span;
+
         let Self {
             pending_attrs,
             data_ident,
@@ -261,7 +263,7 @@ impl ToTokens for PropertyAttrData {
         } = self;
 
         let when = if let Some(when) = when {
-            quote! {
+            quote_spanned! {span=>
                 fn when_ident() {
                     #when
                 }
@@ -270,7 +272,7 @@ impl ToTokens for PropertyAttrData {
             quote!()
         };
         let importance = if let Some(importance) = importance {
-            quote! {
+            quote_spanned! {span=>
                 fn importance_ident() {
                     #importance
                 }
@@ -279,7 +281,7 @@ impl ToTokens for PropertyAttrData {
             quote!()
         };
 
-        tokens.extend(quote! {
+        tokens.extend(quote_spanned! {span=>
             #(#pending_attrs)*
             mod #data_ident {
                 fn builder_ident() {
