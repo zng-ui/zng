@@ -459,7 +459,8 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                 args.propagation().stop();
                 state.set(ctx, CloseState::Asking);
 
-                WindowLayers::insert(ctx, LayerIndex::TOP_MOST, close_dialog(args.windows.clone().into(), state.clone()))
+                let dlg = close_dialog(ctx.vars, args.windows.clone().into(), state.clone());
+                WindowLayers::insert(ctx, LayerIndex::TOP_MOST, dlg)
             }
             CloseState::Asking => args.propagation().stop(),
             CloseState::Close => {}
@@ -467,8 +468,12 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     })
 }
 
-fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
+fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
+    let opacity = var(0.fct());
+    opacity.ease(vars, 1.fct(), 300.ms(), easing::linear).perm();
     container! {
+        opacity = opacity.clone();
+
         id = "close-dialog";
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
@@ -510,9 +515,15 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                             },
                             button! {
                                 child = text("Cancel");
-                                on_click = hn!(state, |ctx, _| {
-                                    state.set(ctx, CloseState::Ask);
-                                    WindowLayers::remove(ctx, "close-dialog");
+                                on_click = async_hn!(opacity, state, |ctx, _| {
+                                    opacity.ease(&ctx, 0.fct(), 150.ms(), easing::linear).perm();
+                                    ctx.yield_one().await;
+                                    opacity.wait_animation().await;
+
+                                    state.set(&ctx, CloseState::Ask);
+                                    ctx.with(|ctx| {
+                                        WindowLayers::remove(ctx, "close-dialog");
+                                    })
                                 });
                             },
                         ]

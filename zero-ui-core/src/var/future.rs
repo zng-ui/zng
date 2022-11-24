@@ -98,11 +98,11 @@ impl<'a, T: VarValue, V: Var<T>> Future for WaitIsNotAnimatingFut<'a, T, V> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
         match self.var.is_animating() {
-            true => {
+            false => {
                 self.wakers.lock().clear();
                 Poll::Ready(())
             }
-            false => {
+            true => {
                 let waker = cx.waker().clone();
                 self.wakers.lock().push(self.var.hook(Box::new(move |_, _, _| {
                     waker.wake_by_ref();
