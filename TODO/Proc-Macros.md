@@ -2,6 +2,9 @@
 
 Proc-macros are mostly implemented, there are some improvements we can make:
 
+* Sort property build actions by importance?
+    - Right now we just have one, `easing` but can be many.
+
 ## Partial Assign
 
 Implement syntax to allow assigning only one of the property inputs.

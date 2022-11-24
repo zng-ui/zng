@@ -2157,8 +2157,9 @@ impl WidgetBuilding {
             item_idx: usize,
             builder: Vec<Box<dyn Any>>,
             when_count: usize,
-            /// map of key:action set in the property, in at least one when, and value:vec of data for each when in order.
-            actions_data: LinearMap<&'static str, Vec<Option<WhenBuildActionData>>>,
+            /// map of key:action set in the property, in at least one when, and value:Vec of data for each when in order and
+            /// Option of default action.
+            actions_data: LinearMap<&'static str, (Vec<Option<WhenBuildActionData>>, Option<WhenBuildDefaultAction>)>,
         }
         let mut assigns = LinearMap::new();
 
@@ -2293,10 +2294,13 @@ impl WidgetBuilding {
                         match entry.actions_data.entry(*action_key) {
                             linear_map::Entry::Occupied(mut e) => {
                                 let e = e.get_mut();
-                                for _ in e.len()..(entry.when_count - 1) {
-                                    e.push(None);
+                                for _ in e.0.len()..(entry.when_count - 1) {
+                                    e.0.push(None);
                                 }
-                                e.push(Some(action.data.clone()));
+                                e.0.push(Some(action.data.clone()));
+                                if action.default_action.is_some() && e.1.is_none() {
+                                    e.1 = action.default_action.clone();
+                                }
                             }
                             linear_map::Entry::Vacant(e) => {
                                 let mut a = Vec::with_capacity(entry.when_count);
@@ -2304,7 +2308,7 @@ impl WidgetBuilding {
                                     a.push(None);
                                 }
                                 a.push(Some(action.data.clone()));
-                                e.insert(a);
+                                e.insert((a, action.default_action.clone()));
                             }
                         }
                     }
@@ -2344,7 +2348,7 @@ impl WidgetBuilding {
                 item_idx,
                 builder,
                 when_count,
-                actions_data,
+                mut actions_data,
             },
         ) in assigns
         {
@@ -2361,17 +2365,29 @@ impl WidgetBuilding {
                     let ((_, action_key), (_, a)) = build_actions.swap_remove(i);
                     actions.push(a);
 
-                    if let Some(data) = actions_data.get(action_key) {
+                    if let Some(data) = actions_data.remove(action_key) {
                         let mut data = data.clone();
-                        for _ in data.len()..when_count {
-                            data.push(None);
+                        for _ in data.0.len()..when_count {
+                            data.0.push(None);
                         }
-                        b_actions_data.push(data);
+                        b_actions_data.push(data.0);
                     }
                 }
             }
 
-            // !!: TODO action data without instance (default)
+            for (_, (mut data, default)) in actions_data {
+                if let Some(default) = default {
+                    if let Some(init_data) = data.iter().find_map(|d| d.as_ref()) {
+                        let action = default(init_data);
+                        for _ in data.len()..when_count {
+                            data.push(None);
+                        }
+
+                        actions.push(action);
+                        b_actions_data.push(data);
+                    }
+                }
+            }
 
             *args = (args.property().new)(PropertyNewArgs {
                 inst_info: args.instance(),
