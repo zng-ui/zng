@@ -2293,14 +2293,14 @@ impl WidgetBuilding {
                         match entry.actions_data.entry(*action_key) {
                             linear_map::Entry::Occupied(mut e) => {
                                 let e = e.get_mut();
-                                for _ in e.len()..entry.when_count {
+                                for _ in e.len()..(entry.when_count - 1) {
                                     e.push(None);
                                 }
                                 e.push(Some(action.data.clone()));
                             }
                             linear_map::Entry::Vacant(e) => {
                                 let mut a = Vec::with_capacity(entry.when_count);
-                                for _ in 0..entry.when_count {
+                                for _ in 0..(entry.when_count - 1) {
                                     a.push(None);
                                 }
                                 a.push(Some(action.data.clone()));
