@@ -522,10 +522,15 @@ impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
     }
 }
 
-/// Property builder actions that must be applied to property args.
+/// Property build actions that must be applied to property args.
 ///
-/// Each item is a vec of actions for each property input, see [`PropertyNewArgs::build_actions`] for more details.
+/// See [`PropertyNewArgs::build_actions`] for more details.
 pub type PropertyBuildActions = Vec<Vec<Box<dyn AnyPropertyBuildAction>>>;
+
+/// Data for property build actions associated with when conditions.
+///
+/// See [`PropertyNewArgs::build_actions_when_data`] for more details.
+pub type PropertyBuildActionsWhenData = Vec<Vec<Option<WhenBuildActionData>>>;
 
 /// Args for [`PropertyInfo::new`].
 pub struct PropertyNewArgs {
@@ -579,6 +584,13 @@ pub struct PropertyNewArgs {
     /// [`UiNodeList`]: InputKind::UiNodeList
     /// [`WidgetHandler`]: InputKind::WidgetHandler
     pub build_actions: PropertyBuildActions,
+
+    /// When build action data for each [`build_actions`].
+    ///
+    /// If not empty, each item is the [`PropertyBuildActionArgs::when_conditions_data`] for each action.
+    ///
+    /// [`build_actions`]: Self::build_actions
+    pub build_actions_when_data: PropertyBuildActionsWhenData,
 }
 
 /// Property info.
@@ -818,10 +830,14 @@ impl dyn PropertyArgs + '_ {
         }
     }
 
-    /// Call [`new`] with the same instance info and args, but with the `build_actions`.
+    /// Call [`new`] with the same instance info and args, but with the `build_actions` and `build_actions_when_data`.
     ///
     /// [`new`]: PropertyInfo::new
-    pub fn new_build(&self, build_actions: PropertyBuildActions) -> Box<dyn PropertyArgs> {
+    pub fn new_build(
+        &self,
+        build_actions: PropertyBuildActions,
+        build_actions_when_data: PropertyBuildActionsWhenData,
+    ) -> Box<dyn PropertyArgs> {
         let p = self.property();
 
         let mut args: Vec<Box<dyn Any>> = Vec::with_capacity(p.inputs.len());
@@ -840,6 +856,7 @@ impl dyn PropertyArgs + '_ {
             inst_info: self.instance(),
             args,
             build_actions,
+            build_actions_when_data,
         })
     }
 }
@@ -884,20 +901,35 @@ pub fn widget_handler_to_args<A: Clone + 'static>(handler: impl WidgetHandler<A>
 }
 
 #[doc(hidden)]
-pub fn iter_input_build_actions(actions: &mut PropertyBuildActions, index: usize) -> impl Iterator<Item = &mut dyn AnyPropertyBuildAction> {
-    actions.iter_mut().map(move |a| &mut *a[index])
+pub fn iter_input_build_actions<'a>(
+    actions: &'a PropertyBuildActions,
+    data: &'a PropertyBuildActionsWhenData,
+    index: usize,
+) -> impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])> {
+    let mut actions = actions.iter();
+    let mut data = data.iter();
+
+    std::iter::from_fn(move || {
+        let action = &*actions.next()?[index];
+        let data = if let Some(data) = data.next() { &data[..] } else { &[None] };
+
+        Some((action, data))
+    })
 }
 
-fn apply_build_actions<'a, I: Any + Send>(mut item: I, mut actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>) -> I {
-    if let Some(action) = actions.next() {
+fn apply_build_actions<'a, I: Any + Send>(
+    mut item: I,
+    mut actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
+) -> I {
+    if let Some((action, data)) = actions.next() {
         let action = action
             .as_any()
-            .downcast_mut::<PropertyBuildAction<I>>()
+            .downcast_ref::<PropertyBuildAction<I>>()
             .expect("property build action type did not match expected var type");
 
         item = action.build(PropertyBuildActionArgs {
             input: item,
-            when_conditions_data: vec![], // !!: TODO
+            when_conditions_data: data,
         });
     }
     item
@@ -906,7 +938,7 @@ fn apply_build_actions<'a, I: Any + Send>(mut item: I, mut actions: impl Iterato
 #[doc(hidden)]
 pub fn new_dyn_var<'a, T: VarValue>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
 ) -> BoxedVar<T> {
     let item = inputs.next().expect("missing input");
 
@@ -921,7 +953,7 @@ pub fn new_dyn_var<'a, T: VarValue>(
 #[doc(hidden)]
 pub fn new_dyn_ui_node<'a>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
 ) -> ArcNode<BoxedUiNode> {
     let item = inputs.next().expect("missing input");
 
@@ -938,7 +970,7 @@ pub fn new_dyn_ui_node<'a>(
 #[doc(hidden)]
 pub fn new_dyn_ui_node_list<'a>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
 ) -> ArcNodeList<BoxedUiNodeList> {
     let item = inputs.next().expect("missing input");
 
@@ -955,7 +987,7 @@ pub fn new_dyn_ui_node_list<'a>(
 #[doc(hidden)]
 pub fn new_dyn_widget_handler<'a, A: Clone + 'static>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
 ) -> ArcWidgetHandler<A> {
     let item = inputs.next().expect("missing input");
 
@@ -972,7 +1004,7 @@ pub fn new_dyn_widget_handler<'a, A: Clone + 'static>(
 #[doc(hidden)]
 pub fn new_dyn_other<'a, T: Any + Send>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    actions: impl Iterator<Item = &'a mut dyn AnyPropertyBuildAction>,
+    actions: impl Iterator<Item = (&'a dyn AnyPropertyBuildAction, &'a [Option<WhenBuildActionData>])>,
 ) -> T {
     let item = *inputs
         .next()
@@ -2285,6 +2317,7 @@ impl WidgetBuilding {
             };
 
             let mut actions = vec![];
+            let mut data = vec![];
             if !build_actions.is_empty() {
                 let p_id = args.id();
                 while let Some(i) = build_actions.iter().position(|((id, _), _)| *id == p_id) {
@@ -2299,6 +2332,7 @@ impl WidgetBuilding {
                 inst_info: args.instance(),
                 args: builder,
                 build_actions: actions,
+                build_actions_when_data: data,
             });
         }
     }
@@ -2315,7 +2349,7 @@ impl WidgetBuilding {
 
             if let Some(i) = self.property_index(p_id) {
                 match &mut self.items[i].item {
-                    WidgetItem::Property { args, .. } => *args = args.new_build(actions),
+                    WidgetItem::Property { args, .. } => *args = args.new_build(actions, vec![]),
                     WidgetItem::Intrinsic { .. } => unreachable!(),
                 }
             }
@@ -2606,20 +2640,20 @@ impl WidgetBuilderProperties {
 /// Represents any [`PropertyBuildAction<I>`].
 pub trait AnyPropertyBuildAction: crate::private::Sealed + Any + Send + Sync {
     /// As any.
-    fn as_any(&mut self) -> &mut dyn Any;
+    fn as_any(&self) -> &dyn Any;
 
     /// Clone the action into a new box.
     fn clone_boxed(&self) -> Box<dyn AnyPropertyBuildAction>;
 }
 
 /// Arguments for [`PropertyBuildAction<I>`].
-pub struct PropertyBuildActionArgs<I: Any + Send> {
+pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
     /// The property input value.
     pub input: I,
     /// The [`WhenBuildAction::data`] for each when assign that affects `input` in the order that `input` was generated.
     ///
     /// Items are `None` for when assigns that do not have associated build action data.
-    pub when_conditions_data: Vec<Option<WhenBuildActionData>>,
+    pub when_conditions_data: &'a [Option<WhenBuildActionData>],
 }
 
 /// Represents a custom build action targeting a property input that is applied after `when` is build.
@@ -2655,7 +2689,7 @@ impl<I: Any + Send> AnyPropertyBuildAction for PropertyBuildAction<I> {
         Box::new(self.clone())
     }
 
-    fn as_any(&mut self) -> &mut dyn Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 }
