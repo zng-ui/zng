@@ -31,12 +31,12 @@ pub mod easing;
 /// [`TimeUnits`]: crate::units::TimeUnits
 /// [`easing::*`]: mod@crate::var::easing
 /// [property build action]: crate::widget_builder::WidgetBuilder::push_property_build_action
-/// 
+///
 /// ## When
-/// 
+///
 /// The attribute can also be set in `when` assigns, in this case the easing will be applied when the condition is active, so
 /// only the transition to the `true` value is animated using the conditional easing.
-/// 
+///
 /// Note that you can't `unset` easing in when conditions, but you can set it to `0.ms()`, if all easing set for a property are `0`
 /// no easing variable is generated, but in contexts that actually have animation the when value will be set *immediately*,
 /// by a zero sized animation.

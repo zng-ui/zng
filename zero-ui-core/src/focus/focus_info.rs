@@ -1,3 +1,5 @@
+use parking_lot::Mutex;
+
 use crate::{
     context::*, crate_util::IdSet, units::*, var::impl_from_and_into_var, widget_info::*, widget_instance::WidgetId, window::FocusIndicator,
 };
@@ -1554,7 +1556,7 @@ static FOCUS_TREE_ID: StaticStateId<FocusTreeData> = StaticStateId::new_unique()
 
 #[derive(Default)]
 pub(super) struct FocusTreeData {
-    alt_scopes: IdSet<WidgetId>,
+    alt_scopes: Mutex<IdSet<WidgetId>>,
 }
 impl FocusTreeData {
     pub(super) fn consolidate_alt_scopes(prev_tree: &WidgetInfoTree, new_tree: &WidgetInfoTree) {
@@ -1563,12 +1565,12 @@ impl FocusTreeData {
         let prev = prev_tree
             .build_meta()
             .get(&FOCUS_TREE_ID)
-            .map(|d| d.alt_scopes.clone())
+            .map(|d| d.alt_scopes.lock().clone())
             .unwrap_or_default();
 
         let mut alt_scopes = prev;
         if let Some(data) = new_tree.build_meta().get(&FOCUS_TREE_ID) {
-            alt_scopes.extend(&data.alt_scopes);
+            alt_scopes.extend(&*data.alt_scopes.lock());
         }
 
         alt_scopes.retain(|id| {
@@ -1590,6 +1592,10 @@ impl FocusTreeData {
             }
             false
         });
+
+        if let Some(data) = new_tree.build_meta().get(&FOCUS_TREE_ID) {
+            *data.alt_scopes.lock() = alt_scopes;
+        }
     }
 }
 
@@ -1685,7 +1691,9 @@ pub struct FocusInfoBuilder<'a>(&'a mut WidgetInfoBuilder);
 impl<'a> FocusInfoBuilder<'a> {
     /// Get the builder.
     pub fn get(builder: &'a mut WidgetInfoBuilder) -> Self {
-        Self(builder)
+        let mut r = Self(builder);
+        r.tree_data(); // ensure that build meta is allocated.
+        r
     }
 
     fn data(&mut self) -> &mut FocusInfoData {
@@ -1734,7 +1742,7 @@ impl<'a> FocusInfoBuilder<'a> {
             }
 
             let wgt_id = self.0.widget_id();
-            self.tree_data().alt_scopes.insert(wgt_id);
+            self.tree_data().alt_scopes.lock().insert(wgt_id);
         }
 
         self
