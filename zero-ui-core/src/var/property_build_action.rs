@@ -70,8 +70,12 @@ macro_rules! impl_easing_property_inputs {
                 } else {
                     WhenBuildAction::new(
                         (duration, easing),
-                        move |(duration, easing)| {
-                            self.easing_property(*duration, easing.clone())
+                        || {
+                            let easing = Arc::new($crate::var::animation::easing::linear) as EasingFn;
+                            vec![
+                                Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),
+                                $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),)*
+                            ]
                         }
                     )
                 }

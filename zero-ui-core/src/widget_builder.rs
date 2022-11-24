@@ -1267,7 +1267,7 @@ impl WhenInputVar {
 }
 
 type WhenBuildActionData = Arc<dyn Any + Send + Sync>;
-type WhenBuildDefaultAction = Arc<dyn Fn(&WhenBuildActionData) -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync>;
+type WhenBuildDefaultAction = Arc<dyn Fn() -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync>;
 
 /// Data for a custom when build action associated with an [`WhenInfo`].
 #[derive(Clone)]
@@ -1276,7 +1276,7 @@ pub struct WhenBuildAction {
     pub data: WhenBuildActionData,
     /// Closure that generates the default build actions, used when the final widget has no build action instance.
     ///
-    /// The closure must generate
+    /// The closure must generate an action that behaves like it is not present and then activates when the condition data activates.
     ///
     /// If the final widget has no action and all when data for it has no default, the data is ignored.
     pub default_action: Option<WhenBuildDefaultAction>,
@@ -1286,11 +1286,11 @@ impl WhenBuildAction {
     pub fn new<D, F>(data: D, default_action: F) -> Self
     where
         D: Any + Send + Sync + 'static,
-        F: Fn(&D) -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync + 'static,
+        F: Fn() -> Vec<Box<dyn AnyPropertyBuildAction>> + Send + Sync + 'static,
     {
         Self {
             data: Arc::new(data),
-            default_action: Some(Arc::new(move |data| default_action(data.downcast_ref::<D>().unwrap()))),
+            default_action: Some(Arc::new(default_action)),
         }
     }
 
@@ -2377,15 +2377,13 @@ impl WidgetBuilding {
 
             for (_, (mut data, default)) in actions_data {
                 if let Some(default) = default {
-                    if let Some(init_data) = data.iter().find_map(|d| d.as_ref()) {
-                        let action = default(init_data);
-                        for _ in data.len()..when_count {
-                            data.push(None);
-                        }
-
-                        actions.push(action);
-                        b_actions_data.push(data);
+                    let action = default();
+                    for _ in data.len()..when_count {
+                        data.push(None);
                     }
+
+                    actions.push(action);
+                    b_actions_data.push(data);
                 }
             }
 
