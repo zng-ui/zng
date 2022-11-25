@@ -174,6 +174,61 @@ impl fmt::Debug for StaticWidgetId {
 }
 impl crate::var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 
+/// Represents a node's preferred size as a block or inline.
+/// 
+/// This is the output of [`UiNode::measure`] and [`UiNode::layout`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NodeLayout {
+    /// Node reserves a rectangular area.
+    /// 
+    /// If the parent does inline the node become *inline-block*.
+    Block(PxSize),
+    /// Node flows inline according with the parent inline constrains.
+    Inline {
+        /// Total rectangular area of the node.
+        /// 
+        /// If the parent does not do inline placement this value is used like [`Block`].
+        /// 
+        /// [`Block`]: Self::Block
+        block: PxSize,
+        /// Area inside `block` that defines the node's first line.
+        /// 
+        /// If the parent does inline the node will be positioned with the origin point defined by this area, not `block`.
+        first_line: PxRect,
+        /// Area inside `block` that defines the nod's last line.
+        /// 
+        /// If the parent does inline the next sibling will be placed after this area, but potentially overlapping the total `block` area.
+        last_line: PxRect,
+    },
+}
+impl NodeLayout {
+    /// Get the block area.
+    pub fn block(self) -> PxSize {
+        match self {
+            NodeLayout::Block(b) => b,
+            NodeLayout::Inline { block, .. } => block,
+        }
+    }
+
+    /// New block layout from [`block`] value.
+    /// 
+    /// [`block`]: Self::block
+    pub fn to_block(self) -> Self {
+        Self::Block(self.block())
+    }
+}
+impl_from_and_into_var! {
+    /// [`NodeLayout::Block`]
+    fn from(block: PxSize) -> NodeLayout {
+        NodeLayout::Block(block)
+    }
+
+    /// [`NodeLayout::block`]
+    fn from(layout: NodeLayout) -> PxSize {
+        layout.block()
+    }
+}
+
 /// An Ui tree node.
 pub trait UiNode: Any + Send {
     /// Called every time the node is plugged into the UI tree.
