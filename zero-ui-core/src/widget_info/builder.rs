@@ -44,10 +44,10 @@ impl WidgetInfoBuilder {
                 widget_id: root_id,
                 bounds_info: root_bounds_info,
                 border_info: root_border_info,
-                meta: Rc::new(OwnedStateMap::new()),
+                meta: Arc::new(OwnedStateMap::new()),
                 interactivity_filters: vec![],
-                interactivity_cache: Cell::new(None),
-                local_interactivity: Cell::new(Interactivity::ENABLED),
+                local_interactivity: Interactivity::ENABLED,
+                cache: Mutex::new(WidgetInfoCache { interactivity: None }),
             },
             used_data.tree_capacity,
         );
@@ -114,10 +114,10 @@ impl WidgetInfoBuilder {
                 widget_id: id,
                 bounds_info,
                 border_info,
-                meta: Rc::new(OwnedStateMap::new()),
+                meta: Arc::new(OwnedStateMap::new()),
                 interactivity_filters: vec![],
-                interactivity_cache: Cell::new(None),
-                local_interactivity: Cell::new(Interactivity::ENABLED),
+                local_interactivity: Interactivity::ENABLED,
+                cache: Mutex::new(WidgetInfoCache { interactivity: None }),
             })
             .id();
 
@@ -133,7 +133,7 @@ impl WidgetInfoBuilder {
 
         f(self);
 
-        let meta = Rc::new(mem::replace(&mut self.meta, parent_meta));
+        let meta = Arc::new(mem::replace(&mut self.meta, parent_meta));
         let mut node = self.node(self.node);
         node.value().meta = meta;
         node.close();
@@ -171,7 +171,7 @@ impl WidgetInfoBuilder {
             wgt.node(),
             &mut |old_data| {
                 let r = old_data.clone();
-                r.interactivity_cache.set(None);
+                r.cache.lock().interactivity = None;
                 for filter in &r.interactivity_filters {
                     self.interactivity_filters.push(filter.clone());
                 }
@@ -197,7 +197,7 @@ impl WidgetInfoBuilder {
     pub fn push_interactivity(&mut self, interactivity: Interactivity) {
         let mut node = self.node(self.node);
         let v = node.value();
-        *v.local_interactivity.get_mut() |= interactivity;
+        v.local_interactivity |= interactivity;
     }
 
     /// Register a closure that returns the [`Interactivity`] allowed for each widget.
@@ -211,8 +211,8 @@ impl WidgetInfoBuilder {
     /// [`interactivity`]: WidgetInfo::interactivity
     /// [`push_interactivity`]: Self::push_interactivity
     /// [reused]: Self::push_widget_reuse
-    pub fn push_interactivity_filter(&mut self, filter: impl Fn(&InteractivityFilterArgs) -> Interactivity + 'static) {
-        let filter = Rc::new(filter);
+    pub fn push_interactivity_filter(&mut self, filter: impl Fn(&InteractivityFilterArgs) -> Interactivity + Send + Sync + 'static) {
+        let filter = Arc::new(filter);
         self.interactivity_filters.push(filter.clone());
         self.node(self.node).value().interactivity_filters.push(filter);
     }
@@ -227,7 +227,7 @@ impl WidgetInfoBuilder {
     /// Build the info tree.
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         let mut node = self.tree.root_mut();
-        let meta = Rc::new(self.meta);
+        let meta = Arc::new(self.meta);
         node.value().meta = meta;
         node.close();
 
@@ -235,7 +235,7 @@ impl WidgetInfoBuilder {
             window_id: self.window_id,
             lookup: self.lookup,
             interactivity_filters: self.interactivity_filters,
-            build_meta: Rc::new(self.build_meta),
+            build_meta: Arc::new(self.build_meta),
 
             frame: Mutex::new(WidgetInfoTreeFrame {
                 stats: WidgetInfoTreeStats::new(self.build_start, self.tree.len() as u32 - self.pushed_widgets),

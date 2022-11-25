@@ -3,7 +3,7 @@ use parking_lot::Mutex;
 use crate::{
     context::*, crate_util::IdSet, units::*, var::impl_from_and_into_var, widget_info::*, widget_instance::WidgetId, window::FocusIndicator,
 };
-use std::{cell::Cell, fmt};
+use std::fmt;
 
 use super::iter::IterFocusableExt;
 
@@ -650,7 +650,8 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
     fn inner_alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
-        if let Some(id) = self.info.meta().get(&FOCUS_INFO_ID).unwrap().inner_alt.get() {
+        let inner_alt = *self.info.meta().get(&FOCUS_INFO_ID).unwrap().inner_alt.lock();
+        if let Some(id) = inner_alt {
             if let Some(wgt) = self.info.tree().get(id) {
                 let wgt = wgt.as_focus_info(self.focus_disabled_widgets(), self.focus_hidden_widgets());
                 if wgt.is_alt_scope() && wgt.info.is_descendant(self.info) {
@@ -1580,7 +1581,7 @@ impl FocusTreeData {
                         for parent in wgt.ancestors() {
                             if let Some(info) = parent.meta().get(&FOCUS_INFO_ID) {
                                 if info.build().is_scope() {
-                                    info.inner_alt.set(Some(*id));
+                                    *info.inner_alt.lock() = Some(*id);
                                     break;
                                 }
                             }
@@ -1610,7 +1611,7 @@ struct FocusInfoData {
     directional_nav: Option<DirectionalNav>,
     skip_directional: Option<bool>,
 
-    inner_alt: Cell<Option<WidgetId>>,
+    inner_alt: Mutex<Option<WidgetId>>,
 }
 impl FocusInfoData {
     /// Build a [`FocusInfo`] from the collected configuration in `self`.

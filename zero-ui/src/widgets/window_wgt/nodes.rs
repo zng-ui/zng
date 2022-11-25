@@ -4,7 +4,10 @@ use zero_ui_core::window::WindowVars;
 
 use crate::prelude::new_property::*;
 
-use std::{cell::Cell, time::Duration};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use crate::crate_util::RunOnDrop;
 
@@ -127,13 +130,13 @@ impl WindowLayers {
                 if self.interaction {
                     if let Some(widget) = self.widget.with_context(|ctx| ctx.id) {
                         let anchor = self.anchor.get();
-                        let querying = Cell::new(false);
+                        let querying = AtomicBool::new(false);
                         info.push_interactivity_filter(move |args| {
                             if args.info.widget_id() == widget {
-                                if querying.replace(true) {
+                                if querying.swap(true, Ordering::Relaxed) {
                                     return Interactivity::ENABLED; // avoid recursion.
                                 }
-                                let _q = RunOnDrop::new(|| querying.set(false));
+                                let _q = RunOnDrop::new(|| querying.store(false, Ordering::Relaxed));
                                 args.info
                                     .tree()
                                     .get(anchor)

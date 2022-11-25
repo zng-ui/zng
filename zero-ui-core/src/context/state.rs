@@ -13,8 +13,8 @@ use crate::{
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-pub trait StateValue: Any + Send + 'static {}
-impl<T: Any + Send + 'static> StateValue for T {}
+pub trait StateValue: Any + Send + Sync + 'static {}
+impl<T: Any + Send + Sync + 'static> StateValue for T {}
 
 unique_id_64! {
     /// Unique identifier of a value in a state map.
@@ -410,7 +410,7 @@ pub mod state_map {
 
     use super::*;
 
-    type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any + Send>>;
+    type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any + Send + Sync>>;
 
     /// App state-map tag.
     pub enum App {}
@@ -499,7 +499,7 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct OccupiedStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::OccupiedEntry<'a, u64, Box<dyn Any + Send>>,
+        entry: std::collections::hash_map::OccupiedEntry<'a, u64, Box<dyn Any + Send + Sync>>,
     }
     impl<'a, T: StateValue> OccupiedStateMapEntry<'a, T> {
         /// Gets a reference to the value in the entry.
@@ -550,7 +550,7 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct VacantStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::VacantEntry<'a, u64, Box<dyn Any + Send>>,
+        entry: std::collections::hash_map::VacantEntry<'a, u64, Box<dyn Any + Send + Sync>>,
     }
     impl<'a, T: StateValue> VacantStateMapEntry<'a, T> {
         /// Sets the value of the entry and returns a mutable reference to it.

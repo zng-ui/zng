@@ -2,11 +2,9 @@
 
 use std::{
     borrow::Cow,
-    cell::Cell,
     fmt,
     marker::PhantomData,
     mem, ops,
-    rc::Rc,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -120,12 +118,6 @@ impl WidgetInfoTreeStatsUpdate {
     }
 }
 
-// !!:
-//fn assert_send(t: WidgetInfoTree) {
-//    fn send(_: impl Send) { }
-//    send(t)
-//}
-
 /// A tree of [`WidgetInfo`].
 ///
 /// The tree is behind an `Rc` pointer so cloning and storing this type is very cheap.
@@ -138,7 +130,7 @@ struct WidgetInfoTreeInner {
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
-    build_meta: Rc<OwnedStateMap<WidgetInfoMeta>>,
+    build_meta: Arc<OwnedStateMap<WidgetInfoMeta>>,
     frame: Mutex<WidgetInfoTreeFrame>,
 }
 // info that updates every frame
@@ -874,15 +866,30 @@ impl WidgetBorderInfo {
     }
 }
 
-#[derive(Clone)]
 struct WidgetInfoData {
     widget_id: WidgetId,
     bounds_info: WidgetBoundsInfo,
     border_info: WidgetBorderInfo,
-    meta: Rc<OwnedStateMap<WidgetInfoMeta>>,
+    meta: Arc<OwnedStateMap<WidgetInfoMeta>>,
     interactivity_filters: InteractivityFilters,
-    interactivity_cache: Cell<Option<Interactivity>>,
-    local_interactivity: Cell<Interactivity>,
+    local_interactivity: Interactivity,
+    cache: Mutex<WidgetInfoCache>,
+}
+impl Clone for WidgetInfoData {
+    fn clone(&self) -> Self {
+        Self {
+            widget_id: self.widget_id,
+            bounds_info: self.bounds_info.clone(),
+            border_info: self.border_info.clone(),
+            meta: self.meta.clone(),
+            interactivity_filters: self.interactivity_filters.clone(),
+            local_interactivity: self.local_interactivity,
+            cache: Mutex::new(match self.cache.try_lock() {
+                Some(c) => c.clone(),
+                None => WidgetInfoCache { interactivity: None },
+            }),
+        }
+    }
 }
 impl fmt::Debug for WidgetInfoData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -890,6 +897,10 @@ impl fmt::Debug for WidgetInfoData {
             .field("widget_id", &self.widget_id)
             .finish_non_exhaustive()
     }
+}
+#[derive(Clone)]
+struct WidgetInfoCache {
+    interactivity: Option<Interactivity>,
 }
 
 /// Reference to a widget info in a [`WidgetInfoTree`].
@@ -1067,10 +1078,12 @@ impl<'a> WidgetInfo<'a> {
     /// The interactivity of a widget is the combined result of all interactivity filters applied to it and its ancestors.
     /// If a parent is blocked this is blocked, same for disabled.
     pub fn interactivity(self) -> Interactivity {
-        if let Some(cache) = self.info().interactivity_cache.get() {
+        let cached = self.info().cache.lock().interactivity;
+        if let Some(cache) = cached {
             cache
         } else {
-            let mut interactivity = self.info().local_interactivity.get();
+            let mut cache = self.info().cache.lock();
+            let mut interactivity = self.info().local_interactivity;
 
             if interactivity != Interactivity::BLOCKED_DISABLED {
                 interactivity |= self.parent().map(|n| n.interactivity()).unwrap_or(Interactivity::ENABLED);
@@ -1084,7 +1097,7 @@ impl<'a> WidgetInfo<'a> {
                 }
             }
 
-            self.info().interactivity_cache.set(Some(interactivity));
+            cache.interactivity = Some(interactivity);
             interactivity
         }
     }
@@ -1742,7 +1755,7 @@ impl<'a> InteractivityFilterArgs<'a> {
     }
 }
 
-type InteractivityFilters = Vec<Rc<dyn Fn(&InteractivityFilterArgs) -> Interactivity>>;
+type InteractivityFilters = Vec<Arc<dyn Fn(&InteractivityFilterArgs) -> Interactivity + Send + Sync>>;
 
 bitflags! {
     /// Represents the level of interaction allowed for a widget.
