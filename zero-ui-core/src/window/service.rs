@@ -6,6 +6,7 @@ use linear_map::LinearMap;
 
 use super::commands::WindowCommands;
 use super::*;
+use crate::app::raw_events::{RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_WINDOW_OPEN_EVENT};
 use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
@@ -19,7 +20,7 @@ use crate::widget_info::WidgetInfoTree;
 use crate::{
     app::{
         raw_events::{RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT},
-        view_process::{self, ViewRenderer},
+        view_process::{self, ColorScheme, ViewRenderer},
         AppEventSender,
     },
     event::Events,
@@ -58,6 +59,7 @@ pub struct Windows {
     bring_to_top_requests: Vec<WindowId>,
     frame_images: Vec<ArcVar<Image>>,
     loading_deadline: Option<DeadlineHandle>,
+    latest_color_scheme: ColorScheme,
 }
 impl Windows {
     pub(super) fn new(update_sender: AppEventSender) -> Self {
@@ -74,6 +76,7 @@ impl Windows {
             bring_to_top_requests: vec![],
             frame_images: vec![],
             loading_deadline: None,
+            latest_color_scheme: ColorScheme::Dark,
         }
     }
 
@@ -539,7 +542,13 @@ impl Windows {
                 let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), windows);
                 WINDOW_CLOSE_EVENT.notify(ctx, args);
             }
-        } else if VIEW_PROCESS_INITED_EVENT.on(update).is_some() {
+        } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
+            Windows::req(ctx.services).latest_color_scheme = args.data.color_scheme;
+        } else if let Some(args) = RAW_COLOR_SCHEME_CHANGED_EVENT.on(update) {
+            Windows::req(ctx.services).latest_color_scheme = args.color_scheme;
+        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
+            Windows::req(ctx.services).latest_color_scheme = args.color_scheme;
+
             // we skipped request fulfillment until this event.
             ctx.updates.update_ext();
         }
@@ -653,9 +662,9 @@ impl Windows {
             }
         }
 
-        let (open, close, focus, bring_to_top) = {
+        let ((open, close, focus, bring_to_top), color_scheme) = {
             let wns = Windows::req(ctx.services);
-            wns.take_requests()
+            (wns.take_requests(), wns.latest_color_scheme)
         };
 
         let window_mode = app::App::window_mode(ctx.services);
@@ -670,7 +679,7 @@ impl Windows {
                 (mode, _) => mode,
             };
 
-            let (window, info) = AppWindow::new(ctx, r.id, window_mode, r.new, r.loading_handle);
+            let (window, info) = AppWindow::new(ctx, r.id, window_mode, color_scheme, r.new, r.loading_handle);
 
             let args = WindowOpenArgs::now(window.id);
             {
@@ -820,6 +829,7 @@ impl AppWindow {
         ctx: &mut AppContext,
         id: WindowId,
         mode: WindowMode,
+        color_scheme: ColorScheme,
         new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
         loading: WindowLoading,
     ) -> (Self, AppWindowInfo) {
@@ -828,7 +838,7 @@ impl AppWindow {
             .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
 
-        let vars = WindowVars::new(Windows::req(ctx.services).default_render_mode, primary_scale_factor);
+        let vars = WindowVars::new(Windows::req(ctx.services).default_render_mode, primary_scale_factor, color_scheme);
         let mut state = OwnedStateMap::new();
         state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);

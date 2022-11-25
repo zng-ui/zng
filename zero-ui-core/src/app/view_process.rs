@@ -1089,6 +1089,14 @@ event_args! {
         /// System animations config.
         pub animations_config: AnimationsConfig,
 
+        /// System preferred color scheme.
+        ///
+        /// Updates of this preference can be received in [`RAW_WINDOW_OPEN_EVENT`] and [`RAW_COLOR_SCHEME_CHANGED_EVENT`].
+        ///
+        /// [`RAW_WINDOW_OPEN_EVENT`]: crate::app::raw_events::RAW_WINDOW_OPEN_EVENT
+        /// [`RAW_COLOR_SCHEME_CHANGED_EVENT`]: crate::app::raw_events::RAW_COLOR_SCHEME_CHANGED_EVENT
+        pub color_scheme: ColorScheme,
+
         ..
 
         /// Broadcast to all widgets.

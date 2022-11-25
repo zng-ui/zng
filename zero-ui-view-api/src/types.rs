@@ -690,6 +690,8 @@ pub enum Event {
         font_aa: FontAntiAliasing,
         /// System animations config.
         animations_config: AnimationsConfig,
+        /// System preferred color scheme.
+        color_scheme: ColorScheme,
     },
 
     /// The event channel disconnected, probably because the view-process crashed.

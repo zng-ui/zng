@@ -1295,6 +1295,7 @@ impl<E: AppExtension> RunningApp<E> {
                     key_repeat_config,
                     font_aa,
                     animations_config,
+                    color_scheme,
                 } => {
                     // notify immediately.
                     if is_respawn {
@@ -1322,6 +1323,7 @@ impl<E: AppExtension> RunningApp<E> {
                         key_repeat_config,
                         font_aa,
                         animations_config,
+                        color_scheme,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }

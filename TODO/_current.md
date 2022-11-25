@@ -1,5 +1,3 @@
-* Transitions from light theme to dark on init.
-    - Disable animations when changing theme?
 * Continue "#Parallel UI" in `./Performance.md`.
 * Review all docs.
     - Mentions of threads in particular.

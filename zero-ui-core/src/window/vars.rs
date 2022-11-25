@@ -78,7 +78,7 @@ pub(super) struct WindowVarsData {
 /// [`get`]: WindowVars::get
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
-    pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor) -> Self {
+    pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_color_scheme: ColorScheme) -> Self {
         let vars = Arc::new(WindowVarsData {
             chrome: var(WindowChrome::Default),
             icon: var(WindowIcon::Default),
@@ -125,7 +125,7 @@ impl WindowVars {
             children: var(LinearSet::new()),
 
             color_scheme: var(None),
-            actual_color_scheme: var(ColorScheme::default()),
+            actual_color_scheme: var(system_color_scheme),
 
             is_open: var(true),
             is_loaded: var(false),

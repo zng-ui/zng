@@ -1,3 +1,5 @@
+use zero_ui_view_api::ColorScheme;
+
 use crate::{AnimationsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig};
 
 /// Create a hidden window that listens to Windows config change events.
@@ -275,4 +277,69 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
 pub fn key_repeat_config() -> KeyRepeatConfig {
     tracing::error!("`key_repeat_config` not implemented for this OS, will use default");
     KeyRepeatConfig::default()
+}
+
+#[cfg(windows)]
+pub(crate) fn color_scheme_config() -> ColorScheme {
+    // source: winit
+
+    use std::mem;
+
+    use windows_sys::{
+        core::PCSTR,
+        Win32::{
+            System::LibraryLoader::{GetProcAddress, LoadLibraryA},
+            UI::{
+                Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTA},
+                WindowsAndMessaging::{SystemParametersInfoA, SPI_GETHIGHCONTRAST},
+            },
+        },
+    };
+
+    fn should_apps_use_dark_mode() -> bool {
+        type ShouldAppsUseDarkMode = unsafe extern "system" fn() -> bool;
+        const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: PCSTR = 132 as PCSTR;
+
+        let module = unsafe { LoadLibraryA("uxtheme.dll\0".as_ptr()) };
+
+        if module == 0 {
+            return false;
+        }
+
+        let handle = unsafe { GetProcAddress(module, UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL) };
+
+        if let Some(f) = handle {
+            unsafe {
+                let f: ShouldAppsUseDarkMode = mem::transmute(f);
+                f()
+            }
+        } else {
+            false
+        }
+    }
+
+    fn is_high_contrast() -> bool {
+        use std::ptr;
+
+        let mut hc = HIGHCONTRASTA {
+            cbSize: 0,
+            dwFlags: 0,
+            lpszDefaultScheme: ptr::null_mut(),
+        };
+
+        let ok = unsafe { SystemParametersInfoA(SPI_GETHIGHCONTRAST, std::mem::size_of_val(&hc) as _, &mut hc as *mut _ as _, 0) };
+
+        ok != 0 && hc.dwFlags & HCF_HIGHCONTRASTON == HCF_HIGHCONTRASTON
+    }
+
+    if should_apps_use_dark_mode() && !is_high_contrast() {
+        ColorScheme::Dark
+    } else {
+        ColorScheme::Light
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn color_scheme_config() -> ColorScheme {
+    ColorScheme::default()
 }

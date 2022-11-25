@@ -1295,6 +1295,7 @@ impl Api for App {
             generation: gen,
             is_respawn,
             available_monitors,
+            color_scheme: config::color_scheme_config(),
             multi_click_config: config::multi_click_config(),
             key_repeat_config: config::key_repeat_config(),
             font_aa: config::font_aa(),
