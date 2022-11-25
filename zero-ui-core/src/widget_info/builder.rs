@@ -231,27 +231,28 @@ impl WidgetInfoBuilder {
         node.value().meta = meta;
         node.close();
 
-        let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
+        let r = WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
             lookup: self.lookup,
-            stats: RefCell::new(WidgetInfoTreeStats::new(
-                self.build_start,
-                self.tree.len() as u32 - self.pushed_widgets,
-            )),
-            tree: self.tree,
             interactivity_filters: self.interactivity_filters,
-            stats_update: Default::default(),
-            out_of_bounds_update: Default::default(),
-            scale_factor: Cell::new(self.scale_factor),
             build_meta: Rc::new(self.build_meta),
-            out_of_bounds: RefCell::new(Rc::new(self.out_of_bounds)),
-            spatial_bounds: Cell::new(PxBox::zero()),
+
+            frame: Mutex::new(WidgetInfoTreeFrame {
+                stats: WidgetInfoTreeStats::new(self.build_start, self.tree.len() as u32 - self.pushed_widgets),
+                stats_update: Default::default(),
+                out_of_bounds: Arc::new(self.out_of_bounds),
+                out_of_bounds_update: Default::default(),
+                scale_factor: self.scale_factor,
+                spatial_bounds: PxBox::zero(),
+            }),
+
+            tree: self.tree,
         }));
 
         let cap = UsedWidgetInfoBuilder {
             tree_capacity: r.0.tree.len(),
             interactivity_filters_capacity: r.0.interactivity_filters.len(),
-            out_of_bounds_capacity: r.0.out_of_bounds.borrow().len(),
+            out_of_bounds_capacity: r.0.frame.lock().out_of_bounds.len(),
         };
 
         (r, cap)

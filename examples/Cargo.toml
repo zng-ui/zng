@@ -9,7 +9,7 @@ meval = "0.2"
 tracing = "0.1"
 lipsum = "0.8.0"
 
-zero-ui = { path = "../zero-ui", features = ["test_util"] }
+zero-ui = { path = "../zero-ui", features = ["test_util", "deadlock_detection"] }
 zero-ui-material-icons = { path = "../zero-ui-material-icons" }
 zero-ui-view = { path = "../zero-ui-view" }
 zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }

@@ -2,7 +2,7 @@
 
 use std::{
     borrow::Cow,
-    cell::{Cell, RefCell},
+    cell::Cell,
     fmt,
     marker::PhantomData,
     mem, ops,
@@ -120,29 +120,40 @@ impl WidgetInfoTreeStatsUpdate {
     }
 }
 
+// !!:
+//fn assert_send(t: WidgetInfoTree) {
+//    fn send(_: impl Send) { }
+//    send(t)
+//}
+
 /// A tree of [`WidgetInfo`].
 ///
 /// The tree is behind an `Rc` pointer so cloning and storing this type is very cheap.
 ///
 /// Instantiated using [`WidgetInfoBuilder`].
 #[derive(Clone)]
-pub struct WidgetInfoTree(Rc<WidgetInfoTreeInner>);
+pub struct WidgetInfoTree(Arc<WidgetInfoTreeInner>);
 struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
-    out_of_bounds: RefCell<Rc<Vec<tree::NodeId>>>,
-    spatial_bounds: Cell<PxBox>,
     build_meta: Rc<OwnedStateMap<WidgetInfoMeta>>,
-    stats: RefCell<WidgetInfoTreeStats>,
-    stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
-    out_of_bounds_update: RefCell<Vec<(tree::NodeId, bool)>>,
-    scale_factor: Cell<Factor>,
+    frame: Mutex<WidgetInfoTreeFrame>,
+}
+// info that updates every frame
+struct WidgetInfoTreeFrame {
+    stats: WidgetInfoTreeStats,
+    stats_update: WidgetInfoTreeStatsUpdate,
+    out_of_bounds_update: Vec<(tree::NodeId, bool)>,
+    scale_factor: Factor,
+
+    out_of_bounds: Arc<Vec<tree::NodeId>>,
+    spatial_bounds: PxBox,
 }
 impl PartialEq for WidgetInfoTree {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 impl Eq for WidgetInfoTree {}
@@ -156,12 +167,12 @@ impl WidgetInfoTree {
 
     /// Statistics abound the info tree.
     pub fn stats(&self) -> WidgetInfoTreeStats {
-        self.0.stats.borrow().clone()
+        self.0.frame.lock().stats.clone()
     }
 
     /// Scale factor of the last rendered frame.
     pub fn scale_factor(&self) -> Factor {
-        self.0.scale_factor.get()
+        self.0.frame.lock().scale_factor
     }
 
     /// Custom metadata associated with the tree during info build.
@@ -205,18 +216,18 @@ impl WidgetInfoTree {
     /// If the widgets in this tree have been rendered at least once, after the first render the widget bounds info are always up-to-date
     /// and spatial queries can be made on the widgets.
     pub fn is_rendered(&self) -> bool {
-        self.0.stats.borrow().last_frame != FrameId::INVALID
+        self.0.frame.lock().stats.last_frame != FrameId::INVALID
     }
 
     /// Iterator over all widgets with inner-bounds not fully contained by their parent inner bounds.
     pub fn out_of_bounds(&self) -> impl std::iter::ExactSizeIterator<Item = WidgetInfo> {
-        let out = self.0.out_of_bounds.borrow().clone();
+        let out = self.0.frame.lock().out_of_bounds.clone();
         (0..out.len()).map(move |i| WidgetInfo::new(self, out[i]))
     }
 
     /// Gets the bounds box that envelops all widgets, including the out-of-bounds widgets.
     pub fn spatial_bounds(&self) -> PxRect {
-        self.0.spatial_bounds.get().to_rect()
+        self.0.frame.lock().spatial_bounds.to_rect()
     }
 
     /// Total number of widgets in the tree.
@@ -228,32 +239,30 @@ impl WidgetInfoTree {
     }
 
     fn bounds_changed(&self) {
-        self.0.stats_update.borrow_mut().bounds_updated += 1;
+        self.0.frame.lock().stats_update.bounds_updated += 1;
     }
 
     fn in_bounds_changed(&self, widget_id: WidgetId, in_bounds: bool) {
         let id = *self.0.lookup.get(&widget_id).unwrap();
-        self.0.out_of_bounds_update.borrow_mut().push((id, in_bounds));
+        self.0.frame.lock().out_of_bounds_update.push((id, in_bounds));
     }
 
     fn visibility_changed(&self) {
-        self.0.stats_update.borrow_mut().vis_updated += 1;
+        self.0.frame.lock().stats_update.vis_updated += 1;
     }
 
     pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor) {
-        let mut stats = self.0.stats.borrow_mut();
-        stats.update(frame_id, self.0.stats_update.borrow_mut().take());
+        let mut frame = self.0.frame.lock();
+        let stats_update = frame.stats_update.take();
+        frame.stats.update(frame_id, stats_update);
 
-        let mut out_of_bounds_update = self.0.out_of_bounds_update.borrow_mut();
-
-        if !out_of_bounds_update.is_empty() {
+        if !frame.out_of_bounds_update.is_empty() {
             // update out-of-bounds list, reuses the same vec most of the time,
             // unless a spatial iter was generated and not dropped before render.
 
-            let mut out_of_bounds_mut = self.0.out_of_bounds.borrow_mut();
-            let mut out_of_bounds = Rc::try_unwrap(mem::take(&mut *out_of_bounds_mut)).unwrap_or_else(|rc| (*rc).clone());
+            let mut out_of_bounds = Arc::try_unwrap(mem::take(&mut frame.out_of_bounds)).unwrap_or_else(|rc| (*rc).clone());
 
-            for (id, remove) in out_of_bounds_update.drain(..) {
+            for (id, remove) in frame.out_of_bounds_update.drain(..) {
                 if remove {
                     if let Some(i) = out_of_bounds.iter().position(|i| *i == id) {
                         out_of_bounds.swap_remove(i);
@@ -262,22 +271,23 @@ impl WidgetInfoTree {
                     out_of_bounds.push(id);
                 }
             }
-            *out_of_bounds_mut = Rc::new(out_of_bounds);
+            frame.out_of_bounds = Arc::new(out_of_bounds);
         }
 
         let mut spatial_bounds = self.root().outer_bounds().to_box2d();
-        for out in self.0.out_of_bounds.borrow().iter() {
+        for out in frame.out_of_bounds.iter() {
             let b = WidgetInfo::new(self, *out).inner_bounds().to_box2d();
             spatial_bounds.min = spatial_bounds.min.min(b.min);
             spatial_bounds.max = spatial_bounds.max.max(b.max);
         }
-        self.0.spatial_bounds.set(spatial_bounds);
+        frame.spatial_bounds = spatial_bounds;
 
-        self.0.scale_factor.set(scale_factor);
+        frame.scale_factor = scale_factor;
     }
 
     pub(crate) fn after_render_update(&self, frame_id: FrameId) {
-        self.after_render(frame_id, self.0.scale_factor.get());
+        let scale_factor = self.0.frame.lock().scale_factor;
+        self.after_render(frame_id, scale_factor);
     }
 }
 impl fmt::Debug for WidgetInfoTree {
@@ -1507,7 +1517,7 @@ impl<'a> WidgetInfo<'a> {
 
         HitTestInfo {
             window_id: self.tree.0.window_id,
-            frame_id: self.tree.0.stats.borrow().last_frame,
+            frame_id: self.tree.0.frame.lock().stats.last_frame,
             point,
             hits,
         }
