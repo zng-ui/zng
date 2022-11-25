@@ -1,7 +1,4 @@
-* Animation lag when text cursor is blinking.
-    - Caret animation uses sleep.
-
-* Focus example, disable btn in overlay failed once (stop responding? or did not render?)
+* Focus example, disabled button still enter `is_pressed`.
 
 * Transitions from light theme to dark on init.
     - Disable animations when changing theme?

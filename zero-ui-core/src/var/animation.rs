@@ -624,9 +624,7 @@ impl Animations {
             }
         }));
 
-        if vars.ans.next_frame.get().is_none() {
-            vars.ans.next_frame.set(Some(Deadline(Instant::now())));
-        }
+        vars.ans.next_frame.set(Some(Deadline(Instant::now())));
 
         handle
     }

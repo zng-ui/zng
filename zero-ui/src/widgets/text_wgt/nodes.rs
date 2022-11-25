@@ -268,7 +268,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                         self.caret_opacity_handle = None;
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
                     }
-                }                
+                }
             } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
                 // font query may return a different result.
 
