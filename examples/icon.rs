@@ -108,14 +108,18 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
             WindowLayers::insert(
                 ctx,
                 LayerIndex::TOP_MOST,
-                expanded_icon(ico.clone())
+                expanded_icon(ctx.vars, ico.clone())
             );
         })
     }
 }
 
-fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
+fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
+    let opacity = var(0.fct());
+    opacity.ease(vars, 1.fct(), 200.ms(), easing::linear).perm();
     container! {
+        opacity = opacity.clone();
+
         id = "expanded-icon";
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
@@ -204,9 +208,14 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;
-                    on_click = hn!(|ctx, args: &ClickArgs| {
-                        WindowLayers::remove(ctx, "expanded-icon");
+                    on_click = async_hn!(opacity, |ctx, args: ClickArgs| {
                         args.propagation().stop();
+
+                        opacity.ease(&ctx, 0.fct(), 150.ms(), easing::linear).perm();
+                        ctx.yield_one().await;
+                        opacity.wait_animation().await;
+
+                       ctx.with(|ctx|  WindowLayers::remove(ctx, "expanded-icon"));
                     });
                 }
             ])
