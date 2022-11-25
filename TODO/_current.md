@@ -1,6 +1,8 @@
+* Animation lag when text cursor is blinking.
+    - Caret animation uses sleep.
+
 * Focus example, disable btn in overlay failed once (stop responding? or did not render?)
 
-* Animation lag when text cursor is blinking.
 * Transitions from light theme to dark on init.
     - Disable animations when changing theme?
 * Continue "#Parallel UI" in `./Performance.md`.
