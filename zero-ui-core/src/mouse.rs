@@ -435,28 +435,28 @@ impl MouseInputArgs {
         self.capture.as_ref().map(|c| c.allows(path)).unwrap_or(true)
     }
 
-    /// If the `path` is in the [`target`].
+    /// If the `widget_id` is in the [`target`].
     ///
     /// [`target`]: Self::target
     pub fn is_over(&self, widget_id: WidgetId) -> bool {
         self.target.contains(widget_id)
     }
 
-    /// If the `path` is in the [`prev_pressed`].
+    /// If the `widget_id` is in the [`prev_pressed`].
     ///
     /// [`prev_pressed`]: Self::prev_pressed.
     pub fn was_pressed(&self, widget_id: WidgetId) -> bool {
         self.prev_pressed.as_ref().map(|p| p.contains(widget_id)).unwrap_or(false)
     }
 
-    /// If the `path` in the [`target`] is enabled.
+    /// If the `widget_id` is in the [`target`] is enabled.
     ///
     /// [`target`]: Self::target
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
     }
 
-    /// If the `path` in the [`target`] is disabled.
+    /// If the `widget_id` is in the [`target`] is disabled.
     ///
     /// [`target`]: Self::target
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {

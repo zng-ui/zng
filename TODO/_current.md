@@ -1,5 +1,3 @@
-* Focus example, disabled button still enter `is_pressed`.
-
 * Transitions from light theme to dark on init.
     - Disable animations when changing theme?
 * Continue "#Parallel UI" in `./Performance.md`.
