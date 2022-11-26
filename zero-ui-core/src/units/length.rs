@@ -601,6 +601,8 @@ bitflags! {
         const VIEWPORT = 1 << 3;
         /// The [`LayoutMetrics::screen_ppi`].
         const SCREEN_PPI = 1 << 4;
+        /// The [`LayoutMetrics::inline_advance`]
+        const INLINE_ADVANCE = 1 << 5;
     }
 }
 impl Default for LayoutMask {

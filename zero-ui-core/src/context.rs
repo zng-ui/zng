@@ -1094,6 +1094,22 @@ impl<'a> MeasureContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a measure context that has the new computed inline advance.
+    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state.reborrow(),
+        })
+    }
+
     /// Runs a function `f` in the measure context of a widget.
     ///
     /// The `reuse` flag indicates if the cached measure or layout size can be returned instead of calling `f`. It should
@@ -1510,6 +1526,11 @@ pub struct LayoutMetricsSnapshot {
     ///
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
     pub screen_ppi: f32,
+
+    /// The [`inline_advance`].
+    /// 
+    /// [`inline_advance`]: LayoutMetrics::inline_advance
+    pub inline_advance: PxSize,
 }
 impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
@@ -1520,6 +1541,7 @@ impl LayoutMetricsSnapshot {
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
             && (!mask.contains(LayoutMask::VIEWPORT) || self.viewport == other.viewport)
             && (!mask.contains(LayoutMask::SCREEN_PPI) || about_eq(self.screen_ppi, other.screen_ppi, 0.0001))
+            && (!mask.contains(LayoutMask::INLINE_ADVANCE) || self.inline_advance == other.inline_advance)
     }
 }
 impl PartialEq for LayoutMetricsSnapshot {
@@ -1529,6 +1551,7 @@ impl PartialEq for LayoutMetricsSnapshot {
             && self.root_font_size == other.root_font_size
             && self.scale_factor == other.scale_factor
             && self.viewport == other.viewport
+            && self.inline_advance == other.inline_advance
             && about_eq(self.screen_ppi, other.screen_ppi, 0.0001)
     }
 }
@@ -1539,6 +1562,7 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
         self.root_font_size.hash(state);
         self.scale_factor.hash(state);
         self.viewport.hash(state);
+        self.inline_advance.hash(state);
         about_eq_hash(self.screen_ppi, 0.0001, state);
     }
 }
@@ -1569,6 +1593,7 @@ impl LayoutMetrics {
                 scale_factor,
                 viewport,
                 screen_ppi: 96.0,
+                inline_advance: PxSize::zero(),
             },
         }
     }
@@ -1618,6 +1643,12 @@ impl LayoutMetrics {
     pub fn constrains(&self) -> PxConstrains2d {
         self.register_use(LayoutMask::CONSTRAINS);
         self.s.constrains
+    }
+
+    /// Current line already taken, the height is the *line* height, the width is the advance.
+    pub fn inline_advance(&self) -> PxSize {
+        self.register_use(LayoutMask::INLINE_ADVANCE);
+        self.s.inline_advance
     }
 
     /// Current computed font size.
@@ -1714,6 +1745,14 @@ impl LayoutMetrics {
     /// [`screen_ppi`]: Self::screen_ppi
     pub fn with_screen_ppi(mut self, screen_ppi: f32) -> Self {
         self.s.screen_ppi = screen_ppi;
+        self
+    }
+
+    /// Sets the [`inline_advance`].
+    /// 
+    /// [`inline_advance`]: Self::inline_advance
+    pub fn with_inline_advance(mut self, inline_advance: PxSize) -> Self {
+        self.s.inline_advance = inline_advance;
         self
     }
 
