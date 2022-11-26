@@ -18,7 +18,6 @@
     - Create another icon crate with the new Material Icons to demonstrate this.
 * Padding affects the baseline incorrectly.
     - Baseline in general is not tracked correctly?
-* Review TODOs in code.
 * Copy Chromium font fallback selection https://github.com/chromium/chromium/blob/0e41e52f5a91bb812f1f35a94a379ee3655129b0/third_party/blink/renderer/platform/fonts/win/font_fallback_win.cc#L104
 
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
@@ -54,3 +53,8 @@
  - main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
  - 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
  - review - https://harfbuzz.github.io/shaping-opentype-features.html
+
+# Shared Text
+
+* Let multiple text widgets share a single text, dynamically splitting the text as each widget fills.
+    - This allows complex for complex magazine formatting.

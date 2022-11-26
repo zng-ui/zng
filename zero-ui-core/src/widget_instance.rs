@@ -174,11 +174,11 @@ impl fmt::Debug for StaticWidgetId {
 }
 impl crate::var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 
-/// Represents a node's preferred size as a block or inline.
+/// Represents a node's preferred area as a block or inline.
 ///
 /// This is the output of [`UiNode::measure`] and [`UiNode::layout`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeLayout {
+pub enum NodeArea {
     /// Node reserves a rectangular area.
     ///
     /// If the parent does inline the node become *inline-block*.
@@ -191,22 +191,24 @@ pub enum NodeLayout {
         ///
         /// [`Block`]: Self::Block
         block: PxSize,
-        /// Area inside `block` that defines the node's first line.
+        /// Point from the `block` top-left corner that defines the bottom-left of the first line.
         ///
-        /// If the parent does inline the node will be positioned with the origin point defined by this area, not `block`.
-        first_line: PxRect,
-        /// Area inside `block` that defines the nod's last line.
+        /// Parents that do inline placement use this to offset the widget so it *flows* inline. Inlining parents
+        /// can also clip the area from the `block` top-left to this point.
+        first_line: PxPoint,
+        /// Point from the `block` top-left corner that defines the last line's top-right corner.
         ///
-        /// If the parent does inline the next sibling will be placed after this area, but potentially overlapping the total `block` area.
-        last_line: PxRect,
+        /// Parents that do inline placement use this to offset the next sibling widget. Inlining parents
+        /// can also clip the area from this point to the `block` bottom-right.
+        last_line: PxPoint,
     },
 }
-impl NodeLayout {
+impl NodeArea {
     /// Get the block area.
     pub fn block(self) -> PxSize {
         match self {
-            NodeLayout::Block(b) => b,
-            NodeLayout::Inline { block, .. } => block,
+            NodeArea::Block(b) => b,
+            NodeArea::Inline { block, .. } => block,
         }
     }
 
@@ -218,13 +220,13 @@ impl NodeLayout {
     }
 }
 impl_from_and_into_var! {
-    /// [`NodeLayout::Block`]
-    fn from(block: PxSize) -> NodeLayout {
-        NodeLayout::Block(block)
+    /// Convert to [`NodeArea::Block`].
+    fn from(block: PxSize) -> NodeArea {
+        NodeArea::Block(block)
     }
 
-    /// [`NodeLayout::block`]
-    fn from(layout: NodeLayout) -> PxSize {
+    /// Convert to [`NodeArea::block`].
+    fn from(layout: NodeArea) -> PxSize {
         layout.block()
     }
 }

@@ -1,5 +1,7 @@
+* Figure out flow direction, need a global contextual Right-to-left flag?
+    - Maybe an enum.
 * Implement inline layout.
-    - Use `NodeLayout` in nodes.
+    - Use `NodeArea` in nodes.
         - As the output of `UiNode::measure` and `UiNode layout`.
         - Most nodes just converts to block.
         - Implement inline layout for `text!` and `wrap!`.

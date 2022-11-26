@@ -52,7 +52,7 @@ pub mod wrap {
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each(|_, n| {
-                        let s = ctx.with_inline_advance(row_size, |ctx| n.measure(ctx));
+                        let s = ctx.with_inline_advance(Some(row_size), |ctx| n.measure(ctx));
                         if s == PxSize::zero() {
                             return true;
                         }
@@ -102,7 +102,7 @@ pub mod wrap {
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each_mut(|_, n| {
-                        let s = ctx.with_inline_advance(row_size, |ctx| n.layout(ctx, wl));
+                        let s = ctx.with_inline_advance(Some(row_size), |ctx| n.layout(ctx, wl));
                         if s == PxSize::zero() {
                             return true;
                         }

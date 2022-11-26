@@ -1095,7 +1095,7 @@ impl<'a> MeasureContext<'a> {
     }
 
     /// Runs a function `f` in a measure context that has the new computed inline advance.
-    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
+    pub fn with_inline_advance<R>(&mut self, inline_advance: Option<PxSize>, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
         f(&mut MeasureContext {
             metrics: &self.metrics.clone().with_inline_advance(inline_advance),
 
@@ -1318,7 +1318,7 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in a measure context that has the new computed inline advance.
-    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_inline_advance<R>(&mut self, inline_advance: Option<PxSize>, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_inline_advance(inline_advance),
 
@@ -1549,7 +1549,7 @@ pub struct LayoutMetricsSnapshot {
     /// The [`inline_advance`].
     ///
     /// [`inline_advance`]: LayoutMetrics::inline_advance
-    pub inline_advance: PxSize,
+    pub inline_advance: Option<PxSize>,
 }
 impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
@@ -1612,7 +1612,7 @@ impl LayoutMetrics {
                 scale_factor,
                 viewport,
                 screen_ppi: 96.0,
-                inline_advance: PxSize::zero(),
+                inline_advance: None,
             },
         }
     }
@@ -1665,7 +1665,9 @@ impl LayoutMetrics {
     }
 
     /// Current line already taken, the height is the *line* height, the width is the advance.
-    pub fn inline_advance(&self) -> PxSize {
+    ///
+    /// Is only `Some(_)` if a parent widget does inline layout.
+    pub fn inline_advance(&self) -> Option<PxSize> {
         self.register_use(LayoutMask::INLINE_ADVANCE);
         self.s.inline_advance
     }
@@ -1770,7 +1772,7 @@ impl LayoutMetrics {
     /// Sets the [`inline_advance`].
     ///
     /// [`inline_advance`]: Self::inline_advance
-    pub fn with_inline_advance(mut self, inline_advance: PxSize) -> Self {
+    pub fn with_inline_advance(mut self, inline_advance: Option<PxSize>) -> Self {
         self.s.inline_advance = inline_advance;
         self
     }
