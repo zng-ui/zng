@@ -175,28 +175,28 @@ impl fmt::Debug for StaticWidgetId {
 impl crate::var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 
 /// Represents a node's preferred size as a block or inline.
-/// 
+///
 /// This is the output of [`UiNode::measure`] and [`UiNode::layout`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NodeLayout {
     /// Node reserves a rectangular area.
-    /// 
+    ///
     /// If the parent does inline the node become *inline-block*.
     Block(PxSize),
     /// Node flows inline according with the parent inline constrains.
     Inline {
         /// Total rectangular area of the node.
-        /// 
+        ///
         /// If the parent does not do inline placement this value is used like [`Block`].
-        /// 
+        ///
         /// [`Block`]: Self::Block
         block: PxSize,
         /// Area inside `block` that defines the node's first line.
-        /// 
+        ///
         /// If the parent does inline the node will be positioned with the origin point defined by this area, not `block`.
         first_line: PxRect,
         /// Area inside `block` that defines the nod's last line.
-        /// 
+        ///
         /// If the parent does inline the next sibling will be placed after this area, but potentially overlapping the total `block` area.
         last_line: PxRect,
     },
@@ -211,7 +211,7 @@ impl NodeLayout {
     }
 
     /// New block layout from [`block`] value.
-    /// 
+    ///
     /// [`block`]: Self::block
     pub fn to_block(self) -> Self {
         Self::Block(self.block())

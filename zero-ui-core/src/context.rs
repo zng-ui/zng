@@ -1317,6 +1317,25 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a measure context that has the new computed inline advance.
+    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
     /// Runs a function `f` in the layout context of a widget.
     ///
     /// Returns the closure `f` result and the updates requested by it.
@@ -1528,7 +1547,7 @@ pub struct LayoutMetricsSnapshot {
     pub screen_ppi: f32,
 
     /// The [`inline_advance`].
-    /// 
+    ///
     /// [`inline_advance`]: LayoutMetrics::inline_advance
     pub inline_advance: PxSize,
 }
@@ -1749,7 +1768,7 @@ impl LayoutMetrics {
     }
 
     /// Sets the [`inline_advance`].
-    /// 
+    ///
     /// [`inline_advance`]: Self::inline_advance
     pub fn with_inline_advance(mut self, inline_advance: PxSize) -> Self {
         self.s.inline_advance = inline_advance;

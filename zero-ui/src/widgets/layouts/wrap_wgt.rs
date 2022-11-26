@@ -52,14 +52,14 @@ pub mod wrap {
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each(|_, n| {
-                        let s = n.measure(ctx);
+                        let s = ctx.with_inline_advance(row_size, |ctx| n.measure(ctx));
                         if s == PxSize::zero() {
                             return true;
                         }
 
-                        let width = row_size.width + s.width + spacing.column;
-                        if width < max_width {
-                            row_size.width = width;
+                        let new_width = row_size.width + s.width;
+                        if new_width <= max_width {
+                            row_size.width = new_width + spacing.column;
                             row_size.height = row_size.height.max(s.height);
                         } else {
                             if row_size.width > Px(0) {
@@ -67,7 +67,9 @@ pub mod wrap {
                             }
                             panel_size.width = panel_size.width.max(row_size.width);
                             panel_size.height += row_size.height + spacing.row;
-                            row_size = PxSize::zero();
+
+                            row_size = s;
+                            row_size.width += spacing.column;
                         }
 
                         true
@@ -100,7 +102,7 @@ pub mod wrap {
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each_mut(|_, n| {
-                        let s = n.layout(ctx, wl);
+                        let s = ctx.with_inline_advance(row_size, |ctx| n.layout(ctx, wl));
                         if s == PxSize::zero() {
                             return true;
                         }

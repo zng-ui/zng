@@ -1,8 +1,6 @@
 * Implement inline layout.
-    - Implement *inline constrains*.
-        - Advance and line height?
     - Use `NodeLayout` in nodes.
-        - As the output of `UiNode::measure` and `UiNode::layout`.
+        - As the output of `UiNode::measure` and `UiNode layout`.
         - Most nodes just converts to block.
         - Implement inline layout for `text!` and `wrap!`.
 * Use nested `wrap!` to chunk the icon example as a demo of the performance benefits of logical subdivision.
