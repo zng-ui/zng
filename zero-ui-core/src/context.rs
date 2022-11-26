@@ -1898,7 +1898,7 @@ impl<'m> Deref for Layout1dMetrics<'m> {
 ///
 /// Note that this does not affect the layout origin, all points are offsets from the top-left corner independent of this value.
 ///
-/// [`NodeArea::Inline`]: crate::widget_instance::NodeArea::Inline
+/// [`NodeArea::Inline`]: crate::units::NodeArea::Inline
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LayoutDirection {
     /// left-to-right.
