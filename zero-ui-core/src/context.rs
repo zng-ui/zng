@@ -1110,6 +1110,22 @@ impl<'a> MeasureContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a measure context that has the new direction.
+    pub fn with_direction<R>(&mut self, direction: LayoutDirection, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_direction(direction),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state.reborrow(),
+        })
+    }
+
     /// Runs a function `f` in the measure context of a widget.
     ///
     /// The `reuse` flag indicates if the cached measure or layout size can be returned instead of calling `f`. It should
@@ -1317,10 +1333,29 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
-    /// Runs a function `f` in a measure context that has the new computed inline advance.
+    /// Runs a function `f` in a layout context that has the new computed inline advance.
     pub fn with_inline_advance<R>(&mut self, inline_advance: Option<PxSize>, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
+    /// Runs a function `f` in a measure context that has the new direction.
+    pub fn with_direction<R>(&mut self, direction: LayoutDirection, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_direction(direction),
 
             path: self.path,
 
@@ -1550,6 +1585,11 @@ pub struct LayoutMetricsSnapshot {
     ///
     /// [`inline_advance`]: LayoutMetrics::inline_advance
     pub inline_advance: Option<PxSize>,
+
+    /// The [`direction`].
+    ///
+    /// [`direction`]: LayoutMetrics::direction
+    pub direction: LayoutDirection,
 }
 impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
@@ -1561,6 +1601,7 @@ impl LayoutMetricsSnapshot {
             && (!mask.contains(LayoutMask::VIEWPORT) || self.viewport == other.viewport)
             && (!mask.contains(LayoutMask::SCREEN_PPI) || about_eq(self.screen_ppi, other.screen_ppi, 0.0001))
             && (!mask.contains(LayoutMask::INLINE_ADVANCE) || self.inline_advance == other.inline_advance)
+            && (!mask.contains(LayoutMask::DIRECTION) || self.direction == other.direction)
     }
 }
 impl PartialEq for LayoutMetricsSnapshot {
@@ -1613,6 +1654,7 @@ impl LayoutMetrics {
                 viewport,
                 screen_ppi: 96.0,
                 inline_advance: None,
+                direction: LayoutDirection::default(),
             },
         }
     }
@@ -1670,6 +1712,12 @@ impl LayoutMetrics {
     pub fn inline_advance(&self) -> Option<PxSize> {
         self.register_use(LayoutMask::INLINE_ADVANCE);
         self.s.inline_advance
+    }
+
+    /// Gets the inline or text flow direction.
+    pub fn direction(&self) -> LayoutDirection {
+        self.register_use(LayoutMask::DIRECTION);
+        self.s.direction
     }
 
     /// Current computed font size.
@@ -1777,6 +1825,14 @@ impl LayoutMetrics {
         self
     }
 
+    /// Sets the [`direction`].
+    ///
+    /// [`direction`]: Self::direction
+    pub fn with_direction(mut self, direction: LayoutDirection) -> Self {
+        self.s.direction = direction;
+        self
+    }
+
     /// Clones all current metrics into a [snapshot].
     ///
     /// [snapshot]: LayoutMetricsSnapshot
@@ -1829,6 +1885,53 @@ impl<'m> Deref for Layout1dMetrics<'m> {
 
     fn deref(&self) -> &Self::Target {
         self.metrics
+    }
+}
+
+/// Defines the layout flow direction.
+///
+/// This affects the [`NodeArea::Inline`], some [`Align`] options and the base text shaping direction.
+///
+/// The contextual value can be read during layout in [`LayoutMetrics::direction`], and it can be set using [`LayoutMetrics::with_direction`].
+/// Properties that define a more specific *direction* value also set this value, for example, a *TextDirection* property will also set the
+/// layout direction.
+///
+/// Note that this does not affect the layout origin, all points are offsets from the top-left corner independent of this value.
+///
+/// [`NodeArea::Inline`]: crate::widget_instance::NodeArea::Inline
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LayoutDirection {
+    /// left-to-right.
+    LTR,
+    /// Right-to-left.
+    RTL,
+}
+impl LayoutDirection {
+    /// Matches `LTR`.
+    pub fn is_ltr(self) -> bool {
+        matches!(self, Self::LTR)
+    }
+
+    /// Matches `RTL`.
+    pub fn is_rtl(self) -> bool {
+        matches!(self, Self::RTL)
+    }
+}
+impl Default for LayoutDirection {
+    /// Default is `LTR`.
+    fn default() -> Self {
+        Self::LTR
+    }
+}
+impl fmt::Debug for LayoutDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "LayoutDirection")?;
+        }
+        match self {
+            Self::LTR => write!(f, "LTR"),
+            Self::RTL => write!(f, "RTL"),
+        }
     }
 }
 

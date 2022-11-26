@@ -1972,6 +1972,25 @@ impl Default for UnderlinePosition {
     }
 }
 
+///<span data-del-macro-root></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
+/// wrapping the result in a `Cow::Owned`.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::text::formatx;
+/// let text = formatx!("Hello {}", "World!");
+/// ```
+#[macro_export]
+macro_rules! formatx {
+    ($($tt:tt)*) => {
+        $crate::text::Text::owned(format!($($tt)*))
+    };
+}
+#[doc(inline)]
+pub use crate::formatx;
+use crate::var::{IntoVar, LocalVar};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2048,22 +2067,3 @@ mod tests {
         }
     }
 }
-
-///<span data-del-macro-root></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
-/// wrapping the result in a `Cow::Owned`.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui_core::text::formatx;
-/// let text = formatx!("Hello {}", "World!");
-/// ```
-#[macro_export]
-macro_rules! formatx {
-    ($($tt:tt)*) => {
-        $crate::text::Text::owned(format!($($tt)*))
-    };
-}
-#[doc(inline)]
-pub use crate::formatx;
-use crate::var::{IntoVar, LocalVar};

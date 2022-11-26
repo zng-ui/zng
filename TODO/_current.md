@@ -1,10 +1,9 @@
-* Figure out flow direction, need a global contextual Right-to-left flag?
-    - Maybe an enum.
 * Implement inline layout.
     - Use `NodeArea` in nodes.
         - As the output of `UiNode::measure` and `UiNode layout`.
         - Most nodes just converts to block.
         - Implement inline layout for `text!` and `wrap!`.
+* Implement `LayoutDirection` for `flow!`.
 * Use nested `wrap!` to chunk the icon example as a demo of the performance benefits of logical subdivision.
 
 * Continue "#Parallel UI" in `./Performance.md`.
