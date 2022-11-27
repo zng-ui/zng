@@ -259,6 +259,30 @@ impl WidgetInfoBuilder {
     }
 }
 
+/// Represents the return info of widgets that support the inline layout.
+pub struct InlineLayout {
+    /// Bounds of the node that sets inline points.
+    /// 
+    /// Parents that do inline placement only consider a widget inline if the outer-bounds match these bounds.
+    pub bounds: PxSize,
+
+    /// Point from the outer-bounds top-left corner that defines the bottom-left of the first line.
+    ///
+    /// Parents that do inline placement use this to offset the widget so it *flows* inline. Inlining parents
+    /// can also clip the area from the `block` top-left to this point.
+    pub first_line: PxPoint,
+    /// Point from the outer-bounds top-left corner that defines the last line's top-right corner.
+    ///
+    /// Parents that do inline placement use this to offset the next sibling widget. Inlining parents
+    /// can also clip the area from this point to the `block` bottom-right.
+    pub last_line: PxPoint,
+}
+
+/// Represents the in-progress measure pass for a widget tree.
+pub struct WidgetMeasure {
+    inline: Option<InlineLayout>
+}
+
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
     t: WidgetLayoutTranslation,

@@ -331,66 +331,6 @@ impl Orientation2D {
     }
 }
 
-/// Represents a node's preferred area as a block or inline.
-///
-/// This is the output of [`UiNode::measure`] and [`UiNode::layout`].
-///
-/// [`UiNode::measure`]: crate::widget_instance::UiNode::measure
-/// [`UiNode::layout`]: crate::widget_instance::UiNode::layout
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeArea {
-    /// Node reserves a rectangular area.
-    ///
-    /// If the parent does inline the node become *inline-block*.
-    Block(PxSize),
-    /// Node flows inline according with the parent inline constrains.
-    Inline {
-        /// Total rectangular area of the node.
-        ///
-        /// If the parent does not do inline placement this value is used like [`Block`].
-        ///
-        /// [`Block`]: Self::Block
-        block: PxSize,
-        /// Point from the `block` top-left corner that defines the bottom-left of the first line.
-        ///
-        /// Parents that do inline placement use this to offset the widget so it *flows* inline. Inlining parents
-        /// can also clip the area from the `block` top-left to this point.
-        first_line: PxPoint,
-        /// Point from the `block` top-left corner that defines the last line's top-right corner.
-        ///
-        /// Parents that do inline placement use this to offset the next sibling widget. Inlining parents
-        /// can also clip the area from this point to the `block` bottom-right.
-        last_line: PxPoint,
-    },
-}
-impl NodeArea {
-    /// Get the block area.
-    pub fn block(self) -> PxSize {
-        match self {
-            NodeArea::Block(b) => b,
-            NodeArea::Inline { block, .. } => block,
-        }
-    }
-
-    /// New block layout from [`block`] value.
-    ///
-    /// [`block`]: Self::block
-    pub fn to_block(self) -> Self {
-        Self::Block(self.block())
-    }
-}
-impl_from_and_into_var! {
-    /// Convert to [`NodeArea::Block`].
-    fn from(block: PxSize) -> NodeArea {
-        NodeArea::Block(block)
-    }
-
-    /// Convert to [`NodeArea::block`].
-    fn from(layout: NodeArea) -> PxSize {
-        layout.block()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::f32::consts::{PI, TAU};
