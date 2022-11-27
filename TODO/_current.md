@@ -1,8 +1,10 @@
 * Implement inline layout.
     - Use `NodeArea` in nodes.
-        - As the output of `UiNode::measure` and `UiNode layout`.
-        - Most nodes just converts to block.
-        - Implement inline layout for `text!` and `wrap!`.
+        - As the output of `UiNode::measure` and `UiNode::layout`.
+            - Tried implementing this, very noisy, most nodes right now inflate/deflate the inner size, they
+                all now need to handle the inline value.
+        - Try to implement inline offsets as a contextual value?
+            - Or maybe as a WidgetNodeContext style accessor.
 * Implement `LayoutDirection` for `flow!`.
 * Use nested `wrap!` to chunk the icon example as a demo of the performance benefits of logical subdivision.
 
