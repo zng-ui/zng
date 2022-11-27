@@ -292,7 +292,10 @@ impl WidgetMeasure {
 
     /// Calls `measure` and captures inline information.
     ///
-    /// A value of [`InlineLayout`] is only returned if `inline` is `true` and he [`InlineLayout::bounds`] match the returned bounds.
+    /// A value of [`InlineLayout`] is only returned if the [`InlineLayout::bounds`] match the returned bounds and [`disable_inline`]
+    /// was not called inside `measure`.
+    ///
+    /// [`disable_inline`]: Self::disable_inline
     pub fn with_inline(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> (Option<InlineLayout>, PxSize) {
         let prev = self.inline.replace(InlineLayout::default());
 
@@ -308,13 +311,23 @@ impl WidgetMeasure {
     }
 
     /// Mutable reference to the current widget's inline info.
-    /// 
+    ///
     /// The widget must set this to be inlined in the parent layout, otherwise it will be treated like a
     /// *block* or *inline-block*.
-    /// 
+    ///
     /// See [`InlineLayout`] for more details.
     pub fn inline(&mut self) -> Option<&mut InlineLayout> {
         self.inline.as_mut()
+    }
+
+    /// Sets [`is_inline`] to `false`.
+    ///
+    /// Must be called before child delegation, otherwise children that inline may render expecting to fit in
+    /// the inline flow.
+    ///
+    /// [`is_inline`]: Self::is_inline
+    pub fn disable_inline(&mut self) {
+        self.inline = None;
     }
 }
 
@@ -661,6 +674,46 @@ impl WidgetLayout {
         } else {
             tracing::error!("collapse_descendants did not find `{}` in the info tree", widget_id)
         }
+    }
+
+    /// Calls `layout` and captures inline information.
+    ///
+    /// A value of [`InlineLayout`] is only returned if the [`InlineLayout::bounds`] match the returned bounds and [`disable_inline`]
+    /// was not called inside `layout`.
+    ///
+    /// [`disable_inline`]: Self::disable_inline
+    pub fn with_inline(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (Option<InlineLayout>, PxSize) {
+        let prev = self.wm.inline.replace(InlineLayout::default());
+
+        let r = layout(self);
+        let inline = mem::replace(&mut self.wm.inline, prev);
+
+        (inline, r)
+    }
+
+    /// If the parent widget is doing inline flow layout.
+    pub fn is_inline(&self) -> bool {
+        self.wm.is_inline()
+    }
+
+    /// Mutable reference to the current widget's inline info.
+    ///
+    /// The widget must set this to be inlined in the parent layout, otherwise it will be treated like a
+    /// *block* or *inline-block*.
+    ///
+    /// See [`InlineLayout`] for more details.
+    pub fn inline(&mut self) -> Option<&mut InlineLayout> {
+        self.wm.inline()
+    }
+
+    /// Sets [`is_inline`] to `false`.
+    ///
+    /// Must be called before child delegation, otherwise children that inline may render expecting to fit in
+    /// the inline flow.
+    ///
+    /// [`is_inline`]: Self::is_inline
+    pub fn disable_inline(&mut self) {
+        self.wm.disable_inline()
     }
 }
 impl ops::Deref for WidgetLayout {

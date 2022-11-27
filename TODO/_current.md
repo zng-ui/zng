@@ -1,14 +1,15 @@
 * Implement inline layout.
-    - Implement `InlineLayout`.
-        - How to mark widgets as **not** inline when inside inline without requiring they all to call another wrapper?
-        - Do we need to? The bounds check already cancels it.
-            - Cancels it, but the child thinks it is inlined.
-            - This is a problem for a single widget too.
-                - Say a text child adjusts the first line advance to inline, but a border property causes it to become box.
-                  the text ends up advanced inside the box.
+    - Just flow LTR for now.
+    - `wrap!`.
+        - Inline items.
+        - Inline info for parent.
+        - Use nested `wrap!` to chunk the icon example as a demo of the performance benefits of logical subdivision.
+    - `text!`.
+    - Properties like border, margin?
+        - Test other frameworks.
+            - WPF has an special base widget for "run" items.
 
 * Implement `LayoutDirection` for `flow!`.
-* Use nested `wrap!` to chunk the icon example as a demo of the performance benefits of logical subdivision.
 
 * Continue "#Parallel UI" in `./Performance.md`.
 * Review all docs.

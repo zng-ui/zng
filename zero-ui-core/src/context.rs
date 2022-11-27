@@ -7,7 +7,7 @@ use crate::{
     timer::Timers,
     units::*,
     var::{VarHandle, VarHandles, Vars},
-    widget_info::{WidgetContextInfo, WidgetInfoTree, WidgetPath},
+    widget_info::{InlineLayout, WidgetContextInfo, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, WindowMode},
 };
@@ -1094,19 +1094,29 @@ impl<'a> MeasureContext<'a> {
         })
     }
 
-    /// Runs a function `f` in a measure context that has the new computed inline advance.
-    pub fn with_inline_advance<R>(&mut self, inline_advance: Option<PxSize>, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+    /// Runs a function `measure` in a measure context that has the new computed inline advance.
+    pub fn with_inline(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        inline_advance: PxSize,
+        measure: impl FnOnce(&mut MeasureContext, &mut WidgetMeasure) -> PxSize,
+    ) -> (Option<InlineLayout>, PxSize) {
+        wm.with_inline(|wm| {
+            measure(
+                &mut MeasureContext {
+                    metrics: &self.metrics.clone().with_inline_advance(inline_advance),
 
-            path: self.path,
+                    path: self.path,
 
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
+                    info_tree: self.info_tree,
+                    widget_info: self.widget_info,
+                    app_state: self.app_state,
+                    window_state: self.window_state,
+                    widget_state: self.widget_state,
+                    update_state: self.update_state.reborrow(),
+                },
+                wm,
+            )
         })
     }
 
@@ -1334,21 +1344,33 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in a layout context that has the new computed inline advance.
-    pub fn with_inline_advance<R>(&mut self, inline_advance: Option<PxSize>, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+    ///
+    /// This method uses [`WidgetLayout::with_inline`].
+    pub fn with_inline(
+        &mut self,
+        wl: &mut WidgetLayout,
+        inline_advance: PxSize,
+        layout: impl FnOnce(&mut LayoutContext, &mut WidgetLayout) -> PxSize,
+    ) -> (Option<InlineLayout>, PxSize) {
+        wl.with_inline(|wl| {
+            layout(
+                &mut LayoutContext {
+                    metrics: &self.metrics.clone().with_inline_advance(inline_advance),
 
-            path: self.path,
+                    path: self.path,
 
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
+                    info_tree: self.info_tree,
+                    widget_info: self.widget_info,
+                    app_state: self.app_state.reborrow(),
+                    window_state: self.window_state.reborrow(),
+                    widget_state: self.widget_state.reborrow(),
+                    update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
-            updates: self.updates,
+                    vars: self.vars,
+                    updates: self.updates,
+                },
+                wl,
+            )
         })
     }
 
@@ -1584,7 +1606,7 @@ pub struct LayoutMetricsSnapshot {
     /// The [`inline_advance`].
     ///
     /// [`inline_advance`]: LayoutMetrics::inline_advance
-    pub inline_advance: Option<PxSize>,
+    pub inline_advance: PxSize,
 
     /// The [`direction`].
     ///
@@ -1653,7 +1675,7 @@ impl LayoutMetrics {
                 scale_factor,
                 viewport,
                 screen_ppi: 96.0,
-                inline_advance: None,
+                inline_advance: PxSize::zero(),
                 direction: LayoutDirection::default(),
             },
         }
@@ -1708,8 +1730,11 @@ impl LayoutMetrics {
 
     /// Current line already taken, the height is the *line* height, the width is the advance.
     ///
-    /// Is only `Some(_)` if a parent widget does inline layout.
-    pub fn inline_advance(&self) -> Option<PxSize> {
+    /// This value is only valid if [`WidgetMeasure::is_inline`] or [`WidgetLayout::is_inline`].
+    ///
+    /// [`WidgetMeasure::is_inline`]: crate::widget_info::WidgetMeasure::is_inline
+    /// [`WidgetLayout::is_inline`]: crate::widget_info::WidgetLayout::is_inline
+    pub fn inline_advance(&self) -> PxSize {
         self.register_use(LayoutMask::INLINE_ADVANCE);
         self.s.inline_advance
     }
@@ -1820,7 +1845,7 @@ impl LayoutMetrics {
     /// Sets the [`inline_advance`].
     ///
     /// [`inline_advance`]: Self::inline_advance
-    pub fn with_inline_advance(mut self, inline_advance: Option<PxSize>) -> Self {
+    pub fn with_inline_advance(mut self, inline_advance: PxSize) -> Self {
         self.s.inline_advance = inline_advance;
         self
     }

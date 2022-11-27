@@ -52,9 +52,13 @@ pub mod wrap {
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each(|_, n| {
-                        let s = ctx.with_inline_advance(Some(row_size), |ctx| n.measure(ctx, wm));
+                        let (inline, s) = ctx.with_inline(wm, row_size, |ctx, wm| n.measure(ctx, wm));
                         if s == PxSize::zero() {
                             return true;
+                        }
+
+                        if let Some(inline) = inline {
+                            // !!: remove extra line?
                         }
 
                         let new_width = row_size.width + s.width;
@@ -98,35 +102,45 @@ pub mod wrap {
             let max_width = constrains.x.max().unwrap_or(Px::MAX);
             let mut row_size = PxSize::zero();
 
+            if wl.is_inline() {
+                let advance = ctx.metrics.inline_advance();
+            }
+
             ctx.with_constrains(
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each_mut(|_, n| {
-                        let s = ctx.with_inline_advance(Some(row_size), |ctx| n.layout(ctx, wl));
+                        let (inline, s) = ctx.with_inline(wl, row_size, |ctx, wl| n.layout(ctx, wl));
                         if s == PxSize::zero() {
                             return true;
                         }
 
-                        let new_width = row_size.width + s.width;
-                        if new_width <= max_width {
-                            wl.translate(PxVector::new(row_size.width, panel_size.height));
-
-                            row_size.width = new_width + spacing.column;
-                            row_size.height = row_size.height.max(s.height);
+                        if let Some(inline) = inline {
+                            // inline item 
+                            todo!()
                         } else {
-                            if row_size.width > Px(0) {
-                                row_size.width -= spacing.column;
+                            // *inline-block* item
+                            let new_width = row_size.width + s.width;
+                            if new_width <= max_width {
+                                wl.translate(PxVector::new(row_size.width, panel_size.height));
+    
+                                row_size.width = new_width + spacing.column;
+                                row_size.height = row_size.height.max(s.height);
+                            } else {
+                                if row_size.width > Px(0) {
+                                    row_size.width -= spacing.column;
+                                }
+                                panel_size.width = panel_size.width.max(row_size.width);
+                                panel_size.height += row_size.height + spacing.row;
+    
+                                row_size = s;
+                                row_size.width += spacing.column;
+    
+                                wl.translate(PxVector::new(Px(0), panel_size.height));
                             }
-                            panel_size.width = panel_size.width.max(row_size.width);
-                            panel_size.height += row_size.height + spacing.row;
-
-                            row_size = s;
-                            row_size.width += spacing.column;
-
-                            wl.translate(PxVector::new(Px(0), panel_size.height));
-                        }
-
-                        true
+    
+                            true
+                        }                        
                     });
                 },
             );
