@@ -1,10 +1,12 @@
 * Implement inline layout.
-    - Use `NodeArea` in nodes.
-        - As the output of `UiNode::measure` and `UiNode::layout`.
-            - Tried implementing this, very noisy, most nodes right now inflate/deflate the inner size, they
-                all now need to handle the inline value.
-        - Try to implement inline offsets as a contextual value?
-            - Or maybe as a WidgetNodeContext style accessor.
+    - Implement `InlineLayout`.
+        - How to mark widgets as **not** inline when inside inline without requiring they all to call another wrapper?
+        - Do we need to? The bounds check already cancels it.
+            - Cancels it, but the child thinks it is inlined.
+            - This is a problem for a single widget too.
+                - Say a text child adjusts the first line advance to inline, but a border property causes it to become box.
+                  the text ends up advanced inside the box.
+
 * Implement `LayoutDirection` for `flow!`.
 * Use nested `wrap!` to chunk the icon example as a demo of the performance benefits of logical subdivision.
 

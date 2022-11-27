@@ -260,6 +260,7 @@ impl WidgetInfoBuilder {
 }
 
 /// Represents the return info of widgets that support the inline layout.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct InlineLayout {
     /// Bounds of the node that sets inline points.
     ///
@@ -279,8 +280,42 @@ pub struct InlineLayout {
 }
 
 /// Represents the in-progress measure pass for a widget tree.
+#[derive(Default)]
 pub struct WidgetMeasure {
     inline: Option<InlineLayout>,
+}
+impl WidgetMeasure {
+    /// New default.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Calls `measure` and captures inline information.
+    ///
+    /// A value of [`InlineLayout`] is only returned if `inline` is `true` and he [`InlineLayout::bounds`] match the returned bounds.
+    pub fn with_inline(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> (Option<InlineLayout>, PxSize) {
+        let prev = self.inline.replace(InlineLayout::default());
+
+        let r = measure(self);
+        let inline = mem::replace(&mut self.inline, prev);
+
+        (inline, r)
+    }
+
+    /// If the parent widget is doing inline flow layout.
+    pub fn is_inline(&self) -> bool {
+        self.inline.is_some()
+    }
+
+    /// Mutable reference to the current widget's inline info.
+    /// 
+    /// The widget must set this to be inlined in the parent layout, otherwise it will be treated like a
+    /// *block* or *inline-block*.
+    /// 
+    /// See [`InlineLayout`] for more details.
+    pub fn inline(&mut self) -> Option<&mut InlineLayout> {
+        self.inline.as_mut()
+    }
 }
 
 /// Represents the in-progress layout pass for a widget tree.
@@ -626,11 +661,6 @@ impl WidgetLayout {
         } else {
             tracing::error!("collapse_descendants did not find `{}` in the info tree", widget_id)
         }
-    }
-
-    /// !!: is  this right? measure is suppose to be exploratory.
-    pub fn as_measure(&mut self) -> &mut WidgetMeasure {
-        &mut self.wm
     }
 }
 impl ops::Deref for WidgetLayout {

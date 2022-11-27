@@ -116,11 +116,11 @@ pub mod scroll {
                     let mut ctx = ctx.as_measure();
                     self.joiner.width = ctx.with_constrains(
                         |c| c.with_min_x(Px(0)).with_fill(false, true),
-                        |ctx| self.children.with_node(1, |n| n.measure(ctx, wl.as_measure())).width,
+                        |ctx| self.children.with_node(1, |n| n.measure(ctx, &mut WidgetMeasure::new())).width,
                     );
                     self.joiner.height = ctx.with_constrains(
                         |c| c.with_min_y(Px(0)).with_fill(true, false),
-                        |ctx| self.children.with_node(2, |n| n.measure(ctx, wl.as_measure())).height,
+                        |ctx| self.children.with_node(2, |n| n.measure(ctx, &mut WidgetMeasure::new())).height,
                     );
                 }
                 self.joiner.width = ctx.with_constrains(

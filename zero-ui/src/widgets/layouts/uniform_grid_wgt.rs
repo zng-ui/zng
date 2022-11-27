@@ -285,7 +285,7 @@ pub mod uniform_grid {
                 let mut count = 0;
                 let mut cell_size = PxSize::zero();
                 self.children.for_each(|_, n| {
-                    let s = n.measure(&mut ctx.as_measure(), wl.as_measure());
+                    let s = n.measure(&mut ctx.as_measure(), &mut WidgetMeasure::new());
                     if s != PxSize::zero() {
                         count += 1;
                         cell_size = cell_size.max(s);

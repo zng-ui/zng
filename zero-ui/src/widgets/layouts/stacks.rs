@@ -136,7 +136,7 @@ pub mod h_stack {
                     |c| align.child_constrains(c).with_unbounded_x(),
                     |ctx| {
                         self.children.for_each(|_, n| {
-                            let s = n.measure(ctx, wl.as_measure());
+                            let s = n.measure(ctx, &mut WidgetMeasure::new());
                             max_h = max_h.max(s.height);
                             true
                         });
@@ -388,7 +388,7 @@ pub mod v_stack {
                     |c| align.child_constrains(c).with_unbounded_y(),
                     |ctx| {
                         self.children.for_each(|_, n| {
-                            let s = n.measure(ctx, wl.as_measure());
+                            let s = n.measure(ctx, &mut WidgetMeasure::new());
                             max_w = max_w.max(s.width);
                             true
                         });
@@ -670,7 +670,7 @@ pub mod z_stack {
                     |c| align.child_constrains(c),
                     |ctx| {
                         self.children.for_each(|_, n| {
-                            let s = n.measure(ctx, wl.as_measure());
+                            let s = n.measure(ctx, &mut WidgetMeasure::new());
                             max_size = max_size.max(s);
                             true
                         });
