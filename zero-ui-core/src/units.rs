@@ -94,8 +94,6 @@ macro_rules! impl_length_comp_conversions {
 }
 use impl_length_comp_conversions;
 
-use crate::impl_from_and_into_var;
-
 /// [`f32`] equality used in floating-point [`units`](crate::units).
 ///
 /// * [`NaN`](f32::is_nan) values are equal.

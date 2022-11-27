@@ -102,12 +102,12 @@ pub mod scroll {
             // | 2 - h_scrollbar | 3 | - scrollbar_joiner
             // +-----------------+---+
 
-            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
                 let constrains = ctx.constrains();
                 if constrains.is_fill_max().all() {
                     return constrains.fill_size();
                 }
-                let size = self.children.with_node(0, |n| n.measure(ctx));
+                let size = self.children.with_node(0, |n| n.measure(ctx, wm));
                 constrains.clamp_size(size)
             }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -116,11 +116,11 @@ pub mod scroll {
                     let mut ctx = ctx.as_measure();
                     self.joiner.width = ctx.with_constrains(
                         |c| c.with_min_x(Px(0)).with_fill(false, true),
-                        |ctx| self.children.with_node(1, |n| n.measure(ctx)).width,
+                        |ctx| self.children.with_node(1, |n| n.measure(ctx, wl.as_measure())).width,
                     );
                     self.joiner.height = ctx.with_constrains(
                         |c| c.with_min_y(Px(0)).with_fill(true, false),
-                        |ctx| self.children.with_node(2, |n| n.measure(ctx)).height,
+                        |ctx| self.children.with_node(2, |n| n.measure(ctx, wl.as_measure())).height,
                     );
                 }
                 self.joiner.width = ctx.with_constrains(

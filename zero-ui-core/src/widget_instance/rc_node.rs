@@ -572,8 +572,8 @@ mod impls {
             self.delegate_owned_mut_with_handles(ctx, |ctx, n| n.update(ctx, updates));
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.delegate_owned(|n| n.measure(ctx)).unwrap_or_default()
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.delegate_owned(|n| n.measure(ctx, wm)).unwrap_or_default()
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

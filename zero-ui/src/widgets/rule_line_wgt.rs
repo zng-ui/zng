@@ -77,7 +77,7 @@ pub mod rule_line {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
             let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
             match self.orientation.get() {

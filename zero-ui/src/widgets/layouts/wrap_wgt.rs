@@ -36,7 +36,7 @@ pub mod wrap {
         #[var] spacing: impl Var<GridSpacing>,
     })]
     impl UiNode for WrapNode {
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let constrains = ctx.constrains();
 
             if let Some(size) = constrains.fill_or_exact() {
@@ -52,7 +52,7 @@ pub mod wrap {
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each(|_, n| {
-                        let s = ctx.with_inline_advance(Some(row_size), |ctx| n.measure(ctx));
+                        let s = ctx.with_inline_advance(Some(row_size), |ctx| n.measure(ctx, wm));
                         if s == PxSize::zero() {
                             return true;
                         }

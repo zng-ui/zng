@@ -262,7 +262,7 @@ impl WidgetInfoBuilder {
 /// Represents the return info of widgets that support the inline layout.
 pub struct InlineLayout {
     /// Bounds of the node that sets inline points.
-    /// 
+    ///
     /// Parents that do inline placement only consider a widget inline if the outer-bounds match these bounds.
     pub bounds: PxSize,
 
@@ -280,11 +280,12 @@ pub struct InlineLayout {
 
 /// Represents the in-progress measure pass for a widget tree.
 pub struct WidgetMeasure {
-    inline: Option<InlineLayout>
+    inline: Option<InlineLayout>,
 }
 
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
+    wm: WidgetMeasure,
     t: WidgetLayoutTranslation,
     known_collapsed: bool,
     known_child_offset_changed: i32,
@@ -319,6 +320,7 @@ impl WidgetLayout {
         layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
     ) -> PxSize {
         let mut wl = Self {
+            wm: WidgetMeasure { inline: None },
             t: WidgetLayoutTranslation {
                 pass_id,
                 offset_buf: PxVector::zero(),
@@ -548,6 +550,7 @@ impl WidgetLayout {
         }
 
         let mut wl = WidgetLayout {
+            wm: WidgetMeasure { inline: None },
             t: WidgetLayoutTranslation {
                 pass_id: self.pass_id,
                 offset_buf: PxVector::zero(),
@@ -623,6 +626,11 @@ impl WidgetLayout {
         } else {
             tracing::error!("collapse_descendants did not find `{}` in the info tree", widget_id)
         }
+    }
+
+    /// !!: is  this right? measure is suppose to be exploratory.
+    pub fn as_measure(&mut self) -> &mut WidgetMeasure {
+        &mut self.wm
     }
 }
 impl ops::Deref for WidgetLayout {

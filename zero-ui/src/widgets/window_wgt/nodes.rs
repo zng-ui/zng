@@ -196,7 +196,7 @@ impl WindowLayers {
                 self.widget.update(ctx, updates);
             }
 
-            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
                     let mode = self.mode.get();
 
@@ -209,7 +209,7 @@ impl WindowLayers {
                                 AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
                             },
-                            |ctx| self.widget.measure(ctx),
+                            |ctx| self.widget.measure(ctx, wm),
                         );
                     }
                 }
@@ -472,8 +472,8 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.children.with_node(0, |n| n.measure(ctx))
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node(0, |n| n.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();

@@ -166,7 +166,7 @@ pub mod uniform_grid {
         }
 
         #[UiNode]
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let constrains = ctx.constrains();
 
             if let Some(size) = constrains.fill_or_exact() {
@@ -176,7 +176,7 @@ pub mod uniform_grid {
             let mut count = 0;
             let mut cell_size = PxSize::zero();
             self.children.for_each(|_, n| {
-                let s = n.measure(ctx);
+                let s = n.measure(ctx, wm);
                 if s != PxSize::zero() {
                     count += 1;
                     cell_size = cell_size.max(s);
@@ -285,7 +285,7 @@ pub mod uniform_grid {
                 let mut count = 0;
                 let mut cell_size = PxSize::zero();
                 self.children.for_each(|_, n| {
-                    let s = n.measure(&mut ctx.as_measure());
+                    let s = n.measure(&mut ctx.as_measure(), wl.as_measure());
                     if s != PxSize::zero() {
                         count += 1;
                         cell_size = cell_size.max(s);

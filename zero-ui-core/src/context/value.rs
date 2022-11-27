@@ -9,7 +9,7 @@ use crate::{
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     ui_node, units,
-    widget_info::{WidgetInfoBuilder, WidgetLayout},
+    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
     widget_instance::UiNode,
 };
 
@@ -410,8 +410,8 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
         }
 
         #[UiNode]
-        fn measure(&self, ctx: &mut MeasureContext) -> units::PxSize {
-            self.with(|c| c.measure(ctx))
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> units::PxSize {
+            self.with(|c| c.measure(ctx, wm))
         }
 
         #[UiNode]

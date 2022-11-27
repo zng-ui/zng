@@ -10,7 +10,7 @@ use crate::{
     ui_list, ui_node,
     units::*,
     var::{impl_from_and_into_var, *},
-    widget_info::{WidgetBorderInfo, WidgetLayout},
+    widget_info::{WidgetBorderInfo, WidgetLayout, WidgetMeasure},
     widget_instance::{UiNode, UiNodeList, WidgetId},
 };
 
@@ -646,8 +646,8 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
         child: impl UiNode,
     })]
     impl UiNode for CornerRadiusNode {
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             ContextBorders::with_corner_radius(ctx, |ctx| self.child.layout(ctx, wl))
@@ -737,7 +737,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             self.child.update(ctx, updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
             let offsets = ContextBorders::inner_offsets(ctx.path.widget_id());
             let align = BORDER_ALIGN_VAR.get();
 
@@ -837,11 +837,11 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             self.children.update_all(ctx, updates, &mut ());
         }
 
-        fn measure(&self, ctx: &mut crate::context::MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut crate::context::MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let offsets = self.offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             ContextBorders::measure_with_border(ctx, offsets, |ctx| {
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                ctx.with_sub_size(taken_size, |ctx| self.children.with_node(0, |n| n.measure(ctx)))
+                ctx.with_sub_size(taken_size, |ctx| self.children.with_node(0, |n| n.measure(ctx, wm)))
             })
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

@@ -328,7 +328,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init
 
         [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) { }]
 
-        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
+        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             ctx.metrics.constrains().fill_size()
         }]
 
@@ -385,9 +385,9 @@ fn delegate_absents(
             #crate_::widget_instance::UiNode::event(#deref_mut, ctx, update);
         }]
 
-        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
+        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             let mut #child = {#borrow};
-            #crate_::widget_instance::UiNode::measure(#deref, ctx)
+            #crate_::widget_instance::UiNode::measure(#deref, ctx, wm)
         }]
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
@@ -449,9 +449,9 @@ fn delegate_list_absents(
             #crate_::widget_instance::ui_node_list_default::event_all(#deref_mut, ctx, update);
         }]
 
-        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
+        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             let #children = {#borrow};
-            #crate_::widget_instance::ui_node_list_default::measure_all(#deref, ctx)
+            #crate_::widget_instance::ui_node_list_default::measure_all(#deref, ctx, wm)
         }]
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {

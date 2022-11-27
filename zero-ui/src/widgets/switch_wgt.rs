@@ -69,10 +69,10 @@ pub mod switch {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.with_node(index, |n| n.measure(ctx))
+                self.options.with_node(index, |n| n.measure(ctx, wm))
             } else {
                 PxSize::zero()
             }

@@ -87,7 +87,7 @@ pub mod h_stack {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let spacing = self.spacing.get().layout(ctx.for_x(), |_| Px(0));
             let align = self.align.get();
 
@@ -102,7 +102,7 @@ pub mod h_stack {
                 |c| align.child_constrains(c).with_unbounded_x(),
                 |ctx| {
                     self.children.for_each(|_, n| {
-                        let s = n.measure(ctx);
+                        let s = n.measure(ctx, wm);
                         size.height = size.height.max(s.height);
                         if s.width > Px(0) {
                             size.width += s.width + spacing;
@@ -136,7 +136,7 @@ pub mod h_stack {
                     |c| align.child_constrains(c).with_unbounded_x(),
                     |ctx| {
                         self.children.for_each(|_, n| {
-                            let s = n.measure(ctx);
+                            let s = n.measure(ctx, wl.as_measure());
                             max_h = max_h.max(s.height);
                             true
                         });
@@ -337,7 +337,7 @@ pub mod v_stack {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let spacing = self.spacing.get().layout(ctx.for_y(), |_| Px(0));
             let align = self.align.get();
 
@@ -352,7 +352,7 @@ pub mod v_stack {
                 |c| align.child_constrains(c).with_unbounded_y(),
                 |ctx| {
                     self.children.for_each(|_, n| {
-                        let s = n.measure(ctx);
+                        let s = n.measure(ctx, wm);
 
                         size.width = size.width.max(s.width);
                         if s.height > Px(0) {
@@ -388,7 +388,7 @@ pub mod v_stack {
                     |c| align.child_constrains(c).with_unbounded_y(),
                     |ctx| {
                         self.children.for_each(|_, n| {
-                            let s = n.measure(ctx);
+                            let s = n.measure(ctx, wl.as_measure());
                             max_w = max_w.max(s.width);
                             true
                         });
@@ -632,7 +632,7 @@ pub mod z_stack {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let constrains = ctx.constrains();
             if let Some(known) = constrains.fill_or_exact() {
                 return known;
@@ -644,7 +644,7 @@ pub mod z_stack {
                 |c| align.child_constrains(c),
                 |ctx| {
                     self.children.for_each(|_, n| {
-                        let s = n.measure(ctx);
+                        let s = n.measure(ctx, wm);
                         let child_size = align.measure(s, constrains);
                         size = size.max(child_size);
                         true
@@ -670,7 +670,7 @@ pub mod z_stack {
                     |c| align.child_constrains(c),
                     |ctx| {
                         self.children.for_each(|_, n| {
-                            let s = n.measure(ctx);
+                            let s = n.measure(ctx, wl.as_measure());
                             max_size = max_size.max(s);
                             true
                         });
@@ -797,7 +797,7 @@ pub fn stack_nodes_layout_by(
             self.children.update_all(ctx, updates, &mut ());
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let index = self.index.get();
             let len = self.children.len();
             if index >= len {
@@ -809,20 +809,20 @@ pub fn stack_nodes_layout_by(
                 );
                 let mut size = PxSize::zero();
                 self.children.for_each(|_, n| {
-                    let s = n.measure(ctx);
+                    let s = n.measure(ctx, wm);
                     size = size.max(s);
                     true
                 });
                 size
             } else {
-                let mut size = self.children.with_node(index, |n| n.measure(ctx));
+                let mut size = self.children.with_node(index, |n| n.measure(ctx, wm));
                 let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
                 ctx.with_constrains(
                     |_| constrains,
                     |ctx| {
                         self.children.for_each(|i, n| {
                             if i != index {
-                                size = size.max(n.measure(ctx));
+                                size = size.max(n.measure(ctx, wm));
                             }
                             true
                         });

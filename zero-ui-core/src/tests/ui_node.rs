@@ -253,7 +253,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         units::*,
         widget_base,
-        widget_info::{WidgetInfoBuilder, WidgetLayout},
+        widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         widget_instance::{UiNode, WidgetId},
     };
 
@@ -351,7 +351,7 @@ mod util {
             }
         }
 
-        fn measure(&self, _: &mut MeasureContext) -> PxSize {
+        fn measure(&self, _: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
             self.test_trace("measure");
             PxSize::zero()
         }
@@ -401,8 +401,8 @@ mod util {
     }
     #[crate::ui_node(child)]
     impl<C: UiNode> UiNode for MinSizeNode<C> {
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx).max(self.min_size)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm).max(self.min_size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             self.child.layout(ctx, wl).max(self.min_size)

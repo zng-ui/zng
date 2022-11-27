@@ -439,8 +439,8 @@ mod helpers {
             }
 
             #[UiNode]
-            fn measure(&self, ctx: &mut MeasureContext) -> units::PxSize {
-                self.with(|c| c.measure(ctx))
+            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> units::PxSize {
+                self.with(|c| c.measure(ctx, wm))
             }
 
             #[UiNode]
@@ -534,8 +534,8 @@ mod helpers {
             }
 
             #[UiNode]
-            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                self.with(|c| c.measure(ctx))
+            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+                self.with(|c| c.measure(ctx, wm))
             }
 
             #[UiNode]
@@ -609,8 +609,8 @@ mod helpers {
             }
 
             #[UiNode]
-            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                self.with(|c| c.measure(ctx))
+            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+                self.with(|c| c.measure(ctx, wm))
             }
 
             #[UiNode]

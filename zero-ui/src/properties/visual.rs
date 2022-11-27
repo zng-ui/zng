@@ -38,8 +38,8 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         children: impl UiNodeList,
     })]
     impl UiNode for BackgroundNode {
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.children.with_node(1, |n| n.measure(ctx))
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node(1, |n| n.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(1, |n| n.layout(ctx, wl));
@@ -161,8 +161,8 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         children: impl UiNodeList,
     })]
     impl UiNode for ForegroundNode {
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.children.with_node(0, |n| n.measure(ctx))
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node(0, |n| n.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(0, |n| n.layout(ctx, wl));
@@ -234,8 +234,8 @@ pub fn foreground_highlight(
             self.child.update(ctx, updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
@@ -385,8 +385,8 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx, updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let bounds = self.child.layout(ctx, wl);

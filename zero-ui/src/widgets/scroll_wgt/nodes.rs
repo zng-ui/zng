@@ -52,7 +52,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let constrains = ctx.constrains();
             if constrains.is_fill_max().all() {
                 return constrains.fill_size();
@@ -79,9 +79,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 },
                 |ctx| {
                     if define_vp_unit {
-                        ctx.with_viewport(viewport_unit, |ctx| self.child.measure(ctx))
+                        ctx.with_viewport(viewport_unit, |ctx| self.child.measure(ctx, wm))
                     } else {
-                        self.child.measure(ctx)
+                        self.child.measure(ctx, wm)
                     }
                 },
             );
@@ -331,8 +331,8 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
@@ -453,8 +453,8 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
@@ -635,8 +635,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             self.child.event(ctx, update);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
@@ -769,8 +769,8 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             self.child.event(ctx, update);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(ctx, wm)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);

@@ -1056,6 +1056,7 @@ pub mod prelude {
             widget_base::nodes::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
+                WidgetMeasure,
             },
             widget_instance::{
                 ui_list, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList, SortingListParent, UiNode,
@@ -1118,6 +1119,7 @@ pub mod prelude {
             widget_base::{self, HitTestMode},
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
+                WidgetMeasure,
             },
             widget_instance::{
                 ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, SortingList,

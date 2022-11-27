@@ -324,7 +324,7 @@ pub fn image_presenter() -> impl UiNode {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
             // Similar to `layout` Part 1.
 
             let mut scale = IMAGE_SCALE_VAR.get();

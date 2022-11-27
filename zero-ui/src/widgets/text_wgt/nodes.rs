@@ -359,8 +359,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             self.with_mut(|c| c.update(ctx, updates))
         }
 
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.with(|c| c.measure(ctx))
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            self.with(|c| c.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.with_mut(|c| c.layout(ctx, wl));
@@ -669,7 +669,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         #[UiNode]
-        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
             let mut txt = self.txt.lock();
 
             if let Some(size) = txt.measure(ctx) {

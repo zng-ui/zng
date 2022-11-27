@@ -3,7 +3,7 @@ use crate::{
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    widget_info::{WidgetInfoBuilder, WidgetLayout},
+    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
     widget_instance::UiNode,
 };
 
@@ -61,9 +61,9 @@ where
         self.node.update(ctx, updates);
     }
 
-    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
         let _span = (self.enter_mtd)(&mut ctx.as_info(), "measure");
-        self.node.measure(ctx)
+        self.node.measure(ctx, wm)
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
