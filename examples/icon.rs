@@ -69,7 +69,7 @@ fn icons() -> impl UiNode {
                                 .map(|i| icon_btn(i.clone()).boxed())
                                 .collect::<Vec<_>>();
                 }.boxed())
-                .take(3) // !!:
+                .take(2) // !!:
                 .collect::<Vec<_>>(),
         }
     }
@@ -107,6 +107,7 @@ fn icons() -> impl UiNode {
 fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
     button! {
         padding = 2;
+        opacity = 40.pct();
         size = (80, 80);
         child = v_stack! {
             spacing = 2;
