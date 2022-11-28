@@ -278,6 +278,40 @@ pub struct InlineLayout {
     /// can also clip the area from this point to the `block` bottom-right.
     pub last_line: PxPoint,
 }
+impl InlineLayout {
+    /// Compute last line rectangle with origin top-left relative to bounds.
+    pub fn first_rect(self) -> PxRect {
+        PxRect::new(
+            PxPoint::new(self.first_line.x, Px(0)),
+            PxSize::new(self.bounds.width - self.first_line.x, self.first_line.y),
+        )
+    }
+
+    /// Compute the rectangle of the are in between the first and last line.
+    ///
+    ///
+    pub fn middle_rect(self) -> PxRect {
+        PxRect::new(
+            PxPoint::new(Px(0), self.first_line.y),
+            PxSize::new(self.bounds.width, self.bounds.height - self.first_line.y - self.last_line.y),
+        )
+    }
+
+    /// Compute last line rectangle with origin top-left relative to bounds.
+    pub fn last_rect(self) -> PxRect {
+        PxRect::new(
+            PxPoint::new(Px(0), self.last_line.y),
+            PxSize::new(self.last_line.x, self.bounds.height - self.last_line.y),
+        )
+    }
+
+    /// Set the layout to fill the full bounds.
+    pub fn set_block(&mut self, bounds: PxSize) {
+        self.bounds = bounds;
+        self.first_line = PxPoint::zero();
+        self.last_line = self.bounds.to_vector().to_point();
+    }
+}
 
 /// Represents the in-progress measure pass for a widget tree.
 #[derive(Default)]
@@ -686,7 +720,12 @@ impl WidgetLayout {
         let prev = self.wm.inline.replace(InlineLayout::default());
 
         let r = layout(self);
-        let inline = mem::replace(&mut self.wm.inline, prev);
+        let mut inline = mem::replace(&mut self.wm.inline, prev);
+        if let Some(l) = inline {
+            if l.bounds != r || l.bounds.is_empty() {
+                inline = None;
+            }
+        }
 
         (inline, r)
     }

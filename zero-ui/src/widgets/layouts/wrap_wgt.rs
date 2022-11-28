@@ -48,6 +48,10 @@ pub mod wrap {
             let max_width = constrains.x.max().unwrap_or(Px::MAX);
             let mut row_size = PxSize::zero();
 
+            if wm.is_inline() {
+                row_size = ctx.metrics.inline_advance();
+            }
+
             ctx.with_constrains(
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
@@ -59,21 +63,22 @@ pub mod wrap {
 
                         if let Some(inline) = inline {
                             // !!: remove extra line?
-                        }
-
-                        let new_width = row_size.width + s.width;
-                        if new_width <= max_width {
-                            row_size.width = new_width + spacing.column;
-                            row_size.height = row_size.height.max(s.height);
+                            todo!()
                         } else {
-                            if row_size.width > Px(0) {
-                                row_size.width -= spacing.column;
-                            }
-                            panel_size.width = panel_size.width.max(row_size.width);
-                            panel_size.height += row_size.height + spacing.row;
+                            let new_width = row_size.width + s.width;
+                            if new_width <= max_width {
+                                row_size.width = new_width + spacing.column;
+                                row_size.height = row_size.height.max(s.height);
+                            } else {
+                                if row_size.width > Px(0) {
+                                    row_size.width -= spacing.column;
+                                }
+                                panel_size.width = panel_size.width.max(row_size.width);
+                                panel_size.height += row_size.height + spacing.row;
 
-                            row_size = s;
-                            row_size.width += spacing.column;
+                                row_size = s;
+                                row_size.width += spacing.column;
+                            }
                         }
 
                         true
@@ -103,7 +108,7 @@ pub mod wrap {
             let mut row_size = PxSize::zero();
 
             if wl.is_inline() {
-                let advance = ctx.metrics.inline_advance();
+                row_size = ctx.metrics.inline_advance();
             }
 
             ctx.with_constrains(
@@ -116,14 +121,18 @@ pub mod wrap {
                         }
 
                         if let Some(inline) = inline {
-                            // inline item 
-                            todo!()
+                            // inline item
+                            wl.translate(PxVector::new(row_size.width, panel_size.height) - inline.first_line.to_vector());
+
+                            panel_size.width = panel_size.width.max(inline.bounds.width);
+                            panel_size.height += inline.bounds.height;
+                            row_size = inline.last_rect().size;
                         } else {
                             // *inline-block* item
                             let new_width = row_size.width + s.width;
                             if new_width <= max_width {
                                 wl.translate(PxVector::new(row_size.width, panel_size.height));
-    
+
                                 row_size.width = new_width + spacing.column;
                                 row_size.height = row_size.height.max(s.height);
                             } else {
@@ -132,15 +141,14 @@ pub mod wrap {
                                 }
                                 panel_size.width = panel_size.width.max(row_size.width);
                                 panel_size.height += row_size.height + spacing.row;
-    
+
                                 row_size = s;
                                 row_size.width += spacing.column;
-    
+
                                 wl.translate(PxVector::new(Px(0), panel_size.height));
                             }
-    
-                            true
-                        }                        
+                        }
+                        true
                     });
                 },
             );
@@ -155,7 +163,19 @@ pub mod wrap {
                 panel_size.height -= spacing.row;
             }
 
-            constrains.fill_size_or(panel_size)
+            let final_size = constrains.fill_size_or(panel_size);
+
+            if let Some(inline) = wl.inline() {
+                if final_size != panel_size {
+                    todo!()
+                }
+
+                inline.bounds = final_size;
+                inline.first_line = ctx.metrics.inline_advance().to_vector().to_point();
+                inline.last_line = (final_size - row_size).to_vector().to_point();
+            }
+
+            final_size
         }
     }
 }

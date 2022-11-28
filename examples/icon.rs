@@ -45,15 +45,32 @@ fn icons() -> impl UiNode {
     }
     fn show_font(icons: Vec<MaterialIcon>) -> impl UiNode {
         // let start = std::time::Instant::now();
+        let mut on = false;
+        let mut inline_background = || {
+            on = !on;
+            if on {
+                colors::GREEN.with_alpha(10.pct())
+            } else {
+                colors::RED.with_alpha(10.pct())
+            }
+        };
         wrap! {
             spacing = 5;
             // zero_ui::properties::events::widget::on_info_init = hn_once!(|_, _| {
             //     println!("INIT: {:?}", start.elapsed());
             // });
             icon::vis::ico_size = 48;
-            children = icons.into_iter()
-                    .map(|i| icon_btn(i).boxed())
-                    .collect::<Vec<_>>(),
+            children = icons
+                .chunks(200) // split into multiple `wrap!` parents for a small perf boost.
+                .map(|c| wrap! {
+                    background_color = inline_background();
+                    spacing = 5;
+                    children = c.iter()
+                                .map(|i| icon_btn(i.clone()).boxed())
+                                .collect::<Vec<_>>();
+                }.boxed())
+                .take(3) // !!:
+                .collect::<Vec<_>>(),
         }
     }
     v_stack! {

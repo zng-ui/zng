@@ -2,7 +2,7 @@ use std::{fmt, mem, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px};
+use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px, PxVector};
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -169,8 +169,12 @@ impl PxGridSpacing {
     pub fn zero() -> Self {
         PxGridSpacing { column: Px(0), row: Px(0) }
     }
-}
 
+    /// Convert to vector.
+    pub fn to_vector(self) -> PxVector {
+        PxVector::new(self.column, self.row)
+    }
+}
 impl ops::Add for GridSpacing {
     type Output = Self;
 
@@ -197,5 +201,15 @@ impl ops::SubAssign for GridSpacing {
     fn sub_assign(&mut self, rhs: Self) {
         self.column -= rhs.column;
         self.row -= rhs.row;
+    }
+}
+impl From<PxGridSpacing> for PxVector {
+    fn from(s: PxGridSpacing) -> Self {
+        s.to_vector()
+    }
+}
+impl From<PxVector> for PxGridSpacing {
+    fn from(s: PxVector) -> Self {
+        PxGridSpacing { column: s.x, row: s.y }
     }
 }
