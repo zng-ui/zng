@@ -1,9 +1,9 @@
 * Implement inline layout.
     - Just flow LTR for now.
     - `wrap!`.
-        - Measure.
         - Optional clip inline items?
     - `text!`.
+        - Text shape wrap.
     - Properties like border, margin?
         - Test other frameworks.
             - WPF has an special base widget for "run" items.

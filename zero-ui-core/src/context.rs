@@ -1915,15 +1915,13 @@ impl<'m> Deref for Layout1dMetrics<'m> {
 
 /// Defines the layout flow direction.
 ///
-/// This affects the [`NodeArea::Inline`], some [`Align`] options and the base text shaping direction.
+/// This affects the [`InlineLayout`], some [`Align`] options and the base text shaping direction.
 ///
 /// The contextual value can be read during layout in [`LayoutMetrics::direction`], and it can be set using [`LayoutMetrics::with_direction`].
 /// Properties that define a more specific *direction* value also set this value, for example, a *TextDirection* property will also set the
 /// layout direction.
 ///
 /// Note that this does not affect the layout origin, all points are offsets from the top-left corner independent of this value.
-///
-/// [`NodeArea::Inline`]: crate::units::NodeArea::Inline
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LayoutDirection {
     /// left-to-right.
