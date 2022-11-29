@@ -49,9 +49,9 @@ fn icons() -> impl UiNode {
         let mut inline_background = || {
             on = !on;
             if on {
-                colors::GREEN.with_alpha(10.pct())
+                colors::GREEN.with_alpha(30.pct())
             } else {
-                colors::RED.with_alpha(10.pct())
+                colors::RED.with_alpha(30.pct())
             }
         };
         wrap! {
@@ -110,7 +110,6 @@ fn icons() -> impl UiNode {
 fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
     button! {
         padding = 2;
-        opacity = 40.pct();
         size = (80, 80);
         child = v_stack! {
             spacing = 2;

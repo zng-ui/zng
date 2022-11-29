@@ -125,9 +125,12 @@ pub mod wrap {
                             wl.translate(PxVector::new(row_size.width, panel_size.height) - inline.first_line.to_vector());
 
                             panel_size.width = panel_size.width.max(inline.bounds.width);
-                            panel_size.height += inline.bounds.height - inline.first_line.y;
+                            panel_size.height += inline.bounds.height - inline.first_line.y + spacing.row;
 
                             row_size = inline.last_rect().size;
+                            if row_size.width > Px(0) {
+                                row_size.width += spacing.column;
+                            }
                         } else {
                             // *inline-block* item
                             let new_width = row_size.width + s.width;

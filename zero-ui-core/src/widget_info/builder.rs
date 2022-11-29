@@ -288,8 +288,6 @@ impl InlineLayout {
     }
 
     /// Compute the rectangle of the are in between the first and last line.
-    ///
-    ///
     pub fn middle_rect(self) -> PxRect {
         PxRect::new(
             PxPoint::new(Px(0), self.first_line.y),
