@@ -69,7 +69,7 @@ fn icons() -> impl UiNode {
                                 .map(|i| icon_btn(i.clone()).boxed())
                                 .collect::<Vec<_>>();
                 }.boxed())
-                .take(2) // !!:
+                .take(3) // !!:
                 .collect::<Vec<_>>(),
         }
     }

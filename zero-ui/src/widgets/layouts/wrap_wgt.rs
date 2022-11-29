@@ -125,7 +125,8 @@ pub mod wrap {
                             wl.translate(PxVector::new(row_size.width, panel_size.height) - inline.first_line.to_vector());
 
                             panel_size.width = panel_size.width.max(inline.bounds.width);
-                            panel_size.height += inline.bounds.height;
+                            panel_size.height += inline.bounds.height - inline.first_line.y;
+
                             row_size = inline.last_rect().size;
                         } else {
                             // *inline-block* item
@@ -172,7 +173,12 @@ pub mod wrap {
 
                 inline.bounds = final_size;
                 inline.first_line = ctx.metrics.inline_advance().to_vector().to_point();
-                inline.last_line = (final_size - row_size).to_vector().to_point();
+
+                if final_size.width <= row_size.width {
+                    inline.last_line = PxPoint::new(Px(0), final_size.height);
+                } else {
+                    inline.last_line = (final_size - row_size).to_vector().to_point();
+                }
             }
 
             final_size
