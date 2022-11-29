@@ -110,6 +110,7 @@ pub mod wrap {
             if wl.is_inline() {
                 row_size = ctx.metrics.inline_advance();
             }
+            let mut last_child_inlined = false;
 
             ctx.with_constrains(
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
@@ -131,6 +132,8 @@ pub mod wrap {
                             if row_size.width > Px(0) {
                                 row_size.width += spacing.column;
                             }
+
+                            last_child_inlined = true;
                         } else {
                             // *inline-block* item
                             let new_width = row_size.width + s.width;
@@ -151,6 +154,8 @@ pub mod wrap {
 
                                 wl.translate(PxVector::new(Px(0), panel_size.height));
                             }
+
+                            last_child_inlined = false;
                         }
                         true
                     });
@@ -162,7 +167,10 @@ pub mod wrap {
                     row_size.width -= spacing.column;
                 }
                 panel_size.width = panel_size.width.max(row_size.width);
-                panel_size.height += row_size.height;
+
+                if !last_child_inlined {
+                    panel_size.height += row_size.height;
+                }
             } else if panel_size.height > Px(0) {
                 panel_size.height -= spacing.row;
             }

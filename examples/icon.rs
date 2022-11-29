@@ -49,8 +49,8 @@ fn icons() -> impl UiNode {
             icon::vis::ico_size = 48;
             children = {
                 let x = icons
-                .chunks(200) // split into multiple `wrap!` parents for a small perf boost.
-                .map(|c| wrap! {
+                .chunks((icons.len() / 12).max(100))
+                .map(|c| wrap! { // segment into multiple inlined `wrap!` for a small perf gain.
                     spacing = 5;
                     children = c.iter()
                                 .map(|i| icon_btn(i.clone()).boxed())
