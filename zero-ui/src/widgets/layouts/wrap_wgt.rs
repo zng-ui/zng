@@ -210,7 +210,7 @@ pub mod wrap {
 
             if let Some(inline) = wl.inline() {
                 if final_size != panel_size {
-                    todo!()
+                    tracing::error!("TODO, {:?} != {:?}", final_size, panel_size);
                 }
 
                 inline.bounds = final_size;

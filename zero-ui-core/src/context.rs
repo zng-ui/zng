@@ -1094,6 +1094,22 @@ impl<'a> MeasureContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a measure context that has the new computed `inline_advance`.
+    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state.reborrow(),
+        })
+    }
+
     /// Runs a function `measure` in a measure context that has the new computed inline advance.
     pub fn with_inline(
         &mut self,
@@ -1343,7 +1359,26 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
-    /// Runs a function `f` in a layout context that has the new computed inline advance.
+    /// Runs a function `f` in a layout context that has the new computed `inline_advance`.
+    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
+    /// Runs `layout` in a layout context that has the new computed inline advance.
     ///
     /// This method uses [`WidgetLayout::with_inline`].
     pub fn with_inline(

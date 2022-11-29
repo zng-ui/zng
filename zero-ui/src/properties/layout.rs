@@ -6,6 +6,8 @@ use zero_ui::prelude::new_property::*;
 ///
 /// This property adds side offsets to the widget inner visual, it will be combined with the other
 /// layout properties of the widget to define the inner visual position and widget size.
+/// 
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -37,12 +39,12 @@ use zero_ui::prelude::new_property::*;
 ///
 /// In the example the button has `10` pixels of space above and bellow and `5%` of the container width to the left and right.
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
+/// 
 #[property(LAYOUT, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     #[ui_node(struct MarginNode {
         child: impl UiNode,
         #[var] margin: impl Var<SideOffsets>,
-        size_increment: PxSize,
     })]
     impl UiNode for MarginNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -59,23 +61,17 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
             ctx.with_sub_size(size_increment, |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            if wl.is_inline() {
-                // !!: TODO
-                wl.disable_inline();
-            }
-
+            wl.disable_inline();
             let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
-            self.size_increment = PxSize::new(margin.horizontal(), margin.vertical());
+            let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
             wl.translate(PxVector::new(margin.left, margin.top));
-
-            ctx.with_sub_size(self.size_increment, |ctx| self.child.layout(ctx, wl))
+            ctx.with_sub_size(size_increment, |ctx| self.child.layout(ctx, wl))
         }
     }
     MarginNode {
         child,
         margin: margin.into_var(),
-        size_increment: PxSize::zero(),
     }
 }
 
