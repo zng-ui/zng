@@ -47,6 +47,7 @@ pub mod wrap {
             let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
             let max_width = constrains.x.max().unwrap_or(Px::MAX);
             let mut row_size = PxSize::zero();
+            let mut last_child_inlined = false;
 
             if wm.is_inline() {
                 row_size = ctx.metrics.inline_advance();
@@ -62,8 +63,15 @@ pub mod wrap {
                         }
 
                         if let Some(inline) = inline {
-                            // !!: remove extra line?
-                            todo!()
+                            panel_size.width = panel_size.width.max(inline.bounds.width);
+                            panel_size.height += inline.bounds.height - inline.first_row.y + spacing.row - inline.last_row_spacing;
+
+                            row_size = inline.last_rect().size;
+                            if row_size.width > Px(0) {
+                                row_size.width += spacing.column;
+                            }
+
+                            last_child_inlined = true;
                         } else {
                             let new_width = row_size.width + s.width;
                             if new_width <= max_width {
@@ -79,6 +87,8 @@ pub mod wrap {
                                 row_size = s;
                                 row_size.width += spacing.column;
                             }
+
+                            last_child_inlined = false;
                         }
 
                         true
@@ -91,12 +101,33 @@ pub mod wrap {
                     row_size.width -= spacing.column;
                 }
                 panel_size.width = panel_size.width.max(row_size.width);
-                panel_size.height += row_size.height;
+
+                if !last_child_inlined {
+                    panel_size.height += row_size.height;
+                }
             } else if panel_size.height > Px(0) {
                 panel_size.height -= spacing.row;
             }
 
-            constrains.fill_size_or(panel_size)
+            let final_size = constrains.fill_size_or(panel_size);
+
+            if let Some(inline) = wm.inline() {
+                if final_size != panel_size {
+                    todo!()
+                }
+
+                inline.bounds = final_size;
+                inline.first_row = ctx.metrics.inline_advance().to_vector().to_point();
+
+                if final_size.width <= row_size.width {
+                    inline.last_row = PxPoint::new(Px(0), final_size.height);
+                } else {
+                    inline.last_row = PxPoint::new(row_size.width, final_size.height - row_size.height);
+                    inline.last_row_spacing = spacing.column;
+                }
+            }
+
+            final_size
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
