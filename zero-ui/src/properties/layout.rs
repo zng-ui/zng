@@ -725,6 +725,8 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 ///
 /// To only set a preferred size that respects the layout constrains use the [`min_size`] and [`max_size`] instead.
 ///
+/// This property disables inline layout for the widget.
+///
 /// # Examples
 ///
 /// ```
@@ -763,13 +765,17 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             self.child.update(ctx, updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
+
             ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             )
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
+
             let size = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
@@ -790,6 +796,8 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// Relative values are computed from the constrains maximum bounded width.
 ///
 /// To only set a preferred width that respects the layout constrains use the [`min_width`] and [`max_width`] instead.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -828,6 +836,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let width = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
@@ -838,6 +847,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let width = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
@@ -860,6 +870,8 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// Relative values are computed from the constrains maximum bounded height.
 ///
 /// To only set a preferred height that respects the layout constrains use the [`min_height`] and [`max_height`] instead.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -898,6 +910,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let height = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
@@ -907,6 +920,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let height = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
@@ -970,8 +984,9 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
 }
 
 /// Retain the widget's previous width if the new layout width is smaller.
-///
 /// The widget is layout using its previous width as the minimum width constrain.
+///
+/// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
 pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct StickyWidthNode {
@@ -980,6 +995,7 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
     })]
     impl UiNode for StickyWidthNode {
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let min = ctx.widget_info.bounds.inner_size().width;
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.measure(ctx, wm));
             size.width = size.width.max(min);
@@ -987,6 +1003,7 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let min = ctx.widget_info.bounds.inner_size().width;
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.layout(ctx, wl));
             size.width = size.width.max(min);
@@ -1000,8 +1017,9 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
 }
 
 /// Retain the widget's previous height if the new layout height is smaller.
-///
 /// The widget is layout using its previous height as the minimum height constrain.
+///
+/// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
 pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct StickyHeightNode {
@@ -1010,6 +1028,7 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
     })]
     impl UiNode for StickyHeightNode {
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let min = ctx.widget_info.bounds.inner_size().height;
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.measure(ctx, wm));
             size.height = size.height.max(min);
@@ -1017,6 +1036,7 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let min = ctx.widget_info.bounds.inner_size().height;
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.layout(ctx, wl));
             size.height = size.height.max(min);
@@ -1030,8 +1050,9 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
 }
 
 /// Retain the widget's previous size if the new layout size is smaller.
-///
 /// The widget is layout using its previous size as the minimum size constrain.
+///
+/// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
 pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct StickyHeightNode {
@@ -1040,6 +1061,7 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
     })]
     impl UiNode for StickyHeightNode {
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let min = ctx.widget_info.bounds.inner_size();
             let mut size = ctx.with_constrains(|c| c.with_min_size(min), |ctx| self.child.measure(ctx, wm));
             size = size.max(min);
@@ -1047,6 +1069,7 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let min = ctx.widget_info.bounds.inner_size();
             let mut size = ctx.with_constrains(|c| c.with_min_size(min), |ctx| self.child.layout(ctx, wl));
             size = size.max(min);
