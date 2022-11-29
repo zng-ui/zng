@@ -122,10 +122,10 @@ pub mod wrap {
 
                         if let Some(inline) = inline {
                             // inline item
-                            wl.translate(PxVector::new(row_size.width, panel_size.height) - inline.first_line.to_vector());
+                            wl.translate(PxVector::new(row_size.width, panel_size.height) - inline.first_row.to_vector());
 
                             panel_size.width = panel_size.width.max(inline.bounds.width);
-                            panel_size.height += inline.bounds.height - inline.first_line.y + spacing.row;
+                            panel_size.height += inline.bounds.height - inline.first_row.y + spacing.row - inline.last_row_spacing;
 
                             row_size = inline.last_rect().size;
                             if row_size.width > Px(0) {
@@ -175,12 +175,13 @@ pub mod wrap {
                 }
 
                 inline.bounds = final_size;
-                inline.first_line = ctx.metrics.inline_advance().to_vector().to_point();
+                inline.first_row = ctx.metrics.inline_advance().to_vector().to_point();
 
                 if final_size.width <= row_size.width {
-                    inline.last_line = PxPoint::new(Px(0), final_size.height);
+                    inline.last_row = PxPoint::new(Px(0), final_size.height);
                 } else {
-                    inline.last_line = PxPoint::new(row_size.width, final_size.height - row_size.height);
+                    inline.last_row = PxPoint::new(row_size.width, final_size.height - row_size.height);
+                    inline.last_row_spacing = spacing.column;
                 }
             }
 

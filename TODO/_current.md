@@ -1,10 +1,8 @@
 * Implement inline layout.
     - Just flow LTR for now.
     - `wrap!`.
-        - Spacing bug, if we have spacing 5 in main and nested, partial rows end-up with double spacing.
-            - Nested applies spacing for the row fragment, main applies spacing normally.
-            - If we make main not apply row spacing for partial rows then there is no spacing when nested has no spacing.
-            - Can this be solved without an extra value in `InlineLayout`?
+        - Measure.
+        - Optional clip inline items?
     - `text!`.
     - Properties like border, margin?
         - Test other frameworks.

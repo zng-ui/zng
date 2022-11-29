@@ -271,43 +271,52 @@ pub struct InlineLayout {
     ///
     /// Parents that do inline placement use this to offset the widget so it *flows* inline. Inlining parents
     /// can also clip the area from the `block` top-left to this point.
-    pub first_line: PxPoint,
+    pub first_row: PxPoint,
     /// Point from the outer-bounds top-left corner that defines the last line's top-right corner.
     ///
     /// Parents that do inline placement use this to offset the next sibling widget. Inlining parents
     /// can also clip the area from this point to the `block` bottom-right.
-    pub last_line: PxPoint,
+    pub last_row: PxPoint,
+
+    /// Height above `last_line.y` that is just blank space in between lines.
+    ///
+    /// Panels that insert inter-row spacing can use this to *collapse* the spacing between inline items to avoid double spacing.
+    ///
+    /// Note that inter-column spacing is fully controlled by the parent panel, inline items must not include *dangling* space to
+    /// the `last_row.x`.
+    pub last_row_spacing: Px,
 }
 impl InlineLayout {
     /// Compute last line rectangle with origin top-left relative to bounds.
     pub fn first_rect(self) -> PxRect {
         PxRect::new(
-            PxPoint::new(self.first_line.x, Px(0)),
-            PxSize::new(self.bounds.width - self.first_line.x, self.first_line.y),
+            PxPoint::new(self.first_row.x, Px(0)),
+            PxSize::new(self.bounds.width - self.first_row.x, self.first_row.y),
         )
     }
 
     /// Compute the rectangle of the are in between the first and last line.
     pub fn middle_rect(self) -> PxRect {
         PxRect::new(
-            PxPoint::new(Px(0), self.first_line.y),
-            PxSize::new(self.bounds.width, self.bounds.height - self.first_line.y - self.last_line.y),
+            PxPoint::new(Px(0), self.first_row.y),
+            PxSize::new(self.bounds.width, self.bounds.height - self.first_row.y - self.last_row.y),
         )
     }
 
     /// Compute last line rectangle with origin top-left relative to bounds.
     pub fn last_rect(self) -> PxRect {
         PxRect::new(
-            PxPoint::new(Px(0), self.last_line.y),
-            PxSize::new(self.last_line.x, self.bounds.height - self.last_line.y),
+            PxPoint::new(Px(0), self.last_row.y),
+            PxSize::new(self.last_row.x, self.bounds.height - self.last_row.y),
         )
     }
 
     /// Set the layout to fill the full bounds.
     pub fn set_block(&mut self, bounds: PxSize) {
         self.bounds = bounds;
-        self.first_line = PxPoint::zero();
-        self.last_line = self.bounds.to_vector().to_point();
+        self.first_row = PxPoint::zero();
+        self.last_row = self.bounds.to_vector().to_point();
+        self.last_row_spacing = Px(0);
     }
 }
 
