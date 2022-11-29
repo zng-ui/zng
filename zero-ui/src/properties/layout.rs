@@ -53,11 +53,17 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
             ctx.with_sub_size(size_increment, |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            if wl.is_inline() {
+                // !!: TODO
+                wl.disable_inline();
+            }
+
             let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             self.size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
@@ -82,6 +88,8 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 }
 
 /// Aligns the widget within the available space.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -116,11 +124,13 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let align = self.alignment.get();
             let child_size = ctx.with_constrains(|c| align.child_constrains(c), |ctx| self.child.measure(ctx, wm));
             align.measure(child_size, ctx.constrains())
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let align = self.alignment.get();
             let child_size = ctx.with_constrains(|c| align.child_constrains(c), |ctx| self.child.layout(ctx, wl));
             align.layout(child_size, ctx.constrains(), wl)
@@ -316,6 +326,8 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// This property does not force the minimum constrained size, the `min_size` is only used
 /// in a dimension if it is greater then the constrained minimum.
 ///
+/// This property disables inline layout for the widget.
+///
 /// # Examples
 ///
 /// ```
@@ -353,6 +365,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_size.get().layout(ctx.metrics, |_| PxSize::zero()),
@@ -361,6 +374,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
             size.max(min)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_size.get().layout(ctx.metrics, |_| PxSize::zero()),
@@ -382,6 +396,8 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// This property does not force the minimum constrained width, the `min_width` is only used
 /// if it is greater then the constrained minimum.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -419,6 +435,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_width.get().layout(ctx.metrics.for_x(), |_| Px(0)),
@@ -428,6 +445,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_width.get().layout(ctx.metrics.for_x(), |_| Px(0)),
@@ -450,6 +468,8 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 ///
 /// This property does not force the minimum constrained height, the `min_height` is only used
 /// if it is greater then the constrained minimum.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -487,6 +507,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_height.get().layout(ctx.metrics.for_y(), |_| Px(0)),
@@ -496,6 +517,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_height.get().layout(ctx.metrics.for_y(), |_| Px(0)),
@@ -518,6 +540,8 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 ///
 /// This property does not force the maximum constrained size, the `max_size` is only used
 /// in a dimension if it is less then the constrained maximum, or the maximum was not constrained.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -556,6 +580,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
@@ -564,6 +589,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
             size.min(max)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
@@ -585,6 +611,8 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// This property does not force the maximum constrained width, the `max_width` is only used
 /// if it is less then the constrained maximum, or the maximum was not constrained.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -622,6 +650,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
@@ -632,6 +661,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
@@ -655,6 +685,8 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 ///
 /// This property does not force the maximum constrained height, the `max_height` is only used
 /// if it is less then the constrained maximum, or the maximum was not constrained.
+///
+/// This property disables inline layout for the widget.
 ///
 /// # Examples
 ///
@@ -692,6 +724,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
@@ -702,6 +735,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
