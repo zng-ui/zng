@@ -55,6 +55,7 @@ fn icons() -> impl UiNode {
             }
         };
         wrap! {
+            id = "main-wrap";
             spacing = 5;
             // zero_ui::properties::events::widget::on_info_init = hn_once!(|_, _| {
             //     println!("INIT: {:?}", start.elapsed());
@@ -62,7 +63,9 @@ fn icons() -> impl UiNode {
             icon::vis::ico_size = 48;
             children = icons
                 .chunks(200) // split into multiple `wrap!` parents for a small perf boost.
-                .map(|c| wrap! {
+                .enumerate()
+                .map(|(i, c)| wrap! {
+                    id = WidgetId::named(formatx!("wrap-{i}"));
                     background_color = inline_background();
                     spacing = 5;
                     children = c.iter()

@@ -177,7 +177,7 @@ pub mod wrap {
                 if final_size.width <= row_size.width {
                     inline.last_line = PxPoint::new(Px(0), final_size.height);
                 } else {
-                    inline.last_line = (final_size - row_size).to_vector().to_point();
+                    inline.last_line = PxPoint::new(row_size.width, final_size.height - row_size.height);
                 }
             }
 
