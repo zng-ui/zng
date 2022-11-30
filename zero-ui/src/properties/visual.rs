@@ -345,7 +345,8 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// Clips the widget child to the area of the widget when set to `true`.
 ///
 /// Any content rendered outside the widget inner bounds is clipped, hit test shapes are also clipped. The clip is
-/// rectangular and can have rounded corners if [`corner_radius`] is set.
+/// rectangular and can have rounded corners if [`corner_radius`] is set. If the widget is inlined during layout the first
+/// row advance and last row trail are also clipped.
 ///
 /// # Examples
 ///
@@ -375,6 +376,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         child: impl UiNode,
         #[var] clip: impl Var<bool>,
         corners: PxCornerRadius,
+        inline: (PxPoint, PxPoint),
     })]
     impl UiNode for ClipToBoundsNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -397,6 +399,12 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                     self.corners = corners;
                     ctx.updates.render();
                 }
+
+                if let Some(inline) = wl.inline() {
+                    self.inline = (inline.first_row, inline.last_row);
+                } else {
+                    self.inline = (PxPoint::zero(), PxPoint::zero());
+                }
             }
 
             bounds
@@ -404,13 +412,30 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if self.clip.get() {
-                let bounds = PxRect::from_size(ctx.widget_info.bounds.inner_size());
+                frame.push_clips(
+                    |c| {
+                        let bounds = PxRect::from_size(ctx.widget_info.bounds.inner_size());
 
-                if self.corners != PxCornerRadius::zero() {
-                    frame.push_clip_rounded_rect(bounds, self.corners, false, true, |f| self.child.render(ctx, f));
-                } else {
-                    frame.push_clip_rect(bounds, false, true, |f| self.child.render(ctx, f));
-                }
+                        if self.corners != PxCornerRadius::zero() {
+                            c.push_clip_rounded_rect(bounds, self.corners, false, true);
+                        } else {
+                            c.push_clip_rect(bounds, false, true);
+                        }
+
+                        if self.inline.1 != PxPoint::zero() {
+                            if self.inline.0 != PxPoint::zero() {
+                                let first = PxRect::new(bounds.origin, self.inline.0.to_vector().to_size());
+                                c.push_clip_rect(first, true, true);
+                            }
+
+                            let mut last = bounds.to_box2d();
+                            last.min += self.inline.1.to_vector();
+                            let last = last.to_rect();
+                            c.push_clip_rect(last, true, true);
+                        }
+                    },
+                    |f| self.child.render(ctx, f),
+                );
             } else {
                 self.child.render(ctx, frame);
             }
@@ -420,5 +445,6 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         child,
         clip: clip.into_var(),
         corners: PxCornerRadius::zero(),
+        inline: (PxPoint::zero(), PxPoint::zero()),
     }
 }
