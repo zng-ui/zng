@@ -2,9 +2,10 @@
     - Just flow LTR for now.
     - `wrap!`.
         - Optional clip inline items?
+        - Last item of groups is not interactive (without any background_color).
     - `text!`.
         - Text shape wrap.
-    - Properties like border, margin?
+    - Properties like border
         - Test other frameworks.
             - WPF has an special base widget for "run" items.
             - CSS generate a multiple clipped borders effect, does not look good.
@@ -17,10 +18,6 @@
         - Border can impl as a polygonal outline.
             - Need to impl path rendering first?
                 - Not sure if all styles are supported.
-        - Margin can add to the inline_advance?
-            - CSS ignores the vertical, but we could have it?
-        - What about min-max-size.
-            - Lets disable for now.
 
 * Implement `LayoutDirection` for `flow!`.
 

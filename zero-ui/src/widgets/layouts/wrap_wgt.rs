@@ -209,10 +209,6 @@ pub mod wrap {
             let final_size = constrains.fill_size_or(panel_size);
 
             if let Some(inline) = wl.inline() {
-                if final_size != panel_size {
-                    tracing::error!("TODO, {:?} != {:?}", final_size, panel_size);
-                }
-
                 inline.bounds = final_size;
                 inline.first_row = ctx.metrics.inline_advance().to_vector().to_point();
 
