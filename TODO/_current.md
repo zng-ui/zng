@@ -2,11 +2,6 @@
     - Just flow LTR for now.
     - `text!`.
         - Text shape wrap.
-    - Properties
-        - Border can impl as a polygonal outline.
-            - Need to impl path rendering first?
-                - Not sure if all styles are supported.
-        - Review other visual properties. `fill_node` implemented, so background+foreground already done.
 
 * Implement inline info in bounds info.
 * Implement `LayoutDirection` for `flow!`.
