@@ -5,8 +5,8 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextAlign,
-    TextSegment, TextSegmentKind,
+    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, Hyphens, InternedStr, Lang, LineBreak,
+    SegmentedText, TextAlign, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
     crate_util::{f32_cmp, IndexRange},
@@ -67,6 +67,47 @@ impl Default for TextShapingArgs {
             text_indent: Px(0),
             font_features: RFontFeatures::default(),
         }
+    }
+}
+
+/// Extra configuration for [`ShapedText::reshape`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TextWrapArgs {
+    /// Maximum line width.
+    ///
+    /// Is [`Px::MAX`] when text wrap is disabled.
+    pub max_width: Px,
+
+    /// Line break config for Chinese, Japanese, or Korean text.
+    pub line_break: LineBreak,
+
+    /// World break config.
+    ///
+    /// This value is only considered if it is impossible to fit the a word to a line.
+    pub word_break: WordBreak,
+
+    /// Hyphenation config.
+    ///
+    /// This value is only considered when `word_break` is considered.
+    pub hyphens: Hyphens,
+}
+impl Default for TextWrapArgs {
+    /// No wrap.
+    fn default() -> Self {
+        Self {
+            max_width: Px::MAX,
+            line_break: Default::default(),
+            word_break: Default::default(),
+            hyphens: Default::default(),
+        }
+    }
+}
+impl TextWrapArgs {
+    /// New args that disables text-wrap.
+    ///
+    /// This is the default value.
+    pub fn no_wrap() -> Self {
+        Self::default()
     }
 }
 
@@ -427,6 +468,7 @@ impl ShapedText {
         line_spacing: Px,
         align_box: impl FnOnce(PxSize) -> PxRect,
         align: TextAlign,
+        wrap: &TextWrapArgs,
     ) {
         //
         // Line Height & Spacing
@@ -525,6 +567,7 @@ impl ShapedText {
             self.og_line_spacing,
             |_| PxRect::zero(),
             TextAlign::LEFT,
+            &TextWrapArgs::no_wrap(),
         );
     }
 
@@ -801,6 +844,7 @@ impl ShapedText {
             self.line_spacing,
             |_| PxRect::zero(),
             TextAlign::LEFT,
+            &TextWrapArgs::no_wrap(),
         );
 
         if self.is_empty() {
@@ -1858,7 +1902,7 @@ mod tests {
 
         assert_eq!(from, test.line_spacing());
         let align_box = test.align_box();
-        test.reshape(test.padding(), test.line_height(), to, |_| align_box, test.align());
+        test.reshape(test.padding(), test.line_height(), to, |_| align_box, test.align(), &TextWrapArgs::no_wrap());
         assert_eq!(to, test.line_spacing());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
@@ -1894,7 +1938,7 @@ mod tests {
 
         assert_eq!(from, test.line_height());
         let align_box = test.align_box();
-        test.reshape(test.padding(), to, test.line_spacing(), |_| align_box, test.align());
+        test.reshape(test.padding(), to, test.line_spacing(), |_| align_box, test.align(), &TextWrapArgs::no_wrap());
         assert_eq!(to, test.line_height());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {

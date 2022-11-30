@@ -403,6 +403,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     struct FinalText {
         layout: Option<LayoutText>,
         shaping_args: TextShapingArgs,
+        wrap_args: TextWrapArgs,
     }
     impl FinalText {
         fn measure(&mut self, ctx: &mut MeasureContext) -> Option<PxSize> {
@@ -532,6 +533,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 pending.insert(Layout::QUICK_RESHAPE);
             }
 
+            let wrap = if TEXT_WRAP_VAR.get() && !metrics.constrains().x.is_unbounded() {
+                TextWrapArgs {
+                    max_width: metrics.constrains().x.max().unwrap(),
+                    line_break: LINE_BREAK_VAR.get(),
+                    word_break: WORD_BREAK_VAR.get(),
+                    hyphens: HYPHENS_VAR.get(),
+                }
+            } else {
+                TextWrapArgs::no_wrap()
+            };
+            if pending.contains(Layout::QUICK_RESHAPE) || wrap != self.wrap_args {
+                self.wrap_args = wrap;
+                pending.insert(Layout::QUICK_RESHAPE);
+            }
+
             /*
                 APPLY
             */
@@ -552,6 +568,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     line_spacing,
                     |size| PxRect::from_size(metrics.constrains().fill_size_or(size)),
                     align,
+                    &self.wrap_args,
                 );
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
 
@@ -726,6 +743,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         txt: Mutex::new(FinalText {
             layout: None,
             shaping_args: TextShapingArgs::default(),
+            wrap_args: TextWrapArgs::no_wrap(),
         }),
         pending: Layout::empty(),
     }

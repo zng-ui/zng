@@ -226,7 +226,7 @@ pub use shaping::*;
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 
 /// Configuration of text wrapping for Chinese, Japanese, or Korean text.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum LineBreak {
     /// The same rule used by other languages.
     Auto,
@@ -261,7 +261,7 @@ impl fmt::Debug for LineBreak {
 }
 
 /// Hyphenation mode.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Hyphens {
     /// Hyphens are never inserted in word breaks.
     None,
@@ -297,7 +297,7 @@ impl fmt::Debug for Hyphens {
 /// This value is only considered if it is impossible to fit the a word to a line.
 ///
 /// Hyphens can be inserted in word breaks using the [`Hyphens`] configuration.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum WordBreak {
     /// Line breaks can be inserted in between letters of Chinese/Japanese/Korean text only.
     Normal,
