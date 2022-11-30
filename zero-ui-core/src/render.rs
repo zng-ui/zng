@@ -1438,6 +1438,39 @@ impl<'a> ClipBuilder<'a> {
     }
 }
 
+/// Builder for a chain of hit-test clips.
+///
+/// The build is available in [`HitTestBuilder::push_clips`].
+pub struct HitTestClipBuilder<'a> {
+    hit_clips: &'a mut HitTestClips,
+    count: usize,
+}
+impl<'a> HitTestClipBuilder<'a> {
+    /// Push a clip `rect`.
+    ///
+    /// If `clip_out` is `true` only hits outside the rect are valid.
+    pub fn push_clip_rect(&mut self, rect: PxRect, clip_out: bool) {
+        self.hit_clips.push_clip_rect(rect.to_box2d(), clip_out);
+        self.count += 1;
+    }
+
+    /// Push a clip `rect` with rounded `corners`.
+    ///
+    /// If `clip_out` is `true` only hits outside the rect are valid.
+    pub fn push_clip_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius, clip_out: bool) {
+        self.hit_clips.push_clip_rounded_rect(rect.to_box2d(), corners, clip_out);
+        self.count += 1;
+    }
+
+    /// Push a clip ellipse.
+    ///
+    /// If `clip_out` is `true` only hits outside the ellipses are valid.
+    pub fn push_clip_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool) {
+        self.hit_clips.push_clip_ellipse(center, radii, clip_out);
+        self.count += 1;
+    }
+}
+
 /// Builder for the hit-testable shape of the inner-bounds of a widget.
 ///
 /// This builder is available in [`FrameBuilder::hit_test`] inside the inner-bounds of the rendering widget.
@@ -1493,24 +1526,33 @@ impl<'a> HitTestBuilder<'a> {
         clip_out: bool,
         inner_hit_test: impl FnOnce(&mut Self),
     ) {
-        if !self.is_hit_testable {
-            return;
-        }
-
-        self.hit_clips.push_clip_rounded_rect(rect.to_box2d(), corners, clip_out);
-
-        inner_hit_test(self);
-
-        self.hit_clips.pop_clip();
+        self.push_clips(move |c| c.push_clip_rounded_rect(rect, corners, clip_out), inner_hit_test);
     }
 
     /// Push a clip ellipse that affects the `inner_hit_test`.
     pub fn push_clip_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool, inner_hit_test: impl FnOnce(&mut Self)) {
-        if self.is_hit_testable && radii != PxSize::zero() {
-            self.hit_clips.push_clip_ellipse(center, radii, clip_out);
+        self.push_clips(move |c| c.push_clip_ellipse(center, radii, clip_out), inner_hit_test);
+    }
 
-            inner_hit_test(self);
+    /// Push clips that affect the `inner_hit_test`.
+    pub fn push_clips(&mut self, clips: impl FnOnce(&mut HitTestClipBuilder), inner_hit_test: impl FnOnce(&mut Self)) {
+        if !self.is_hit_testable {
+            return;
+        }
 
+        let mut count = {
+            let mut builder = HitTestClipBuilder {
+                hit_clips: &mut *self.hit_clips,
+                count: 0,
+            };
+            clips(&mut builder);
+            builder.count
+        };
+
+        inner_hit_test(self);
+
+        while count > 0 {
+            count -= 1;
             self.hit_clips.pop_clip();
         }
     }

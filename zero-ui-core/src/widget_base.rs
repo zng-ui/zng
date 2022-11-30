@@ -8,7 +8,7 @@ use crate::{
     property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
     ui_node,
-    units::{PxCornerRadius, PxRect, PxSize, PxTransform},
+    units::{PxCornerRadius, PxPoint, PxRect, PxSize, PxTransform},
     var::*,
     widget,
     widget_builder::*,
@@ -181,10 +181,16 @@ pub mod nodes {
     ///
     /// [`base`]: mod@base
     pub fn inner(child: impl UiNode) -> impl UiNode {
+        #[derive(Default, PartialEq)]
+        struct HitClips {
+            bounds: PxSize,
+            corners: PxCornerRadius,
+            inline: (PxPoint, PxPoint),
+        }
         #[ui_node(struct InnerNode {
             child: impl UiNode,
             transform_key: FrameValueKey<PxTransform>,
-            hits_clip: (PxSize, PxCornerRadius),
+            clips: HitClips,
         })]
         impl UiNode for InnerNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
@@ -205,37 +211,58 @@ pub mod nodes {
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
-                match HitTestMode::var().get() {
-                    HitTestMode::RoundedBounds => {
-                        let clip = (size, ctx.widget_info.border.corner_radius());
-                        if self.hits_clip != clip {
-                            self.hits_clip = clip;
-                            ctx.updates.render();
-                        }
+                let mode = HitTestMode::var().get();
+                let clips = if matches!(mode, HitTestMode::Bounds | HitTestMode::RoundedBounds) {
+                    HitClips {
+                        bounds: size,
+                        corners: if matches!(mode, HitTestMode::RoundedBounds) {
+                            ctx.widget_info.border.corner_radius()
+                        } else {
+                            PxCornerRadius::zero()
+                        },
+                        inline: if let Some(inline) = wl.inline() {
+                            (inline.first_row, inline.last_row)
+                        } else {
+                            Default::default()
+                        },
                     }
-                    HitTestMode::Bounds => {
-                        if self.hits_clip.0 != size {
-                            self.hits_clip.0 = size;
-                            ctx.updates.render();
-                        }
-                    }
-                    _ => {}
+                } else {
+                    HitClips::default()
+                };
+
+                if clips != self.clips {
+                    self.clips = clips;
+                    ctx.updates.render();
                 }
 
                 size
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 frame.push_inner(ctx, self.transform_key, true, |ctx, frame| {
-                    match HitTestMode::var().get() {
-                        HitTestMode::RoundedBounds => {
-                            let rect = PxRect::from_size(self.hits_clip.0);
-                            frame.hit_test().push_rounded_rect(rect, self.hits_clip.1);
-                        }
-                        HitTestMode::Bounds => {
-                            frame.hit_test().push_rect(PxRect::from_size(self.hits_clip.0));
-                        }
-                        _ => {}
-                    }
+                    frame.hit_test().push_clips(
+                        |c| {
+                            if self.clips.inline.1 != PxPoint::zero() {
+                                if self.clips.inline.0 != PxPoint::zero() {
+                                    c.push_clip_rect(PxRect::from_size(self.clips.inline.0.to_vector().to_size()), true)
+                                }
+
+                                let mut last = PxRect::from_size(self.clips.bounds).to_box2d();
+                                last.min += self.clips.inline.1.to_vector();
+                                let last = last.to_rect();
+                                c.push_clip_rect(last, true);
+                            }
+                        },
+                        |h| match HitTestMode::var().get() {
+                            HitTestMode::RoundedBounds => {
+                                h.push_rounded_rect(PxRect::from_size(self.clips.bounds), self.clips.corners);
+                            }
+                            HitTestMode::Bounds => {
+                                h.push_rect(PxRect::from_size(self.clips.bounds));
+                            }
+                            _ => {}
+                        },
+                    );
+
                     self.child.render(ctx, frame);
                 });
             }
@@ -246,7 +273,7 @@ pub mod nodes {
         InnerNode {
             child: child.cfg_boxed(),
             transform_key: FrameValueKey::new_unique(),
-            hits_clip: (PxSize::zero(), PxCornerRadius::zero()),
+            clips: HitClips::default(),
         }
         .cfg_boxed()
     }
@@ -898,15 +925,19 @@ pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
 pub enum HitTestMode {
     /// Widget is never hit.
     ///
-    /// This mode is *sticky*, if set it disables hit-testing for the widget all its descendants.
+    /// This mode affects the entire UI branch, if set it disables hit-testing for the widget and all its descendants.
     Disabled,
-    /// Simplest mode, the widget is hit by any point that intersects the transformed inner bounds rectangle.
+    /// Widget is hit by any point that intersects the transformed inner bounds rectangle. If the widget is inlined
+    /// excludes the first row advance and the last row trailing space.
     Bounds,
-    /// Default mode, the widget is hit by any point that intersects the transformed inner bounds rectangle except on the outside
-    /// of rounded corners.
+    /// Default mode.
+    ///
+    /// Same as `Bounds`, but also excludes the outside of rounded corners.
     RoundedBounds,
-    /// Complex mode, every render primitive used for rendering the widget is hit-testable, the widget is hit only by
+    /// Every render primitive used for rendering the widget is hit-testable, the widget is hit only by
     /// points that intersect visible parts of the render primitives.
+    ///
+    /// Note that not all primitives implement pixel accurate hit-testing.
     Visual,
 }
 impl HitTestMode {
