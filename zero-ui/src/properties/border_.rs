@@ -10,7 +10,7 @@ use crate::core::border::{border_node, ContextBorders};
 /// more than once for a single widget, it also works with the [`corner_radius`] property drawing round corners if configured.
 ///
 /// This property disables inline layout for the widget.
-/// 
+///
 /// [`corner_radius`]: fn@corner_radius
 #[property(BORDER, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {

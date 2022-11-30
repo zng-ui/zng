@@ -447,6 +447,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != txt_padding {
                 pending.insert(Layout::QUICK_RESHAPE);
             }
+            if !pending.contains(Layout::QUICK_RESHAPE) {
+                let size = r.shaped_text.box_size();
+                let align_box = PxRect::from_size(metrics.constrains().fill_size_or(size));
+                if align_box != r.shaped_text.align_box() {
+                    pending.insert(Layout::QUICK_RESHAPE);
+                }
+            }
 
             let font = r.fonts.best();
 
