@@ -3,6 +3,12 @@
 * NVIDIA OpenGL takes 200ms! to startup.
 * First render is also slow.
 
+# Events
+
+* The event `WIDGET_INFO_CHANGED_EVENT` is broadcast and `is_enabled` subscribes to it, this causes a large amount
+  of widgets to receive this event, when they are only checking if the interactivity path has changed.
+  - Create widget info events, like `WIDGET_INTERACTIVITY_CHANGED_EVENT`. 
+
 # Render
 
 * Modify display list to not include glyphs and text color in the same item.
