@@ -260,7 +260,7 @@ impl fmt::Debug for LineBreak {
     }
 }
 
-/// Hyphenation configuration.
+/// Hyphenation mode.
 #[derive(Copy, Clone)]
 pub enum Hyphens {
     /// Hyphens are never inserted in word breaks.

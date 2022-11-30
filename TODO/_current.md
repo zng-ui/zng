@@ -1,7 +1,8 @@
 * Implement inline layout.
     - Just flow LTR for now.
     - `text!`.
-        - Text shape wrap.
+        - Use `TEXT_WRAP_VAR`, and line-break, word break, hyphens.
+        - Implemented in `shape_text`?
 
 * Implement inline info in bounds info.
 * Implement `LayoutDirection` for `flow!`.

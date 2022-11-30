@@ -101,6 +101,16 @@ context_var! {
 
     /// Text padding.
     pub static TEXT_PADDING_VAR: SideOffsets = 0;
+
+    /// If line breaks are automatically inserted to fill the available space.
+    ///
+    /// The [`LINE_BREAK_VAR`], [`WORD_BREAK_VAR`] and [`HYPHENS_VAR`] configure how the text is split.
+    ///
+    /// Is `true` by default.
+    pub static TEXT_WRAP_VAR: bool = true;
+
+    /// Text hyphenation config.
+    pub static HYPHENS_VAR: Hyphens = Hyphens::default();
 }
 
 /// Sets the [`FONT_FAMILY_VAR`] context var.
@@ -563,4 +573,25 @@ pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
 #[property(CONTEXT, default(TEXT_PADDING_VAR))]
 pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, TEXT_PADDING_VAR, padding)
+}
+
+/// Enables or disables text wrap.
+///
+/// If enabled, line-breaks and hyphens are automatically inserted to flow the text to fill the available width. Wrap
+/// can be configured using the [`line_break`], [`word_break`] and [`hyphens`] properties.
+///
+/// Sets the [`TEXT_WRAP_VAR`].
+///
+/// [`line_break`]: fn@line_break
+/// [`word_break`]: fn@word_break
+/// [`hyphens`]: fn@hyphens
+#[property(CONTEXT, default(TEXT_WRAP_VAR))]
+pub fn text_wrap(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, TEXT_WRAP_VAR, enabled)
+}
+
+/// Configure hyphenation.
+#[property(CONTEXT, default(HYPHENS_VAR))]
+pub fn hyphens(child: impl UiNode, hyphens: impl IntoVar<Hyphens>) -> impl UiNode {
+    with_context_var(child, HYPHENS_VAR, hyphens)
 }
