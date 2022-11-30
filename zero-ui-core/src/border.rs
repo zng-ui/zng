@@ -706,7 +706,7 @@ context_var! {
 ///
 /// Properties that *fill* the widget can wrap their fill content in this node to automatically implement
 /// the expected behavior of interaction with the widget borders, the content will positioned, sized and clipped according to the
-/// widget borders, [`corner_radius`] and [`border_align`].
+/// widget borders, [`corner_radius`] and [`border_align`]. If the widget is inlined
 ///
 /// Note that this node should **not** be used for the property child node (first argument), only other
 /// content that fills the widget, for examples, a *background* property would wrap its background node with this
@@ -720,6 +720,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
         clip_bounds: PxSize,
         clip_corners: PxCornerRadius,
+        clip_inline: (PxPoint, PxPoint),
 
         offset: PxVector,
         offset_id: SpatialFrameId,
@@ -776,17 +777,42 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 t.translate(self.offset);
             });
 
+            let clip_inline = if let Some(inline) = wl.inline() {
+                (inline.first_row, inline.last_row)
+            } else {
+                Default::default()
+            };
+            if self.clip_inline != clip_inline {
+                self.clip_inline = clip_inline;
+            }
+
             fill_bounds
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let mut render_clipped = |frame: &mut FrameBuilder| {
                 let bounds = PxRect::from_size(self.clip_bounds);
-                if self.clip_corners != PxCornerRadius::zero() {
-                    frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.child.render(ctx, f))
-                } else {
-                    frame.push_clip_rect(bounds, false, false, |f| self.child.render(ctx, f))
-                }
+                frame.push_clips(
+                    |c| {
+                        if self.clip_corners != PxCornerRadius::zero() {
+                            c.push_clip_rounded_rect(bounds, self.clip_corners, false, false);
+                        } else {
+                            c.push_clip_rect(bounds, false, false);
+                        }
+
+                        if self.clip_inline.1 != PxPoint::zero() {
+                            if self.clip_inline.0 != PxPoint::zero() {
+                                c.push_clip_rect(PxRect::new(bounds.origin, self.clip_inline.0.to_vector().to_size()), true, false);
+                            }
+
+                            let mut last = bounds.to_box2d();
+                            last.min += self.clip_inline.1.to_vector();
+                            let last = last.to_rect();
+                            c.push_clip_rect(last, true, false);
+                        }
+                    },
+                    |f| self.child.render(ctx, f),
+                );
             };
 
             if self.child.is_widget() {
@@ -805,6 +831,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         child: content.cfg_boxed(),
         clip_bounds: PxSize::zero(),
         clip_corners: PxCornerRadius::zero(),
+        clip_inline: (PxPoint::zero(), PxPoint::zero()),
         offset: PxVector::zero(),
         offset_id: SpatialFrameId::new_unique(),
     }

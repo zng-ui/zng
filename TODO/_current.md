@@ -1,24 +1,14 @@
 * Implement inline layout.
     - Just flow LTR for now.
-    - `wrap!`.
-        - Optional clip inline items?
-        - Last item of groups is not interactive (without any background_color).
     - `text!`.
         - Text shape wrap.
-    - Properties like border
-        - Test other frameworks.
-            - WPF has an special base widget for "run" items.
-            - CSS generate a multiple clipped borders effect, does not look good.
-        - As a first pass we can use `disable_inline` in all properties that affect layout?
-            - This also marks properties for inline impl later.
-        - Properties that render need to be aware too?
-            - Or we need to impl `wrap::clip_inline` first.
-        - We can impl inline background using two clips.
-            - This sets the general tone of the widget being a single contiguous unit, not like CSS where the widget gets split into multiple lines.
+    - Properties
         - Border can impl as a polygonal outline.
             - Need to impl path rendering first?
                 - Not sure if all styles are supported.
+        - Review other visual properties. `fill_node` implemented, so background+foreground already done.
 
+* Implement inline info in bounds info.
 * Implement `LayoutDirection` for `flow!`.
 
 * Continue "#Parallel UI" in `./Performance.md`.
