@@ -6,7 +6,10 @@ use std::{
 };
 
 use font_features::FontVariations;
-use zero_ui_core::focus::{Focus, FOCUS_CHANGED_EVENT};
+use zero_ui_core::{
+    focus::{Focus, FOCUS_CHANGED_EVENT},
+    widget_info::InlineLayout,
+};
 
 use super::text_properties::*;
 use crate::core::{
@@ -409,7 +412,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             ctx.constrains().fill_or_exact()
         }
 
-        fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, pending: &mut Layout) -> PxSize {
+        fn layout(
+            &mut self,
+            metrics: &LayoutMetrics,
+            t: &mut ResolvedText,
+            pending: &mut Layout,
+            inline: Option<&mut InlineLayout>,
+        ) -> PxSize {
             if t.reshape {
                 pending.insert(Layout::RESHAPE);
             }
@@ -472,6 +481,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if !pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(Px::MAX) {
                     pending.insert(Layout::RESHAPE);
                 }
+            }
+
+            let inline_advance = if inline.is_some() { metrics.inline_advance().width } else { Px(0) };
+            if self.shaping_args.text_indent != inline_advance {
+                self.shaping_args.text_indent = inline_advance;
+                pending.insert(Layout::RESHAPE);
             }
 
             if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != txt_padding {
@@ -639,7 +654,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            r.shaped_text.align_box().size
+            let bounds = r.shaped_text.align_box().size;
+            if let Some(inline) = inline {
+                if let Some(last_line) = r.shaped_text.lines().last() {
+                    inline.bounds = bounds;
+                    let last_line = last_line.rect();
+                    inline.last_row = PxPoint::new(last_line.width(), bounds.height - last_line.height());
+                    inline.first_row = PxPoint::new(inline_advance, r.shaped_text.lines().next().unwrap().rect().height());
+                }
+            }
+            bounds
         }
     }
 
@@ -706,7 +730,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         #[UiNode]
-        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             let mut txt = self.txt.lock();
 
             if let Some(size) = txt.measure(ctx) {
@@ -715,7 +739,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
                 let mut pending = self.pending;
-                txt.layout(ctx.metrics, t, &mut pending)
+                txt.layout(ctx.metrics, t, &mut pending, wm.inline())
             }
         }
         #[UiNode]
@@ -723,7 +747,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let mut write = RESOLVED_TEXT.write();
             let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
 
-            let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending);
+            let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending, wl.inline());
 
             if self.pending != Layout::empty() {
                 ctx.updates.render();

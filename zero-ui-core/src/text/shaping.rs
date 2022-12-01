@@ -1557,7 +1557,7 @@ impl Font {
         let dft_line_height = self.metrics().line_height().0 as f32;
         let center_height = (line_height - dft_line_height) / 2.0;
 
-        let mut origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32 + center_height);
+        let mut origin = euclid::point2::<_, ()>(config.text_indent.0 as f32, baseline.0 as f32 + center_height);
         let mut max_line_x = 0.0;
 
         let word_ctx_key = WordContextKey::new(config);
