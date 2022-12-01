@@ -52,27 +52,7 @@ pub struct TextShapingArgs {
 
     /// Finalized font features.
     pub font_features: RFontFeatures,
-}
-impl Default for TextShapingArgs {
-    fn default() -> Self {
-        TextShapingArgs {
-            letter_spacing: Px(0),
-            word_spacing: Px(0),
-            line_height: Px(0),
-            line_spacing: Px(0),
-            lang: lang!(und),
-            ignore_ligatures: false,
-            disable_kerning: false,
-            tab_x_advance: Px(0),
-            text_indent: Px(0),
-            font_features: RFontFeatures::default(),
-        }
-    }
-}
 
-/// Extra configuration for [`ShapedText::reshape`].
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TextWrapArgs {
     /// Maximum line width.
     ///
     /// Is [`Px::MAX`] when text wrap is disabled.
@@ -91,23 +71,24 @@ pub struct TextWrapArgs {
     /// This value is only considered when `word_break` is considered.
     pub hyphens: Hyphens,
 }
-impl Default for TextWrapArgs {
-    /// No wrap.
+impl Default for TextShapingArgs {
     fn default() -> Self {
-        Self {
+        TextShapingArgs {
+            letter_spacing: Px(0),
+            word_spacing: Px(0),
+            line_height: Px(0),
+            line_spacing: Px(0),
+            lang: lang!(und),
+            ignore_ligatures: false,
+            disable_kerning: false,
+            tab_x_advance: Px(0),
+            text_indent: Px(0),
+            font_features: RFontFeatures::default(),
             max_width: Px::MAX,
             line_break: Default::default(),
             word_break: Default::default(),
             hyphens: Default::default(),
         }
-    }
-}
-impl TextWrapArgs {
-    /// New args that disables text-wrap.
-    ///
-    /// This is the default value.
-    pub fn no_wrap() -> Self {
-        Self::default()
     }
 }
 
@@ -457,7 +438,7 @@ impl ShapedText {
     /// The `align_box` closure is called with the up-to-date [`box_size`] to produce the container rect where the
     /// text is aligned.
     ///
-    /// Glyphs are moved, including the `align_box.origin`, the [`size`] only changes for rewrap.
+    /// Glyphs are moved, including the `align_box.origin`, the [`size`] does not change.
     ///
     /// [`size`]: Self::size
     /// [`box_size`]: Self::box_size
@@ -468,7 +449,6 @@ impl ShapedText {
         line_spacing: Px,
         align_box: impl FnOnce(PxSize) -> PxRect,
         align: TextAlign,
-        wrap: &TextWrapArgs,
     ) {
         //
         // Line Height & Spacing
@@ -513,11 +493,11 @@ impl ShapedText {
             self.update_height();
         }
 
-        let align_box = align_box(self.size + PxSize::new(padding.horizontal(), padding.vertical()));
-
         //
         // Offset & Align
         //
+        let align_box = align_box(self.size + PxSize::new(padding.horizontal(), padding.vertical()));
+
         if self.padding != padding || self.align_box != align_box || self.align != align {
             let mut global_offset = euclid::vec2::<f32, ()>(
                 (padding.left + align_box.origin.x).0 as f32,
@@ -567,7 +547,6 @@ impl ShapedText {
             self.og_line_spacing,
             |_| PxRect::zero(),
             TextAlign::LEFT,
-            &TextWrapArgs::no_wrap(),
         );
     }
 
@@ -625,7 +604,7 @@ impl ShapedText {
         self.segments.0.is_empty()
     }
 
-    /// Iterate over [`ShapedLine`] selections split by [`LineBreak`].
+    /// Iterate over [`ShapedLine`] selections split by [`LineBreak`] or wrap.
     ///
     /// [`LineBreak`]: TextSegmentKind::LineBreak
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
@@ -844,7 +823,6 @@ impl ShapedText {
             self.line_spacing,
             |_| PxRect::zero(),
             TextAlign::LEFT,
-            &TextWrapArgs::no_wrap(),
         );
 
         if self.is_empty() {
@@ -897,6 +875,16 @@ impl ShapedText {
 
         self.size.width = Px(self.lines.max_width().round() as i32);
         self.update_height();
+    }
+
+    /// Check if any line can be better wrapped given the new wrap config.
+    pub fn can_rewrap(&self, max_width: Px) -> bool {
+        for line in self.lines() {
+            if line.width > max_width || line.started_by_wrap() {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -1032,6 +1020,36 @@ impl<'a> ShapedLine<'a> {
             index: i,
             is_last: i == last_i,
         })
+    }
+
+    /// Returns `true` if this line was started by the wrap algorithm.
+    ///
+    /// If this is `false` then the line is the first or the previous line ends in a [`LineBreak`].
+    ///
+    /// [`LineBreak`]: TextSegmentKind::LineBreak
+    pub fn started_by_wrap(&self) -> bool {
+        self.index > 0 && {
+            let prev_line = self.text.lines.segs(self.index - 1);
+            self.text.segments.0[prev_line.iter()]
+                .last()
+                .map(|s| !matches!(s.kind, TextSegmentKind::LineBreak))
+                .unwrap_or(false)
+        }
+    }
+
+    /// Returns `true` if this line was ended by the wrap algorithm.
+    ///
+    /// If this is `false` then the line is the last or ends in a [`LineBreak`].
+    ///
+    /// [`LineBreak`]: TextSegmentKind::LineBreak
+    pub fn ended_by_wrap(&self) -> bool {
+        // not last and not ended in line-break.
+        self.index < self.text.lines.0.len() - 1
+            && self
+                .segments()
+                .last()
+                .map(|s| !matches!(s.kind, TextSegmentKind::LineBreak))
+                .unwrap_or(false)
     }
 }
 
@@ -1549,10 +1567,32 @@ impl Font {
         let tab_x_advance = config.tab_x_advance.0 as f32;
         let tab_index = self.space_index();
 
+        let max_width = if config.max_width == Px::MAX {
+            f32::INFINITY
+        } else {
+            config.max_width.0 as f32
+        };
+
         for (seg, kind) in text.iter() {
             match kind {
                 TextSegmentKind::Word => {
                     self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
+                        if origin.x + shaped_seg.x_advance > max_width {
+                            if shaped_seg.x_advance > max_width {
+                                println!("!!: TODO, word break");
+                            }
+
+                            out.lines.0.push(LineRange {
+                                end: out.segments.0.len() + 1,
+                                width: origin.x,
+                                x_offset: 0.0,
+                            });
+
+                            max_line_x = origin.x.max(max_line_x);
+                            origin.x = 0.0;
+                            origin.y += line_height + line_spacing;
+                        }
+
                         out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
                             let r = GlyphInstance {
                                 index: gi.index,
@@ -1902,7 +1942,7 @@ mod tests {
 
         assert_eq!(from, test.line_spacing());
         let align_box = test.align_box();
-        test.reshape(test.padding(), test.line_height(), to, |_| align_box, test.align(), &TextWrapArgs::no_wrap());
+        test.reshape(test.padding(), test.line_height(), to, |_| align_box, test.align());
         assert_eq!(to, test.line_spacing());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
@@ -1938,7 +1978,7 @@ mod tests {
 
         assert_eq!(from, test.line_height());
         let align_box = test.align_box();
-        test.reshape(test.padding(), to, test.line_spacing(), |_| align_box, test.align(), &TextWrapArgs::no_wrap());
+        test.reshape(test.padding(), to, test.line_spacing(), |_| align_box, test.align());
         assert_eq!(to, test.line_height());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {

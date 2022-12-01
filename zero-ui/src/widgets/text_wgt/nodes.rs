@@ -403,7 +403,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     struct FinalText {
         layout: Option<LayoutText>,
         shaping_args: TextShapingArgs,
-        wrap_args: TextWrapArgs,
     }
     impl FinalText {
         fn measure(&mut self, ctx: &mut MeasureContext) -> Option<PxSize> {
@@ -443,6 +442,36 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if font_size != r.fonts.requested_size() || !r.fonts.is_sized_from(&t.faces) {
                 r.fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
                 pending.insert(Layout::RESHAPE);
+            }
+
+            if TEXT_WRAP_VAR.get() && !metrics.constrains().x.is_unbounded() {
+                let max_width = metrics.constrains().x.max().unwrap();
+                let line_break = LINE_BREAK_VAR.get();
+                let word_break = WORD_BREAK_VAR.get();
+                let hyphens = HYPHENS_VAR.get();
+
+                if self.shaping_args.line_break != line_break
+                    || self.shaping_args.word_break != word_break
+                    || self.shaping_args.hyphens != hyphens
+                {
+                    self.shaping_args.max_width = max_width;
+                    self.shaping_args.line_break = line_break;
+                    self.shaping_args.word_break = word_break;
+                    self.shaping_args.hyphens = hyphens;
+
+                    pending.insert(Layout::RESHAPE);
+                } else if self.shaping_args.max_width != max_width {
+                    self.shaping_args.max_width = max_width;
+
+                    if !pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(max_width) {
+                        pending.insert(Layout::RESHAPE);
+                    }
+                }
+            } else if self.shaping_args.max_width != Px::MAX {
+                self.shaping_args.max_width = Px::MAX;
+                if !pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(Px::MAX) {
+                    pending.insert(Layout::RESHAPE);
+                }
             }
 
             if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != txt_padding {
@@ -533,21 +562,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 pending.insert(Layout::QUICK_RESHAPE);
             }
 
-            let wrap = if TEXT_WRAP_VAR.get() && !metrics.constrains().x.is_unbounded() {
-                TextWrapArgs {
-                    max_width: metrics.constrains().x.max().unwrap(),
-                    line_break: LINE_BREAK_VAR.get(),
-                    word_break: WORD_BREAK_VAR.get(),
-                    hyphens: HYPHENS_VAR.get(),
-                }
-            } else {
-                TextWrapArgs::no_wrap()
-            };
-            if pending.contains(Layout::QUICK_RESHAPE) || wrap != self.wrap_args {
-                self.wrap_args = wrap;
-                pending.insert(Layout::QUICK_RESHAPE);
-            }
-
             /*
                 APPLY
             */
@@ -568,7 +582,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     line_spacing,
                     |size| PxRect::from_size(metrics.constrains().fill_size_or(size)),
                     align,
-                    &self.wrap_args,
                 );
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
 
@@ -743,7 +756,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         txt: Mutex::new(FinalText {
             layout: None,
             shaping_args: TextShapingArgs::default(),
-            wrap_args: TextWrapArgs::no_wrap(),
         }),
         pending: Layout::empty(),
     }
