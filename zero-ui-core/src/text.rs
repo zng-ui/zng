@@ -223,6 +223,9 @@ pub use segmenting::*;
 mod shaping;
 pub use shaping::*;
 
+mod hyphenation;
+pub use self::hyphenation::*;
+
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 
 /// Configuration of text wrapping for Chinese, Japanese, or Korean text.
@@ -294,7 +297,7 @@ impl fmt::Debug for Hyphens {
 
 /// Configure line breaks inside words during text wrap.
 ///
-/// This value is only considered if it is impossible to fit the a word to a line.
+/// This value is only considered if it is impossible to fit a full word to a line.
 ///
 /// Hyphens can be inserted in word breaks using the [`Hyphens`] configuration.
 #[derive(Copy, Clone, PartialEq, Eq)]

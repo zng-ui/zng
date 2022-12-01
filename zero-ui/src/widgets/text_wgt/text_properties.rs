@@ -591,6 +591,10 @@ pub fn txt_wrap(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 }
 
 /// Configure hyphenation.
+///
+/// Note that for automatic hyphenation to work the [`lang`] must also be set and the [`Hyphenation`] service must support it.
+///
+/// [`Hyphenation`]: crate::core::text::Hyphenation
 #[property(CONTEXT, default(HYPHENS_VAR))]
 pub fn hyphens(child: impl UiNode, hyphens: impl IntoVar<Hyphens>) -> impl UiNode {
     with_context_var(child, HYPHENS_VAR, hyphens)

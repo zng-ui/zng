@@ -63,6 +63,14 @@ trace_wgt_item = ["zero-ui-core/trace_wgt_item"]
 # Not enabled by default.
 deadlock_detection = ["zero-ui-core/deadlock_detection"]
 
+# Embed hyphenation dictionaries for all supported languages.
+#
+# If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the 
+# `Hyphenation::dictionary_source` method.
+#
+# Not enabled by default.
+hyphenation_embed_all = ["zero-ui-core/hyphenation_embed_all"]
+
 [dependencies]
 # local
 zero-ui-core = { path = "../zero-ui-core", default-features = false }

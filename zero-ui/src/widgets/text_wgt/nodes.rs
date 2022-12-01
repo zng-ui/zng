@@ -684,6 +684,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.sub_var(&TEXT_PADDING_VAR);
             // other subscriptions are handled by the `resolve_text` node.
+            self.txt.get_mut().shaping_args.lang = LANG_VAR.get();
 
             self.child.init(ctx);
         }

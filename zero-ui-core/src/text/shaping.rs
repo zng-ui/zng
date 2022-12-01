@@ -5,8 +5,8 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, Hyphens, InternedStr, Lang, LineBreak,
-    SegmentedText, TextAlign, TextSegment, TextSegmentKind, WordBreak,
+    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, InternedStr, Lang,
+    LineBreak, SegmentedText, TextAlign, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
     crate_util::{f32_cmp, IndexRange},
@@ -66,9 +66,7 @@ pub struct TextShapingArgs {
     /// This value is only considered if it is impossible to fit the a word to a line.
     pub word_break: WordBreak,
 
-    /// Hyphenation config.
-    ///
-    /// This value is only considered when `word_break` is considered.
+    /// Hyphen breaks config.
     pub hyphens: Hyphens,
 }
 impl Default for TextShapingArgs {
@@ -1579,7 +1577,28 @@ impl Font {
                     self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
                         if origin.x + shaped_seg.x_advance > max_width {
                             if shaped_seg.x_advance > max_width {
-                                println!("!!: TODO, word break");
+                                let mut break_seg = match config.word_break {
+                                    WordBreak::Normal => {
+                                        config.lang.matches(&lang!("ch"), true, true)
+                                            || config.lang.matches(&lang!("jp"), true, true)
+                                            || config.lang.matches(&lang!("ko"), true, true)
+                                    }
+                                    WordBreak::BreakAll => true,
+                                    WordBreak::KeepAll => false,
+                                };
+
+                                if matches!(config.hyphens, Hyphens::Auto) {
+                                    // hyphenate word
+                                    let i = Hyphenation::hyphenate(&config.lang, seg);
+                                    if !i.is_empty() {
+                                        // !!: find best split, also need hyphen char
+                                        break_seg = false;
+                                    }
+                                }
+
+                                if break_seg {
+                                    // !!: TODO split any char
+                                }
                             }
 
                             out.lines.0.push(LineRange {

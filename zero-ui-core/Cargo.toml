@@ -62,10 +62,16 @@ trace_wgt_item = []
 
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 #
-# If enabled 
-#
 # Not enabled by default.
 deadlock_detection = ["parking_lot/deadlock_detection"]
+
+# Embed hyphenation dictionaries for all supported languages.
+#
+# If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the 
+# `Hyphenation::dictionary_source` method.
+#
+# Not enabled by default.
+hyphenation_embed_all = ["hyphenation/embed_all"]
 
 [dependencies]
 # local
@@ -79,6 +85,8 @@ unicase = "2"
 harfbuzz_rs = "2"
 xi-unicode = "0.3"
 pathfinder_geometry = "0.5"
+hyphenation = { version = "0.8", default-features = false }
+regex = "1"
 
 # task
 flume = { version = "0.10", default-features  = false, features = ["async"] }
