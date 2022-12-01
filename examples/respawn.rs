@@ -23,10 +23,12 @@ fn main() {
                 spacing = 5;
                 children_align = Align::TOP;
                 children = ui_list![
-                    text(
-                        "The renderer and OS windows are created in another process, the `view-process`,\n\
-                        it automatically respawns in case of a graphics driver crash or other similar fatal error.\n"
-                    ),
+                    text! {
+                        txt = "The renderer and OS windows are created in another process, the `view-process`. \
+                               It automatically respawns in case of a graphics driver crash or other similar fatal error.";
+                        txt_align = Align::CENTER;
+                        max_width = 620;
+                    },
                     respawn(),
                     #[cfg(debug_assertions)]
                     crash_respawn(),

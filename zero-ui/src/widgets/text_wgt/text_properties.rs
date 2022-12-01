@@ -586,7 +586,7 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 /// [`word_break`]: fn@word_break
 /// [`hyphens`]: fn@hyphens
 #[property(CONTEXT, default(TEXT_WRAP_VAR))]
-pub fn text_wrap(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn txt_wrap(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_WRAP_VAR, enabled)
 }
 

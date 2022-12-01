@@ -105,6 +105,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
                 },
                 text! {
                     txt = formatx!("{ico}");
+                    txt_wrap = false;
                     font_size = 10;
                 },
             ]

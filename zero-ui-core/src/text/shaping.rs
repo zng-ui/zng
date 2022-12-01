@@ -1583,7 +1583,7 @@ impl Font {
                             }
 
                             out.lines.0.push(LineRange {
-                                end: out.segments.0.len() + 1,
+                                end: out.segments.0.len(),
                                 width: origin.x,
                                 x_offset: 0.0,
                             });
