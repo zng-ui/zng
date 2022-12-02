@@ -1115,6 +1115,11 @@ impl IndexRange {
     pub fn inclusive_end(self) -> usize {
         self.1.saturating_sub(1)
     }
+
+    /// `self.end - self.start`
+    pub fn len(self) -> usize {
+        self.end() - self.start()
+    }
 }
 impl std::ops::RangeBounds<usize> for IndexRange {
     fn start_bound(&self) -> std::ops::Bound<&usize> {

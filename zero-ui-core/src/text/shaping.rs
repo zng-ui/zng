@@ -1,7 +1,7 @@
 use std::{
     fmt,
     hash::{BuildHasher, Hash, Hasher},
-    mem,
+    mem, ops,
 };
 
 use super::{
@@ -1332,6 +1332,32 @@ impl<'a> ShapedSegment<'a> {
         IndexRange(start, end)
     }
 
+    /// Get the text bytes range of the `glyph_range` in this segment's [`text`].
+    ///
+    /// [`text`]: Self::text
+    pub fn text_glyph_range(&self, glyph_range: impl ops::RangeBounds<usize>) -> IndexRange {
+        let included_start = match glyph_range.start_bound() {
+            ops::Bound::Included(i) => Some(*i),
+            ops::Bound::Excluded(i) => Some(*i + 1),
+            ops::Bound::Unbounded => None,
+        };
+        let excluded_end = match glyph_range.end_bound() {
+            ops::Bound::Included(i) => Some(*i - 1),
+            ops::Bound::Excluded(i) => Some(*i),
+            ops::Bound::Unbounded => None,
+        };
+
+        let glyph_range_start = self.glyph_range().start();
+        let glyph_to_char = |g| self.text.clusters[glyph_range_start + g] as usize;
+
+        match (included_start, excluded_end) {
+            (None, None) => IndexRange(0, self.text_range().len()),
+            (None, Some(end)) => IndexRange(0, glyph_to_char(end)),
+            (Some(start), None) => IndexRange(glyph_to_char(start) as usize, self.text_range().len()),
+            (Some(start), Some(end)) => IndexRange(glyph_to_char(start) as usize, glyph_to_char(end) as usize),
+        }
+    }
+
     /// Select the string represented by this segment.
     ///
     /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
@@ -1652,8 +1678,34 @@ impl Font {
                                 }
 
                                 if break_seg {
-                                    // !!: TODO split any char, need map back from glyphs
-                                    // !!: see: https://lists.freedesktop.org/archives/harfbuzz/2012-July/002200.html
+                                    let mut gi = 0;
+                                    let mut g_advance = origin.x;
+
+                                    for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+                                        g_advance += g.point.0;
+                                        gi = i;
+
+                                        if g_advance > max_width {
+                                            break;
+                                        }
+                                    }
+
+                                    let c = shaped_seg.glyphs[gi].cluster as usize;
+                                    let seg_a = &seg[..c];
+                                    let seg_b = &seg[c..];
+
+                                    out.glyphs.extend(shaped_seg.glyphs[..c].iter().map(|gi| {
+                                        let r = GlyphInstance {
+                                            index: gi.index,
+                                            point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
+                                        };
+                                        origin.x += letter_spacing;
+                                        r
+                                    }));
+                                    out.clusters.extend(shaped_seg.glyphs[..c].iter().map(|gi| gi.cluster));
+
+                                    // !!: TODO, break line and insert b and prevent other line break.
+                                    let b_advance = shaped_seg.x_advance - g_advance;
                                 }
                             }
 
