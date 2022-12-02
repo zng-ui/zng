@@ -1116,6 +1116,15 @@ impl IndexRange {
         self.1.saturating_sub(1)
     }
 }
+impl std::ops::RangeBounds<usize> for IndexRange {
+    fn start_bound(&self) -> std::ops::Bound<&usize> {
+        std::ops::Bound::Included(&self.0)
+    }
+
+    fn end_bound(&self) -> std::ops::Bound<&usize> {
+        std::ops::Bound::Excluded(&self.1)
+    }
+}
 
 /// `f32` comparison, panics for `NaN`.
 pub fn f32_cmp(a: &f32, b: &f32) -> std::cmp::Ordering {

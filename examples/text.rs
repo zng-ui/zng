@@ -147,6 +147,7 @@ fn line_spacing() -> impl UiNode {
             child = text! {
                 txt = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
+                txt_wrap = false;
 
                 when *#is_hovered {
                     #[easing(150.ms())]

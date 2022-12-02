@@ -123,10 +123,17 @@ impl fmt::Debug for FontRange {
     }
 }
 
-/// `Vec<TextSegment>` with helper methods.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct GlyphSegment {
+    pub text: TextSegment,
+    /// glyph exclusive end.
+    pub end: usize,
+}
+
+/// `Vec<GlyphSegment>` with helper methods.
 #[derive(Debug, Default, Clone, PartialEq)]
-struct TextSegmentVec(Vec<TextSegment>);
-impl TextSegmentVec {
+struct GlyphSegmentVec(Vec<GlyphSegment>);
+impl GlyphSegmentVec {
     /// Exclusive glyphs range of the segment.
     fn glyphs(&self, index: usize) -> IndexRange {
         let start = if index == 0 { 0 } else { self.0[index - 1].end };
@@ -149,20 +156,20 @@ impl TextSegmentVec {
     }
 
     /// Iter glyph ranges.
-    fn iter_glyphs(&self) -> impl Iterator<Item = (TextSegmentKind, IndexRange)> + '_ {
+    fn iter_glyphs(&self) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
         let mut start = 0;
         self.0.iter().map(move |s| {
             let r = IndexRange(start, s.end);
             start = s.end;
-            (s.kind, r)
+            (s.text, r)
         })
     }
 
-    fn first(&self) -> TextSegment {
+    fn first(&self) -> GlyphSegment {
         self.0[0]
     }
 
-    fn last(&self) -> TextSegment {
+    fn last(&self) -> GlyphSegment {
         let l = self.0.len() - 1;
         self.0[l]
     }
@@ -302,8 +309,9 @@ impl FontRangeVec {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
-    /// segments of `glyphs`
-    segments: TextSegmentVec,
+    clusters: Vec<u32>, // char index of each glyph in the segment that covers it.
+    // segments of `glyphs` and `clusters`.
+    segments: GlyphSegmentVec,
     lines: LineRangeVec,
     fonts: FontRangeVec,
 
@@ -332,6 +340,7 @@ impl ShapedText {
     fn alloc() -> Self {
         Self {
             glyphs: Default::default(),
+            clusters: Default::default(),
             segments: Default::default(),
             lines: Default::default(),
             fonts: Default::default(),
@@ -395,11 +404,6 @@ impl ShapedText {
 
             (font, glyphs_with_adv)
         })
-    }
-
-    /// Glyphs segments.
-    pub fn segments(&self) -> &[TextSegment] {
-        &self.segments.0
     }
 
     /// Bounding box size, the width is the longest line, the height is the sum of line heights + spacing in between,
@@ -618,7 +622,8 @@ impl ShapedText {
     pub fn empty(&self) -> ShapedText {
         ShapedText {
             glyphs: vec![],
-            segments: TextSegmentVec(vec![]),
+            clusters: vec![],
+            segments: GlyphSegmentVec(vec![]),
             lines: LineRangeVec(vec![LineRange {
                 end: 0,
                 width: 0.0,
@@ -667,7 +672,8 @@ impl ShapedText {
 
             let mut b = ShapedText {
                 glyphs: self.glyphs.drain(g_end..).collect(),
-                segments: TextSegmentVec(self.segments.0.drain(segment..).collect()),
+                clusters: self.clusters.drain(g_end..).collect(),
+                segments: GlyphSegmentVec(self.segments.0.drain(segment..).collect()),
                 lines: LineRangeVec(self.lines.0.drain(l_end..).collect()),
                 fonts: FontRangeVec(self.fonts.0.drain(f_end..).collect()),
                 padding: PxSideOffsets::zero(),
@@ -699,9 +705,9 @@ impl ShapedText {
 
             let mut x_offset = 0.0;
 
-            if self.segments.last().kind == TextSegmentKind::LineBreak {
+            if self.segments.last().text.kind == TextSegmentKind::LineBreak {
                 *a_ll_width = 0.0;
-            } else if b.segments.first().kind == TextSegmentKind::LineBreak {
+            } else if b.segments.first().text.kind == TextSegmentKind::LineBreak {
                 *a_ll_width = *b_fl_width;
             } else {
                 x_offset = b.glyphs[0].point.x;
@@ -781,7 +787,7 @@ impl ShapedText {
         if self.segments.0.len() == 1 {
             *self = self.empty();
         } else {
-            if self.segments.last().kind == TextSegmentKind::LineBreak {
+            if self.segments.last().text.kind == TextSegmentKind::LineBreak {
                 self.lines.0.pop();
             }
 
@@ -985,9 +991,7 @@ impl<'a> ShapedLine<'a> {
         (PxPoint::new(Px(0), y + self.text.padding.top), self.width)
     }
 
-    /// Text segments of the line, does not include the line-break that started the line, can include
-    /// the line break that starts the next line.
-    pub fn segments(&self) -> &'a [TextSegment] {
+    fn segments(&self) -> &'a [GlyphSegment] {
         &self.text.segments.0[self.seg_range.iter()]
     }
 
@@ -1030,7 +1034,7 @@ impl<'a> ShapedLine<'a> {
             let prev_line = self.text.lines.segs(self.index - 1);
             self.text.segments.0[prev_line.iter()]
                 .last()
-                .map(|s| !matches!(s.kind, TextSegmentKind::LineBreak))
+                .map(|s| !matches!(s.text.kind, TextSegmentKind::LineBreak))
                 .unwrap_or(false)
         }
     }
@@ -1046,8 +1050,29 @@ impl<'a> ShapedLine<'a> {
             && self
                 .segments()
                 .last()
-                .map(|s| !matches!(s.kind, TextSegmentKind::LineBreak))
+                .map(|s| !matches!(s.text.kind, TextSegmentKind::LineBreak))
                 .unwrap_or(false)
+    }
+
+    /// Get the text bytes range of this segment in the original text.
+    pub fn text_range(&self) -> IndexRange {
+        let start = self.seg_range.start();
+        let start = if start == 0 { 0 } else { self.text.segments.0[start - 1].text.end };
+        let end = self.text.segments.0[self.seg_range.end()].text.end;
+
+        IndexRange(start, end)
+    }
+
+    /// Select the string represented by this line.
+    ///
+    /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
+    pub fn text<'t, 's>(&'t self, full_text: &'s str) -> &'s str {
+        let IndexRange(start, end) = self.text_range();
+
+        let start = start.min(full_text.len());
+        let end = end.min(full_text.len());
+
+        &full_text[start..end]
     }
 }
 
@@ -1114,7 +1139,7 @@ impl<'a> fmt::Debug for ShapedSegment<'a> {
 impl<'a> ShapedSegment<'a> {
     /// Segment kind.
     pub fn kind(&self) -> TextSegmentKind {
-        self.text.segments.0[self.index].kind
+        self.text.segments.0[self.index].text.kind
     }
 
     /// If the segment kind is [`Word`].
@@ -1294,6 +1319,28 @@ impl<'a> ShapedSegment<'a> {
     pub fn underline_descent(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline_descent)
     }
+
+    /// Get the text bytes range of this segment in the original text.
+    pub fn text_range(&self) -> IndexRange {
+        let start = if self.index == 0 {
+            0
+        } else {
+            self.text.segments.0[self.index - 1].text.end
+        };
+        let end = self.text.segments.0[self.index].text.end;
+
+        IndexRange(start, end)
+    }
+
+    /// Select the string represented by this segment.
+    ///
+    /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
+    pub fn text<'t, 's>(&'t self, full_text: &'s str) -> &'s str {
+        let IndexRange(start, end) = self.text_range();
+        let start = start.min(full_text.len());
+        let end = end.min(full_text.len());
+        &full_text[start..end]
+    }
 }
 
 const WORD_CACHE_MAX_LEN: usize = 32;
@@ -1355,19 +1402,22 @@ pub(super) struct ShapedSegmentData {
 }
 #[derive(Debug, Clone, Copy)]
 struct ShapedGlyph {
+    /// glyph index
     index: u32,
-    //cluster: u32,
+    /// char index
+    cluster: u32,
     point: (f32, f32),
 }
 
 impl Font {
     fn buffer_segment(&self, segment: &str, lang: &Lang) -> harfbuzz_rs::UnicodeBuffer {
-        let mut buffer =
-            harfbuzz_rs::UnicodeBuffer::new().set_direction(if lang.character_direction() == unic_langid::CharacterDirection::RTL {
+        let mut buffer = harfbuzz_rs::UnicodeBuffer::new()
+            .set_direction(if lang.character_direction() == unic_langid::CharacterDirection::RTL {
                 harfbuzz_rs::Direction::Rtl
             } else {
                 harfbuzz_rs::Direction::Ltr
-            });
+            })
+            .set_cluster_level(harfbuzz_rs::ClusterLevel::Characters);
 
         if let Some(lang) = to_buzz_lang(lang.language) {
             buffer = buffer.set_language(lang);
@@ -1404,7 +1454,7 @@ impl Font {
 
                 ShapedGlyph {
                     index: i.codepoint,
-                    // cluster: i.cluster,
+                    cluster: i.cluster,
                     point,
                 }
             })
@@ -1571,12 +1621,17 @@ impl Font {
             config.max_width.0 as f32
         };
 
+        let mut text_seg_end = 0;
+
         for (seg, kind) in text.iter() {
             match kind {
                 TextSegmentKind::Word => {
                     self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
                         if origin.x + shaped_seg.x_advance > max_width {
+                            // need wrap
+
                             if shaped_seg.x_advance > max_width {
+                                // need word break
                                 let mut break_seg = match config.word_break {
                                     WordBreak::Normal => {
                                         config.lang.matches(&lang!("ch"), true, true)
@@ -1597,7 +1652,8 @@ impl Font {
                                 }
 
                                 if break_seg {
-                                    // !!: TODO split any char
+                                    // !!: TODO split any char, need map back from glyphs
+                                    // !!: see: https://lists.freedesktop.org/archives/harfbuzz/2012-July/002200.html
                                 }
                             }
 
@@ -1620,6 +1676,7 @@ impl Font {
                             origin.x += letter_spacing;
                             r
                         }));
+                        out.clusters.extend(shaped_seg.glyphs.iter().map(|gi| gi.cluster));
                         origin.x += shaped_seg.x_advance;
                         origin.y += shaped_seg.y_advance;
                     });
@@ -1634,6 +1691,7 @@ impl Font {
                             origin.x += word_spacing;
                             r
                         }));
+                        out.clusters.extend(shaped_seg.glyphs.iter().map(|gi| gi.cluster));
                         origin.x += shaped_seg.x_advance;
                         origin.y += shaped_seg.y_advance;
                     });
@@ -1642,6 +1700,7 @@ impl Font {
                     let point = euclid::point2(origin.x, origin.y);
                     origin.x += tab_x_advance;
                     out.glyphs.push(GlyphInstance { index: tab_index, point });
+                    out.clusters.push(0); // only char
                 }
                 TextSegmentKind::LineBreak => {
                     out.lines.0.push(LineRange {
@@ -1656,8 +1715,12 @@ impl Font {
                 }
             }
 
-            out.segments.0.push(TextSegment {
-                kind,
+            debug_assert_eq!(out.glyphs.len(), out.clusters.len());
+
+            text_seg_end += seg.len();
+
+            out.segments.0.push(GlyphSegment {
+                text: TextSegment { kind, end: text_seg_end },
                 end: out.glyphs.len(),
             });
         }
