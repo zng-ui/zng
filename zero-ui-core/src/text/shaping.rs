@@ -1497,17 +1497,17 @@ impl Font {
         }
     }
 
-    fn shape_segment(
+    fn shape_segment<R>(
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
         lang: &Lang,
         features: &[harfbuzz_rs::Feature],
-        out: impl FnOnce(&ShapedSegmentData),
-    ) {
+        out: impl FnOnce(&ShapedSegmentData) -> R,
+    ) -> R {
         if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) {
             let seg = self.shape_segment_no_cache(seg, lang, features);
-            out(&seg);
+            out(&seg)
         } else if let Some(small) = Self::to_small_word(seg) {
             let mut m = self.m.lock();
             let cache = &mut m.small_word_cache;
@@ -1658,6 +1658,7 @@ impl Font {
             WordBreak::BreakAll => true,
             WordBreak::KeepAll => false,
         };
+        let mut hyphen_glyphs = None;
 
         let mut text_seg_end = 0;
 
@@ -1761,9 +1762,20 @@ impl Font {
                                 let mut hyphenated = false;
                                 if matches!(config.hyphens, Hyphens::Auto) {
                                     // hyphenate word
-                                    let i = Hyphenation::hyphenate(&config.lang, seg);
-                                    if !i.is_empty() {
-                                        // !!: find best split, also need hyphen char
+                                    let split_points = Hyphenation::hyphenate(&config.lang, seg);
+                                    if !split_points.is_empty() {
+                                        let hyphen_glyphs = hyphen_glyphs.get_or_insert_with(|| {
+                                            self.shape_segment(
+                                                config.hyphen_char.as_str(),
+                                                &word_ctx_key,
+                                                &config.lang,
+                                                &config.font_features,
+                                                |s| s.glyphs.clone(),
+                                            )
+                                        });
+
+                                        // !!: find best split to fit the hyphen-glyphs, need map char idx to glyph?
+
                                         hyphenated = true;
                                     }
                                 }
