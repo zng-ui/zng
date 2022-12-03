@@ -1424,7 +1424,7 @@ impl WordContextKey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct ShapedSegmentData {
     glyphs: Vec<ShapedGlyph>,
     x_advance: f32,
@@ -1658,7 +1658,13 @@ impl Font {
             WordBreak::BreakAll => true,
             WordBreak::KeepAll => false,
         };
-        let mut hyphen_glyphs = None;
+        let hyphen_glyphs = self.shape_segment(
+            config.hyphen_char.as_str(),
+            &word_ctx_key,
+            &config.lang,
+            &config.font_features,
+            |s| s.clone(),
+        );
 
         let mut text_seg_end = 0;
 
@@ -1764,17 +1770,76 @@ impl Font {
                                     // hyphenate word
                                     let split_points = Hyphenation::hyphenate(&config.lang, seg);
                                     if !split_points.is_empty() {
-                                        let hyphen_glyphs = hyphen_glyphs.get_or_insert_with(|| {
-                                            self.shape_segment(
-                                                config.hyphen_char.as_str(),
-                                                &word_ctx_key,
-                                                &config.lang,
-                                                &config.font_features,
-                                                |s| s.glyphs.clone(),
-                                            )
-                                        });
+                                        let mut end_glyph = 0;
 
-                                        // !!: find best split to fit the hyphen-glyphs, need map char idx to glyph?
+                                        for mut point in split_points {
+                                            let mut width = 0.0;
+                                            let mut c = u32::MAX;
+                                            let mut gi = 0;
+                                            for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+                                                if g.cluster != c {
+                                                    if point == 0 {
+                                                        break;
+                                                    }
+                                                    c = g.cluster;
+                                                    point -= 1;
+                                                }
+                                                width = g.point.0;
+                                                gi = i;
+                                            }
+
+                                            if width + hyphen_glyphs.x_advance > max_width {
+                                                break;
+                                            } else {
+                                                end_glyph = gi;
+                                            }
+                                        }
+
+                                        // split and push the hyphen
+                                        let end_glyph_x = shaped_seg.glyphs[end_glyph].point.0;
+
+                                        let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
+
+                                        if glyphs_a.is_empty() || glyphs_b.is_empty() {
+                                            // failed split
+                                            push_glyphs!(shaped_seg, word_spacing);
+                                            push_text_seg!(seg, kind);
+                                        } else {
+                                            let end_cluster = glyphs_b[0].cluster;
+                                            let (seg_a, seg_b) = seg.split_at(end_cluster as usize);
+
+                                            let shaped_seg_a = ShapedSegmentData {
+                                                glyphs: glyphs_a
+                                                    .iter()
+                                                    .copied()
+                                                    .chain(hyphen_glyphs.glyphs.iter().map(|g| {
+                                                        let mut g = g.clone();
+                                                        g.cluster = end_cluster;
+                                                        g.point.0 += end_glyph_x;
+                                                        g
+                                                    }))
+                                                    .collect(),
+                                                x_advance: end_glyph_x + hyphen_glyphs.x_advance,
+                                                y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
+                                            };
+                                            push_glyphs!(shaped_seg_a, word_spacing);
+                                            push_text_seg!(seg_a, kind);
+                                            push_line_break!();
+
+                                            // !!: implement multiple hyphenation?
+                                            //      - some cases can't fit even the partial word in a line.
+                                            //        usually with large text, Firefox hyphenate a word multiple times in this case.
+                                            let mut shaped_seg_b = ShapedSegmentData {
+                                                glyphs: glyphs_b.to_vec(),
+                                                x_advance: shaped_seg.x_advance - end_glyph_x,
+                                                y_advance: glyphs_b.iter().map(|g| g.point.1).sum(),
+                                            };
+                                            for g in &mut shaped_seg_b.glyphs {
+                                                g.point.0 -= end_glyph_x;
+                                            }
+                                            push_glyphs!(shaped_seg_b, word_spacing);
+                                            push_text_seg!(seg_b, kind);
+                                        }
 
                                         hyphenated = true;
                                     }
