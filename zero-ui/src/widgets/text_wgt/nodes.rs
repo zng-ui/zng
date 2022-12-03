@@ -455,21 +455,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             if TEXT_WRAP_VAR.get() && !metrics.constrains().x.is_unbounded() {
                 let max_width = metrics.constrains().x.max().unwrap();
-                let line_break = LINE_BREAK_VAR.get();
-                let word_break = WORD_BREAK_VAR.get();
-                let hyphens = HYPHENS_VAR.get();
-
-                if self.shaping_args.line_break != line_break
-                    || self.shaping_args.word_break != word_break
-                    || self.shaping_args.hyphens != hyphens
-                {
-                    self.shaping_args.max_width = max_width;
-                    self.shaping_args.line_break = line_break;
-                    self.shaping_args.word_break = word_break;
-                    self.shaping_args.hyphens = hyphens;
-
-                    pending.insert(Layout::RESHAPE);
-                } else if self.shaping_args.max_width != max_width {
+                if self.shaping_args.max_width != max_width {
                     self.shaping_args.max_width = max_width;
 
                     if !pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(max_width) {
@@ -684,7 +670,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.sub_var(&TEXT_PADDING_VAR);
             // other subscriptions are handled by the `resolve_text` node.
-            self.txt.get_mut().shaping_args.lang = LANG_VAR.get();
+            let txt = self.txt.get_mut();
+            txt.shaping_args.lang = LANG_VAR.get();
+            txt.shaping_args.line_break = LINE_BREAK_VAR.get();
+            txt.shaping_args.word_break = WORD_BREAK_VAR.get();
+            txt.shaping_args.hyphens = HYPHENS_VAR.get();
+            txt.shaping_args.hyphen_char = HYPHEN_CHAR_VAR.get();
 
             self.child.init(ctx);
         }
@@ -724,6 +715,47 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 || UNDERLINE_THICKNESS_VAR.is_new(ctx)
                 || TEXT_PADDING_VAR.is_new(ctx)
             {
+                ctx.updates.layout();
+            }
+
+            if let Some(lb) = LINE_BREAK_VAR.get_new(ctx) {
+                let txt = self.txt.get_mut();
+                if txt.shaping_args.line_break != lb {
+                    txt.shaping_args.line_break = lb;
+                    self.pending.insert(Layout::RESHAPE);
+                    ctx.updates.layout();
+                }
+            }
+
+            if let Some(wb) = WORD_BREAK_VAR.get_new(ctx) {
+                let txt = self.txt.get_mut();
+                if txt.shaping_args.word_break != wb {
+                    txt.shaping_args.word_break = wb;
+                    self.pending.insert(Layout::RESHAPE);
+                    ctx.updates.layout();
+                }
+            }
+
+            if let Some(h) = HYPHENS_VAR.get_new(ctx) {
+                let txt = self.txt.get_mut();
+                if txt.shaping_args.hyphens != h {
+                    txt.shaping_args.hyphens = h;
+                    self.pending.insert(Layout::RESHAPE);
+                    ctx.updates.layout();
+                }
+            }
+
+            if let Some(c) = HYPHEN_CHAR_VAR.get_new(ctx) {
+                let txt = self.txt.get_mut();
+                txt.shaping_args.hyphen_char = c;
+                if Hyphens::None != txt.shaping_args.hyphens {
+                    self.pending.insert(Layout::RESHAPE);
+                    ctx.updates.layout();
+                }
+            }
+
+            if TEXT_WRAP_VAR.is_new(ctx) {
+                self.pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
 

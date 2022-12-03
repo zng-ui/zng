@@ -111,6 +111,9 @@ context_var! {
 
     /// Text hyphenation config.
     pub static HYPHENS_VAR: Hyphens = Hyphens::default();
+
+    /// Hyphen text rendered when auto-hyphenating.
+    pub static HYPHEN_CHAR_VAR: Text = Text::from_char('-');
 }
 
 /// Sets the [`FONT_FAMILY_VAR`] context var.
@@ -594,8 +597,20 @@ pub fn txt_wrap(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// Note that for automatic hyphenation to work the [`lang`] must also be set and the [`Hyphenation`] service must support it.
 ///
+/// The auto hyphenation char can be defined using [`hyphen_char`].
+///
 /// [`Hyphenation`]: crate::core::text::Hyphenation
 #[property(CONTEXT, default(HYPHENS_VAR))]
 pub fn hyphens(child: impl UiNode, hyphens: impl IntoVar<Hyphens>) -> impl UiNode {
     with_context_var(child, HYPHENS_VAR, hyphens)
+}
+
+/// The char or small string that is rendered when text is auto-hyphenated.
+///
+/// Note that hyphenation is enabled by the [`hyphens`] property.
+///
+/// [`hyphens`]: fn@hyphens
+#[property(CONTEXT, default(HYPHEN_CHAR_VAR))]
+pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Text>) -> impl UiNode {
+    with_context_var(child, HYPHEN_CHAR_VAR, hyphen)
 }
