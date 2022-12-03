@@ -1607,8 +1607,6 @@ impl Font {
 
     /// Calculates a [`ShapedText`].
     pub fn shape_text(self: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        // let _scope = tracing::trace_span!("Font::shape_text", name=%self.face().display_name()).entered();
-
         let mut out = ShapedText::alloc();
 
         let metrics = self.metrics();
@@ -1647,7 +1645,104 @@ impl Font {
             config.max_width.0 as f32
         };
 
+        let break_words = match config.word_break {
+            WordBreak::Normal => {
+                config.lang.matches(&lang!("ch"), true, true)
+                    || config.lang.matches(&lang!("jp"), true, true)
+                    || config.lang.matches(&lang!("ko"), true, true)
+            }
+            WordBreak::BreakAll => true,
+            WordBreak::KeepAll => false,
+        };
+
         let mut text_seg_end = 0;
+
+        macro_rules! push_glyphs {
+            ($shaped_seg:ident, $spacing:ident) => {
+                out.glyphs.extend($shaped_seg.glyphs.iter().map(|gi| {
+                    let r = GlyphInstance {
+                        index: gi.index,
+                        point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
+                    };
+                    origin.x += $spacing;
+                    r
+                }));
+                out.clusters.extend($shaped_seg.glyphs.iter().map(|gi| gi.cluster));
+
+                origin.x += $shaped_seg.x_advance;
+                origin.y += $shaped_seg.y_advance;
+            };
+        }
+
+        macro_rules! push_line_break {
+            () => {
+                out.lines.0.push(LineRange {
+                    end: out.segments.0.len() + 1, // segment is pushed after match
+                    width: origin.x,
+                    x_offset: 0.0,
+                });
+
+                max_line_x = origin.x.max(max_line_x);
+                origin.x = 0.0;
+                origin.y += line_height + line_spacing;
+            };
+        }
+
+        macro_rules! push_text_seg {
+            ($seg:ident, $kind:expr) => {
+                text_seg_end += $seg.len();
+
+                let kind = $kind;
+                out.segments.0.push(GlyphSegment {
+                    text: TextSegment { kind, end: text_seg_end },
+                    end: out.glyphs.len(),
+                });
+            };
+        }
+
+        macro_rules! push_split_seg {
+            ($shaped_seg:ident, $seg:ident, $kind:ident, $spacing:ident) => {
+                let mut end_glyph = 0;
+                let mut end_glyph_x = 0.0;
+                for (i, g) in $shaped_seg.glyphs.iter().enumerate() {
+                    if origin.x + g.point.0 > max_width {
+                        end_glyph = i.saturating_sub(1);
+                        end_glyph_x = g.point.0;
+                        break;
+                    }
+                }
+
+                let (glyphs_a, glyphs_b) = $shaped_seg.glyphs.split_at(end_glyph);
+
+                if glyphs_a.is_empty() || glyphs_b.is_empty() {
+                    // failed split
+                    push_glyphs!($shaped_seg, word_spacing);
+                    push_text_seg!($seg, $kind);
+                } else {
+                    let (seg_a, seg_b) = $seg.split_at(glyphs_b[0].cluster as usize);
+
+                    let shaped_seg_a = ShapedSegmentData {
+                        glyphs: glyphs_a.to_vec(),
+                        x_advance: end_glyph_x,
+                        y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
+                    };
+                    push_glyphs!(shaped_seg_a, $spacing);
+                    push_text_seg!(seg_a, $kind);
+                    push_line_break!();
+
+                    let mut shaped_seg_b = ShapedSegmentData {
+                        glyphs: glyphs_b.to_vec(),
+                        x_advance: $shaped_seg.x_advance - end_glyph_x,
+                        y_advance: glyphs_b.iter().map(|g| g.point.1).sum(),
+                    };
+                    for g in &mut shaped_seg_b.glyphs {
+                        g.point.0 -= shaped_seg_a.x_advance;
+                    }
+                    push_glyphs!(shaped_seg_b, $spacing);
+                    push_text_seg!(seg_b, $kind);
+                }
+            };
+        }
 
         for (seg, kind) in text.iter() {
             match kind {
@@ -1657,124 +1752,69 @@ impl Font {
                             // need wrap
 
                             if shaped_seg.x_advance > max_width {
-                                // need word break
-                                let mut break_seg = match config.word_break {
-                                    WordBreak::Normal => {
-                                        config.lang.matches(&lang!("ch"), true, true)
-                                            || config.lang.matches(&lang!("jp"), true, true)
-                                            || config.lang.matches(&lang!("ko"), true, true)
-                                    }
-                                    WordBreak::BreakAll => true,
-                                    WordBreak::KeepAll => false,
-                                };
+                                // need segment split
 
+                                let mut hyphenated = false;
                                 if matches!(config.hyphens, Hyphens::Auto) {
                                     // hyphenate word
                                     let i = Hyphenation::hyphenate(&config.lang, seg);
                                     if !i.is_empty() {
                                         // !!: find best split, also need hyphen char
-                                        break_seg = false;
+                                        hyphenated = true;
                                     }
                                 }
 
-                                if break_seg {
-                                    let mut gi = 0;
-                                    let mut g_advance = origin.x;
-
-                                    for (i, g) in shaped_seg.glyphs.iter().enumerate() {
-                                        g_advance += g.point.0;
-                                        gi = i;
-
-                                        if g_advance > max_width {
-                                            break;
-                                        }
-                                    }
-
-                                    let c = shaped_seg.glyphs[gi].cluster as usize;
-                                    let seg_a = &seg[..c];
-                                    let seg_b = &seg[c..];
-
-                                    out.glyphs.extend(shaped_seg.glyphs[..c].iter().map(|gi| {
-                                        let r = GlyphInstance {
-                                            index: gi.index,
-                                            point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
-                                        };
-                                        origin.x += letter_spacing;
-                                        r
-                                    }));
-                                    out.clusters.extend(shaped_seg.glyphs[..c].iter().map(|gi| gi.cluster));
-
-                                    // !!: TODO, break line and insert b and prevent other line break.
-                                    let b_advance = shaped_seg.x_advance - g_advance;
+                                if !hyphenated && break_words {
+                                    // break word
+                                    push_split_seg!(shaped_seg, seg, kind, letter_spacing);
+                                } else if !hyphenated {
+                                    // normal wrap, glyphs overflow
+                                    push_line_break!();
+                                    push_glyphs!(shaped_seg, letter_spacing);
+                                    push_text_seg!(seg, kind);
                                 }
+                            } else {
+                                push_line_break!();
+                                push_glyphs!(shaped_seg, letter_spacing);
+                                push_text_seg!(seg, kind);
                             }
-
-                            out.lines.0.push(LineRange {
-                                end: out.segments.0.len(),
-                                width: origin.x,
-                                x_offset: 0.0,
-                            });
-
-                            max_line_x = origin.x.max(max_line_x);
-                            origin.x = 0.0;
-                            origin.y += line_height + line_spacing;
+                        } else {
+                            push_glyphs!(shaped_seg, letter_spacing);
+                            push_text_seg!(seg, kind);
                         }
-
-                        out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
-                            let r = GlyphInstance {
-                                index: gi.index,
-                                point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
-                            };
-                            origin.x += letter_spacing;
-                            r
-                        }));
-                        out.clusters.extend(shaped_seg.glyphs.iter().map(|gi| gi.cluster));
-                        origin.x += shaped_seg.x_advance;
-                        origin.y += shaped_seg.y_advance;
                     });
                 }
                 TextSegmentKind::Space => {
                     self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
-                        out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
-                            let r = GlyphInstance {
-                                index: gi.index,
-                                point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
-                            };
-                            origin.x += word_spacing;
-                            r
-                        }));
-                        out.clusters.extend(shaped_seg.glyphs.iter().map(|gi| gi.cluster));
-                        origin.x += shaped_seg.x_advance;
-                        origin.y += shaped_seg.y_advance;
+                        if origin.x + shaped_seg.x_advance > max_width {
+                            // need wrap
+                            if seg.len() > 2 {
+                                // split spaces
+                                push_split_seg!(shaped_seg, seg, kind, word_spacing);
+                            } else {
+                                // cannot split, overflow spaces, let next segment start new line
+                                push_glyphs!(shaped_seg, word_spacing);
+                                push_text_seg!(seg, kind);
+                            }
+                        } else {
+                            push_glyphs!(shaped_seg, word_spacing);
+                            push_text_seg!(seg, kind);
+                        }
                     });
                 }
                 TextSegmentKind::Tab => {
                     let point = euclid::point2(origin.x, origin.y);
                     origin.x += tab_x_advance;
                     out.glyphs.push(GlyphInstance { index: tab_index, point });
-                    out.clusters.push(0); // only char
+                    out.clusters.push(0);
+
+                    push_text_seg!(seg, kind);
                 }
                 TextSegmentKind::LineBreak => {
-                    out.lines.0.push(LineRange {
-                        end: out.segments.0.len() + 1, // segment is pushed after match
-                        width: origin.x,
-                        x_offset: 0.0,
-                    });
-
-                    max_line_x = origin.x.max(max_line_x);
-                    origin.x = 0.0;
-                    origin.y += line_height + line_spacing;
+                    push_line_break!();
+                    push_text_seg!(seg, kind);
                 }
             }
-
-            debug_assert_eq!(out.glyphs.len(), out.clusters.len());
-
-            text_seg_end += seg.len();
-
-            out.segments.0.push(GlyphSegment {
-                text: TextSegment { kind, end: text_seg_end },
-                end: out.glyphs.len(),
-            });
         }
 
         out.lines.0.push(LineRange {
