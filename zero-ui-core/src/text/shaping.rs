@@ -1777,6 +1777,7 @@ impl Font {
                                             let mut c = u32::MAX;
                                             let mut gi = 0;
                                             for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+                                                width = g.point.0;
                                                 if g.cluster != c {
                                                     if point == 0 {
                                                         break;
@@ -1784,11 +1785,10 @@ impl Font {
                                                     c = g.cluster;
                                                     point -= 1;
                                                 }
-                                                width = g.point.0;
                                                 gi = i;
                                             }
 
-                                            if width + hyphen_glyphs.x_advance > max_width {
+                                            if origin.x + width + hyphen_glyphs.x_advance > max_width {
                                                 break;
                                             } else {
                                                 end_glyph = gi;
@@ -1800,11 +1800,10 @@ impl Font {
 
                                         let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
 
-                                        if glyphs_a.is_empty() || glyphs_b.is_empty() {
-                                            // failed split
-                                            push_glyphs!(shaped_seg, word_spacing);
-                                            push_text_seg!(seg, kind);
-                                        } else {
+                                        // !!: if this fails hyphenation is not tried in the next line
+                                        if !glyphs_a.is_empty() && !glyphs_b.is_empty() { 
+                                            // split did not fail
+
                                             let end_cluster = glyphs_b[0].cluster;
                                             let (seg_a, seg_b) = seg.split_at(end_cluster as usize);
 
@@ -1813,7 +1812,7 @@ impl Font {
                                                     .iter()
                                                     .copied()
                                                     .chain(hyphen_glyphs.glyphs.iter().map(|g| {
-                                                        let mut g = g.clone();
+                                                        let mut g = *g;
                                                         g.cluster = end_cluster;
                                                         g.point.0 += end_glyph_x;
                                                         g
@@ -1826,9 +1825,6 @@ impl Font {
                                             push_text_seg!(seg_a, kind);
                                             push_line_break!();
 
-                                            // !!: implement multiple hyphenation?
-                                            //      - some cases can't fit even the partial word in a line.
-                                            //        usually with large text, Firefox hyphenate a word multiple times in this case.
                                             let mut shaped_seg_b = ShapedSegmentData {
                                                 glyphs: glyphs_b.to_vec(),
                                                 x_advance: shaped_seg.x_advance - end_glyph_x,
@@ -1839,9 +1835,9 @@ impl Font {
                                             }
                                             push_glyphs!(shaped_seg_b, word_spacing);
                                             push_text_seg!(seg_b, kind);
-                                        }
 
-                                        hyphenated = true;
+                                            hyphenated = true;
+                                        }
                                     }
                                 }
 
