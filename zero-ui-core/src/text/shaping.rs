@@ -340,31 +340,6 @@ pub struct ShapedText {
     align: TextAlign,
 }
 impl ShapedText {
-    /// Alloc for shaping, value is invalid, see `Font::shape_text`.
-    fn alloc() -> Self {
-        Self {
-            glyphs: Default::default(),
-            clusters: Default::default(),
-            segments: Default::default(),
-            lines: Default::default(),
-            fonts: Default::default(),
-            padding: Default::default(),
-            size: Default::default(),
-            line_height: Default::default(),
-            line_spacing: Default::default(),
-            og_line_height: Default::default(),
-            og_line_spacing: Default::default(),
-            baseline: Default::default(),
-            overline: Default::default(),
-            strikethrough: Default::default(),
-            underline: Default::default(),
-            underline_descent: Default::default(),
-            y_offset: 0.0,
-            align_box: PxRect::zero(),
-            align: TextAlign::LEFT,
-        }
-    }
-
     /// New empty text.
     pub fn new(font: &FontRef) -> Self {
         font.shape_text(&SegmentedText::new(""), &TextShapingArgs::default())
@@ -893,6 +868,351 @@ impl ShapedText {
             }
         }
         false
+    }
+}
+
+struct ShapedTextBuilder {
+    out: ShapedText,
+
+    line_height: f32,
+    line_spacing: f32,
+    word_spacing: f32,
+    letter_spacing: f32,
+    max_width: f32,
+
+    origin: euclid::Point2D<f32, ()>,
+    max_line_x: f32,
+    text_seg_end: usize,
+}
+impl ShapedTextBuilder {
+    fn shape_text(font: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+        let mut t = Self {
+            out: ShapedText {
+                glyphs: Default::default(),
+                clusters: Default::default(),
+                segments: Default::default(),
+                lines: Default::default(),
+                fonts: Default::default(),
+                padding: Default::default(),
+                size: Default::default(),
+                line_height: Default::default(),
+                line_spacing: Default::default(),
+                og_line_height: Default::default(),
+                og_line_spacing: Default::default(),
+                baseline: Default::default(),
+                overline: Default::default(),
+                strikethrough: Default::default(),
+                underline: Default::default(),
+                underline_descent: Default::default(),
+                y_offset: 0.0,
+                align_box: PxRect::zero(),
+                align: TextAlign::LEFT,
+            },
+
+            line_height: 0.0,
+            line_spacing: 0.0,
+            word_spacing: 0.0,
+            letter_spacing: 0.0,
+            max_width: 0.0,
+
+            origin: euclid::point2(0.0, 0.0),
+            max_line_x: 0.0,
+            text_seg_end: 0,
+        };
+
+        let metrics = font.metrics();
+
+        t.out.og_line_height = config.line_height;
+        t.out.og_line_spacing = config.line_spacing;
+        t.out.line_height = config.line_height;
+        t.out.line_spacing = config.line_spacing;
+
+        t.line_height = config.line_height.0 as f32;
+        t.line_spacing = config.line_spacing.0 as f32;
+        let baseline = metrics.ascent + metrics.line_gap / 2.0;
+
+        t.out.baseline = t.out.line_height - baseline;
+        t.out.underline = t.out.baseline + metrics.underline_position;
+        t.out.underline_descent = t.out.baseline + metrics.descent + Px(1);
+        t.out.strikethrough = t.out.baseline + metrics.ascent / 3.0;
+        t.out.overline = t.out.baseline + metrics.ascent;
+
+        let dft_line_height = metrics.line_height().0 as f32;
+        let center_height = (t.line_height - dft_line_height) / 2.0;
+
+        let mut origin = euclid::point2::<_, ()>(config.text_indent.0 as f32, baseline.0 as f32 + center_height);
+        let mut max_line_x = 0.0;
+
+        let word_ctx_key = WordContextKey::new(config);
+
+        t.letter_spacing = config.letter_spacing.0 as f32;
+        t.word_spacing = config.word_spacing.0 as f32;
+        let tab_x_advance = config.tab_x_advance.0 as f32;
+        let tab_index = font.space_index();
+
+        t.max_width = if config.max_width == Px::MAX {
+            f32::INFINITY
+        } else {
+            config.max_width.0 as f32
+        };
+
+        let break_words = match config.word_break {
+            WordBreak::Normal => {
+                config.lang.matches(&lang!("ch"), true, true)
+                    || config.lang.matches(&lang!("jp"), true, true)
+                    || config.lang.matches(&lang!("ko"), true, true)
+            }
+            WordBreak::BreakAll => true,
+            WordBreak::KeepAll => false,
+        };
+        let hyphen_glyphs = font.shape_segment(
+            config.hyphen_char.as_str(),
+            &word_ctx_key,
+            &config.lang,
+            &config.font_features,
+            |s| s.clone(),
+        );
+
+        t.push_text(text);
+
+        t.out
+    }
+
+    fn push_text(&mut self, text: &SegmentedText) {
+        for (seg, kind) in text.iter() {
+            match kind {
+                TextSegmentKind::Word => {
+                    self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
+                        if origin.x + shaped_seg.x_advance > max_width {
+                            // need wrap
+
+                            if shaped_seg.x_advance > max_width {
+                                // need segment split
+
+                                let mut hyphenated = false;
+                                if matches!(config.hyphens, Hyphens::Auto) {
+                                    // hyphenate word
+                                    let split_points = Hyphenation::hyphenate(&config.lang, seg);
+                                    if !split_points.is_empty() {
+                                        let mut end_glyph = 0;
+
+                                        for mut point in split_points {
+                                            let mut width = 0.0;
+                                            let mut c = u32::MAX;
+                                            let mut gi = 0;
+                                            for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+                                                width = g.point.0;
+                                                if g.cluster != c {
+                                                    if point == 0 {
+                                                        break;
+                                                    }
+                                                    c = g.cluster;
+                                                    point -= 1;
+                                                }
+                                                gi = i;
+                                            }
+
+                                            if origin.x + width + hyphen_glyphs.x_advance > max_width {
+                                                break;
+                                            } else {
+                                                end_glyph = gi;
+                                            }
+                                        }
+
+                                        // split and push the hyphen
+                                        let end_glyph_x = shaped_seg.glyphs[end_glyph].point.0;
+
+                                        let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
+
+                                        // !!: if this fails hyphenation is not tried in the next line
+                                        if !glyphs_a.is_empty() && !glyphs_b.is_empty() {
+                                            // split did not fail
+
+                                            let end_cluster = glyphs_b[0].cluster;
+                                            let (seg_a, seg_b) = seg.split_at(end_cluster as usize);
+
+                                            let shaped_seg_a = ShapedSegmentData {
+                                                glyphs: glyphs_a
+                                                    .iter()
+                                                    .copied()
+                                                    .chain(hyphen_glyphs.glyphs.iter().map(|g| {
+                                                        let mut g = *g;
+                                                        g.cluster = end_cluster;
+                                                        g.point.0 += end_glyph_x;
+                                                        g
+                                                    }))
+                                                    .collect(),
+                                                x_advance: end_glyph_x + hyphen_glyphs.x_advance,
+                                                y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
+                                            };
+                                            push_glyphs!(shaped_seg_a, word_spacing);
+                                            push_text_seg!(seg_a, kind);
+                                            push_line_break!();
+
+                                            let mut shaped_seg_b = ShapedSegmentData {
+                                                glyphs: glyphs_b.to_vec(),
+                                                x_advance: shaped_seg.x_advance - end_glyph_x,
+                                                y_advance: glyphs_b.iter().map(|g| g.point.1).sum(),
+                                            };
+                                            for g in &mut shaped_seg_b.glyphs {
+                                                g.point.0 -= end_glyph_x;
+                                            }
+                                            push_glyphs!(shaped_seg_b, word_spacing);
+                                            push_text_seg!(seg_b, kind);
+
+                                            hyphenated = true;
+                                        }
+                                    }
+                                }
+
+                                if !hyphenated && break_words {
+                                    // break word
+                                    push_split_seg!(shaped_seg, seg, kind, letter_spacing);
+                                } else if !hyphenated {
+                                    // normal wrap, glyphs overflow
+                                    push_line_break!();
+                                    push_glyphs!(shaped_seg, letter_spacing);
+                                    push_text_seg!(seg, kind);
+                                }
+                            } else {
+                                push_line_break!();
+                                push_glyphs!(shaped_seg, letter_spacing);
+                                push_text_seg!(seg, kind);
+                            }
+                        } else {
+                            push_glyphs!(shaped_seg, letter_spacing);
+                            push_text_seg!(seg, kind);
+                        }
+                    });
+                }
+                TextSegmentKind::Space => {
+                    self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
+                        if origin.x + shaped_seg.x_advance > max_width {
+                            // need wrap
+                            if seg.len() > 2 {
+                                // split spaces
+                                push_split_seg!(shaped_seg, seg, kind, word_spacing);
+                            } else {
+                                // cannot split, overflow spaces, let next segment start new line
+                                push_glyphs!(shaped_seg, word_spacing);
+                                push_text_seg!(seg, kind);
+                            }
+                        } else {
+                            push_glyphs!(shaped_seg, word_spacing);
+                            push_text_seg!(seg, kind);
+                        }
+                    });
+                }
+                TextSegmentKind::Tab => {
+                    let point = euclid::point2(origin.x, origin.y);
+                    origin.x += tab_x_advance;
+                    out.glyphs.push(GlyphInstance { index: tab_index, point });
+                    out.clusters.push(0);
+
+                    push_text_seg!(seg, kind);
+                }
+                TextSegmentKind::LineBreak => {
+                    push_line_break!();
+                    push_text_seg!(seg, kind);
+                }
+            }
+        }
+
+        out.lines.0.push(LineRange {
+            end: out.segments.0.len(),
+            width: origin.x,
+            x_offset: 0.0,
+        });
+
+        // longest line width X line heights.
+        out.size = PxSize::new(Px(origin.x.max(max_line_x).round() as i32), Px(0));
+        out.update_height();
+
+        out.fonts.0.push(FontRange {
+            font: self.clone(),
+            end: out.glyphs.len(),
+        });
+    }
+
+    fn push_glyphs(&mut self, shaped_seg: &ShapedSegmentData, spacing: f32) {
+        self.out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
+            let r = GlyphInstance {
+                index: gi.index,
+                point: euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y),
+            };
+            self.origin.x += spacing;
+            r
+        }));
+        self.out.clusters.extend(shaped_seg.glyphs.iter().map(|gi| gi.cluster));
+
+        self.origin.x += shaped_seg.x_advance;
+        self.origin.y += shaped_seg.y_advance;
+    }
+
+    fn push_line_break(&mut self) {
+        self.out.lines.0.push(LineRange {
+            end: self.out.segments.0.len() + 1, // segment is pushed after match
+            width: self.origin.x,
+            x_offset: 0.0,
+        });
+
+        self.max_line_x = self.origin.x.max(self.max_line_x);
+        self.origin.x = 0.0;
+        self.origin.y += self.line_height + self.line_spacing;
+    }
+
+    pub fn push_text_seg(&mut self, seg: &str, kind: TextSegmentKind) {
+        self.text_seg_end += seg.len();
+
+        self.out.segments.0.push(GlyphSegment {
+            text: TextSegment {
+                kind,
+                end: self.text_seg_end,
+            },
+            end: self.out.glyphs.len(),
+        });
+    }
+
+    pub fn push_split_seg(&mut self, shaped_seg: &ShapedSegmentData, seg: &str, kind: TextSegmentKind, spacing: f32) {
+        let mut end_glyph = 0;
+        let mut end_glyph_x = 0.0;
+        for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+            if self.origin.x + g.point.0 > self.max_width {
+                end_glyph = i.saturating_sub(1);
+                end_glyph_x = g.point.0;
+                break;
+            }
+        }
+
+        let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
+
+        if glyphs_a.is_empty() || glyphs_b.is_empty() {
+            // failed split
+            self.push_glyphs(shaped_seg, spacing);
+            self.push_text_seg(seg, kind);
+        } else {
+            let (seg_a, seg_b) = seg.split_at(glyphs_b[0].cluster as usize);
+
+            let shaped_seg_a = ShapedSegmentData {
+                glyphs: glyphs_a.to_vec(),
+                x_advance: end_glyph_x,
+                y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
+            };
+            self.push_glyphs(&shaped_seg_a, spacing);
+            self.push_text_seg(seg_a, kind);
+            self.push_line_break();
+
+            let mut shaped_seg_b = ShapedSegmentData {
+                glyphs: glyphs_b.to_vec(),
+                x_advance: shaped_seg.x_advance - end_glyph_x,
+                y_advance: glyphs_b.iter().map(|g| g.point.1).sum(),
+            };
+            for g in &mut shaped_seg_b.glyphs {
+                g.point.0 -= shaped_seg_a.x_advance;
+            }
+            self.push_glyphs(&shaped_seg_b, spacing);
+            self.push_text_seg(seg, kind);
+        }
     }
 }
 
@@ -1611,303 +1931,9 @@ impl Font {
 
     /// Calculates a [`ShapedText`].
     pub fn shape_text(self: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        let mut out = ShapedText::alloc();
 
-        let metrics = self.metrics();
 
-        out.og_line_height = config.line_height;
-        out.og_line_spacing = config.line_spacing;
-        out.line_height = config.line_height;
-        out.line_spacing = config.line_spacing;
-
-        let line_height = config.line_height.0 as f32;
-        let line_spacing = config.line_spacing.0 as f32;
-        let baseline = metrics.ascent + metrics.line_gap / 2.0;
-
-        out.baseline = out.line_height - baseline;
-        out.underline = out.baseline + metrics.underline_position;
-        out.underline_descent = out.baseline + metrics.descent + Px(1);
-        out.strikethrough = out.baseline + metrics.ascent / 3.0;
-        out.overline = out.baseline + metrics.ascent;
-
-        let dft_line_height = self.metrics().line_height().0 as f32;
-        let center_height = (line_height - dft_line_height) / 2.0;
-
-        let mut origin = euclid::point2::<_, ()>(config.text_indent.0 as f32, baseline.0 as f32 + center_height);
-        let mut max_line_x = 0.0;
-
-        let word_ctx_key = WordContextKey::new(config);
-
-        let letter_spacing = config.letter_spacing.0 as f32;
-        let word_spacing = config.word_spacing.0 as f32;
-        let tab_x_advance = config.tab_x_advance.0 as f32;
-        let tab_index = self.space_index();
-
-        let max_width = if config.max_width == Px::MAX {
-            f32::INFINITY
-        } else {
-            config.max_width.0 as f32
-        };
-
-        let break_words = match config.word_break {
-            WordBreak::Normal => {
-                config.lang.matches(&lang!("ch"), true, true)
-                    || config.lang.matches(&lang!("jp"), true, true)
-                    || config.lang.matches(&lang!("ko"), true, true)
-            }
-            WordBreak::BreakAll => true,
-            WordBreak::KeepAll => false,
-        };
-        let hyphen_glyphs = self.shape_segment(
-            config.hyphen_char.as_str(),
-            &word_ctx_key,
-            &config.lang,
-            &config.font_features,
-            |s| s.clone(),
-        );
-
-        let mut text_seg_end = 0;
-
-        macro_rules! push_glyphs {
-            ($shaped_seg:ident, $spacing:ident) => {
-                out.glyphs.extend($shaped_seg.glyphs.iter().map(|gi| {
-                    let r = GlyphInstance {
-                        index: gi.index,
-                        point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
-                    };
-                    origin.x += $spacing;
-                    r
-                }));
-                out.clusters.extend($shaped_seg.glyphs.iter().map(|gi| gi.cluster));
-
-                origin.x += $shaped_seg.x_advance;
-                origin.y += $shaped_seg.y_advance;
-            };
-        }
-
-        macro_rules! push_line_break {
-            () => {
-                out.lines.0.push(LineRange {
-                    end: out.segments.0.len() + 1, // segment is pushed after match
-                    width: origin.x,
-                    x_offset: 0.0,
-                });
-
-                max_line_x = origin.x.max(max_line_x);
-                origin.x = 0.0;
-                origin.y += line_height + line_spacing;
-            };
-        }
-
-        macro_rules! push_text_seg {
-            ($seg:ident, $kind:expr) => {
-                text_seg_end += $seg.len();
-
-                let kind = $kind;
-                out.segments.0.push(GlyphSegment {
-                    text: TextSegment { kind, end: text_seg_end },
-                    end: out.glyphs.len(),
-                });
-            };
-        }
-
-        macro_rules! push_split_seg {
-            ($shaped_seg:ident, $seg:ident, $kind:ident, $spacing:ident) => {
-                let mut end_glyph = 0;
-                let mut end_glyph_x = 0.0;
-                for (i, g) in $shaped_seg.glyphs.iter().enumerate() {
-                    if origin.x + g.point.0 > max_width {
-                        end_glyph = i.saturating_sub(1);
-                        end_glyph_x = g.point.0;
-                        break;
-                    }
-                }
-
-                let (glyphs_a, glyphs_b) = $shaped_seg.glyphs.split_at(end_glyph);
-
-                if glyphs_a.is_empty() || glyphs_b.is_empty() {
-                    // failed split
-                    push_glyphs!($shaped_seg, word_spacing);
-                    push_text_seg!($seg, $kind);
-                } else {
-                    let (seg_a, seg_b) = $seg.split_at(glyphs_b[0].cluster as usize);
-
-                    let shaped_seg_a = ShapedSegmentData {
-                        glyphs: glyphs_a.to_vec(),
-                        x_advance: end_glyph_x,
-                        y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
-                    };
-                    push_glyphs!(shaped_seg_a, $spacing);
-                    push_text_seg!(seg_a, $kind);
-                    push_line_break!();
-
-                    let mut shaped_seg_b = ShapedSegmentData {
-                        glyphs: glyphs_b.to_vec(),
-                        x_advance: $shaped_seg.x_advance - end_glyph_x,
-                        y_advance: glyphs_b.iter().map(|g| g.point.1).sum(),
-                    };
-                    for g in &mut shaped_seg_b.glyphs {
-                        g.point.0 -= shaped_seg_a.x_advance;
-                    }
-                    push_glyphs!(shaped_seg_b, $spacing);
-                    push_text_seg!(seg_b, $kind);
-                }
-            };
-        }
-
-        for (seg, kind) in text.iter() {
-            match kind {
-                TextSegmentKind::Word => {
-                    self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
-                        if origin.x + shaped_seg.x_advance > max_width {
-                            // need wrap
-
-                            if shaped_seg.x_advance > max_width {
-                                // need segment split
-
-                                let mut hyphenated = false;
-                                if matches!(config.hyphens, Hyphens::Auto) {
-                                    // hyphenate word
-                                    let split_points = Hyphenation::hyphenate(&config.lang, seg);
-                                    if !split_points.is_empty() {
-                                        let mut end_glyph = 0;
-
-                                        for mut point in split_points {
-                                            let mut width = 0.0;
-                                            let mut c = u32::MAX;
-                                            let mut gi = 0;
-                                            for (i, g) in shaped_seg.glyphs.iter().enumerate() {
-                                                width = g.point.0;
-                                                if g.cluster != c {
-                                                    if point == 0 {
-                                                        break;
-                                                    }
-                                                    c = g.cluster;
-                                                    point -= 1;
-                                                }
-                                                gi = i;
-                                            }
-
-                                            if origin.x + width + hyphen_glyphs.x_advance > max_width {
-                                                break;
-                                            } else {
-                                                end_glyph = gi;
-                                            }
-                                        }
-
-                                        // split and push the hyphen
-                                        let end_glyph_x = shaped_seg.glyphs[end_glyph].point.0;
-
-                                        let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
-
-                                        // !!: if this fails hyphenation is not tried in the next line
-                                        if !glyphs_a.is_empty() && !glyphs_b.is_empty() { 
-                                            // split did not fail
-
-                                            let end_cluster = glyphs_b[0].cluster;
-                                            let (seg_a, seg_b) = seg.split_at(end_cluster as usize);
-
-                                            let shaped_seg_a = ShapedSegmentData {
-                                                glyphs: glyphs_a
-                                                    .iter()
-                                                    .copied()
-                                                    .chain(hyphen_glyphs.glyphs.iter().map(|g| {
-                                                        let mut g = *g;
-                                                        g.cluster = end_cluster;
-                                                        g.point.0 += end_glyph_x;
-                                                        g
-                                                    }))
-                                                    .collect(),
-                                                x_advance: end_glyph_x + hyphen_glyphs.x_advance,
-                                                y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
-                                            };
-                                            push_glyphs!(shaped_seg_a, word_spacing);
-                                            push_text_seg!(seg_a, kind);
-                                            push_line_break!();
-
-                                            let mut shaped_seg_b = ShapedSegmentData {
-                                                glyphs: glyphs_b.to_vec(),
-                                                x_advance: shaped_seg.x_advance - end_glyph_x,
-                                                y_advance: glyphs_b.iter().map(|g| g.point.1).sum(),
-                                            };
-                                            for g in &mut shaped_seg_b.glyphs {
-                                                g.point.0 -= end_glyph_x;
-                                            }
-                                            push_glyphs!(shaped_seg_b, word_spacing);
-                                            push_text_seg!(seg_b, kind);
-
-                                            hyphenated = true;
-                                        }
-                                    }
-                                }
-
-                                if !hyphenated && break_words {
-                                    // break word
-                                    push_split_seg!(shaped_seg, seg, kind, letter_spacing);
-                                } else if !hyphenated {
-                                    // normal wrap, glyphs overflow
-                                    push_line_break!();
-                                    push_glyphs!(shaped_seg, letter_spacing);
-                                    push_text_seg!(seg, kind);
-                                }
-                            } else {
-                                push_line_break!();
-                                push_glyphs!(shaped_seg, letter_spacing);
-                                push_text_seg!(seg, kind);
-                            }
-                        } else {
-                            push_glyphs!(shaped_seg, letter_spacing);
-                            push_text_seg!(seg, kind);
-                        }
-                    });
-                }
-                TextSegmentKind::Space => {
-                    self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
-                        if origin.x + shaped_seg.x_advance > max_width {
-                            // need wrap
-                            if seg.len() > 2 {
-                                // split spaces
-                                push_split_seg!(shaped_seg, seg, kind, word_spacing);
-                            } else {
-                                // cannot split, overflow spaces, let next segment start new line
-                                push_glyphs!(shaped_seg, word_spacing);
-                                push_text_seg!(seg, kind);
-                            }
-                        } else {
-                            push_glyphs!(shaped_seg, word_spacing);
-                            push_text_seg!(seg, kind);
-                        }
-                    });
-                }
-                TextSegmentKind::Tab => {
-                    let point = euclid::point2(origin.x, origin.y);
-                    origin.x += tab_x_advance;
-                    out.glyphs.push(GlyphInstance { index: tab_index, point });
-                    out.clusters.push(0);
-
-                    push_text_seg!(seg, kind);
-                }
-                TextSegmentKind::LineBreak => {
-                    push_line_break!();
-                    push_text_seg!(seg, kind);
-                }
-            }
-        }
-
-        out.lines.0.push(LineRange {
-            end: out.segments.0.len(),
-            width: origin.x,
-            x_offset: 0.0,
-        });
-
-        // longest line width X line heights.
-        out.size = PxSize::new(Px(origin.x.max(max_line_x).round() as i32), Px(0));
-        out.update_height();
-
-        out.fonts.0.push(FontRange {
-            font: self.clone(),
-            end: out.glyphs.len(),
-        });
+        
 
         out
     }
