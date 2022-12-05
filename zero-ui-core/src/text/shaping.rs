@@ -648,6 +648,7 @@ impl ShapedText {
             let g_end = self.segments.glyphs(segment).start();
             let l_end = self.lines.0.iter().position(|l| l.end > segment).unwrap();
             let f_end = self.fonts.0.iter().position(|f| f.end > g_end).unwrap();
+            let txt_s_end = self.segments.0[segment - 1].text.end;
 
             let mut b = ShapedText {
                 glyphs: self.glyphs.drain(g_end..).collect(),
@@ -701,6 +702,7 @@ impl ShapedText {
 
             for s in &mut b.segments.0 {
                 s.end -= self.glyphs.len();
+                s.text.end -= txt_s_end;
             }
 
             if self.fonts.0.is_empty() {
@@ -784,6 +786,7 @@ impl ShapedText {
                 last_line.width = self.glyphs[r.start()].point.x;
                 last_line.end = self.segments.0.len();
                 self.glyphs.truncate(r.start());
+                self.clusters.truncate(r.start());
             }
 
             self.size.width = Px(self.lines.max_width().round() as i32);
@@ -839,8 +842,10 @@ impl ShapedText {
 
         self.lines.0.extend(lines);
 
+        let txt_s_end = self.segments.0.last().map(|t| t.text.end).unwrap_or(0);
         for seg in &mut text.segments.0 {
             seg.end += self.glyphs.len();
+            seg.text.end += txt_s_end;
         }
         self.segments.0.extend(text.segments.0);
 
@@ -855,6 +860,7 @@ impl ShapedText {
         self.fonts.0.extend(fonts);
 
         self.glyphs.extend(text.glyphs);
+        self.clusters.extend(text.clusters);
 
         self.size.width = Px(self.lines.max_width().round() as i32);
         self.update_height();

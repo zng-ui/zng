@@ -1,5 +1,5 @@
+* Implement `markdown!`.
 * Implement inline info in bounds info.
-* Implement line-break, word break, hyphens.
 * Implement `TextAlign` across multiple inlined texts.
 * Implement `LayoutDirection` for `flow!`.
 
