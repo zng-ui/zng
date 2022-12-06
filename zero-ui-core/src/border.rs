@@ -778,6 +778,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             });
 
             let clip_inline = if let Some(inline) = wl.inline() {
+                if inline.bounds.height > fill_bounds.height {
+                    inline.last_row.y -= inline.bounds.height - fill_bounds.height;
+                }
                 (inline.first_row, inline.last_row)
             } else {
                 Default::default()
