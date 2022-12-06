@@ -1,3 +1,5 @@
+* Button example, text wraps instead of expanding the button after change.
+
 * Implement `markdown!`.
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

@@ -646,8 +646,8 @@ impl ShapedText {
             self.segments.assert_contains(segment);
 
             let g_end = self.segments.glyphs(segment).start();
-            let l_end = self.lines.0.iter().position(|l| l.end > segment).unwrap();
-            let f_end = self.fonts.0.iter().position(|f| f.end > g_end).unwrap();
+            let l_end = self.lines.0.iter().position(|l| l.end >= segment).unwrap();
+            let f_end = self.fonts.0.iter().position(|f| f.end >= g_end).unwrap();
             let txt_s_end = self.segments.0[segment - 1].text.end;
 
             let mut b = ShapedText {
@@ -1193,7 +1193,7 @@ impl ShapedTextBuilder {
 
     fn push_line_break(&mut self) {
         self.out.lines.0.push(LineRange {
-            end: self.out.segments.0.len() + 1, // segment is pushed after match
+            end: self.out.segments.0.len(),
             width: self.origin.x,
             x_offset: 0.0,
         });
@@ -1381,12 +1381,10 @@ impl<'a> ShapedLine<'a> {
     pub fn parts(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
         let text = self.text;
         let line_index = self.index;
-        let last_i = self.seg_range.inclusive_end();
         self.seg_range.iter().map(move |i| ShapedSegment {
             text,
             line_index,
             index: i,
-            is_last: i == last_i,
         })
     }
 
@@ -1491,14 +1489,12 @@ pub struct ShapedSegment<'a> {
     text: &'a ShapedText,
     line_index: usize,
     index: usize,
-    is_last: bool,
 }
 impl<'a> fmt::Debug for ShapedSegment<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ShapedSegment")
             .field("line_index", &self.line_index)
             .field("index", &self.index)
-            .field("is_last", &self.is_last)
             .finish_non_exhaustive()
     }
 }
@@ -1523,9 +1519,12 @@ impl<'a> ShapedSegment<'a> {
         matches!(self.kind(), TextSegmentKind::Space | TextSegmentKind::Tab)
     }
 
-    /// If this is the last segment of the line.
-    pub fn is_last(&self) -> bool {
-        self.is_last
+    /// If the segment contains the last glyph of the line.
+    pub fn has_last_glyph(&self) -> bool {
+        let seg_glyphs = self.text.segments.glyphs(self.index);
+        let s = self.text.lines.segs(self.line_index);
+        let line_glyphs = self.text.segments.glyphs_range(s);
+        seg_glyphs.end() == line_glyphs.end()
     }
 
     fn glyph_range(&self) -> IndexRange {
@@ -1548,7 +1547,7 @@ impl<'a> ShapedSegment<'a> {
         let IndexRange(start, end) = self.glyph_range();
 
         let start_x = self.text.glyphs[start].point.x;
-        let end_x = if self.is_last {
+        let end_x = if self.has_last_glyph() {
             self.text.lines.width(self.line_index)
         } else {
             self.text.glyphs[end].point.x
