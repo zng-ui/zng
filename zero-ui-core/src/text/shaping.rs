@@ -1162,6 +1162,7 @@ impl ShapedTextBuilder {
         };
         for g in &mut shaped_seg_b.glyphs {
             g.point.0 -= end_glyph_x;
+            g.cluster -= seg_a.len() as u32;
         }
 
         if shaped_seg_b.x_advance > self.max_width {
@@ -1252,6 +1253,7 @@ impl ShapedTextBuilder {
             };
             for g in &mut shaped_seg_b.glyphs {
                 g.point.0 -= shaped_seg_a.x_advance;
+                g.cluster -= seg_a.len() as u32;
             }
             self.push_glyphs(&shaped_seg_b, spacing);
             self.push_text_seg(seg_b, kind);
