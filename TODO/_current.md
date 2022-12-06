@@ -1,4 +1,10 @@
+* `wrap!` bugs:
+    - If resized up fast keeps wrapping instead of expanding back to a single line.
+    - Need to track row height?
+    - Does not grow to fit children when possible.
+
 * Text in `wrap!` is clipped when the font-size is `64` (or another big value). 
+
 * Implement `markdown!`.
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

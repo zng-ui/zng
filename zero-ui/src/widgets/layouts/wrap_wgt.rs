@@ -63,6 +63,10 @@ pub mod wrap {
                         }
 
                         if let Some(inline) = inline {
+                            if panel_size.height == Px(0) {
+                                panel_size.height = inline.first_row.y;
+                            }
+
                             panel_size.width = panel_size.width.max(inline.bounds.width);
                             panel_size.height += inline.bounds.height - inline.first_row.y + spacing.row - inline.last_row_spacing;
 
@@ -146,17 +150,19 @@ pub mod wrap {
             ctx.with_constrains(
                 |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
                 |ctx| {
-                    self.children.for_each_mut(|i, n| {
+                    self.children.for_each_mut(|_, n| {
                         let (inline, s) = ctx.with_inline(wl, row_size, |ctx, wl| n.layout(ctx, wl));
                         if s == PxSize::zero() {
                             return true;
                         }
 
                         if let Some(inline) = inline {
-                            // inline item
-                            if i != 0 {
-                                wl.translate(PxVector::new(row_size.width, panel_size.height) - inline.first_row.to_vector());
+                            if panel_size.height == Px(0) {
+                                panel_size.height = inline.first_row.y;
                             }
+
+                            // inline item
+                            wl.translate(PxVector::new(row_size.width, panel_size.height) - inline.first_row.to_vector());
 
                             panel_size.width = panel_size.width.max(inline.bounds.width);
                             panel_size.height += inline.bounds.height - inline.first_row.y + spacing.row - inline.last_row_spacing;

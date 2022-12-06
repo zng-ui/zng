@@ -641,15 +641,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             let bounds = r.shaped_text.align_box().size;
+            let size = metrics.constrains().fill_size_or(bounds);
             if let Some(inline) = inline {
                 if let Some(last_line) = r.shaped_text.lines().last() {
-                    inline.bounds = bounds; // !!: Clip bounds
+                    inline.bounds = bounds;
                     let last_line = last_line.rect();
                     inline.last_row = PxPoint::new(last_line.width(), bounds.height - last_line.height());
                     inline.first_row = PxPoint::new(inline_advance, r.shaped_text.lines().next().unwrap().rect().height());
                 }
             }
-            bounds
+            size
         }
     }
 
