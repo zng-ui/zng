@@ -1,5 +1,4 @@
 * `wrap!` bugs:
-    - If resized up fast keeps wrapping instead of expanding back to a single line.
     - Need to track row height?
     - Does not grow to fit children when possible.
 

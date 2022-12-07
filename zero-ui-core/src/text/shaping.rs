@@ -1402,7 +1402,7 @@ impl<'a> ShapedLine<'a> {
             self.text.segments.0[prev_line.iter()]
                 .last()
                 .map(|s| !matches!(s.text.kind, TextSegmentKind::LineBreak))
-                .unwrap_or(false)
+                .unwrap_or(true)
         }
     }
 
