@@ -1,5 +1,6 @@
 * `wrap!` bugs:
     - Need to track row height?
+    - Need to track all rows in the `InlineLayout`?
     - Does not grow to fit children when possible.
 
 * Implement `markdown!`.
