@@ -18,6 +18,8 @@ pub(super) fn inspect_node(
     child: impl crate::core::widget_instance::UiNode,
     can_inspect: impl crate::core::var::IntoVar<bool>,
 ) -> impl crate::core::widget_instance::UiNode {
+    use zero_ui_core::window::Windows;
+
     use crate::core::inspector::prompt::WriteTreeState;
     use crate::core::{handler::hn, task};
 
@@ -39,12 +41,19 @@ pub(super) fn inspect_node(
             let mut buffer = vec![];
             state.write_update(ctx.info_tree, &mut buffer);
 
-            task::spawn_wait(move || {
-                use std::io::*;
-                stdout()
-                    .write_all(&buffer)
-                    .unwrap_or_else(|e| tracing::error!("error printing frame {e}"));
+            let txt = String::from_utf8_lossy(&buffer).into_owned();
+            Windows::req(ctx.services).open(move |_| crate::widgets::window! {
+                child = crate::widgets::scroll! {
+                    child = crate::widgets::ansi_text! { txt; }
+                }
             });
+
+            //task::spawn_wait(move || {
+            //    use std::io::*;
+            //    stdout()
+            //        .write_all(&buffer)
+            //        .unwrap_or_else(|e| tracing::error!("error printing frame {e}"));
+            //});
         }),
     )
 }

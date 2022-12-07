@@ -950,7 +950,7 @@ pub mod prelude {
         widget_info::{InteractionPath, Visibility, WidgetPath},
         widget_instance::{
             ui_list, z_index, ArcNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, UiNode, UiNodeList,
-            UiNodeListChain, WidgetId, ZIndex,
+            UiNodeListChain, WidgetId, ZIndex, UiNodeVec,
         },
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, Window,
@@ -1060,7 +1060,7 @@ pub mod prelude {
             },
             widget_instance::{
                 ui_list, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList, SortingListParent, UiNode,
-                UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId,
+                UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, UiNodeVec,
             },
         };
         #[doc(no_inline)]
@@ -1123,7 +1123,7 @@ pub mod prelude {
             },
             widget_instance::{
                 ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, SortingList,
-                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, ZIndex, ZSortingList,
+                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, WidgetId, ZIndex, ZSortingList, UiNodeVec,
             },
             widget_mixin,
         };

@@ -645,9 +645,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if let Some(inline) = inline {
                 inline.bounds = bounds;
 
-                let first_line_empty = !r.shaped_text.lines().next().unwrap().glyphs().next().is_some();
                 inline.first_row = PxPoint::new(inline_advance, r.shaped_text.lines().next().unwrap().rect().height());
-                
+
                 let last_line_rect = r.shaped_text.lines().last().unwrap().rect();
                 let clip_height = (r.shaped_text.box_size().height - size.height).max(Px(0));
                 inline.last_row = PxPoint::new(last_line_rect.width(), inline.bounds.height - last_line_rect.height() + clip_height);
