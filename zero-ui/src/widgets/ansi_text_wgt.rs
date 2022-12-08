@@ -282,7 +282,7 @@ mod ansi_parse {
 
 mod ansi_view {
 
-    use ansi_text::{AnsiStyle, AnsiColor};
+    use ansi_text::{AnsiColor, AnsiStyle, AnsiWeight};
     use zero_ui_core::widget_instance::UiNodeVec;
 
     use super::*;
@@ -350,32 +350,99 @@ mod ansi_view {
     ///
     /// Returns a `text!` with the text and style.
     pub fn default_text_view(args: AnsiTextViewArgs) -> impl UiNode {
-        crate::widgets::text! {
-            txt = args.txt;
-            background_color = if args.style.background_color == AnsiColor::Black { 
-                rgba(0, 0, 0, 0) 
-            } else { 
-                args.style.background_color.into() 
-            };
-            txt_color = args.style.color;
-            font_weight = args.style.weight;
-            font_style = if args.style.italic {
-                FontStyle::Italic
-            } else {
-                FontStyle::Normal
-            };
-            underline = i32::from(args.style.underline), LineStyle::Solid;
-            strikethrough = i32::from(args.style.strikethrough), LineStyle::Solid;
-            invert_color = args.style.invert_color;
-            visibility = if args.style.hidden { Visibility::Hidden } else { Visibility::Visible };
-            opacity = {
-                let o = var(1.fct());
-                if args.style.blink && !args.style.hidden && ANSI_BLINK_ENABLED_VAR.get() {
-                    todo!("impl var repeat animation, use it here and keyboard caret animation")
-                }
-                o
-            };
+        use crate::widgets::text as t;
+
+        let mut builder = WidgetBuilder::new(widget_mod!(t));
+        t::include(&mut builder);
+
+        builder.push_property(
+            Importance::INSTANCE,
+            property_args! {
+                t::txt = args.txt;
+            },
+        );
+
+        if args.style.background_color != AnsiColor::Black {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    background_color = args.style.background_color;
+                },
+            );
         }
+        if args.style.color != AnsiColor::White {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    t::txt_color = args.style.color;
+                },
+            );
+        }
+
+        if args.style.weight != AnsiWeight::Normal {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    t::font_weight = args.style.weight;
+                },
+            );
+        }
+        if args.style.italic {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    t::font_style = FontStyle::Italic;
+                },
+            );
+        }
+
+        if args.style.underline {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    t::underline = 1, LineStyle::Solid;
+                },
+            );
+        }
+        if args.style.strikethrough {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    t::strikethrough = 1, LineStyle::Solid;
+                },
+            );
+        }
+
+        if args.style.invert_color {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    invert_color = true;
+                },
+            );
+        }
+
+        if args.style.hidden {
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    t::visibility = Visibility::Hidden;
+                },
+            );
+        }
+        if args.style.blink && !args.style.hidden && ANSI_BLINK_ENABLED_VAR.get() {
+            let o = var(1.fct());
+            todo!("impl var repeat animation, use it here and keyboard caret animation");
+
+            builder.push_property(
+                Importance::INSTANCE,
+                property_args! {
+                    opacity = o;
+                },
+            );
+        }
+
+        crate::widgets::text::build(builder)
     }
 
     /// Default [`ANSI_LINE_VIEW_VAR`].
