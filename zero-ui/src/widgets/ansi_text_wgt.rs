@@ -502,8 +502,33 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
         child: BoxedUiNode,
         #[var] txt: impl Var<Text>,
     })]
-    impl UiNode for AnsiNode {
+    impl AnsiNode {
+        #[UiNode]
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.init_handles(ctx);
+            self.generate_child(ctx);
+            self.child.init(ctx);
+        }
+
+        #[UiNode]
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            self.child = FillUiNode.boxed();
+        }
+
+        #[UiNode]
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if self.txt.is_new(ctx) {
+                self.child.deinit(ctx);
+                self.generate_child(ctx);
+                self.child.init(ctx);
+                ctx.updates.info_layout_render();
+            } else {
+                self.child.update(ctx, updates);
+            }
+        }
+
+        fn generate_child(&mut self, ctx: &mut WidgetContext) {
             use ansi_view::*;
 
             self.child = self.txt.with(|txt| {
@@ -546,20 +571,6 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
                 // generate panel
                 panel_view.generate(ctx, AnsiPanelViewArgs { lines }).boxed()
             });
-            self.child.init(ctx);
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            self.child = FillUiNode.boxed();
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.txt.is_new(ctx) {
-                self.deinit(ctx);
-                self.init(ctx);
-            }
-            self.child.update(ctx, updates);
         }
     }
     AnsiNode {

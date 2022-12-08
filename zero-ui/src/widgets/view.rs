@@ -145,7 +145,7 @@ where
                     self.child.deinit(ctx);
                     self.child = new_child;
                     self.child.init(ctx);
-                    ctx.updates.info_layout_and_render();
+                    ctx.updates.info_layout_render();
                 }
             }
             self.child.update(ctx, updates);
@@ -312,7 +312,7 @@ impl<D> ViewGenerator<D> {
                 if gen.is_nil() {
                     if let Some(mut old) = self.child.take() {
                         old.deinit(ctx);
-                        ctx.updates.info_layout_and_render();
+                        ctx.updates.info_layout_render();
                     }
 
                     return;
@@ -326,13 +326,13 @@ impl<D> ViewGenerator<D> {
                         let mut child = (self.map)(gen.generate(ctx, data));
                         child.init(ctx);
                         self.child = Some(child);
-                        ctx.updates.info_layout_and_render();
+                        ctx.updates.info_layout_render();
                     }
                     DataUpdate::Same => self.child.update(ctx, updates),
                     DataUpdate::None => {
                         if let Some(mut old) = self.child.take() {
                             old.deinit(ctx);
-                            ctx.updates.info_layout_and_render();
+                            ctx.updates.info_layout_render();
                         }
                     }
                 }

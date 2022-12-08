@@ -161,7 +161,7 @@ pub mod uniform_grid {
             self.children.update_all(ctx, updates, &mut changed);
 
             if changed || self.columns.is_new(ctx) || self.rows.is_new(ctx) || self.first_column.is_new(ctx) || self.spacing.is_new(ctx) {
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
         }
 

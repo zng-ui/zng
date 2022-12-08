@@ -561,7 +561,7 @@ impl HeadedCtrl {
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(ctx, scheme);
 
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.window);
@@ -594,7 +594,7 @@ impl HeadedCtrl {
                 self.content.render_requested = WindowRenderUpdate::Render;
                 self.content.is_rendering = false;
 
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -610,7 +610,7 @@ impl HeadedCtrl {
                     self.content.render_requested = WindowRenderUpdate::Render;
                     self.content.is_rendering = false;
 
-                    ctx.updates.layout_and_render();
+                    ctx.updates.layout_render();
                 }
             }
         }
@@ -1068,7 +1068,7 @@ impl HeadlessWithRendererCtrl {
                 self.content.layout_requested = true;
                 self.content.render_requested = WindowRenderUpdate::Render;
 
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.surface {
@@ -1081,7 +1081,7 @@ impl HeadlessWithRendererCtrl {
                     self.content.layout_requested = true;
                     self.content.render_requested = WindowRenderUpdate::Render;
 
-                    ctx.updates.layout_and_render();
+                    ctx.updates.layout_render();
                 }
             }
         }

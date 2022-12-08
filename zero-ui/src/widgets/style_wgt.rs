@@ -206,7 +206,7 @@ pub mod style_mixin {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.style.is_new(ctx.vars) {
                 ctx.updates.reinit();
-                ctx.updates.info_layout_and_render();
+                ctx.updates.info_layout_render();
             } else {
                 self.child.update(ctx, updates);
             }

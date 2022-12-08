@@ -48,6 +48,7 @@ pub mod foo {
 
 * Review all error span hacks when this issue https://github.com/rust-lang/rust/issues/54725 is stable.
 * Allow trailing semicolon in widget_new (those are only warnings in Rust, not errors)
+* Implement validation for missing `init_handles` call in `init`.
 
 ## Difficult
 

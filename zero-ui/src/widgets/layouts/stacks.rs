@@ -83,7 +83,7 @@ pub mod h_stack {
             self.children.update_all(ctx, updates, &mut changed);
 
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
         }
 
@@ -333,7 +333,7 @@ pub mod v_stack {
             self.children.update_all(ctx, updates, &mut changed);
 
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
         }
 
@@ -628,7 +628,7 @@ pub mod z_stack {
             self.children.update_all(ctx, updates, &mut changed);
 
             if changed || self.align.is_new(ctx) {
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
         }
 

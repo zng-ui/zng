@@ -33,7 +33,7 @@ pub mod switch {
     impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.index.is_new(ctx) {
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
                 self.collapse = true;
 
                 self.options.update_all(ctx, updates, &mut ());
@@ -63,7 +63,7 @@ pub mod switch {
                 self.options.update_all(ctx, updates, &mut check);
 
                 if check.touched {
-                    ctx.updates.layout_and_render();
+                    ctx.updates.layout_render();
                     self.collapse = true;
                 }
             }

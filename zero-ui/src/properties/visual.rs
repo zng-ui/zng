@@ -381,7 +381,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     impl UiNode for ClipToBoundsNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.clip.is_new(ctx) {
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
 
             self.child.update(ctx, updates);

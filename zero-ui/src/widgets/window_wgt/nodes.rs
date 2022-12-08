@@ -184,14 +184,14 @@ impl WindowLayers {
                     if self.mode.with(|m| m.interaction) {
                         ctx.updates.info();
                     }
-                    ctx.updates.layout_and_render();
+                    ctx.updates.layout_render();
                 }
                 if let Some(mode) = self.mode.get_new(ctx) {
                     if mode.interaction != self.interaction {
                         self.interaction = mode.interaction;
                         ctx.updates.info();
                     }
-                    ctx.updates.layout_and_render();
+                    ctx.updates.layout_render();
                 }
                 self.widget.update(ctx, updates);
             }
@@ -468,7 +468,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             self.children.update_all(ctx, updates, &mut changed);
 
             if changed {
-                ctx.updates.layout_and_render();
+                ctx.updates.layout_render();
             }
         }
 

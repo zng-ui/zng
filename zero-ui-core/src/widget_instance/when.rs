@@ -117,7 +117,7 @@ impl WhenUiNode {
             ctx.with_handles(var_handles, event_handles, |ctx| child.init(ctx));
         }
 
-        ctx.updates.info_layout_and_render();
+        ctx.updates.info_layout_render();
     }
 }
 #[ui_node(
@@ -227,7 +227,7 @@ impl WhenUiNodeList {
         }
 
         observer.reseted();
-        ctx.updates.info_layout_and_render();
+        ctx.updates.info_layout_render();
     }
 }
 

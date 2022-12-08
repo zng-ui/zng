@@ -836,7 +836,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             if let Some(vis) = self.visibility.get_new(ctx) {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
-                    (Collapsed, Visible) | (Visible, Collapsed) => ctx.updates.layout_and_render(),
+                    (Collapsed, Visible) | (Visible, Collapsed) => ctx.updates.layout_render(),
                     (Hidden, Visible) | (Visible, Hidden) => ctx.updates.render(),
                     (Collapsed, Hidden) | (Hidden, Collapsed) => ctx.updates.layout(),
                     _ => {}
@@ -1097,7 +1097,7 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(new) = self.enabled.get_new(ctx) {
                 if ctx.widget_info.bounds.can_auto_hide() != new {
-                    ctx.updates.layout_and_render();
+                    ctx.updates.layout_render();
                 }
             }
             self.child.update(ctx, updates);

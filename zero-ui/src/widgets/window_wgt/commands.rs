@@ -51,7 +51,7 @@ pub(super) fn inspect_node(
             inspector_state.write_update(ctx.info_tree, &mut buffer);
 
             let txt = String::from_utf8_lossy(&buffer).into_owned();
-            inspector_text.set(ctx, txt);
+            inspector_text.set_ne(ctx, txt);
 
             let parent = ctx.path.window_id();
             Windows::req(ctx).focus_or_open(
