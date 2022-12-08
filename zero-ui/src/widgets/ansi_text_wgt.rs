@@ -18,9 +18,14 @@ pub mod ansi_text {
     #[doc(inline)]
     pub use super::ansi_node;
 
+    #[doc(no_inline)]
+    pub use crate::widgets::text::{font_family, font_size, tab_length};
+
     properties! {
         /// ANSI text.
         pub txt(impl IntoVar<Text>) = "";
+
+        font_family = FontName::monospace();
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -191,15 +196,17 @@ mod ansi_parse {
                     while esc_end < source.len() && !is_esc_end(source.as_bytes()[esc_end]) {
                         esc_end += 1;
                     }
+                    esc_end += 1;
 
-                    let (esc, source) = self.source.split_at(esc_end);
+                    let (esc, source) = source.split_at(esc_end);
 
                     let esc = &esc[..(esc.len() - 1)];
                     self.style.set(esc);
 
                     self.source = source;
                     continue;
-                } else if let Some((txt, source)) = self.source.split_once(CSI) {
+                } else if let Some(i) = self.source.find(CSI) {
+                    let (txt, source) = self.source.split_at(i);
                     self.source = source;
                     return Some(AnsiText {
                         txt,
@@ -275,7 +282,7 @@ mod ansi_parse {
 
 mod ansi_view {
 
-    use ansi_text::AnsiStyle;
+    use ansi_text::{AnsiStyle, AnsiColor};
     use zero_ui_core::widget_instance::UiNodeVec;
 
     use super::*;
@@ -345,7 +352,11 @@ mod ansi_view {
     pub fn default_text_view(args: AnsiTextViewArgs) -> impl UiNode {
         crate::widgets::text! {
             txt = args.txt;
-            background_color = args.style.background_color;
+            background_color = if args.style.background_color == AnsiColor::Black { 
+                rgba(0, 0, 0, 0) 
+            } else { 
+                args.style.background_color.into() 
+            };
             txt_color = args.style.color;
             font_weight = args.style.weight;
             font_style = if args.style.italic {

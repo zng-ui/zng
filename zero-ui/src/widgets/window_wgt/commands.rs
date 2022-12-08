@@ -18,10 +18,10 @@ pub(super) fn inspect_node(
     child: impl crate::core::widget_instance::UiNode,
     can_inspect: impl crate::core::var::IntoVar<bool>,
 ) -> impl crate::core::widget_instance::UiNode {
-    use zero_ui_core::window::Windows;
+    use zero_ui_core::{units::Align, window::Windows};
 
+    use crate::core::handler::hn;
     use crate::core::inspector::prompt::WriteTreeState;
-    use crate::core::{handler::hn, task};
 
     let mut state = WriteTreeState::new();
 
@@ -42,9 +42,16 @@ pub(super) fn inspect_node(
             state.write_update(ctx.info_tree, &mut buffer);
 
             let txt = String::from_utf8_lossy(&buffer).into_owned();
-            Windows::req(ctx.services).open(move |_| crate::widgets::window! {
-                child = crate::widgets::scroll! {
-                    child = crate::widgets::ansi_text! { txt; }
+            let parent = ctx.path.window_id();
+            Windows::req(ctx.services).open(move |_| {
+                crate::widgets::window! {
+                    parent;
+                    title = "Inspector";
+                    child = crate::widgets::scroll! {
+                        child = crate::widgets::ansi_text! { txt; };
+                        child_align = Align::TOP_LEFT;
+                        padding = 5;
+                    }
                 }
             });
 
