@@ -47,10 +47,7 @@ pub(super) fn inspect_node(
 
             args.propagation().stop();
 
-            let mut buffer = vec![];
-            inspector_state.write_update(ctx.info_tree, &mut buffer);
-
-            let txt = String::from_utf8_lossy(&buffer).into_owned();
+            let txt = inspector_state.ansi_string_update(ctx.info_tree);
             inspector_text.set_ne(ctx, txt);
 
             let parent = ctx.path.window_id();
@@ -75,13 +72,6 @@ pub(super) fn inspect_node(
                     }
                 }),
             );
-
-            // crate::core::task::spawn_wait(move || {
-            //     use std::io::*;
-            //     stdout()
-            //         .write_all(&buffer)
-            //         .unwrap_or_else(|e| tracing::error!("error printing frame {e}"));
-            // });
         }),
     )
 }

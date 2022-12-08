@@ -1,3 +1,8 @@
+* Can't scroll with wheel in inspector window after it is focused by parent.
+* Handle lines better in ansi_text.
+    - Pages? To avoid linear perf.
+    - Optional line widgets, if nil place everything in the panel?
+
 * `wrap!` bugs:
     - Need to track row height?
     - Need to track all rows in the `InlineLayout`?

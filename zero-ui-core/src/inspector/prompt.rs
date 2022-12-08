@@ -3,6 +3,7 @@
 use rustc_hash::FxHashMap;
 
 use crate::{
+    crate_util::RunOnDrop,
     text::formatx,
     units::PxRect,
     var::VarUpdateId,
@@ -40,6 +41,27 @@ impl WriteTreeState {
             self.computed_state.retain(|_, s| s.fresh == self.fresh);
         }
         self.widget_len = tree.len();
+    }
+
+    /// Update the state, write a new ANSI styled string.
+    pub fn ansi_string_update(&mut self, tree: &WidgetInfoTree) -> String {
+        colored::control::set_override(true);
+        let _unset = RunOnDrop::new(colored::control::unset_override);
+        let mut buffer = vec![];
+        self.write_update(tree, &mut buffer);
+        String::from_utf8_lossy(&buffer).into_owned()
+    }
+
+    /// Update the state, write it to stdout.
+    pub fn print_update(&mut self, tree: &WidgetInfoTree) {
+        let mut buffer = vec![];
+        self.write_update(tree, &mut buffer);
+        crate::task::spawn_wait(move || {
+            use std::io::*;
+            stdout()
+                .write_all(&buffer)
+                .unwrap_or_else(|e| tracing::error!("error printing frame {e}"));
+        });
     }
 
     fn write_widget(&mut self, info: WidgetInfo, fmt: &mut print_fmt::Fmt) {

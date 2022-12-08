@@ -322,6 +322,7 @@ struct FontFaceMut {
 
 impl fmt::Debug for FontFace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let m = self.m.lock();
         f.debug_struct("FontFace")
             .field("display_name", &self.display_name)
             .field("family_name", &self.family_name)
@@ -329,9 +330,9 @@ impl fmt::Debug for FontFace {
             .field("is_monospace", &self.is_monospace)
             .field("properties", &self.properties)
             .field("metrics", &self.metrics)
-            .field("instances.len()", &self.m.lock().instances.len())
-            .field("render_keys.len()", &self.m.lock().render_keys.len())
-            .field("unregistered", &self.m.lock().unregistered)
+            .field("instances.len()", &m.instances.len())
+            .field("render_keys.len()", &m.render_keys.len())
+            .field("unregistered", &m.unregistered)
             .finish_non_exhaustive()
     }
 }
