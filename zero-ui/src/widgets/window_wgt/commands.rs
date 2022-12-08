@@ -76,12 +76,12 @@ pub(super) fn inspect_node(
                 }),
             );
 
-            //task::spawn_wait(move || {
-            //    use std::io::*;
-            //    stdout()
-            //        .write_all(&buffer)
-            //        .unwrap_or_else(|e| tracing::error!("error printing frame {e}"));
-            //});
+            // crate::core::task::spawn_wait(move || {
+            //     use std::io::*;
+            //     stdout()
+            //         .write_all(&buffer)
+            //         .unwrap_or_else(|e| tracing::error!("error printing frame {e}"));
+            // });
         }),
     )
 }
