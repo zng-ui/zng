@@ -393,7 +393,7 @@ mod ansi_view {
         });
 
         /// Duration the ANSI blink animation keeps the text visible for.
-        /// 
+        ///
         /// Set to `ZERO` or `MAX` to disable animation.
         pub static BLINK_INTERVAL_VAR: Duration = Duration::ZERO;
 
@@ -405,7 +405,7 @@ mod ansi_view {
 
     /// Default [`TEXT_VIEW_VAR`].
     ///
-    /// This view is configured by contextual variables like [`BLINK_ENABLED_VAR`] and all text variables that are
+    /// This view is configured by contextual variables like [`BLINK_INTERVAL_VAR`] and all text variables that are
     /// not overridden by the ANSI style, like the font.
     ///
     /// Returns a `text!` with the text and style.
@@ -492,28 +492,23 @@ mod ansi_view {
         }
         if args.style.blink && !args.style.hidden {
             let opacity = var(1.fct());
-            
+
             let interval = BLINK_INTERVAL_VAR.get();
             if interval != Duration::ZERO && interval != Duration::MAX {
-                opacity.sequence(vars, move |vars, var| {    
-                    let interval = BLINK_INTERVAL_VAR.get();
-
-                    if interval != Duration::ZERO && interval != Duration::MAX {
+                opacity
+                    .sequence(vars, move |vars, var| {
                         let val = if var.get() == 1.fct() { 0.fct() } else { 1.fct() };
                         var.step(vars, val, interval)
-                    } else {
-                        animation::AnimationHandle::dummy()
-                    }
-                })
-                .perm();
-    
+                    })
+                    .perm();
+
                 builder.push_property(
                     Importance::INSTANCE,
                     property_args! {
                         opacity;
                     },
                 );
-            }            
+            }
         }
 
         crate::widgets::text::build(builder)
@@ -568,7 +563,7 @@ mod ansi_view {
     }
 
     /// ANSI blink animation interval.
-    /// 
+    ///
     /// Set to `ZERO` to disable.
     ///
     /// Sets the [`BLINK_INTERVAL_VAR`].
@@ -648,8 +643,9 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
                 || TEXT_VIEW_VAR.is_new(ctx)
                 || LINE_VIEW_VAR.is_new(ctx)
                 || PAGE_VIEW_VAR.is_new(ctx)
-                || LINES_PER_PAGE_VAR.is_new(ctx)
                 || PANEL_VIEW_VAR.is_new(ctx)
+                || LINES_PER_PAGE_VAR.is_new(ctx)
+                || BLINK_INTERVAL_VAR.is_new(ctx)
             {
                 self.child.deinit(ctx);
                 self.generate_child(ctx);

@@ -573,7 +573,10 @@ impl Animations {
             // is `animate` request inside other animate closure,
             // in this case we give it the same animation handle as the *parent*
             // animation, that holds the actual handle owner.
-            handle_owner = None;
+            handle_owner = None; 
+            // !!: if the parent animation is dropped before this one it will drop also?
+            // !!: should owner be shared?
+            //      - Not designed for this, we use the count for stuff.
 
             if let Some(h) = parent_handle.upgrade() {
                 handle = h;
@@ -1102,9 +1105,9 @@ impl ModifyInfo {
     }
 }
 
-/// Animations observer.
+/// Animations controller.
 ///
-/// See [`Vars::with_animation_observer`] for more details.
+/// See [`Vars::with_animation_controller`] for more details.
 pub trait AnimationController: Any {
     /// Animation started.
     fn on_start(&self, vars: &Vars, animation: &Animation) {

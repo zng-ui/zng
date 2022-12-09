@@ -100,6 +100,7 @@ impl Vars {
     ///
     /// [`importance`]: ModifyInfo::importance
     /// [`modify_importance`]: AnyVar::modify_importance
+    /// [`AnimationController`]: animation::AnimationController
     pub fn current_modify(&self) -> ModifyInfo {
         self.ans.current_modify.borrow().clone()
     }
