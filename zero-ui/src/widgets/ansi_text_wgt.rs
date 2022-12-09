@@ -313,6 +313,8 @@ mod ansi_parse {
 
 mod ansi_view {
 
+    use std::time::Duration;
+
     use ansi_text::{AnsiColor, AnsiStyle, AnsiWeight};
     use zero_ui_core::widget_instance::UiNodeVec;
 
@@ -363,8 +365,8 @@ mod ansi_view {
         /// View generator for [`TextViewArgs`].
         ///
         /// The returned views are layout by the [`LINE_VIEW_VAR`]. The default view is [`default_text_view`].
-        pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = view_generator!(|_, args: TextViewArgs|  {
-            default_text_view(args)
+        pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = view_generator!(|ctx, args: TextViewArgs|  {
+            default_text_view(ctx.vars, args)
         });
 
         /// View generator for [`LineViewArgs`].
@@ -390,8 +392,10 @@ mod ansi_view {
             default_panel_view(args)
         });
 
-        /// If the ANSI blink animation is generated when the style requests it.
-        pub static BLINK_ENABLED_VAR: bool = false;
+        /// Duration the ANSI blink animation keeps the text visible for.
+        /// 
+        /// Set to `ZERO` or `MAX` to disable animation.
+        pub static BLINK_INTERVAL_VAR: Duration = Duration::ZERO;
 
         /// Maximum number of lines per [`PAGE_VIEW_VAR`].
         ///
@@ -405,7 +409,7 @@ mod ansi_view {
     /// not overridden by the ANSI style, like the font.
     ///
     /// Returns a `text!` with the text and style.
-    pub fn default_text_view(args: TextViewArgs) -> impl UiNode {
+    pub fn default_text_view(vars: &Vars, args: TextViewArgs) -> impl UiNode {
         use crate::widgets::text as t;
 
         let mut builder = WidgetBuilder::new(widget_mod!(t));
@@ -486,16 +490,30 @@ mod ansi_view {
                 },
             );
         }
-        if args.style.blink && !args.style.hidden && BLINK_ENABLED_VAR.get() {
-            let o = var(1.fct());
-            todo!("impl var repeat animation, use it here and keyboard caret animation");
+        if args.style.blink && !args.style.hidden {
+            let opacity = var(1.fct());
+            
+            let interval = BLINK_INTERVAL_VAR.get();
+            if interval != Duration::ZERO && interval != Duration::MAX {
+                opacity.sequence(vars, move |vars, var| {    
+                    let interval = BLINK_INTERVAL_VAR.get();
 
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    opacity = o;
-                },
-            );
+                    if interval != Duration::ZERO && interval != Duration::MAX {
+                        let val = if var.get() == 1.fct() { 0.fct() } else { 1.fct() };
+                        var.step(vars, val, interval)
+                    } else {
+                        animation::AnimationHandle::dummy()
+                    }
+                })
+                .perm();
+    
+                builder.push_property(
+                    Importance::INSTANCE,
+                    property_args! {
+                        opacity;
+                    },
+                );
+            }            
         }
 
         crate::widgets::text::build(builder)
@@ -549,12 +567,14 @@ mod ansi_view {
         }
     }
 
-    /// If the ANSI blink animation is generated when the style requests it.
+    /// ANSI blink animation interval.
+    /// 
+    /// Set to `ZERO` to disable.
     ///
-    /// Sets the [`BLINK_ENABLED_VAR`].
-    #[property(CONTEXT, default(BLINK_ENABLED_VAR))]
-    pub fn blink_enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-        with_context_var(child, BLINK_ENABLED_VAR, enabled)
+    /// Sets the [`BLINK_INTERVAL_VAR`].
+    #[property(CONTEXT, default(BLINK_INTERVAL_VAR))]
+    pub fn blink_interval(child: impl UiNode, interval: impl IntoVar<Duration>) -> impl UiNode {
+        with_context_var(child, BLINK_INTERVAL_VAR, interval)
     }
 
     /// View generator that converts [`TextViewArgs`] to widgets.

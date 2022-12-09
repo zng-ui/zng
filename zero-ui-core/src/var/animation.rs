@@ -599,7 +599,7 @@ impl Animations {
         vars.ans.animations.borrow_mut().push(Box::new(move |vars, info| {
             let _handle_owner = &handle_owner; // capture and own the handle owner.
 
-            // load animation contxt
+            // load animation context
             let prev_ctrl = mem::replace(&mut *vars.ans.animation_controller.borrow_mut(), controller.clone());
             let prev_mod = mem::replace(
                 &mut *vars.ans.current_modify.borrow_mut(),

@@ -197,6 +197,13 @@ macro_rules! property_args {
             }
         }
     };
+    ($property:ident $(;)?) => {
+        {
+            $crate::widget_builder::property_args_getter! {
+                $property
+            }
+        }
+    }
 }
 #[doc(inline)]
 pub use crate::property_args;
