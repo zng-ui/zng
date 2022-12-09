@@ -148,7 +148,7 @@ pub mod wrap {
             let mut last_child_inlined = false;
 
             ctx.with_constrains(
-                |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)),
+                |c| c.with_fill(false, false).with_new_min(Px(0), Px(0)).with_unbounded_y(),
                 |ctx| {
                     self.children.for_each_mut(|_, n| {
                         let (inline, s) = ctx.with_inline(wl, row_size, |ctx, wl| n.layout(ctx, wl));

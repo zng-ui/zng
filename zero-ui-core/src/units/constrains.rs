@@ -561,7 +561,7 @@ impl PxConstrains2d {
         self
     }
 
-    /// Returns a copy of the current constrains without a upper bound in the **x** axis.
+    /// Returns a copy of the current constrains without a upper bound in the **y** axis.
     pub fn with_unbounded_y(mut self) -> Self {
         self.y = self.y.with_unbounded();
         self
