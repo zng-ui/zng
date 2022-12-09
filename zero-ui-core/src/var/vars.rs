@@ -107,7 +107,7 @@ impl Vars {
 
     /// Adds an animation handler that is called every frame to update captured variables.
     ///
-    /// This is used by the [`Var<T>`] ease methods default implementation, it enables any kind of variable animation,
+    /// This is used to implement all [`Var<T>`] animations, it enables any kind of variable animation,
     /// including multiple variables.
     ///
     /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
@@ -125,9 +125,10 @@ impl Vars {
     ///
     /// # Nested Animations
     ///
-    /// Other animations can be started from inside the animation closure, these *nested* animations have the same handle
-    /// as the *parent* animation, stopping an animation by dropping the handle or calling [`stop`] stops the parent animation
-    /// and any other animation started by it.
+    /// Other animations can be started from inside the animation closure, these *nested* animations have the same importance
+    /// as the *parent* animation, the animation handle is different and [`AnyVar::is_animating`] is `false` if the nested animation
+    /// is dropped before the *parent* animation. But because the animations share the same importance the parent animation can
+    /// set the variable again.
     ///
     /// # Examples
     ///
@@ -187,11 +188,19 @@ impl Vars {
     ///
     /// These optimizations are implemented by the animations provided as methods of [`Var<T>`].
     ///
+    /// # External Controller
+    ///
+    /// The animation can be controlled from the inside using the [`Animation`] reference, it can be stopped using the returned
+    /// [`AnimationHandle`], and it can also be controlled by a registered [`AnimationController`] that can manage multiple
+    /// animations at the same time, see [`with_animation_controller`] for more details.
+    ///
     /// [`AnimationHandle`]: animation::AnimationHandle
+    /// [`AnimationController`]: animation::AnimationController
     /// [`Animation`]: animation::Animation
     /// [`Animation::sleep`]: animation::Animation::sleep
     /// [`stop`]: animation::AnimationHandle::stop
     /// [`perm`]: animation::AnimationHandle::perm
+    /// [`with_animation_controller`]: Self::with_animation_controller
     pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
     where
         A: FnMut(&Vars, &animation::Animation) + 'static,

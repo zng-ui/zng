@@ -437,7 +437,7 @@ where
 pub(super) struct Animations {
     animations: RefCell<Vec<AnimationFn>>,
     animation_controller: RefCell<Rc<dyn AnimationController>>,
-    animation_id: Cell<usize>,
+    animation_imp: Cell<usize>,
     pub(super) current_modify: RefCell<ModifyInfo>,
     pub(super) animation_start_time: Cell<Option<Instant>>,
     next_frame: Cell<Option<Deadline>>,
@@ -450,7 +450,7 @@ impl Animations {
         Self {
             animations: RefCell::default(),
             animation_controller: RefCell::new(Rc::new(NilAnimationObserver)),
-            animation_id: Cell::new(1),
+            animation_imp: Cell::new(1),
             current_modify: RefCell::new(ModifyInfo {
                 handle: None,
                 importance: 1,
@@ -522,10 +522,10 @@ impl Animations {
     {
         // # Modify Importance
         //
-        // Variables only accept modifications from an importance (IM) >= the previous IM that modified it.
+        // Variables only accept modifications from an importance (IMP) >= the previous IM that modified it.
         //
-        // Direct modifications always overwrite previous animations, so we advance the IM for each call to
-        // this method **and then** advance the IM again for all subsequent direct modifications.
+        // Direct modifications always overwrite previous animations, so we advance the IMP for each call to
+        // this method **and then** advance the IMP again for all subsequent direct modifications.
         //
         // Example sequence of events:
         //
@@ -554,44 +554,30 @@ impl Animations {
             t
         };
 
-        let mut id = vars.ans.animation_id.get().wrapping_add(1);
-        if id == 0 {
-            id = 1;
-        }
-        let mut next_set_id = id.wrapping_add(1);
-        if next_set_id == 0 {
-            next_set_id = 1;
-        }
-        vars.ans.animation_id.set(next_set_id);
-        vars.ans.current_modify.borrow_mut().importance = next_set_id;
-
-        let handle_owner;
-        let handle;
-        let weak_handle;
-
-        if let Some(parent_handle) = vars.ans.current_modify.borrow().handle.clone() {
-            // is `animate` request inside other animate closure,
-            // in this case we give it the same animation handle as the *parent*
-            // animation, that holds the actual handle owner.
-            handle_owner = None; 
-            // !!: if the parent animation is dropped before this one it will drop also?
-            // !!: should owner be shared?
-            //      - Not designed for this, we use the count for stuff.
-
-            if let Some(h) = parent_handle.upgrade() {
-                handle = h;
+        let anim_imp;
+        {
+            let mut current_mod = vars.ans.current_modify.borrow_mut();
+            if current_mod.is_animating() {
+                anim_imp = current_mod.importance;
             } else {
-                // attempt to create new animation from inside dropping animation, ignore
-                return AnimationHandle::dummy();
-            }
+                let mut imp = vars.ans.animation_imp.get().wrapping_add(1);
+                if imp == 0 {
+                    imp = 1;
+                }
+                anim_imp = imp;
 
-            weak_handle = parent_handle;
-        } else {
-            let (o, h) = AnimationHandle::new();
-            handle_owner = Some(o);
-            weak_handle = h.downgrade();
-            handle = h;
-        };
+                let mut next_imp = anim_imp.wrapping_add(1);
+                if next_imp == 0 {
+                    next_imp = 1;
+                }
+
+                vars.ans.animation_imp.set(next_imp);
+                current_mod.importance = next_imp;
+            }
+        }
+
+        let (handle_owner, handle) = AnimationHandle::new();
+        let weak_handle = handle.downgrade();
 
         let controller = vars.ans.animation_controller.borrow().clone();
 
@@ -608,7 +594,7 @@ impl Animations {
                 &mut *vars.ans.current_modify.borrow_mut(),
                 ModifyInfo {
                     handle: Some(weak_handle.clone()),
-                    importance: id,
+                    importance: anim_imp,
                 },
             );
             // will restore context after animation and controller updates
@@ -1097,7 +1083,7 @@ impl ModifyInfo {
     /// is for that animation, even if the modify request is from the current frame.
     ///
     /// You can clone this info to track this animation, when it stops or is dropped this returns `false`. Note
-    /// that *paused* or sleeping animations still count as animating.
+    /// that *paused* animations still count as animating.
     ///
     /// [`importance`]: Self::importance
     pub fn is_animating(&self) -> bool {

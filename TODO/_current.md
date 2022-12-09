@@ -1,3 +1,8 @@
+# Nested Animation Changes
+
+* New handle for each animation.
+* Shared importance for nested animations.
+
 * Can't scroll with wheel in inspector window after it is focused by parent.
 
 * `wrap!` bugs:
