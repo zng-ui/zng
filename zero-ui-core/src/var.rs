@@ -255,14 +255,20 @@ impl std::error::Error for VarIsReadOnlyError {}
 
 struct VarHandleData {
     perm: AtomicBool,
-    pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>,
+    action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>,
 }
 
+/// Represents the var side of a [`VarHandle`].
 struct VarHook(Arc<VarHandleData>);
 impl VarHook {
-    /// Callback, returns `true` if the handle must be retained.
-    fn call(&self, vars: &Vars, update: &mut Updates, value: &dyn AnyVarValue) -> bool {
-        (Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)) && (self.0.pos_modify_action)(vars, update, value)
+    /// Calls the handle action, returns `true` if the handle must be retained.
+    pub fn call(&self, vars: &Vars, update: &mut Updates, value: &dyn AnyVarValue) -> bool {
+        self.is_alive() && (self.0.action)(vars, update, value)
+    }
+
+    /// If the handle is still held or is permanent.
+    pub fn is_alive(&self) -> bool {
+        Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)
     }
 }
 
@@ -274,10 +280,11 @@ impl VarHook {
 #[must_use = "var handle stops the behaviour it represents on drop"]
 pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
-    fn new(pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
+    /// New handle, the `action` depends on the behaviour the handle represents.
+    fn new(action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
         let c = Arc::new(VarHandleData {
             perm: AtomicBool::new(false),
-            pos_modify_action,
+            action,
         });
         (VarHandle(Some(c.clone())), VarHook(c))
     }
@@ -1515,6 +1522,19 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         A: FnMut(&animation::Animation, &mut Cow<T>) + 'static,
     {
         vars.with_vars(move |vars| animation::var_animate(vars, self, animate))
+    }
+
+    /// Schedule animations started by `animate`, the closure is called once at the start to begin, then again every time
+    /// the variable stops animating.
+    ///
+    /// This can be used to create a sequence of animations or to repeat an animation. The sequence stops when `animate` returns
+    /// a dummy handle or the variable is modified outside of `animate`, or animations are disabled, or the returned handle is dropped.
+    fn sequence<V, A>(&self, vars: &V, animate: A) -> VarHandle
+    where
+        V: WithVars,
+        A: FnMut(&Vars, &<<Self::ActualVar as Var<T>>::Downgrade as WeakVar<T>>::Upgrade) -> animation::AnimationHandle + 'static,
+    {
+        vars.with_vars(move |vars| animation::var_sequence(vars, self, animate))
     }
 
     /// Schedule an easing transition from the `start_value` to `end_value`.

@@ -94,9 +94,9 @@ impl Vars {
 
     /// Info about the current context when requesting variable modification.
     ///
-    /// If is current inside a [`Vars::animate`] closure, or inside a [`Var::modify`] closure requested by an animation, returns
-    /// the info that was collected at the moment the animation was requested. Outside of animations gets an info with [`importance`]
-    /// guaranteed to override the [`modify_importance`].
+    /// If is current inside a [`Vars::animate`] closure, or inside a [`Var::modify`] closure requested by an animation, or inside
+    /// an [`AnimationController`], returns the info that was collected at the moment the animation was requested. Outside of animations
+    /// gets an info with [`importance`] guaranteed to override the [`modify_importance`].
     ///
     /// [`importance`]: ModifyInfo::importance
     /// [`modify_importance`]: AnyVar::modify_importance
@@ -196,6 +196,24 @@ impl Vars {
         A: FnMut(&Vars, &animation::Animation) + 'static,
     {
         Animations::animate(self, animation)
+    }
+
+    /// Calls `animate` while `controller` is registered as the animation controller.
+    ///
+    /// The `controller` is notified of animation events for each animation spawned by `animate` and can affect then with the same
+    /// level of access as [`Vars::animate`]. Only one controller can affect animations at a time.
+    ///
+    /// This can be used to manage multiple animations at the same time, or to get [`Vars::animate`] level of access to an animation
+    /// that is not implemented to allow such access. Note that animation implementers are not required to support the full
+    /// [`Animation`] API, for example, there is no garanthede that a restart requested by the controller will repeat the same animation.
+    ///
+    /// The controller can start new animations, these animations will have the same controller if not overridden, you can
+    /// use this method and the [`NilAnimationObserver`] to avoid this behaviour.
+    ///
+    /// [`Animation`]: animation::Animation
+    /// [`NilAnimationObserver`]: animation::NilAnimationObserver
+    pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
+        Animations::with_animation_controller(self, controller, animate)
     }
 
     pub(crate) fn instance(app_event_sender: AppEventSender) -> Vars {

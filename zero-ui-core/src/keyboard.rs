@@ -4,7 +4,6 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
-use std::borrow::Cow;
 use std::time::{Duration, Instant};
 
 use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
@@ -13,6 +12,7 @@ use crate::event::*;
 use crate::focus::Focus;
 use crate::service::*;
 use crate::units::*;
+use crate::var::animation::AnimationHandle;
 use crate::var::{var, var_default, ArcVar, ReadOnlyArcVar, Var, Vars, WithVars};
 use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
@@ -433,31 +433,21 @@ impl Keyboard {
     fn caret_animation_impl(&self, vars: &Vars) -> ReadOnlyArcVar<Factor> {
         let var = var(1.fct());
         let cfg = self.caret_animation_config.clone();
-        let interval_start = Instant::now();
-        var.animate(vars, move |a, value| {
-            if !a.animations_enabled() {
-                if *value.as_ref() != 1.fct() {
-                    *value = Cow::Owned(1.fct());
-                }
-            } else {
-                let (interval, timeout) = cfg.get();
 
-                if interval_start.elapsed() >= interval {
-                    let val = if *value.as_ref() == 1.fct() { 0.fct() } else { 1.fct() };
-                    *value = Cow::Owned(val);
-                }
+        let start_time = Instant::now();
 
-                if a.start_time().elapsed() >= timeout {
-                    if *value.as_ref() != 1.fct() {
-                        *value = Cow::Owned(1.fct());
-                    }
-                    a.stop();
-                } else {
-                    a.sleep(interval);
-                }
+        var.sequence(vars, move |vars, var| {
+            let (interval, timeout) = cfg.get();
+            if start_time.elapsed() >= timeout {
+                var.set_ne(vars, 1.fct());
+                return AnimationHandle::dummy();
             }
+
+            let val = if var.get() == 1.fct() { 0.fct() } else { 1.fct() };
+            var.step(vars, val, interval)
         })
         .perm();
+
         var.read_only()
     }
 }

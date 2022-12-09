@@ -534,7 +534,7 @@ mod ansi_view {
     }
 
     /// Default [`PANEL_VIEW_VAR`].
-    /// 
+    ///
     /// Returns a `v_stack!` for multiple pages, or returns the single page, or a nil node.
     pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
         if args.pages.is_empty() {
@@ -544,7 +544,8 @@ mod ansi_view {
         } else {
             crate::widgets::layouts::v_stack! {
                 children = args.pages
-            }.boxed()
+            }
+            .boxed()
         }
     }
 

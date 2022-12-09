@@ -436,6 +436,7 @@ where
 
 pub(super) struct Animations {
     animations: RefCell<Vec<AnimationFn>>,
+    animation_controller: RefCell<Rc<dyn AnimationController>>,
     animation_id: Cell<usize>,
     pub(super) current_modify: RefCell<ModifyInfo>,
     pub(super) animation_start_time: Cell<Option<Instant>>,
@@ -448,6 +449,7 @@ impl Animations {
     pub(crate) fn new() -> Self {
         Self {
             animations: RefCell::default(),
+            animation_controller: RefCell::new(Rc::new(NilAnimationObserver)),
             animation_id: Cell::new(1),
             current_modify: RefCell::new(ModifyInfo {
                 handle: None,
@@ -486,6 +488,9 @@ impl Animations {
                 });
 
                 let mut self_animations = vars.ans.animations.borrow_mut();
+                if !self_animations.is_empty() {
+                    min_sleep = Deadline(info.now);
+                }
                 animations.extend(self_animations.drain(..));
                 *self_animations = animations;
 
@@ -503,6 +508,12 @@ impl Animations {
         if let Some(next_frame) = vars.ans.next_frame.get() {
             timer.register(next_frame);
         }
+    }
+
+    pub(crate) fn with_animation_controller<R>(vars: &Vars, observer: impl AnimationController, action: impl FnOnce() -> R) -> R {
+        let prev_handler = mem::replace(&mut *vars.ans.animation_controller.borrow_mut(), Rc::new(observer));
+        let _restore = crate_util::RunOnDrop::new(move || *vars.ans.animation_controller.borrow_mut() = prev_handler);
+        action()
     }
 
     pub(crate) fn animate<A>(vars: &Vars, mut animation: A) -> AnimationHandle
@@ -579,13 +590,34 @@ impl Animations {
             handle = h;
         };
 
+        let controller = vars.ans.animation_controller.borrow().clone();
+
         let anim = Animation::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
+
+        controller.on_start(vars, &anim);
+
         vars.ans.animations.borrow_mut().push(Box::new(move |vars, info| {
             let _handle_owner = &handle_owner; // capture and own the handle owner.
+
+            // load animation contxt
+            let prev_ctrl = mem::replace(&mut *vars.ans.animation_controller.borrow_mut(), controller.clone());
+            let prev_mod = mem::replace(
+                &mut *vars.ans.current_modify.borrow_mut(),
+                ModifyInfo {
+                    handle: Some(weak_handle.clone()),
+                    importance: id,
+                },
+            );
+            // will restore context after animation and controller updates
+            let _cleanup = crate_util::RunOnDrop::new(|| {
+                *vars.ans.animation_controller.borrow_mut() = prev_ctrl;
+                *vars.ans.current_modify.borrow_mut() = prev_mod;
+            });
 
             if weak_handle.upgrade().is_some() {
                 if anim.stop_requested() {
                     // drop
+                    controller.on_stop(vars, &anim);
                     return None;
                 }
 
@@ -602,15 +634,6 @@ impl Animations {
 
                 anim.reset_state(info.animations_enabled, info.now, info.time_scale);
 
-                let prev = mem::replace(
-                    &mut *vars.ans.current_modify.borrow_mut(),
-                    ModifyInfo {
-                        handle: Some(weak_handle.clone()),
-                        importance: id,
-                    },
-                );
-                let _cleanup = crate_util::RunOnDrop::new(|| *vars.ans.current_modify.borrow_mut() = prev);
-
                 animation(vars, &anim);
 
                 // retain until next frame
@@ -620,6 +643,7 @@ impl Animations {
                 Some(info.next_frame)
             } else {
                 // drop
+                controller.on_stop(vars, &anim);
                 None
             }
         }));
@@ -651,7 +675,7 @@ pub(super) fn var_animate<T: VarValue>(
             // target var can be animated.
 
             let wk_target = target.downgrade();
-            let animate = Rc::new(RefCell::new(animate));
+            let animate = Arc::new(Mutex::new(animate));
 
             return vars.animate(move |vars, args| {
                 // animation
@@ -670,7 +694,7 @@ pub(super) fn var_animate<T: VarValue>(
                     let r = target.modify(
                         vars,
                         clone_move!(animate, args, |value| {
-                            (animate.borrow_mut())(&args, value);
+                            (animate.lock())(&args, value);
                         }),
                     );
 
@@ -686,6 +710,44 @@ pub(super) fn var_animate<T: VarValue>(
         }
     }
     AnimationHandle::dummy()
+}
+
+pub(super) fn var_sequence<T: VarValue, V: Var<T>>(
+    vars: &Vars,
+    target: &V,
+    animate: impl FnMut(&Vars, &<<V::ActualVar as Var<T>>::Downgrade as WeakVar<T>>::Upgrade) -> AnimationHandle + 'static,
+) -> VarHandle {
+    if !target.capabilities().is_always_read_only() {
+        let target = target.clone().actual_var();
+        if !target.capabilities().is_always_read_only() {
+            // target var can be animated.
+
+            let animate = Arc::new(Mutex::new(animate));
+
+            let (handle, handle_hook) = VarHandle::new(Box::new(|_, _, _| true));
+
+            let wk_target = target.downgrade();
+            let controller = OnStopController(clone_move!(animate, wk_target, |vars| {
+                if let Some(target) = wk_target.upgrade() {
+                    if target.modify_importance() <= vars.current_modify().importance()
+                        && handle_hook.is_alive()
+                        && vars.animations_enabled().get()
+                    {
+                        (animate.lock())(vars, &target).perm();
+                    }
+                }
+            }));
+
+            vars.with_animation_controller(controller, || {
+                if let Some(target) = wk_target.upgrade() {
+                    (animate.lock())(vars, &target).perm();
+                }
+            });
+
+            return handle;
+        }
+    }
+    VarHandle::dummy()
 }
 
 pub(super) fn var_set_ease<T>(
@@ -1037,5 +1099,36 @@ impl ModifyInfo {
     /// [`importance`]: Self::importance
     pub fn is_animating(&self) -> bool {
         self.handle.as_ref().map(|h| h.upgrade().is_some()).unwrap_or(false)
+    }
+}
+
+/// Animations observer.
+///
+/// See [`Vars::with_animation_observer`] for more details.
+pub trait AnimationController: Any {
+    /// Animation started.
+    fn on_start(&self, vars: &Vars, animation: &Animation) {
+        let _ = (vars, animation);
+    }
+
+    /// Animation stopped.
+    fn on_stop(&self, vars: &Vars, animation: &Animation) {
+        let _ = (vars, animation);
+    }
+}
+
+/// An [`AnimationController`] that does nothing.
+pub struct NilAnimationObserver;
+impl AnimationController for NilAnimationObserver {}
+
+struct OnStopController<F>(F)
+where
+    F: Fn(&Vars) + 'static;
+impl<F> AnimationController for OnStopController<F>
+where
+    F: Fn(&Vars) + 'static,
+{
+    fn on_stop(&self, vars: &Vars, _: &Animation) {
+        (self.0)(vars)
     }
 }
