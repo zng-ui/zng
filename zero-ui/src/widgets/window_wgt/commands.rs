@@ -18,6 +18,8 @@ pub(super) fn inspect_node(
     child: impl crate::core::widget_instance::UiNode,
     can_inspect: impl crate::core::var::IntoVar<bool>,
 ) -> impl crate::core::widget_instance::UiNode {
+    use zero_ui_core::window::{WindowIcon, WindowVars};
+
     use crate::{
         core::{
             color::ColorScheme,
@@ -52,23 +54,32 @@ pub(super) fn inspect_node(
             let txt = inspector_state.ansi_string_update(ctx.info_tree);
             inspector_text.set_ne(ctx, txt);
 
-            let parent = ctx.path.window_id();
+            let inspected = ctx.path.window_id();
+            let parent = WindowVars::req(ctx).parent().get().unwrap_or(inspected);
             Windows::req(ctx).focus_or_open(
                 inspector_id,
                 clone_move!(inspector_text, |ctx| {
-                    let tree = Windows::req(ctx.services).widget_tree(parent);
-                    let title = if let Some(title) = tree.unwrap().root().inspect_property(property_id!(crate::widgets::window::title)) {
+                    use crate::widgets::*;
+
+                    let tree = Windows::req(ctx.services).widget_tree(inspected);
+                    let title = if let Some(title) = tree.unwrap().root().inspect_property(property_id!(window::title)) {
                         title.downcast_var::<Text>(0).map(|t| formatx!("{t} - Inspector")).boxed()
                     } else {
                         var_from("Inspector").boxed()
                     };
+                    let icon = if let Some(icon) = tree.unwrap().root().inspect_property(property_id!(window::icon)) {
+                        icon.downcast_var::<WindowIcon>(0).clone().boxed()
+                    } else {
+                        var(WindowIcon::Default).boxed()
+                    };
 
-                    crate::widgets::window! {
+                    window! {
                         parent;
                         title;
+                        icon;
                         color_scheme = ColorScheme::Dark;
-                        child = crate::widgets::scroll! {
-                            child = crate::widgets::ansi_text! { txt = inspector_text; };
+                        child = scroll! {
+                            child = ansi_text! { txt = inspector_text; };
                             mode = ScrollMode::VERTICAL;
                             child_align = Align::TOP_LEFT;
                             padding = 5;

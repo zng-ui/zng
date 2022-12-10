@@ -140,6 +140,19 @@ impl WriteTreeState {
                 },
             );
         }
+        if info.parent().is_none() {
+            fmt.write_property(
+                "computed",
+                "window_id",
+                false,
+                false,
+                print_fmt::Diff {
+                    value: formatx!("{:?}", info.tree().window_id()),
+                    changed: false,
+                },
+            );
+        }
+
         let outer_bounds = info.outer_bounds();
         fmt.write_property(
             "computed",

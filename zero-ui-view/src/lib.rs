@@ -965,10 +965,8 @@ impl App {
         // An Example:
         // In Windows +LShift +RShift -LShift -RShift only generates +LShift +RShift -RShift, notice the missing -LShift.
 
-        if mem::take(&mut self.pending_modifiers_focus_clear) {
-            if self.windows.iter().all(|w| !w.is_focused()) {
-                self.pressed_modifiers.clear();
-            }
+        if mem::take(&mut self.pending_modifiers_focus_clear) && self.windows.iter().all(|w| !w.is_focused()) {
+            self.pressed_modifiers.clear();
         }
 
         if let Some(m) = self.pending_modifiers_update.take() {
