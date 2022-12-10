@@ -192,7 +192,6 @@ impl AppExtension for KeyboardManager {
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
-            println!("!!: {:?}", (args.key, args.state));
             let focused = Focus::req(ctx.services).focused().get();
             let keyboard = Keyboard::req(ctx.services);
             keyboard.key_input(ctx.events, ctx.vars, args, focused);

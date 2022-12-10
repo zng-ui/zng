@@ -90,7 +90,7 @@
 //! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
 
 use std::{
-    fmt, thread,
+    fmt, mem, thread,
     time::{Duration, Instant},
 };
 
@@ -333,6 +333,7 @@ pub(crate) struct App {
 
     pressed_modifiers: linear_map::LinearMap<Key, (DeviceId, ScanCode)>,
     pending_modifiers_update: Option<ModifiersState>,
+    pending_modifiers_focus_clear: bool,
 
     exited: bool,
 }
@@ -579,6 +580,7 @@ impl App {
             skip_ralt: false,
             pressed_modifiers: linear_map::LinearMap::new(),
             pending_modifiers_update: None,
+            pending_modifiers_focus_clear: false,
         }
     }
 
@@ -764,7 +766,7 @@ impl App {
                     if focused {
                         self.notify(Event::FocusChanged { prev: None, new: Some(id) });
                     } else {
-                        self.pressed_modifiers.clear();
+                        self.pending_modifiers_focus_clear = true;
                         self.notify(Event::FocusChanged { prev: Some(id), new: None });
                     }
                 }
@@ -962,6 +964,12 @@ impl App {
         //
         // An Example:
         // In Windows +LShift +RShift -LShift -RShift only generates +LShift +RShift -RShift, notice the missing -LShift.
+
+        if mem::take(&mut self.pending_modifiers_focus_clear) {
+            if self.windows.iter().all(|w| !w.is_focused()) {
+                self.pressed_modifiers.clear();
+            }
+        }
 
         if let Some(m) = self.pending_modifiers_update.take() {
             if let Some(id) = self.windows.iter().find(|w| w.is_focused()).map(|w| w.id()) {
