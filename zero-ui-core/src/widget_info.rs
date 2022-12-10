@@ -309,6 +309,8 @@ struct WidgetBoundsData {
     child_offset: PxVector,
     offsets_pass: LayoutPassId,
 
+    inline: Option<InlineLayout>,
+
     childs_changed: bool,
 
     measure_outer_size: PxSize,
@@ -473,6 +475,11 @@ impl WidgetBoundsInfo {
     /// Gets the global transform of the widget's inner bounds during the last render or render update.
     pub fn inner_transform(&self) -> PxTransform {
         self.0.lock().inner_transform
+    }
+
+    /// Gets the inline layout info.
+    pub fn inline(&self) -> Option<InlineLayout> {
+        self.0.lock().inline
     }
 
     /// Gets the widget's latest render info, if it was rendered visible or hidden. Returns `None` if the widget was collapsed.
@@ -736,6 +743,10 @@ impl WidgetBoundsInfo {
 
     fn set_outer_size(&self, size: PxSize) {
         self.0.lock().outer_size = size;
+    }
+
+    fn set_inline(&self, inline: Option<InlineLayout>) {
+        self.0.lock().inline = inline;
     }
 
     pub(crate) fn set_measure_outer_size(&self, size: PxSize) {

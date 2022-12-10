@@ -1,8 +1,3 @@
-# Nested Animation Changes
-
-* New handle for each animation.
-* Shared importance for nested animations.
-
 * Can't scroll with wheel in inspector window after it is focused by parent.
 
 * `wrap!` bugs:
@@ -20,37 +15,6 @@
         - Remove `Services`.
 * Review all docs.
     - Mentions of threads in particular.
-
-```rust
-use zero_ui::prelude::*;
-
-fn main() {
-    examples_util::print_info();
-    zero_ui_view::init();
-
-    App::default().run_window(|_| {
-        window! {
-            padding = 20;
-            child = text_wrap();
-        }
-    });
-}
-
-fn text_wrap() -> impl UiNode {
-    wrap! {
-        children = ui_list![
-            text! {
-                txt = "Lorem ipsum dolor sit amet, ne duo fugit atomorum maiestatis, vim harum ridens nusquam ei. Sit suas ";
-                background_color = colors::LIGHT_SALMON;
-            },
-            text! {
-                txt = "denique scriptorem";
-                background_color = colors::LIGHT_PINK;
-            },
-        ]
-    }
-}
-```
 
 # Other
 

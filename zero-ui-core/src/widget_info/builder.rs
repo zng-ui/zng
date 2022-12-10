@@ -472,17 +472,30 @@ impl WidgetLayout {
 
         let snap = ctx.metrics.snapshot();
         let mut uses = ctx.widget_info.bounds.metrics_used();
-        let size;
+        let mut size = PxSize::zero();
+        let mut reused = false;
 
         if reuse && ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
             size = ctx.widget_info.bounds.outer_size();
-        } else {
+            if let Some(inline) = self.inline() {
+                if let Some(prev) = ctx.widget_info.bounds.inline() {
+                    *inline = prev;
+                    reused = true;
+                }
+            } else {
+                reused = ctx.widget_info.bounds.inline().is_none();
+            }
+        }
+
+        if !reused {
             let parent_uses = ctx.metrics.enter_widget_ctx();
             size = layout(ctx, self);
             uses = ctx.metrics.exit_widget_ctx(parent_uses);
 
             ctx.widget_info.bounds.set_outer_size(size);
-        };
+            ctx.widget_info.bounds.set_inline(self.wm.inline);
+        }
+
         ctx.widget_info.bounds.set_metrics(Some(snap), uses);
 
         // setup returning translations target.
