@@ -495,12 +495,7 @@ mod ansi_view {
 
             let interval = BLINK_INTERVAL_VAR.get();
             if interval != Duration::ZERO && interval != Duration::MAX {
-                opacity
-                    .sequence(vars, move |vars, var| {
-                        let val = if var.get() == 1.fct() { 0.fct() } else { 1.fct() };
-                        var.step(vars, val, interval)
-                    })
-                    .perm();
+                opacity.step_oci(vars, 0.fct(), interval, usize::MAX).perm();
 
                 builder.push_property(
                     Importance::INSTANCE,

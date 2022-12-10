@@ -280,7 +280,7 @@ impl VarHook {
 #[must_use = "var handle stops the behaviour it represents on drop"]
 pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
-    /// New handle, the `action` depends on the behaviour the handle represents.
+    /// New handle, the `action` depends on the behavior the handle represents.
     fn new(action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
         let c = Arc::new(VarHandleData {
             perm: AtomicBool::new(false),
@@ -1706,6 +1706,17 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         N: Into<T>,
     {
         self.animate(vars, animation::var_step_ne(new_value.into(), delay))
+    }
+
+    /// Oscillate between the current value and `new_value`, every time the `delay` elapses the variable is set to the next value.
+    ///
+    /// The variable will be set a maximum of `count` times.
+    fn step_oci<V, N>(&self, vars: &V, new_value: N, delay: Duration, count: usize) -> animation::AnimationHandle
+    where
+        V: WithVars,
+        N: Into<T>,
+    {
+        self.animate(vars, animation::var_step_oci([self.get(), new_value.into()], delay, count))
     }
 
     /// Set the variable to a sequence of values as a time `duration` elapses.

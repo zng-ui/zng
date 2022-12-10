@@ -4,6 +4,7 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
+use std::borrow::Cow;
 use std::time::{Duration, Instant};
 
 use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
@@ -12,7 +13,6 @@ use crate::event::*;
 use crate::focus::Focus;
 use crate::service::*;
 use crate::units::*;
-use crate::var::animation::AnimationHandle;
 use crate::var::{var, var_default, ArcVar, ReadOnlyArcVar, Var, Vars, WithVars};
 use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
@@ -434,17 +434,24 @@ impl Keyboard {
         let var = var(1.fct());
         let cfg = self.caret_animation_config.clone();
 
-        let start_time = Instant::now();
+        let zero = 0.fct();
+        let one = 1.fct();
 
-        var.sequence(vars, move |vars, var| {
+        var.animate(vars, move |anim, val| {
             let (interval, timeout) = cfg.get();
-            if start_time.elapsed() >= timeout {
-                var.set_ne(vars, 1.fct());
-                return AnimationHandle::dummy();
+            if anim.start_time().elapsed() >= timeout {
+                if **val != one {
+                    *val = Cow::Owned(one);
+                }
+                anim.stop();
+            } else {
+                if **val == one {
+                    *val = Cow::Owned(zero);
+                } else {
+                    *val = Cow::Owned(one);
+                }
+                anim.sleep(interval);
             }
-
-            let val = if var.get() == 1.fct() { 0.fct() } else { 1.fct() };
-            var.step(vars, val, interval)
         })
         .perm();
 

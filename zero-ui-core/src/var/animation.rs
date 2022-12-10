@@ -846,6 +846,30 @@ where
     }
 }
 
+pub(super) fn var_step_oci<T>(values: [T; 2], delay: Duration, mut count: usize) -> impl FnMut(&Animation, &mut Cow<T>)
+where
+    T: VarValue,
+{
+    let mut first = false;
+    move |a, value| {
+        if !a.animations_enabled() || a.elapsed_dur() >= delay {
+            if first {
+                *value = Cow::Owned(values[0].clone());
+            } else {
+                *value = Cow::Owned(values[1].clone());
+            }
+            first = !first;
+
+            if count == 0 {
+                a.stop();
+            } else {
+                count -= 1;
+            }
+        }
+        a.sleep(delay);
+    }
+}
+
 pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut Cow<T>)
 where
     T: VarValue + PartialEq,
