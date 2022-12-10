@@ -58,3 +58,14 @@
 
 * Let multiple text widgets share a single text, dynamically splitting the text as each widget fills.
     - This allows complex for complex magazine formatting.
+
+# ANSI Text
+
+* Line numbers.
+* Virtualization, only parse/generate visible pages.
+
+# Wrap
+
+* Implement line alignment for `wrap!`. Right now variable font rows don't align.
+* Wrapped text background does not look right, need to track every line in `InlineLayout`?
+* 

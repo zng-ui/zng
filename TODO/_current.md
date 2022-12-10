@@ -1,14 +1,6 @@
 * Image render requests a parent window, it causes errors because window with parents can't be parent of the image headless window.
     - We need the parent to load the right color-scheme in the image.
 
-* `ansi_text!` line numbers.
-* `ansi_text!` virtualize.
-
-* `wrap!` bugs:
-    - Need to track row height?
-    - Need to track all rows in the `InlineLayout`?
-    - Does not grow to fit children when possible.
-
 * Implement `markdown!`.
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

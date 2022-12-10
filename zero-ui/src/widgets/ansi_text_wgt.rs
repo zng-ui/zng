@@ -2,7 +2,9 @@ use zero_ui::prelude::new_widget::*;
 
 /// Render text styled using ANSI scale sequences.
 ///
-/// Supports color, weight and italic.
+/// Supports color, weight, italic and more, see [`AnsiStyle`] for the full style supported.
+/// 
+/// [`AnsiStyle`]: ansi_text::AnsiStyle
 #[widget($crate::widgets::ansi_text)]
 pub mod ansi_text {
     use super::*;
@@ -173,6 +175,10 @@ mod ansi_parse {
     }
 
     /// Iterator that parses ANSI escape codes.
+    /// 
+    /// This is the pull style parser used internally by the [`ansi_text!`] widget.
+    /// 
+    /// [`ansi_text!`]: mod@crate::widgets::ansi_text
     pub struct AnsiTextParser<'a> {
         source: &'a str,
         /// Current style.
@@ -610,7 +616,7 @@ mod ansi_view {
     }
 }
 
-/// Implements the ANSI rendering, configured by contextual properties.
+/// Implements the ANSI parsing and view generation, configured by contextual properties.
 pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
     #[ui_node(struct AnsiNode {
         child: BoxedUiNode,

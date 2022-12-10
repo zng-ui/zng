@@ -82,6 +82,7 @@ bitflags = "1"
 linear-map = "1"
 serde = "1"
 pretty-type-name = "1"
+pulldown-cmark = "0.9"
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "zero-ui-core/src/doc/html-in-header.html" ]
