@@ -45,9 +45,7 @@ pub(super) fn inspect_node(
             if let Some(inspected) = inspector_window::inspected(ctx) {
                 // can't inspect inspector window, redirect command to inspected
                 INSPECT_CMD.scoped(inspected).notify(ctx);
-                println!("!!: HERE!");
             } else {
-                println!("!!: HERE ELSE!");
                 let txt = inspector_state.ansi_string_update(ctx.info_tree);
                 inspector_text.set_ne(ctx, txt);
                 let inspected = ctx.path.window_id();
