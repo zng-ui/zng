@@ -1,4 +1,6 @@
-* Don't inspect inspector window.
+* Image render requests a parent window, it causes errors because window with parents can't be parent of the image headless window.
+    - We need the parent to load the right color-scheme in the image.
+
 * `ansi_text!` line numbers.
 * `ansi_text!` virtualize.
 
