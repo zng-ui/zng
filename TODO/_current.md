@@ -1,4 +1,5 @@
 * Can't scroll with wheel in inspector window after it is focused by parent.
+    - Caused by keyboard modified not clearing.
 
 * `wrap!` bugs:
     - Need to track row height?
