@@ -66,6 +66,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
                 || LIST_VIEW_VAR.is_new(ctx)
                 || LIST_ITEM_VIEW_VAR.is_new(ctx)
                 || IMAGE_VIEW_VAR.is_new(ctx)
+                || RULE_VIEW_VAR.is_new(ctx)
                 || PANEL_VIEW_VAR.is_new(ctx)
                 || IMAGE_RESOLVER_VAR.is_new(ctx)
             {
@@ -102,6 +103,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let list_view = LIST_VIEW_VAR.get();
     let list_item_view = LIST_ITEM_VIEW_VAR.get();
     let image_view = IMAGE_VIEW_VAR.get();
+    let rule_view = RULE_VIEW_VAR.get();
     let image_resolver = IMAGE_RESOLVER_VAR.get();
 
     let mut blocks = vec![];
@@ -239,7 +241,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
             Event::FootnoteReference(_) => {}
             Event::SoftBreak => {}
             Event::HardBreak => {}
-            Event::Rule => {}
+            Event::Rule => {
+                blocks.push(rule_view.generate(ctx, RuleViewArgs {}));
+            }
             Event::TaskListMarker(c) => {
                 list_item_checked = Some(c);
             }
@@ -332,6 +336,11 @@ mod markdown_view {
         pub alt_items: UiNodeVec,
     }
 
+    /// Arguments for a markdown rule view.
+    ///
+    /// Currently no args.
+    pub struct RuleViewArgs {}
+
     /// Arguments for a markdown panel.
     ///
     /// See [`PANEL_VIEW_VAR`] for more details.
@@ -358,6 +367,9 @@ mod markdown_view {
 
         /// View generator for a markdown image.
         pub static IMAGE_VIEW_VAR: ViewGenerator<ImageViewArgs> = ViewGenerator::new(|_, args| default_image_view(args));
+
+        /// View generator for a markdown rule line.
+        pub static RULE_VIEW_VAR: ViewGenerator<RuleViewArgs> = ViewGenerator::new(|_, args| default_rule_view(args));
 
         /// View generator for a markdown panel.
         pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
@@ -409,6 +421,14 @@ mod markdown_view {
     #[property(CONTEXT, default(IMAGE_VIEW_VAR))]
     pub fn image_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ImageViewArgs>>) -> impl UiNode {
         with_context_var(child, IMAGE_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`RuleViewArgs`] to widgets.
+    ///
+    /// Sets the [`RULE_VIEW_VAR`].
+    #[property(CONTEXT, default(RULE_VIEW_VAR))]
+    pub fn rule_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<RuleViewArgs>>) -> impl UiNode {
+        with_context_var(child, RULE_VIEW_VAR, view)
     }
 
     /// View generator that converts [`PanelViewArgs`] to a widget.
@@ -573,7 +593,7 @@ mod markdown_view {
     /// Default image view.
     ///
     /// See [`IMAGE_VIEW_VAR`] for more details.
-    fn default_image_view(args: ImageViewArgs) -> impl UiNode {
+    pub fn default_image_view(args: ImageViewArgs) -> impl UiNode {
         let mut alt_items = args.alt_items;
         if alt_items.is_empty() {
             crate::widgets::image! {
@@ -598,6 +618,13 @@ mod markdown_view {
                 });
             }
         }
+    }
+
+    /// Default rule view.
+    ///
+    /// See [`RULE_VIEW_VAR`] for more details.
+    pub fn default_rule_view(_: RuleViewArgs) -> impl UiNode {
+        crate::widgets::hr!()
     }
 
     /// Default markdown panel.
