@@ -65,7 +65,9 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
                 || HEADING_VIEW_VAR.is_new(ctx)
                 || LIST_VIEW_VAR.is_new(ctx)
                 || LIST_ITEM_VIEW_VAR.is_new(ctx)
+                || IMAGE_VIEW_VAR.is_new(ctx)
                 || PANEL_VIEW_VAR.is_new(ctx)
+                || IMAGE_RESOLVER_VAR.is_new(ctx)
             {
                 self.child.deinit(ctx);
                 self.generate_child(ctx);
@@ -99,6 +101,8 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let paragraph_view = PARAGRAPH_VIEW_VAR.get();
     let list_view = LIST_VIEW_VAR.get();
     let list_item_view = LIST_ITEM_VIEW_VAR.get();
+    let image_view = IMAGE_VIEW_VAR.get();
+    let image_resolver = IMAGE_RESOLVER_VAR.get();
 
     let mut blocks = vec![];
     let mut inlines = vec![];
@@ -200,7 +204,16 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     strikethrough -= 1;
                 }
                 Tag::Link(_, _, _) => {}
-                Tag::Image(_, _, _) => {}
+                Tag::Image(_, url, title) => {
+                    blocks.push(image_view.generate(
+                        ctx,
+                        ImageViewArgs {
+                            source: image_resolver.resolve(&url),
+                            title: title.to_text(),
+                            alt_items: mem::take(&mut inlines).into(),
+                        },
+                    ));
+                }
             },
             Event::Text(txt) => {
                 inlines.push(
@@ -233,7 +246,10 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
 }
 
 mod markdown_view {
+    use std::{fmt, sync::Arc};
+
     pub use pulldown_cmark::HeadingLevel;
+    use zero_ui_core::image::ImageSource;
 
     use crate::widgets::text::PARAGRAPH_SPACING_VAR;
 
@@ -297,6 +313,18 @@ mod markdown_view {
         pub items: UiNodeVec,
     }
 
+    /// Arguments for a markdown image view.
+    pub struct ImageViewArgs {
+        /// Image, resolved by the [`image_resolver`].
+        ///
+        /// [`image_resolver`]: fn@image_resolver
+        pub source: ImageSource,
+        /// Image title, usually displayed as a tool-tip.
+        pub title: Text,
+        /// Items to display when the image does not load and for screen readers.
+        pub alt_items: UiNodeVec,
+    }
+
     /// Arguments for a markdown panel.
     ///
     /// See [`PANEL_VIEW_VAR`] for more details.
@@ -320,6 +348,9 @@ mod markdown_view {
 
         /// View generator for a markdown list item.
         pub static LIST_ITEM_VIEW_VAR: ViewGenerator<ListItemViewArgs> = ViewGenerator::new(|_, args| default_list_item_view(args));
+
+        /// View generator for a markdown image.
+        pub static IMAGE_VIEW_VAR: ViewGenerator<ImageViewArgs> = ViewGenerator::new(|_, args| default_image_view(args));
 
         /// View generator for a markdown panel.
         pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
@@ -363,6 +394,14 @@ mod markdown_view {
     #[property(CONTEXT, default(LIST_ITEM_VIEW_VAR))]
     pub fn list_item_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListItemViewArgs>>) -> impl UiNode {
         with_context_var(child, LIST_ITEM_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`ImageViewArgs`] to widgets.
+    ///
+    /// Sets the [`IMAGE_VIEW_VAR`].
+    #[property(CONTEXT, default(IMAGE_VIEW_VAR))]
+    pub fn image_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ImageViewArgs>>) -> impl UiNode {
+        with_context_var(child, IMAGE_VIEW_VAR, view)
     }
 
     /// View generator that converts [`PanelViewArgs`] to a widget.
@@ -511,6 +550,36 @@ mod markdown_view {
         }
     }
 
+    /// Default image view.
+    ///
+    /// See [`IMAGE_VIEW_VAR`] for more details.
+    fn default_image_view(args: ImageViewArgs) -> impl UiNode {
+        let mut alt_items = args.alt_items;
+        if alt_items.is_empty() {
+            crate::widgets::image! {
+                align = Align::TOP_LEFT;
+                source = args.source;
+            }
+        } else {
+            let alt_items = if alt_items.len() == 1 {
+                alt_items.remove(0)
+            } else {
+                crate::widgets::layouts::wrap! {
+                    children = alt_items;
+                }
+                .boxed()
+            };
+            let alt_items = crate::core::widget_instance::ArcNode::new(alt_items);
+            crate::widgets::image! {
+                align = Align::TOP_LEFT;
+                source = args.source;
+                img_error_view = view_generator!(|_, _| {
+                    alt_items.take_on_init()
+                });
+            }
+        }
+    }
+
     /// Default markdown panel.
     ///
     /// See [`PANEL_VIEW_VAR`] for more details.
@@ -526,5 +595,59 @@ mod markdown_view {
             }
             .boxed()
         }
+    }
+
+    /// Markdown image resolver.
+    ///
+    /// See [`IMAGE_RESOLVER_VAR`] for more details.
+    #[derive(Clone)]
+    pub enum ImageResolver {
+        /// No extra resolution, just convert into [`ImageSource`].
+        None,
+        /// Custom resolution.
+        Resolve(Arc<dyn Fn(&str) -> ImageSource + Send + Sync>),
+    }
+    impl ImageResolver {
+        /// Apply the text transform.
+        pub fn resolve(&self, img: &str) -> ImageSource {
+            match self {
+                ImageResolver::None => img.into(),
+                ImageResolver::Resolve(r) => r(img),
+            }
+        }
+
+        /// New [`Resolve`](Self::Resolve).
+        pub fn new(fn_: impl Fn(&str) -> ImageSource + Send + Sync + 'static) -> Self {
+            ImageResolver::Resolve(Arc::new(fn_))
+        }
+    }
+    impl fmt::Debug for ImageResolver {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            if f.alternate() {
+                write!(f, "ImgSourceResolver::")?;
+            }
+            match self {
+                ImageResolver::None => write!(f, "None"),
+                ImageResolver::Resolve(_) => write!(f, "Resolve(_)"),
+            }
+        }
+    }
+
+    context_var! {
+        /// Markdown image resolver.
+        pub static IMAGE_RESOLVER_VAR: ImageResolver = ImageResolver::None;
+    }
+
+    /// Markdown image resolver.
+    ///
+    /// This can be used to override image source resolution, by default the image URL or URI is passed as parsed to the [`image_view`].
+    ///
+    /// Note that image downloads are blocked by default, you can enable this by using the [`image::img_limits`] property.
+    ///
+    /// [`image_view`]: fn@image_view
+    /// [`image::img_limits`]: fn@crate::widgets::image::img_limits
+    #[property(CONTEXT, default(IMAGE_RESOLVER_VAR))]
+    pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>) -> impl UiNode {
+        with_context_var(child, IMAGE_RESOLVER_VAR, resolver)
     }
 }

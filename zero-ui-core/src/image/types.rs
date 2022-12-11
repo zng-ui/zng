@@ -16,7 +16,7 @@ use crate::{
     task::{self, SignalOnce},
     text::Text,
     units::*,
-    var::{AnyVar, ReadOnlyArcVar},
+    var::{AnyVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar},
     widget_instance::UiNode,
     window::{FrameCaptureMode, Window, WindowId, WindowVars},
 };
@@ -916,7 +916,7 @@ impl<U: 'static> ops::BitOrAssign for ImageSourceFilter<U> {
 ///
 /// Only absolute, normalized paths are shared with the [`Custom`] filter, there is no relative paths or `..` components.
 ///
-/// The paths are **not** canonicalized or checked if exists as a file, no system requests are made with unfiltered paths.
+/// The paths are **not** canonicalized and existence is not verified, no system requests are made with unfiltered paths.
 ///
 /// See [`ImageLimits::allow_path`] for more information.
 ///
@@ -1070,3 +1070,11 @@ impl Default for ImageLimits {
         }
     }
 }
+impl IntoVar<Option<ImageLimits>> for ImageLimits {
+    type Var = LocalVar<Option<ImageLimits>>;
+
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self))
+    }
+}
+impl IntoValue<Option<ImageLimits>> for ImageLimits {}

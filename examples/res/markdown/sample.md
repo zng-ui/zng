@@ -34,7 +34,7 @@ Task lists:
 
 Image from local file:
 
-![two hummingbirds, flying, looking at each other](../image/zdenek-machacek-unsplash.jpg)
+![two hummingbirds, flying, looking at each other](../image/zdenek-machacek-unsplash.jpg "Title text")
 
 Image from the web:
 
