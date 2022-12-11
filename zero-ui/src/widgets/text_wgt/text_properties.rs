@@ -42,7 +42,7 @@ context_var! {
     pub static WORD_SPACING_VAR: WordSpacing = WordSpacing::Default;
 
     /// Extra paragraph spacing of text blocks.
-    pub static PARAGRAPH_SPACING_VAR: ParagraphSpacing = Length::Px(Px(0));
+    pub static PARAGRAPH_SPACING_VAR: ParagraphSpacing = 1.em();
 
     /// Configuration of line breaks inside words during text wrap.
     pub static WORD_BREAK_VAR: WordBreak = WordBreak::Normal;

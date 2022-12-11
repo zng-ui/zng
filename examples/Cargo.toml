@@ -73,6 +73,10 @@ name = "layer"
 path = "layer.rs"
 
 [[example]]
+name = "markdown"
+path = "markdown.rs"
+
+[[example]]
 name = "respawn"
 path = "respawn.rs"
 

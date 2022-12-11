@@ -16,7 +16,10 @@ pub mod markdown {
     pub use super::markdown_view::*;
 
     #[doc(inline)]
-    pub use super::markdown_style::*;
+    pub use super::markdown_view::*;
+
+    #[doc(no_inline)]
+    pub use crate::widgets::text::{line_spacing, paragraph_spacing};
 
     properties! {
         /// Markdown text.
@@ -31,8 +34,6 @@ pub mod markdown {
         });
     }
 }
-
-mod markdown_view {}
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.
 pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
@@ -58,7 +59,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             use markdown_view::*;
 
-            if self.md.is_new(ctx) {
+            if self.md.is_new(ctx) || TEXT_VIEW_VAR.is_new(ctx) || PARAGRAPH_VIEW_VAR.is_new(ctx) || PANEL_VIEW_VAR.is_new(ctx) {
                 self.child.deinit(ctx);
                 self.generate_child(ctx);
                 self.child.init(ctx);
@@ -79,7 +80,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
 }
 
 fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
-    use markdown_style::*;
+    use markdown_view::*;
     use pulldown_cmark::*;
 
     let mut strong = 0;
@@ -87,10 +88,11 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut strikethrough = 0;
 
     let text_view = TEXT_VIEW_VAR.get();
+    let heading_view = HEADING_VIEW_VAR.get();
     let paragraph_view = PARAGRAPH_VIEW_VAR.get();
 
-    let mut paragraphs = vec![];
-    let mut inline = vec![];
+    let mut blocks = vec![];
+    let mut inlines = vec![];
 
     for item in Parser::new_ext(md, Options::all()) {
         match item {
@@ -120,17 +122,27 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
             },
             Event::End(tag) => match tag {
                 Tag::Paragraph => {
-                    if !inline.is_empty() {
-                        paragraphs.push(paragraph_view.generate(
+                    if !inlines.is_empty() {
+                        blocks.push(paragraph_view.generate(
                             ctx,
                             ParagraphViewArgs {
-                                index: paragraphs.len() as u32,
-                                items: mem::take(&mut inline).into(),
+                                index: blocks.len() as u32,
+                                items: mem::take(&mut inlines).into(),
                             },
                         ));
                     }
                 }
-                Tag::Heading(_, _, _) => {}
+                Tag::Heading(level, _, _) => {
+                    if !inlines.is_empty() {
+                        blocks.push(heading_view.generate(
+                            ctx,
+                            HeadingViewArgs {
+                                level,
+                                items: mem::take(&mut inlines).into(),
+                            },
+                        ))
+                    }
+                }
                 Tag::BlockQuote => {}
                 Tag::CodeBlock(_) => {}
                 Tag::List(_) => {}
@@ -153,7 +165,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 Tag::Image(_, _, _) => {}
             },
             Event::Text(txt) => {
-                inline.push(
+                inlines.push(
                     text_view
                         .generate(
                             ctx,
@@ -179,13 +191,14 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
         }
     }
 
-    // !!: TODO PANEL_VIEW_VAR
-    crate::widgets::layouts::v_stack! {
-        children = paragraphs;
-    }
+    PANEL_VIEW_VAR.get().generate(ctx, PanelViewArgs { items: blocks.into() })
 }
 
-mod markdown_style {
+mod markdown_view {
+    pub use pulldown_cmark::HeadingLevel;
+
+    use crate::widgets::text::PARAGRAPH_SPACING_VAR;
+
     use super::*;
 
     /// Markdown text run style.
@@ -200,6 +213,8 @@ mod markdown_style {
     }
 
     /// Arguments for a markdown text view.
+    ///
+    /// The text can be inside a paragraph or heading.
     ///
     /// See [`TEXT_VIEW_VAR`] for more details.
     pub struct TextViewArgs {
@@ -219,12 +234,35 @@ mod markdown_style {
         pub items: UiNodeVec,
     }
 
+    /// Arguments for a markdown heading view.
+    pub struct HeadingViewArgs {
+        /// Level.
+        pub level: HeadingLevel,
+
+        /// Inline items.
+        pub items: UiNodeVec,
+    }
+
+    /// Arguments for a markdown panel.
+    ///
+    /// See [`PANEL_VIEW_VAR`] for more details.
+    pub struct PanelViewArgs {
+        /// Block items.
+        pub items: UiNodeVec,
+    }
+
     context_var! {
         /// View generator for a markdown text segment.
         pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = ViewGenerator::new(|_, args| default_text_view(args));
 
         /// View generator for a markdown paragraph.
         pub static PARAGRAPH_VIEW_VAR: ViewGenerator<ParagraphViewArgs> = ViewGenerator::new(|_, args| default_paragraph_view(args));
+
+        /// View generator for a markdown heading.
+        pub static HEADING_VIEW_VAR: ViewGenerator<HeadingViewArgs> = ViewGenerator::new(|_, args| default_heading_view(args));
+
+        /// View generator for a markdown panel.
+        pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
     }
 
     /// View generator that converts [`TextViewArgs`] to widgets.
@@ -241,6 +279,26 @@ mod markdown_style {
     #[property(CONTEXT, default(PARAGRAPH_VIEW_VAR))]
     pub fn paragraph_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ParagraphViewArgs>>) -> impl UiNode {
         with_context_var(child, PARAGRAPH_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`HeadingViewArgs`] to widgets.
+    ///
+    /// Sets the [`HEADING_VIEW_VAR`].
+    #[property(CONTEXT, default(HEADING_VIEW_VAR))]
+    pub fn heading_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<HeadingViewArgs>>) -> impl UiNode {
+        with_context_var(child, HEADING_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`PanelViewArgs`] to a widget.
+    ///
+    /// This generates the panel that contains all markdown blocks, it is the child of the [`markdown!`] widget.
+    ///
+    /// Sets the [`PANEL_VIEW_VAR`].
+    ///
+    /// [`markdown!`]: mod@crate::widgets::markdown
+    #[property(CONTEXT, default(PANEL_VIEW_VAR))]
+    pub fn panel_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<PanelViewArgs>>) -> impl UiNode {
+        with_context_var(child, PANEL_VIEW_VAR, view)
     }
 
     /// Default text view.
@@ -297,6 +355,45 @@ mod markdown_style {
             args.items.remove(0)
         } else {
             crate::widgets::layouts::wrap! {
+                children = args.items;
+            }
+            .boxed()
+        }
+    }
+
+    /// Default heading view.
+    ///
+    /// See [`HEADING_VIEW_VAR`] for more details.
+    pub fn default_heading_view(args: HeadingViewArgs) -> impl UiNode {
+        if args.items.is_empty() {
+            NilUiNode.boxed()
+        } else {
+            crate::widgets::layouts::wrap! {
+                font_size = match args.level {
+                    HeadingLevel::H1 => 2.em(),
+                    HeadingLevel::H2 => 1.5.em(),
+                    HeadingLevel::H3 => 1.4.em(),
+                    HeadingLevel::H4 => 1.3.em(),
+                    HeadingLevel::H5 => 1.2.em(),
+                    HeadingLevel::H6 => 1.1.em()
+                };
+                children = args.items;
+            }
+            .boxed()
+        }
+    }
+
+    /// Default markdown panel.
+    ///
+    /// See [`PANEL_VIEW_VAR`] for more details.
+    pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
+        if args.items.is_empty() {
+            NilUiNode.boxed()
+        } else if args.items.len() == 1 {
+            args.items.remove(0)
+        } else {
+            crate::widgets::layouts::v_stack! {
+                spacing = PARAGRAPH_SPACING_VAR;
                 children = args.items;
             }
             .boxed()
