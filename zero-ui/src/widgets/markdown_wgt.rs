@@ -107,6 +107,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut blocks = vec![];
     let mut inlines = vec![];
     let mut list_item_num = None;
+    let mut list_item_checked = None;
     let mut list_items = vec![];
 
     for item in Parser::new_ext(md, Options::all()) {
@@ -185,6 +186,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         ctx,
                         ListItemViewArgs {
                             num,
+                            checked: list_item_checked.take(),
                             items: mem::take(&mut inlines).into(),
                         },
                     ));
@@ -238,7 +240,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
             Event::SoftBreak => {}
             Event::HardBreak => {}
             Event::Rule => {}
-            Event::TaskListMarker(_) => {}
+            Event::TaskListMarker(c) => {
+                list_item_checked = Some(c);
+            }
         }
     }
 
@@ -251,7 +255,7 @@ mod markdown_view {
     pub use pulldown_cmark::HeadingLevel;
     use zero_ui_core::image::ImageSource;
 
-    use crate::widgets::text::PARAGRAPH_SPACING_VAR;
+    use crate::widgets::text::{PARAGRAPH_SPACING_VAR, TEXT_COLOR_VAR};
 
     use super::*;
 
@@ -309,6 +313,9 @@ mod markdown_view {
     pub struct ListItemViewArgs {
         /// If the list is *ordered*, the item number.
         pub num: Option<u64>,
+        /// If the list is checked. `Some(true)` is `[x]` and `Some(false)` is `[ ]`.
+        pub checked: Option<bool>,
+
         /// Inline items of the list item.
         pub items: UiNodeVec,
     }
@@ -518,23 +525,36 @@ mod markdown_view {
     /// See [`LIST_ITEM_VIEW_VAR`] for more details.
     pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
         let mut items = args.items;
+
+        if let Some(checked) = args.checked {
+            items.0.insert(
+                0,
+                crate::widgets::text! {
+                    txt = " ✓ ";
+                    txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
+                    background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+                    corner_radius = 4;
+                    scale = 0.8.fct();
+                    offset = (-(0.1.fct()), 0);
+                }
+                .boxed(),
+            );
+        }
+
         if let Some(n) = args.num {
             items.0.insert(
                 0,
                 crate::widgets::text! {
-                    font_weight = FontWeight::BOLD;
                     txt = formatx!("{n}. ");
-                    margin = (0, 0.3.em(), 0, 0);
                 }
                 .boxed(),
             );
-        } else {
+        } else if args.checked.is_none() {
             items.0.insert(
                 0,
                 crate::widgets::text! {
-                    txt = "•";
-                    font_size = 16;
-                    margin = (0, 0.3.em(), 0, 0);
+                    txt = "• ";
+                    scale = 1.3.fct();
                 }
                 .boxed(),
             );

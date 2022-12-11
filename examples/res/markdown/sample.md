@@ -26,9 +26,9 @@ Ordered lists:
 
 Task lists:
 
-[ ] Item 1
-[x] Item 2
-[ ] Item 3
+- [ ] Item 1
+- [x] Item 2
+- [ ] Item 3
 
 ### Images
 
@@ -59,6 +59,14 @@ Text
 * Monospace.
 * Manually formatted.
 ```
+
+### Rule
+
+Before rule.
+
+-------------
+
+After rule.
 
 ### Table
 
