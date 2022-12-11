@@ -2,7 +2,9 @@
     - We need the parent to load the right color-scheme in the image.
 
 * Implement `markdown!`.
-    - Paragraph spacing.
+    - List bullet vertical alignment.
+    - List number horizontal alignment.
+    - Other items.
 
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

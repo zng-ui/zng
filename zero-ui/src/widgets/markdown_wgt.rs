@@ -476,7 +476,7 @@ mod markdown_view {
 
     /// Default list item view.
     ///
-    /// See [`LIST_ITEM_VAR`] for more details.
+    /// See [`LIST_ITEM_VIEW_VAR`] for more details.
     pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
         let mut items = args.items;
         if let Some(n) = args.num {
