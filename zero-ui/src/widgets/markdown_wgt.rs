@@ -87,6 +87,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut strikethrough = 0;
 
     let text_view = TEXT_VIEW_VAR.get();
+    let paragraph_view = PARAGRAPH_VIEW_VAR.get();
 
     let mut paragraphs = vec![];
     let mut inline = vec![];
@@ -120,13 +121,13 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
             Event::End(tag) => match tag {
                 Tag::Paragraph => {
                     if !inline.is_empty() {
-                        // !!: TODO PARAGRAPH_VIEW_VAR
-                        paragraphs.push(
-                            crate::widgets::layouts::wrap! {
-                                children = mem::take(&mut inline)
-                            }
-                            .boxed(),
-                        );
+                        paragraphs.push(paragraph_view.generate(
+                            ctx,
+                            ParagraphViewArgs {
+                                index: paragraphs.len() as u32,
+                                items: mem::take(&mut inline).into(),
+                            },
+                        ));
                     }
                 }
                 Tag::Heading(_, _, _) => {}
@@ -208,9 +209,22 @@ mod markdown_style {
         pub style: MarkdownStyle,
     }
 
+    /// Arguments for a markdown paragraph view.
+    ///
+    /// See [`PARAGRAPH_VIEW_VAR`] for more details.
+    pub struct ParagraphViewArgs {
+        /// Zero-sized index of the paragraph.
+        pub index: u32,
+        /// Inline items.
+        pub items: UiNodeVec,
+    }
+
     context_var! {
         /// View generator for a markdown text segment.
         pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = ViewGenerator::new(|_, args| default_text_view(args));
+
+        /// View generator for a markdown paragraph.
+        pub static PARAGRAPH_VIEW_VAR: ViewGenerator<ParagraphViewArgs> = ViewGenerator::new(|_, args| default_paragraph_view(args));
     }
 
     /// View generator that converts [`TextViewArgs`] to widgets.
@@ -221,7 +235,17 @@ mod markdown_style {
         with_context_var(child, TEXT_VIEW_VAR, view)
     }
 
+    /// View generator that converts [`ParagraphViewArgs`] to widgets.
+    ///
+    /// Sets the [`PARAGRAPH_VIEW_VAR`].
+    #[property(CONTEXT, default(PARAGRAPH_VIEW_VAR))]
+    pub fn paragraph_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ParagraphViewArgs>>) -> impl UiNode {
+        with_context_var(child, PARAGRAPH_VIEW_VAR, view)
+    }
+
     /// Default text view.
+    ///
+    /// See [`TEXT_VIEW_VAR`] for more details.
     pub fn default_text_view(args: TextViewArgs) -> impl UiNode {
         use crate::widgets::text as t;
 
@@ -261,5 +285,21 @@ mod markdown_style {
         }
 
         t::build(builder)
+    }
+
+    /// Default paragraph view.
+    ///
+    /// See [`PARAGRAPH_VIEW_VAR`] for more details.
+    pub fn default_paragraph_view(mut args: ParagraphViewArgs) -> impl UiNode {
+        if args.items.is_empty() {
+            NilUiNode.boxed()
+        } else if args.items.len() == 1 {
+            args.items.remove(0)
+        } else {
+            crate::widgets::layouts::wrap! {
+                children = args.items;
+            }
+            .boxed()
+        }
     }
 }
