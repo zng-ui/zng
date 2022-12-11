@@ -1865,7 +1865,7 @@ impl WindowCtrl {
 }
 
 fn base_font_size(scale_factor: Factor) -> Px {
-    Length::pt_to_px(13.0, scale_factor)
+    Length::pt_to_px(11.0, scale_factor)
 }
 
 fn default_min_size(scale_factor: Factor) -> PxSize {

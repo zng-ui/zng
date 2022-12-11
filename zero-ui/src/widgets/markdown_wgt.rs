@@ -59,7 +59,14 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             use markdown_view::*;
 
-            if self.md.is_new(ctx) || TEXT_VIEW_VAR.is_new(ctx) || PARAGRAPH_VIEW_VAR.is_new(ctx) || PANEL_VIEW_VAR.is_new(ctx) {
+            if self.md.is_new(ctx)
+                || TEXT_VIEW_VAR.is_new(ctx)
+                || PARAGRAPH_VIEW_VAR.is_new(ctx)
+                || HEADING_VIEW_VAR.is_new(ctx)
+                || LIST_VIEW_VAR.is_new(ctx)
+                || LIST_ITEM_VIEW_VAR.is_new(ctx)
+                || PANEL_VIEW_VAR.is_new(ctx)
+            {
                 self.child.deinit(ctx);
                 self.generate_child(ctx);
                 self.child.init(ctx);
@@ -90,9 +97,13 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let text_view = TEXT_VIEW_VAR.get();
     let heading_view = HEADING_VIEW_VAR.get();
     let paragraph_view = PARAGRAPH_VIEW_VAR.get();
+    let list_view = LIST_VIEW_VAR.get();
+    let list_item_view = LIST_ITEM_VIEW_VAR.get();
 
     let mut blocks = vec![];
     let mut inlines = vec![];
+    let mut list_item_num = None;
+    let mut list_items = vec![];
 
     for item in Parser::new_ext(md, Options::all()) {
         match item {
@@ -101,7 +112,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 Tag::Heading(_, _, _) => {}
                 Tag::BlockQuote => {}
                 Tag::CodeBlock(_) => {}
-                Tag::List(_) => {}
+                Tag::List(n) => {
+                    list_item_num = n;
+                }
                 Tag::Item => {}
                 Tag::FootnoteDefinition(_) => {}
                 Tag::Table(_) => {}
@@ -140,13 +153,38 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                                 level,
                                 items: mem::take(&mut inlines).into(),
                             },
-                        ))
+                        ));
                     }
                 }
                 Tag::BlockQuote => {}
                 Tag::CodeBlock(_) => {}
-                Tag::List(_) => {}
-                Tag::Item => {}
+                Tag::List(n) => {
+                    blocks.push(list_view.generate(
+                        ctx,
+                        ListViewArgs {
+                            first_num: n,
+                            items: mem::take(&mut list_items).into(),
+                        },
+                    ));
+                }
+                Tag::Item => {
+                    let num = match &mut list_item_num {
+                        Some(n) => {
+                            let r = *n;
+                            *n += 1;
+                            Some(r)
+                        }
+                        None => None,
+                    };
+
+                    list_items.push(list_item_view.generate(
+                        ctx,
+                        ListItemViewArgs {
+                            num,
+                            items: mem::take(&mut inlines).into(),
+                        },
+                    ));
+                }
                 Tag::FootnoteDefinition(_) => {}
                 Tag::Table(_) => {}
                 Tag::TableHead => {}
@@ -243,6 +281,22 @@ mod markdown_view {
         pub items: UiNodeVec,
     }
 
+    /// Arguments for a markdown list view.
+    pub struct ListViewArgs {
+        /// If the list is *ordered*, the first item number.
+        pub first_num: Option<u64>,
+        /// List items.
+        pub items: UiNodeVec,
+    }
+
+    /// Arguments for a markdown list item view.
+    pub struct ListItemViewArgs {
+        /// If the list is *ordered*, the item number.
+        pub num: Option<u64>,
+        /// Inline items of the list item.
+        pub items: UiNodeVec,
+    }
+
     /// Arguments for a markdown panel.
     ///
     /// See [`PANEL_VIEW_VAR`] for more details.
@@ -260,6 +314,12 @@ mod markdown_view {
 
         /// View generator for a markdown heading.
         pub static HEADING_VIEW_VAR: ViewGenerator<HeadingViewArgs> = ViewGenerator::new(|_, args| default_heading_view(args));
+
+        /// View generator for a markdown list.
+        pub static LIST_VIEW_VAR: ViewGenerator<ListViewArgs> = ViewGenerator::new(|_, args| default_list_view(args));
+
+        /// View generator for a markdown list item.
+        pub static LIST_ITEM_VIEW_VAR: ViewGenerator<ListItemViewArgs> = ViewGenerator::new(|_, args| default_list_item_view(args));
 
         /// View generator for a markdown panel.
         pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
@@ -287,6 +347,22 @@ mod markdown_view {
     #[property(CONTEXT, default(HEADING_VIEW_VAR))]
     pub fn heading_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<HeadingViewArgs>>) -> impl UiNode {
         with_context_var(child, HEADING_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`ListViewArgs`] to widgets.
+    ///
+    /// Sets the [`LIST_VIEW_VAR`].
+    #[property(CONTEXT, default(LIST_VIEW_VAR))]
+    pub fn list_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListViewArgs>>) -> impl UiNode {
+        with_context_var(child, LIST_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`ListItemViewArgs`] to widgets.
+    ///
+    /// Sets the [`LIST_ITEM_VIEW_VAR`].
+    #[property(CONTEXT, default(LIST_ITEM_VIEW_VAR))]
+    pub fn list_item_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListItemViewArgs>>) -> impl UiNode {
+        with_context_var(child, LIST_ITEM_VIEW_VAR, view)
     }
 
     /// View generator that converts [`PanelViewArgs`] to a widget.
@@ -378,6 +454,58 @@ mod markdown_view {
                     HeadingLevel::H6 => 1.1.em()
                 };
                 children = args.items;
+            }
+            .boxed()
+        }
+    }
+
+    /// Default list view.
+    ///
+    /// See [`LIST_VIEW_VAR`] for more details.
+    pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
+        if args.items.is_empty() {
+            NilUiNode.boxed()
+        } else {
+            crate::widgets::layouts::v_stack! {
+                margin = (0, 0, 0, 1.em());
+                children = args.items;
+            }
+            .boxed()
+        }
+    }
+
+    /// Default list item view.
+    ///
+    /// See [`LIST_ITEM_VAR`] for more details.
+    pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
+        let mut items = args.items;
+        if let Some(n) = args.num {
+            items.0.insert(
+                0,
+                crate::widgets::text! {
+                    font_weight = FontWeight::BOLD;
+                    txt = formatx!("{n}. ");
+                    margin = (0, 0.3.em(), 0, 0);
+                }
+                .boxed(),
+            );
+        } else {
+            items.0.insert(
+                0,
+                crate::widgets::text! {
+                    txt = "•";
+                    font_size = 16;
+                    margin = (0, 0.3.em(), 0, 0);
+                }
+                .boxed(),
+            );
+        }
+
+        if items.len() == 1 {
+            items.remove(0)
+        } else {
+            crate::widgets::layouts::wrap! {
+                children = items;
             }
             .boxed()
         }
