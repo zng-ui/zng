@@ -3,7 +3,7 @@ use zero_ui::prelude::new_widget::*;
 /// Render text styled using ANSI scale sequences.
 ///
 /// Supports color, weight, italic and more, see [`AnsiStyle`] for the full style supported.
-/// 
+///
 /// [`AnsiStyle`]: ansi_text::AnsiStyle
 #[widget($crate::widgets::ansi_text)]
 pub mod ansi_text {
@@ -175,9 +175,9 @@ mod ansi_parse {
     }
 
     /// Iterator that parses ANSI escape codes.
-    /// 
+    ///
     /// This is the pull style parser used internally by the [`ansi_text!`] widget.
-    /// 
+    ///
     /// [`ansi_text!`]: mod@crate::widgets::ansi_text
     pub struct AnsiTextParser<'a> {
         source: &'a str,

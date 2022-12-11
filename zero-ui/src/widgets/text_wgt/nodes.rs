@@ -425,10 +425,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let txt_padding = TEXT_PADDING_VAR.get().layout(metrics, |_| PxSideOffsets::zero());
 
-            let font_size = {
-                let m = metrics.clone().with_constrains(|c| c.with_less_y(txt_padding.vertical()));
-                FONT_SIZE_VAR.get().layout(m.for_y(), |m| m.metrics.root_font_size())
-            };
+            let font_size = metrics.font_size();
 
             if self.layout.is_none() {
                 let fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
