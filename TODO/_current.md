@@ -3,7 +3,11 @@
 
 * Implement `markdown!`.
     - List number horizontal alignment.
-    - Other items.
+        - Need something like a grid here as well? To share the column size.
+    - Table, data format and panel?
+        - Need grid layout?
+    - Links and footnotes, needs info data with navigation anchor slugs.
+    - ANSI code block?
 
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

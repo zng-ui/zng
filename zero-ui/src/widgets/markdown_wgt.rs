@@ -796,14 +796,29 @@ mod markdown_view {
 
     /// Default code block view.
     ///
+    /// Is [`ansi_text!`] for the `ansi` language, and only raw text for the rest.
+    ///
     /// See [`CODE_BLOCK_VIEW_VAR`] for more details.
+    ///
+    /// [`ansi_text!`]: mod@crate::widgets::ansi_text
     pub fn default_code_block_view(args: CodeBlockViewArgs) -> impl UiNode {
-        crate::widgets::text! {
-            txt = args.txt;
-            padding = 6;
-            corner_radius = 4;
-            font_family = ["JetBrains Mono", "Consolas", "monospace"];
-            background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+        if args.lang == "ansi" {
+            crate::widgets::ansi_text! {
+                txt = args.txt.replace("\\x1b", "\x1b");// !!: TODO, use markdown entities?
+                padding = 6;
+                corner_radius = 4;
+                background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+            }
+            .boxed()
+        } else {
+            crate::widgets::text! {
+                txt = args.txt;
+                padding = 6;
+                corner_radius = 4;
+                font_family = ["JetBrains Mono", "Consolas", "monospace"];
+                background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+            }
+            .boxed()
         }
     }
 
