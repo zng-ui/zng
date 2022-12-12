@@ -127,7 +127,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut block_quote_start = vec![];
     let mut code_block_text = None;
 
-    for item in Parser::new_ext(md, Options::all()) {
+    for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b| Some((b.reference, "".into())))) {
         match item {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => {}
