@@ -40,9 +40,9 @@ pub mod window {
 
     #[doc(inline)]
     pub use crate::widgets::window_wgt::window_properties::{
-        always_on_top, auto_size, auto_size_origin, chrome, color_scheme, frame_capture_mode, height, icon, max_height, max_size,
-        max_width, min_height, min_size, min_width, modal, monitor, movable, parent, position, resizable, size, state, taskbar_visible,
-        title, visible, x, y, font_size, *,
+        always_on_top, auto_size, auto_size_origin, chrome, color_scheme, font_size, frame_capture_mode, height, icon, max_height,
+        max_size, max_width, min_height, min_size, min_width, modal, monitor, movable, parent, position, resizable, size, state,
+        taskbar_visible, title, visible, x, y, *,
     };
 
     properties! {

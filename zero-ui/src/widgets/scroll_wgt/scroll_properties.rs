@@ -37,12 +37,12 @@ context_var! {
     pub static VERTICAL_PAGE_UNIT_VAR: Length = 100.pct();
 
     /// Horizontal offset multiplied by the [`MouseScrollDelta::LineDelta`] ***x***.
-    /// 
+    ///
     /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
     pub static HORIZONTAL_WHEEL_UNIT_VAR: Length = 60;
 
     /// Vertical offset multiplied by the [`MouseScrollDelta::LineDelta`] ***y***.
-    /// 
+    ///
     /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
     pub static VERTICAL_WHEEL_UNIT_VAR: Length = 60;
 

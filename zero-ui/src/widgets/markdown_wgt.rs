@@ -61,7 +61,8 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
 
             if self.md.is_new(ctx)
                 || TEXT_VIEW_VAR.is_new(ctx)
-                || CODE_TEXT_VIEW_VAR.is_new(ctx)
+                || CODE_INLINE_VIEW_VAR.is_new(ctx)
+                || CODE_BLOCK_VIEW_VAR.is_new(ctx)
                 || PARAGRAPH_VIEW_VAR.is_new(ctx)
                 || HEADING_VIEW_VAR.is_new(ctx)
                 || LIST_VIEW_VAR.is_new(ctx)
@@ -100,7 +101,8 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut strikethrough = 0;
 
     let text_view = TEXT_VIEW_VAR.get();
-    let code_text_view = CODE_TEXT_VIEW_VAR.get();
+    let code_inline_view = CODE_INLINE_VIEW_VAR.get();
+    let code_block_view = CODE_BLOCK_VIEW_VAR.get();
     let heading_view = HEADING_VIEW_VAR.get();
     let paragraph_view = PARAGRAPH_VIEW_VAR.get();
     let list_view = LIST_VIEW_VAR.get();
@@ -116,6 +118,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut list_item_checked = None;
     let mut list_items = vec![];
     let mut block_quote_start = vec![];
+    let mut code_block_text = None;
 
     for item in Parser::new_ext(md, Options::all()) {
         match item {
@@ -125,7 +128,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 Tag::BlockQuote => {
                     block_quote_start.push(blocks.len());
                 }
-                Tag::CodeBlock(_) => {}
+                Tag::CodeBlock(_) => {
+                    code_block_text = Some(String::new());
+                }
                 Tag::List(n) => {
                     list_item_num = n;
                 }
@@ -184,7 +189,22 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         }
                     }
                 }
-                Tag::CodeBlock(_) => {}
+                Tag::CodeBlock(kind) => {
+                    if let Some(mut txt) = code_block_text.take() {
+                        let _last_line_break = txt.pop();
+                        debug_assert_eq!(Some('\n'), _last_line_break);
+                        blocks.push(code_block_view.generate(
+                            ctx,
+                            CodeBlockViewArgs {
+                                lang: match kind {
+                                    CodeBlockKind::Indented => Text::empty(),
+                                    CodeBlockKind::Fenced(l) => l.to_text(),
+                                },
+                                txt: txt.into(),
+                            },
+                        ))
+                    }
+                }
                 Tag::List(n) => {
                     blocks.push(list_view.generate(
                         ctx,
@@ -240,28 +260,32 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 }
             },
             Event::Text(txt) => {
-                inlines.push(
-                    text_view
-                        .generate(
-                            ctx,
-                            TextViewArgs {
-                                txt: txt.to_text(),
-                                style: MarkdownStyle {
-                                    strong: strong > 0,
-                                    emphasis: emphasis > 0,
-                                    strikethrough: strikethrough > 0,
+                if let Some(t) = &mut code_block_text {
+                    t.push_str(&txt);
+                } else {
+                    inlines.push(
+                        text_view
+                            .generate(
+                                ctx,
+                                TextViewArgs {
+                                    txt: txt.to_text(),
+                                    style: MarkdownStyle {
+                                        strong: strong > 0,
+                                        emphasis: emphasis > 0,
+                                        strikethrough: strikethrough > 0,
+                                    },
                                 },
-                            },
-                        )
-                        .boxed(),
-                );
+                            )
+                            .boxed(),
+                    );
+                }
             }
             Event::Code(txt) => {
                 inlines.push(
-                    code_text_view
+                    code_inline_view
                         .generate(
                             ctx,
-                            CodeTextViewArgs {
+                            CodeInlineViewArgs {
                                 txt: txt.to_text(),
                                 style: MarkdownStyle {
                                     strong: strong > 0,
@@ -326,12 +350,22 @@ mod markdown_view {
     ///
     /// The text can be inside a paragraph, heading, list item or any other markdown block item.
     ///
-    /// See [`CODE_TEXT_VIEW_VAR`] for more details.
-    pub struct CodeTextViewArgs {
+    /// See [`CODE_INLINE_VIEW_VAR`] for more details.
+    pub struct CodeInlineViewArgs {
         /// The code text run.
         pub txt: Text,
         /// The style.
         pub style: MarkdownStyle,
+    }
+
+    /// Arguments for a markdown code block view.
+    ///
+    /// See [`CODE_BLOCK_VIEW_VAR`] for more details.
+    pub struct CodeBlockViewArgs {
+        /// Code language, can be empty.
+        pub lang: Text,
+        /// Raw text.
+        pub txt: Text,
     }
 
     /// Arguments for a markdown paragraph view.
@@ -415,7 +449,10 @@ mod markdown_view {
         pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = ViewGenerator::new(|_, args| default_text_view(args));
 
         /// View generator for a markdown inline code segment.
-        pub static CODE_TEXT_VIEW_VAR: ViewGenerator<CodeTextViewArgs> = ViewGenerator::new(|_, args| default_code_text_view(args));
+        pub static CODE_INLINE_VIEW_VAR: ViewGenerator<CodeInlineViewArgs> = ViewGenerator::new(|_, args| default_code_inline_view(args));
+
+        /// View generator for a markdown code block segment.
+        pub static CODE_BLOCK_VIEW_VAR: ViewGenerator<CodeBlockViewArgs> = ViewGenerator::new(|_, args| default_code_block_view(args));
 
         /// View generator for a markdown paragraph.
         pub static PARAGRAPH_VIEW_VAR: ViewGenerator<ParagraphViewArgs> = ViewGenerator::new(|_, args| default_paragraph_view(args));
@@ -448,6 +485,22 @@ mod markdown_view {
     #[property(CONTEXT, default(TEXT_VIEW_VAR))]
     pub fn text_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<TextViewArgs>>) -> impl UiNode {
         with_context_var(child, TEXT_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`CodeInlineViewArgs`] to widgets.
+    ///
+    /// Sets the [`CODE_INLINE_VIEW_VAR`].
+    #[property(CONTEXT, default(CODE_INLINE_VIEW_VAR))]
+    pub fn code_inline_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<CodeInlineViewArgs>>) -> impl UiNode {
+        with_context_var(child, CODE_INLINE_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`CodeBlockViewArgs`] to widgets.
+    ///
+    /// Sets the [`CODE_BLOCK_VIEW_VAR`].
+    #[property(CONTEXT, default(CODE_BLOCK_VIEW_VAR))]
+    pub fn code_block_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<CodeBlockViewArgs>>) -> impl UiNode {
+        with_context_var(child, CODE_BLOCK_VIEW_VAR, view)
     }
 
     /// View generator that converts [`ParagraphViewArgs`] to widgets.
@@ -569,8 +622,8 @@ mod markdown_view {
 
     /// Default inlined code text view.
     ///
-    /// See [`CODE_TEXT_VIEW_VAR`] for more details.
-    pub fn default_code_text_view(args: CodeTextViewArgs) -> impl UiNode {
+    /// See [`CODE_INLINE_VIEW_VAR`] for more details.
+    pub fn default_code_inline_view(args: CodeInlineViewArgs) -> impl UiNode {
         use crate::widgets::text as t;
 
         let mut builder = text_view_builder(args.txt, args.style);
@@ -584,11 +637,24 @@ mod markdown_view {
         builder.push_property(
             Importance::INSTANCE,
             property_args! {
-                t::txt_color = t::TEXT_COLOR_VAR.map(|c| colors::BLUE.with_alpha(20.pct()).mix_normal(*c));
+                background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
             },
         );
 
         crate::widgets::text::build(builder)
+    }
+
+    /// Default code block view.
+    ///
+    /// See [`CODE_BLOCK_VIEW_VAR`] for more details.
+    pub fn default_code_block_view(args: CodeBlockViewArgs) -> impl UiNode {
+        crate::widgets::text! {
+            txt = args.txt;
+            padding = 6;
+            corner_radius = 4;
+            font_family = ["JetBrains Mono", "Consolas", "monospace"];
+            background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+        }
     }
 
     /// Default paragraph view.

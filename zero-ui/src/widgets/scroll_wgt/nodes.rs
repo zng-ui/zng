@@ -754,7 +754,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                         match delta {
                             MouseScrollDelta::LineDelta(x, y) => {
                                 self.offset.x -= HORIZONTAL_WHEEL_UNIT_VAR.get() * x.fct();
-                                self.offset.y -= VERTICAL_WHEEL_UNIT_VAR.get() * dbg!(y.fct());
+                                self.offset.y -= VERTICAL_WHEEL_UNIT_VAR.get() * y.fct();
                             }
                             MouseScrollDelta::PixelDelta(x, y) => {
                                 self.offset.x -= x.px();
