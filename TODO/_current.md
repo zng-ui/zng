@@ -7,7 +7,6 @@
     - Table, data format and panel?
         - Need grid layout?
     - Links and footnotes, needs info data with navigation anchor slugs.
-    - ANSI code block?
 
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

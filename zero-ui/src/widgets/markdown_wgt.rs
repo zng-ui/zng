@@ -240,13 +240,16 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         },
                     ));
                 }
-                Tag::FootnoteDefinition(label) => blocks.push(footnote_def_view.generate(
-                    ctx,
-                    FootnoteDefViewArgs {
-                        label: label.to_text(),
-                        items: mem::take(&mut inlines).into(),
-                    },
-                )),
+                Tag::FootnoteDefinition(label) => {
+                    let label = html_escape::decode_html_entities(label.as_ref());
+                    blocks.push(footnote_def_view.generate(
+                        ctx,
+                        FootnoteDefViewArgs {
+                            label: label.to_text(),
+                            items: mem::take(&mut inlines).into(),
+                        },
+                    ));
+                }
                 Tag::Table(_) => {
                     // !!: TODO
                     inlines.clear();
@@ -264,6 +267,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     strikethrough -= 1;
                 }
                 Tag::Link(kind, url, title) => {
+                    let title = html_escape::decode_html_entities(title.as_ref());
                     match kind {
                         LinkType::Inline => {}
                         LinkType::Reference => {}
@@ -273,6 +277,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         LinkType::Shortcut => {}
                         LinkType::ShortcutUnknown => {}
                         LinkType::Autolink | LinkType::Email => {
+                            let url = html_escape::decode_html_entities(url.as_ref());
                             inlines.push(text_view.generate(
                                 ctx,
                                 TextViewArgs {
@@ -298,6 +303,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     }
                 }
                 Tag::Image(_, url, title) => {
+                    let title = html_escape::decode_html_entities(title.as_ref());
                     blocks.push(image_view.generate(
                         ctx,
                         ImageViewArgs {
@@ -309,6 +315,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 }
             },
             Event::Text(txt) => {
+                let txt = html_escape::decode_html_entities(txt.as_ref());
                 if let Some(t) = &mut code_block_text {
                     t.push_str(&txt);
                 } else {
@@ -330,6 +337,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 }
             }
             Event::Code(txt) => {
+                let txt = html_escape::decode_html_entities(txt.as_ref());
                 inlines.push(
                     code_inline_view
                         .generate(
@@ -356,6 +364,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 _ => {}
             },
             Event::FootnoteReference(label) => {
+                let label = html_escape::decode_html_entities(label.as_ref());
                 inlines.push(footnote_ref_view.generate(ctx, FootnoteRefViewArgs { label: label.to_text() }));
             }
             Event::SoftBreak => {}
@@ -804,7 +813,7 @@ mod markdown_view {
     pub fn default_code_block_view(args: CodeBlockViewArgs) -> impl UiNode {
         if args.lang == "ansi" {
             crate::widgets::ansi_text! {
-                txt = args.txt.replace("\\x1b", "\x1b");// !!: TODO, use markdown entities?
+                txt = args.txt;
                 padding = 6;
                 corner_radius = 4;
                 background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
