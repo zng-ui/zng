@@ -67,6 +67,8 @@ set_properties! {
     min_size: Size,
     max_size: Size,
 
+    font_size: Length,
+
     chrome: WindowChrome,
     icon: WindowIcon,
     title: Text,

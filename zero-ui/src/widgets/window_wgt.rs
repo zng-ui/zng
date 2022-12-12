@@ -42,7 +42,7 @@ pub mod window {
     pub use crate::widgets::window_wgt::window_properties::{
         always_on_top, auto_size, auto_size_origin, chrome, color_scheme, frame_capture_mode, height, icon, max_height, max_size,
         max_width, min_height, min_size, min_width, modal, monitor, movable, parent, position, resizable, size, state, taskbar_visible,
-        title, visible, x, y, *,
+        title, visible, x, y, font_size, *,
     };
 
     properties! {
@@ -278,6 +278,9 @@ pub mod window {
         ///
         /// If [`frame_image_capture`](#wp-frame_image_capture) is set
         pub events::window::on_pre_frame_image_ready as on_frame_image_ready;
+
+        /// Use the `FONT_SIZE_VAR` default as the root font size.
+        font_size = crate::widgets::text::FONT_SIZE_VAR;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

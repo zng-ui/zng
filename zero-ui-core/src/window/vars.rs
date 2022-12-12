@@ -33,6 +33,8 @@ pub(super) struct WindowVarsData {
     min_size: ArcVar<Size>,
     max_size: ArcVar<Size>,
 
+    font_size: ArcVar<Length>,
+
     pub(super) actual_position: ArcVar<DipPoint>,
     pub(super) actual_monitor: ArcVar<Option<MonitorId>>,
     pub(super) actual_size: ArcVar<DipSize>,
@@ -93,6 +95,8 @@ impl WindowVars {
             monitor: var(MonitorQuery::Primary),
             video_mode: var(VideoMode::default()),
             size: var(Size::new(800, 600)),
+
+            font_size: var(11.pt()),
 
             actual_position: var(DipPoint::zero()),
             actual_monitor: var(None),
@@ -416,6 +420,11 @@ impl WindowVars {
     /// [`size`]: Self::size
     pub fn max_size(&self) -> &ArcVar<Size> {
         &self.0.max_size
+    }
+
+    /// Root font size.
+    pub fn font_size(&self) -> &ArcVar<Length> {
+        &self.0.font_size
     }
 
     /// If the user can resize the window using the window frame.

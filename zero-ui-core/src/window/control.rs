@@ -58,6 +58,7 @@ struct HeadedCtrl {
     system_color_scheme: Option<ColorScheme>,
     parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
     actual_parent: Option<WindowId>,
+    root_font_size: Dip,
 }
 impl HeadedCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
@@ -87,6 +88,7 @@ impl HeadedCtrl {
             parent_color_scheme: None,
             actual_parent: None,
             actual_state: None,
+            root_font_size: Dip::new(11),
         }
     }
 
@@ -230,6 +232,23 @@ impl HeadedCtrl {
                             if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
                                 new_state.restore_rect.size.height = size.height;
                             }
+                        }
+                    }
+                }
+
+                if let Some(font_size) = self.vars.font_size().get_new(ctx) {
+                    if let Some(m) = &self.monitor {
+                        let scale_factor = m.scale_factor().get();
+                        let screen_ppi = m.ppi().get();
+                        let screen_size = m.size().get();
+                        let font_size = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+                            font_size.layout(ctx.metrics.for_x(), |_| Length::pt_to_px(11.0, scale_factor))
+                        });
+                        let font_size = font_size.to_dip(scale_factor.0);
+
+                        if font_size != self.root_font_size {
+                            self.root_font_size = font_size;
+                            ctx.updates.layout();
                         }
                     }
                 }
@@ -649,21 +668,32 @@ impl HeadedCtrl {
         let screen_rect = m.px_rect();
 
         // Layout min, max and size in the monitor space.
-        let (min_size, max_size, mut size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_rect.size, |ctx| {
-            let min_size = self.vars.min_size().get().layout(ctx.metrics, |_| default_min_size(scale_factor));
+        let (min_size, max_size, mut size, root_font_size) =
+            self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_rect.size, |ctx| {
+                let min_size = self.vars.min_size().get().layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self.vars.max_size().get().layout(ctx.metrics, |_| screen_rect.size);
+                let max_size = self.vars.max_size().get().layout(ctx.metrics, |_| screen_rect.size);
 
-            let size = self.vars.size().get().layout(ctx.metrics, |_| default_size(scale_factor));
+                let size = self.vars.size().get().layout(ctx.metrics, |_| default_size(scale_factor));
 
-            (min_size, max_size, size.min(max_size).max(min_size))
-        });
+                let root_font_size = self
+                    .vars
+                    .font_size()
+                    .get()
+                    .layout(ctx.metrics.for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+
+                (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
+            });
+
+        self.root_font_size = root_font_size.to_dip(scale_factor.0);
 
         let state = self.vars.state().get();
 
         if state == WindowState::Normal && self.vars.auto_size().get() != AutoSize::DISABLED {
             // layout content to get auto-size size.
-            size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
+            size = self
+                .content
+                .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, root_font_size, false);
         }
 
         // await icon load for up to 1s.
@@ -778,6 +808,7 @@ impl HeadedCtrl {
         let mut size = current_size;
         let min_size = state.min_size.to_px(scale_factor.0);
         let max_size = state.max_size.to_px(scale_factor.0);
+        let root_font_size = self.root_font_size.to_px(scale_factor.0);
 
         let skip_auto_size = !matches!(state.state, WindowState::Normal);
 
@@ -792,18 +823,24 @@ impl HeadedCtrl {
             }
         }
 
-        let size = self
-            .content
-            .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, skip_auto_size);
+        let size = self.content.layout(
+            ctx,
+            scale_factor,
+            screen_ppi,
+            min_size,
+            max_size,
+            size,
+            root_font_size,
+            skip_auto_size,
+        );
 
         if size != current_size {
             assert!(!skip_auto_size);
 
             let auto_size_origin = self.vars.auto_size_origin().get();
-            let base_font_size = base_font_size(scale_factor);
             let mut auto_size_origin = |size| {
                 ctx.layout_context(
-                    base_font_size,
+                    root_font_size,
                     scale_factor,
                     screen_ppi,
                     size,
@@ -1020,6 +1057,7 @@ impl HeadlessWithRendererCtrl {
                 || self.vars.min_size().is_new(ctx)
                 || self.vars.max_size().is_new(ctx)
                 || self.vars.auto_size().is_new(ctx)
+                || self.vars.font_size().is_new(ctx)
             {
                 self.content.layout_requested = true;
                 ctx.updates.layout();
@@ -1104,17 +1142,25 @@ impl HeadlessWithRendererCtrl {
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
-        let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+        let (min_size, max_size, size, root_font_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let min_size = self.vars.min_size().get().layout(ctx.metrics, |_| default_min_size(scale_factor));
 
             let max_size = self.vars.max_size().get().layout(ctx.metrics, |_| screen_size);
 
             let size = self.vars.size().get().layout(ctx.metrics, |_| default_size(scale_factor));
 
-            (min_size, max_size, size.min(max_size).max(min_size))
+            let root_font_size = self
+                .vars
+                .font_size()
+                .get()
+                .layout(ctx.metrics.for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+
+            (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });
 
-        let size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
+        let size = self
+            .content
+            .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, root_font_size, false);
         let size = size.to_dip(scale_factor.0);
 
         if let Some(view) = &self.surface {
@@ -1296,17 +1342,25 @@ impl HeadlessCtrl {
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
-        let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+        let (min_size, max_size, size, root_font_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let min_size = self.vars.min_size().get().layout(ctx.metrics, |_| default_min_size(scale_factor));
 
             let max_size = self.vars.max_size().get().layout(ctx.metrics, |_| screen_size);
 
             let size = self.vars.size().get().layout(ctx.metrics, |_| default_size(scale_factor));
 
-            (min_size, max_size, size.min(max_size).max(min_size))
+            let root_font_size = self
+                .vars
+                .font_size()
+                .get()
+                .layout(ctx.metrics.for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+
+            (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });
 
-        let _surface_size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
+        let _surface_size = self
+            .content
+            .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, root_font_size, false);
 
         self.headless_simulator.layout(ctx);
     }
@@ -1573,7 +1627,7 @@ impl ContentCtrl {
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         ctx.layout_context(
-            base_font_size(scale_factor),
+            Length::pt_to_px(11.0, scale_factor),
             scale_factor,
             screen_ppi,
             screen_size,
@@ -1594,6 +1648,7 @@ impl ContentCtrl {
         min_size: PxSize,
         max_size: PxSize,
         size: PxSize,
+        root_font_size: Px,
         skip_auto_size: bool,
     ) -> PxSize {
         debug_assert!(self.inited);
@@ -1602,8 +1657,6 @@ impl ContentCtrl {
         let _s = tracing::trace_span!("window.on_layout", window = %ctx.window_id.sequential()).entered();
 
         self.layout_requested = false;
-
-        let base_font_size = base_font_size(scale_factor);
 
         let auto_size = self.vars.auto_size().get();
 
@@ -1620,7 +1673,7 @@ impl ContentCtrl {
         self.layout_pass += 1;
 
         ctx.layout_context(
-            base_font_size,
+            root_font_size,
             scale_factor,
             screen_ppi,
             viewport_size,
@@ -1862,10 +1915,6 @@ impl WindowCtrl {
             WindowCtrlMode::HeadlessWithRenderer(c) => c.close(ctx),
         }
     }
-}
-
-fn base_font_size(scale_factor: Factor) -> Px {
-    Length::pt_to_px(11.0, scale_factor)
 }
 
 fn default_min_size(scale_factor: Factor) -> PxSize {
