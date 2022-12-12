@@ -104,6 +104,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let list_item_view = LIST_ITEM_VIEW_VAR.get();
     let image_view = IMAGE_VIEW_VAR.get();
     let rule_view = RULE_VIEW_VAR.get();
+    let block_quote_view = BLOCK_QUOTE_VIEW_VAR.get();
     let image_resolver = IMAGE_RESOLVER_VAR.get();
 
     let mut blocks = vec![];
@@ -111,13 +112,16 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut list_item_num = None;
     let mut list_item_checked = None;
     let mut list_items = vec![];
+    let mut block_quote_start = vec![];
 
     for item in Parser::new_ext(md, Options::all()) {
         match item {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => {}
                 Tag::Heading(_, _, _) => {}
-                Tag::BlockQuote => {}
+                Tag::BlockQuote => {
+                    block_quote_start.push(blocks.len());
+                }
                 Tag::CodeBlock(_) => {}
                 Tag::List(n) => {
                     list_item_num = n;
@@ -163,7 +167,20 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         ));
                     }
                 }
-                Tag::BlockQuote => {}
+                Tag::BlockQuote => {
+                    if let Some(start) = block_quote_start.pop() {
+                        let items: UiNodeVec = blocks.drain(start..).collect();
+                        if !items.is_empty() {
+                            blocks.push(block_quote_view.generate(
+                                ctx,
+                                BlockQuoteViewArgs {
+                                    level: block_quote_start.len() as u32,
+                                    items,
+                                },
+                            ));
+                        }
+                    }
+                }
                 Tag::CodeBlock(_) => {}
                 Tag::List(n) => {
                     blocks.push(list_view.generate(
@@ -341,6 +358,19 @@ mod markdown_view {
     /// Currently no args.
     pub struct RuleViewArgs {}
 
+    /// Arguments for a markdown block quote view.
+    pub struct BlockQuoteViewArgs {
+        /// Number of *parent* quotes in case of nesting.
+        ///
+        /// > 0
+        /// >> 1
+        /// >>> 2
+        pub level: u32,
+
+        /// Block items.
+        pub items: UiNodeVec,
+    }
+
     /// Arguments for a markdown panel.
     ///
     /// See [`PANEL_VIEW_VAR`] for more details.
@@ -370,6 +400,9 @@ mod markdown_view {
 
         /// View generator for a markdown rule line.
         pub static RULE_VIEW_VAR: ViewGenerator<RuleViewArgs> = ViewGenerator::new(|_, args| default_rule_view(args));
+
+        /// View generator for a markdown block quote.
+        pub static BLOCK_QUOTE_VIEW_VAR: ViewGenerator<BlockQuoteViewArgs> = ViewGenerator::new(|_, args| default_block_quote_view(args));
 
         /// View generator for a markdown panel.
         pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
@@ -429,6 +462,14 @@ mod markdown_view {
     #[property(CONTEXT, default(RULE_VIEW_VAR))]
     pub fn rule_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<RuleViewArgs>>) -> impl UiNode {
         with_context_var(child, RULE_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`BlockQuoteViewArgs`] to widgets.
+    ///
+    /// Sets the [`BLOCK_QUOTE_VIEW_VAR`].
+    #[property(CONTEXT, default(BLOCK_QUOTE_VIEW_VAR))]
+    pub fn block_quote_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<BlockQuoteViewArgs>>) -> impl UiNode {
+        with_context_var(child, BLOCK_QUOTE_VIEW_VAR, view)
     }
 
     /// View generator that converts [`PanelViewArgs`] to a widget.
@@ -625,6 +666,32 @@ mod markdown_view {
     /// See [`RULE_VIEW_VAR`] for more details.
     pub fn default_rule_view(_: RuleViewArgs) -> impl UiNode {
         crate::widgets::hr!()
+    }
+
+    /// Default block quote view.
+    ///
+    /// See [`BLOCK_QUOTE_VIEW_VAR`] for more details.
+    pub fn default_block_quote_view(args: BlockQuoteViewArgs) -> impl UiNode {
+        if args.items.is_empty() {
+            NilUiNode.boxed()
+        } else {
+            crate::widgets::layouts::v_stack! {
+                spacing = PARAGRAPH_SPACING_VAR;
+                children = args.items;
+                corner_radius = 2;
+                background_color = if args.level < 3 {
+                    TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct())).boxed()
+                } else {
+                    colors::BLACK.transparent().into_boxed_var()
+                };
+                border = {
+                    widths: (0, 0, 0, 4u32.saturating_sub(args.level).max(1) as i32),
+                    sides: TEXT_COLOR_VAR.map(|c| BorderSides::solid(c.with_alpha(60.pct()))),
+                };
+                padding = 4;
+            }
+            .boxed()
+        }
     }
 
     /// Default markdown panel.
