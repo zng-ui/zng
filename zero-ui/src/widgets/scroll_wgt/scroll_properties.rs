@@ -36,6 +36,16 @@ context_var! {
     /// [`SCROLL_UP_CMD`]: crate::widgets::scroll::commands::SCROLL_UP_CMD
     pub static VERTICAL_PAGE_UNIT_VAR: Length = 100.pct();
 
+    /// Horizontal offset multiplied by the [`MouseScrollDelta::LineDelta`] ***x***.
+    /// 
+    /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+    pub static HORIZONTAL_WHEEL_UNIT_VAR: Length = 60;
+
+    /// Vertical offset multiplied by the [`MouseScrollDelta::LineDelta`] ***y***.
+    /// 
+    /// [`MouseScrollDelta::LineDelta`]: crate::core::mouse::MouseScrollDelta::LineDelta
+    pub static VERTICAL_WHEEL_UNIT_VAR: Length = 60;
+
     /// Horizontal offset added when the [`PAGE_RIGHT_CMD`] runs and removed when the [`PAGE_LEFT_CMD`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `100.pct()`.
