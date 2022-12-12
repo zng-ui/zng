@@ -755,26 +755,29 @@ pub trait IntoVar<T: VarValue> {
     fn into_var(self) -> Self::Var;
 
     /// Converts into [`BoxedVar<T>`].
-    /// 
+    ///
     /// This method exists to help the type system infer the type in this scenario:
-    /// 
+    ///
     /// ```
     /// # use zero_ui_core::var::*;
     /// # let bar = true;
     /// # let BAR_VAR = var(true);
     /// #
     /// fn foo(foo: impl IntoVar<bool>) { }
-    /// 
+    ///
     /// foo(if bar {
     ///     BAR_VAR.map(|b| !*b).boxed()
     /// } else {
     ///     true.into_boxed_var()
     /// });
     /// ```
-    /// 
-    /// We need a `BoxedVar<bool>` to unify the input types that can be a `map` var or a `LocalVar<bool>`. Writting `true.into_var().boxed()`
+    ///
+    /// We need a `BoxedVar<bool>` to unify the input types that can be a `map` var or a `LocalVar<bool>`. Writing `true.into_var().boxed()`
     /// causes the type inference to fail, requiring us to write `IntoVar::<bool>::into_var(true).boxed()`.
-    fn into_boxed_var(self) -> BoxedVar<T> where Self: Sized {
+    fn into_boxed_var(self) -> BoxedVar<T>
+    where
+        Self: Sized,
+    {
         self.into_var().boxed()
     }
 }

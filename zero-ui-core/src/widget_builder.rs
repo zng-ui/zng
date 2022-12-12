@@ -225,6 +225,9 @@ pub mod property_args_getter {
     use super::*;
 
     fn build(mut wgt: WidgetBuilder) -> Box<dyn PropertyArgs> {
+        if wgt.p.items.len() > 1 {
+            tracing::error!("properties ignored, `property_args!` only collects args for first property");
+        }
         match wgt.p.items.remove(0).item {
             WidgetItem::Property { args, .. } => args,
             WidgetItem::Intrinsic { .. } => unreachable!(),

@@ -61,12 +61,14 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
 
             if self.md.is_new(ctx)
                 || TEXT_VIEW_VAR.is_new(ctx)
+                || CODE_TEXT_VIEW_VAR.is_new(ctx)
                 || PARAGRAPH_VIEW_VAR.is_new(ctx)
                 || HEADING_VIEW_VAR.is_new(ctx)
                 || LIST_VIEW_VAR.is_new(ctx)
                 || LIST_ITEM_VIEW_VAR.is_new(ctx)
                 || IMAGE_VIEW_VAR.is_new(ctx)
                 || RULE_VIEW_VAR.is_new(ctx)
+                || BLOCK_QUOTE_VIEW_VAR.is_new(ctx)
                 || PANEL_VIEW_VAR.is_new(ctx)
                 || IMAGE_RESOLVER_VAR.is_new(ctx)
             {
@@ -98,6 +100,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut strikethrough = 0;
 
     let text_view = TEXT_VIEW_VAR.get();
+    let code_text_view = CODE_TEXT_VIEW_VAR.get();
     let heading_view = HEADING_VIEW_VAR.get();
     let paragraph_view = PARAGRAPH_VIEW_VAR.get();
     let list_view = LIST_VIEW_VAR.get();
@@ -253,7 +256,23 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         .boxed(),
                 );
             }
-            Event::Code(_) => {}
+            Event::Code(txt) => {
+                inlines.push(
+                    code_text_view
+                        .generate(
+                            ctx,
+                            CodeTextViewArgs {
+                                txt: txt.to_text(),
+                                style: MarkdownStyle {
+                                    strong: strong > 0,
+                                    emphasis: emphasis > 0,
+                                    strikethrough: strikethrough > 0,
+                                },
+                            },
+                        )
+                        .boxed(),
+                );
+            }
             Event::Html(_) => {}
             Event::FootnoteReference(_) => {}
             Event::SoftBreak => {}
@@ -293,11 +312,23 @@ mod markdown_view {
 
     /// Arguments for a markdown text view.
     ///
-    /// The text can be inside a paragraph or heading.
+    /// The text can be inside a paragraph, heading, list item or any other markdown block item.
     ///
     /// See [`TEXT_VIEW_VAR`] for more details.
     pub struct TextViewArgs {
         /// The text run.
+        pub txt: Text,
+        /// The style.
+        pub style: MarkdownStyle,
+    }
+
+    /// Arguments for a markdown inlined code text view.
+    ///
+    /// The text can be inside a paragraph, heading, list item or any other markdown block item.
+    ///
+    /// See [`CODE_TEXT_VIEW_VAR`] for more details.
+    pub struct CodeTextViewArgs {
+        /// The code text run.
         pub txt: Text,
         /// The style.
         pub style: MarkdownStyle,
@@ -382,6 +413,9 @@ mod markdown_view {
     context_var! {
         /// View generator for a markdown text segment.
         pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = ViewGenerator::new(|_, args| default_text_view(args));
+
+        /// View generator for a markdown inline code segment.
+        pub static CODE_TEXT_VIEW_VAR: ViewGenerator<CodeTextViewArgs> = ViewGenerator::new(|_, args| default_code_text_view(args));
 
         /// View generator for a markdown paragraph.
         pub static PARAGRAPH_VIEW_VAR: ViewGenerator<ParagraphViewArgs> = ViewGenerator::new(|_, args| default_paragraph_view(args));
@@ -484,10 +518,7 @@ mod markdown_view {
         with_context_var(child, PANEL_VIEW_VAR, view)
     }
 
-    /// Default text view.
-    ///
-    /// See [`TEXT_VIEW_VAR`] for more details.
-    pub fn default_text_view(args: TextViewArgs) -> impl UiNode {
+    fn text_view_builder(txt: Text, style: MarkdownStyle) -> WidgetBuilder {
         use crate::widgets::text as t;
 
         let mut builder = WidgetBuilder::new(widget_mod!(t));
@@ -496,11 +527,11 @@ mod markdown_view {
         builder.push_property(
             Importance::INSTANCE,
             property_args! {
-                t::txt = args.txt;
+                t::txt = txt;
             },
         );
 
-        if args.style.strong {
+        if style.strong {
             builder.push_property(
                 Importance::INSTANCE,
                 property_args! {
@@ -508,7 +539,7 @@ mod markdown_view {
                 },
             );
         }
-        if args.style.emphasis {
+        if style.emphasis {
             builder.push_property(
                 Importance::INSTANCE,
                 property_args! {
@@ -516,7 +547,7 @@ mod markdown_view {
                 },
             );
         }
-        if args.style.strikethrough {
+        if style.strikethrough {
             builder.push_property(
                 Importance::INSTANCE,
                 property_args! {
@@ -525,7 +556,39 @@ mod markdown_view {
             );
         }
 
-        t::build(builder)
+        builder
+    }
+
+    /// Default text view.
+    ///
+    /// See [`TEXT_VIEW_VAR`] for more details.
+    pub fn default_text_view(args: TextViewArgs) -> impl UiNode {
+        let builder = text_view_builder(args.txt, args.style);
+        crate::widgets::text::build(builder)
+    }
+
+    /// Default inlined code text view.
+    ///
+    /// See [`CODE_TEXT_VIEW_VAR`] for more details.
+    pub fn default_code_text_view(args: CodeTextViewArgs) -> impl UiNode {
+        use crate::widgets::text as t;
+
+        let mut builder = text_view_builder(args.txt, args.style);
+
+        builder.push_property(
+            Importance::INSTANCE,
+            property_args! {
+                t::font_family = ["JetBrains Mono", "Consolas", "monospace"];
+            },
+        );
+        builder.push_property(
+            Importance::INSTANCE,
+            property_args! {
+                t::txt_color = t::TEXT_COLOR_VAR.map(|c| colors::BLUE.with_alpha(20.pct()).mix_normal(*c));
+            },
+        );
+
+        crate::widgets::text::build(builder)
     }
 
     /// Default paragraph view.

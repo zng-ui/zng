@@ -1,13 +1,8 @@
 * Image render requests a parent window, it causes errors because window with parents can't be parent of the image headless window.
     - We need the parent to load the right color-scheme in the image.
 
-* The `txt_` and `img_` prefixes are anoying.
-
 * Implement `markdown!`.
-    - List bullet vertical alignment.
     - List number horizontal alignment.
-    - Custom image link resolve?
-        - Right now the `markdown!` does not know the current dir from 
     - Other items.
 
 * Implement inline info in bounds info.
