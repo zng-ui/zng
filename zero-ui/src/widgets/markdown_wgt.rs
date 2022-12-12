@@ -61,6 +61,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
 
             if self.md.is_new(ctx)
                 || TEXT_VIEW_VAR.is_new(ctx)
+                || LINK_VIEW_VAR.is_new(ctx)
                 || CODE_INLINE_VIEW_VAR.is_new(ctx)
                 || CODE_BLOCK_VIEW_VAR.is_new(ctx)
                 || PARAGRAPH_VIEW_VAR.is_new(ctx)
@@ -70,6 +71,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
                 || IMAGE_VIEW_VAR.is_new(ctx)
                 || RULE_VIEW_VAR.is_new(ctx)
                 || BLOCK_QUOTE_VIEW_VAR.is_new(ctx)
+                || TABLE_VIEW_VAR.is_new(ctx)
                 || PANEL_VIEW_VAR.is_new(ctx)
                 || IMAGE_RESOLVER_VAR.is_new(ctx)
             {
@@ -101,6 +103,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut strikethrough = 0;
 
     let text_view = TEXT_VIEW_VAR.get();
+    let link_view = LINK_VIEW_VAR.get();
     let code_inline_view = CODE_INLINE_VIEW_VAR.get();
     let code_block_view = CODE_BLOCK_VIEW_VAR.get();
     let heading_view = HEADING_VIEW_VAR.get();
@@ -110,6 +113,10 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let image_view = IMAGE_VIEW_VAR.get();
     let rule_view = RULE_VIEW_VAR.get();
     let block_quote_view = BLOCK_QUOTE_VIEW_VAR.get();
+    let footnote_ref_view = FOOTNOTE_REF_VIEW_VAR.get();
+    let footnote_def_view = FOOTNOTE_DEF_VIEW_VAR.get();
+    let table_view = TABLE_VIEW_VAR.get();
+
     let image_resolver = IMAGE_RESOLVER_VAR.get();
 
     let mut blocks = vec![];
@@ -233,8 +240,17 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         },
                     ));
                 }
-                Tag::FootnoteDefinition(_) => {}
-                Tag::Table(_) => {}
+                Tag::FootnoteDefinition(label) => blocks.push(footnote_def_view.generate(
+                    ctx,
+                    FootnoteDefViewArgs {
+                        label: label.to_text(),
+                        items: mem::take(&mut inlines).into(),
+                    },
+                )),
+                Tag::Table(_) => {
+                    // !!: TODO
+                    inlines.clear();
+                }
                 Tag::TableHead => {}
                 Tag::TableRow => {}
                 Tag::TableCell => {}
@@ -247,7 +263,40 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 Tag::Strikethrough => {
                     strikethrough -= 1;
                 }
-                Tag::Link(_, _, _) => {}
+                Tag::Link(kind, url, title) => {
+                    match kind {
+                        LinkType::Inline => {}
+                        LinkType::Reference => {}
+                        LinkType::ReferenceUnknown => {}
+                        LinkType::Collapsed => {}
+                        LinkType::CollapsedUnknown => {}
+                        LinkType::Shortcut => {}
+                        LinkType::ShortcutUnknown => {}
+                        LinkType::Autolink | LinkType::Email => {
+                            inlines.push(text_view.generate(
+                                ctx,
+                                TextViewArgs {
+                                    txt: url.to_text(),
+                                    style: MarkdownStyle {
+                                        strong: strong > 0,
+                                        emphasis: emphasis > 0,
+                                        strikethrough: strikethrough > 0,
+                                    },
+                                },
+                            ));
+                        }
+                    }
+                    if !inlines.is_empty() {
+                        let items = mem::take(&mut inlines);
+                        inlines.push(link_view.generate(
+                            ctx,
+                            LinkViewArgs {
+                                title: title.to_text(),
+                                items: items.into(),
+                            },
+                        ));
+                    }
+                }
                 Tag::Image(_, url, title) => {
                     blocks.push(image_view.generate(
                         ctx,
@@ -297,8 +346,18 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         .boxed(),
                 );
             }
-            Event::Html(_) => {}
-            Event::FootnoteReference(_) => {}
+            Event::Html(tag) => match tag.as_ref() {
+                "<b>" => strong += 1,
+                "</b>" => strong -= 1,
+                "<em>" => emphasis += 1,
+                "</em>" => emphasis -= 1,
+                "<s>" => strikethrough += 1,
+                "</s>" => strikethrough -= 1,
+                _ => {}
+            },
+            Event::FootnoteReference(label) => {
+                inlines.push(footnote_ref_view.generate(ctx, FootnoteRefViewArgs { label: label.to_text() }));
+            }
             Event::SoftBreak => {}
             Event::HardBreak => {}
             Event::Rule => {
@@ -344,6 +403,17 @@ mod markdown_view {
         pub txt: Text,
         /// The style.
         pub style: MarkdownStyle,
+    }
+
+    /// Arguments for a markdown inlined link view.
+    ///
+    /// See [`LINK_VIEW_VAR`] for more details.
+    pub struct LinkViewArgs {
+        /// Link title, usually displayed as a tool-tip.
+        pub title: Text,
+
+        /// Inline items.
+        pub items: UiNodeVec,
     }
 
     /// Arguments for a markdown inlined code text view.
@@ -436,6 +506,27 @@ mod markdown_view {
         pub items: UiNodeVec,
     }
 
+    /// Arguments for a markdown footnote reference view.
+    pub struct FootnoteRefViewArgs {
+        /// Footnote referenced.
+        pub label: Text,
+    }
+
+    /// Arguments for a markdown footnote definition view.
+    ///
+    /// See [`PARAGRAPH_VIEW_VAR`] for more details.
+    pub struct FootnoteDefViewArgs {
+        /// Identifier label.
+        pub label: Text,
+        /// Inline items.
+        pub items: UiNodeVec,
+    }
+
+    /// Arguments for a markdown table view.
+    ///
+    /// See [`TABLE_VIEW_VAR`] for more details.
+    pub struct TableViewArgs {}
+
     /// Arguments for a markdown panel.
     ///
     /// See [`PANEL_VIEW_VAR`] for more details.
@@ -447,6 +538,9 @@ mod markdown_view {
     context_var! {
         /// View generator for a markdown text segment.
         pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = ViewGenerator::new(|_, args| default_text_view(args));
+
+        /// View generator for a markdown link segment.
+        pub static LINK_VIEW_VAR: ViewGenerator<LinkViewArgs> = ViewGenerator::new(|_, args| default_link_view(args));
 
         /// View generator for a markdown inline code segment.
         pub static CODE_INLINE_VIEW_VAR: ViewGenerator<CodeInlineViewArgs> = ViewGenerator::new(|_, args| default_code_inline_view(args));
@@ -475,6 +569,15 @@ mod markdown_view {
         /// View generator for a markdown block quote.
         pub static BLOCK_QUOTE_VIEW_VAR: ViewGenerator<BlockQuoteViewArgs> = ViewGenerator::new(|_, args| default_block_quote_view(args));
 
+        /// View generator for an inline reference to a footnote.
+        pub static FOOTNOTE_REF_VIEW_VAR: ViewGenerator<FootnoteRefViewArgs> = ViewGenerator::new(|_, args| default_footnote_ref_view(args));
+
+        /// View generator for a footnote definition block.
+        pub static FOOTNOTE_DEF_VIEW_VAR: ViewGenerator<FootnoteDefViewArgs> = ViewGenerator::new(|_, args| default_footnote_def_view(args));
+
+        /// View generator for a markdown table.
+        pub static TABLE_VIEW_VAR: ViewGenerator<TableViewArgs> = ViewGenerator::new(|_, args| default_table_view(args));
+
         /// View generator for a markdown panel.
         pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
     }
@@ -485,6 +588,14 @@ mod markdown_view {
     #[property(CONTEXT, default(TEXT_VIEW_VAR))]
     pub fn text_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<TextViewArgs>>) -> impl UiNode {
         with_context_var(child, TEXT_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`LinkViewArgs`] to widgets.
+    ///
+    /// Sets the [`LINK_VIEW_VAR`].
+    #[property(CONTEXT, default(LINK_VIEW_VAR))]
+    pub fn link_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<LinkViewArgs>>) -> impl UiNode {
+        with_context_var(child, LINK_VIEW_VAR, view)
     }
 
     /// View generator that converts [`CodeInlineViewArgs`] to widgets.
@@ -557,6 +668,30 @@ mod markdown_view {
     #[property(CONTEXT, default(BLOCK_QUOTE_VIEW_VAR))]
     pub fn block_quote_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<BlockQuoteViewArgs>>) -> impl UiNode {
         with_context_var(child, BLOCK_QUOTE_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`FootnoteRefViewArgs`] to widgets.
+    ///
+    /// Sets the [`FOOTNOTE_REF_VIEW_VAR`].
+    #[property(CONTEXT, default(FOOTNOTE_REF_VIEW_VAR))]
+    pub fn footnote_ref_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<FootnoteRefViewArgs>>) -> impl UiNode {
+        with_context_var(child, FOOTNOTE_REF_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`FootnoteDefViewArgs`] to widgets.
+    ///
+    /// Sets the [`FOOTNOTE_DEF_VIEW_VAR`].
+    #[property(CONTEXT, default(FOOTNOTE_DEF_VIEW_VAR))]
+    pub fn footnote_def_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<FootnoteDefViewArgs>>) -> impl UiNode {
+        with_context_var(child, FOOTNOTE_DEF_VIEW_VAR, view)
+    }
+
+    /// View generator that converts [`TableViewArgs`] to widgets.
+    ///
+    /// Sets the [`TABLE_VIEW_VAR`].
+    #[property(CONTEXT, default(TABLE_VIEW_VAR))]
+    pub fn table_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<TableViewArgs>>) -> impl UiNode {
+        with_context_var(child, TABLE_VIEW_VAR, view)
     }
 
     /// View generator that converts [`PanelViewArgs`] to a widget.
@@ -642,6 +777,21 @@ mod markdown_view {
         );
 
         crate::widgets::text::build(builder)
+    }
+
+    /// Default inlined link view.
+    ///
+    /// See [`LINK_VIEW_VAR`] for more details.
+    pub fn default_link_view(args: LinkViewArgs) -> impl UiNode {
+        if args.items.is_empty() {
+            NilUiNode.boxed()
+        } else {
+            // !!: TODO
+            crate::widgets::layouts::wrap! {
+                children = args.items;
+            }
+            .boxed()
+        }
     }
 
     /// Default code block view.
@@ -823,6 +973,14 @@ mod markdown_view {
         }
     }
 
+    /// Default markdown table.
+    ///
+    /// See [`TABLE_VIEW_VAR`] for more details.
+    pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
+        // !!: TODO
+        NilUiNode
+    }
+
     /// Default markdown panel.
     ///
     /// See [`PANEL_VIEW_VAR`] for more details.
@@ -838,6 +996,23 @@ mod markdown_view {
             }
             .boxed()
         }
+    }
+
+    /// Default markdown footnote definition.
+    ///
+    /// See [`FOOTNOTE_REF_VIEW`] for more details.
+    pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
+        // !!: TODO, implement links first
+        NilUiNode
+    }
+
+    /// Default markdown footnote definition.
+    ///
+    /// See [`FOOTNOTE_DEF_VIEW`] for more details.
+    pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
+        // !!: TODO, like a list item with the bullet is the label?
+        // also need to register the ID with label to the scroll nav.
+        NilUiNode
     }
 
     /// Markdown image resolver.
