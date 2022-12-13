@@ -1,9 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::core::{image::ImageSource, task::parking_lot::Mutex};
+use crate::core::{image::ImageSource, task::http::Uri, text::ToText};
 use crate::prelude::new_property::*;
-use crate::properties::events::gesture::on_click;
 
 context_var! {
     /// Markdown image resolver.
@@ -30,7 +29,7 @@ pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>)
 
 /// Markdown link resolver.
 ///
-/// This can be used to override link resolution, by default only scroll links
+/// This can be used to expand or replace links.
 ///
 /// Sets the [`LINK_RESOLVER_VAR`].
 #[property(CONTEXT, default(LINK_RESOLVER_VAR))]
@@ -49,7 +48,7 @@ pub enum ImageResolver {
     Resolve(Arc<dyn Fn(&str) -> ImageSource + Send + Sync>),
 }
 impl ImageResolver {
-    /// Apply the text transform.
+    /// Resolve the image.
     pub fn resolve(&self, img: &str) -> ImageSource {
         match self {
             ImageResolver::Default => img.into(),
@@ -84,10 +83,24 @@ impl fmt::Debug for ImageResolver {
 /// See [`LINK_RESOLVER_VAR`] for more details.
 #[derive(Clone)]
 pub enum LinkResolver {
-    /// Scroll `#anchor` links, ignore the rest.
+    /// No extra resolution, just pass the link provided.
     Default,
     /// Custom resolution.
-    Resolve(Arc<dyn Fn(&str) -> LinkAction + Send + Sync>),
+    Resolve(Arc<dyn Fn(&str) -> Text + Send + Sync>),
+}
+impl LinkResolver {
+    /// Resolve the link.
+    pub fn resolve(&self, url: &str) -> Text {
+        match self {
+            Self::Default => url.to_text(),
+            Self::Resolve(r) => r(url),
+        }
+    }
+
+    /// New [`Resolve`](Self::Resolve).
+    pub fn new(fn_: impl Fn(&str) -> Text + Send + Sync + 'static) -> Self {
+        Self::Resolve(Arc::new(fn_))
+    }
 }
 impl Default for LinkResolver {
     fn default() -> Self {
@@ -100,52 +113,66 @@ impl fmt::Debug for LinkResolver {
             write!(f, "LinkResolver::")?;
         }
         match self {
-            LinkResolver::Default => write!(f, "Default"),
-            LinkResolver::Resolve(_) => write!(f, "Resolve(_)"),
+            Self::Default => write!(f, "Default"),
+            Self::Resolve(_) => write!(f, "Resolve(_)"),
         }
     }
 }
 
-/// Arguments for a custom [`LinkAction`].
-#[derive(Debug, Clone)]
-pub struct LinkActionArgs {
-    /// Propagation handle of the event that activated the link.
-    pub propagation: EventPropagationHandle,
+event! {
+    /// Event raised by markdown links when clicked.
+    pub static LINK_EVENT: LinkArgs;
 }
 
-/// Action that runs when a markdown link is clicked, or otherwise activated.
-#[derive(Clone)]
-pub struct LinkAction(pub Option<Arc<Mutex<dyn FnMut(&mut WidgetContext, &LinkActionArgs) + Send>>>);
-impl fmt::Debug for LinkAction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "LinkAction(_)")
+event_property! {
+    /// Markdown link click.
+    pub fn link {
+        event: LINK_EVENT,
+        args: LinkArgs,
     }
 }
-impl LinkAction {
-    /// New `None`.
-    pub fn none() -> Self {
-        Self(None)
+
+event_args! {
+    /// Arguments for the [`LINK_EVENT`].
+    pub struct LinkArgs {
+        /// Raw URL.
+        pub url: Text,
+
+        /// Link widget.
+        pub link: InteractionPath,
+
+        ..
+
+        fn delivery_list(&self, delivery_list: &mut UpdateDeliveryList) {
+            delivery_list.insert_path(self.link.as_path())
+        }
     }
+}
 
-    /// Scroll to make the markdown generated widget associated with the `anchor` text visible.
-    ///
-    /// The anchor is resolved in the parent [`markdown!`] context and the [`SCROLL_TO_CMD`] command used to request the scroll.
-    ///
-    /// [`markdown!`]: mod@markdown
-    /// [`SCROLL_TO_CMD`]: crate::widgets::scroll::commands::SCROLL_TO_CMD
-    pub fn scroll(anchor: &str, mode: crate::widgets::scroll::commands::ScrollToMode) -> Self {
-        let anchor = anchor.to_owned();
-        Self::new(|ctx, args| {
-            todo!("find parents markdown! and scroll!, resolve anchor, request scroll");
-        })
+/// Default markdown link action.
+///
+/// Does [`try_scroll_link`] or [`try_open_link`].
+pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
+    try_scroll_link(ctx, args) || try_open_link(args)
+}
+
+/// Try to scroll to the anchor, only workds if the `url` is in the format `#anchor`, the `ctx` is a [`markdown!`] or inside one,
+/// and is also inside a [`scroll!`].
+///
+/// [`markdown!`]: crate::widgets::markdown
+/// [`scroll!`]: crate::widgets::scroll
+pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
+    if !args.propagation().is_stopped() {
+        if let Some(anchor) = args.url.strip_prefix('#') {
+            todo!()
+        }
     }
+    false
+}
 
-    /// Open the *url* or file externally.
-    ///
-    /// Request is done as a command, `explorer` in Windows, `open` in Mac and `xdg-open` in Linux.
-    pub fn open(url: &str) -> Self {
-        let url = url.to_owned();
-
+/// Try open link, only works if the `url` is valid or a file path, returns if suceeded and the event was handled.
+pub fn try_open_link(args: &LinkArgs) -> bool {
+    if !args.propagation().is_stopped() && args.url.parse::<Uri>().is_ok() {
         let open = if cfg!(windows) {
             "explorer"
         } else if cfg!(target_vendor = "apple") {
@@ -154,31 +181,60 @@ impl LinkAction {
             "xdg-open"
         };
 
-        Self::new(move |_, args| {
-            let ok = match std::process::Command::new(open).arg(&url).status() {
-                Ok(c) => {
-                    let ok = c.success();
-                    if !ok {
-                        tracing::error!("error opening \"{url}\", code: {c}");
-                    }
-                    ok
+        let url = &args.url;
+        let ok = match std::process::Command::new(open).arg(url.as_str()).status() {
+            Ok(c) => {
+                let ok = c.success();
+                if !ok {
+                    tracing::error!("error opening \"{url}\", code: {c}");
                 }
-                Err(e) => {
-                    tracing::error!("error opening \"{url}\", {e}");
-                    false
-                }
-            };
-
-            if ok {
-                args.propagation.stop();
+                ok
             }
-        })
-    }
+            Err(e) => {
+                tracing::error!("error opening \"{url}\", {e}");
+                false
+            }
+        };
 
-    /// New custom action.
-    /// 
-    /// The context is the link widget.
-    pub fn new(handle: impl FnMut(&mut WidgetContext, &LinkActionArgs) + Send + 'static) -> Self {
-        Self(Some(Arc::new(Mutex::new(handle))))
+        if ok {
+            args.propagation().stop();
+        }
+
+        ok
+    } else {
+        false
+    }
+}
+
+/// Label identifier for a markdown widget.
+///
+/// Is set by the [`anchor`] property in the widget info.
+///
+/// [`anchor`]: fn@anchor
+pub static ANCHOR_ID: StaticStateId<Text> = StaticStateId::new_unique();
+
+/// Set a [`ANCHOR_ID`] for the widget.
+#[property(CONTEXT, default(""))]
+pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
+    #[ui_node(struct AnchorNode {
+        child: impl UiNode,
+        #[var] anchor: impl Var<Text>,
+    })]
+    impl UiNode for AnchorNode {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
+            if self.anchor.is_new(ctx) {
+                ctx.updates.info();
+            }
+        }
+
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            info.meta().set(&ANCHOR_ID, self.anchor.get());
+            self.child.info(ctx, info);
+        }
+    }
+    AnchorNode {
+        child,
+        anchor: anchor.into_var(),
     }
 }

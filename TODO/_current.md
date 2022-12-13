@@ -7,13 +7,7 @@
     - Table, data format and panel?
         - Need grid layout?
     - Links and footnotes, needs info data with navigation anchor slugs.
-        - Other links need a handler?
-        - Could be an event in the `markdown!`?
-        - Could be a `LinkResolver` that provides a handler for each link.
-            - Could be both.
-        - The `LinkResolver` can indicate that the link is not valid too.
-        - We can provide a fallback handler for navigation links.
-            - For footnotes is not a fallback.
+        - Link filter.
 
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.
