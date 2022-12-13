@@ -8,6 +8,7 @@
         - Need grid layout?
     - Links and footnotes, needs info data with navigation anchor slugs.
         - Link filter.
+        - Show prompt for external links by default.
 
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

@@ -1,8 +1,11 @@
 use std::fmt;
 use std::sync::Arc;
 
+use zero_ui_core::widget_info::WidgetInfo;
+
 use crate::core::{image::ImageSource, task::http::Uri, text::ToText};
 use crate::prelude::new_property::*;
+use crate::widgets::scroll::WidgetInfoExt as _;
 
 context_var! {
     /// Markdown image resolver.
@@ -164,7 +167,21 @@ pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool
 pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     if !args.propagation().is_stopped() {
         if let Some(anchor) = args.url.strip_prefix('#') {
-            todo!()
+            if let Some(w) = ctx.info_tree.get(ctx.path.widget_id()) {
+                if let Some(md) = w.self_and_ancestors().find(|w| w.is_markdown()) {
+                    if let Some(target) = md.find_anchor(anchor) {
+                        for scroll in target.ancestors().filter(|&a| a.is_scroll()) {
+                            crate::widgets::scroll::commands::scroll_to(
+                                ctx.events,
+                                scroll.widget_id(),
+                                target.widget_id(),
+                                crate::widgets::scroll_wgt::commands::ScrollToMode::minimal(10),
+                            );
+                        }
+                        return true;
+                    }
+                }
+            }
         }
     }
     false
@@ -184,7 +201,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         let url = &args.url;
         let ok = match std::process::Command::new(open).arg(url.as_str()).status() {
             Ok(c) => {
-                let ok = c.success();
+                let ok = c.success() || (cfg!(windows) && c.code() == Some(1));
                 if !ok {
                     tracing::error!("error opening \"{url}\", code: {c}");
                 }
@@ -206,14 +223,14 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
     }
 }
 
-/// Label identifier for a markdown widget.
-///
-/// Is set by the [`anchor`] property in the widget info.
-///
-/// [`anchor`]: fn@anchor
-pub static ANCHOR_ID: StaticStateId<Text> = StaticStateId::new_unique();
+static ANCHOR_ID: StaticStateId<Text> = StaticStateId::new_unique();
 
-/// Set a [`ANCHOR_ID`] for the widget.
+pub(super) static MARKDOWN_INFO_ID: StaticStateId<()> = StaticStateId::new_unique();
+
+/// Set a label that identifies the widget in the context of the parent markdown.
+///
+/// The anchor can be retried in the widget info using [`WidgetInfoExt::anchor`]. It is mostly used
+/// by markdown links to find scroll targets.
 #[property(CONTEXT, default(""))]
 pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
     #[ui_node(struct AnchorNode {
@@ -236,5 +253,51 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
     AnchorNode {
         child,
         anchor: anchor.into_var(),
+    }
+}
+
+/// Markdown extension methods for widget info.
+pub trait WidgetInfoExt<'a> {
+    /// Gets the [`anchor`].
+    fn anchor(self) -> Option<&'a Text>;
+
+    /// If this widget is a [`markdown!`].
+    ///
+    /// [`markdown!`]: mod@crate::widgets::markdown
+    #[allow(clippy::wrong_self_convention)] // WidgetInfo is a reference.
+    fn is_markdown(self) -> bool;
+
+    /// Find descendant tagged by the given anchor.
+    fn find_anchor(self, anchor: &str) -> Option<WidgetInfo<'a>>;
+}
+impl<'a> WidgetInfoExt<'a> for WidgetInfo<'a> {
+    fn anchor(self) -> Option<&'a Text> {
+        self.meta().get(&ANCHOR_ID)
+    }
+
+    fn is_markdown(self) -> bool {
+        self.meta().contains(&MARKDOWN_INFO_ID)
+    }
+
+    fn find_anchor(self, anchor: &str) -> Option<WidgetInfo<'a>> {
+        self.descendants().find(|d| d.anchor().map(|a| a == anchor).unwrap_or(false))
+    }
+}
+
+/// Generate an anchor label for a header.
+pub fn heading_anchor(header: &str) -> Text {
+    header.chars().filter_map(slugify).collect::<String>().into()
+}
+fn slugify(c: char) -> Option<char> {
+    if c.is_alphanumeric() || c == '-' || c == '_' {
+        if c.is_ascii() {
+            Some(c.to_ascii_lowercase())
+        } else {
+            Some(c)
+        }
+    } else if c.is_whitespace() && c.is_ascii() {
+        Some('-')
+    } else {
+        None
     }
 }

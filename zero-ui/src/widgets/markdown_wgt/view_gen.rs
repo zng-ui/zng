@@ -1,5 +1,5 @@
 pub use pulldown_cmark::HeadingLevel;
-use zero_ui_core::image::ImageSource;
+use zero_ui_core::{image::ImageSource, gesture::ClickArgs};
 
 use crate::widgets::text::{PARAGRAPH_SPACING_VAR, TEXT_COLOR_VAR};
 
@@ -32,6 +32,9 @@ pub struct TextViewArgs {
 ///
 /// See [`LINK_VIEW_VAR`] for more details.
 pub struct LinkViewArgs {
+    /// The link.
+    pub url: Text,
+
     /// Link title, usually displayed as a tool-tip.
     pub title: Text,
 
@@ -75,6 +78,9 @@ pub struct ParagraphViewArgs {
 pub struct HeadingViewArgs {
     /// Level.
     pub level: HeadingLevel,
+
+    /// Anchor label that identifies the header in the markdown context.
+    pub anchor: Text,
 
     /// Inline items.
     pub items: UiNodeVec,
@@ -409,9 +415,19 @@ pub fn default_link_view(args: LinkViewArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        // !!: TODO
+        use crate::widgets::text;
+
+        let url = args.url;
         crate::widgets::layouts::wrap! {
             children = args.items;
+            on_click = hn!(|ctx, args: &ClickArgs| {
+                args.propagation().stop();
+
+                let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
+                markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url.clone(), link));
+            });
+            cursor = CursorIcon::Hand;
+            text::underline = 1, LineStyle::Solid;
         }
         .boxed()
     }
@@ -478,6 +494,7 @@ pub fn default_heading_view(args: HeadingViewArgs) -> impl UiNode {
                 HeadingLevel::H6 => 1.1.em()
             };
             children = args.items;
+            super::markdown::anchor = args.anchor;
         }
         .boxed()
     }
@@ -582,7 +599,9 @@ pub fn default_image_view(args: ImageViewArgs) -> impl UiNode {
 ///
 /// See [`RULE_VIEW_VAR`] for more details.
 pub fn default_rule_view(_: RuleViewArgs) -> impl UiNode {
-    crate::widgets::hr!()
+    crate::widgets::hr! {
+        opacity = 50.pct();
+    }
 }
 
 /// Default block quote view.

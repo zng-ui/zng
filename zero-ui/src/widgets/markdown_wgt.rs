@@ -27,6 +27,10 @@ pub mod markdown {
     properties! {
         /// Markdown text.
         pub md(impl IntoVar<Text>);
+
+        on_link = hn!(|ctx, args: &LinkArgs| {
+            try_default_link_action(ctx, args);
+        })
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -56,6 +60,12 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             self.child = NilUiNode.boxed();
+        }
+
+        #[UiNode]
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            info.meta().set(&markdown::MARKDOWN_INFO_ID, ());
+            self.child.info(ctx, info);
         }
 
         #[UiNode]
@@ -124,6 +134,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let table_view = TABLE_VIEW_VAR.get();
 
     let image_resolver = IMAGE_RESOLVER_VAR.get();
+    let link_resolver = LINK_RESOLVER_VAR.get();
 
     let mut blocks = vec![];
     let mut inlines = vec![];
@@ -132,12 +143,15 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut list_items = vec![];
     let mut block_quote_start = vec![];
     let mut code_block_text = None;
+    let mut heading_text = None;
 
     for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b| Some((b.reference, "".into())))) {
         match item {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => {}
-                Tag::Heading(_, _, _) => {}
+                Tag::Heading(_, _, _) => {
+                    heading_text = Some(String::new());
+                }
                 Tag::BlockQuote => {
                     block_quote_start.push(blocks.len());
                 }
@@ -183,6 +197,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                             ctx,
                             HeadingViewArgs {
                                 level,
+                                anchor: heading_anchor(heading_text.take().unwrap_or_default().as_str()),
                                 items: mem::take(&mut inlines).into(),
                             },
                         ));
@@ -274,6 +289,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 }
                 Tag::Link(kind, url, title) => {
                     let title = html_escape::decode_html_entities(title.as_ref());
+                    let url = link_resolver.resolve(url.as_ref());
                     match kind {
                         LinkType::Inline => {}
                         LinkType::Reference => {}
@@ -302,6 +318,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         inlines.push(link_view.generate(
                             ctx,
                             LinkViewArgs {
+                                url,
                                 title: title.to_text(),
                                 items: items.into(),
                             },
@@ -325,6 +342,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 if let Some(t) = &mut code_block_text {
                     t.push_str(&txt);
                 } else {
+                    if let Some(t) = &mut heading_text {
+                        t.push_str(&txt);
+                    }
                     inlines.push(
                         text_view
                             .generate(
