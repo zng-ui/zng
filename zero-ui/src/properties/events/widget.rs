@@ -5,7 +5,7 @@
 
 use std::mem;
 
-use crate::core::{context::*, handler::*, widget_instance::*, *};
+use crate::core::{context::*, handler::*, units::*, widget_instance::*, *};
 
 /// Arguments for the [`on_init`](fn@on_init) event.
 #[derive(Clone, Debug, Copy)]
@@ -309,4 +309,19 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
         }
     }
     OnPreviewDeinitNode { child, handler, count: 0 }
+}
+
+event_property! {
+    /// Widget global inner transform changed.
+    pub fn widget_transform_changed {
+        event: window::WIDGET_TRANSFORM_CHANGED_EVENT,
+        args: window::WidgetTransformChangedArgs,
+    }
+
+    /// Widget global position changed.
+    pub fn move {
+        event: window::WIDGET_TRANSFORM_CHANGED_EVENT,
+        args: window::WidgetTransformChangedArgs,
+        filter: |_, a| a.offset() != PxVector::zero(),
+    }
 }

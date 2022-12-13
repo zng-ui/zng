@@ -138,6 +138,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
 
     let mut blocks = vec![];
     let mut inlines = vec![];
+    let mut link_start = None;
     let mut list_item_num = None;
     let mut list_item_checked = None;
     let mut list_items = vec![];
@@ -176,7 +177,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 Tag::Strikethrough => {
                     strong += 1;
                 }
-                Tag::Link(_, _, _) => {}
+                Tag::Link(_, _, _) => {
+                    link_start = Some(inlines.len());
+                }
                 Tag::Image(_, _, _) => {}
             },
             Event::End(tag) => match tag {
@@ -314,15 +317,19 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         }
                     }
                     if !inlines.is_empty() {
-                        let items = mem::take(&mut inlines);
-                        inlines.push(link_view.generate(
-                            ctx,
-                            LinkViewArgs {
-                                url,
-                                title: title.to_text(),
-                                items: items.into(),
-                            },
-                        ));
+                        if let Some(s) = link_start.take() {
+                            let items = inlines.drain(s..).collect();
+                            inlines.push(link_view.generate(
+                                ctx,
+                                LinkViewArgs {
+                                    url,
+                                    title: title.to_text(),
+                                    items,
+                                },
+                            ));
+                        }
+
+                        
                     }
                 }
                 Tag::Image(_, url, title) => {
@@ -405,4 +412,13 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     }
 
     PANEL_VIEW_VAR.get().generate(ctx, PanelViewArgs { items: blocks.into() })
+}
+
+/// Simple markdown run.
+/// 
+/// See [`markdown!`] for the full widget.
+/// 
+/// [`markdown!`]: mod@markdown
+pub fn markdown(md: impl IntoVar<Text>) -> impl UiNode {
+    markdown!(md)
 }

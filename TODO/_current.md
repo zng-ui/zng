@@ -1,5 +1,6 @@
 * Image render requests a parent window, it causes errors because window with parents can't be parent of the image headless window.
     - We need the parent to load the right color-scheme in the image.
+    - Allow headless children in any headed window?
 
 * Implement `markdown!`.
     - List number horizontal alignment.
@@ -7,8 +8,11 @@
     - Table, data format and panel?
         - Need grid layout?
     - Links and footnotes, needs info data with navigation anchor slugs.
-        - Link filter.
-        - Show prompt for external links by default.
+        - Implement footnotes.
+        - Implement `on_move` to close links.
+        - Implement something that automatically selects the best side of the target widget to open the link tool-tip. 
+    - Tool-tips.
+        - Implement basic tool-tip.
 
 * Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.

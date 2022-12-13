@@ -17,7 +17,7 @@ use crate::{
     text::Text,
     units::*,
     var::*,
-    widget_info::WidgetInfoTree,
+    widget_info::{WidgetInfoTree, WidgetPath},
     widget_instance::{BoxedUiNode, IdNameError, UiNode, WidgetId},
 };
 
@@ -700,6 +700,23 @@ event_args! {
         }
     }
 
+    /// [`WIDGET_TRANSFORM_CHANGED_EVENT`] args.
+    pub struct WidgetTransformChangedArgs {
+        /// The widget.
+        pub widget: WidgetPath,
+        /// Previous inner transform.
+        pub prev_transform: PxTransform,
+        /// New inner transform.
+        pub new_transform: PxTransform,
+
+        ..
+
+        /// Target the `widget`.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(&self.widget);
+        }
+    }
+
     /// [`FRAME_IMAGE_READY_EVENT`] args.
     pub struct FrameImageReadyArgs {
         /// Window ID.
@@ -840,6 +857,12 @@ impl WindowFocusChangedArgs {
         }
     }
 }
+impl WidgetTransformChangedArgs {
+    /// Gets the movement between previous and new transform.
+    pub fn offset(&self) -> PxVector {
+        self.prev_transform.transform_vector(PxVector::zero()) - self.new_transform.transform_vector(PxVector::zero())
+    }
+}
 
 event! {
     /// Window moved, resized or has a state change.
@@ -874,6 +897,12 @@ event! {
     ///
     /// [`Windows::widget_tree`]: crate::window::Windows::widget_tree
     pub static WIDGET_INFO_CHANGED_EVENT: WidgetInfoChangedArgs;
+
+    /// A widget global inner transform has changed after render.
+    ///
+    /// All subscribers of this event are checked after render, if the previous inner transform was recorded and
+    /// the new inner transform is different an event is sent to the widget.
+    pub static WIDGET_TRANSFORM_CHANGED_EVENT: WidgetTransformChangedArgs;
 
     /// A window frame has finished rendering.
     ///

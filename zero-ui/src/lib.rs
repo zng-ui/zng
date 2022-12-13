@@ -967,7 +967,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::properties::commands::*;
     #[doc(no_inline)]
-    pub use crate::properties::events::{gesture::*, keyboard::*, mouse::on_mouse_move};
+    pub use crate::properties::events::{gesture::*, keyboard::*, mouse::on_mouse_move, widget::on_move};
     #[doc(no_inline)]
     pub use crate::properties::filters::*;
     #[doc(no_inline)]

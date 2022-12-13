@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use zero_ui_core::widget_info::WidgetInfo;
 
-use crate::core::{image::ImageSource, task::http::Uri, text::ToText};
+use crate::core::{image::ImageSource, text::ToText};
 use crate::prelude::new_property::*;
 use crate::widgets::scroll::WidgetInfoExt as _;
+use crate::widgets::scroll_wgt::commands::ScrollToMode;
 
 context_var! {
     /// Markdown image resolver.
@@ -13,6 +14,9 @@ context_var! {
 
     /// Markdown link resolver.
     pub static LINK_RESOLVER_VAR: LinkResolver = LinkResolver::Default;
+
+    /// Scroll mode used by anchor links.
+    pub static LINK_SCROLL_MODE_VAR: ScrollToMode = ScrollToMode::minimal(10);
 }
 
 /// Markdown image resolver.
@@ -38,6 +42,12 @@ pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>)
 #[property(CONTEXT, default(LINK_RESOLVER_VAR))]
 pub fn link_resolver(child: impl UiNode, resolver: impl IntoVar<LinkResolver>) -> impl UiNode {
     with_context_var(child, LINK_RESOLVER_VAR, resolver)
+}
+
+/// Scroll-to mode used by anchor links.
+#[property(CONTEXT, default(LINK_SCROLL_MODE_VAR))]
+pub fn link_scroll_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) -> impl UiNode {
+    with_context_var(child, LINK_SCROLL_MODE_VAR, mode)
 }
 
 /// Markdown image resolver.
@@ -156,10 +166,10 @@ event_args! {
 ///
 /// Does [`try_scroll_link`] or [`try_open_link`].
 pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
-    try_scroll_link(ctx, args) || try_open_link(args)
+    try_scroll_link(ctx, args) || try_open_link(ctx, args)
 }
 
-/// Try to scroll to the anchor, only workds if the `url` is in the format `#anchor`, the `ctx` is a [`markdown!`] or inside one,
+/// Try to scroll to the anchor, only works if the `url` is in the format `#anchor`, the `ctx` is a [`markdown!`] or inside one,
 /// and is also inside a [`scroll!`].
 ///
 /// [`markdown!`]: crate::widgets::markdown
@@ -175,7 +185,7 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                                 ctx.events,
                                 scroll.widget_id(),
                                 target.widget_id(),
-                                crate::widgets::scroll_wgt::commands::ScrollToMode::minimal(10),
+                                LINK_SCROLL_MODE_VAR.get(),
                             );
                         }
                         return true;
@@ -187,40 +197,126 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     false
 }
 
-/// Try open link, only works if the `url` is valid or a file path, returns if suceeded and the event was handled.
-pub fn try_open_link(args: &LinkArgs) -> bool {
-    if !args.propagation().is_stopped() && args.url.parse::<Uri>().is_ok() {
-        let open = if cfg!(windows) {
-            "explorer"
-        } else if cfg!(target_vendor = "apple") {
-            "open"
-        } else {
-            "xdg-open"
-        };
+/// Try open link, only works if the `url` is valid or a file path, returns if the confirm tool-tip is visible.
+pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
+    use crate::prelude::*;
 
-        let url = &args.url;
-        let ok = match std::process::Command::new(open).arg(url.as_str()).status() {
-            Ok(c) => {
-                let ok = c.success() || (cfg!(windows) && c.code() == Some(1));
-                if !ok {
-                    tracing::error!("error opening \"{url}\", code: {c}");
-                }
-                ok
-            }
-            Err(e) => {
-                tracing::error!("error opening \"{url}\", {e}");
-                false
-            }
-        };
+    if args.propagation().is_stopped() || args.url.parse::<Uri>().is_err() || !args.link.interactivity().is_enabled() {
+        return false;
+    }
 
-        if ok {
-            args.propagation().stop();
+    let popup_id = WidgetId::new_unique();
+
+    let url = args.url.clone();
+
+    #[derive(Clone, Debug, PartialEq)]
+    enum Status {
+        Pending,
+        Ok,
+        Err,
+        Cancel,
+    }
+    let status = var(Status::Pending);
+
+    let popup = container! {
+        id = popup_id;
+
+        padding = (2, 4);
+        corner_radius = 2;
+        drop_shadow = (4, 4), 2, colors::BLACK;        
+        align = Align::TOP_LEFT;
+
+        #[easing(200.ms())]
+        opacity = 0.pct();
+        #[easing(200.ms())]
+        scale = 90.pct();
+
+        background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
+
+        when *#{status.clone()} == Status::Pending {
+            opacity = 100.pct();
+            scale = 100.pct();
         }
 
-        ok
-    } else {
-        false
-    }
+        when *#{status.clone()} == Status::Ok {
+            background_color = color_scheme_map(colors::DARK_GREEN.with_alpha(90.pct()), colors::GREEN.with_alpha(90.pct()));
+        }
+        when *#{status.clone()} == Status::Err {
+            background_color = color_scheme_map(colors::DARK_RED.with_alpha(90.pct()), colors::RED.with_alpha(90.pct()));
+        }
+
+        child = h_stack(ui_list! [
+            text! {
+                focusable = true;
+                focus_on_init = true;
+                
+                txt = formatx!("{url}");
+                cursor = CursorIcon::Hand;
+                underline = 1, LineStyle::Solid;
+                underline_skip = UnderlineSkip::SPACES;
+                
+                on_blur = async_hn_once!(status, |ctx, _| {
+                    status.set(&ctx, Status::Cancel);
+                    task::deadline(200.ms()).await;
+                
+                    ctx.with(|ctx| {
+                        WindowLayers::remove(ctx, popup_id);
+                    });
+                });
+                on_move = async_hn_once!(status, |ctx, _| {
+                    status.set(&ctx, Status::Cancel);
+                    task::deadline(200.ms()).await;
+                
+                    ctx.with(|ctx| {
+                        WindowLayers::remove(ctx, popup_id);
+                    });
+                });
+            
+                on_click = async_hn_once!(status, |ctx, args: ClickArgs| {
+                    args.propagation().stop();
+                
+                    let open = if cfg!(windows) {
+                        "explorer"
+                    } else if cfg!(target_vendor = "apple") {
+                        "open"
+                    } else {
+                        "xdg-open"
+                    };
+                    let ok = match std::process::Command::new(open).arg(url.as_str()).status() {
+                        Ok(c) => {
+                            let ok = c.success() || (cfg!(windows) && c.code() == Some(1));
+                            if !ok {
+                                tracing::error!("error opening \"{url}\", code: {c}");
+                            }
+                            ok
+                        }
+                        Err(e) => {
+                            tracing::error!("error opening \"{url}\", {e}");
+                            false
+                        }
+                    };
+                
+                    status.set(&ctx, if ok { Status::Ok } else { Status::Err });
+                    task::deadline(200.ms()).await;
+                
+                    ctx.with(|ctx| {
+                        WindowLayers::remove(ctx, popup_id);
+                    });
+                });
+            },
+            strong(" ⭷"),
+        ]);
+    };
+
+    WindowLayers::insert_anchored(
+        ctx,
+        LayerIndex::ADORNER,
+        args.link.widget_id(),
+        AnchorMode::none().with_transform(Point::bottom()),
+        popup,
+    );
+
+    true
 }
 
 static ANCHOR_ID: StaticStateId<Text> = StaticStateId::new_unique();

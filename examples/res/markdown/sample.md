@@ -4,7 +4,7 @@ A paragraph, with **bold** text , **italic** text, and ***both***.
 
 Lorem ipsum dolor sit amet, ei nam copiosae invidunt accusamus. Vidit dicat cu pri, sit magna vocibus ut. Cum eu assum primis voluptatum. Est dolorum urbanitas elaboraret no, nisl definitiones cu sit.
 
-You can also link, [external](https://httpbin.org) or [scroll](#table). And finally you can `inline` code.
+You can also link, [external](https://httpbin.org) or [scroll](#table "Table"). And finally you can `inline` code.
 
 ## Blocks
 
@@ -29,6 +29,13 @@ Task lists:
 - [ ] Item 1
 - [x] Item 2
 - [ ] Item 3
+
+Nested lists:
+
+* Item 1
+    * Item 1.1
+        * Item 1.1.1
+            * Item 1.1.1.1
 
 ### Images
 
