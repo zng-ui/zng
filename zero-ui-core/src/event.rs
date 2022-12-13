@@ -149,6 +149,15 @@ impl<A: EventArgs> Event<A> {
         self.as_any().has_subscribers()
     }
 
+    /// Calls `visit` for each widget subscribed to this event.
+    /// 
+    /// Note that trying to add a subscriber inside `visit` will deadlock.
+    pub fn visit_subscribers(&self, mut visit: impl FnMut(WidgetId)) {
+        for sub in self.local.read().widget_subs.keys() {
+            visit(*sub);
+        }
+    }
+
     /// Event name.
     pub fn name(&self) -> &'static str {
         self.local.read().name

@@ -12,6 +12,7 @@ use crate::{
     },
     color::{ColorScheme, RenderColor},
     context::{state_map, InfoLayoutRenderUpdates, LayoutContext, OwnedStateMap, WidgetUpdates, WindowContext, WindowRenderUpdate},
+    crate_util::IdMap,
     event::{AnyEventArgs, EventHandles, EventUpdate},
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
@@ -25,8 +26,9 @@ use crate::{
 
 use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, Monitors, StartPosition, Window, WindowChangedArgs, WindowChrome,
-    WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
+    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, Monitors, StartPosition, WidgetTransformChangedArgs, Window,
+    WindowChangedArgs, WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT,
+    MONITORS_CHANGED_EVENT, WIDGET_TRANSFORM_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -1460,6 +1462,8 @@ struct ContentCtrl {
 
     layout_requested: bool,
     render_requested: WindowRenderUpdate,
+
+    previous_transforms: IdMap<WidgetId, PxTransform>,
 }
 impl ContentCtrl {
     pub fn new(window_id: WindowId, vars: WindowVars, commands: WindowCommands, window: Window) -> Self {
@@ -1490,6 +1494,8 @@ impl ContentCtrl {
 
             layout_requested: false,
             render_requested: WindowRenderUpdate::None,
+
+            previous_transforms: IdMap::default(),
         }
     }
 
@@ -1742,6 +1748,8 @@ impl ContentCtrl {
                     frame.finalize(ctx.info_tree)
                 });
 
+                self.notify_transform_changes(ctx);
+
                 self.used_frame_builder = Some(used);
 
                 self.clear_color = frame.clear_color;
@@ -1787,6 +1795,8 @@ impl ContentCtrl {
                     update.finalize(ctx.info_tree)
                 });
 
+                self.notify_transform_changes(ctx);
+
                 self.used_frame_update = Some(used);
 
                 if let Some(c) = update.clear_color {
@@ -1822,6 +1832,37 @@ impl ContentCtrl {
                 true
             }
             FrameCaptureMode::All => true,
+        }
+    }
+
+    fn notify_transform_changes(&mut self, ctx: &mut WindowContext) {
+        let mut changes = vec![];
+
+        WIDGET_TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
+            if let Some(wgt) = self.info_tree.get(wid) {
+                let transform = wgt.bounds_info().inner_transform();
+
+                match self.previous_transforms.entry(wid) {
+                    std::collections::hash_map::Entry::Occupied(mut e) => {
+                        let prev = e.insert(transform);
+                        if prev != transform {
+                            changes.push((wgt.path(), prev, transform));
+                        }
+                    }
+                    std::collections::hash_map::Entry::Vacant(e) => {
+                        e.insert(transform);
+                    }
+                }
+            }
+        });
+
+        if (self.previous_transforms.len() - changes.len()) > 500 {
+            self.previous_transforms
+                .retain(|k, _| WIDGET_TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
+        }
+
+        for (path, prev, new) in changes {
+            WIDGET_TRANSFORM_CHANGED_EVENT.notify(ctx, WidgetTransformChangedArgs::now(path, prev, new));
         }
     }
 }
