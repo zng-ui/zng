@@ -1,5 +1,5 @@
 pub use pulldown_cmark::HeadingLevel;
-use zero_ui_core::{image::ImageSource, gesture::ClickArgs};
+use zero_ui_core::{gesture::ClickArgs, image::ImageSource};
 
 use crate::widgets::text::{PARAGRAPH_SPACING_VAR, TEXT_COLOR_VAR};
 

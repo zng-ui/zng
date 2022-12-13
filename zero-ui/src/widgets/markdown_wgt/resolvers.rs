@@ -223,7 +223,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
 
         padding = (2, 4);
         corner_radius = 2;
-        drop_shadow = (4, 4), 2, colors::BLACK;        
+        drop_shadow = (4, 4), 2, colors::BLACK;
         align = Align::TOP_LEFT;
 
         #[easing(200.ms())]
@@ -249,16 +249,16 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
             text! {
                 focusable = true;
                 focus_on_init = true;
-                
+
                 txt = formatx!("{url}");
                 cursor = CursorIcon::Hand;
                 underline = 1, LineStyle::Solid;
                 underline_skip = UnderlineSkip::SPACES;
-                
+
                 on_blur = async_hn_once!(status, |ctx, _| {
                     status.set(&ctx, Status::Cancel);
                     task::deadline(200.ms()).await;
-                
+
                     ctx.with(|ctx| {
                         WindowLayers::remove(ctx, popup_id);
                     });
@@ -266,15 +266,15 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                 on_move = async_hn_once!(status, |ctx, _| {
                     status.set(&ctx, Status::Cancel);
                     task::deadline(200.ms()).await;
-                
+
                     ctx.with(|ctx| {
                         WindowLayers::remove(ctx, popup_id);
                     });
                 });
-            
+
                 on_click = async_hn_once!(status, |ctx, args: ClickArgs| {
                     args.propagation().stop();
-                
+
                     let open = if cfg!(windows) {
                         "explorer"
                     } else if cfg!(target_vendor = "apple") {
@@ -295,10 +295,10 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                             false
                         }
                     };
-                
+
                     status.set(&ctx, if ok { Status::Ok } else { Status::Err });
                     task::deadline(200.ms()).await;
-                
+
                     ctx.with(|ctx| {
                         WindowLayers::remove(ctx, popup_id);
                     });

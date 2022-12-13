@@ -858,9 +858,11 @@ impl WindowFocusChangedArgs {
     }
 }
 impl WidgetTransformChangedArgs {
-    /// Gets the movement between previous and new transform.
+    /// Gets the movement between previous and new transformed top-left corner.
     pub fn offset(&self) -> PxVector {
-        self.prev_transform.transform_vector(PxVector::zero()) - self.new_transform.transform_vector(PxVector::zero())
+        let prev = self.prev_transform.transform_point(PxPoint::zero()).unwrap_or_default();
+        let new = self.new_transform.transform_point(PxPoint::zero()).unwrap_or_default();
+        prev - new
     }
 }
 

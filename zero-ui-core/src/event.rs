@@ -150,7 +150,7 @@ impl<A: EventArgs> Event<A> {
     }
 
     /// Calls `visit` for each widget subscribed to this event.
-    /// 
+    ///
     /// Note that trying to add a subscriber inside `visit` will deadlock.
     pub fn visit_subscribers(&self, mut visit: impl FnMut(WidgetId)) {
         for sub in self.local.read().widget_subs.keys() {

@@ -328,8 +328,6 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                                 },
                             ));
                         }
-
-                        
                     }
                 }
                 Tag::Image(_, url, title) => {
@@ -415,9 +413,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
 }
 
 /// Simple markdown run.
-/// 
+///
 /// See [`markdown!`] for the full widget.
-/// 
+///
 /// [`markdown!`]: mod@markdown
 pub fn markdown(md: impl IntoVar<Text>) -> impl UiNode {
     markdown!(md)
