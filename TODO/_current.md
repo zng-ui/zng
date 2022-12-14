@@ -8,7 +8,8 @@
     - Table, data format and panel?
         - Need grid layout?
     - Links and footnotes, needs info data with navigation anchor slugs.
-        - Implement footnotes.
+        - Better footnote links.
+            - Consistent link colors?
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip. 
     - Tool-tips.
         - Implement basic tool-tip.

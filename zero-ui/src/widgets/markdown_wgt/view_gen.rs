@@ -158,7 +158,7 @@ pub struct FootnoteRefViewArgs {
 pub struct FootnoteDefViewArgs {
     /// Identifier label.
     pub label: Text,
-    /// Inline items.
+    /// Block items.
     pub items: UiNodeVec,
 }
 
@@ -697,15 +697,42 @@ pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
 ///
 /// See [`FOOTNOTE_REF_VIEW`] for more details.
 pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
-    // !!: TODO, implement links first
-    NilUiNode
+    let url = formatx!("#footnote-{}", args.label);
+    crate::widgets::text! {
+        txt = formatx!("[{}]", args.label);
+        on_click = hn!(|ctx, args: &ClickArgs| {
+            args.propagation().stop();
+
+            let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
+            markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url.clone(), link));
+        });
+        cursor = CursorIcon::Hand;
+    }
 }
 
 /// Default markdown footnote definition.
 ///
 /// See [`FOOTNOTE_DEF_VIEW`] for more details.
 pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
-    // !!: TODO, like a list item with the bullet is the label?
-    // also need to register the ID with label to the scroll nav.
-    NilUiNode
+    let mut items = args.items;
+    let items = if items.is_empty() {
+        NilUiNode.boxed()
+    } else if items.len() == 1 {
+        items.remove(0)
+    } else {
+        crate::widgets::layouts::v_stack! {
+            children = items;
+        }
+        .boxed()
+    };
+
+    crate::widgets::layouts::h_stack! {
+        crate::widgets::markdown::anchor = formatx!("footnote-{}", args.label);
+        children = ui_list![
+            crate::widgets::text! {
+                txt = formatx!("[{}] ", args.label);
+            },
+            items,
+        ];
+    }
 }

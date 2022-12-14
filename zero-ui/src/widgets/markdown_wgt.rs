@@ -146,11 +146,11 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut inlines = vec![];
     let mut link_start = None;
     let mut list_info = vec![];
-    let mut list_item_checked = None;
     let mut list_items = vec![];
     let mut block_quote_start = vec![];
     let mut code_block_text = None;
     let mut heading_text = None;
+    let mut footnote_def_start = None;
 
     for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b| Some((b.reference, "".into())))) {
         match item {
@@ -174,7 +174,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     });
                 }
                 Tag::Item => {}
-                Tag::FootnoteDefinition(_) => {}
+                Tag::FootnoteDefinition(_) => {
+                    footnote_def_start = Some(blocks.len());
+                }
                 Tag::Table(_) => {}
                 Tag::TableHead => {}
                 Tag::TableRow => {}
@@ -283,7 +285,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                             ListItemViewArgs {
                                 depth: depth as u32,
                                 num,
-                                checked: list_item_checked.take(),
+                                checked: list.item_checked.take(),
                                 items: inlines.drain(list.inline_start..).collect(),
                                 nested_list,
                             },
@@ -291,14 +293,17 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     }
                 }
                 Tag::FootnoteDefinition(label) => {
-                    let label = html_escape::decode_html_entities(label.as_ref());
-                    blocks.push(footnote_def_view.generate(
-                        ctx,
-                        FootnoteDefViewArgs {
-                            label: label.to_text(),
-                            items: mem::take(&mut inlines).into(),
-                        },
-                    ));
+                    if let Some(i) = footnote_def_start.take() {
+                        let label = html_escape::decode_html_entities(label.as_ref());
+                        let items = blocks.drain(i..).collect();
+                        blocks.push(footnote_def_view.generate(
+                            ctx,
+                            FootnoteDefViewArgs {
+                                label: label.to_text(),
+                                items,
+                            },
+                        ));
+                    }
                 }
                 Tag::Table(_) => {
                     // !!: TODO
@@ -430,7 +435,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 blocks.push(rule_view.generate(ctx, RuleViewArgs {}));
             }
             Event::TaskListMarker(c) => {
-                list_item_checked = Some(c);
+                if let Some(l) = &mut list_info.last_mut() {
+                    l.item_checked = Some(c);
+                }
             }
         }
     }
