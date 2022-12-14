@@ -569,14 +569,25 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
         );
     }
 
-    if items.len() == 1 {
+    let mut r = if items.len() == 1 {
         items.remove(0)
     } else {
         crate::widgets::layouts::wrap! {
             children = items;
         }
         .boxed()
+    };
+
+    if let Some(inner) = args.nested_list {
+        r = crate::widgets::layouts::v_stack! {
+            children = ui_list![
+                r,
+                inner
+            ]
+        }.boxed();
     }
+
+    r
 }
 
 /// Default image view.

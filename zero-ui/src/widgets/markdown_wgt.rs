@@ -136,10 +136,16 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let image_resolver = IMAGE_RESOLVER_VAR.get();
     let link_resolver = LINK_RESOLVER_VAR.get();
 
+    struct ListInfo {
+        block_start: usize,
+        inline_start: usize,
+        item_num: Option<u64>,
+        item_checked: Option<bool>,
+    }
     let mut blocks = vec![];
     let mut inlines = vec![];
     let mut link_start = None;
-    let mut list_item_num = None;
+    let mut list_info = vec![];
     let mut list_item_checked = None;
     let mut list_items = vec![];
     let mut block_quote_start = vec![];
@@ -160,7 +166,12 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     code_block_text = Some(String::new());
                 }
                 Tag::List(n) => {
-                    list_item_num = n;
+                    list_info.push(ListInfo {
+                        block_start: blocks.len(),
+                        inline_start: inlines.len(),
+                        item_num: n,
+                        item_checked: None,
+                    });
                 }
                 Tag::Item => {}
                 Tag::FootnoteDefinition(_) => {}
@@ -237,35 +248,47 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     }
                 }
                 Tag::List(n) => {
-                    blocks.push(list_view.generate(
-                        ctx,
-                        ListViewArgs {
-                            depth: 0,
-                            first_num: n,
-                            items: mem::take(&mut list_items).into(),
-                        },
-                    ));
+                    if let Some(_list) = list_info.pop() {
+                        blocks.push(list_view.generate(
+                            ctx,
+                            ListViewArgs {
+                                depth: list_info.len() as u32,
+                                first_num: n,
+                                items: mem::take(&mut list_items).into(),
+                            },
+                        ));
+                    }                    
                 }
                 Tag::Item => {
-                    let num = match &mut list_item_num {
-                        Some(n) => {
-                            let r = *n;
-                            *n += 1;
-                            Some(r)
-                        }
-                        None => None,
-                    };
+                    let depth = list_info.len().saturating_sub(1);
+                    if let Some(list) = list_info.last_mut() {
+                        let num = match &mut list.item_num {
+                            Some(n) => {
+                                let r = *n;
+                                *n += 1;
+                                Some(r)
+                            }
+                            None => None,
+                        };
 
-                    list_items.push(list_item_view.generate(
-                        ctx,
-                        ListItemViewArgs {
-                            depth: 0,
-                            num,
-                            checked: list_item_checked.take(),
-                            items: mem::take(&mut inlines).into(),
-                            nested_list: None,
-                        },
-                    ));
+                        let nested_list = if list.block_start < blocks.len() {
+                            debug_assert_eq!(blocks.len() - list.block_start, 1);
+                            blocks.pop()
+                        } else {
+                            None
+                        };
+
+                        list_items.push(list_item_view.generate(
+                            ctx,
+                            ListItemViewArgs {
+                                depth: depth as u32,
+                                num,
+                                checked: list_item_checked.take(),
+                                items: inlines.drain(list.inline_start..).collect(),
+                                nested_list,
+                            },
+                        ));
+                    }
                 }
                 Tag::FootnoteDefinition(label) => {
                     let label = html_escape::decode_html_entities(label.as_ref());
