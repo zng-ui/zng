@@ -1,4 +1,4 @@
-use crate::context::StateMapMut;
+use crate::context::{MeasureContext, StateMapMut};
 
 use super::*;
 
@@ -369,6 +369,77 @@ impl WidgetMeasure {
     /// [`is_inline`]: Self::is_inline
     pub fn disable_inline(&mut self) {
         self.inline = None;
+    }
+
+    /// Measure an widget.
+    ///
+    /// The `reuse` flag indicates if the cached measure or layout size can be returned instead of calling `measure`. It should
+    /// only be `false` if the widget has a pending layout request.
+    pub fn with_widget(
+        &mut self,
+        ctx: &mut MeasureContext,
+        reuse: bool,
+        measure: impl FnOnce(&mut MeasureContext, &mut Self) -> PxSize,
+    ) -> PxSize {
+        let snap = ctx.metrics.snapshot();
+        if reuse {
+            let measure_uses = ctx.widget_info.bounds.measure_metrics_used();
+            if ctx
+                .widget_info
+                .bounds
+                .measure_metrics()
+                .map(|m| m.masked_eq(&snap, measure_uses))
+                .unwrap_or(false)
+            {
+                let mut reused = false;
+                if let Some(inline) = self.inline() {
+                    if let Some(prev) = ctx.widget_info.bounds.measure_inline() {
+                        *inline = prev;
+                        reused = true;
+                    }
+                } else {
+                    reused = ctx.widget_info.bounds.measure_inline().is_none();
+                }
+
+                if reused {
+                    return ctx.widget_info.bounds.measure_outer_size();
+                }
+            }
+
+            let layout_uses = ctx.widget_info.bounds.metrics_used();
+            if ctx
+                .widget_info
+                .bounds
+                .metrics()
+                .map(|m| m.masked_eq(&snap, layout_uses))
+                .unwrap_or(false)
+            {
+                let mut reused = false;
+                if let Some(inline) = self.inline() {
+                    if let Some(prev) = ctx.widget_info.bounds.inline() {
+                        *inline = prev;
+                        reused = true;
+                    }
+                } else {
+                    reused = ctx.widget_info.bounds.inline().is_none();
+                }
+
+                if reused {
+                    return ctx.widget_info.bounds.outer_size();
+                }
+            }
+        }
+
+        let parent_uses = ctx.metrics.enter_widget_ctx();
+
+        let size = measure(ctx, self);
+
+        let measure_uses = ctx.metrics.exit_widget_ctx(parent_uses);
+        ctx.widget_info.bounds.set_measure_metrics(Some(snap), measure_uses);
+        ctx.widget_info.bounds.set_measure_outer_size(size);
+        ctx.widget_info.bounds.set_measure_inline(self.inline);
+
+        size
     }
 }
 

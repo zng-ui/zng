@@ -430,7 +430,9 @@ pub mod nodes {
 
                 let reuse = !self.m.lock().pending_updates.layout;
 
-                ctx.with_widget(self.id, &self.info, &self.state, reuse, |ctx| self.child.measure(ctx, wm))
+                ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
+                    wm.with_widget(ctx, reuse, |ctx, wm| self.child.measure(ctx, wm))
+                })
             }
 
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

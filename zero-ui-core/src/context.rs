@@ -1154,9 +1154,6 @@ impl<'a> MeasureContext<'a> {
 
     /// Runs a function `f` in the measure context of a widget.
     ///
-    /// The `reuse` flag indicates if the cached measure or layout size can be returned instead of calling `f`. It should
-    /// only be `false` if the widget has a pending layout request.
-    ///
     /// Returns the closure `f` result and the updates requested by it.
     ///
     /// [`render_update`]: Updates::render_update
@@ -1165,35 +1162,9 @@ impl<'a> MeasureContext<'a> {
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
         widget_state: &OwnedStateMap<state_map::Widget>,
-        reuse: bool,
         f: impl FnOnce(&mut MeasureContext) -> PxSize,
     ) -> PxSize {
-        let snap = self.metrics.snapshot();
-        if reuse {
-            let measure_uses = widget_info.bounds.measure_metrics_used();
-            if widget_info
-                .bounds
-                .measure_metrics()
-                .map(|m| m.masked_eq(&snap, measure_uses))
-                .unwrap_or(false)
-            {
-                return widget_info.bounds.measure_outer_size();
-            }
-
-            let layout_uses = widget_info.bounds.metrics_used();
-            if widget_info
-                .bounds
-                .metrics()
-                .map(|m| m.masked_eq(&snap, layout_uses))
-                .unwrap_or(false)
-            {
-                return widget_info.bounds.outer_size();
-            }
-        }
-
         self.path.push(widget_id);
-
-        let parent_uses = self.metrics.enter_widget_ctx();
 
         let size = f(&mut MeasureContext {
             metrics: self.metrics,
@@ -1207,10 +1178,6 @@ impl<'a> MeasureContext<'a> {
             widget_state: widget_state.borrow(),
             update_state: self.update_state.reborrow(),
         });
-
-        let measure_uses = self.metrics.exit_widget_ctx(parent_uses);
-        widget_info.bounds.set_measure_metrics(Some(snap), measure_uses);
-        widget_info.bounds.set_measure_outer_size(size);
 
         self.path.pop();
 

@@ -310,6 +310,7 @@ struct WidgetBoundsData {
     offsets_pass: LayoutPassId,
 
     inline: Option<InlineLayout>,
+    measure_inline: Option<InlineLayout>,
 
     childs_changed: bool,
 
@@ -681,6 +682,9 @@ impl WidgetBoundsInfo {
     pub(crate) fn measure_metrics_used(&self) -> LayoutMask {
         self.0.lock().measure_metrics_used
     }
+    pub(crate) fn measure_inline(&self) -> Option<InlineLayout> {
+        self.0.lock().measure_inline
+    }
 
     fn begin_pass(&self, pass: LayoutPassId) {
         // Record current state as previous state on the first call of the `pass`, see `Self::end_pass`.
@@ -747,6 +751,10 @@ impl WidgetBoundsInfo {
 
     fn set_inline(&self, inline: Option<InlineLayout>) {
         self.0.lock().inline = inline;
+    }
+
+    pub(super) fn set_measure_inline(&self, inline: Option<InlineLayout>) {
+        self.0.lock().measure_inline = inline;
     }
 
     pub(crate) fn set_measure_outer_size(&self, size: PxSize) {

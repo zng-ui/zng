@@ -69,7 +69,7 @@ pub mod vis {
             when *#is_cap_hovered {
                 text::underline = 1, LineStyle::Solid;
             }
-            
+
             /// When the pointer device is pressed on this link.
             when *#is_pressed {
                 text::txt_color = color_scheme_map(colors::YELLOW, colors::BROWN);
