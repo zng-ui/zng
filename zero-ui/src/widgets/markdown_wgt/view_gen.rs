@@ -558,12 +558,24 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
     } else if args.checked.is_none() {
         items.0.insert(
             0,
-            crate::widgets::text! {
-                txt = match args.depth {
-                    0 => "● ",
-                    1 => "○ ",
-                    _ => "‣ ",
-                };
+            match args.depth {
+                0 => crate::widgets::blank! {
+                    size = (5, 5);
+                    corner_radius = 5;
+                    margin = (0.6.em(), 0.5.em(), 0, 0);
+                    background_color = TEXT_COLOR_VAR;
+                },
+                1 => crate::widgets::blank! {
+                    size = (5, 5);
+                    corner_radius = 5;
+                    margin = (0.6.em(), 0.5.em(), 0, 0);
+                    border = 1, TEXT_COLOR_VAR.map_into();
+                },
+                _ => crate::widgets::blank! {
+                    size = (5, 5);
+                    margin = (0.6.em(), 0.5.em(), 0, 0);
+                    background_color = TEXT_COLOR_VAR;
+                },
             }
             .boxed(),
         );

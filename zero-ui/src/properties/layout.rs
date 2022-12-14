@@ -40,10 +40,6 @@ use zero_ui::prelude::new_property::*;
 /// In the example the button has `10` pixels of space above and bellow and `5%` of the container width to the left and right.
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
 ///
-/// # Inline Layout
-///
-/// If set on an inlined widget the top-bottom values are ignored and the left-right values are used in the beginning of the first row (left)
-/// and end of the last row (right).
 #[property(LAYOUT, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     #[ui_node(struct MarginNode {
@@ -59,35 +55,16 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            wm.disable_inline();
+
             let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
-
-            if wm.is_inline() {
-                let mut adv = ctx.inline_advance();
-                adv.width += margin.left;
-                let size = ctx.with_inline_advance(adv, |ctx| self.child.measure(ctx, wm));
-                if let Some(inline) = wm.inline() {
-                    inline.first_row.x -= margin.left;
-                    inline.last_row.x += margin.right;
-                }
-                return size;
-            }
-
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
             ctx.with_sub_size(size_increment, |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
-            if wl.is_inline() {
-                let mut adv = ctx.inline_advance();
-                adv.width += margin.left;
-                let size = ctx.with_inline_advance(adv, |ctx| self.child.layout(ctx, wl));
-                if let Some(inline) = wl.inline() {
-                    inline.first_row.x -= margin.left;
-                    inline.last_row.x += margin.right;
-                }
-                return size;
-            }
+            wl.disable_inline();
 
+            let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
             wl.translate(PxVector::new(margin.left, margin.top));

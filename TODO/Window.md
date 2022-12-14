@@ -5,6 +5,11 @@
 * Restore to Maximized from Fullscreen.
 * Finish window vars.
     - Implement read-only properties?
+* Implement window `modal`.
+    - Mark the parent window as not interactive.
+    - Focus modal child when the parent gets focused.
+    - This is not the full Windows modal experience, the user can still interact with the parent chrome?
+        - Can we disable resize, minimize, maximize?
 * Drag regions.
 * Custom resize borders.
 * Parent/child.

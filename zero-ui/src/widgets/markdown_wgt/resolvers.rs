@@ -243,10 +243,10 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
         }
 
         when *#{status.clone()} == Status::Ok {
-            background_color = color_scheme_map(colors::DARK_GREEN.with_alpha(90.pct()), colors::GREEN.with_alpha(90.pct()));
+            background_color = color_scheme_map(colors::DARK_GREEN.with_alpha(90.pct()), colors::LIGHT_GREEN.with_alpha(90.pct()));
         }
         when *#{status.clone()} == Status::Err {
-            background_color = color_scheme_map(colors::DARK_RED.with_alpha(90.pct()), colors::RED.with_alpha(90.pct()));
+            background_color = color_scheme_map(colors::DARK_RED.with_alpha(90.pct()), colors::PINK.with_alpha(90.pct()));
         }
 
         child = h_stack(ui_list! [
@@ -320,7 +320,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                     });
                 });
             },
-            strong(" ⭷"),
+            text(" 🡵"),
         ]);
     };
 
