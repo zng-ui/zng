@@ -257,7 +257,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                                 items: mem::take(&mut list_items).into(),
                             },
                         ));
-                    }                    
+                    }
                 }
                 Tag::Item => {
                     let depth = list_info.len().saturating_sub(1);

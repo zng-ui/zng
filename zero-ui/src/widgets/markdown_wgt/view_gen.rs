@@ -584,7 +584,8 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
                 r,
                 inner
             ]
-        }.boxed();
+        }
+        .boxed();
     }
 
     r

@@ -123,9 +123,10 @@ pub mod wrap {
                 inline.bounds = final_size;
                 inline.first_row = ctx.metrics.inline_advance().to_vector().to_point();
 
-                if final_size.width <= row_size.width {
-                    inline.last_row = PxPoint::new(Px(0), final_size.height);
-                } else {
+                if let Some(inline) = wm.inline() {
+                    inline.bounds = final_size;
+                    inline.first_row = ctx.metrics.inline_advance().to_vector().to_point();
+
                     inline.last_row = PxPoint::new(row_size.width, final_size.height - row_size.height);
                     inline.last_row_spacing = spacing.column;
                 }

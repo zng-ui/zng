@@ -227,7 +227,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
 
         padding = (2, 4);
         corner_radius = 2;
-        drop_shadow = (4, 4), 2, colors::BLACK;
+        drop_shadow = (2, 2), 2, colors::BLACK.with_alpha(50.pct());
         align = Align::TOP_LEFT;
 
         #[easing(200.ms())]
