@@ -240,6 +240,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     blocks.push(list_view.generate(
                         ctx,
                         ListViewArgs {
+                            depth: 0,
                             first_num: n,
                             items: mem::take(&mut list_items).into(),
                         },
@@ -258,9 +259,11 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     list_items.push(list_item_view.generate(
                         ctx,
                         ListItemViewArgs {
+                            depth: 0,
                             num,
                             checked: list_item_checked.take(),
                             items: mem::take(&mut inlines).into(),
+                            nested_list: None,
                         },
                     ));
                 }

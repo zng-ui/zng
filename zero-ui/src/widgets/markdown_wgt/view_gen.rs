@@ -88,21 +88,32 @@ pub struct HeadingViewArgs {
 
 /// Arguments for a markdown list view.
 pub struct ListViewArgs {
+    /// Nested list depth, starting from zero for the outer-list.
+    pub depth: u32,
+
     /// If the list is *ordered*, the first item number.
     pub first_num: Option<u64>,
+
     /// List items.
     pub items: UiNodeVec,
 }
 
 /// Arguments for a markdown list item view.
 pub struct ListItemViewArgs {
+    /// Nested list depth, starting from zero for items in the outer-list.
+    pub depth: u32,
+
     /// If the list is *ordered*, the item number.
     pub num: Option<u64>,
+
     /// If the list is checked. `Some(true)` is `[x]` and `Some(false)` is `[ ]`.
     pub checked: Option<bool>,
 
     /// Inline items of the list item.
     pub items: UiNodeVec,
+
+    /// Inner list defined inside this item.
+    pub nested_list: Option<BoxedUiNode>,
 }
 
 /// Arguments for a markdown image view.
@@ -548,8 +559,11 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
         items.0.insert(
             0,
             crate::widgets::text! {
-                txt = "• ";
-                scale = 1.3.fct();
+                txt = match args.depth {
+                    0 => "● ",
+                    1 => "○ ",
+                    _ => "‣ ",
+                };
             }
             .boxed(),
         );

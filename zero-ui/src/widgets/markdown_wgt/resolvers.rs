@@ -1,7 +1,9 @@
 use std::fmt;
 use std::sync::Arc;
+use std::time::Instant;
 
 use zero_ui_core::widget_info::WidgetInfo;
+use zero_ui_core::window::WidgetTransformChangedArgs;
 
 use crate::core::{image::ImageSource, text::ToText};
 use crate::prelude::new_property::*;
@@ -218,6 +220,8 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     }
     let status = var(Status::Pending);
 
+    let open_time = Instant::now();
+
     let popup = container! {
         id = popup_id;
 
@@ -229,13 +233,13 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
         #[easing(200.ms())]
         opacity = 0.pct();
         #[easing(200.ms())]
-        scale = 90.pct();
+        offset = (0, -10);
 
         background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
 
         when *#{status.clone()} == Status::Pending {
             opacity = 100.pct();
-            scale = 100.pct();
+            offset = (0, 0);
         }
 
         when *#{status.clone()} == Status::Ok {
@@ -256,6 +260,10 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                 underline_skip = UnderlineSkip::SPACES;
 
                 on_blur = async_hn_once!(status, |ctx, _| {
+                    if status.get() != Status::Pending {
+                        return;
+                    }
+
                     status.set(&ctx, Status::Cancel);
                     task::deadline(200.ms()).await;
 
@@ -263,7 +271,11 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                         WindowLayers::remove(ctx, popup_id);
                     });
                 });
-                on_move = async_hn_once!(status, |ctx, _| {
+                on_move = async_hn!(status, |ctx, args: WidgetTransformChangedArgs| {
+                    if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                        return;
+                    }
+
                     status.set(&ctx, Status::Cancel);
                     task::deadline(200.ms()).await;
 
@@ -273,6 +285,10 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                 });
 
                 on_click = async_hn_once!(status, |ctx, args: ClickArgs| {
+                    if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                        return;
+                    }
+
                     args.propagation().stop();
 
                     let open = if cfg!(windows) {
