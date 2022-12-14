@@ -4,7 +4,7 @@ A paragraph, with **bold** text , **italic** text, and ***both***.
 
 Lorem ipsum dolor sit amet, ei nam copiosae invidunt accusamus. Vidit dicat cu pri, sit magna vocibus ut. Cum eu assum primis voluptatum. Est dolorum urbanitas elaboraret no, nisl definitiones cu sit.
 
-You can also link, [external](https://httpbin.org) or [scroll](#table "Table"). And finally you can `inline` code.
+You can also link, [external](https://httpbin.org), or [scroll](#table "Table"), or a footnote[^1]. And finally you can `inline` code.
 
 ## Blocks
 
@@ -80,7 +80,7 @@ ANSI escape codes with lang `ansi`:
 
 ### Rule
 
-Before rule.
+Before rule. 
 
 -------------
 
@@ -100,6 +100,6 @@ Limited support for <b>inlined</b> HTML.
 
 ## Footnotes
 
-Here is a simple footnote[^1]. With some additional text after it.
+Footnote declarations.
 
 [^1]: My reference.

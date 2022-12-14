@@ -7,10 +7,7 @@
         - Need something like a grid here as well? To share the column size.
     - Table, data format and panel?
         - Need grid layout?
-    - Links and footnotes, needs info data with navigation anchor slugs.
-        - Better footnote links.
-            - Consistent link colors?
-            - Link widget, just a button with no inline breaking properties that sets text color and underline on hover?
+    - Links and footnotes.
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip. 
     - Tool-tips.
         - Implement basic tool-tip.

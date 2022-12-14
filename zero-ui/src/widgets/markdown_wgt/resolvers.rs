@@ -241,22 +241,15 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
             opacity = 100.pct();
             offset = (0, 0);
         }
-
-        when *#{status.clone()} == Status::Ok {
-            background_color = color_scheme_map(colors::DARK_GREEN.with_alpha(90.pct()), colors::LIGHT_GREEN.with_alpha(90.pct()));
-        }
         when *#{status.clone()} == Status::Err {
             background_color = color_scheme_map(colors::DARK_RED.with_alpha(90.pct()), colors::PINK.with_alpha(90.pct()));
         }
 
         child = h_stack(ui_list! [
-            text! {
-                focusable = true;
+            link! {
                 focus_on_init = true;
 
-                txt = formatx!("{url}");
-                cursor = CursorIcon::Hand;
-                underline = 1, LineStyle::Solid;
+                child = text(url.clone());
                 underline_skip = UnderlineSkip::SPACES;
 
                 on_blur = async_hn_once!(status, |ctx, _| {

@@ -35,6 +35,10 @@ mod icon_wgt;
 #[doc(inline)]
 pub use icon_wgt::icon;
 
+mod link_wgt;
+#[doc(inline)]
+pub use link_wgt::link;
+
 mod markdown_wgt;
 #[doc(inline)]
 pub use markdown_wgt::markdown;

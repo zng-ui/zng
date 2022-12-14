@@ -426,19 +426,27 @@ pub fn default_link_view(args: LinkViewArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        use crate::widgets::text;
-
         let url = args.url;
-        crate::widgets::layouts::wrap! {
-            children = args.items;
+
+        let mut items = args.items;
+        let items = if items.len() == 1 {
+            items.remove(0)
+        } else {
+            crate::widgets::layouts::wrap! {
+                children = items;
+            }
+            .boxed()
+        };
+
+        crate::widgets::link! {
+            child = items;
+
             on_click = hn!(|ctx, args: &ClickArgs| {
                 args.propagation().stop();
 
                 let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
                 markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url.clone(), link));
             });
-            cursor = CursorIcon::Hand;
-            text::underline = 1, LineStyle::Solid;
         }
         .boxed()
     }
@@ -698,15 +706,15 @@ pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
 /// See [`FOOTNOTE_REF_VIEW`] for more details.
 pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
     let url = formatx!("#footnote-{}", args.label);
-    crate::widgets::text! {
-        txt = formatx!("[{}]", args.label);
+    crate::widgets::link! {
+        crate::widgets::markdown::anchor = formatx!("footnote-ref-{}", args.label);
+        child = crate::widgets::text(formatx!("[{}]", args.label));
         on_click = hn!(|ctx, args: &ClickArgs| {
             args.propagation().stop();
 
             let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
             markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url.clone(), link));
         });
-        cursor = CursorIcon::Hand;
     }
 }
 
@@ -726,11 +734,19 @@ pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
         .boxed()
     };
 
+    let url_back = formatx!("#footnote-ref-{}", args.label);
     crate::widgets::layouts::h_stack! {
+        spacing = 0.5.em();
         crate::widgets::markdown::anchor = formatx!("footnote-{}", args.label);
         children = ui_list![
-            crate::widgets::text! {
-                txt = formatx!("[{}] ", args.label);
+            crate::widgets::link! {
+                child = crate::widgets::text(formatx!("[^{}]", args.label));
+                on_click = hn!(|ctx, args: &ClickArgs| {
+                    args.propagation().stop();
+
+                    let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
+                    markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url_back.clone(), link));
+                });
             },
             items,
         ];
