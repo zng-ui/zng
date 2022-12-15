@@ -16,7 +16,7 @@ pub struct FactorPercent(pub f32);
 impl FactorPercent {
     /// Clamp factor to [0.0..=100.0] range.
     pub fn clamp_range(self) -> Self {
-        FactorPercent(self.0.max(0.0).min(100.0))
+        FactorPercent(self.0.clamp(0.0, 100.0))
     }
 
     /// Convert to [`Factor`].
@@ -72,7 +72,7 @@ pub struct Factor(pub f32);
 impl Factor {
     /// Clamp factor to `[0.0..=1.0]` range.
     pub fn clamp_range(self) -> Self {
-        Factor(self.0.max(0.0).min(1.0))
+        Factor(self.0.clamp(0.0, 1.0))
     }
 
     /// Returns the maximum of two factors.

@@ -360,7 +360,7 @@ impl Window {
         use winit::platform::windows::WindowExtWindows;
 
         let foreground = unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
-        foreground == self.window.hwnd() as isize
+        foreground == self.window.hwnd()
     }
 
     pub fn is_focused(&self) -> bool {
@@ -750,7 +750,7 @@ impl Window {
                     // select closest match to the requested video mode
                     if let Some(c) = &candidate {
                         if m.size().width >= c.size().width
-                            && m.size().height >= c.size().height as u32
+                            && m.size().height >= c.size().height
                             && m.bit_depth() >= c.bit_depth()
                             && m.refresh_rate_millihertz() >= c.refresh_rate_millihertz()
                         {

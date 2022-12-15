@@ -939,7 +939,7 @@ impl From<Rgba> for RenderColor {
 
 // Util
 fn clamp_normal(i: f32) -> f32 {
-    i.max(0.0).min(1.0)
+    i.clamp(0.0, 1.0)
 }
 
 /// RGB color, opaque, alpha is set to `1.0`.

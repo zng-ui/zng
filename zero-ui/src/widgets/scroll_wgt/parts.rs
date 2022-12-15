@@ -168,7 +168,7 @@ pub mod thumb {
                         let start_offset = max_length * start_offset.0;
 
                         let offset = offset + start_offset;
-                        let offset = (offset.0 as f32 / max_length.0 as f32).max(0.0).min(1.0);
+                        let offset = (offset.0 as f32 / max_length.0 as f32).clamp(0.0, 1.0);
 
                         // snap to pixel
                         let max_length = self.viewport_length - self.content_length;

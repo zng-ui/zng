@@ -653,6 +653,7 @@ impl App {
     /// * [`FontManager`]
     /// * [`FocusManager`]
     /// * [`ImageManager`]
+    #[allow(clippy::should_implement_trait)] 
     pub fn default() -> AppExtended<impl AppExtension> {
         App::blank()
             .extend(ConfigManager::default())
@@ -698,6 +699,7 @@ impl App {
     /// * [`FontManager`]
     /// * [`FocusManager`]
     /// * [`ImageManager`]
+    #[allow(clippy::should_implement_trait)] 
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         App::blank()
             .extend(ConfigManager::default())

@@ -1604,7 +1604,7 @@ impl<'a> ShapedSegment<'a> {
         let line_y_range = (line_y, line_y - thickness.0 as f32);
 
         // space around glyph descends, thickness clamped to a minimum of 1px and a maximum of 0.2em (same as Firefox).
-        let padding = (thickness.0 as f32).min(self.text.fonts.font(0).size().0 as f32 * 0.2).max(1.0);
+        let padding = (thickness.0 as f32).clamp(1.0, self.text.fonts.font(0).size().0 as f32 * 0.2);
 
         // no yield, only sadness
         struct UnderlineSkipGlyphs<'a, I, J> {
@@ -1721,8 +1721,8 @@ impl<'a> ShapedSegment<'a> {
         match (included_start, excluded_end) {
             (None, None) => IndexRange(0, self.text_range().len()),
             (None, Some(end)) => IndexRange(0, glyph_to_char(end)),
-            (Some(start), None) => IndexRange(glyph_to_char(start) as usize, self.text_range().len()),
-            (Some(start), Some(end)) => IndexRange(glyph_to_char(start) as usize, glyph_to_char(end) as usize),
+            (Some(start), None) => IndexRange(glyph_to_char(start), self.text_range().len()),
+            (Some(start), Some(end)) => IndexRange(glyph_to_char(start), glyph_to_char(end)),
         }
     }
 

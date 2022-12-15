@@ -708,7 +708,7 @@ impl GradientStops {
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {
-                        offset = offset.min(after.offset).max(prev.offset);
+                        offset = offset.clamp(prev.offset, after.offset);
                     }
                     offset += prev.offset;
 

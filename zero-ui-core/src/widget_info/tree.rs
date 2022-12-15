@@ -294,7 +294,7 @@ impl TreeIter {
     }
 
     pub fn skip_to(&mut self, node: NodeId) {
-        let node = node.get() as usize;
+        let node = node.get();
         if node > self.next {
             if node > self.end {
                 self.next = self.end;

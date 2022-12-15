@@ -145,8 +145,8 @@ pub fn multi_click_config() -> MultiClickConfig {
         MultiClickConfig {
             time: Duration::from_millis(u64::from(GetDoubleClickTime())),
             area: DipSize::new(
-                Dip::new(GetSystemMetrics(SM_CXDOUBLECLK).abs() as i32),
-                Dip::new(GetSystemMetrics(SM_CYDOUBLECLK).abs() as i32),
+                Dip::new(GetSystemMetrics(SM_CXDOUBLECLK).abs()),
+                Dip::new(GetSystemMetrics(SM_CYDOUBLECLK).abs()),
             ),
         }
     }

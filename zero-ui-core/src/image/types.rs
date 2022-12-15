@@ -176,16 +176,7 @@ impl Image {
 
     /// Connection to the image resource, if it is loaded.
     pub fn view(&self) -> Option<&ViewImage> {
-        match self.view.get() {
-            Some(v) => {
-                if v.is_loaded() {
-                    Some(v)
-                } else {
-                    None
-                }
-            }
-            None => None,
-        }
+        self.view.get().filter(|&v| v.is_loaded())
     }
 
     /// Calculate an *ideal* layout size for the image.
@@ -943,7 +934,7 @@ impl PathFilter {
     ///
     /// [`allow_dir`]: Self::allow_dir
     pub fn allow_current_dir() -> Self {
-        PathFilter::custom(|r| env::current_dir().map(|d| r.starts_with(&d)).unwrap_or(false))
+        PathFilter::custom(|r| env::current_dir().map(|d| r.starts_with(d)).unwrap_or(false))
     }
 
     /// Allow any file inside the current executable directory or sub-directories.
