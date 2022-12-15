@@ -2,19 +2,18 @@
     - We need the parent to load the right color-scheme in the image.
     - Allow headless children in any headed window?
 
+* Directional nav does not work for inline, need better center point?
+
 * Implement `markdown!`.
     - List number horizontal alignment.
         - Need something like a grid here as well? To share the column size.
     - Table, data format and panel?
         - Need grid layout?
     - Links and footnotes.
-        - Implement something that automatically selects the best side of the target widget to open the link tool-tip. 
-        - Clicked link remains focused, so activating another window and back restores focus to scroll-to links, causing the
-            scroll to go back to it.
+        - Implement something that automatically selects the best side of the target widget to open the link tool-tip.
     - Tool-tips.
         - Implement basic tool-tip.
 
-* Implement inline info in bounds info.
 * Implement `TextAlign` across multiple inlined texts.
 * Implement `LayoutDirection` for `flow!`.
 

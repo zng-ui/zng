@@ -2,10 +2,11 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Instant;
 
+use zero_ui_core::focus::Focus;
 use zero_ui_core::widget_info::WidgetInfo;
 use zero_ui_core::window::WidgetTransformChangedArgs;
 
-use crate::core::{image::ImageSource, text::ToText};
+use crate::core::{focus::WidgetInfoFocusExt as _, image::ImageSource, text::ToText};
 use crate::prelude::new_property::*;
 use crate::widgets::scroll::WidgetInfoExt as _;
 use crate::widgets::scroll_wgt::commands::ScrollToMode;
@@ -174,28 +175,47 @@ pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool
 /// Try to scroll to the anchor, only works if the `url` is in the format `#anchor`, the `ctx` is a [`markdown!`] or inside one,
 /// and is also inside a [`scroll!`].
 ///
+/// Moves focus to the `#anchor` widget, or the first focusable descendant of it, or the markdown widget or the first focusable ancestor of it.
+///
 /// [`markdown!`]: mod@crate::widgets::markdown
 /// [`scroll!`]: mod@crate::widgets::scroll
 pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
-    if !args.propagation().is_stopped() {
-        if let Some(anchor) = args.url.strip_prefix('#') {
-            if let Some(w) = ctx.info_tree.get(ctx.path.widget_id()) {
-                if let Some(md) = w.self_and_ancestors().find(|w| w.is_markdown()) {
-                    if let Some(target) = md.find_anchor(anchor) {
-                        for scroll in target.ancestors().filter(|&a| a.is_scroll()) {
-                            crate::widgets::scroll::commands::scroll_to(
-                                ctx.events,
-                                scroll.widget_id(),
-                                target.widget_id(),
-                                LINK_SCROLL_MODE_VAR.get(),
-                            );
-                        }
-                        return true;
-                    }
+    if args.propagation().is_stopped() {
+        return false;
+    }
+    if let Some(anchor) = args.url.strip_prefix('#') {
+        if let Some(md) = ctx
+            .info_tree
+            .get(ctx.path.widget_id())
+            .and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown()))
+        {
+            if let Some(target) = md.find_anchor(anchor) {
+                // scroll-to
+                for scroll in target.ancestors().filter(|&a| a.is_scroll()) {
+                    crate::widgets::scroll::commands::scroll_to(
+                        ctx.events,
+                        scroll.widget_id(),
+                        target.widget_id(),
+                        LINK_SCROLL_MODE_VAR.get(),
+                    );
                 }
+
+                // focus
+                if let Some(focus) = target
+                    .as_focus_info(false, false)
+                    .self_and_descendants()
+                    .find(|w| w.is_focusable())
+                    .or_else(|| md.as_focus_info(false, false).self_and_ancestors().find(|w| w.is_focusable()))
+                {
+                    Focus::req(ctx.services).focus_widget(focus.info.widget_id(), false);
+                }
+
+                args.propagation().stop();
+                return true;
             }
         }
     }
+
     false
 }
 
