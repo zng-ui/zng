@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -223,9 +224,22 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
 pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     use crate::prelude::*;
 
-    if args.propagation().is_stopped() || args.url.parse::<Uri>().is_err() || !args.link.interactivity().is_enabled() {
+    if args.propagation().is_stopped() {
         return false;
     }
+
+    enum Link {
+        Url(Uri),
+        Path(PathBuf),
+    }
+
+    let link = if let Ok(url) = args.url.parse() {
+        Link::Url(url)
+    } else if let Ok(path) = args.url.parse() {
+        Link::Path(path)
+    } else {
+        return false;
+    };
 
     let popup_id = WidgetId::new_unique();
 
@@ -303,6 +317,19 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                     }
 
                     args.propagation().stop();
+
+                    let url = match link {
+                        Link::Url(u) => u.to_string(),
+                        Link::Path(p) => {
+                            match p.canonicalize() {
+                                Ok(p) => p.display().to_string(),
+                                Err(e) => {
+                                    tracing::error!("error canonicalizing \"{}\", {e}", p.display());
+                                    return;
+                                }
+                            }
+                        }
+                    };
 
                     let open = if cfg!(windows) {
                         "explorer"

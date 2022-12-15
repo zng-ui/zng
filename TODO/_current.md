@@ -9,8 +9,7 @@
         - Need grid layout?
     - Links and footnotes.
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip.
-        - Fix file links.
-        - Fix relative links (same way we fixed relative image src).
+        - Fix file links display (don't show added relative path?).
     - Tool-tips.
         - Implement basic tool-tip.
 
