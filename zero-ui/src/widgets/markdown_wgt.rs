@@ -86,6 +86,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
                 || RULE_VIEW_VAR.is_new(ctx)
                 || BLOCK_QUOTE_VIEW_VAR.is_new(ctx)
                 || TABLE_VIEW_VAR.is_new(ctx)
+                || TABLE_CELL_VIEW_VAR.is_new(ctx)
                 || PANEL_VIEW_VAR.is_new(ctx)
                 || IMAGE_RESOLVER_VAR.is_new(ctx)
                 || LINK_RESOLVER_VAR.is_new(ctx)
@@ -132,6 +133,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let footnote_ref_view = FOOTNOTE_REF_VIEW_VAR.get();
     let footnote_def_view = FOOTNOTE_DEF_VIEW_VAR.get();
     let table_view = TABLE_VIEW_VAR.get();
+    let table_cell_view = TABLE_CELL_VIEW_VAR.get();
 
     let image_resolver = IMAGE_RESOLVER_VAR.get();
     let link_resolver = LINK_RESOLVER_VAR.get();
@@ -151,6 +153,8 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut code_block_text = None;
     let mut heading_text = None;
     let mut footnote_def_start = None;
+    let mut table_cells = vec![];
+    let mut table_head = false;
 
     for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b| Some((b.reference, "".into())))) {
         match item {
@@ -178,7 +182,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     footnote_def_start = Some(blocks.len());
                 }
                 Tag::Table(_) => {}
-                Tag::TableHead => {}
+                Tag::TableHead => {
+                    table_head = true;
+                }
                 Tag::TableRow => {}
                 Tag::TableCell => {}
                 Tag::Emphasis => {
@@ -305,13 +311,38 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         ));
                     }
                 }
-                Tag::Table(_) => {
-                    // !!: TODO
-                    inlines.clear();
+                Tag::Table(columns) => {
+                    if !table_cells.is_empty() {
+                        blocks.push(
+                            table_view.generate(
+                                ctx,
+                                TableViewArgs {
+                                    columns: columns
+                                        .into_iter()
+                                        .map(|c| match c {
+                                            Alignment::None => TextAlign::START,
+                                            Alignment::Left => TextAlign::LEFT,
+                                            Alignment::Center => TextAlign::CENTER,
+                                            Alignment::Right => TextAlign::RIGHT,
+                                        })
+                                        .collect(),
+                                    cells: mem::take(&mut table_cells).into(),
+                                },
+                            ),
+                        );
+                    }
                 }
-                Tag::TableHead => {}
+                Tag::TableHead => {
+                    table_head = false;
+                }
                 Tag::TableRow => {}
-                Tag::TableCell => {}
+                Tag::TableCell => table_cells.push(table_cell_view.generate(
+                    ctx,
+                    TableCellViewArgs {
+                        is_heading: table_head,
+                        items: mem::take(&mut inlines).into(),
+                    },
+                )),
                 Tag::Emphasis => {
                     emphasis -= 1;
                 }

@@ -165,7 +165,23 @@ pub struct FootnoteDefViewArgs {
 /// Arguments for a markdown table view.
 ///
 /// See [`TABLE_VIEW_VAR`] for more details.
-pub struct TableViewArgs {}
+pub struct TableViewArgs {
+    /// Column definitions with align.
+    pub columns: Vec<TextAlign>,
+    /// Cell items.
+    pub cells: UiNodeVec,
+}
+
+/// Arguments for a markdown table cell view.
+///
+/// See [`TABLE_CELL_VIEW_VAR`] for more details.
+pub struct TableCellViewArgs {
+    /// If the cell is inside the header row.
+    pub is_heading: bool,
+
+    /// Inline items.
+    pub items: UiNodeVec,
+}
 
 /// Arguments for a markdown panel.
 ///
@@ -217,6 +233,9 @@ context_var! {
 
     /// View generator for a markdown table.
     pub static TABLE_VIEW_VAR: ViewGenerator<TableViewArgs> = ViewGenerator::new(|_, args| default_table_view(args));
+
+    /// View generator for a markdown table body cell.
+    pub static TABLE_CELL_VIEW_VAR: ViewGenerator<TableCellViewArgs> = ViewGenerator::new(|_, args| default_table_cell_view(args));
 
     /// View generator for a markdown panel.
     pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
@@ -680,8 +699,49 @@ pub fn default_block_quote_view(args: BlockQuoteViewArgs) -> impl UiNode {
 ///
 /// See [`TABLE_VIEW_VAR`] for more details.
 pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
-    // !!: TODO
-    NilUiNode
+    // !!: TODO, proper grid layout
+    let mut rows = Vec::with_capacity((args.cells.len() / args.columns.len()) + 1);
+    let mut row = Vec::with_capacity(args.columns.len());
+    for cell in args.cells.0 {
+        row.push(cell);
+        if row.len() == args.columns.len() {
+            rows.push(
+                crate::widgets::layouts::h_stack! {
+                    spacing = 5;
+                    children = row.drain(..).collect::<UiNodeVec>()
+                }
+                .boxed(),
+            );
+        }
+    }
+
+    crate::widgets::layouts::v_stack! {
+        spacing = 5;
+        children = rows;
+    }
+}
+
+/// Default markdown table.
+///
+/// See [`TABLE_CELL_VIEW_VAR`] for more details.
+pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
+    let mut items = args.items;
+    if items.is_empty() {
+        NilUiNode.boxed()
+    } else if args.is_heading {
+        crate::widgets::layouts::wrap! {
+            crate::widgets::text::font_weight = crate::core::text::FontWeight::BOLD;
+            children = items;
+        }
+        .boxed()
+    } else if items.len() == 1 {
+        items.remove(0)
+    } else {
+        crate::widgets::layouts::wrap! {
+            children = items;
+        }
+        .boxed()
+    }
 }
 
 /// Default markdown panel.
