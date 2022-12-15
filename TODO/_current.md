@@ -9,6 +9,8 @@
         - Need grid layout?
     - Links and footnotes.
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip. 
+        - Clicked link remains focused, so activating another window and back restores focus to scroll-to links, causing the
+            scroll to go back to it.
     - Tool-tips.
         - Implement basic tool-tip.
 

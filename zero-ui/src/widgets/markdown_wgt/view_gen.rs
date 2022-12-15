@@ -120,7 +120,7 @@ pub struct ListItemViewArgs {
 pub struct ImageViewArgs {
     /// Image, resolved by the [`image_resolver`].
     ///
-    /// [`image_resolver`]: fn@image_resolver
+    /// [`image_resolver`]: fn@crate::widgets::markdown::image_resolver
     pub source: ImageSource,
     /// Image title, usually displayed as a tool-tip.
     pub title: Text,
@@ -703,12 +703,16 @@ pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
 
 /// Default markdown footnote definition.
 ///
-/// See [`FOOTNOTE_REF_VIEW`] for more details.
+/// See [`FOOTNOTE_REF_VIEW_VAR`] for more details.
 pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
+    use crate::widgets::*;
+
     let url = formatx!("#footnote-{}", args.label);
-    crate::widgets::link! {
-        crate::widgets::markdown::anchor = formatx!("footnote-ref-{}", args.label);
-        child = crate::widgets::text(formatx!("[{}]", args.label));
+    link! {
+        font_size = 0.7.em();
+        offset = (0, (-0.5).em());
+        markdown::anchor = formatx!("footnote-ref-{}", args.label);
+        child = text(formatx!("[{}]", args.label));
         on_click = hn!(|ctx, args: &ClickArgs| {
             args.propagation().stop();
 
@@ -720,7 +724,7 @@ pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
 
 /// Default markdown footnote definition.
 ///
-/// See [`FOOTNOTE_DEF_VIEW`] for more details.
+/// See [`FOOTNOTE_DEF_VIEW_VAR`] for more details.
 pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
     let mut items = args.items;
     let items = if items.is_empty() {

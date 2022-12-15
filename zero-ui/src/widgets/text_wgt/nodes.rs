@@ -676,6 +676,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.shaping_args.word_break = WORD_BREAK_VAR.get();
             txt.shaping_args.hyphens = HYPHENS_VAR.get();
             txt.shaping_args.hyphen_char = HYPHEN_CHAR_VAR.get();
+            txt.shaping_args.font_features = FONT_FEATURES_VAR.with(|f| f.finalize());
 
             self.child.init(ctx);
         }
@@ -758,6 +759,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
+
+            FONT_FEATURES_VAR.with_new(ctx.vars, |f| {
+                let txt = self.txt.get_mut();
+                txt.shaping_args.font_features = f.finalize();
+                self.pending.insert(Layout::RESHAPE);
+                ctx.updates.layout();
+            });
 
             self.child.update(ctx, updates);
         }

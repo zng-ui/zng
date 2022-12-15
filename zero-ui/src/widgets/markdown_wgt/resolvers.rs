@@ -29,7 +29,7 @@ context_var! {
 ///
 /// Sets the [`IMAGE_RESOLVER_VAR`].
 ///
-/// [`image_view`]: fn@image_view
+/// [`image_view`]: fn@crate::widgets::markdown::image_view
 /// [`image::img_limits`]: fn@crate::widgets::image::img_limits
 #[property(CONTEXT, default(IMAGE_RESOLVER_VAR))]
 pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>) -> impl UiNode {
@@ -174,8 +174,8 @@ pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool
 /// Try to scroll to the anchor, only works if the `url` is in the format `#anchor`, the `ctx` is a [`markdown!`] or inside one,
 /// and is also inside a [`scroll!`].
 ///
-/// [`markdown!`]: crate::widgets::markdown
-/// [`scroll!`]: crate::widgets::scroll
+/// [`markdown!`]: mod@crate::widgets::markdown
+/// [`scroll!`]: mod@crate::widgets::scroll
 pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     if !args.propagation().is_stopped() {
         if let Some(anchor) = args.url.strip_prefix('#') {
@@ -364,6 +364,8 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
 /// Markdown extension methods for widget info.
 pub trait WidgetInfoExt<'a> {
     /// Gets the [`anchor`].
+    ///
+    /// [`anchor`]: fn@anchor
     fn anchor(self) -> Option<&'a Text>;
 
     /// If this widget is a [`markdown!`].
