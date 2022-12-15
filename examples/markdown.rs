@@ -47,18 +47,8 @@ fn app_main() {
                         r
                     });
 
-                    /// fix path to relative links.
-                    link_resolver = markdown::LinkResolver::new(|link| {
-                        match link.parse::<std::path::PathBuf>() {
-                            Ok(mut file) => {
-                                if file.is_relative() {
-                                    file = PathBuf::from("examples/res/markdown").join(&file);
-                                }
-                                file.display().to_text()
-                            },
-                            Err(_) => link.to_text()
-                        }
-                    });
+                    /// fix relative link to files.
+                    link_resolver = markdown::LinkResolver::base_dir("examples/res/markdown");
                 };
             };
         }

@@ -21,6 +21,3 @@
         - Remove `Services`.
 * Review all docs.
     - Mentions of threads in particular.
-
-# Other
-

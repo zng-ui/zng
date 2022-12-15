@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use zero_ui_core::focus::Focus;
+use zero_ui_core::task::http::Uri;
 use zero_ui_core::widget_info::WidgetInfo;
 use zero_ui_core::window::WidgetTransformChangedArgs;
 
@@ -117,6 +118,19 @@ impl LinkResolver {
     /// New [`Resolve`](Self::Resolve).
     pub fn new(fn_: impl Fn(&str) -> Text + Send + Sync + 'static) -> Self {
         Self::Resolve(Arc::new(fn_))
+    }
+
+    /// Resolve file links relative to `base`
+    pub fn base_dir(base: impl Into<PathBuf>) -> Self {
+        let base = base.into();
+        Self::new(move |url| {
+            if !url.starts_with('#') && url.parse::<Uri>().is_err() {
+                if let Ok(path) = url.parse::<PathBuf>() {
+                    return base.join(path).display().to_text();
+                }
+            }
+            url.to_text()
+        })
     }
 }
 impl Default for LinkResolver {
@@ -283,7 +297,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
             link! {
                 focus_on_init = true;
 
-                child = text(url.clone());
+                child = text(url);
                 underline_skip = UnderlineSkip::SPACES;
 
                 on_blur = async_hn_once!(status, |ctx, _| {
