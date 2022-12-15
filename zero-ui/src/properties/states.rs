@@ -113,15 +113,16 @@ pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         MOUSE_INPUT_EVENT,
         false,
         |ctx, input_args| {
-            if input_args.is_primary() && input_args.is_enabled(ctx.path.widget_id()) {
+            if input_args.is_primary() {
                 match input_args.state {
                     ButtonState::Pressed => {
                         if input_args.capture_allows(ctx.path) {
-                            return Some(true);
+                            return Some(input_args.is_enabled(ctx.path.widget_id()));
                         }
                     }
                     ButtonState::Released => return Some(false),
                 }
+            } else {
             }
             None
         },
@@ -141,11 +142,11 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
         MOUSE_INPUT_EVENT,
         false,
         |ctx, input_args| {
-            if input_args.is_primary() && input_args.is_enabled(ctx.path.widget_id()) {
+            if input_args.is_primary() {
                 match input_args.state {
                     ButtonState::Pressed => {
                         if input_args.capture_allows(ctx.path) {
-                            return Some(true);
+                            return Some(input_args.is_enabled(ctx.path.widget_id()));
                         }
                     }
                     ButtonState::Released => return Some(false),

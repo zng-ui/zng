@@ -2,8 +2,6 @@
     - We need the parent to load the right color-scheme in the image.
     - Allow headless children in any headed window?
 
-* Directional nav does not work for inline, need better center point?
-
 * Implement `markdown!`.
     - List number horizontal alignment.
         - Need something like a grid here as well? To share the column size.
@@ -11,6 +9,8 @@
         - Need grid layout?
     - Links and footnotes.
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip.
+        - Fix file links.
+        - Fix relative links (same way we fixed relative image src).
     - Tool-tips.
         - Implement basic tool-tip.
 
