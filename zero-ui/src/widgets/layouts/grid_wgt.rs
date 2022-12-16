@@ -40,16 +40,16 @@ pub mod grid {
 
         /// Row definitions.
         ///
-        /// If left empty rows are auto-generated, with height defined by the tallest cell and no visual, or using the [`auto_row_view`] 
+        /// If left empty rows are auto-generated, with height defined by the tallest cell and no visual, or using the [`auto_row_view`]
         /// if it is set.
-        /// 
+        ///
         /// [`auto_row_view`]: fn@auto_row_view
         pub rows(impl UiNodeList);
 
         /// View generator used to provide row widgets when [`rows`] is empty.
-        /// 
+        ///
         /// Note that auto-rows are always generated when `rows` is empty, even if this generator is not set or is [`ViewGenerator::nil`].
-        /// 
+        ///
         /// [`rows`]: fn@rows
         pub auto_row_view(impl IntoVar<ViewGenerator<AutoRowViewArgs>>);
 
@@ -268,7 +268,7 @@ pub mod cell {
         ///
         /// This is the actual index, corrected from the [`column`] and [`row`] values or auto-selected if these
         /// properties where not set in the widget.
-        /// 
+        ///
         /// [`column`]: fn@column
         /// [`row`]: fn@row
         pub static INDEX_VAR: (usize, usize) = (0, 0);
@@ -284,7 +284,7 @@ pub mod cell {
 impl UiNode for GridNode {}
 
 /// Arguments for [`grid::auto_row_view`].
-/// 
+///
 /// [`grid::auto_row_view`]: fn@grid::auto_row_view.
 #[derive(Clone, Debug)]
 pub struct AutoRowViewArgs {

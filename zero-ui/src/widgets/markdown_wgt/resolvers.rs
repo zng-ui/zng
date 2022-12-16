@@ -187,10 +187,12 @@ pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool
     try_scroll_link(ctx, args) || try_open_link(ctx, args)
 }
 
-/// Try to scroll to the anchor, only works if the `url` is in the format `#anchor`, the `ctx` is a [`markdown!`] or inside one,
-/// and is also inside a [`scroll!`].
+/// Handle `url` in the format `#anchor`, by scrolling and focusing the anchor.
 ///
-/// Moves focus to the `#anchor` widget, or the first focusable descendant of it, or the markdown widget or the first focusable ancestor of it.
+/// If the anchor is found scrolls to it and moves focus to the `#anchor` widget,
+/// or the first focusable descendant of it, or the markdown widget or the first focusable ancestor of it.
+///
+/// Note that the request is handled even if the anchor is not found.
 ///
 /// [`markdown!`]: mod@crate::widgets::markdown
 /// [`scroll!`]: mod@crate::widgets::scroll
@@ -198,6 +200,7 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     if args.propagation().is_stopped() {
         return false;
     }
+    // Note: file names can start with #, but we are chosing to always interpret urls with this prefix as an anchor.
     if let Some(anchor) = args.url.strip_prefix('#') {
         if let Some(md) = ctx
             .info_tree
@@ -224,11 +227,10 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                 {
                     Focus::req(ctx.services).focus_widget(focus.info.widget_id(), false);
                 }
-
-                args.propagation().stop();
-                return true;
             }
         }
+        args.propagation().stop();
+        return true;
     }
 
     false
