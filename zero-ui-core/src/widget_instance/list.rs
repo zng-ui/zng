@@ -1423,3 +1423,120 @@ impl EditableUiNodeListRef {
         }
     }
 }
+
+fn many_list_index(lists: &Vec<BoxedUiNodeList>, index: usize) -> (usize, usize) {
+    let mut offset = 0;
+
+    for (li, list) in lists.iter().enumerate() {
+        let i = index - offset;
+        let len = list.len();
+
+        if i < len {
+            return (li, i);
+        }
+
+        offset += len;
+    }
+
+    panic!(
+        "'index out of bounds: the len is {} but the index is {}",
+        UiNodeList::len(lists),
+        index
+    );
+}
+
+impl UiNodeList for Vec<BoxedUiNodeList> {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        let (l, i) = many_list_index(self, index);
+        self[l].with_node(i, f)
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        let (l, i) = many_list_index(self, index);
+        self[l].with_node_mut(i, f)
+    }
+
+    fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        let mut offset = 0;
+        for list in self {
+            list.for_each(|i, n| f(i + offset, n));
+            offset += list.len();
+        }
+    }
+
+    fn for_each_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        let mut offset = 0;
+        for list in self {
+            list.for_each_mut(|i, n| f(i + offset, n));
+            offset += list.len();
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.iter().map(|l| l.len()).sum()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        for mut list in self.drain(..) {
+            list.drain_into(vec);
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.iter().all(|l| l.is_empty())
+    }
+
+    fn init_all(&mut self, ctx: &mut WidgetContext) {
+        for list in self {
+            list.init_all(ctx);
+        }
+    }
+
+    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        for list in self {
+            list.deinit_all(ctx);
+        }
+    }
+
+    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        let mut offset = 0;
+        for list in self {
+            list.update_all(ctx, updates, &mut OffsetUiListObserver(offset, observer));
+            offset += list.len();
+        }
+    }
+
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        for list in self {
+            list.event_all(ctx, update);
+        }
+    }
+
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        for list in self {
+            list.render_all(ctx, frame);
+        }
+    }
+
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        for list in self {
+            list.render_update_all(ctx, update);
+        }
+    }
+}

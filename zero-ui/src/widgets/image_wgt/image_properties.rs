@@ -9,7 +9,7 @@ use nodes::CONTEXT_IMAGE_VAR;
 
 /// Image layout mode.
 ///
-/// This layout mode can be set to all images inside a widget using [`img_fit`], the [`image_presenter`] uses this value 
+/// This layout mode can be set to all images inside a widget using [`img_fit`], the [`image_presenter`] uses this value
 /// to calculate the image final size.
 ///
 /// The image desired size is its original size, either in pixels or DIPs after cropping and scaling.

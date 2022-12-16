@@ -1122,8 +1122,9 @@ pub mod prelude {
                 WidgetMeasure,
             },
             widget_instance::{
-                ui_list, z_index, AdoptiveNode, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, SortingList,
-                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec, WidgetId, ZIndex, ZSortingList,
+                ui_list, z_index, AdoptiveNode, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode,
+                NilUiNode, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec, WidgetId,
+                ZIndex, ZSortingList,
             },
             widget_mixin,
         };

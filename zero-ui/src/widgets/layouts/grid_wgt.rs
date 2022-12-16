@@ -74,13 +74,28 @@ pub mod grid {
             let columns = w.capture_ui_node_list_or_empty(property_id!(self::columns));
             let rows = w.capture_ui_node_list_or_empty(property_id!(self::rows));
             let spacing = w.capture_var_or_default(property_id!(self::spacing));
+            let auto_row_view = w.capture_var_or_else(property_id!(self::auto_row_view), ViewGenerator::nil);
 
-            w.set_child(GridNode {
-                cells,
-                columns,
-                rows,
+            let cell_len = columns.len();
+            let col_len = columns.len();
+            let mut row_len = rows.len();
+            if row_len == 0 {
+                let c = col_len.max(1);
+                row_len = cell_len / c + 1;
+            }
+
+            let child = GridNode {
+                children: vec![columns, rows, cells],
                 spacing: spacing.into_var(),
-            });
+                auto_row_view: auto_row_view.into_var(),
+
+                widths: Vec::with_capacity(col_len),
+                heights: Vec::with_capacity(row_len),
+                occupied: Vec::with_capacity(cell_len),
+            };
+            let child = widget_base::nodes::children_layout(child);
+
+            w.set_child(child);
         });
     }
 }
@@ -325,12 +340,158 @@ pub mod cell {
 }
 
 #[ui_node(struct GridNode {
-    cells: impl UiNodeList,
-    columns: impl UiNodeList,
-    rows: impl UiNodeList,
+    // [columns, rows, cells]
+    children: Vec<BoxedUiNodeList>,
+    #[var] auto_row_view: impl Var<ViewGenerator<AutoRowViewArgs>>,
     #[var] spacing: impl Var<GridSpacing>,
+
+    widths: Vec<Px>,
+    heights: Vec<Px>,
+    occupied: Vec<bool>,
 })]
-impl UiNode for GridNode {}
+impl UiNode for GridNode {
+    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        if self.spacing.is_new(ctx) {
+            ctx.updates.layout();
+        }
+        self.children.update_all(ctx, updates, &mut ());
+    }
+
+    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+        let mut grid_size = PxSize::zero();
+
+        let columns = self.children[0].len().max(1);
+        ctx.with_constrains(
+            |mut c| {
+                if let Some(mut m) = c.x.max() {
+                    m /= Px(columns as i32);
+                    c = c.with_max_x(m);
+                }
+                c
+            },
+            |ctx| {
+                self.children[0].for_each(|_, column| {
+                    let s = column.measure(ctx, wm);
+                    grid_size.width += s.width;
+                    true
+                });
+            },
+        );
+
+        let rows = self.children[1].len();
+        ctx.with_constrains(
+            |mut c| {
+                if rows == 0 {
+                    c.y = c.y.with_unbounded();
+                } else if let Some(mut m) = c.y.max() {
+                    m /= Px(rows as i32);
+                    c = c.with_max_y(m);
+                }
+                c
+            },
+            |ctx| {
+                self.children[1].for_each(|_, row| {
+                    let s = row.measure(ctx, wm);
+                    grid_size.height += s.height;
+                    true
+                });
+            },
+        );
+
+        grid_size
+    }
+
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let mut grid_size = PxSize::zero();
+
+        self.widths.clear();
+        let columns = self.children[0].len().max(1);
+        ctx.with_constrains(
+            |mut c| {
+                if let Some(mut m) = c.x.max() {
+                    m /= Px(columns as i32);
+                    c = c.with_max_x(m);
+                }
+                c
+            },
+            |ctx| {
+                self.children[0].for_each_mut(|_, column| {
+                    let s = column.layout(ctx, wl);
+                    self.widths.push(s.width);
+                    grid_size.width += s.width;
+                    true
+                });
+            },
+        );
+
+        self.heights.clear();
+        let rows = self.children[1].len();
+        ctx.with_constrains(
+            |mut c| {
+                if rows == 0 {
+                    c.y = c.y.with_unbounded();
+                } else if let Some(mut m) = c.y.max() {
+                    m /= Px(rows as i32);
+                    c = c.with_max_y(m);
+                }
+                c
+            },
+            |ctx| {
+                self.children[1].for_each_mut(|_, row| {
+                    let s = row.layout(ctx, wl);
+                    self.heights.push(s.height);
+                    grid_size.height += s.height;
+                    true
+                });
+            },
+        );
+
+        self.occupied.clear();
+        self.occupied.resize(self.children[2].len(), false);
+
+        let cells = self.children[2].len();
+
+        let mut cell = 0;
+        let mut row = 0;
+        let auto_row_height = ctx.constrains().y.fill() / Px((cells / columns) as i32);
+        let mut offset = PxVector::zero();
+
+        self.children[2].for_each_mut(|_, c| {
+            let width = self.widths[cell];
+            let height = if row < self.heights.len() {
+                self.heights[row]
+            } else {
+                self.heights.push(auto_row_height);
+                grid_size.height += auto_row_height;
+                auto_row_height
+            };
+
+            ctx.with_constrains(
+                |c| c.with_exact(width, height),
+                |ctx| {
+                    c.layout(ctx, wl);
+                    wl.with_outer(c, false, |t, _| {
+                        t.translate(offset);
+                    });
+                },
+            );
+
+            cell += 1;
+            if cell == columns {
+                cell = 0;
+                row += 1;
+
+                offset.y += height;
+                offset.x = Px(0);
+            } else {
+                offset.x += width;
+            }
+            true
+        });
+
+        grid_size
+    }
+}
 
 /// Arguments for [`grid::auto_row_view`].
 ///
