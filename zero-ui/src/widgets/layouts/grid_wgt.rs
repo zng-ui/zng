@@ -70,29 +70,13 @@ pub mod grid {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|w| {
-            let cells = w.capture_ui_node_list_or_empty(property_id!(self::cells));
-            let columns = w.capture_ui_node_list_or_empty(property_id!(self::columns));
-            let rows = w.capture_ui_node_list_or_empty(property_id!(self::rows));
-            let spacing = w.capture_var_or_default(property_id!(self::spacing));
-            let auto_row_view = w.capture_var_or_else(property_id!(self::auto_row_view), ViewGenerator::nil);
-
-            let cell_len = columns.len();
-            let col_len = columns.len();
-            let mut row_len = rows.len();
-            if row_len == 0 {
-                let c = col_len.max(1);
-                row_len = cell_len / c + 1;
-            }
-
-            let child = GridNode {
-                children: vec![columns, rows, cells],
-                spacing: spacing.into_var(),
-                auto_row_view: auto_row_view.into_var(),
-
-                widths: Vec::with_capacity(col_len),
-                heights: Vec::with_capacity(row_len),
-                occupied: Vec::with_capacity(cell_len),
-            };
+            let child = grid_node(
+                w.capture_ui_node_list_or_empty(property_id!(self::cells)),
+                w.capture_ui_node_list_or_empty(property_id!(self::columns)),
+                w.capture_ui_node_list_or_empty(property_id!(self::rows)),
+                w.capture_var_or_else(property_id!(self::auto_row_view), ViewGenerator::nil),
+                w.capture_var_or_default(property_id!(self::spacing)),
+            );
             let child = widget_base::nodes::children_layout(child);
 
             w.set_child(child);
@@ -142,9 +126,26 @@ pub mod column {
             #[var] width: impl Var<Length>,
         })]
         impl UiNode for WidthNode {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                {
+                    let i = INDEX_VAR.get();
+                    let mut info = GRID_CONTEXT.write();
+                    if i < info.column_info.len() {
+                        info.column_info[i].sized_by_cell = self.width.get().is_default();
+                    }
+                }
+
+                self.child.init(ctx);
+            }
+
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if self.width.is_new(ctx) {
-                    ctx.updates.layout();
+                if let Some(l) = self.width.get_new(ctx) {
+                    let i = INDEX_VAR.get();
+                    let mut info = GRID_CONTEXT.write();
+                    if i < info.column_info.len() {
+                        info.column_info[i].sized_by_cell = l.is_default();
+                        ctx.updates.layout();
+                    }
                 }
                 self.child.update(ctx, updates);
             }
@@ -198,9 +199,26 @@ pub mod row {
             #[var] height: impl Var<Length>,
         })]
         impl UiNode for HeightNode {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                {
+                    let i = INDEX_VAR.get();
+                    let mut info = GRID_CONTEXT.write();
+                    if i < info.row_info.len() {
+                        info.row_info[i].sized_by_cell = self.height.get().is_default();
+                    }
+                }
+
+                self.child.init(ctx);
+            }
+
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if self.height.is_new(ctx) {
-                    ctx.updates.layout();
+                if let Some(l) = self.height.get_new(ctx) {
+                    let i = INDEX_VAR.get();
+                    let mut info = GRID_CONTEXT.write();
+                    if i < info.row_info.len() {
+                        info.row_info[i].sized_by_cell = l.is_default();
+                        ctx.updates.layout();
+                    }
                 }
                 self.child.update(ctx, updates);
             }
@@ -339,22 +357,84 @@ pub mod cell {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct ColumnInfo {
+    /// Column is sized to fill the widest cell.
+    pub sized_by_cell: bool,
+    /// Computed width.
+    pub width: Px,
+}
+
+#[derive(Clone, Copy)]
+pub struct RowInfo {
+    /// Row is sized to fill the tallest cell.
+    pub sized_by_cell: bool,
+    /// Computed height.
+    pub height: Px,
+}
+
+#[derive(Default)]
+struct GridContext {
+    column_info: Vec<ColumnInfo>,
+    row_info: Vec<RowInfo>,
+    occupied: Vec<bool>,
+}
+context_local! {
+    static GRID_CONTEXT: GridContext = GridContext::default();
+}
+
+fn grid_node(
+    cells: BoxedUiNodeList,
+    columns: BoxedUiNodeList,
+    rows: BoxedUiNodeList,
+    auto_row_view: BoxedVar<ViewGenerator<AutoRowViewArgs>>,
+    spacing: BoxedVar<GridSpacing>,
+) -> impl UiNode {
+    let cell_len = columns.len();
+    let col_len = columns.len();
+    let mut row_len = rows.len();
+    if row_len == 0 {
+        let c = col_len.max(1);
+        row_len = cell_len / c + 1;
+    }
+
+    let node = GridNode {
+        children: vec![columns, rows, cells],
+        spacing: spacing.into_var(),
+        auto_row_view: auto_row_view.into_var(),
+    };
+
+    with_context_local(
+        node,
+        &GRID_CONTEXT,
+        GridContext {
+            column_info: Vec::with_capacity(col_len),
+            row_info: Vec::with_capacity(row_len),
+            occupied: Vec::with_capacity(cell_len),
+        },
+    )
+}
+
 #[ui_node(struct GridNode {
     // [columns, rows, cells]
     children: Vec<BoxedUiNodeList>,
     #[var] auto_row_view: impl Var<ViewGenerator<AutoRowViewArgs>>,
     #[var] spacing: impl Var<GridSpacing>,
-
-    widths: Vec<Px>,
-    heights: Vec<Px>,
-    occupied: Vec<bool>,
 })]
 impl UiNode for GridNode {
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         if self.spacing.is_new(ctx) {
             ctx.updates.layout();
         }
-        self.children.update_all(ctx, updates, &mut ());
+
+        let mut any = false;
+        self.children.update_all(ctx, updates, &mut any);
+        if any {
+            ctx.updates.layout();
+        }
+
+        // !!: TODO associate grid cells with cell widgets.
+        // !!: TODO generate rows.
     }
 
     fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
@@ -404,88 +484,57 @@ impl UiNode for GridNode {
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let mut grid_size = PxSize::zero();
 
-        self.widths.clear();
-        let columns = self.children[0].len().max(1);
-        ctx.with_constrains(
-            |mut c| {
-                if let Some(mut m) = c.x.max() {
-                    m /= Px(columns as i32);
-                    c = c.with_max_x(m);
-                }
-                c
-            },
-            |ctx| {
-                self.children[0].for_each_mut(|_, column| {
-                    let s = column.layout(ctx, wl);
-                    self.widths.push(s.width);
-                    grid_size.width += s.width;
-                    true
-                });
-            },
-        );
+        let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
+        let fill_size = ctx.metrics.constrains().fill_size();
 
-        self.heights.clear();
-        let rows = self.children[1].len();
-        ctx.with_constrains(
-            |mut c| {
-                if rows == 0 {
-                    c.y = c.y.with_unbounded();
-                } else if let Some(mut m) = c.y.max() {
-                    m /= Px(rows as i32);
-                    c = c.with_max_y(m);
-                }
-                c
-            },
-            |ctx| {
-                self.children[1].for_each_mut(|_, row| {
-                    let s = row.layout(ctx, wl);
-                    self.heights.push(s.height);
-                    grid_size.height += s.height;
-                    true
-                });
-            },
-        );
+        // measure cells for columns/rows that need it.
+        // this is needed for columns/rows flagged `sized_by_cell` or if the grid is not fill/exact in a dimension.
+        // !!: TODO
 
-        self.occupied.clear();
-        self.occupied.resize(self.children[2].len(), false);
+        // compute final column widths.
+        let column_100pct = Px::MAX; // !!: TODO divided width - spacing.
+        self.children[0].for_each_mut(|i, c| {
+            let info = GRID_CONTEXT.read().column_info[i];
 
-        let cells = self.children[2].len();
-
-        let mut cell = 0;
-        let mut row = 0;
-        let auto_row_height = ctx.constrains().y.fill() / Px((cells / columns) as i32);
-        let mut offset = PxVector::zero();
-
-        self.children[2].for_each_mut(|_, c| {
-            let width = self.widths[cell];
-            let height = if row < self.heights.len() {
-                self.heights[row]
+            let s = if info.sized_by_cell || column_100pct == Px::MAX {
+                // column has the widest cell width.
+                ctx.with_constrains(|c| c.with_exact_x(info.width), |ctx| c.layout(ctx, wl))
             } else {
-                self.heights.push(auto_row_height);
-                grid_size.height += auto_row_height;
-                auto_row_height
+                // column defines the width.
+                ctx.with_constrains(|c| c.with_max_x(column_100pct), |ctx| c.layout(ctx, wl))
             };
+            // width defined by the column or corrected by it (min/max_width).
+            GRID_CONTEXT.write().column_info[i].width = info.width;
 
-            ctx.with_constrains(
-                |c| c.with_exact(width, height),
-                |ctx| {
-                    c.layout(ctx, wl);
-                    wl.with_outer(c, false, |t, _| {
-                        t.translate(offset);
-                    });
-                },
-            );
+            // !!: TODO, position column
 
-            cell += 1;
-            if cell == columns {
-                cell = 0;
-                row += 1;
+            true
+        });
 
-                offset.y += height;
-                offset.x = Px(0);
+        // compute final row widths.
+        let row_100pct = Px::MAX; // !!: TODO divided height - spacing.
+        self.children[1].for_each_mut(|i, r| {
+            let info = GRID_CONTEXT.read().row_info[i];
+
+            let s = if info.sized_by_cell || column_100pct == Px::MAX {
+                // row has the tallest cell height.
+                ctx.with_constrains(|c| c.with_exact_x(info.height), |ctx| r.layout(ctx, wl))
             } else {
-                offset.x += width;
-            }
+                // row defines the height.
+                ctx.with_constrains(|c| c.with_max_x(column_100pct), |ctx| r.layout(ctx, wl))
+            };
+            // height defined by the row or corrected by it (min/max_height).
+            GRID_CONTEXT.write().row_info[i].height = info.height;
+
+            // !!: TODO, position row
+
+            true
+        });
+
+        // layout cells.
+        self.children[2].for_each_mut(|i, c| {
+            // !!: TODO get cell coordinates.
+
             true
         });
 
