@@ -34,7 +34,7 @@ pub mod grid {
         ///
         /// If the column is [`Visibility::Collapsed`] the cells will also be collapsed, but if it hidden the cells are not hidden.
         ///
-        /// [`column!`]: mod::column
+        /// [`column!`]: mod@column
         /// [`column::cell_align`]: fn@column::cell_align
         pub columns(impl UiNodeList);
 
@@ -158,7 +158,7 @@ pub mod row {
 ///
 /// See the [`grid::cells`] property for more details.
 ///
-/// [`grid::columns`]: fn@grid::columns
+/// [`grid::cells`]: fn@grid::cells
 #[widget($crate::widgets::layouts::grid::cell)]
 pub mod cell {
     use super::*;
