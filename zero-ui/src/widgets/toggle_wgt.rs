@@ -6,9 +6,9 @@ use crate::prelude::new_widget::*;
 /// of the checked properties to a read-write variable enables the widget and it will set the variables
 /// on click, setting [`value`] turns the toggle in a selection item that is inserted/removed in a contextual [`selector`].
 ///
-/// [`checked`]: #wp-checked
-/// [`checked_opt`]: #wp-checked_opt
-/// [`value`]: #wp-value
+/// [`checked`]: fn@toggle::checked
+/// [`checked_opt`]: fn@toggle::checked_opt
+/// [`value`]: fn@toggle::value
 /// [`selector`]: fn@toggle::selector
 #[widget($crate::widgets::toggle)]
 pub mod toggle {
@@ -80,7 +80,7 @@ pub mod toggle_properties {
     ///
     /// Note that you can read the checked state of the widget using [`is_checked`].
     ///
-    /// [`is_checked`]: #wp-is_checked
+    /// [`is_checked`]: fn@is_checked
     #[property(CONTEXT, default(false))]
     pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
         #[ui_node(struct CheckedNode {
@@ -243,9 +243,9 @@ pub mod toggle_properties {
     /// # ;
     /// ```
     ///
-    /// [`checked`]: #wp-checked
-    /// [`checked_opt`]: #wp-checked_opt
-    /// [`value`]: #wp-value.
+    /// [`checked`]: fn@checked
+    /// [`checked_opt`]: fn@checked_opt
+    /// [`value`]: fn@value.
     #[property(EVENT)]
     pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
         bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
@@ -285,7 +285,7 @@ pub mod toggle_properties {
     /// # ;
     /// ```
     ///
-    /// [`is_checked`]: #wp-is_checked
+    /// [`is_checked`]: fn@is_checked
     /// [`selector`]: fn@selector
     ///
     /// This property interacts with the contextual [`selector`], when the widget is clicked or the `value` variable changes

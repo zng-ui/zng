@@ -16,6 +16,8 @@ pub mod grid {
         /// Cells can select their own column, row using the properties in the [`cell!`] widget. Note that
         /// you don't need to use the `cell!` widget, only the properties.
         ///
+        /// Cells can also be set to span multiple columns using the [`cell!`] properties. If
+        ///
         /// If the column or row is not explicitly set the widget is positioned in the first *free* cell.
         ///
         /// [`cell!`]: mod@cell
@@ -23,27 +25,33 @@ pub mod grid {
 
         /// Column definitions.
         ///
-        /// You can define columns with any widget, but the [`column!`] widget is recommended. The column widget width defines
-        /// the cells width, and the [`column::cell_align`] property defines their alignment. Note that the column widget is not
-        /// the parent of the cells that match it, the column is layout before cells and is render under cell and row widgets. Properties
-        /// like `padding` only affect the column visual, not the cells, similarly contextual properties like `text_color` don't affect the cells.
+        /// You can define columns with any widget, but the [`column!`] widget is recommended. The [`column::width`] property defines
+        /// the cells width if set, if it is not set, the column widget and all cells in the column with column span 1 are measured to
+        /// fill and the widest width is used as the column width. If the [`column::width`] is set to [`Length::Default`] the widest
+        /// cell width is used to layout the column widget, and the final width used for cells. This means that you can always constrain
+        /// a column using the [`min_width`] and [`max_width`] properties.
         ///
-        /// Each column is layout with constrains that make `width = 100.pct()` resolve to a width that equally divides the available
-        /// grid width into equal partitions for each column. It is ok to layout a column larger then `100.pct()`, as long as the different
-        /// is removed from another column. If the columns sum exceeds the available width
-        ///
-        /// If the column is [`Visibility::Collapsed`] the cells will also be collapsed, but if it hidden the cells are not hidden.
+        /// Note that the column widget is not the parent of the cells that match it, the column is layout before cells and
+        /// is render under cell and row widgets. Properties like `padding` and `align` only affect the column visual, not the cells,
+        /// similarly contextual properties like `text_color` don't affect the cells.
         ///
         /// [`column!`]: mod@column
-        /// [`column::cell_align`]: fn@column::cell_align
+        /// [`column::width`]: fn@column::width
+        /// [`min_width`]: fn@min_width
+        /// [`max_width`]: fn@max_width
         pub columns(impl UiNodeList);
 
         /// Row definitions.
         ///
-        /// If left empty rows are auto-generated, with height defined by the tallest cell and no visual, or using the [`auto_row_view`]
-        /// if it is set.
+        /// If left empty rows are auto-generated, using the [`auto_row_view`] if it is set or to an imaginary default row with
+        /// height [`Length::Default`].
+        ///
+        /// If not empty the row widgets are used to layout the cells height the same way the [`columns`] are used to layout width.
+        /// Like columns the rows are not the logical parent of cells, if the row widget renders any visual it is rendered under the
+        /// cells assigned to it, but over the column widgets.
         ///
         /// [`auto_row_view`]: fn@auto_row_view
+        /// [`columns`]: fn@columns
         pub rows(impl UiNodeList);
 
         /// View generator used to provide row widgets when [`rows`] is empty.
@@ -91,10 +99,7 @@ pub mod column {
 
     inherit!(widget_base::base);
 
-    properties! {
-        /// Column width, set to `100.pct()` by default.
-        pub crate::properties::width = 100.pct();
-    }
+    pub use crate::properties::{max_width, min_width};
 
     context_var! {
         /// Column index as a read-only variable.
@@ -103,27 +108,18 @@ pub mod column {
         pub static INDEX_VAR: usize = 0;
     }
 
-    /// Alignment of all cells that match this grid column.
-    #[property(LAYOUT, default(Align::FILL))]
-    pub fn cell_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
-        #[ui_node(struct CellAlignNode {
-            child: impl UiNode,
-            #[var] align: impl Var<Align>,
-        })]
-        impl UiNode for CellAlignNode {
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if self.align.is_new(ctx) {
-                    ctx.updates.layout();
-                }
-                self.child.update(ctx, updates);
-            }
-        }
-        CellAlignNode {
-            child,
-            align: align.into_var(),
-        }
-    }
-
+    /// Column width, defines the actual cells width and the column widget width if set and not [`Length::Default`].
+    ///
+    /// The fill constrain is the grid width fill divided by columns, so `100.pct()` width in a column in a grid with 3 columns is 1/3 the
+    /// grid fill width. You can set the width to more then `100.pct()` as long as the different is removed from the other columns.
+    ///
+    /// Note that the column it self is always sized to fill as a *background* for the cells assigned to it, this property
+    /// informs the [`grid!`] widget on how to constrain the cells width.
+    ///
+    /// If this property is set to a read-write variable with value [`Length::Default`] the first layout width is set back on the variable.
+    /// You can use this to implement user resizable columns that init sized to cell content.
+    ///
+    /// [`grid!`]: mod@crate::widgets::layouts::grid
     #[property(LAYOUT, default(Length::Default))]
     pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         #[ui_node(struct WidthNode {
@@ -159,16 +155,45 @@ pub mod row {
 
     inherit!(widget_base::base);
 
-    properties! {
-        /// Row height, set to `100.pct()` by default
-        pub crate::properties::height = 100.pct();
-    }
+    pub use crate::properties::{max_height, min_height};
 
     context_var! {
         /// Row index as a read-only variable.
         ///
         /// Set to the zero-based index of the row widget for each widget. You can use this to implement interleaved background colors.
         pub static INDEX_VAR: usize = 0;
+    }
+
+    /// Row height, defines the actual cells height and the row widget height if set and not [`Length::Default`].
+    ///
+    /// The fill constrain is the grid height fill divided by rows, so `100.pct()` height in a row in a grid with 3 rows is 1/3 the
+    /// grid fill height. You can set the height to more then `100.pct()` as long as the different is removed from the other rows.
+    ///
+    /// Note that the row it self is always sized to fill as a *background* for the cells assigned to it, this property
+    /// informs the [`grid!`] widget on how to constrain the cells height.
+    ///
+    /// If this property is set to a read-write variable with value [`Length::Default`] the first layout height is set back on the variable.
+    /// You can use this to implement user resizable rows that init sized to cell content.
+    ///
+    /// [`grid!`]: mod@crate::widgets::layouts::grid
+    #[property(LAYOUT, default(Length::Default))]
+    pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
+        #[ui_node(struct HeightNode {
+            child: impl UiNode,
+            #[var] height: impl Var<Length>,
+        })]
+        impl UiNode for HeightNode {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if self.height.is_new(ctx) {
+                    ctx.updates.layout();
+                }
+                self.child.update(ctx, updates);
+            }
+        }
+        HeightNode {
+            child,
+            height: height.into_var(),
+        }
     }
 }
 
@@ -237,6 +262,8 @@ pub mod cell {
     ///
     /// Is `1` by default, the index is clamped between `1..max` where max is the maximum number of valid columns
     /// to the right of the cell column index.
+    ///
+    /// Note that the cell does not influence the column width if it spans over multiple columns.
     #[property(CONTEXT, default(1))]
     pub fn column_span(child: impl UiNode, col: impl IntoVar<usize>) -> impl UiNode {
         #[ui_node(struct ColumnSpanNode {
@@ -263,6 +290,8 @@ pub mod cell {
     ///
     /// Is `1` by default, the index is clamped between `1..max` where max is the maximum number of valid rows
     /// down from the cell column index.
+    ///
+    /// Note that the cell does not influence the row height if it spans over multiple rows.
     #[property(CONTEXT, default(1))]
     pub fn row_span(child: impl UiNode, row: impl IntoVar<usize>) -> impl UiNode {
         #[ui_node(struct RowSpanNode {
@@ -284,7 +313,7 @@ pub mod cell {
     }
 
     context_var! {
-        /// Cell column, row index as a read-only variable.
+        /// Cell `(column, row)` index as a read-only variable.
         ///
         /// This is the actual index, corrected from the [`column`] and [`row`] values or auto-selected if these
         /// properties where not set in the widget.

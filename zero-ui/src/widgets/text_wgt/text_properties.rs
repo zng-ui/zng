@@ -493,15 +493,15 @@ pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>
     let child = with_context_var(child, UNDERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, UNDERLINE_STYLE_VAR, style)
 }
-/// Custom [`underline`](#wp-underline) color, if not set
-/// the [`color`](#wp-color) is used.
+/// Custom [`underline`](fn@underline) color, if not set
+/// the [`txt_color`](fn@txt_color) is used.
 ///
 /// Sets the [`UNDERLINE_COLOR_VAR`].
 #[property(CONTEXT, default(UNDERLINE_COLOR_VAR))]
 pub fn underline_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, UNDERLINE_COLOR_VAR, color)
 }
-/// Defines what segments of each text line are skipped when tracing the [`underline`](#wp-underline).
+/// Defines what segments of each text line are skipped when tracing the [`underline`](fn@underline).
 ///
 /// By default skips glyphs that intercept the underline.
 ///
@@ -529,8 +529,8 @@ pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, 
     let child = with_context_var(child, OVERLINE_THICKNESS_VAR, thickness);
     with_context_var(child, OVERLINE_STYLE_VAR, style)
 }
-/// Custom [`overline`](#wp-overline) color, if not set
-/// the [`color`](#wp-color) is used.
+/// Custom [`overline`](fn@overline) color, if not set
+/// the [`txt_color`](fn@txt_color) is used.
 ///
 /// Sets the [`OVERLINE_COLOR_VAR`].
 #[property(CONTEXT, default(OVERLINE_COLOR_VAR))]
@@ -546,8 +546,8 @@ pub fn strikethrough(child: impl UiNode, thickness: impl IntoVar<TextLineThickne
     let child = with_context_var(child, STRIKETHROUGH_THICKNESS_VAR, thickness);
     with_context_var(child, STRIKETHROUGH_STYLE_VAR, style)
 }
-/// Custom [`strikethrough`](#wp-strikethrough) color, if not set
-/// the [`color`](#wp-color) is used.
+/// Custom [`strikethrough`](fn@strikethrough) color, if not set
+/// the [`txt_color`](fn@txt_color) is used.
 ///
 /// Sets the [`STRIKETHROUGH_COLOR_VAR`].
 #[property(CONTEXT, default(STRIKETHROUGH_COLOR_VAR))]

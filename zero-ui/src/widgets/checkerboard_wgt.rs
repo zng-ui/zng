@@ -48,8 +48,6 @@ mod checkerboard_properties {
     /// Set both checkerboard colors.
     ///
     /// This property sets [`COLORS_VAR`] for all inner checkerboard widgets.
-    ///
-    /// [`colors`]: mod@crate::widgets::checkerboard#wp-colors
     #[property(CONTEXT, default(COLORS_VAR))]
     pub fn colors(child: impl UiNode, colors: impl IntoVar<(Rgba, Rgba)>) -> impl UiNode {
         with_context_var(child, COLORS_VAR, colors)
@@ -58,8 +56,6 @@ mod checkerboard_properties {
     /// Set the size of a checkerboard color rectangle.
     ///
     /// This property sets the [`SIZE_VAR`] for all inner checkerboard widgets.
-    ///
-    /// [`cb_size`]: mod@crate::widgets::checkerboard#wp-cb_size
     #[property(CONTEXT, default(SIZE_VAR))]
     pub fn cb_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         with_context_var(child, SIZE_VAR, size)
@@ -68,8 +64,6 @@ mod checkerboard_properties {
     /// Sets the offset of the checkerboard pattern.
     ///
     /// This property sets the [`OFFSET_VAR`] for all inner checkerboard widgets.
-    ///
-    /// [`cb_offset`]: mod@crate::widgets::checkerboard#wp-cb_offset
     #[property(CONTEXT, default(OFFSET_VAR))]
     pub fn cb_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
         with_context_var(child, OFFSET_VAR, offset)

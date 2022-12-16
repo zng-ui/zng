@@ -9,12 +9,11 @@ use nodes::CONTEXT_IMAGE_VAR;
 
 /// Image layout mode.
 ///
-/// This layout mode can be set to all images inside a widget using [`img_fit`], in the image widget
-/// it can be set using the [`fit`] property, the [`image_presenter`] uses this value to calculate the image final size.
+/// This layout mode can be set to all images inside a widget using [`img_fit`], the [`image_presenter`] uses this value 
+/// to calculate the image final size.
 ///
 /// The image desired size is its original size, either in pixels or DIPs after cropping and scaling.
 ///
-/// [`fit`]: mod@crate::widgets::image#wp-fit
 /// [`img_fit`]: fn@img_fit
 /// [`image_presenter`]: crate::widgets::image::nodes::image_presenter
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -109,7 +108,7 @@ context_var! {
 ///
 /// This property sets the [`IMAGE_FIT_VAR`].
 ///
-/// [`fit`]: mod@crate::widgets::image#wp-fit
+/// [`fit`]: fn@crate::widgets::image::fit
 #[property(CONTEXT, default(IMAGE_FIT_VAR))]
 pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
     with_context_var(child, IMAGE_FIT_VAR, fit)
@@ -122,7 +121,7 @@ pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
 /// By default not scaling is done.
 ///
 /// [`img_scale_ppi`]: fn@img_scale_ppi
-/// [`scale`]: mod@crate::widgets::image#wp-scale
+/// [`scale`]: fn@crate::widgets::image::scale
 #[property(CONTEXT, default(IMAGE_SCALE_VAR))]
 pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_VAR, scale)
@@ -146,16 +145,16 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 ///
 /// If the image desired size is scaled by PPI.
 ///
-/// The image desired size is its original size, after [`crop`], and it can be in pixels or scaled considering
+/// The image desired size is its original size, after [`img_crop`], and it can be in pixels or scaled considering
 /// the image PPI, monitor PPI and scale factor.
 ///
 /// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, but it
 /// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`Monitors`] service.
 ///
-/// [`crop`]: #wp-crop
+/// [`img_crop`]: fn@img_crop
 /// [`Monitors`]: zero_ui::core::window::Monitors
 ///
-/// [`scape_ppi`]: mod@crate::widgets::image#wp-scape_ppi
+/// [`scape_ppi`]: fn@crate::widgets::image::scape_ppi
 #[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR))]
 pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_PPI_VAR, enabled)
@@ -174,7 +173,7 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`BASELINE`]: Align::BASELINE
 /// [`BOTTOM`]: Align::BOTTOM
 ///
-/// [`img_align`]: mod@crate::widgets::image#wp-img_align
+/// [`img_align`]: fn@crate::widgets::image::img_align
 #[property(CONTEXT, default(IMAGE_ALIGN_VAR))]
 pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, IMAGE_ALIGN_VAR, fit)
@@ -188,7 +187,7 @@ pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
 /// This property sets the [`IMAGE_OFFSET_VAR`]. By default no offset is applied.
 ///
 /// [`offset`]: fn@crate::properties::offset
-/// [`img_offset`]: mod@crate::widgets::image#wp-img_offset
+/// [`img_offset`]: fn@crate::widgets::image::img_offset
 #[property(CONTEXT, default(IMAGE_OFFSET_VAR))]
 pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     with_context_var(child, IMAGE_OFFSET_VAR, offset)
@@ -204,7 +203,7 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 ///
 /// [`img_scale_ppi`]: #fn@img_scale_ppi
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas///
-/// [`crop`]: mod@crate::widgets::image#wp-crop
+/// [`crop`]: fn@crate::widgets::image::crop
 #[property(CONTEXT, default(IMAGE_CROP_VAR))]
 pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
     with_context_var(child, IMAGE_CROP_VAR, crop)
@@ -224,7 +223,7 @@ pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
 ///
 /// This is [`ImageRendering::Auto`] by default.
 ///
-/// [`rendering`]: mod@crate::widgets::image#wp-rendering
+/// [`rendering`]: fn@crate::widgets::image::rendering
 #[property(CONTEXT, default(IMAGE_RENDERING_VAR))]
 pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
     with_context_var(child, IMAGE_RENDERING_VAR, rendering)
@@ -240,10 +239,8 @@ pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>
 /// If set to `false` the image is always loaded and decoded on init or when [`source`] updates and is dropped when
 /// the widget is deinited or dropped.
 ///
-/// [`source`]: #wp-source
+/// [`source`]: fn@crate::widgets::image::source
 /// [`Images`]: zero_ui::core::image::Images
-///
-/// [`cache`]: mod@crate::widgets::image#wp-cache
 #[property(CONTEXT, default(IMAGE_CACHE_VAR))]
 pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_CACHE_VAR, enabled)

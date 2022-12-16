@@ -110,8 +110,8 @@ pub mod window {
         /// a semi-transparent color. The composition is a simple alpha blend, effects like blur do not apply to
         /// the pixels "behind" the window.
         ///
-        /// [`clear_color`]: #wp-clear_color
-        /// [`background_color`]: #wp-background_color
+        /// [`clear_color`]: fn@clear_color
+        /// [`background_color`]: fn@background_color
         pub allow_transparency(impl IntoValue<bool>);
 
         /// Render performance mode overwrite for this window, if set to `None` the [`Windows::default_render_mode`] is used.
@@ -204,7 +204,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_state_changed`] so window handlers see it first.
         ///
-        /// [`state`]: #wp-state
+        /// [`state`]: fn@state
         /// [`on_pre_window_state_changed`]: fn@events::window::on_pre_window_state_changed
         pub events::window::on_pre_window_state_changed as on_state_changed;
 
@@ -276,7 +276,7 @@ pub mod window {
 
         /// On window frame rendered.
         ///
-        /// If [`frame_image_capture`](#wp-frame_image_capture) is set
+        /// If [`frame_image_capture`](fn@frame_image_capture) is set
         pub events::window::on_pre_frame_image_ready as on_frame_image_ready;
 
         /// Use the `FONT_SIZE_VAR` default as the root font size.

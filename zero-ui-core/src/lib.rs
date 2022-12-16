@@ -261,8 +261,6 @@ pub use zero_ui_proc_macros::widget_new;
 /// [`layout`]: crate::widget_instance::UiNode::layout
 /// [`render`]: crate::widget_instance::UiNode::render
 /// [`WidgetContext::handles`]: crate::context::WidgetContext::handles
-///
-/// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::ui_node;
 
@@ -439,8 +437,6 @@ pub use zero_ui_proc_macros::ui_node;
 /// [`InputKind::UiNodeList`]: crate::widget_builder::InputKind::UiNodeList
 /// [`InputKind::WidgetHandler`]: crate::widget_builder::InputKind::WidgetHandler
 /// [`event_property!`]: crate::event::event_property
-///
-/// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::property;
 
@@ -954,8 +950,6 @@ pub use zero_ui_proc_macros::property;
 /// [`UiNode`]: widget_instance::UiNode
 /// [`StateVar`]: var::StateVar
 /// [`widget_base::base`]: mod@widget_base::base
-///
-/// <div style='display:none'>
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 
@@ -970,9 +964,6 @@ pub use zero_ui_proc_macros::widget;
 /// by this macro, except the `build` function.
 ///
 /// [#widget]: macro@widget
-///
-/// <div style='display:none'>
-
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget_mixin;
 

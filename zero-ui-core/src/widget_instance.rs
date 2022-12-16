@@ -72,7 +72,7 @@ impl WidgetId {
     ///
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: mod@crate::widget_base::base#wp-id
+    /// [`id`]: fn@crate::widget_base::base::id
     pub fn debug_named(name: impl Into<Text>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);

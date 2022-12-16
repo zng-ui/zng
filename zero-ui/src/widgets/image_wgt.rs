@@ -67,7 +67,7 @@ pub mod image {
 ///
 /// [`image!`]: mod@image
 /// [`image`]: mod@image
-/// [`source`]: mod@image#wp-source
+/// [`source`]: fn@image::source
 pub fn image(source: impl IntoVar<ImageSource>) -> impl UiNode {
     image! { source }
 }
