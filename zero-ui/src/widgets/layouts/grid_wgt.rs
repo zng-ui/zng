@@ -123,6 +123,26 @@ pub mod column {
             align: align.into_var(),
         }
     }
+
+    #[property(LAYOUT, default(Length::Default))]
+    pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
+        #[ui_node(struct WidthNode {
+            child: impl UiNode,
+            #[var] width: impl Var<Length>,
+        })]
+        impl UiNode for WidthNode {
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                if self.width.is_new(ctx) {
+                    ctx.updates.layout();
+                }
+                self.child.update(ctx, updates);
+            }
+        }
+        WidthNode {
+            child,
+            width: width.into_var(),
+        }
+    }
 }
 
 /// Grid row definition.
