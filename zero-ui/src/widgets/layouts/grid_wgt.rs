@@ -492,42 +492,20 @@ impl GridContext {
 
 fn grid_node(
     cells: BoxedUiNodeList,
-    mut columns: BoxedUiNodeList,
-    mut rows: BoxedUiNodeList,
+    columns: BoxedUiNodeList,
+    rows: BoxedUiNodeList,
     auto_row_view: BoxedVar<ViewGenerator<AutoRowViewArgs>>,
     spacing: BoxedVar<GridSpacing>,
 ) -> impl UiNode {
-    // !!: bug, ArcNodeList items only available after init, move this to GridNode::init.
-    let cell_len = cells.len();
-    let col_len = columns.len();
-    let mut row_len = rows.len();
-    if row_len == 0 {
-        let c = col_len.max(1);
-        row_len = cell_len / c + 1;
-    }
-
-    columns.for_each_mut(|i, c| {
-        take_mut::take_or_recover(c, || NilUiNode.boxed(), |c| with_context_var(c, column::INDEX_VAR, i).boxed());
-        true
-    });
-    rows.for_each_mut(|i, r| {
-        take_mut::take_or_recover(r, || NilUiNode.boxed(), |r| with_context_var(r, row::INDEX_VAR, i).boxed());
-        true
-    });
-
     let node = GridNode {
-        children: vec![columns, rows, cells], // !!: map/wrap children to have the `column::INDEX` etc.
+        children: vec![columns, rows, cells],
         spacing: spacing.into_var(),
         auto_row_view: auto_row_view.into_var(),
     };
     with_context_local(
         node,
         &GRID_CONTEXT,
-        GridContext {
-            column_info: Vec::with_capacity(col_len),
-            row_info: Vec::with_capacity(row_len),
-            cell_info: Vec::with_capacity(cell_len),
-        },
+        GridContext::default(),
     )
 }
 
@@ -538,6 +516,37 @@ fn grid_node(
     #[var] spacing: impl Var<GridSpacing>,
 })]
 impl UiNode for GridNode {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.init_handles(ctx);
+        self.children.init_all(ctx);
+
+        // !!: this does not work
+        //    - We need to do this after init to load ArcNodeList.
+        //    - with_context_var is attached after init then.
+        //    - It panics because it was never inited in the first update.
+        //
+        // !!: what we need
+        //    - Widget state is perfect to communicate the index.
+        //    - Except we want the `INDEX_VAR` for custom `when` conditions.
+        //    - We need a "state" property that takes on different values.
+        //    - Was there not something about `get_` prefix?
+        //        - Not in TODO anymore, idea was to have `get_index(impl UiNode, ArcVar<usize>) -> impl UiNode`.
+        //        - The prefix `get_` signals the same kind of thing the `is_` prefix does.
+        //        - Default required?
+        self.children[0].for_each_mut(|i, c| {
+            take_mut::take_or_recover(c, || NilUiNode.boxed(), |c| with_context_var(c, column::INDEX_VAR, i).boxed());
+            true
+        });
+        self.children[1].for_each_mut(|i, r| {
+            take_mut::take_or_recover(r, || NilUiNode.boxed(), |r| with_context_var(r, row::INDEX_VAR, i).boxed());
+            true
+        });
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.children.deinit_all(ctx);
+    }
+
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         if self.spacing.is_new(ctx) {
             ctx.updates.layout();

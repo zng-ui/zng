@@ -388,9 +388,11 @@ pub trait UiNode: Any + Send {
 /// Panel implementers must delegate every [`UiNode`] method to every node in the children list, in particular the
 /// [`init_all`], [`deinit_all`] and [`update_all`] methods must be used to support reactive lists, and the [`render_all`]
 /// and [`render_update_all`] must be used to render, to support the [`ZSortingList`]. Other [`UiNode`] methods must
-/// be delegated using [`for_each`] and [`for_each_mut`].
-///
-/// The [`#[ui_node(children)]`] attribute macro auto-generates delegations for each method.
+/// be delegated using [`for_each`] and [`for_each_mut`]. The [`#[ui_node(children)]`] attribute macro auto-generates 
+/// delegations for each method.
+/// 
+/// Note that node lists can be [`ArcNodeList`] that is always empty before init, and captured properties always use this
+/// type to share the list, so attempting to access the items before the first call to [`init_all`] will not work.
 ///
 /// [`init_all`]: UiNodeList::init_all
 /// [`deinit_all`]: UiNodeList::deinit_all
