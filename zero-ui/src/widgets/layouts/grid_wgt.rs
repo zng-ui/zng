@@ -697,7 +697,7 @@ impl UiNode for GridNode {
                 - spacing.column,
             info.row_info.iter().map(|c| c.height + spacing.row).fold(Px(0), |acc, h| acc + h) - spacing.row,
         )
-        .max(PxSize::zero())
+        .max(ctx.constrains().fill_size())
     }
 }
 
