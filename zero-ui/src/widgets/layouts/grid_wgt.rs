@@ -436,7 +436,7 @@ impl Default for RowInfo {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct CellInfo {
     pub column: usize,
     pub column_span: usize,
@@ -454,11 +454,11 @@ impl Default for CellInfo {
     }
 }
 impl CellInfo {
-    pub fn actual(mut self, i: usize, columns_len: usize, rows_len: usize) -> Self {
+    pub fn actual(mut self, i: usize, columns_len: usize) -> Self {
         if self.column >= columns_len {
             self.column = i % columns_len;
         }
-        if self.row > rows_len {
+        if self.row == usize::MAX {
             self.row = i / columns_len
         }
         self
@@ -557,7 +557,6 @@ impl UiNode for GridNode {
         let fill_size = ctx.metrics.constrains().fill_or_exact();
 
         let columns_len = self.children[0].len().max(1);
-        let rows_len = self.children[1].len().max(1);
 
         // measure cells for columns/rows that need it.
         // this is needed for columns/rows flagged `sized_by_cell` or if the grid is not fill/exact in a dimension.
@@ -567,7 +566,7 @@ impl UiNode for GridNode {
             {
                 let mut info = GRID_CONTEXT.write();
                 info.init_cell_info(i);
-                ci = info.cell_info[i].actual(i, columns_len, rows_len);
+                ci = info.cell_info[i].actual(i, columns_len);
 
                 info.init_column_info(ci.column);
                 info.init_row_info(ci.row); // !!: generate rows?
@@ -594,6 +593,8 @@ impl UiNode for GridNode {
 
             true
         });
+
+        let rows_len = GRID_CONTEXT.read().row_info.len();
 
         // compute final column widths.
         let mut offset = Px(0);
@@ -656,7 +657,7 @@ impl UiNode for GridNode {
             let (cell_offset, cell_size) = {
                 let info = GRID_CONTEXT.read();
 
-                let ci = info.cell_info[i].actual(i, columns_len, rows_len);
+                let ci = info.cell_info[i].actual(i, columns_len);
 
                 let mut offset = PxVector::zero();
                 for col in 0..ci.column {
