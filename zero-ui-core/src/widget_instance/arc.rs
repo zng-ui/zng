@@ -491,10 +491,12 @@ mod impls {
             {
                 let mut slots = self.rc.slots.lock();
                 let slots = &mut *slots;
-                if let Some((_, id, _)) = &slots.owner {
-                    // currently inited in another slot, signal it to deinit.
-                    slots.move_request = Some((self.slot, ctx.path.widget_id()));
-                    ctx.updates.update(*id);
+                if let Some((sl, id, _)) = &slots.owner {
+                    if *sl != self.slot {
+                        // currently inited in another slot, signal it to deinit.
+                        slots.move_request = Some((self.slot, ctx.path.widget_id()));
+                        ctx.updates.update(*id);
+                    }
                 } else {
                     // no current owner, take ownership immediately.
                     slots.owner = Some((self.slot, ctx.path.widget_id(), ctx.updates.sender()));

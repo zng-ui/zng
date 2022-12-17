@@ -131,14 +131,14 @@ pub mod column {
             #[var] width: impl Var<Length>,
         })]
         impl UiNode for WidthNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_column_info(i);
                     info.column_info[i].sized_by_cell = self.width.get().is_default();
                 }
 
-                self.child.init(ctx);
+                self.child.info(ctx, info);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -152,9 +152,11 @@ pub mod column {
                 self.child.update(ctx, updates);
             }
         }
+
+        let width = width.into_var();
         WidthNode {
-            child,
-            width: width.into_var(),
+            child: crate::properties::width(child, width.clone()),
+            width,
         }
     }
 }
@@ -197,14 +199,14 @@ pub mod row {
             #[var] height: impl Var<Length>,
         })]
         impl UiNode for HeightNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_row_info(i);
                     info.row_info[i].sized_by_cell = self.height.get().is_default();
                 }
 
-                self.child.init(ctx);
+                self.child.info(ctx, info);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -218,9 +220,11 @@ pub mod row {
                 self.child.update(ctx, updates);
             }
         }
+
+        let height = height.into_var();
         HeightNode {
-            child,
-            height: height.into_var(),
+            child: crate::properties::height(child, height.clone()),
+            height,
         }
     }
 }
@@ -238,6 +242,9 @@ pub mod cell {
 
     inherit!(crate::widgets::container);
 
+    /// Cell logical index in the parent widget set by the parent.
+    pub(super) static INDEX_ID: StaticStateId<usize> = StaticStateId::new_unique();
+
     /// Cell column index.
     ///
     /// If not set or out-of-bounds the cell is positioned based on the logical index.
@@ -248,23 +255,23 @@ pub mod cell {
             #[var] col: impl Var<usize>,
         })]
         impl UiNode for ColumnNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                {
-                    let i = INDEX_VAR.get();
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_cell_info(i);
                     info.cell_info[i].column = self.col.get();
                 }
 
-                self.child.init(ctx);
+                self.child.info(ctx, info);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(c) = self.col.get_new(ctx) {
-                    let i = INDEX_VAR.get();
-                    let mut info = GRID_CONTEXT.write();
-                    info.cell_info[i].column = c;
-                    ctx.updates.layout();
+                    if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
+                        let mut info = GRID_CONTEXT.write();
+                        info.cell_info[i].column = c;
+                        ctx.updates.layout();
+                    }
                 }
                 self.child.update(ctx, updates);
             }
@@ -285,23 +292,23 @@ pub mod cell {
             #[var] row: impl Var<usize>,
         })]
         impl UiNode for RowNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                {
-                    let i = INDEX_VAR.get();
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_cell_info(i);
                     info.cell_info[i].row = self.row.get();
                 }
 
-                self.child.init(ctx);
+                self.child.info(ctx, info);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(r) = self.row.get_new(ctx) {
-                    let i = INDEX_VAR.get();
-                    let mut info = GRID_CONTEXT.write();
-                    info.cell_info[i].row = r;
-                    ctx.updates.layout();
+                    if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
+                        let mut info = GRID_CONTEXT.write();
+                        info.cell_info[i].row = r;
+                        ctx.updates.layout();
+                    }
                 }
                 self.child.update(ctx, updates);
             }
@@ -327,23 +334,23 @@ pub mod cell {
             #[var] col: impl Var<usize>,
         })]
         impl UiNode for ColumnSpanNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                {
-                    let i = INDEX_VAR.get();
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_cell_info(i);
                     info.cell_info[i].column_span = self.col.get();
                 }
 
-                self.child.init(ctx);
+                self.child.info(ctx, info);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(c) = self.col.get_new(ctx) {
-                    let i = INDEX_VAR.get();
-                    let mut info = GRID_CONTEXT.write();
-                    info.cell_info[i].column_span = c;
-                    ctx.updates.layout();
+                    if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
+                        let mut info = GRID_CONTEXT.write();
+                        info.cell_info[i].column_span = c;
+                        ctx.updates.layout();
+                    }
                 }
                 self.child.update(ctx, updates);
             }
@@ -369,22 +376,20 @@ pub mod cell {
             #[var] row: impl Var<usize>,
         })]
         impl UiNode for RowSpanNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                {
-                    let i = INDEX_VAR.get();
+            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_cell_info(i);
                     info.cell_info[i].row_span = self.row.get();
                 }
 
-                self.child.init(ctx);
+                self.child.info(ctx, info);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(r) = self.row.get_new(ctx) {
-                    let i = INDEX_VAR.get();
-                    let mut info = GRID_CONTEXT.write();
-                    if i < info.row_info.len() {
+                    if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
+                        let mut info = GRID_CONTEXT.write();
                         info.cell_info[i].row_span = r;
                         ctx.updates.layout();
                     }
@@ -396,10 +401,6 @@ pub mod cell {
             child,
             row: row.into_var(),
         }
-    }
-
-    context_var! {
-        pub(super) static INDEX_VAR: usize = 0;
     }
 }
 
@@ -517,14 +518,17 @@ impl UiNode for GridNode {
         self.init_handles(ctx);
         self.children.init_all(ctx);
 
-        // !!: Problem:
-        //     - We need to do this after init so that `ArcNodeList` loads items.
-        //     - But column/row properties want the index on init.
+        // Set index for column, row and cell properties. These properties will *init* `GridContext` info
+        // in the next `UiNode::info`.
         self.children[0].for_each_mut(|i, c| {
             c.with_context_mut(|ctx| ctx.widget_state.set(&column::INDEX_ID, i));
             true
         });
         self.children[1].for_each_mut(|i, r| {
+            r.with_context_mut(|ctx| ctx.widget_state.set(&row::INDEX_ID, i));
+            true
+        });
+        self.children[2].for_each_mut(|i, r| {
             r.with_context_mut(|ctx| ctx.widget_state.set(&row::INDEX_ID, i));
             true
         });
