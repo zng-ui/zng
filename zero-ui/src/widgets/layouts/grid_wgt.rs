@@ -100,12 +100,17 @@ pub mod column {
 
     pub use crate::properties::{max_width, min_width};
 
-    context_var! {
-        /// Column index as a read-only variable.
-        ///
-        /// Set to the zero-based index of the column widget for each widget. You can use this to implement interleaved background colors.
-        pub static INDEX_VAR: usize = 0;
-    }
+    // !!: what we need
+    //    - Widget state is perfect to communicate the index.
+    //    - Except we want the `INDEX_VAR` for custom `when` conditions.
+    //    - We need a "state" property that takes on different values.
+    //    - Was there not something about `get_` prefix?
+    //        - Not in TODO anymore, idea was to have `get_index(impl UiNode, ArcVar<usize>) -> impl UiNode`.
+    //        - The prefix `get_` signals the same kind of thing the `is_` prefix does.
+    //        - Default required?
+
+    /// Column index in the parent widget set by the parent.
+    pub(super) static INDEX_ID: StaticStateId<usize> = StaticStateId::new_unique();
 
     /// Column width, defines the actual cells width and the column widget width if set and not [`Length::Default`].
     ///
@@ -127,8 +132,7 @@ pub mod column {
         })]
         impl UiNode for WidthNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                {
-                    let i = INDEX_VAR.get();
+                if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_column_info(i);
                     info.column_info[i].sized_by_cell = self.width.get().is_default();
@@ -139,10 +143,11 @@ pub mod column {
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(l) = self.width.get_new(ctx) {
-                    let i = INDEX_VAR.get();
-                    let mut info = GRID_CONTEXT.write();
-                    info.column_info[i].sized_by_cell = l.is_default();
-                    ctx.updates.layout();
+                    if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
+                        let mut info = GRID_CONTEXT.write();
+                        info.column_info[i].sized_by_cell = l.is_default();
+                        ctx.updates.layout();
+                    }
                 }
                 self.child.update(ctx, updates);
             }
@@ -170,12 +175,8 @@ pub mod row {
 
     pub use crate::properties::{max_height, min_height};
 
-    context_var! {
-        /// Row index as a read-only variable.
-        ///
-        /// Set to the zero-based index of the row widget for each widget. You can use this to implement interleaved background colors.
-        pub static INDEX_VAR: usize = 0;
-    }
+    /// Row index in the parent widget set by the parent.
+    pub(super) static INDEX_ID: StaticStateId<usize> = StaticStateId::new_unique();
 
     /// Row height, defines the actual cells height and the row widget height if set and not [`Length::Default`].
     ///
@@ -197,8 +198,7 @@ pub mod row {
         })]
         impl UiNode for HeightNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                {
-                    let i = INDEX_VAR.get();
+                if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
                     let mut info = GRID_CONTEXT.write();
                     info.init_row_info(i);
                     info.row_info[i].sized_by_cell = self.height.get().is_default();
@@ -209,10 +209,11 @@ pub mod row {
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if let Some(l) = self.height.get_new(ctx) {
-                    let i = INDEX_VAR.get();
-                    let mut info = GRID_CONTEXT.write();
-                    info.row_info[i].sized_by_cell = l.is_default();
-                    ctx.updates.layout();
+                    if let Some(&i) = ctx.widget_state.get(&INDEX_ID) {
+                        let mut info = GRID_CONTEXT.write();
+                        info.row_info[i].sized_by_cell = l.is_default();
+                        ctx.updates.layout();
+                    }
                 }
                 self.child.update(ctx, updates);
             }
@@ -502,11 +503,7 @@ fn grid_node(
         spacing: spacing.into_var(),
         auto_row_view: auto_row_view.into_var(),
     };
-    with_context_local(
-        node,
-        &GRID_CONTEXT,
-        GridContext::default(),
-    )
+    with_context_local(node, &GRID_CONTEXT, GridContext::default())
 }
 
 #[ui_node(struct GridNode {
@@ -520,31 +517,17 @@ impl UiNode for GridNode {
         self.init_handles(ctx);
         self.children.init_all(ctx);
 
-        // !!: this does not work
-        //    - We need to do this after init to load ArcNodeList.
-        //    - with_context_var is attached after init then.
-        //    - It panics because it was never inited in the first update.
-        //
-        // !!: what we need
-        //    - Widget state is perfect to communicate the index.
-        //    - Except we want the `INDEX_VAR` for custom `when` conditions.
-        //    - We need a "state" property that takes on different values.
-        //    - Was there not something about `get_` prefix?
-        //        - Not in TODO anymore, idea was to have `get_index(impl UiNode, ArcVar<usize>) -> impl UiNode`.
-        //        - The prefix `get_` signals the same kind of thing the `is_` prefix does.
-        //        - Default required?
+        // !!: Problem:
+        //     - We need to do this after init so that `ArcNodeList` loads items.
+        //     - But column/row properties want the index on init.
         self.children[0].for_each_mut(|i, c| {
-            take_mut::take_or_recover(c, || NilUiNode.boxed(), |c| with_context_var(c, column::INDEX_VAR, i).boxed());
+            c.with_context_mut(|ctx| ctx.widget_state.set(&column::INDEX_ID, i));
             true
         });
         self.children[1].for_each_mut(|i, r| {
-            take_mut::take_or_recover(r, || NilUiNode.boxed(), |r| with_context_var(r, row::INDEX_VAR, i).boxed());
+            r.with_context_mut(|ctx| ctx.widget_state.set(&row::INDEX_ID, i));
             true
         });
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.children.deinit_all(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -556,6 +539,7 @@ impl UiNode for GridNode {
         self.children.update_all(ctx, updates, &mut any);
 
         if any || self.auto_row_view.is_new(ctx) {
+            // !!: TODO, support new columns/rows
             ctx.updates.layout();
         }
     }
