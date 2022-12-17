@@ -20,6 +20,7 @@ use crate::{
 };
 
 pub mod animation;
+mod arc;
 mod boxed;
 mod channel;
 mod context;
@@ -31,7 +32,6 @@ mod future;
 mod local;
 mod map_ref;
 mod merge;
-mod rc;
 mod read_only;
 mod response;
 mod state;
@@ -50,6 +50,7 @@ mod tests;
 
 pub use animation::easing;
 
+pub use arc::{var, var_default, var_from, ArcVar};
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 pub use channel::{response_channel, ResponseSender, VarModifySender, VarReceiver, VarSender};
 #[doc(inline)]
@@ -59,7 +60,6 @@ pub use expr::expr_var;
 pub use local::LocalVar;
 #[doc(inline)]
 pub use merge::merge_var;
-pub use rc::{var, var_default, var_from, ArcVar};
 pub use read_only::ReadOnlyArcVar;
 pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use state::*;
@@ -71,6 +71,7 @@ use crate::{context::Updates, widget_instance::WidgetId};
 
 /// Other variable types.
 pub mod types {
+    pub use super::arc::WeakArcVar;
     pub use super::boxed::{VarBoxed, WeakVarBoxed};
     pub use super::context::{context_var_init, with_new_context_init_id, WeakContextInitHandle};
     pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
@@ -81,7 +82,6 @@ pub mod types {
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
     pub use super::merge::{ArcMergeVar, ArcMergeVarInput, ContextualizedArcMergeVar, WeakMergeVar, __merge_var};
     pub use super::property_build_action::easing_property;
-    pub use super::rc::WeakArcVar;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
     pub use super::when::{AnyWhenVarBuilder, ArcWhenVar, ContextualizedArcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};

@@ -24,8 +24,8 @@ use crate::{
 mod adopt;
 pub use adopt::*;
 
-mod rc_node;
-pub use rc_node::*;
+mod arc;
+pub use arc::*;
 
 mod when;
 pub use when::*;

@@ -1,4 +1,4 @@
-use rc::WeakArcVar;
+use arc::WeakArcVar;
 
 use super::*;
 
