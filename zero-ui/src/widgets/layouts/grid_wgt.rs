@@ -457,7 +457,7 @@ impl CellInfo {
             self.column = i % columns_len;
         }
         if self.row > rows_len {
-            self.row = i / rows_len;
+            self.row = i / columns_len
         }
         self
     }
@@ -492,12 +492,13 @@ impl GridContext {
 
 fn grid_node(
     cells: BoxedUiNodeList,
-    columns: BoxedUiNodeList,
-    rows: BoxedUiNodeList,
+    mut columns: BoxedUiNodeList,
+    mut rows: BoxedUiNodeList,
     auto_row_view: BoxedVar<ViewGenerator<AutoRowViewArgs>>,
     spacing: BoxedVar<GridSpacing>,
 ) -> impl UiNode {
-    let cell_len = columns.len();
+    // !!: bug, ArcNodeList items only available after init, move this to GridNode::init.
+    let cell_len = cells.len();
     let col_len = columns.len();
     let mut row_len = rows.len();
     if row_len == 0 {
@@ -505,12 +506,20 @@ fn grid_node(
         row_len = cell_len / c + 1;
     }
 
+    columns.for_each_mut(|i, c| {
+        take_mut::take_or_recover(c, || NilUiNode.boxed(), |c| with_context_var(c, column::INDEX_VAR, i).boxed());
+        true
+    });
+    rows.for_each_mut(|i, r| {
+        take_mut::take_or_recover(r, || NilUiNode.boxed(), |r| with_context_var(r, row::INDEX_VAR, i).boxed());
+        true
+    });
+
     let node = GridNode {
-        children: vec![columns, rows, cells],
+        children: vec![columns, rows, cells], // !!: map/wrap children to have the `column::INDEX` etc.
         spacing: spacing.into_var(),
         auto_row_view: auto_row_view.into_var(),
     };
-
     with_context_local(
         node,
         &GRID_CONTEXT,
@@ -547,8 +556,6 @@ impl UiNode for GridNode {
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let mut grid_size = PxSize::zero();
-
         let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
         let fill_size = ctx.metrics.constrains().fill_or_exact();
 
@@ -618,7 +625,6 @@ impl UiNode for GridNode {
 
             true
         });
-        grid_size.width = (offset - spacing.column).max(Px(0));
 
         // compute final row heights.
         offset = Px(0);
@@ -647,7 +653,6 @@ impl UiNode for GridNode {
 
             true
         });
-        grid_size.height = (offset - spacing.row).max(Px(0));
 
         // layout cells.
         self.children[2].for_each_mut(|i, c| {
@@ -685,7 +690,17 @@ impl UiNode for GridNode {
             true
         });
 
-        grid_size
+        let info = GRID_CONTEXT.read();
+
+        PxSize::new(
+            info.column_info
+                .iter()
+                .map(|c| c.width + spacing.column)
+                .fold(Px(0), |acc, w| acc + w)
+                - spacing.column,
+            info.row_info.iter().map(|c| c.height + spacing.row).fold(Px(0), |acc, h| acc + h) - spacing.row,
+        )
+        .max(PxSize::zero())
     }
 }
 

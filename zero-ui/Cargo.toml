@@ -84,6 +84,7 @@ serde = "1"
 pretty-type-name = "1"
 pulldown-cmark = "0.9"
 html-escape = "0.2"
+take_mut = "0.2"
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "zero-ui-core/src/doc/html-in-header.html" ]
