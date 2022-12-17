@@ -499,8 +499,11 @@ fn grid_node(
     auto_row_view: BoxedVar<ViewGenerator<AutoRowViewArgs>>,
     spacing: BoxedVar<GridSpacing>,
 ) -> impl UiNode {
+    let auto_rows = EditableUiNodeList::new();
+    let auto_rows_ref = auto_rows.reference();
     let node = GridNode {
-        children: vec![columns, rows, cells],
+        children: vec![columns, vec![rows, auto_rows.boxed()].boxed(), cells],
+        auto_rows: auto_rows_ref,
         spacing: spacing.into_var(),
         auto_row_view: auto_row_view.into_var(),
     };
@@ -508,8 +511,9 @@ fn grid_node(
 }
 
 #[ui_node(struct GridNode {
-    // [columns, rows, cells]
+    // [columns, [rows, auto_rows], cells]
     children: Vec<BoxedUiNodeList>,
+    auto_rows: EditableUiNodeListRef,
     #[var] auto_row_view: impl Var<ViewGenerator<AutoRowViewArgs>>,
     #[var] spacing: impl Var<GridSpacing>,
 })]
