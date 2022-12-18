@@ -757,7 +757,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 ///
 /// To only set a preferred size that respects the layout constrains use the [`min_size`] and [`max_size`] instead.
 ///
-/// This property disables inline layout for the widget.
+/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_KIND_ID`].
 ///
 /// # Examples
 ///
@@ -789,12 +789,17 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         #[var] size: impl Var<Size>,
     })]
     impl UiNode for SizeNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.size.is_new(ctx) {
-                ctx.updates.layout();
-            }
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+            self.size.with(|s| SizePropertyKind::set(ctx.widget_state.reborrow(), s));
+        }
 
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
+            self.size.with_new(ctx.vars, |s| {
+                SizePropertyKind::set(ctx.widget_state.reborrow(), s);
+                ctx.updates.layout();
+            });
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
@@ -829,7 +834,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///
 /// To only set a preferred width that respects the layout constrains use the [`min_width`] and [`max_width`] instead.
 ///
-/// This property disables inline layout for the widget.
+/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_KIND_ID`] width.
 ///
 /// # Examples
 ///
@@ -859,12 +864,17 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         #[var] width: impl Var<Length>,
     })]
     impl UiNode for WidthNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.width.is_new(ctx) {
-                ctx.updates.layout();
-            }
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+            self.width.with(|w| SizePropertyKind::set_width(ctx.widget_state.reborrow(), w));
+        }
 
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
+            self.width.with_new(ctx.vars, |w| {
+                SizePropertyKind::set_width(ctx.widget_state.reborrow(), w);
+                ctx.updates.layout();
+            });
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
@@ -903,7 +913,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// To only set a preferred height that respects the layout constrains use the [`min_height`] and [`max_height`] instead.
 ///
-/// This property disables inline layout for the widget.
+/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_KIND_ID`] height.
 ///
 /// # Examples
 ///
@@ -933,12 +943,17 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         #[var] height: impl Var<Length>,
     })]
     impl UiNode for HeightNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.height.is_new(ctx) {
-                ctx.updates.layout();
-            }
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+            self.height.with(|h| SizePropertyKind::set_height(ctx.widget_state.reborrow(), h));
+        }
 
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
+            self.height.with_new(ctx.vars, |h| {
+                SizePropertyKind::set_height(ctx.widget_state.reborrow(), h);
+                ctx.updates.layout();
+            });
         }
 
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
@@ -1113,3 +1128,75 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
         sticky: sticky.into_var(),
     }
 }
+
+/// Represents what kind of size property is set on a widget.
+///
+/// Properties [`size`], [`width`] and [`height`] directly enforce a size, these properties set the [`SIZE_PROPERTY_KIND_ID`]
+/// metadata in the widget state. Panels can use this info for special layout operations, such
+/// as only distributing size for relative sized widgets after the other widgets are sized.
+///
+/// [`size`]: fn@size
+/// [`width`]: fn@width
+/// [`height`]: fn@height
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SizePropertyKind {
+    /// No size enforcing property set or active.
+    None,
+    /// Size property set to [`Length::Default`]. Evaluates to the fill size.
+    Default,
+    /// Size property set to [`Length::Relative`].
+    Relative,
+    /// Size property set to any other [`Length`] variant.
+    Exact,
+}
+impl SizePropertyKind {
+    /// Set the width state.
+    pub fn set_width(mut state: StateMapMut<state_map::Widget>, width: &Length) {
+        let width = width.into();
+        match state.entry(&SIZE_PROPERTY_KIND_ID) {
+            state_map::StateMapEntry::Occupied(mut e) => e.get_mut().width = width,
+            state_map::StateMapEntry::Vacant(e) => {
+                e.insert(euclid::size2(width, SizePropertyKind::None));
+            }
+        }
+    }
+
+    /// Set the height state.
+    pub fn set_height(mut state: StateMapMut<state_map::Widget>, height: &Length) {
+        let height = height.into();
+        match state.entry(&SIZE_PROPERTY_KIND_ID) {
+            state_map::StateMapEntry::Occupied(mut e) => e.get_mut().height = height,
+            state_map::StateMapEntry::Vacant(e) => {
+                e.insert(euclid::size2(SizePropertyKind::None, height));
+            }
+        }
+    }
+
+    /// Set the size state.
+    pub fn set(mut state: StateMapMut<state_map::Widget>, size: &Size) {
+        let size = euclid::size2((&size.width).into(), (&size.height).into());
+        state.set(&SIZE_PROPERTY_KIND_ID, size);
+    }
+
+    /// Get the size set in the state.
+    pub fn get(state: StateMapRef<state_map::Widget>) -> euclid::Size2D<SizePropertyKind, ()> {
+        state
+            .get(&SIZE_PROPERTY_KIND_ID)
+            .cloned()
+            .unwrap_or_else(|| euclid::size2(SizePropertyKind::None, SizePropertyKind::None))
+    }
+}
+impl From<&Length> for SizePropertyKind {
+    fn from(value: &Length) -> Self {
+        match value {
+            Length::Default => SizePropertyKind::Default,
+            Length::Relative(_) => SizePropertyKind::Relative,
+            _ => SizePropertyKind::Exact,
+        }
+    }
+}
+
+/// Id for widget state set by properties that directly enforce a widget size.
+///
+/// See [`SizePropertyKind`] for more details.
+pub static SIZE_PROPERTY_KIND_ID: StaticStateId<euclid::Size2D<SizePropertyKind, ()>> = StaticStateId::new_unique();

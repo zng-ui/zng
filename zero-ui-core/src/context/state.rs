@@ -625,7 +625,7 @@ pub mod state_map {
 
 /// Helper for declaring properties that set the widget state.
 ///
-/// The state ID is set in [`widget_state`](WidgetContext::widget_state) on init and is kept updated.
+/// The state ID is set in [`widget_state`](WidgetContext::widget_state) on init and is kept updated. On deinit it is set to the `default` value.
 ///
 /// # Examples
 ///
@@ -637,7 +637,7 @@ pub mod state_map {
 ///
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
-///     set_widget_state(child, &FOO_ID, value)
+///     with_widget_state(child, &FOO_ID, || 0, value)
 /// }
 ///
 /// // after the property is used and the widget initializes:
@@ -652,51 +652,106 @@ pub mod state_map {
 ///     ctx.widget_state.get(&FOO_ID).copied().unwrap_or_default()
 /// }
 /// ```
-pub fn set_widget_state<U, T>(child: U, id: impl Into<StateId<T>>, value: impl IntoVar<T>) -> impl UiNode
+pub fn with_widget_state<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
 where
     U: UiNode,
+    I: Fn() -> T + Send + 'static,
     T: StateValue + VarValue,
 {
-    set_widget_state_update(child, id, value, |_, _| {})
-}
-
-/// Helper for declaring properties that set the widget state with a custom closure executed when the value updates.
-///
-/// The `on_update` closure is called every time the `value` variable updates.
-///
-/// See [`set_widget_state`] for more details.
-pub fn set_widget_state_update<U, T, H>(child: U, id: impl Into<StateId<T>>, value: impl IntoVar<T>, on_update: H) -> impl UiNode
-where
-    U: UiNode,
-    T: StateValue + VarValue,
-    H: FnMut(&mut WidgetContext, &T) + Send + 'static,
-{
-    #[ui_node(struct SetWidgetStateNode<T: StateValue + VarValue> {
+    #[ui_node(struct WithWidgetStateNode<T: StateValue + VarValue> {
         child: impl UiNode,
         id: StateId<T>,
         #[var] value: impl Var<T>,
-        on_update: impl FnMut(&mut WidgetContext, &T) + Send + 'static,
+        default: impl Fn() -> T + Send + 'static,
     })]
-    impl UiNode for SetWidgetStateNode {
+    impl UiNode for WithWidgetStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.init_handles(ctx);
-            ctx.widget_state.set(self.id, self.value.get());
             self.child.init(ctx);
+
+            ctx.widget_state.set(self.id, self.value.get());
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            ctx.widget_state.set(self.id, (self.default)());
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new) = self.value.get_new(ctx) {
-                (self.on_update)(ctx, &new);
-                ctx.widget_state.set(self.id, new);
-            }
             self.child.update(ctx, updates);
+            if let Some(v) = self.value.get_new(ctx) {
+                ctx.widget_state.set(self.id, v);
+            }
         }
     }
-    SetWidgetStateNode {
+    WithWidgetStateNode {
         child: child.cfg_boxed(),
         id: id.into(),
         value: value.into_var(),
-        on_update,
+        default,
+    }
+    .cfg_boxed()
+}
+
+/// Helper for declaring properties that set the widget state with a custom closure.
+///
+/// The `default` closure is used to init the state value, then the `modify` closure is used to modify the state using the variable value.
+///
+/// On deinit the `default` value is set on the state again.
+///
+/// See [`set_widget_state`] for more details.
+pub fn with_widget_state_modify<U, S, V, I, M>(
+    child: U,
+    id: impl Into<StateId<S>>,
+    value: impl IntoVar<V>,
+    default: I,
+    modify: M,
+) -> impl UiNode
+where
+    U: UiNode,
+    S: StateValue,
+    V: VarValue,
+    I: Fn() -> S + Send + 'static,
+    M: FnMut(&mut S, &V) + Send + 'static,
+{
+    #[ui_node(struct WithWidgetStateNode<S: StateValue, V: VarValue> {
+        child: impl UiNode,
+        id: StateId<S>,
+        #[var] value: impl Var<V>,
+        default: impl Fn() -> S + Send + 'static,
+        modify: impl FnMut(&mut S, &V) + Send + 'static,
+
+        _phantom: PhantomData<V>,
+    })]
+    impl UiNode for WithWidgetStateNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.init_handles(ctx);
+            self.child.init(ctx);
+
+            self.value.with(|v| {
+                (self.modify)(ctx.widget_state.entry(self.id).or_insert_with(&self.default), v);
+            })
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            ctx.widget_state.set(self.id, (self.default)());
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
+            self.value
+                .with_new(ctx.vars, |v| (self.modify)(ctx.widget_state.req_mut(self.id), v));
+        }
+    }
+    WithWidgetStateNode {
+        child: child.cfg_boxed(),
+        id: id.into(),
+        value: value.into_var(),
+        default,
+        modify,
+
+        _phantom: PhantomData,
     }
     .cfg_boxed()
 }
