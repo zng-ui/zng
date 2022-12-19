@@ -320,7 +320,37 @@ fn grid_node(
         spacing,
         auto_grow_view,
         auto_grow_mode,
-        imaginary_auto: vec![],
+
+        column_info: vec![],
+        row_info: vec![],
+        auto_imaginary: 0,
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ColumnInfo {
+    x: Px,
+    width: Px,
+}
+impl Default for ColumnInfo {
+    fn default() -> Self {
+        Self {
+            x: Px::MIN,
+            width: Px::MIN,
+        }
+    }
+}
+#[derive(Clone, Copy)]
+struct RowInfo {
+    y: Px,
+    height: Px,
+}
+impl Default for RowInfo {
+    fn default() -> Self {
+        Self {
+            y: Px::MIN,
+            height: Px::MIN,
+        }
     }
 }
 
@@ -332,7 +362,10 @@ fn grid_node(
     #[var] auto_grow_view: impl Var<ViewGenerator<AutoGrowViewArgs>>,
     #[var] auto_grow_mode: impl Var<AutoGrowMode>,
     #[var] spacing: impl Var<GridSpacing>,
-    imaginary_auto: Vec<Px>,
+
+    column_info: Vec<ColumnInfo>,
+    row_info: Vec<RowInfo>,
+    auto_imaginary: usize,
 })]
 impl UiNode for GridNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
@@ -388,16 +421,42 @@ impl UiNode for GridNode {
                             list.push(ctx, auto_item);
                         }
                     } else {
-                        self.imaginary_auto.resize(needed_rows_len - fixed_rows_len, Px(0));
+                        self.auto_imaginary = needed_rows_len - fixed_rows_len;
                     }
                 }
+            }
+        }
+
+        match auto_mode {
+            AutoGrowMode::Rows(_) => {
+                self.column_info.resize(self.children[0].len(), ColumnInfo::default());
+                self.row_info
+                    .resize(self.children[1].len() + self.auto_imaginary, RowInfo::default());
+            }
+            AutoGrowMode::Columns(_) => {
+                self.column_info
+                    .resize(self.children[0].len() + self.auto_imaginary, ColumnInfo::default());
+                self.row_info.resize(self.children[1].len(), RowInfo::default());
             }
         }
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         self.children.deinit_all(ctx);
-        self.auto_rows.clear(ctx);
+
+        match self.auto_grow_mode.get() {
+            AutoGrowMode::Rows(_) => {
+                self.auto_rows.clear(ctx);
+            }
+            AutoGrowMode::Columns(_) => {
+                self.auto_columns.clear(ctx);
+            }
+        }
+
+        self.auto_imaginary = 0;
+
+        self.column_info.clear();
+        self.row_info.clear();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -425,62 +484,126 @@ impl UiNode for GridNode {
         let fill_x = constrains.x.fill_or_exact();
         let fill_y = constrains.y.fill_or_exact();
 
-        let auto_grow_mode = self.auto_grow_mode.get();
-
         let mut children = self.children.iter_mut();
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
         let cells = children.next().unwrap();
 
+        // layout exact columns&rows, mark others for next passes.
+
+        const KIND_DEFAUT: Px = Px(i32::MIN + 1);
+        const KIND_RELATIVE: Px = Px(i32::MIN + 2);
+
+        let mut has_default = false;
+        let mut has_relative = false;
+
         columns.for_each_mut(|ci, col| {
-            use SizePropertyKind as Kind;
-
             let col_kind = if fill_x.is_some() {
-                Kind::get_wgt(col).width
+                SizePropertyKind::get_wgt(col).width
             } else {
-                Kind::Default
+                SizePropertyKind::Default
             };
-            rows.for_each_mut(|ri, row| {
-                let row_kind = if fill_y.is_some() {
-                    Kind::get_wgt(row).height
-                } else {
-                    Kind::Default
-                };
 
-                match (col_kind, row_kind) {
-                    (Kind::None | Kind::Default, Kind::None | Kind::Default) => {
-                        todo!("find cell widgets in (ci, ri), measure, record max somewhere")
-                    }
-                    (Kind::Relative, Kind::Relative) => {
-                        todo!("wait for left-over size, flag something")
-                    }
-                    (Kind::Exact, Kind::Exact) => {
-                        let width = col.layout(ctx, wl).width;// !!: is layout many times, really need a record
-                        let height = row.layout(ctx, wl).height;
+            let col_info = &mut self.column_info[ci];
 
-                        todo!("layout cell widgets in (ci, ri)? OR record size somewhere")
-                    }
-                    (Kind::Exact, Kind::None | Kind::Default) => {
-                        let width = col.layout(ctx, wl).width;
+            col_info.x = Px::MIN;
 
-                        todo!("lyout cell widgets in (ci, ri), using the width constrain")
-                    }
-                    _ => todo!("handle (exact, default) and combinations like it"),
+            match col_kind {
+                SizePropertyKind::None | SizePropertyKind::Default => {
+                    col_info.width = KIND_DEFAUT;
+                    has_default = true;
                 }
+                SizePropertyKind::Relative => {
+                    col_info.width = KIND_RELATIVE;
+                    has_relative = true;
+                }
+                SizePropertyKind::Exact => {
+                    col_info.width = col.layout(ctx, wl).width;
+                }
+            }
 
-                true
-            });
+            true
+        });
+        rows.for_each_mut(|ri, row| {
+            let row_kind = if fill_y.is_some() {
+                SizePropertyKind::get_wgt(row).height
+            } else {
+                SizePropertyKind::Default
+            };
+
+            let row_info = &mut self.row_info[ri];
+
+            row_info.y = Px::MIN;
+
+            match row_kind {
+                SizePropertyKind::None | SizePropertyKind::Default => {
+                    row_info.height = KIND_DEFAUT;
+                    has_default = true;
+                }
+                SizePropertyKind::Relative => {
+                    row_info.height = KIND_RELATIVE;
+                    has_relative = true;
+                }
+                SizePropertyKind::Exact => {
+                    row_info.height = row.layout(ctx, wl).height;
+                }
+            }
+
             true
         });
 
+        if has_default {
+            todo!("measure cells in default columns/rows to find max");
+        }
+        if has_relative {
+            todo!("separate size leftover amount relative columns/rows");
+        }
+
+        // compute column&row offsets
+        let mut x = Px(0);
+        for col in &mut self.column_info {
+            col.x = x;
+            x += col.width + spacing.column;
+        }
+        let mut y = Px(0);
+        for row in &mut self.row_info {
+            row.y = y;
+            y += row.height + spacing.row;
+        }
+        // translate column&row views
+        columns.for_each_mut(|ci, col| {
+            let x = self.column_info[ci].x;
+            wl.with_outer(col, false, |wl, _| wl.translate(PxVector::new(x, Px(0))));
+            true
+        });
+        rows.for_each_mut(|ri, row| {
+            let y = self.row_info[ri].y;
+            wl.with_outer(row, false, |wl, _| wl.translate(PxVector::new(Px(0), y)));
+            true
+        });
+
+        let grid_size = PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0)));
+
+        // layout and translate cells
         let columns_len = columns.len();
         cells.for_each_mut(|i, cell| {
             let info = cell::CellInfo::get_wgt(cell).actual(i, columns_len);
 
+            if info.column >= self.column_info.len() || info.row >= self.row_info.len() {
+                todo!("collapse cell");
+                return true;
+            }
+
+            let col = self.column_info[info.column];
+            let row = self.row_info[info.row];
+
+            ctx.with_constrains(|c| c.with_exact(col.width, row.height), |ctx| cell.layout(ctx, wl));
+            wl.with_outer(cell, false, |wl, _| wl.translate(PxVector::new(col.x, row.y)));
+
             true
         });
 
-        todo!()
+        constrains.fill_size_or(grid_size)
     }
 }
 
