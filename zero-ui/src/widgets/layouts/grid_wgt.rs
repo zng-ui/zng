@@ -404,24 +404,26 @@ impl UiNode for GridNode {
         });
 
         // auto-grow
+        let mut generated_len = 0;
         match auto_mode {
             AutoGrowMode::Rows(max) | AutoGrowMode::Columns(max) => {
-                let needed_rows_len = (max_custom.max(max_auto_placed / self.children[0].len()) + 1).min(max as usize);
-                let fixed_rows_len = self.children[1].len();
-                if needed_rows_len > fixed_rows_len {
+                let needed_len = (max_custom.max(max_auto_placed / self.children[0].len()) + 1).min(max as usize);
+                let fixed_len = self.children[1].len();
+                if needed_len > fixed_len {
                     let view = self.auto_grow_view.get();
                     if !view.is_nil() {
                         let list = match auto_mode {
                             AutoGrowMode::Rows(_) => &self.auto_rows,
                             AutoGrowMode::Columns(_) => &self.auto_columns,
                         };
-                        for i in fixed_rows_len..needed_rows_len {
+                        for i in fixed_len..needed_len {
                             let mut auto_item = view.generate(ctx, AutoGrowViewArgs { mode: auto_mode, index: i });
                             auto_item.with_context_mut(|ctx| ctx.widget_state.set(&row::INDEX_ID, i));
                             list.push(ctx, auto_item);
                         }
+                        generated_len = needed_len - fixed_len;
                     } else {
-                        self.auto_imaginary = needed_rows_len - fixed_rows_len;
+                        self.auto_imaginary = needed_len - fixed_len;
                     }
                 }
             }
@@ -431,11 +433,11 @@ impl UiNode for GridNode {
             AutoGrowMode::Rows(_) => {
                 self.column_info.resize(self.children[0].len(), ColumnInfo::default());
                 self.row_info
-                    .resize(self.children[1].len() + self.auto_imaginary, RowInfo::default());
+                    .resize(self.children[1].len() + generated_len + self.auto_imaginary, RowInfo::default());
             }
             AutoGrowMode::Columns(_) => {
                 self.column_info
-                    .resize(self.children[0].len() + self.auto_imaginary, ColumnInfo::default());
+                    .resize(self.children[0].len() + generated_len + self.auto_imaginary, ColumnInfo::default());
                 self.row_info.resize(self.children[1].len(), RowInfo::default());
             }
         }
@@ -474,7 +476,7 @@ impl UiNode for GridNode {
     }
 
     fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        todo!()
+        todo!("layout can get very elaborate, how do we avoid massive duplication here?")
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
