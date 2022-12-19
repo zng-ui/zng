@@ -39,7 +39,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     impl UiNode for CaptureMouseNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.sub_event(&MOUSE_INPUT_EVENT);
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
             self.child.init(ctx);
         }
 
@@ -184,6 +184,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.auto_subs(ctx);
             ctx.window_state.entry(&MODAL_WIDGETS).or_default(); // insert window state
             self.child.init(ctx);
         }

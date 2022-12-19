@@ -854,7 +854,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
     })]
     impl UiNode for BorderNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
 
             self.layout_offsets = self.offsets.get();
             self.children.init_all(ctx);

@@ -123,23 +123,24 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
         a => (None, a),
     };
 
-    let auto_init = if new_node.as_ref().map(|n| !n.handle_init.is_empty()).unwrap_or(false) {
-        quote!(self.init_handles(ctx);)
+    let auto_subs = if new_node.as_ref().map(|n| !n.auto_subs.is_empty()).unwrap_or(false) {
+        quote!(self.auto_subs(ctx);)
     } else {
         quote!()
     };
+    let validate_auto_subs = !auto_subs.is_empty();
 
     // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
             validate_manual_delegate = false;
-            no_delegate_absents(crate_.clone(), node_item_names, auto_init)
+            no_delegate_absents(crate_.clone(), node_item_names, auto_subs)
         }
-        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut, auto_init),
+        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut, auto_subs),
         Args::DelegateList {
             delegate_list,
             delegate_list_mut,
-        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut, auto_init),
+        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut, auto_subs),
         Args::NewNode(_) => {
             unreachable!()
         }
@@ -173,7 +174,8 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
                 let ident = validator.ident;
                 errors.push(
                     format_args!(
-                        "auto impl delegates call to `{ident}`, but this manual impl does not\n `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
+                        "auto impl delegates call to `{ident}`, but this manual impl does not\n\
+                        `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
                     ),
                     {
                         match manual_impl {
@@ -181,6 +183,28 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
                             _ => non_user_error!("expected a method"),
                         }
                     },
+                );
+            }
+        }
+    }
+    if validate_auto_subs {
+        if let Some(init_mtd) = node_items
+            .iter()
+            .map(|it| match it {
+                ImplItem::Method(mtd) => mtd,
+                _ => non_user_error!("expected a method"),
+            })
+            .find(|it| it.sig.ident == "init")
+        {
+            let mut validator = AutoSubsValidator::new();
+
+            validator.visit_impl_item_method(init_mtd);
+
+            if !validator.ok {
+                errors.push(
+                    "auto impl generates `auto_subs`, but custom init does not call it\n\
+                add `self.auto_subs(ctx);` to custom init or remove `#[var]` and `#[event]` attributes",
+                    init_mtd.block.span(),
                 );
             }
         }
@@ -241,13 +265,13 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
 
         let mut decl = new_node.decl;
 
-        if !new_node.handle_init.is_empty() {
-            let init = new_node.handle_init;
+        if !new_node.auto_subs.is_empty() {
+            let init = new_node.auto_subs;
 
             decl.extend(quote! {
                 impl #impl_generics #self_ty #where_clause {
                     /// Init auto-generated event and var subscriptions.
-                    fn init_handles(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+                    fn auto_subs(&mut self, ctx: &mut #crate_::context::WidgetContext) {
                         let widget_id = ctx.path.widget_id();
                         #init
                     }
@@ -625,6 +649,27 @@ impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
     }
 }
 
+struct AutoSubsValidator {
+    ident: Ident,
+    pub ok: bool,
+}
+impl AutoSubsValidator {
+    fn new() -> Self {
+        Self {
+            ident: ident!("auto_subs"),
+            ok: false,
+        }
+    }
+}
+impl<'ast> Visit<'ast> for AutoSubsValidator {
+    fn visit_expr_method_call(&mut self, i: &'ast ExprMethodCall) {
+        if i.method == self.ident && i.args.len() == 1 {
+            self.ok = true;
+        }
+        visit::visit_expr_method_call(self, i)
+    }
+}
+
 /// Removes and returns the `zero_ui::missing_delegate` level.
 fn take_missing_deletate_level(
     attrs: &mut Vec<Attribute>,
@@ -715,7 +760,7 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
     let mut impl_generics = TokenStream::new();
     let mut node_generics = TokenStream::new();
     let mut node_fields = TokenStream::new();
-    let mut handle_init = TokenStream::new();
+    let mut auto_subs = TokenStream::new();
 
     if let Some(g) = args.explicit_generics {
         for p in g.params.into_iter() {
@@ -779,15 +824,15 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
 
         match kind {
             ArgsNewNodeFieldKind::Var => {
-                handle_init.extend(quote! {
+                auto_subs.extend(quote! {
                     #cfg
-                    ctx.handles.push_var(self.#ident.subscribe(widget_id));
+                    ctx.sub_var(&self.#ident);
                 });
             }
             ArgsNewNodeFieldKind::Event => {
-                handle_init.extend(quote! {
+                auto_subs.extend(quote! {
                     #cfg
-                    ctx.handles.push_event(self.#ident.subscribe(widget_id));
+                    ctx.sub_event(&self.#ident);
                 });
             }
             ArgsNewNodeFieldKind::Custom => {}
@@ -807,7 +852,7 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
         decl,
         impl_generics,
         node_generics,
-        handle_init,
+        auto_subs,
     }
 }
 
@@ -817,5 +862,5 @@ struct ExpandedNewNode {
     decl: TokenStream,
     impl_generics: TokenStream,
     node_generics: TokenStream,
-    handle_init: TokenStream,
+    auto_subs: TokenStream,
 }

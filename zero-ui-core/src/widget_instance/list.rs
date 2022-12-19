@@ -890,7 +890,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                 self.valid = false;
             } else {
                 self.valid = true;
-                self.init_handles(ctx);
+                self.auto_subs(ctx);
 
                 let index = self.index.get();
                 if index != ZIndex::DEFAULT {

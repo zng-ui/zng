@@ -80,7 +80,7 @@ fn show_widget_tree(
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.valid = ctx.path.is_root();
             if self.valid {
-                self.init_handles(ctx);
+                self.auto_subs(ctx);
             } else {
                 tracing::error!("properties that render widget info are only valid in a window");
             }
@@ -136,7 +136,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.valid = ctx.path.is_root();
             if self.valid {
-                self.init_handles(ctx);
+                self.auto_subs(ctx);
 
                 if self.enabled.get() {
                     self.handles = [
@@ -268,7 +268,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.valid = ctx.path.is_root();
             if self.valid {
-                self.init_handles(ctx);
+                self.auto_subs(ctx);
                 if self.orientation.get().is_some() {
                     self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
                 }

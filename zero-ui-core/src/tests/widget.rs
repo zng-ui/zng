@@ -1516,7 +1516,7 @@ mod util {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
             ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace.get());
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {

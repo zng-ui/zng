@@ -790,6 +790,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     })]
     impl UiNode for SizeNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.auto_subs(ctx);
             self.child.init(ctx);
             self.size.with(|s| SizePropertyKind::set(ctx.widget_state.reborrow(), s));
         }
@@ -865,6 +866,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     })]
     impl UiNode for WidthNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.auto_subs(ctx);
             self.child.init(ctx);
             self.width.with(|w| SizePropertyKind::set_width(ctx.widget_state.reborrow(), w));
         }
@@ -944,6 +946,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     })]
     impl UiNode for HeightNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.auto_subs(ctx);
             self.child.init(ctx);
             self.height.with(|h| SizePropertyKind::set_height(ctx.widget_state.reborrow(), h));
         }

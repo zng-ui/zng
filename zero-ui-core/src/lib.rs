@@ -244,8 +244,8 @@ pub use zero_ui_proc_macros::widget_new;
 /// ## Subscription
 ///
 /// You can mark members with the `#[var]` or `#[event]` pseudo attributes to generate initialization code that subscribes the var or
-/// event to the [`WidgetContext::handles`]. The init code is placed in a method with signature `fn init_handles(&mut self, &mut WidgetContext)`,
-/// if you manually implement the `init` node method you must call `self.init_handles(ctx);` in it.
+/// event to the [`WidgetContext::handles`]. The init code is placed in a method with signature `fn auto_subs(&mut self, &mut WidgetContext)`,
+/// if you manually implement the `init` node method you must call `self.auto_subs(ctx);` in it, a compile time error is emitted if the call is missing.
 ///
 /// ## Limitations
 ///

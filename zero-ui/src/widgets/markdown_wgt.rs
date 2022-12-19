@@ -51,7 +51,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
     impl MarkdownNode {
         #[UiNode]
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
             self.generate_child(ctx);
             self.child.init(ctx);
         }

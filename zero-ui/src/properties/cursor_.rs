@@ -27,7 +27,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
     })]
     impl UiNode for CursorNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
             ctx.sub_event(&MOUSE_HOVERED_EVENT);
             self.child.init(ctx);
         }

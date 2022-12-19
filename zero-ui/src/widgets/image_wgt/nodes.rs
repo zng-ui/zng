@@ -42,7 +42,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     })]
     impl UiNode for ImageSourceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
 
             let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache

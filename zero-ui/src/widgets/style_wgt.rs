@@ -188,6 +188,7 @@ pub mod style_mixin {
     })]
     impl UiNode for StyleNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.auto_subs(ctx);
             if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
                 let mut builder = self.builder.clone();
                 builder.extend(style.into_builder());

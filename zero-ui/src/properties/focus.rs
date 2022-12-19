@@ -191,6 +191,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
     })]
     impl UiNode for FocusShortcutNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
+            self.auto_subs(ctx);
             self.child.init(ctx);
             let s = self.shortcuts.get();
             self.handle = Some(Gestures::req(ctx.services).focus_shortcut(s, ctx.path.widget_id()));

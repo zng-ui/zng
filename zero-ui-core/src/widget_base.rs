@@ -829,7 +829,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
             self.prev_vis = self.visibility.get();
             self.child.init(ctx);
         }

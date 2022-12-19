@@ -31,7 +31,7 @@ pub fn event_state<A: EventArgs>(
     })]
     impl UiNode for EventStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
             self.state.set_ne(ctx, self.default);
             self.child.init(ctx);
         }
@@ -86,7 +86,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
     })]
     impl UiNode for EventState2Node {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
 
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);
@@ -170,7 +170,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     })]
     impl UiNode for EventState3Node {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
 
             self.partial = self.partial_default;
             self.state.set_ne(ctx, self.default);

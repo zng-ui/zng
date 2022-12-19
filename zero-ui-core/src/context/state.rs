@@ -666,7 +666,7 @@ where
     })]
     impl UiNode for WithWidgetStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
             self.child.init(ctx);
 
             ctx.widget_state.set(self.id, self.value.get());
@@ -725,7 +725,7 @@ where
     })]
     impl UiNode for WithWidgetStateModifyNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
             self.child.init(ctx);
 
             self.value.with(|v| {

@@ -130,7 +130,7 @@ where
     })]
     impl UiNode for ViewNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.init_handles(ctx);
+            self.auto_subs(ctx);
 
             if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
                 self.child = new_child;
@@ -284,7 +284,7 @@ impl<D> ViewGenerator<D> {
         })]
         impl UiNode for ViewGenVarPresenter {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                self.init_handles(ctx);
+                self.auto_subs(ctx);
 
                 let gen = self.gen.get();
 

@@ -369,7 +369,7 @@ impl Default for RowInfo {
 })]
 impl UiNode for GridNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.init_handles(ctx);
+        self.auto_subs(ctx);
         self.children.init_all(ctx);
 
         // Set index for column and row.

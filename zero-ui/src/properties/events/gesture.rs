@@ -139,6 +139,7 @@ pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortc
 })]
 impl UiNode for ClickShortcutNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
+        self.auto_subs(ctx);
         self.child.init(ctx);
         let s = self.shortcuts.get();
         self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
