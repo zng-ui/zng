@@ -752,7 +752,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 
 /// Exact size of the widget.
 ///
-/// When set the widget is sized with the given value, independent of the layout constrains.
+/// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded size.
 ///
 /// To only set a preferred size that respects the layout constrains use the [`min_size`] and [`max_size`] instead.
@@ -806,10 +806,11 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
             wm.disable_inline();
 
-            ctx.with_constrains(
+            let size = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
-            )
+            );
+            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             wl.disable_inline();
@@ -818,8 +819,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             );
-            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.layout(ctx, wl));
-            size
+            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.layout(ctx, wl))
         }
     }
     SizeNode {
@@ -830,10 +830,8 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 
 /// Exact width of the widget.
 ///
-/// When set the widget width is sized with the given value, independent of the layout constrains.
+/// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded width.
-///
-/// To only set a preferred width that respects the layout constrains use the [`min_width`] and [`max_width`] instead.
 ///
 /// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_KIND_ID`] width.
 ///
@@ -885,10 +883,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
-
-            let mut size = ctx.with_constrains(|c| c.with_new_exact_x(width), |ctx| self.child.measure(ctx, wm));
-            size.width = width;
-            size
+            ctx.with_constrains(|c| c.with_exact_x(width), |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             wl.disable_inline();
@@ -896,10 +891,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
-
-            let mut size = ctx.with_constrains(|c| c.with_new_exact_x(width), |ctx| self.child.layout(ctx, wl));
-            size.width = width;
-            size
+            ctx.with_constrains(|c| c.with_exact_x(width), |ctx| self.child.layout(ctx, wl))
         }
     }
     WidthNode {
@@ -910,7 +902,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 
 /// Exact height of the widget.
 ///
-/// When set the widget height is sized with the given value, independent of the layout constrains.
+/// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded height.
 ///
 /// To only set a preferred height that respects the layout constrains use the [`min_height`] and [`max_height`] instead.
@@ -965,9 +957,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
-            let mut size = ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.measure(ctx, wm));
-            size.height = height;
-            size
+            ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             wl.disable_inline();
@@ -975,9 +965,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
-            let mut size = ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.layout(ctx, wl));
-            size.height = height;
-            size
+            ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.layout(ctx, wl))
         }
     }
     HeightNode {

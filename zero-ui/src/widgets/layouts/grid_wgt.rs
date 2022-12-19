@@ -663,9 +663,6 @@ impl UiNode for GridNode {
                         |c| c.with_fill_x(true).with_max_x(col.width),
                         |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
                     );
-                    if col.width != size.width {
-                        todo!("redistrubute?")
-                    }
                     col.width = size.width;
                 }
             }
