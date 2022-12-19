@@ -1185,6 +1185,12 @@ impl SizePropertyKind {
             .cloned()
             .unwrap_or_else(|| euclid::size2(SizePropertyKind::None, SizePropertyKind::None))
     }
+
+    /// Get the size set in the widget state.
+    pub fn get_wgt(wgt: &impl UiNode) -> euclid::Size2D<SizePropertyKind, ()> {
+        wgt.with_context(|ctx| Self::get(ctx.widget_state))
+            .unwrap_or_else(|| euclid::size2(SizePropertyKind::None, SizePropertyKind::None))
+    }
 }
 impl From<&Length> for SizePropertyKind {
     fn from(value: &Length) -> Self {

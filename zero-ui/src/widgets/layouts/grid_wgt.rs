@@ -214,6 +214,11 @@ pub mod cell {
         pub fn get(state: StateMapRef<state_map::Widget>) -> Self {
             state.get(&INFO_ID).copied().unwrap_or_default()
         }
+
+        /// Get the cell info stored in the widget.
+        pub fn get_wgt(wgt: &impl UiNode) -> Self {
+            wgt.with_context(|ctx| Self::get(ctx.widget_state)).unwrap_or_default()
+        }
     }
 
     /// Id for widget state set by cell properties.
@@ -228,7 +233,12 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(usize::MAX))]
     pub fn column(child: impl UiNode, col: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, col, CellInfo::default, |i, c| i.column = *c)
+        with_widget_state_modify(child, &INFO_ID, col, CellInfo::default, |u, i, &c| {
+            if i.column != c {
+                i.column = c;
+                u.layout();
+            }
+        })
     }
 
     /// Cell row index.
@@ -238,7 +248,12 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(usize::MAX))]
     pub fn row(child: impl UiNode, row: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, row, CellInfo::default, |i, r| i.row = *r)
+        with_widget_state_modify(child, &INFO_ID, row, CellInfo::default, |u, i, &r| {
+            if i.row != r {
+                i.row = r;
+                u.layout();
+            }
+        })
     }
 
     /// Cell column span.
@@ -253,7 +268,12 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(1))]
     pub fn column_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, s| i.column_span = *s)
+        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |u, i, &s| {
+            if i.column_span != s {
+                i.column_span = s;
+                u.layout();
+            }
+        })
     }
 
     /// Cell row span.
@@ -268,7 +288,12 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(1))]
     pub fn row_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, s| i.row_span = *s)
+        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |u, i, &s| {
+            if i.row_span != s {
+                i.row_span = s;
+                u.layout();
+            }
+        })
     }
 }
 
@@ -288,7 +313,7 @@ fn grid_node(
         children: vec![
             vec![columns, auto_columns.boxed()].boxed(),
             vec![rows, auto_rows.boxed()].boxed(),
-            cells,
+            ZSortingList::new(cells).boxed(),
         ],
         auto_columns: auto_columns_ref,
         auto_rows: auto_rows_ref,
@@ -395,7 +420,65 @@ impl UiNode for GridNode {
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
-        let fill_size = ctx.metrics.constrains().fill_or_exact();
+        let constrains = ctx.constrains();
+
+        let fill_x = constrains.x.fill_or_exact();
+        let fill_y = constrains.y.fill_or_exact();
+
+        let auto_grow_mode = self.auto_grow_mode.get();
+
+        let mut children = self.children.iter_mut();
+        let columns = children.next().unwrap();
+        let rows = children.next().unwrap();
+        let cells = children.next().unwrap();
+
+        columns.for_each_mut(|ci, col| {
+            use SizePropertyKind as Kind;
+
+            let col_kind = if fill_x.is_some() {
+                Kind::get_wgt(col).width
+            } else {
+                Kind::Default
+            };
+            rows.for_each_mut(|ri, row| {
+                let row_kind = if fill_y.is_some() {
+                    Kind::get_wgt(row).height
+                } else {
+                    Kind::Default
+                };
+
+                match (col_kind, row_kind) {
+                    (Kind::None | Kind::Default, Kind::None | Kind::Default) => {
+                        todo!("find cell widgets in (ci, ri), measure, record max somewhere")
+                    }
+                    (Kind::Relative, Kind::Relative) => {
+                        todo!("wait for left-over size, flag something")
+                    }
+                    (Kind::Exact, Kind::Exact) => {
+                        let width = col.layout(ctx, wl).width;// !!: is layout many times, really need a record
+                        let height = row.layout(ctx, wl).height;
+
+                        todo!("layout cell widgets in (ci, ri)? OR record size somewhere")
+                    }
+                    (Kind::Exact, Kind::None | Kind::Default) => {
+                        let width = col.layout(ctx, wl).width;
+
+                        todo!("lyout cell widgets in (ci, ri), using the width constrain")
+                    }
+                    _ => todo!("handle (exact, default) and combinations like it"),
+                }
+
+                true
+            });
+            true
+        });
+
+        let columns_len = columns.len();
+        cells.for_each_mut(|i, cell| {
+            let info = cell::CellInfo::get_wgt(cell).actual(i, columns_len);
+
+            true
+        });
 
         todo!()
     }
