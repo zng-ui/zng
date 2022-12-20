@@ -1152,6 +1152,22 @@ impl<'a> MeasureContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a measure context  that defines the computed leftover lengths.
+    pub fn with_leftover<R>(&mut self, width: Option<Px>, height: Option<Px>, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_leftover(width, height),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state.reborrow(),
+        })
+    }
+
     /// Runs a function `f` in the measure context of a widget.
     ///
     /// Returns the closure `f` result and the updates requested by it.
@@ -1395,6 +1411,25 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a layout context that defines the computed leftover lengths.
+    pub fn with_leftover<R>(&mut self, width: Option<Px>, height: Option<Px>, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_leftover(width, height),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
     /// Runs a function `f` in the layout context of a widget.
     ///
     /// Returns the closure `f` result and the updates requested by it.
@@ -1614,6 +1649,11 @@ pub struct LayoutMetricsSnapshot {
     ///
     /// [`direction`]: LayoutMetrics::direction
     pub direction: LayoutDirection,
+
+    /// The [`leftover`].
+    ///
+    /// [`leftover`]: LayoutMetrics::leftover
+    pub leftover: euclid::Size2D<Option<Px>, ()>,
 }
 impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
@@ -1626,6 +1666,7 @@ impl LayoutMetricsSnapshot {
             && (!mask.contains(LayoutMask::SCREEN_PPI) || about_eq(self.screen_ppi, other.screen_ppi, 0.0001))
             && (!mask.contains(LayoutMask::INLINE_ADVANCE) || self.inline_advance == other.inline_advance)
             && (!mask.contains(LayoutMask::DIRECTION) || self.direction == other.direction)
+            && (!mask.contains(LayoutMask::LEFTOVER) || self.leftover == other.leftover)
     }
 }
 impl PartialEq for LayoutMetricsSnapshot {
@@ -1679,6 +1720,7 @@ impl LayoutMetrics {
                 screen_ppi: 96.0,
                 inline_advance: PxSize::zero(),
                 direction: LayoutDirection::default(),
+                leftover: euclid::size2(None, None),
             },
         }
     }
@@ -1804,6 +1846,14 @@ impl LayoutMetrics {
         self.s.screen_ppi
     }
 
+    /// Computed leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
+    ///
+    /// [`leftover_count`]: Self::leftover_count
+    pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
+        self.register_use(LayoutMask::LEFTOVER);
+        self.s.leftover
+    }
+
     /// Sets the [`constrains`] to the value returned by `constrains`. The closure input is the current constrains.
     ///
     /// [`constrains`]: Self::constrains
@@ -1860,6 +1910,14 @@ impl LayoutMetrics {
         self
     }
 
+    /// Sets the [`leftover`].
+    ///
+    /// [`leftover`]: Self::leftover
+    pub fn with_leftover(mut self, width: Option<Px>, height: Option<Px>) -> Self {
+        self.s.leftover = euclid::size2(width, height);
+        self
+    }
+
     /// Clones all current metrics into a [snapshot].
     ///
     /// [snapshot]: LayoutMetricsSnapshot
@@ -1904,6 +1962,16 @@ impl<'m> Layout1dMetrics<'m> {
             self.metrics.s.viewport.width
         } else {
             self.metrics.s.viewport.height
+        }
+    }
+
+    /// Computed leftover length for the selected dimension.
+    pub fn leftover_length(&self) -> Option<Px> {
+        self.metrics.register_use(LayoutMask::LEFTOVER);
+        if self.is_width {
+            self.metrics.s.leftover.width
+        } else {
+            self.metrics.s.leftover.height
         }
     }
 }

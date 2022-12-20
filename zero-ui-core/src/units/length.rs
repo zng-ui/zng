@@ -28,6 +28,8 @@ pub enum Length {
     Pt(f32),
     /// Relative to the fill length.
     Relative(Factor),
+    /// Relative to the leftover fill length.
+    Leftover(Factor),
     /// Relative to the font-size of the widget.
     Em(Factor),
     /// Relative to the font-size of the root widget.
@@ -66,6 +68,7 @@ impl<L: Into<Length>> ops::Add<L> for Length {
             (Px(a), Px(b)) => Px(a + b),
             (Pt(a), Pt(b)) => Pt(a + b),
             (Relative(a), Relative(b)) => Relative(a + b),
+            (Leftover(a), Leftover(b)) => Leftover(a + b),
             (Em(a), Em(b)) => Em(a + b),
             (RootEm(a), RootEm(b)) => RootEm(a + b),
             (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a + b),
@@ -97,6 +100,7 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
             (Px(a), Px(b)) => Px(a - b),
             (Pt(a), Pt(b)) => Pt(a - b),
             (Relative(a), Relative(b)) => Relative(a - b),
+            (Leftover(a), Leftover(b)) => Leftover(a - b),
             (Em(a), Em(b)) => Em(a - b),
             (RootEm(a), RootEm(b)) => RootEm(a - b),
             (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a - b),
@@ -130,6 +134,7 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
             Px(e) => PxF32(e.0 as f32 * rhs.0),
             Pt(e) => Pt(e * rhs.0),
             Relative(r) => Relative(r * rhs),
+            Leftover(r) => Leftover(r * rhs),
             Em(e) => Em(e * rhs),
             RootEm(e) => RootEm(e * rhs),
             ViewportWidth(w) => ViewportWidth(w * rhs),
@@ -161,6 +166,7 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
             Px(e) => PxF32(e.0 as f32 / rhs.0),
             Pt(e) => Pt(e / rhs.0),
             Relative(r) => Relative(r / rhs),
+            Leftover(r) => Leftover(r / rhs),
             Em(e) => Em(e / rhs),
             RootEm(e) => RootEm(e / rhs),
             ViewportWidth(w) => ViewportWidth(w / rhs),
@@ -189,6 +195,7 @@ impl ops::Neg for Length {
             Length::Px(e) => Length::Px(-e),
             Length::Pt(e) => Length::Pt(-e),
             Length::Relative(e) => Length::Relative(-e),
+            Length::Leftover(e) => Length::Leftover(-e),
             Length::Em(e) => Length::Em(-e),
             Length::RootEm(e) => Length::RootEm(-e),
             Length::ViewportWidth(e) => Length::ViewportWidth(-e),
@@ -219,7 +226,7 @@ impl PartialEq for Length {
 
             (DipF32(a), DipF32(b)) | (PxF32(a), PxF32(b)) => about_eq(*a, *b, EPSILON_100),
 
-            (Relative(a), Relative(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) => a == b,
+            (Relative(a), Relative(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) | (Leftover(a), Leftover(b)) => a == b,
 
             (ViewportWidth(a), ViewportWidth(b))
             | (ViewportHeight(a), ViewportHeight(b))
@@ -245,6 +252,7 @@ impl fmt::Debug for Length {
                 Px(e) => f.debug_tuple("Length::Px").field(e).finish(),
                 Pt(e) => f.debug_tuple("Length::Pt").field(e).finish(),
                 Relative(e) => f.debug_tuple("Length::Relative").field(e).finish(),
+                Leftover(e) => f.debug_tuple("Length::Leftover").field(e).finish(),
                 Em(e) => f.debug_tuple("Length::Em").field(e).finish(),
                 RootEm(e) => f.debug_tuple("Length::RootEm").field(e).finish(),
                 ViewportWidth(e) => f.debug_tuple("Length::ViewportWidth").field(e).finish(),
@@ -262,6 +270,7 @@ impl fmt::Debug for Length {
                 Px(e) => write!(f, "{}.px()", e.0),
                 Pt(e) => write!(f, "{e}.pt()"),
                 Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
+                Leftover(e) => write!(f, "{}.lft()", e.0),
                 Em(e) => write!(f, "{}.em()", e.0),
                 RootEm(e) => write!(f, "{}.rem()", e.0),
                 ViewportWidth(e) => write!(f, "{e}.vw()"),
@@ -284,6 +293,7 @@ impl fmt::Display for Length {
             Px(l) => write!(f, "{l}px"),
             Pt(l) => write!(f, "{l}pt"),
             Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
+            Leftover(l) => write!(f, "{l}lft"),
             Em(e) => write!(f, "{e}em"),
             RootEm(re) => write!(f, "{re}rem"),
             ViewportWidth(vw) => write!(f, "{vw}vw"),
@@ -352,6 +362,7 @@ impl Length {
             (Px(a), Px(b)) => Px(a.max(b)),
             (Pt(a), Pt(b)) => Pt(a.max(b)),
             (Relative(a), Relative(b)) => Relative(a.max(b)),
+            (Leftover(a), Leftover(b)) => Leftover(a.max(b)),
             (Em(a), Em(b)) => Em(a.max(b)),
             (RootEm(a), RootEm(b)) => RootEm(a.max(b)),
             (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a.max(b)),
@@ -375,6 +386,7 @@ impl Length {
             (Px(a), Px(b)) => Px(a.min(b)),
             (Pt(a), Pt(b)) => Pt(a.min(b)),
             (Relative(a), Relative(b)) => Relative(a.min(b)),
+            (Leftover(a), Leftover(b)) => Leftover(a.min(b)),
             (Em(a), Em(b)) => Em(a.min(b)),
             (RootEm(a), RootEm(b)) => RootEm(a.min(b)),
             (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a.min(b)),
@@ -403,6 +415,7 @@ impl Length {
             Px(e) => Px(e.abs()),
             Pt(e) => Pt(e.abs()),
             Relative(r) => Relative(r.abs()),
+            Leftover(r) => Leftover(r.abs()),
             Em(e) => Em(e.abs()),
             RootEm(r) => RootEm(r.abs()),
             ViewportWidth(w) => ViewportWidth(w.abs()),
@@ -425,6 +438,7 @@ impl Length {
     ///
     /// [constrains]: Layout1dMetrics::constrains
     /// [`Default`]: Length::Default
+    /// [`Relative`]: Length::Relative
     /// [`Expr`]: Length::Expr
     pub fn layout(&self, ctx: Layout1dMetrics, default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
         #[cfg(dyn_closure)]
@@ -439,6 +453,13 @@ impl Length {
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, ctx.scale_factor()),
             Relative(f) => ctx.constrains().fill() * f.0,
+            Leftover(f) => {
+                if let Some(l) = ctx.leftover_length() {
+                    l
+                } else {
+                    ctx.constrains().fill() * f.0
+                }
+            }
             Em(f) => ctx.font_size() * f.0,
             RootEm(f) => ctx.root_font_size() * f.0,
             ViewportWidth(p) => ctx.viewport().width * *p,
@@ -468,6 +489,13 @@ impl Length {
             Px(l) => l.0 as f32,
             Pt(l) => Self::pt_to_px_f32(*l, ctx.scale_factor()),
             Relative(f) => ctx.constrains().fill().0 as f32 * f.0,
+            Leftover(f) => {
+                if let Some(l) = ctx.leftover_length() {
+                    l.0 as f32
+                } else {
+                    ctx.constrains().fill().0 as f32 * f.0
+                }
+            }
             Em(f) => ctx.font_size().0 as f32 * f.0,
             RootEm(f) => ctx.root_font_size().0 as f32 * f.0,
             ViewportWidth(p) => ctx.viewport().width.0 as f32 * *p,
@@ -491,6 +519,7 @@ impl Length {
             Px(_) => LayoutMask::NONE,
             Pt(_) => LayoutMask::SCALE_FACTOR,
             Relative(_) => LayoutMask::CONSTRAINS,
+            Leftover(_) => LayoutMask::LEFTOVER,
             Em(_) => LayoutMask::FONT_SIZE,
             RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
             ViewportWidth(_) => LayoutMask::VIEWPORT,
@@ -517,6 +546,7 @@ impl Length {
             Px(l) => Some(*l == self::Px(0)),
             Pt(l) => Some(l.abs() < EPSILON),
             Relative(f) => Some(f.0.abs() < EPSILON),
+            Leftover(f) => Some(f.0.abs() < EPSILON),
             Em(f) => Some(f.0.abs() < EPSILON),
             RootEm(f) => Some(f.0.abs() < EPSILON),
             ViewportWidth(p) => Some(p.0.abs() < EPSILON),
@@ -605,6 +635,8 @@ bitflags! {
         const INLINE_ADVANCE = 1 << 5;
         /// The [`LayoutMetrics::direction`].
         const DIRECTION = 1 << 6;
+        /// The [`LayoutMetrics::leftover`] and [`LayoutMetrics::leftover_count`].
+        const LEFTOVER = 1 << 7;
     }
 }
 impl Default for LayoutMask {
@@ -824,6 +856,14 @@ pub trait LengthUnits {
     ///
     /// Returns [`Length::ViewportMax`].
     fn vmax_pct(self) -> Length;
+
+    /// Factor of the leftover layout space.
+    ///
+    /// Note that this unit must be supported by the parent panel widget and property, otherwise it evaluates
+    /// like [`length::Relative`].
+    ///
+    /// Returns [`Length::Leftover`].
+    fn lft(self) -> Length;
 }
 impl LengthUnits for f32 {
     fn dip(self) -> Length {
@@ -885,6 +925,10 @@ impl LengthUnits for f32 {
     fn vmax_pct(self) -> Length {
         Length::ViewportMax(self.pct().into())
     }
+
+    fn lft(self) -> Length {
+        Length::Leftover(self.fct())
+    }
 }
 impl LengthUnits for i32 {
     fn dip(self) -> Length {
@@ -945,5 +989,9 @@ impl LengthUnits for i32 {
 
     fn vmax_pct(self) -> Length {
         Length::ViewportMax(self.pct().into())
+    }
+
+    fn lft(self) -> Length {
+        Length::Leftover(self.fct())
     }
 }

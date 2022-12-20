@@ -30,21 +30,20 @@ pub mod grid {
         /// the width of the cells assigned to it, the [`column::width`] property can be used to enforce a width, otherwise the
         /// column is sized by the widest cell.
         ///
-        /// The grid uses the [`SizePropertyKind`] value to select one of three layout modes for columns:
+        /// The grid uses the [`SizePropertyLength`] value to select one of three layout modes for columns:
         ///
         /// * *Cell*, used for columns that do not set width or set it to [`Length::Default`].
-        /// * *Relative*, used for columns that set width to a factor or percentage.
         /// * *Exact*, used for columns that set the width to a different unit.
+        /// * *Leftover*, used for columns that set width to an [`lft`] value.
         ///
         /// The column layout follows these steps:
         ///
         /// 1 - All *Exact* column widgets are layout, their final width defines the column width.
         /// 2 - All cell widgets with span `1` in *Cell* columns are measured, the widest defines the fill width constrain,
         /// the columns is layout using this constrain, the final width defines the column width.
-        /// 3 - All *Relative* cells are layout with the left-over grid width as fill constrain divided by the number of *Relative* cells,
-        ///     the final width defines the column width.
+        /// 3 - All *Leftover* cells are layout with the leftover grid width divided among all columns in this mode.
         ///
-        /// So given the columns `200 | 100.pct() | 100.pct()` and grid width of `1000` with spacing `5` the final widths are `200 | 395 | 395`,
+        /// So given the columns `200 | 1.lft() | 1.lft()` and grid width of `1000` with spacing `5` the final widths are `200 | 395 | 395`,
         /// for `200 + 5 + 395 + 5 + 395 = 1000`.
         ///
         /// Note that the column widget is not the parent of the cells that match it, the column widget is rendered under cell and row widgets.
@@ -53,6 +52,7 @@ pub mod grid {
         ///
         /// [`column!`]: mod@column
         /// [`column::width`]: fn@column::width
+        /// [`lft`]: LengthUnits::lft
         pub columns(impl UiNodeList);
 
         /// Row definitions.
@@ -62,10 +62,10 @@ pub mod grid {
         /// [`columns`]: fn@columns
         pub rows(impl UiNodeList);
 
-        /// View generator used when new columns are needed to cover a cell placement.
+        /// View generator used when new rows or columns are needed to cover a cell placement.
         ///
-        /// The generator is used when a cell is placed in a column not covered by the [`columns`] and inside the [`auto_column_max`] range.
-        /// Note that if the generator is [`ViewGenerator::nil`] or does not return a full widget an *imaginary* column is used instead.
+        /// The generator is used according to the [`auto_grow_mode`]. Note that *imaginary* rows or columns are used if
+        /// the generator is [ `ViewGenerator::nil` ].
         pub auto_grow_view(impl IntoVar<ViewGenerator<AutoGrowViewArgs>>);
 
         /// Maximum inclusive index that can be covered by auto-generated columns or rows. If a cell is outside this index and
@@ -328,13 +328,51 @@ fn grid_node(
 }
 
 #[derive(Clone, Copy)]
+struct ColRowMeta(f32);
+impl ColRowMeta {
+    /// `width` or `height` contains the largest cell or `Px::MIN` if cell measure is pending.
+    fn is_default(self) -> bool {
+        self.0.is_nan()
+    }
+
+    /// Return the leftover factor if the column or row must be measured on a fraction of the leftover space.
+    fn is_leftover(self) -> Option<Factor> {
+        if self.0.is_finite() {
+            Some(Factor(self.0))
+        } else {
+            None
+        }
+    }
+
+    /// `width` or `height` contains the final length or is pending layout `Px::MIN`.
+    fn is_exact(self) -> bool {
+        self.0 > 0.0 && self.0.is_infinite()
+    }
+
+    fn exact() -> Self {
+        Self(f32::INFINITY)
+    }
+
+    fn leftover(f: Factor) -> Self {
+        Self(f.0.max(0.0))
+    }
+}
+impl Default for ColRowMeta {
+    fn default() -> Self {
+        Self(f32::NAN)
+    }
+}
+
+#[derive(Clone, Copy)]
 struct ColumnInfo {
+    meta: ColRowMeta,
     x: Px,
     width: Px,
 }
 impl Default for ColumnInfo {
     fn default() -> Self {
         Self {
+            meta: ColRowMeta::default(),
             x: Px::MIN,
             width: Px::MIN,
         }
@@ -342,12 +380,14 @@ impl Default for ColumnInfo {
 }
 #[derive(Clone, Copy)]
 struct RowInfo {
+    meta: ColRowMeta,
     y: Px,
     height: Px,
 }
 impl Default for RowInfo {
     fn default() -> Self {
         Self {
+            meta: ColRowMeta::default(),
             y: Px::MIN,
             height: Px::MIN,
         }
@@ -493,35 +533,34 @@ impl UiNode for GridNode {
 
         // layout exact columns&rows, mark others for next passes.
 
-        const KIND_RELATIVE: Px = Px(i32::MIN + 1);
-        const KIND_DEFAULT: Px = Px(i32::MIN + 2);
-
         let mut has_default = false;
-        let mut has_relative_cols = false;
-        let mut has_relative_rows = false;
+        let mut has_leftover_cols = false;
+        let mut has_leftover_rows = false;
 
         columns.for_each_mut(|ci, col| {
             let col_kind = if fill_x.is_some() {
-                SizePropertyKind::get_wgt(col).width
+                SizePropertyLength::get_wgt(col).width
             } else {
-                SizePropertyKind::Default
+                SizePropertyLength::Default
             };
 
             let col_info = &mut self.column_info[ci];
 
             col_info.x = Px::MIN;
+            col_info.width = Px::MIN;
 
             match col_kind {
-                SizePropertyKind::None | SizePropertyKind::Default => {
-                    col_info.width = KIND_DEFAULT;
+                SizePropertyLength::Default => {
+                    col_info.meta = ColRowMeta::default();
                     has_default = true;
                 }
-                SizePropertyKind::Relative => {
-                    col_info.width = KIND_RELATIVE;
-                    has_relative_cols = true;
+                SizePropertyLength::Leftover(f) => {
+                    col_info.meta = ColRowMeta::leftover(f);
+                    has_leftover_cols = true;
                 }
-                SizePropertyKind::Exact => {
+                SizePropertyLength::Exact => {
                     col_info.width = col.layout(ctx, wl).width;
+                    col_info.meta = ColRowMeta::exact();
                 }
             }
 
@@ -529,26 +568,28 @@ impl UiNode for GridNode {
         });
         rows.for_each_mut(|ri, row| {
             let row_kind = if fill_y.is_some() {
-                SizePropertyKind::get_wgt(row).height
+                SizePropertyLength::get_wgt(row).height
             } else {
-                SizePropertyKind::Default
+                SizePropertyLength::Default
             };
 
             let row_info = &mut self.row_info[ri];
 
             row_info.y = Px::MIN;
+            row_info.height = Px::MIN;
 
             match row_kind {
-                SizePropertyKind::None | SizePropertyKind::Default => {
-                    row_info.height = KIND_DEFAULT;
+                SizePropertyLength::Default => {
+                    row_info.meta = ColRowMeta::default();
                     has_default = true;
                 }
-                SizePropertyKind::Relative => {
-                    row_info.height = KIND_RELATIVE;
-                    has_relative_rows = true;
+                SizePropertyLength::Leftover(f) => {
+                    row_info.meta = ColRowMeta::leftover(f);
+                    has_leftover_rows = true;
                 }
-                SizePropertyKind::Exact => {
+                SizePropertyLength::Exact => {
                     row_info.height = row.layout(ctx, wl).height;
+                    row_info.meta = ColRowMeta::exact();
                 }
             }
 
@@ -568,44 +609,40 @@ impl UiNode for GridNode {
                 let col = &mut self.column_info[info.column];
                 let row = &mut self.row_info[info.row];
 
-                // we use negative length to mark partial DEFAULT measures, to calculate the absolute max.
-                let abs_max = |a: Px, b: Px| if a == KIND_DEFAULT { -b } else { a.min(-b) };
-                if col.width < Px(0) && col.width >= KIND_DEFAULT {
-                    if row.height < Px(0) && row.height >= KIND_DEFAULT {
+                if col.meta.is_default() {
+                    if row.meta.is_default() {
                         // (default, default)
                         let size = cell.measure(&mut ctx.as_measure(), &mut WidgetMeasure::new());
 
-                        col.width = abs_max(col.width, size.width);
-                        row.height = abs_max(row.height, size.height);
-                    } else if row.height != KIND_RELATIVE {
+                        col.width = col.width.max(size.width);
+                        row.height = row.height.max(size.height);
+                    } else if row.meta.is_exact() {
                         // (default, exact)
                         let size = ctx
                             .as_measure()
                             .with_constrains(|c| c.with_exact_y(row.height), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
 
-                        col.width = abs_max(col.width, size.width);
+                        col.width = col.width.max(size.width);
                     } else {
-                        todo!("(default, relative)?")
+                        todo!("(default, leftover)?")
                     }
-                } else if col.width != KIND_RELATIVE && row.height < Px(0) && row.height >= KIND_DEFAULT {
+                } else if col.meta.is_exact() && row.meta.is_default() {
                     // (exact, default)
                     let size = ctx
                         .as_measure()
                         .with_constrains(|c| c.with_exact_x(col.width), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
 
-                    row.height = abs_max(row.height, size.height);
+                    row.height = row.height.max(size.height);
                 } else {
-                    todo!("(relative, default)?")
+                    todo!("(leftover, default)?")
                 }
                 true
             });
 
-            // finalize, convert to abs length, layout column&row widgets.
+            // layout column&row widgets.
             let view_columns_len = columns.len();
             for (i, col) in self.column_info.iter_mut().enumerate() {
-                if col.width < Px(0) && col.width > KIND_DEFAULT {
-                    col.width = col.width.abs();
-
+                if col.meta.is_default() {
                     if i < view_columns_len {
                         // layout column view
                         let size = ctx.with_constrains(
@@ -614,14 +651,14 @@ impl UiNode for GridNode {
                         );
                         // final width can change due to min/max
                         col.width = size.width;
+                    } else {
+                        break;
                     }
                 }
             }
             let view_rows_len = rows.len();
             for (i, row) in self.row_info.iter_mut().enumerate() {
-                if row.height < Px(0) && row.height > KIND_DEFAULT {
-                    row.height = row.height.abs();
-
+                if row.meta.is_default() {
                     if i < view_rows_len {
                         // layout row view
                         let size = ctx.with_constrains(
@@ -630,35 +667,31 @@ impl UiNode for GridNode {
                         );
                         // final height can change due to min/max
                         row.height = size.height;
+                    } else {
+                        break;
                     }
                 }
             }
         }
 
-        // distribute left-over grid space to relative columns
-        if has_relative_cols {
+        // distribute leftover grid space to columns
+        if has_leftover_cols {
             let mut width = fill_x.unwrap(); // relative is converted to auto if not fill.
-            let mut relative_count = 0;
+            let mut leftover_count = 0;
             for col in &self.column_info {
                 if col.width > Px(0) {
                     width -= col.width;
-                } else if col.width == KIND_RELATIVE {
-                    relative_count += 1;
+                } else if col.meta.is_leftover().is_some() {
+                    leftover_count += 1;
                 }
             }
             width -= spacing.column * Px((self.column_info.len() - 1) as i32);
-            width /= Px(relative_count);
+            width /= Px(leftover_count);
             width = width.max(Px(0));
 
             let view_columns_len = columns.len();
 
-            // !!: Problems
-            //   - We can have 6 columns with an arrangement of `max_width` that reaches limit one after the other.
-            //   - Only 100% columns take on more width, `width = 90.pct()` with no `max_width` should take more too.
-            //   - Do we need a new unit for this?
-            //      - WPF has the start `*` unit, CSS has the `fr`, both are the same kind of thing, a fraction of the
-            //        leftover space. In both cases this unit only works in grids, and unlike all other units they depend
-            //        on each other, not just the parent.
+            // !!: use actual leftover factor and `with_leftover` to properly measure and compute size given back
             let mut settle_passes = 5;
             loop {
                 settle_passes -= 1;
@@ -667,12 +700,13 @@ impl UiNode for GridNode {
                 let mut settling_count = 0;
 
                 for (i, col) in self.column_info.iter_mut().enumerate() {
-                    if col.width != KIND_RELATIVE {
+                    if col.meta.is_leftover().is_none() {
                         continue;
                     }
 
                     if is_final_pass {
                         col.width = width;
+                        col.meta = ColRowMeta::exact();
                     }
 
                     if i < view_columns_len {
@@ -685,6 +719,7 @@ impl UiNode for GridNode {
                                 |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
                             );
                             col.width = size.width;
+                            col.meta = ColRowMeta::exact();
                         } else {
                             // measure to see if column gives away extra width.
                             let size = ctx.as_measure().with_constrains(
@@ -701,6 +736,7 @@ impl UiNode for GridNode {
                                     |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
                                 );
                                 col.width = size.width;
+                                col.meta = ColRowMeta::exact();
                                 extra_width += given_width;
                             } else {
                                 // can take more width, probably
@@ -723,19 +759,19 @@ impl UiNode for GridNode {
                 }
             }
         }
-        // distribute left-over grid space to relative rows
-        if has_relative_rows {
+        // distribute leftover grid space to rows
+        if has_leftover_rows {
             let mut height = fill_y.unwrap();
-            let mut relative_count = 0;
+            let mut leftover_count = 0;
             for row in &self.row_info {
                 if row.height > Px(0) {
                     height -= row.height;
-                } else if row.height == KIND_RELATIVE {
-                    relative_count += 1;
+                } else if row.meta.is_leftover().is_some() {
+                    leftover_count += 1;
                 }
             }
             height -= spacing.row * Px((self.row_info.len() - 1) as i32);
-            height /= Px(relative_count);
+            height /= Px(leftover_count);
             height = height.max(Px(0));
 
             let view_rows_len = rows.len();
@@ -748,12 +784,13 @@ impl UiNode for GridNode {
                 let mut settling_count = 0;
 
                 for (i, row) in self.row_info.iter_mut().enumerate() {
-                    if row.height != KIND_RELATIVE {
+                    if row.meta.is_leftover().is_none() {
                         continue;
                     }
 
                     if is_final_pass {
                         row.height = height;
+                        row.meta = ColRowMeta::exact();
                     }
 
                     if i < view_rows_len {
@@ -766,6 +803,7 @@ impl UiNode for GridNode {
                                 |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
                             );
                             row.height = size.height;
+                            row.meta = ColRowMeta::exact();
                         } else {
                             // measure to see if row gives away extra height.
                             let size = ctx.as_measure().with_constrains(
@@ -782,6 +820,7 @@ impl UiNode for GridNode {
                                     |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
                                 );
                                 row.height = size.height;
+                                row.meta = ColRowMeta::exact();
                                 extra_height += given_height;
                             } else {
                                 // can take more height, probably

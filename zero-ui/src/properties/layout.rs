@@ -792,13 +792,13 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.auto_subs(ctx);
             self.child.init(ctx);
-            self.size.with(|s| SizePropertyKind::set(ctx.widget_state.reborrow(), s));
+            self.size.with(|s| SizePropertyLength::set(ctx.widget_state.reborrow(), s));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             self.size.with_new(ctx.vars, |s| {
-                SizePropertyKind::set(ctx.widget_state.reborrow(), s);
+                SizePropertyLength::set(ctx.widget_state.reborrow(), s);
                 ctx.updates.layout();
             });
         }
@@ -866,13 +866,13 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.auto_subs(ctx);
             self.child.init(ctx);
-            self.width.with(|w| SizePropertyKind::set_width(ctx.widget_state.reborrow(), w));
+            self.width.with(|w| SizePropertyLength::set_width(ctx.widget_state.reborrow(), w));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             self.width.with_new(ctx.vars, |w| {
-                SizePropertyKind::set_width(ctx.widget_state.reborrow(), w);
+                SizePropertyLength::set_width(ctx.widget_state.reborrow(), w);
                 ctx.updates.layout();
             });
         }
@@ -940,13 +940,13 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.auto_subs(ctx);
             self.child.init(ctx);
-            self.height.with(|h| SizePropertyKind::set_height(ctx.widget_state.reborrow(), h));
+            self.height.with(|h| SizePropertyLength::set_height(ctx.widget_state.reborrow(), h));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             self.height.with_new(ctx.vars, |h| {
-                SizePropertyKind::set_height(ctx.widget_state.reborrow(), h);
+                SizePropertyLength::set_height(ctx.widget_state.reborrow(), h);
                 ctx.updates.layout();
             });
         }
@@ -1120,34 +1120,48 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
     }
 }
 
-/// Represents what kind of size property is set on a widget.
+/// Represents the size property value set on a widget.
 ///
-/// Properties [`size`], [`width`] and [`height`] directly enforce a size, these properties set the [`SIZE_PROPERTY_KIND_ID`]
-/// metadata in the widget state. Panels can use this info for special layout operations, such
-/// as only distributing size for relative sized widgets after the other widgets are sized.
-///
+/// Properties like [`size`], [`width`] and [`height`] set the [`SIZE_PROPERTY_INFO_ID`]
+/// metadata in the widget state. Panels can use this info to implement [`Length::Leftover`] support.
+///  
 /// [`size`]: fn@size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SizePropertyKind {
-    /// No size enforcing property set or active.
-    None,
-    /// Size property set to [`Length::Default`]. Evaluates to the fill size.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SizePropertyLength {
+    /// Evaluates to [`PxConstrains::fill_size`] when measured, can serve as a request for *size-to-fit*.
+    ///
+    /// The `grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
+    /// logically own the cells, this fit needs to be computed by the parent panel.
     Default,
-    /// Size property set to [`Length::Relative`].
-    Relative,
-    /// Size property set to any other [`Length`] variant.
+    /// The [`Length::Leftover`] value. Evaluates to the [`LayoutMetrics::leftover`] value when measured, if
+    /// a leftover value is not provided evaluates like a [`Length::Relative`].
+    ///
+    /// The *leftover* length needs to be computed by the parent panel, as it depends on the length of the sibling widgets,
+    /// not just the panel constrains. Panels that support this, compute the value for each widget and measure/layout each using
+    /// [`LayoutContext::with_leftover`] to inject the computed value.
+    ///
+    /// [`LayoutContext::with_leftover`]: crate::context::LayoutContext::with_leftover
+    Leftover(Factor),
+    /// Any of the other [`Length`] kinds. All contextual metrics needed to compute these values is already available
+    /// in the [`LayoutMetrics`], panels that support [`Length::Leftover`] can layout this widget first to compute the
+    /// leftover length.
     Exact,
 }
-impl SizePropertyKind {
+impl Default for SizePropertyLength {
+    fn default() -> Self {
+        SizePropertyLength::Default
+    }
+}
+impl SizePropertyLength {
     /// Set the width state.
     pub fn set_width(mut state: StateMapMut<state_map::Widget>, width: &Length) {
         let width = width.into();
-        match state.entry(&SIZE_PROPERTY_KIND_ID) {
+        match state.entry(&SIZE_PROPERTY_INFO_ID) {
             state_map::StateMapEntry::Occupied(mut e) => e.get_mut().width = width,
             state_map::StateMapEntry::Vacant(e) => {
-                e.insert(euclid::size2(width, SizePropertyKind::None));
+                e.insert(euclid::size2(width, SizePropertyLength::Default));
             }
         }
     }
@@ -1155,10 +1169,10 @@ impl SizePropertyKind {
     /// Set the height state.
     pub fn set_height(mut state: StateMapMut<state_map::Widget>, height: &Length) {
         let height = height.into();
-        match state.entry(&SIZE_PROPERTY_KIND_ID) {
+        match state.entry(&SIZE_PROPERTY_INFO_ID) {
             state_map::StateMapEntry::Occupied(mut e) => e.get_mut().height = height,
             state_map::StateMapEntry::Vacant(e) => {
-                e.insert(euclid::size2(SizePropertyKind::None, height));
+                e.insert(euclid::size2(SizePropertyLength::Default, height));
             }
         }
     }
@@ -1166,34 +1180,30 @@ impl SizePropertyKind {
     /// Set the size state.
     pub fn set(mut state: StateMapMut<state_map::Widget>, size: &Size) {
         let size = euclid::size2((&size.width).into(), (&size.height).into());
-        state.set(&SIZE_PROPERTY_KIND_ID, size);
+        state.set(&SIZE_PROPERTY_INFO_ID, size);
     }
 
     /// Get the size set in the state.
-    pub fn get(state: StateMapRef<state_map::Widget>) -> euclid::Size2D<SizePropertyKind, ()> {
-        state
-            .get(&SIZE_PROPERTY_KIND_ID)
-            .cloned()
-            .unwrap_or_else(|| euclid::size2(SizePropertyKind::None, SizePropertyKind::None))
+    pub fn get(state: StateMapRef<state_map::Widget>) -> euclid::Size2D<SizePropertyLength, ()> {
+        state.get(&SIZE_PROPERTY_INFO_ID).cloned().unwrap_or_default()
     }
 
     /// Get the size set in the widget state.
-    pub fn get_wgt(wgt: &impl UiNode) -> euclid::Size2D<SizePropertyKind, ()> {
-        wgt.with_context(|ctx| Self::get(ctx.widget_state))
-            .unwrap_or_else(|| euclid::size2(SizePropertyKind::None, SizePropertyKind::None))
+    pub fn get_wgt(wgt: &impl UiNode) -> euclid::Size2D<SizePropertyLength, ()> {
+        wgt.with_context(|ctx| Self::get(ctx.widget_state)).unwrap_or_default()
     }
 }
-impl From<&Length> for SizePropertyKind {
+impl From<&Length> for SizePropertyLength {
     fn from(value: &Length) -> Self {
         match value {
-            Length::Default => SizePropertyKind::Default,
-            Length::Relative(_) => SizePropertyKind::Relative,
-            _ => SizePropertyKind::Exact,
+            Length::Default => SizePropertyLength::Default,
+            Length::Leftover(f) => SizePropertyLength::Leftover(*f),
+            _ => SizePropertyLength::Exact,
         }
     }
 }
 
 /// Id for widget state set by properties that directly enforce a widget size.
 ///
-/// See [`SizePropertyKind`] for more details.
-pub static SIZE_PROPERTY_KIND_ID: StaticStateId<euclid::Size2D<SizePropertyKind, ()>> = StaticStateId::new_unique();
+/// See [`SizePropertyLength`] for more details.
+pub static SIZE_PROPERTY_INFO_ID: StaticStateId<euclid::Size2D<SizePropertyLength, ()>> = StaticStateId::new_unique();
