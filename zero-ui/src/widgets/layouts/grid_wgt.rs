@@ -651,19 +651,71 @@ impl UiNode for GridNode {
             width = width.max(Px(0));
 
             let view_columns_len = columns.len();
-            for (i, col) in self.column_info.iter_mut().enumerate() {
-                if col.width != KIND_RELATIVE {
-                    continue;
-                }
-                col.width = width;
 
-                if i < view_columns_len {
-                    // layout column view
-                    let size = ctx.with_constrains(
-                        |c| c.with_fill_x(true).with_max_x(col.width),
-                        |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
-                    );
-                    col.width = size.width;
+            // !!: Problems
+            //   - We can have 6 columns with an arrangement of `max_width` that reaches limit one after the other.
+            //   - Only 100% columns take on more width, `width = 90.pct()` with no `max_width` should take more too.
+            let mut settle_passes = 5;
+            loop {
+                settle_passes -= 1;
+                let is_final_pass = settle_passes == 0;
+                let mut extra_width = Px(0);
+                let mut settling_count = 0;
+
+                for (i, col) in self.column_info.iter_mut().enumerate() {
+                    if col.width != KIND_RELATIVE {
+                        continue;
+                    }
+
+                    if is_final_pass {
+                        col.width = width;
+                    }
+
+                    if i < view_columns_len {
+                        // measure/layout column view to get extra constrains, like max_width.
+
+                        if is_final_pass {
+                            // layout
+                            let size = ctx.with_constrains(
+                                |c| c.with_fill_x(true).with_max_x(width),
+                                |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
+                            );
+                            col.width = size.width;
+                        } else {
+                            // measure to see if column gives away extra width.
+                            let size = ctx.as_measure().with_constrains(
+                                |c| c.with_fill_x(true).with_max_x(width),
+                                |ctx| columns.with_node(i, |col| col.measure(ctx, &mut WidgetMeasure::new())),
+                            );
+
+                            let given_width = (width - size.width).max(Px(0));
+                            if (given_width) > Px(0) {
+                                // reached limit, stopped settling, layout
+
+                                let size = ctx.with_constrains(
+                                    |c| c.with_fill_x(true).with_max_x(width),
+                                    |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
+                                );
+                                col.width = size.width;
+                                extra_width += given_width;
+                            } else {
+                                // can take more width, probably
+                                settling_count += 1;
+                            }
+                        }
+                    } else {
+                        // relative imaginary column, not a thing currently
+                        settling_count += 1;
+                    }
+                }
+
+                if is_final_pass || settling_count == 0 {
+                    break;
+                } else if extra_width == Px(0) {
+                    // jump to final pass.
+                    settle_passes = 1;
+                } else {
+                    width += extra_width / Px(settling_count);
                 }
             }
         }
@@ -683,19 +735,68 @@ impl UiNode for GridNode {
             height = height.max(Px(0));
 
             let view_rows_len = rows.len();
-            for (i, row) in self.row_info.iter_mut().enumerate() {
-                if row.height != KIND_RELATIVE {
-                    continue;
-                }
-                row.height = height;
 
-                if i < view_rows_len {
-                    // layout row view
-                    let size = ctx.with_constrains(
-                        |c| c.with_fill_y(true).with_max_y(row.height),
-                        |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
-                    );
-                    row.height = size.height;
+            let mut settle_passes = 5;
+            loop {
+                settle_passes -= 1;
+                let is_final_pass = settle_passes == 0;
+                let mut extra_height = Px(0);
+                let mut settling_count = 0;
+
+                for (i, row) in self.row_info.iter_mut().enumerate() {
+                    if row.height != KIND_RELATIVE {
+                        continue;
+                    }
+
+                    if is_final_pass {
+                        row.height = height;
+                    }
+
+                    if i < view_rows_len {
+                        // measure/layout row view to get extra constrains, like max_height.
+
+                        if is_final_pass {
+                            // layout
+                            let size = ctx.with_constrains(
+                                |c| c.with_fill_y(true).with_max_y(height),
+                                |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
+                            );
+                            row.height = size.height;
+                        } else {
+                            // measure to see if row gives away extra height.
+                            let size = ctx.as_measure().with_constrains(
+                                |c| c.with_fill_y(true).with_max_y(height),
+                                |ctx| rows.with_node(i, |row| row.measure(ctx, &mut WidgetMeasure::new())),
+                            );
+
+                            let given_height = (height - size.height).max(Px(0));
+                            if (given_height) > Px(0) {
+                                // reached limit, stopped settling, layout
+
+                                let size = ctx.with_constrains(
+                                    |c| c.with_fill_y(true).with_max_y(height),
+                                    |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
+                                );
+                                row.height = size.height;
+                                extra_height += given_height;
+                            } else {
+                                // can take more height, probably
+                                settling_count += 1;
+                            }
+                        }
+                    } else {
+                        // relative imaginary row, not a thing currently
+                        settling_count += 1;
+                    }
+                }
+
+                if is_final_pass || settling_count == 0 {
+                    break;
+                } else if extra_height == Px(0) {
+                    // jump to final pass.
+                    settle_passes = 1;
+                } else {
+                    height += extra_height / Px(settling_count);
                 }
             }
         }
