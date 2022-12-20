@@ -641,13 +641,13 @@ impl UiNode for GridNode {
             let mut relative_count = 0;
             for col in &self.column_info {
                 if col.width > Px(0) {
-                    width -= col.width - spacing.column;
+                    width -= col.width;
                 } else if col.width == KIND_RELATIVE {
                     relative_count += 1;
                 }
             }
+            width -= spacing.column * Px((self.column_info.len() - 1) as i32);
             width /= Px(relative_count);
-            width -= spacing.column * Px(relative_count - 1);
             width = width.max(Px(0));
 
             let view_columns_len = columns.len();
@@ -729,13 +729,13 @@ impl UiNode for GridNode {
             let mut relative_count = 0;
             for row in &self.row_info {
                 if row.height > Px(0) {
-                    height -= row.height - spacing.row;
+                    height -= row.height;
                 } else if row.height == KIND_RELATIVE {
                     relative_count += 1;
                 }
             }
+            height -= spacing.row * Px((self.row_info.len() - 1) as i32);
             height /= Px(relative_count);
-            height -= spacing.row * Px(relative_count - 1);
             height = height.max(Px(0));
 
             let view_rows_len = rows.len();
@@ -846,6 +846,7 @@ impl UiNode for GridNode {
                 todo!("left-over specials, collapse?");
             }
 
+            // !!: Implement column&row span.
             ctx.with_constrains(|c| c.with_exact(col.width, row.height), |ctx| cell.layout(ctx, wl));
             wl.with_outer(cell, false, |wl, _| wl.translate(PxVector::new(col.x, row.y)));
 
