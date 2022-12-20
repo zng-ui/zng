@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     crate_util::RunOnDrop,
-    text::formatx,
+    text::{formatx, Text},
     units::PxRect,
     var::VarUpdateId,
     widget_builder::{property_id, Importance, InputKind, PropertyId},
@@ -130,7 +130,7 @@ impl WriteTreeState {
 
         if info.inspect_property(property_id!(crate::widget_base::id).impl_id).is_none() {
             fmt.write_property(
-                "computed",
+                Text::from_static("computed"),
                 "id",
                 false,
                 false,
@@ -142,7 +142,7 @@ impl WriteTreeState {
         }
         if info.parent().is_none() {
             fmt.write_property(
-                "computed",
+                Text::from_static("computed"),
                 "window_id",
                 false,
                 false,
@@ -155,7 +155,7 @@ impl WriteTreeState {
 
         let outer_bounds = info.outer_bounds();
         fmt.write_property(
-            "computed",
+            Text::from_static("computed"),
             "outer_bounds",
             false,
             true,
@@ -166,7 +166,7 @@ impl WriteTreeState {
         );
         let inner_bounds = info.inner_bounds();
         fmt.write_property(
-            "computed",
+            Text::from_static("computed"),
             "inner_bounds",
             false,
             true,
@@ -177,7 +177,7 @@ impl WriteTreeState {
         );
         let visibility = info.visibility();
         fmt.write_property(
-            "computed",
+            Text::from_static("computed"),
             "visibility",
             false,
             true,
@@ -188,7 +188,7 @@ impl WriteTreeState {
         );
         let interactivity = info.interactivity();
         fmt.write_property(
-            "computed",
+            Text::from_static("computed"),
             "interactivity",
             false,
             true,
@@ -290,14 +290,14 @@ mod print_fmt {
     pub struct Fmt<'w> {
         depth: u32,
         output: &'w mut dyn Write,
-        property_group: &'static str,
+        property_group: Text,
     }
     impl<'w> Fmt<'w> {
         pub fn new(output: &'w mut dyn Write) -> Self {
             Fmt {
                 depth: 0,
                 output,
-                property_group: "",
+                property_group: Text::empty(),
             }
         }
 
@@ -337,9 +337,9 @@ mod print_fmt {
             self.depth += 1;
         }
 
-        fn write_property_header(&mut self, group: &'static str, name: &str, user_assigned: bool) {
+        fn write_property_header(&mut self, group: Text, name: &str, user_assigned: bool) {
             if self.property_group != group {
-                self.write_comment(group);
+                self.write_comment(&group);
                 self.property_group = group;
             }
 
@@ -381,9 +381,9 @@ mod print_fmt {
             }
         }
 
-        pub fn write_instrinsic(&mut self, group: &'static str, name: &str) {
+        pub fn write_instrinsic(&mut self, group: Text, name: &str) {
             if self.property_group != group {
-                self.write_comment(group);
+                self.write_comment(&group);
                 self.property_group = group;
             }
 
@@ -392,13 +392,13 @@ mod print_fmt {
             self.writeln();
         }
 
-        pub fn write_property(&mut self, group: &'static str, name: &str, user_assigned: bool, can_update: bool, value: Diff) {
+        pub fn write_property(&mut self, group: Text, name: &str, user_assigned: bool, can_update: bool, value: Diff) {
             self.write_property_header(group, name, user_assigned);
             self.write_property_value(value, can_update);
             self.write_property_end(user_assigned);
         }
 
-        pub fn open_property(&mut self, group: &'static str, name: &str, user_assigned: bool) {
+        pub fn open_property(&mut self, group: Text, name: &str, user_assigned: bool) {
             self.write_property_header(group, name, user_assigned);
             if user_assigned {
                 self.write("{".blue().bold());
@@ -440,7 +440,7 @@ mod print_fmt {
 
         pub fn close_widget(&mut self, name: &str) {
             self.depth -= 1;
-            self.property_group = "";
+            self.property_group = Text::empty();
             self.write_tabs();
             self.write("} ".bold());
             self.write_comment_after(format_args!("{name}!"));

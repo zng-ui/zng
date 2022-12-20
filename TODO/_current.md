@@ -10,8 +10,6 @@
     - Tool-tips.
         - Implement basic tool-tip.
 
-* Review `max_size` relative values when `size` is set.
-    - It is relative to `size` or context of size depending on the property order?
 * Image render requests a parent window, it causes errors because window with parents can't be parent of the image headless window.
     - We need the parent to load the right color-scheme in the image.
     - Allow headless children in any headed window?

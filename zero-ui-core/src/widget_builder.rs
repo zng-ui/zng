@@ -288,56 +288,77 @@ impl fmt::Debug for NestPosition {
     }
 }
 
+macro_rules! nest_group_items {
+    () => {
+        /// Property defines a contextual value or variable.
+        ///
+        /// Usually these properties don't define behavior, they just configure the widget. A common pattern
+        /// is defining all widget config as context vars, that are all used by an widget intrinsic node.
+        ///
+        /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
+        pub const CONTEXT: NestGroup = NestGroup(NestGroup::NEXT_GROUP);
+        /// Property defines an event handler, or state monitor, they are placed inside all context properties, so can be configured
+        /// by context, but are still outside of the layout and render nodes.
+        ///
+        /// Event handlers can be notified before or after the inner child delegation, if handled before the event is said to be *preview*.
+        /// Implementers can use this intrinsic feature of the UI tree to interrupt notification for child properties and widgets.
+        ///
+        /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
+        pub const EVENT: NestGroup = NestGroup(NestGroup::CONTEXT.0 + NestGroup::NEXT_GROUP);
+        /// Property defines the position and size of the widget inside the space made available by the parent widget.
+        ///
+        /// These properties must accumulatively affect the measure and layout, they must avoid rendering. The computed layout is
+        /// usually rendered by the widget as a single transform, the layout properties don't need to render transforms.
+        pub const LAYOUT: NestGroup = NestGroup(NestGroup::EVENT.0 + NestGroup::NEXT_GROUP);
+        /// Property strongly enforces a widget size.
+        ///
+        /// Usually the widget final size is a side-effect of all the layout properties, but some properties may enforce a size, they
+        /// can use this group to ensure that they are inside the other layout properties.
+        pub const SIZE: NestGroup = NestGroup(NestGroup::LAYOUT.0 + NestGroup::NEXT_GROUP);
+        /// Property renders a border visual.
+        ///
+        /// Borders are strictly coordinated, see the [`border`] module for more details. All nodes of this group
+        /// may render at will, the renderer is already configured to apply the final layout and size.
+        ///
+        /// [`border`]: crate::border
+        pub const BORDER: NestGroup = NestGroup(NestGroup::SIZE.0 + NestGroup::NEXT_GROUP);
+        /// Property defines a visual of the  widget.
+        ///
+        /// This is the main render group, it usually defines things like a background fill, but it can render over child nodes simply
+        /// by choosing to render after the render is delegated to the inner child.
+        pub const FILL: NestGroup = NestGroup(NestGroup::BORDER.0 + NestGroup::NEXT_GROUP);
+        /// Property defines contextual value or variable for the inner child or children widgets. Config set here does not affect
+        /// the widget where it is set, it affects the descendants.
+        pub const CHILD_CONTEXT: NestGroup = NestGroup(NestGroup::FILL.0 + NestGroup::NEXT_GROUP);
+        /// Property starts defining the layout and size of the child or children widgets. These properties don't affect the layout
+        /// of the widget where they are set. Some properties are functionally the same, only changing their effect depending on their
+        /// group, the `margin` and `padding` properties are like this, `margin` is `layout` and `padding` is `child_layout`.
+        pub const CHILD_LAYOUT: NestGroup = NestGroup(NestGroup::CHILD_CONTEXT.0 + NestGroup::NEXT_GROUP);
+    };
+}
+
+#[doc(hidden)]
+pub mod nest_group_items {
+    // properties import this const items in their nest group expr, unfortunately we can't import associated const items, so
+    // they are duplicated here.
+
+    use super::NestGroup;
+
+    nest_group_items!();
+}
+
 /// Property nest position group.
+///
+/// Each group has `u16::MAX / 9` in between, custom groups can be created using the the +/- operations, `SIZE+1` is
+/// still outside `BORDER`, but slightly inside `SIZE`.
 ///
 /// See [`NestPosition`] for more details.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct NestGroup(u8);
+pub struct NestGroup(u16);
 impl NestGroup {
-    /// Property defines a contextual value or variable.
-    ///
-    /// Usually these properties don't define behavior, they just configure the widget. A common pattern
-    /// is defining all widget config as context vars, that are all used by an widget intrinsic node.
-    ///
-    /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
-    pub const CONTEXT: Self = Self(0);
-    /// Property defines an event handler, or state monitor, they are placed inside all context properties, so can be configured
-    /// by context, but are still outside of the layout and render nodes.
-    ///
-    /// Event handlers can be notified before or after the inner child delegation, if handled before the event is said to be *preview*.
-    /// Implementers can use this intrinsic feature of the UI tree to interrupt notification for child properties and widgets.
-    ///
-    /// These properties are not expected to affect layout or render, if they do some errors may be logged by the default widget base.
-    pub const EVENT: Self = Self(Self::CONTEXT.0 + 1);
-    /// Property defines the position and size of the widget inside the space made available by the parent widget.
-    ///
-    /// These properties must accumulatively affect the measure and layout, they must avoid rendering. The computed layout is
-    /// usually rendered by the widget as a single transform, the layout properties don't need to render transforms.
-    pub const LAYOUT: Self = Self(Self::EVENT.0 + 1);
-    /// Property strongly enforces a widget size.
-    ///
-    /// Usually the widget final size is a side-effect of all the layout properties, but some properties may enforce a size, they
-    /// can use this group to ensure that they are inside the other layout properties.
-    pub const SIZE: Self = Self(Self::LAYOUT.0 + 1);
-    /// Property renders a border visual.
-    ///
-    /// Borders are strictly coordinated, see the [`border`] module for more details. All nodes of this group
-    /// may render at will, the renderer is already configured to apply the final layout and size.
-    ///
-    /// [`border`]: crate::border
-    pub const BORDER: Self = Self(Self::SIZE.0 + 1);
-    /// Property defines a visual of the  widget.
-    ///
-    /// This is the main render group, it usually defines things like a background fill, but it can render over child nodes simply
-    /// by choosing to render after the render is delegated to the inner child.
-    pub const FILL: Self = Self(Self::BORDER.0 + 1);
-    /// Property defines contextual value or variable for the inner child or children widgets. Config set here does not affect
-    /// the widget where it is set, it affects the descendants.
-    pub const CHILD_CONTEXT: Self = Self(Self::FILL.0 + 1);
-    /// Property starts defining the layout and size of the child or children widgets. These properties don't affect the layout
-    /// of the widget where they are set. Some properties are functionally the same, only changing their effect depending on their
-    /// group, the `margin` and `padding` properties are like this, `margin` is `layout` and `padding` is `child_layout`.
-    pub const CHILD_LAYOUT: Self = Self(Self::CHILD_CONTEXT.0 + 1);
+    const NEXT_GROUP: u16 = u16::MAX / 9;
+
+    nest_group_items!();
 
     /// All priorities, from outermost([`CONTEXT`]) to innermost([`CHILD_LAYOUT`]).
     ///
@@ -354,26 +375,33 @@ impl NestGroup {
         Self::CHILD_LAYOUT,
     ];
 
-    /// Group const name.
-    pub const fn name(self) -> &'static str {
+    /// Group name.
+    ///
+    /// Is a static str for values that are a group `const`, or a display format for the others.
+    pub fn name(self) -> Text {
         if self.0 == Self::CONTEXT.0 {
-            "CONTEXT"
+            Text::from_static("CONTEXT")
         } else if self.0 == Self::EVENT.0 {
-            "EVENT"
+            Text::from_static("EVENT")
         } else if self.0 == Self::LAYOUT.0 {
-            "LAYOUT"
+            Text::from_static("LAYOUT")
         } else if self.0 == Self::SIZE.0 {
-            "SIZE"
+            Text::from_static("SIZE")
         } else if self.0 == Self::BORDER.0 {
-            "BORDER"
+            Text::from_static("BORDER")
         } else if self.0 == Self::FILL.0 {
-            "FILL"
+            Text::from_static("FILL")
         } else if self.0 == Self::CHILD_CONTEXT.0 {
-            "CHILD_CONTEXT"
+            Text::from_static("CHILD_CONTEXT")
         } else if self.0 == Self::CHILD_LAYOUT.0 {
-            "CHILD_LAYOUT"
+            Text::from_static("CHILD_LAYOUT")
         } else {
-            unreachable!()
+            let closest = Self::ITEMS
+                .into_iter()
+                .min_by_key(|i| ((self.0 as i32 - i.0 as i32).abs()))
+                .unwrap();
+            let diff = self.0 as i32 - closest.0 as i32;
+            formatx!("{closest}{diff:+}")
         }
     }
 }
@@ -384,6 +412,44 @@ impl fmt::Debug for NestGroup {
         }
         write!(f, "{}", self.name())
     }
+}
+impl fmt::Display for NestGroup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+impl ops::Add<u16> for NestGroup {
+    type Output = Self;
+
+    fn add(self, rhs: u16) -> Self::Output {
+        Self(self.0.saturating_add(rhs))
+    }
+}
+impl ops::Sub<u16> for NestGroup {
+    type Output = Self;
+
+    fn sub(self, rhs: u16) -> Self::Output {
+        Self(self.0.saturating_sub(rhs))
+    }
+}
+impl ops::AddAssign<u16> for NestGroup {
+    fn add_assign(&mut self, rhs: u16) {
+        *self = *self + rhs;
+    }
+}
+impl ops::SubAssign<u16> for NestGroup {
+    fn sub_assign(&mut self, rhs: u16) {
+        *self = *self - rhs;
+    }
+}
+#[test]
+fn nest_group_spacing() {
+    let mut expected = NestGroup::NEXT_GROUP;
+    for g in NestGroup::ITEMS {
+        assert_eq!(expected, g.0);
+        expected += NestGroup::NEXT_GROUP;
+    }
+    assert_eq!(expected, u16::MAX);
 }
 
 /// Kind of property input.

@@ -782,7 +782,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`max_size`]: fn@max_size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
-#[property(SIZE)]
+#[property(SIZE+1)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct SizeNode {
         child: impl UiNode,
@@ -856,7 +856,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///
 /// [`min_width`]: fn@min_width
 /// [`max_width`]: fn@max_width
-#[property(SIZE)]
+#[property(SIZE+1)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct WidthNode {
         child: impl UiNode,
@@ -930,7 +930,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`min_height`]: fn@min_height
 /// [`max_height`]: fn@max_height
-#[property(SIZE)]
+#[property(SIZE+1)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct HeightNode {
         child: impl UiNode,

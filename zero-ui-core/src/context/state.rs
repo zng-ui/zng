@@ -699,7 +699,7 @@ where
 ///
 /// On deinit the `default` value is set on the state again.
 ///
-/// See [`set_widget_state`] for more details.
+/// See [`with_widget_state`] for more details.
 pub fn with_widget_state_modify<U, S, V, I, M>(
     child: U,
     id: impl Into<StateId<S>>,

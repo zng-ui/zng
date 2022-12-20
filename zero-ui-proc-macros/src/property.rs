@@ -14,7 +14,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         Err(e) => {
             errors.push_syn(e);
             Args {
-                nest_group: ident!("CONTEXT"),
+                nest_group: parse_quote!(CONTEXT),
                 capture: false,
                 default: None,
             }
@@ -474,7 +474,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #[doc(hidden)]
                 pub fn __property__() -> #core::widget_builder::PropertyInfo {
                     #core::widget_builder::PropertyInfo {
-                        group: #core::widget_builder::NestGroup::#nest_group,
+                        group: {
+                            use #core::widget_builder::nest_group_items::*;
+                            #nest_group
+                        },
                         capture: #capture,
                         impl_id: Self::__id__("").impl_id,
                         name: std::stringify!(#ident),
@@ -572,7 +575,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 }
 
 struct Args {
-    nest_group: Ident,
+    nest_group: Expr,
     capture: bool,
     default: Option<Default>,
 }

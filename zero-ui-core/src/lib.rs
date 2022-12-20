@@ -293,6 +293,26 @@ pub use zero_ui_proc_macros::ui_node;
 /// }
 /// ```
 ///
+/// The nest group can be tweaked, by adding or subtracting integers, in the example bellow `size` is always inside
+/// `max_size`, but both are in the `SIZE` range.
+///
+/// ```
+/// # fn main() { }
+/// use zero_ui_core::{property, widget_instance::UiNode, var::*};
+/// #
+/// # #[derive(Clone, Debug)] pub struct Size { }
+///
+/// #[property(SIZE+1)]
+/// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+/// #   child
+/// }
+///
+/// #[property(SIZE)]
+/// pub fn max_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+/// #   child
+/// }
+/// ```
+///
 /// ## Default
 ///
 /// The last argument is an optional `default(args..)`. It defines the value to use when the property must be instantiated and no value was provided.
