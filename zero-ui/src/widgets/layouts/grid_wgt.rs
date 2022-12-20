@@ -655,6 +655,10 @@ impl UiNode for GridNode {
             // !!: Problems
             //   - We can have 6 columns with an arrangement of `max_width` that reaches limit one after the other.
             //   - Only 100% columns take on more width, `width = 90.pct()` with no `max_width` should take more too.
+            //   - Do we need a new unit for this?
+            //      - WPF has the start `*` unit, CSS has the `fr`, both are the same kind of thing, a fraction of the
+            //        leftover space. In both cases this unit only works in grids, and unlike all other units they depend
+            //        on each other, not just the parent.
             let mut settle_passes = 5;
             loop {
                 settle_passes -= 1;
