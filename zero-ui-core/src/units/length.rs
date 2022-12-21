@@ -860,7 +860,7 @@ pub trait LengthUnits {
     /// Factor of the leftover layout space.
     ///
     /// Note that this unit must be supported by the parent panel widget and property, otherwise it evaluates
-    /// like [`length::Relative`].
+    /// like [`Length::Relative`].
     ///
     /// Returns [`Length::Leftover`].
     fn lft(self) -> Length;

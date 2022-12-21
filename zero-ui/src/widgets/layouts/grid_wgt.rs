@@ -66,6 +66,8 @@ pub mod grid {
         ///
         /// The generator is used according to the [`auto_grow_mode`]. Note that *imaginary* rows or columns are used if
         /// the generator is [ `ViewGenerator::nil` ].
+        ///
+        /// [`auto_grow_mode`]: fn@auto_grow_mode
         pub auto_grow_view(impl IntoVar<ViewGenerator<AutoGrowViewArgs>>);
 
         /// Maximum inclusive index that can be covered by auto-generated columns or rows. If a cell is outside this index and
@@ -113,7 +115,7 @@ pub mod column {
 
     inherit!(widget_base::base);
 
-    pub use crate::properties::{height, max_width, min_width};
+    pub use crate::properties::{max_width, min_width, width};
 
     // !!: what we need
     //    - Widget state is perfect to communicate the index.
@@ -541,6 +543,9 @@ impl UiNode for GridNode {
             let col_kind = if fill_x.is_some() {
                 SizePropertyLength::get_wgt(col).width
             } else {
+                // !!: CSS handles *leftover* columns by measuring then in AUTO, using the widest column as `1.lft()` and then
+                //     layout all *leftover* columns by this length.
+                //     See: https://www.w3.org/TR/css3-grid-layout/#fr-unit
                 SizePropertyLength::Default
             };
 
@@ -676,170 +681,173 @@ impl UiNode for GridNode {
 
         // distribute leftover grid space to columns
         if has_leftover_cols {
-            let mut width = fill_x.unwrap(); // relative is converted to auto if not fill.
-            let mut leftover_count = 0;
+            let mut leftover_width = fill_x.unwrap(); // relative is converted to auto if not fill.
+            let mut total_factor = Factor(0.0);
             for col in &self.column_info {
                 if col.width > Px(0) {
-                    width -= col.width;
-                } else if col.meta.is_leftover().is_some() {
-                    leftover_count += 1;
+                    leftover_width -= col.width;
+                } else if let Some(f) = col.meta.is_leftover() {
+                    total_factor += f;
                 }
             }
-            width -= spacing.column * Px((self.column_info.len() - 1) as i32);
-            width /= Px(leftover_count);
-            width = width.max(Px(0));
+            leftover_width -= spacing.column * Px((self.column_info.len() - 1) as i32);
+            leftover_width = leftover_width.max(Px(0));
+
+            if total_factor < Factor(1.0) {
+                total_factor = Factor(1.0);
+            }
 
             let view_columns_len = columns.len();
 
-            // !!: use actual leftover factor and `with_leftover` to properly measure and compute size given back
-            let mut settle_passes = 5;
-            loop {
+            let mut settle_passes = 5; // !!: remove count, interactive until no give backs, or algorithm
+            while settle_passes > 0 {
                 settle_passes -= 1;
-                let is_final_pass = settle_passes == 0;
-                let mut extra_width = Px(0);
-                let mut settling_count = 0;
+                let mut given_back = false;
 
                 for (i, col) in self.column_info.iter_mut().enumerate() {
-                    if col.meta.is_leftover().is_none() {
+                    let lft = if let Some(lft) = col.meta.is_leftover() {
+                        lft
+                    } else {
                         continue;
-                    }
+                    };
 
-                    if is_final_pass {
-                        col.width = width;
-                        col.meta = ColRowMeta::exact();
-                    }
+                    let width = lft.0 * leftover_width.0 as f32 / total_factor.0;
+                    col.width = Px(width as i32);
 
                     if i < view_columns_len {
-                        // measure/layout column view to get extra constrains, like max_width.
+                        let size = ctx.as_measure().with_constrains(
+                            |c| c.with_fill_x(true).with_max_x(col.width),
+                            |ctx| columns.with_node(i, |col| col.measure(ctx, &mut WidgetMeasure::new())),
+                        );
 
-                        if is_final_pass {
-                            // layout
+                        if col.width > size.width {
+                            given_back = true;
+
                             let size = ctx.with_constrains(
-                                |c| c.with_fill_x(true).with_max_x(width),
+                                |c| c.with_fill_x(true).with_max_x(col.width),
                                 |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
                             );
                             col.width = size.width;
                             col.meta = ColRowMeta::exact();
-                        } else {
-                            // measure to see if column gives away extra width.
-                            let size = ctx.as_measure().with_constrains(
-                                |c| c.with_fill_x(true).with_max_x(width),
-                                |ctx| columns.with_node(i, |col| col.measure(ctx, &mut WidgetMeasure::new())),
-                            );
 
-                            let given_width = (width - size.width).max(Px(0));
-                            if (given_width) > Px(0) {
-                                // reached limit, stopped settling, layout
-
-                                let size = ctx.with_constrains(
-                                    |c| c.with_fill_x(true).with_max_x(width),
-                                    |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
-                                );
-                                col.width = size.width;
-                                col.meta = ColRowMeta::exact();
-                                extra_width += given_width;
-                            } else {
-                                // can take more width, probably
-                                settling_count += 1;
+                            leftover_width -= size.width;
+                            total_factor -= lft;
+                            if total_factor < Factor(1.0) {
+                                total_factor = Factor(1.0);
                             }
                         }
-                    } else {
-                        // relative imaginary column, not a thing currently
-                        settling_count += 1;
                     }
                 }
 
-                if is_final_pass || settling_count == 0 {
+                if !given_back {
                     break;
-                } else if extra_width == Px(0) {
-                    // jump to final pass.
-                    settle_passes = 1;
+                }
+            }
+
+            for (i, col) in self.column_info.iter_mut().enumerate() {
+                let lft = if let Some(lft) = col.meta.is_leftover() {
+                    lft
                 } else {
-                    width += extra_width / Px(settling_count);
+                    continue;
+                };
+
+                let width = lft.0 * leftover_width.0 as f32 / total_factor.0;
+                col.width = Px(width as i32);
+                col.meta = ColRowMeta::exact();
+
+                if i < view_columns_len {
+                    ctx.with_constrains(
+                        |c| c.with_fill_x(true).with_max_x(col.width),
+                        |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
+                    );
+                } else {
+                    break;
                 }
             }
         }
         // distribute leftover grid space to rows
         if has_leftover_rows {
-            let mut height = fill_y.unwrap();
-            let mut leftover_count = 0;
+            let mut leftover_height = fill_y.unwrap(); // relative is converted to auto if not fill.
+            let mut total_factor = Factor(0.0);
             for row in &self.row_info {
                 if row.height > Px(0) {
-                    height -= row.height;
-                } else if row.meta.is_leftover().is_some() {
-                    leftover_count += 1;
+                    leftover_height -= row.height;
+                } else if let Some(f) = row.meta.is_leftover() {
+                    total_factor += f;
                 }
             }
-            height -= spacing.row * Px((self.row_info.len() - 1) as i32);
-            height /= Px(leftover_count);
-            height = height.max(Px(0));
+            leftover_height -= spacing.row * Px((self.row_info.len() - 1) as i32);
+            leftover_height = leftover_height.max(Px(0));
+
+            if total_factor < Factor(1.0) {
+                total_factor = Factor(1.0);
+            }
 
             let view_rows_len = rows.len();
 
-            let mut settle_passes = 5;
-            loop {
+            let mut settle_passes = 5; // !!: remove count, interactive until no give backs, or algorithm
+            while settle_passes > 0 {
                 settle_passes -= 1;
-                let is_final_pass = settle_passes == 0;
-                let mut extra_height = Px(0);
-                let mut settling_count = 0;
+                let mut given_back = false;
 
                 for (i, row) in self.row_info.iter_mut().enumerate() {
-                    if row.meta.is_leftover().is_none() {
+                    let lft = if let Some(lft) = row.meta.is_leftover() {
+                        lft
+                    } else {
                         continue;
-                    }
+                    };
 
-                    if is_final_pass {
-                        row.height = height;
-                        row.meta = ColRowMeta::exact();
-                    }
+                    let height = lft.0 * leftover_height.0 as f32 / total_factor.0;
+                    row.height = Px(height as i32);
 
                     if i < view_rows_len {
-                        // measure/layout row view to get extra constrains, like max_height.
+                        let size = ctx.as_measure().with_constrains(
+                            |c| c.with_fill_y(true).with_max_y(row.height),
+                            |ctx| rows.with_node(i, |row| row.measure(ctx, &mut WidgetMeasure::new())),
+                        );
 
-                        if is_final_pass {
-                            // layout
+                        if row.height > size.height {
+                            given_back = true;
+
                             let size = ctx.with_constrains(
-                                |c| c.with_fill_y(true).with_max_y(height),
+                                |c| c.with_fill_y(true).with_max_y(row.height),
                                 |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
                             );
                             row.height = size.height;
                             row.meta = ColRowMeta::exact();
-                        } else {
-                            // measure to see if row gives away extra height.
-                            let size = ctx.as_measure().with_constrains(
-                                |c| c.with_fill_y(true).with_max_y(height),
-                                |ctx| rows.with_node(i, |row| row.measure(ctx, &mut WidgetMeasure::new())),
-                            );
 
-                            let given_height = (height - size.height).max(Px(0));
-                            if (given_height) > Px(0) {
-                                // reached limit, stopped settling, layout
-
-                                let size = ctx.with_constrains(
-                                    |c| c.with_fill_y(true).with_max_y(height),
-                                    |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
-                                );
-                                row.height = size.height;
-                                row.meta = ColRowMeta::exact();
-                                extra_height += given_height;
-                            } else {
-                                // can take more height, probably
-                                settling_count += 1;
+                            leftover_height -= size.height;
+                            total_factor -= lft;
+                            if total_factor < Factor(1.0) {
+                                total_factor = Factor(1.0);
                             }
                         }
-                    } else {
-                        // relative imaginary row, not a thing currently
-                        settling_count += 1;
                     }
                 }
 
-                if is_final_pass || settling_count == 0 {
+                if !given_back {
                     break;
-                } else if extra_height == Px(0) {
-                    // jump to final pass.
-                    settle_passes = 1;
+                }
+            }
+
+            for (i, row) in self.row_info.iter_mut().enumerate() {
+                let lft = if let Some(lft) = row.meta.is_leftover() {
+                    lft
                 } else {
-                    height += extra_height / Px(settling_count);
+                    continue;
+                };
+
+                let height = lft.0 * leftover_height.0 as f32 / total_factor.0;
+                row.height = Px(height as i32);
+                row.meta = ColRowMeta::exact();
+
+                if i < view_rows_len {
+                    ctx.with_constrains(
+                        |c| c.with_fill_y(true).with_max_y(row.height),
+                        |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
+                    );
+                } else {
+                    break;
                 }
             }
         }

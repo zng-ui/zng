@@ -757,7 +757,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 ///
 /// To only set a preferred size that respects the layout constrains use the [`min_size`] and [`max_size`] instead.
 ///
-/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_KIND_ID`].
+/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`].
 ///
 /// # Examples
 ///
@@ -833,7 +833,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded width.
 ///
-/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_KIND_ID`] width.
+/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`] width.
 ///
 /// # Examples
 ///
@@ -907,7 +907,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// To only set a preferred height that respects the layout constrains use the [`min_height`] and [`max_height`] instead.
 ///
-/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_KIND_ID`] height.
+/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`] height.
 ///
 /// # Examples
 ///
@@ -1130,7 +1130,7 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
 /// [`height`]: fn@height
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SizePropertyLength {
-    /// Evaluates to [`PxConstrains::fill_size`] when measured, can serve as a request for *size-to-fit*.
+    /// Evaluates to [`PxConstrains2d::fill_size`] when measured, can serve as a request for *size-to-fit*.
     ///
     /// The `grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
     /// logically own the cells, this fit needs to be computed by the parent panel.
@@ -1142,7 +1142,7 @@ pub enum SizePropertyLength {
     /// not just the panel constrains. Panels that support this, compute the value for each widget and measure/layout each using
     /// [`LayoutContext::with_leftover`] to inject the computed value.
     ///
-    /// [`LayoutContext::with_leftover`]: crate::context::LayoutContext::with_leftover
+    /// [`LayoutContext::with_leftover`]: crate::core::context::LayoutContext::with_leftover
     Leftover(Factor),
     /// Any of the other [`Length`] kinds. All contextual metrics needed to compute these values is already available
     /// in the [`LayoutMetrics`], panels that support [`Length::Leftover`] can layout this widget first to compute the
