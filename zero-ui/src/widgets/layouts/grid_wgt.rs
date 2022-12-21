@@ -617,29 +617,47 @@ impl UiNode for GridNode {
                 if col.meta.is_default() {
                     if row.meta.is_default() {
                         // (default, default)
-                        let size = cell.measure(&mut ctx.as_measure(), &mut WidgetMeasure::new());
+                        let size = ctx
+                            .as_measure()
+                            .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
 
                         col.width = col.width.max(size.width);
                         row.height = row.height.max(size.height);
                     } else if row.meta.is_exact() {
                         // (default, exact)
-                        let size = ctx
-                            .as_measure()
-                            .with_constrains(|c| c.with_exact_y(row.height), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
+                        let size = ctx.as_measure().with_constrains(
+                            |c| c.with_exact_y(row.height).with_fill(false, false),
+                            |ctx| cell.measure(ctx, &mut WidgetMeasure::new()),
+                        );
 
                         col.width = col.width.max(size.width);
                     } else {
-                        todo!("(default, leftover)?")
+                        debug_assert!(row.meta.is_leftover().is_some());
+                        // (default, leftover), pretend leftover is default?
+                        let size = ctx
+                            .as_measure()
+                            .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
+
+                        col.width = col.width.max(size.width);
                     }
-                } else if col.meta.is_exact() && row.meta.is_default() {
-                    // (exact, default)
+                } else if col.meta.is_exact() {
+                    if row.meta.is_default() {
+                        // (exact, default)
+                        let size = ctx.as_measure().with_constrains(
+                            |c| c.with_exact_x(col.width).with_fill(false, false),
+                            |ctx| cell.measure(ctx, &mut WidgetMeasure::new()),
+                        );
+
+                        row.height = row.height.max(size.height);
+                    }
+                } else if row.meta.is_default() {
+                    debug_assert!(col.meta.is_leftover().is_some());
+                    // (leftover, default), pretend leftover is default?
                     let size = ctx
                         .as_measure()
-                        .with_constrains(|c| c.with_exact_x(col.width), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
+                        .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
 
                     row.height = row.height.max(size.height);
-                } else {
-                    todo!("(leftover, default)?")
                 }
                 true
             });
