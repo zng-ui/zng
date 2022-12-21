@@ -334,12 +334,12 @@ struct ColRowMeta(f32);
 impl ColRowMeta {
     /// `width` or `height` contains the largest cell or `Px::MIN` if cell measure is pending.
     fn is_default(self) -> bool {
-        self.0.is_nan()
+        self.0.is_sign_negative() && self.0.is_infinite()
     }
 
     /// Return the leftover factor if the column or row must be measured on a fraction of the leftover space.
     fn is_leftover(self) -> Option<Factor> {
-        if self.0.is_finite() {
+        if self.0 >= 0.0 {
             Some(Factor(self.0))
         } else {
             None
@@ -348,11 +348,11 @@ impl ColRowMeta {
 
     /// `width` or `height` contains the final length or is pending layout `Px::MIN`.
     fn is_exact(self) -> bool {
-        self.0 > 0.0 && self.0.is_infinite()
+        self.0.is_nan()
     }
 
     fn exact() -> Self {
-        Self(f32::INFINITY)
+        Self(f32::NAN)
     }
 
     fn leftover(f: Factor) -> Self {
@@ -361,7 +361,7 @@ impl ColRowMeta {
 }
 impl Default for ColRowMeta {
     fn default() -> Self {
-        Self(f32::NAN)
+        Self(f32::NEG_INFINITY)
     }
 }
 
@@ -699,18 +699,48 @@ impl UiNode for GridNode {
 
         // distribute leftover grid space to columns
         if has_leftover_cols {
-            // !!: scale leftover factors to not exceed f32::MAX
-            //     handle leftover factor positive infinite (infinite columns are 1.0 all others are 0.0).
-
-            let mut leftover_width = fill_x.unwrap(); // relative is converted to auto if not fill.
+            let mut leftover_width = fill_x.unwrap(); // relative is converted to auto if not fill (!!: TODO may change this).
             let mut total_factor = Factor(0.0);
+            let mut leftover_count = 0;
+            let mut max_factor = 0.0_f32;
+
             for col in &self.column_info {
                 if col.width > Px(0) {
                     leftover_width -= col.width;
                 } else if let Some(f) = col.meta.is_leftover() {
+                    max_factor = max_factor.max(f.0);
                     total_factor += f;
+                    leftover_count += 1;
                 }
             }
+            if total_factor.0.is_infinite() {
+                total_factor = Factor(0.0);
+
+                if max_factor.is_infinite() {
+                    // +inf takes all space
+                    for col in &mut self.column_info {
+                        if let Some(f) = col.meta.is_leftover() {
+                            if f.0.is_infinite() {
+                                col.meta = ColRowMeta::leftover(Factor(1.0));
+                                total_factor.0 += 1.0;
+                            } else {
+                                col.meta = ColRowMeta::leftover(Factor(0.0));
+                            }
+                        }
+                    }
+                } else {
+                    // scale down every factor to fit
+                    let scale = f32::MAX / max_factor / leftover_count as f32;
+                    for col in &mut self.column_info {
+                        if let Some(f) = col.meta.is_leftover() {
+                            let f = Factor(f.0 * scale);
+                            col.meta = ColRowMeta::leftover(f);
+                            total_factor += f;
+                        }
+                    }
+                }
+            }
+
             leftover_width -= spacing.column * Px((self.column_info.len() - 1) as i32);
             leftover_width = leftover_width.max(Px(0));
 
@@ -789,20 +819,46 @@ impl UiNode for GridNode {
         }
         // distribute leftover grid space to rows
         if has_leftover_rows {
-            let mut leftover_height = fill_y.unwrap(); // relative is converted to auto if not fill.
+            let mut leftover_height = fill_y.unwrap(); // relative is converted to auto if not fill (!!: TODO may change this).
             let mut total_factor = Factor(0.0);
+            let mut leftover_count = 0;
+            let mut max_factor = 0.0_f32;
+
             for row in &self.row_info {
                 if row.height > Px(0) {
                     leftover_height -= row.height;
                 } else if let Some(f) = row.meta.is_leftover() {
+                    max_factor = max_factor.max(f.0);
                     total_factor += f;
+                    leftover_count += 1;
                 }
             }
-            leftover_height -= spacing.row * Px((self.row_info.len() - 1) as i32);
-            leftover_height = leftover_height.max(Px(0));
+            if total_factor.0.is_infinite() {
+                total_factor = Factor(0.0);
 
-            if total_factor < Factor(1.0) {
-                total_factor = Factor(1.0);
+                if max_factor.is_infinite() {
+                    // +inf takes all space
+                    for row in &mut self.row_info {
+                        if let Some(f) = row.meta.is_leftover() {
+                            if f.0.is_infinite() {
+                                row.meta = ColRowMeta::leftover(Factor(1.0));
+                                total_factor.0 += 1.0;
+                            } else {
+                                row.meta = ColRowMeta::leftover(Factor(0.0));
+                            }
+                        }
+                    }
+                } else {
+                    // scale down every factor to fit
+                    let scale = f32::MAX / max_factor / leftover_count as f32;
+                    for row in &mut self.row_info {
+                        if let Some(f) = row.meta.is_leftover() {
+                            let f = Factor(f.0 * scale);
+                            row.meta = ColRowMeta::leftover(f);
+                            total_factor += f;
+                        }
+                    }
+                }
             }
 
             let view_rows_len = rows.len();
