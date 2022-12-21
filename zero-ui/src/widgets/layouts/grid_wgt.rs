@@ -681,6 +681,9 @@ impl UiNode for GridNode {
 
         // distribute leftover grid space to columns
         if has_leftover_cols {
+            // !!: scale leftover factors to not exceed f32::MAX
+            //     handle leftover factor positive infinite (infinite columns are 1.0 all others are 0.0).
+
             let mut leftover_width = fill_x.unwrap(); // relative is converted to auto if not fill.
             let mut total_factor = Factor(0.0);
             for col in &self.column_info {
@@ -699,10 +702,10 @@ impl UiNode for GridNode {
 
             let view_columns_len = columns.len();
 
-            let mut settle_passes = 5; // !!: remove count, interactive until no give backs, or algorithm
-            while settle_passes > 0 {
-                settle_passes -= 1;
-                let mut given_back = false;
+            // find extra leftover space from leftover that can't fully fill their requested leftover length.
+            let mut settled_all = false;
+            while !settled_all && leftover_width > Px(0) {
+                settled_all = true;
 
                 for (i, col) in self.column_info.iter_mut().enumerate() {
                     let lft = if let Some(lft) = col.meta.is_leftover() {
@@ -720,8 +723,10 @@ impl UiNode for GridNode {
                             |ctx| columns.with_node(i, |col| col.measure(ctx, &mut WidgetMeasure::new())),
                         );
 
-                        if col.width > size.width {
-                            given_back = true;
+                        if col.width != size.width {
+                            // reached a max/min, convert this column to "exact" and remove it from
+                            // the leftover pool.
+                            settled_all = false;
 
                             let size = ctx.with_constrains(
                                 |c| c.with_fill_x(true).with_max_x(col.width),
@@ -738,12 +743,11 @@ impl UiNode for GridNode {
                         }
                     }
                 }
-
-                if !given_back {
-                    break;
-                }
             }
 
+            leftover_width = leftover_width.max(Px(0));
+
+            // layout settled leftover columns that can fill the requested leftover length.
             for (i, col) in self.column_info.iter_mut().enumerate() {
                 let lft = if let Some(lft) = col.meta.is_leftover() {
                     lft
@@ -785,10 +789,10 @@ impl UiNode for GridNode {
 
             let view_rows_len = rows.len();
 
-            let mut settle_passes = 5; // !!: remove count, interactive until no give backs, or algorithm
-            while settle_passes > 0 {
-                settle_passes -= 1;
-                let mut given_back = false;
+            // find extra leftover space from leftover that can't fully fill their requested leftover length.
+            let mut settled_all = false;
+            while !settled_all && leftover_height > Px(0) {
+                settled_all = true;
 
                 for (i, row) in self.row_info.iter_mut().enumerate() {
                     let lft = if let Some(lft) = row.meta.is_leftover() {
@@ -806,8 +810,10 @@ impl UiNode for GridNode {
                             |ctx| rows.with_node(i, |row| row.measure(ctx, &mut WidgetMeasure::new())),
                         );
 
-                        if row.height > size.height {
-                            given_back = true;
+                        if row.height != size.height {
+                            // reached a max/min, convert this row to "exact" and remove it from
+                            // the leftover pool.
+                            settled_all = false;
 
                             let size = ctx.with_constrains(
                                 |c| c.with_fill_y(true).with_max_y(row.height),
@@ -824,12 +830,11 @@ impl UiNode for GridNode {
                         }
                     }
                 }
-
-                if !given_back {
-                    break;
-                }
             }
 
+            leftover_height = leftover_height.max(Px(0));
+
+            // layout settled leftover rows that can fill the requested leftover length.
             for (i, row) in self.row_info.iter_mut().enumerate() {
                 let lft = if let Some(lft) = row.meta.is_leftover() {
                     lft
