@@ -457,7 +457,8 @@ impl Length {
                 if let Some(l) = ctx.leftover_length() {
                     l
                 } else {
-                    ctx.constrains().fill() * f.0
+                    let fill = ctx.constrains().fill();
+                    (fill * f.0).clamp(self::Px(0), fill)
                 }
             }
             Em(f) => ctx.font_size() * f.0,
@@ -493,7 +494,8 @@ impl Length {
                 if let Some(l) = ctx.leftover_length() {
                     l.0 as f32
                 } else {
-                    ctx.constrains().fill().0 as f32 * f.0
+                    let fill = ctx.constrains().fill().0 as f32;
+                    (fill * f.0).clamp(0.0, fill)
                 }
             }
             Em(f) => ctx.font_size().0 as f32 * f.0,
@@ -860,7 +862,7 @@ pub trait LengthUnits {
     /// Factor of the leftover layout space.
     ///
     /// Note that this unit must be supported by the parent panel widget and property, otherwise it evaluates
-    /// like [`Length::Relative`].
+    /// like a single item having all the available fill space as leftover space.
     ///
     /// Returns [`Length::Leftover`].
     fn lft(self) -> Length;
