@@ -735,7 +735,7 @@ impl UiNode for GridNode {
                             col.width = size.width;
                             col.meta = ColRowMeta::exact();
 
-                            leftover_width -= size.width;
+                            leftover_width -= size.width + spacing.column;
                             total_factor -= lft;
                             if total_factor < Factor(1.0) {
                                 total_factor = Factor(1.0);
@@ -822,7 +822,7 @@ impl UiNode for GridNode {
                             row.height = size.height;
                             row.meta = ColRowMeta::exact();
 
-                            leftover_height -= size.height;
+                            leftover_height -= size.height + spacing.row;
                             total_factor -= lft;
                             if total_factor < Factor(1.0) {
                                 total_factor = Factor(1.0);
@@ -887,20 +887,30 @@ impl UiNode for GridNode {
             let info = cell::CellInfo::get_wgt(cell).actual(i, columns_len);
 
             if info.column >= self.column_info.len() || info.row >= self.row_info.len() {
-                todo!("collapse cell");
+                wl.collapse_child(ctx, i);
                 return true;
             }
 
-            let col = self.column_info[info.column];
-            let row = self.row_info[info.row];
+            let cell_offset = PxVector::new(self.column_info[info.column].x, self.row_info[info.row].y);
+            let mut cell_size = PxSize::zero();
 
-            if col.width < Px(0) || row.height < Px(0) {
-                todo!("left-over specials, collapse?");
+            for col in info.column..(info.column + info.column_span).min(self.column_info.len()) {
+                cell_size.width += self.column_info[col].width + spacing.column;
+            }
+            cell_size.width -= spacing.column;
+
+            for row in info.row..(info.row + info.row_span).min(self.row_info.len()) {
+                cell_size.height += self.row_info[row].height + spacing.row;
+            }
+            cell_size.height -= spacing.row;
+
+            if cell_size.is_empty() {
+                wl.collapse_child(ctx, i);
+                return true;
             }
 
-            // !!: Implement column&row span.
-            ctx.with_constrains(|c| c.with_exact(col.width, row.height), |ctx| cell.layout(ctx, wl));
-            wl.with_outer(cell, false, |wl, _| wl.translate(PxVector::new(col.x, row.y)));
+            ctx.with_constrains(|c| c.with_exact_size(cell_size), |ctx| cell.layout(ctx, wl));
+            wl.with_outer(cell, false, |wl, _| wl.translate(cell_offset));
 
             true
         });

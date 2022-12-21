@@ -801,6 +801,39 @@ impl WidgetLayout {
         }
     }
 
+    /// Collapse layout of the child and all its descendants, the size and offsets are set to zero.
+    ///
+    /// Widgets that control the visibility of their children can use this method and then, in the same layout pass, layout
+    /// the children that should be visible.
+    pub fn collapse_child(&mut self, ctx: &mut LayoutContext, index: usize) {
+        let widget_id = ctx.path.widget_id();
+        if let Some(w) = ctx.info_tree.get(widget_id) {
+            if let Some(w) = w.children().nth(index) {
+                for w in w.descendants() {
+                    let info = w.info();
+                    info.bounds_info.set_outer_size(PxSize::zero());
+                    info.bounds_info.set_inner_size(PxSize::zero());
+                    info.bounds_info.set_baseline(Px(0));
+                    info.bounds_info.set_inner_offset_baseline(false);
+                    info.bounds_info.set_can_auto_hide(true);
+                    info.bounds_info.set_outer_offset(PxVector::zero());
+                    info.bounds_info.set_inner_offset(PxVector::zero());
+                    info.bounds_info.set_child_offset(PxVector::zero());
+                    info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
+                    info.bounds_info.set_metrics(None, LayoutMask::NONE);
+                }
+            } else {
+                tracing::error!(
+                    "collapse_child out-of-bounds for `{}` in the children of `{}` in the info tree",
+                    index,
+                    widget_id
+                )
+            }
+        } else {
+            tracing::error!("collapse_child did not find `{}` in the info tree", widget_id)
+        }
+    }
+
     /// Calls `layout` and captures inline information.
     ///
     /// A value of [`InlineLayout`] is only returned if the [`InlineLayout::bounds`] match the returned bounds and [`disable_inline`]
