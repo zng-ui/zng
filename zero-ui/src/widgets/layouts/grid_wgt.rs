@@ -745,7 +745,7 @@ impl UiNode for GridNode {
             }
 
             let mut leftover_width = if let Some(w) = fill_x {
-                (w - used_width).max(Px(0))
+                w - used_width - spacing.column * Px((self.column_info.len() - 1) as i32)
             } else {
                 // grid has no width, so `1.lft()` is defined by the widest cell measured using `Default` constrains.
                 let mut unbounded_width = used_width;
@@ -755,9 +755,8 @@ impl UiNode for GridNode {
                     }
                 }
                 let bounded_width = constrains.x.clamp(unbounded_width);
-                (bounded_width - used_width).max(Px(0))
+                bounded_width - used_width
             };
-            // !!: spacing already removed?
             leftover_width = leftover_width.max(Px(0));
 
             let view_columns_len = columns.len();
@@ -886,19 +885,18 @@ impl UiNode for GridNode {
             }
 
             let mut leftover_height = if let Some(h) = fill_y {
-                (h - used_height).max(Px(0))
+                h - used_height - spacing.row * Px((self.row_info.len() - 1) as i32)
             } else {
                 // grid has no height, so `1.lft()` is defined by the tallest cell measured using `Default` constrains.
                 let mut unbounded_height = used_height;
-                for col in &self.column_info {
-                    if let Some(f) = col.meta.is_leftover() {
+                for row in &self.row_info {
+                    if let Some(f) = row.meta.is_leftover() {
                         unbounded_height += no_fill_1_lft * f;
                     }
                 }
                 let bounded_height = constrains.x.clamp(unbounded_height);
-                (bounded_height - used_height).max(Px(0))
+                bounded_height - used_height
             };
-            // !!: spacing already removed?
             leftover_height = leftover_height.max(Px(0));
 
             let view_rows_len = rows.len();

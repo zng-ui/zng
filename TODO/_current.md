@@ -1,9 +1,26 @@
-* See `!!: what we need` in grid_wgt.rs.
+* Implement abstraction for operations that only use one axis, we have duplicate algorithms in h_stack, v_stack, grid.
+    - Instead of inventing a name for axis, cross-axis we can just have the width be height be swapped?
+        - More readable, may cause algorithm that only works for width getting used in height.
+    - Implement `stack` panel that can dynamically swap axis of operation.
+  because of this.
+* Implement abstraction to allow implementing measure and layout in the same code.
+    - Can't short-circuit layout in every context, sometimes need to recreate a lot of the layout algorithm, leading to
+      duplicate code.
+
+* Grid.
+    - Finish `!!:`.
+    - Cell align.
+    - Column & Row align for when all fixed is less then available.
+    - Masonry align?
+    - Support `lft` in spacing.
+        - And padding? Need to capture padding if the case.
+
 * Implement `markdown!`.
     - List number horizontal alignment.
         - Need something like a grid here as well? To share the column size.
+        - Right now the bullet is inside the item already
     - Table, data format and panel?
-        - Implement `grid!`.
+        - Implement `grid!` with cell align.
     - Links and footnotes.
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip.
         - Fix file links display (don't show added relative path?).
