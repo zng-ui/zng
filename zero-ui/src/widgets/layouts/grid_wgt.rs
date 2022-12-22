@@ -605,8 +605,16 @@ impl UiNode for GridNode {
                 let col = &mut self.column_info[info.column];
                 let row = &mut self.row_info[info.row];
 
-                if col.meta.is_default() || (fill_x.is_none() && col.meta.is_leftover().is_some()) {
-                    if row.meta.is_default() || (fill_y.is_none() && row.meta.is_leftover().is_some()) {
+                let col_is_default = col.meta.is_default() || (fill_x.is_none() && col.meta.is_leftover().is_some());
+                let col_is_exact = !col_is_default && col.meta.is_exact();
+                let col_is_leftover = !col_is_default && col.meta.is_leftover().is_some();
+
+                let row_is_default = row.meta.is_default() || (fill_y.is_none() && row.meta.is_leftover().is_some());
+                let row_is_exact = !row_is_default && row.meta.is_exact();
+                let row_is_leftover = !row_is_default && row.meta.is_leftover().is_some();
+
+                if col_is_default {
+                    if row_is_default {
                         // (default, default)
                         let size = ctx
                             .as_measure()
@@ -614,7 +622,7 @@ impl UiNode for GridNode {
 
                         col.width = col.width.max(size.width);
                         row.height = row.height.max(size.height);
-                    } else if row.meta.is_exact() {
+                    } else if row_is_exact {
                         // (default, exact)
                         let size = ctx.as_measure().with_constrains(
                             |c| c.with_exact_y(row.height).with_fill(false, false),
@@ -623,16 +631,16 @@ impl UiNode for GridNode {
 
                         col.width = col.width.max(size.width);
                     } else {
-                        debug_assert!(row.meta.is_leftover().is_some());
-                        // (default, leftover), pretend leftover is default?
+                        debug_assert!(row_is_leftover);
+                        // (default, leftover)
                         let size = ctx
                             .as_measure()
                             .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
 
                         col.width = col.width.max(size.width);
                     }
-                } else if col.meta.is_exact() {
-                    if row.meta.is_default() {
+                } else if col_is_exact {
+                    if row_is_default {
                         // (exact, default)
                         let size = ctx.as_measure().with_constrains(
                             |c| c.with_exact_x(col.width).with_fill(false, false),
@@ -641,9 +649,9 @@ impl UiNode for GridNode {
 
                         row.height = row.height.max(size.height);
                     }
-                } else if row.meta.is_default() {
-                    debug_assert!(col.meta.is_leftover().is_some());
-                    // (leftover, default), pretend leftover is default?
+                } else if row_is_default {
+                    debug_assert!(col_is_leftover);
+                    // (leftover, default)
                     let size = ctx
                         .as_measure()
                         .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
