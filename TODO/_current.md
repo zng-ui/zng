@@ -1,3 +1,21 @@
+* Managed to implement `get_` property using only the current API.
+    - Document this pattern in the attribute?
+        - Only tricky part is the default value needing to be a read-write var.
+        - Accepting any var is actually an advantage?
+            - Allows custom init with `map_bidi`.
+        - A disadvantage is that custom read-only vars can also be used.
+    - Can we remove `is_` properties and have then be implemented using the same pattern?
+        - Same vantages and disadvantages?
+        - Default is not auto-generated.
+            - Can enforce type by generating a default.
+            - Same for the `get_` pattern too.
+    - Enforce default:
+        - If a `default(_)` is not set enforce a default `default(getter_property_default())`.
+        - That is `fn getter_property_default<T: VarValue + Default) -> impl IntoVar<T> { var(T::default()) }`.
+        - And for `is_` prefix can have, `default(state_property_default())` that enforces the `bool` type.
+            - User can still escape by defining their own `default(_)`.
+            - But gives a strong hint for users that forget, or just works out of the box.
+
 * Implement abstraction for operations that only use one axis, we have duplicate algorithms in h_stack, v_stack, grid.
     - Instead of inventing a name for axis, cross-axis we can just have the width be height be swapped?
         - More readable, may cause algorithm that only works for width getting used in height.

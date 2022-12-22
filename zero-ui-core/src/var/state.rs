@@ -278,15 +278,23 @@ pub fn widget_state_is_state(
     impl UiNode for BindWidgetStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
-            self.state.set_ne(ctx.vars, (self.predicate)(ctx.widget_state.as_ref()));
+            let state = (self.predicate)(ctx.widget_state.as_ref());
+            if state != self.state.get() {
+                self.state.set(ctx.vars, state);
+            }
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
-            self.state.set_ne(ctx.vars, (self.predicate)(ctx.widget_state.as_ref()));
+            if self.state.get() {
+                self.state.set(ctx.vars, false);
+            }
         }
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            self.state.set_ne(ctx.vars, (self.predicate)(ctx.widget_state.as_ref()));
+            let state = (self.predicate)(ctx.widget_state.as_ref());
+            if state != self.state.get() {
+                self.state.set(ctx.vars, state);
+            }
         }
     }
     BindWidgetStateNode {

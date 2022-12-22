@@ -215,10 +215,10 @@ impl Vars {
     ///
     /// This can be used to manage multiple animations at the same time, or to get [`Vars::animate`] level of access to an animation
     /// that is not implemented to allow such access. Note that animation implementers are not required to support the full
-    /// [`Animation`] API, for example, there is no garanthede that a restart requested by the controller will repeat the same animation.
+    /// [`Animation`] API, for example, there is no guarantee that a restart requested by the controller will repeat the same animation.
     ///
     /// The controller can start new animations, these animations will have the same controller if not overridden, you can
-    /// use this method and the [`NilAnimationObserver`] to avoid this behaviour.
+    /// use this method and the [`NilAnimationObserver`] to avoid this behavior.
     ///
     /// [`Animation`]: animation::Animation
     /// [`NilAnimationObserver`]: animation::NilAnimationObserver

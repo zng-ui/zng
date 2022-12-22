@@ -139,6 +139,63 @@ pub mod column {
     pub fn is_odd(child: impl UiNode, state: StateVar) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
     }
+
+    /// Get the column index for custom `when` expressions.
+    ///
+    /// The column index is zero-based.
+    ///
+    /// # Examples
+    ///
+    /// This uses the `get_index` to give every third column a different background.
+    ///
+    /// ```
+    /// # use crate::widgets::layouts::grid;
+    /// #
+    /// # let _ =
+    /// grid::column! {
+    ///     background_color = colors::GRAY;    
+    ///
+    ///     when *#get_index % 3 == 0 {
+    ///         background_color = colors::DARK_GRAY;
+    ///     }
+    /// }
+    /// # ;
+    /// ```
+    #[property(CONTEXT, default(var(0)))]
+    pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+        #[ui_node(struct GetIndexNode {
+            child: impl UiNode,
+            state: impl Var<usize>
+        })]
+        impl UiNode for GetIndexNode {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.child.init(ctx);
+                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
+                if self.state.get() != state {
+                    let _ = self.state.set(ctx, state);
+                }
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.child.deinit(ctx);
+                if self.state.get() != 0 {
+                    let _ = self.state.set_ne(ctx.vars, 0usize);
+                }
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.child.update(ctx, updates);
+                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
+                if self.state.get() != state {
+                    let _ = self.state.set(ctx, state);
+                }
+            }
+        }
+        GetIndexNode {
+            child,
+            state: state.into_var(),
+        }
+    }
 }
 
 /// Grid row definition.
@@ -178,6 +235,63 @@ pub mod row {
     #[property(CONTEXT)]
     pub fn is_odd(child: impl UiNode, state: StateVar) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
+    }
+
+    /// Get the row index for custom `when` expressions.
+    ///
+    /// The row index is zero-based.
+    ///
+    /// # Examples
+    ///
+    /// This uses the `get_index` to give every third row a different background.
+    ///
+    /// ```
+    /// # use crate::widgets::layouts::grid;
+    /// #
+    /// # let _ =
+    /// grid::row! {
+    ///     background_color = colors::GRAY;    
+    ///
+    ///     when *#get_index % 3 == 0 {
+    ///         background_color = colors::DARK_GRAY;
+    ///     }
+    /// }
+    /// # ;
+    /// ```
+    #[property(CONTEXT, default(var(0)))]
+    pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+        #[ui_node(struct GetIndexNode {
+            child: impl UiNode,
+            state: impl Var<usize>
+        })]
+        impl UiNode for GetIndexNode {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.child.init(ctx);
+                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
+                if self.state.get() != state {
+                    let _ = self.state.set(ctx, state);
+                }
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                self.child.deinit(ctx);
+                if self.state.get() != 0 {
+                    let _ = self.state.set_ne(ctx.vars, 0usize);
+                }
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+                self.child.update(ctx, updates);
+                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
+                if self.state.get() != state {
+                    let _ = self.state.set(ctx, state);
+                }
+            }
+        }
+        GetIndexNode {
+            child,
+            state: state.into_var(),
+        }
     }
 }
 
