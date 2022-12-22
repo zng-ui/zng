@@ -9,7 +9,7 @@ use crate::prelude::new_property::*;
 ///
 /// [`DISABLED`]: Interactivity::DISABLED
 #[property(CONTEXT)]
-pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_disabled(ctx.path) {
             Some(true)
@@ -32,7 +32,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_hovered_disabled`]: fn@is_hovered_disabled
 #[property(CONTEXT)]
-pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_enabled(ctx.path) {
             Some(true)
@@ -50,7 +50,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(CONTEXT)]
-pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state2(
         child,
         state,
@@ -94,7 +94,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 #[property(CONTEXT)]
-pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state2(
         child,
         state,
@@ -134,7 +134,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(CONTEXT)]
-pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_is_state2(
         child,
         state,
@@ -173,20 +173,20 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
 ///
 /// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration
 #[property(CONTEXT)]
-pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct IsShortcutPressedNode {
         child: impl UiNode,
-        state: StateVar,
+        state: impl Var<bool>,
         shortcut_press: Option<DeadlineVar>,
     })]
     impl UiNode for IsShortcutPressedNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, false);
+            let _ = self.state.set_ne(ctx, false);
             ctx.sub_event(&CLICK_EVENT);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx, false);
+            let _ = self.state.set_ne(ctx, false);
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -201,10 +201,10 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                             let dl = ctx.timers.deadline(duration);
                             dl.subscribe(ctx.path.widget_id()).perm();
                             self.shortcut_press = Some(dl);
-                            self.state.set_ne(ctx, true);
+                            let _ = self.state.set_ne(ctx, true);
                         }
                     } else {
-                        self.state.set_ne(ctx, false);
+                        let _ = self.state.set_ne(ctx, false);
                     }
                 }
             }
@@ -216,14 +216,14 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             if let Some(timer) = &self.shortcut_press {
                 if timer.is_new(ctx) {
                     self.shortcut_press = None;
-                    self.state.set_ne(ctx.vars, false);
+                    let _ = self.state.set_ne(ctx.vars, false);
                 }
             }
         }
     }
     IsShortcutPressedNode {
         child: child.cfg_boxed(),
-        state,
+        state: state.into_var(),
         shortcut_press: None,
     }
     .cfg_boxed()
@@ -239,7 +239,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 /// [`is_cap_pressed`]: fn@is_cap_pressed
 #[property(CONTEXT)]
-pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let pointer_pressed = state_var();
     let child = is_pointer_pressed(child, pointer_pressed.clone());
 
@@ -254,7 +254,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 #[property(CONTEXT)]
-pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_cap_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let pointer_pressed = state_var();
     let child = is_cap_pointer_pressed(child, pointer_pressed.clone());
 

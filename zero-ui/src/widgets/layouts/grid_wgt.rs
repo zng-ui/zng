@@ -126,7 +126,7 @@ pub mod column {
     ///
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT)]
-    pub fn is_even(child: impl UiNode, state: StateVar) -> impl UiNode {
+    pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 == 0, state)
     }
 
@@ -136,7 +136,7 @@ pub mod column {
     ///
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT)]
-    pub fn is_odd(child: impl UiNode, state: StateVar) -> impl UiNode {
+    pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
     }
 
@@ -223,7 +223,7 @@ pub mod row {
     ///
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT)]
-    pub fn is_even(child: impl UiNode, state: StateVar) -> impl UiNode {
+    pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 == 0, state)
     }
 
@@ -233,7 +233,7 @@ pub mod row {
     ///
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT)]
-    pub fn is_odd(child: impl UiNode, state: StateVar) -> impl UiNode {
+    pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
     }
 

@@ -247,7 +247,7 @@ pub mod toggle_properties {
     /// [`checked_opt`]: fn@checked_opt
     /// [`value`]: fn@value.
     #[property(EVENT)]
-    pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
+    pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         bind_is_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
     }
 

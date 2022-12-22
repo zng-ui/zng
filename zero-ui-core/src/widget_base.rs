@@ -762,7 +762,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
     }
 }
 
-fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> impl UiNode {
+fn vis_enabled_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: bool) -> impl UiNode {
     event_is_state(child, state, true, WIDGET_INFO_CHANGED_EVENT, move |ctx, _| {
         let is_enabled = ctx
             .info_tree
@@ -783,7 +783,7 @@ fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> 
 /// [`enabled`]: fn@enabled
 /// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
 #[property(EVENT)]
-pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     vis_enabled_eq_state(child, state, true)
 }
 /// If the widget is disabled for interaction.
@@ -795,7 +795,7 @@ pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// [`enabled`]: fn@enabled
 #[property(EVENT)]
-pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     vis_enabled_eq_state(child, state, false)
 }
 
@@ -887,7 +887,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     }
 }
 
-fn visibility_eq_state(child: impl UiNode, state: StateVar, expected: Visibility) -> impl UiNode {
+fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: Visibility) -> impl UiNode {
     event_is_state(
         child,
         state,
@@ -906,17 +906,17 @@ fn visibility_eq_state(child: impl UiNode, state: StateVar, expected: Visibility
 }
 /// If the widget is [`Visible`](Visibility::Visible).
 #[property(CONTEXT)]
-pub fn is_visible(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_visible(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Visible)
 }
 /// If the widget is [`Hidden`](Visibility::Hidden).
 #[property(CONTEXT)]
-pub fn is_hidden(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_hidden(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Hidden)
 }
 /// If the widget is [`Collapsed`](Visibility::Collapsed).
 #[property(CONTEXT)]
-pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Collapsed)
 }
 
@@ -1052,7 +1052,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 /// [`hit_testable`]: fn@hit_testable
 /// [`hit_test_mode`]: fn@hit_test_mode
 #[property(EVENT)]
-pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
+pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_is_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
 }
 

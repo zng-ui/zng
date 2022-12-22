@@ -98,7 +98,7 @@ impl WriteTreeState {
 
                 if info.inputs.len() == 1 {
                     let version = match info.inputs[0].kind {
-                        InputKind::Var | InputKind::StateVar => Some(args.var(0).last_update()),
+                        InputKind::Var => Some(args.var(0).last_update()),
                         _ => None,
                     };
                     let value = print_fmt::Diff {
@@ -110,7 +110,7 @@ impl WriteTreeState {
                     fmt.open_property(group, name, user_assigned);
                     for (i, input) in info.inputs.iter().enumerate() {
                         let version = match input.kind {
-                            InputKind::Var | InputKind::StateVar => Some(args.var(i).last_update()),
+                            InputKind::Var => Some(args.var(i).last_update()),
                             _ => None,
                         };
                         let value = print_fmt::Diff {

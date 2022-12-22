@@ -1264,7 +1264,7 @@ mod util {
     use crate::{
         context::{StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
         property, ui_node,
-        var::{IntoValue, IntoVar, StateVar, Var},
+        var::{IntoValue, IntoVar, Var},
         widget_instance::UiNode,
     };
 
@@ -1450,8 +1450,11 @@ mod util {
 
     /// Test state property, state can be set using [`set_state`] followed by updating.
     #[property(CONTEXT)]
-    pub fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
-        IsStateNode { child, state }
+    pub fn is_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+        IsStateNode {
+            child,
+            state: state.into_var(),
+        }
     }
     /// Sets the [`is_state`] of a widget.
     ///
@@ -1466,13 +1469,13 @@ mod util {
 
     #[ui_node(struct IsStateNode {
         child: impl UiNode,
-        state: StateVar,
+        state: impl Var<bool>,
     })]
     impl IsStateNode {
         fn update_state(&mut self, ctx: &mut WidgetContext) {
             let wgt_state = ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default();
             if wgt_state != self.state.get() {
-                self.state.set(ctx.vars, wgt_state);
+                let _ = self.state.set(ctx.vars, wgt_state);
             }
         }
 

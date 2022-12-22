@@ -766,11 +766,6 @@ pub trait PropertyArgs: Send + Sync {
         panic_input(&self.property(), i, InputKind::Var)
     }
 
-    /// Gets a [`InputKind::StateVar`].
-    fn state_var(&self, i: usize) -> &StateVar {
-        panic_input(&self.property(), i, InputKind::StateVar)
-    }
-
     /// Gets a [`InputKind::Value`].
     fn value(&self, i: usize) -> &dyn AnyVarValue {
         panic_input(&self.property(), i, InputKind::Value)
@@ -864,7 +859,6 @@ impl dyn PropertyArgs + '_ {
                     .perm();
                 out_var.boxed()
             }
-            InputKind::StateVar => self.state_var(i).map_debug().boxed(),
             InputKind::Value => LocalVar(formatx!("{:?}", self.value(i))).boxed(),
             InputKind::UiNode => LocalVar(Text::from_static("<impl UiNode>")).boxed(),
             InputKind::UiNodeList => LocalVar(Text::from_static("<impl UiNodeList>")).boxed(),
@@ -877,10 +871,6 @@ impl dyn PropertyArgs + '_ {
         let p = self.property();
         match p.inputs[i].kind {
             InputKind::Var => formatx!("{:?}", self.var(i).get_any()),
-            InputKind::StateVar => match self.state_var(i).get() {
-                true => Text::from_static("true"),
-                false => Text::from_static("false"),
-            },
             InputKind::Value => formatx!("{:?}", self.value(i)),
             InputKind::UiNode => Text::from_static("<impl UiNode>"),
             InputKind::UiNodeList => Text::from_static("<impl UiNodeList>"),
@@ -902,7 +892,6 @@ impl dyn PropertyArgs + '_ {
         for (i, input) in p.inputs.iter().enumerate() {
             match input.kind {
                 InputKind::Var => args.push(self.var(i).clone_any().double_boxed_any()),
-                InputKind::StateVar => args.push(Box::new(self.state_var(i).clone())),
                 InputKind::Value => args.push(self.value(i).clone_boxed().into_any()),
                 InputKind::UiNode => args.push(Box::new(self.ui_node(i).clone())),
                 InputKind::UiNodeList => args.push(Box::new(self.ui_node_list(i).clone())),
@@ -2312,7 +2301,7 @@ impl WidgetBuilding {
                                 InputKind::WidgetHandler => {
                                     Box::new(AnyWhenArcWidgetHandlerBuilder::new(default_args.widget_handler(i).clone_boxed())) as _
                                 }
-                                InputKind::StateVar | InputKind::Value => panic!("can only assign vars in when blocks"),
+                                InputKind::Value => panic!("can only assign vars in when blocks"),
                             })
                             .collect(),
                         when_count: 0,
@@ -2343,7 +2332,7 @@ impl WidgetBuilding {
                             let handler = assign.widget_handler(i).clone_boxed();
                             entry.push(when.state.clone(), handler);
                         }
-                        InputKind::StateVar | InputKind::Value => panic!("cannot assign `StateVar`, `Value` in when blocks"),
+                        InputKind::Value => panic!("cannot assign `StateVar`, `Value` in when blocks"),
                     }
                 }
 
@@ -2393,9 +2382,8 @@ impl WidgetBuilding {
 
             let actual = match info.inputs[member_i].kind {
                 InputKind::Var => args.var(member_i).clone_any(),
-                InputKind::StateVar => args.state_var(member_i).clone_any(),
                 InputKind::Value => args.value(member_i).clone_boxed_var(),
-                _ => panic!("can only ref var, state-var or values in when expr"),
+                _ => panic!("can only ref var or values in when expr"),
             };
             input.var.set(actual);
         }
