@@ -372,11 +372,12 @@ impl FrameBuilder {
     /// If `reuse` is `Some` and the widget has been rendered before  and [`can_reuse`] allows reuse, the `render`
     /// closure is not called, an only a reference to the widget range in the previous frame is send.
     ///
-    /// If the widget [`is_collapsed`] during layout it is not rendered.
+    /// If the widget is collapsed during layout it is not rendered. See [`WidgetLayout::collapse`] for more details.
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
     /// [`can_reuse`]: Self::can_reuse
+    /// [`WidgetLayout::collapse`]: WidgetLayout::collapse
     pub fn push_widget(
         &mut self,
         ctx: &mut RenderContext,

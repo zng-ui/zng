@@ -378,18 +378,23 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// The most common type, accepts any value that can be converted [`IntoVar<T>`], usually the property defines the `T`, but it can be generic.
 /// The property node must respond to var updates. The input kind is [`InputKind::Var`]. No auto-default is generated for this type, property
-/// implementation should provide a default value that causes the property to behave as if it was present.
+/// implementation should provide a default value that causes the property to behave as if it was not set.
 ///
 /// Only properties with inputs exclusive of this kind can be assigned in `when` blocks. The inputs can also be read in `when` expressions.
-///
-/// #### `StateVar`
-///
-/// The [`StateVar`] is used to get a [`bool`] value from the widget. Usually properties that implement this have the `is_` prefix on their name
-/// and are only used in `when` expression. The input kind is [`InputKind::StateVar`]. An auto-default value is generated, it just instantiates
-/// a new `false` state var, unlike all other input kinds this is more of an *output*, the `is_state` properties ignore external changes to the var
-/// and set their value instead.
-///
-/// The input can be read in `when` expressions, but cannot be assigned in `when` blocks.
+/// 
+/// ##### Getter Properties
+/// 
+/// Most properties with var inputs are *setters*, that is the inputs configure an effect on the widget. But some properties
+/// can be *getters*, detecting widget state and setting it on the *input* variable. These properties are usually named with
+/// a prefix that indicates their input is actually for getting state, the prefixes `is_` and `has_` mark a property with
+/// a single `bool` input that reads a widget state, the prefix `get_` marks a property that reads a non-boolean state from
+/// the widget.
+/// 
+/// Getter properties are configured with a default read-write variable, so that they can be used in `when` expressions directly,
+/// for example, `when *#is_pressed`, the `is_pressed` property has a `default(var(false))`, so it automatically initializes 
+/// with a read-write variable that is used in the when condition. The property attribute tries to generate defaults automatically 
+/// based on the prefix, attempting to use a read-write var with the `T::default()`, this can be overwritten just by setting
+/// the default, but it enforces the requirement of a default, it is not possible to declare a `get_` property without default.
 ///
 /// #### `impl IntoValue<T>`
 ///
@@ -432,7 +437,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// The property output type must be any type that implements [`UiNode`], usually an opaque type `impl UiNode` is used. The property
 /// node can be anything, as long as it delegates to the child node, see [`ui_node`] about implementing a node. Some common
 /// property patterns have helpers functions, for example, to setup a context var you can use [`with_context_var`] function.
-///
+/// 
 /// # More Details
 ///
 /// See [`property_id!`] and [`property_args!`] for more details about what kind of meta-code is generated for properties.

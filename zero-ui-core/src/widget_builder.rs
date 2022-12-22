@@ -457,8 +457,6 @@ fn nest_group_spacing() {
 pub enum InputKind {
     /// Input is `impl IntoVar<T>`, build value is `BoxedVar<T>`.
     Var,
-    /// Input and build value is `StateVar`.
-    StateVar,
     /// Input is `impl IntoValue<T>`, build value is `T`.
     Value,
     /// Input is `impl UiNode`, build value is `ArcNode<BoxedUiNode>`.

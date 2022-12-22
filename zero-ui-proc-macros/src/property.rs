@@ -119,9 +119,18 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 let mut default = quote!();
                 for input in &inputs[1..] {
                     match input.kind {
-                        InputKind::StateVar => default.extend(quote! {
-                            #core::var::state_var(),
-                        }),
+                        InputKind::Var => {
+                            let ident = input.ident.to_string();
+                            if ident.starts_with("is_") || ident.starts_with("has_") {
+                                default.extend(quote! {
+                                    #core::var::state_var(),
+                                })
+                            } else if ident.starts_with("get_") {
+                                default.extend(quote! {
+                                    #core::var::getter_var(),
+                                })
+                            }
+                        }
                         InputKind::UiNode => default.extend(quote! {
                             #core::widget_instance::NilUiNode,
                         }),
@@ -164,7 +173,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         let mut input_info = quote!();
         let mut get_var = quote!();
-        let mut get_state = quote!();
         let mut get_value = quote!();
         let mut get_ui_node = quote!();
         let mut get_ui_node_list = quote!();
@@ -230,37 +238,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         pub fn #get_ident_i()
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
-                        }
-                    });
-                }
-                InputKind::StateVar => {
-                    allowed_in_when_assign = false;
-                    input_to_storage.push(quote! {
-                        #ident
-                    });
-                    get_var.extend(quote! {
-                        #i => &self.#ident,
-                    });
-                    get_state.extend(quote! {
-                        #i => &self.#ident,
-                    });
-                    instantiate.extend(quote! {
-                        std::clone::Clone::clone(&self.#ident),
-                    });
-                    input_new_dyn.push(quote! {
-                        let __actions__ = #core::widget_builder::iter_input_build_actions(&__args__.build_actions, &__args__.build_actions_when_data, #i);
-                        #core::widget_builder::new_dyn_other(&mut __inputs__, __actions__)
-                    });
-                    let get_ident = ident!("__w_{ident}__");
-                    let get_ident_i = ident!("__w_{i}__");
-                    get_when_input.extend(quote! {
-                        pub fn #get_ident()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<bool>) {
-                            #core::widget_builder::WhenInputVar::new::<bool>()
-                        }
-                        pub fn #get_ident_i()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<bool>) {
-                            #core::widget_builder::WhenInputVar::new::<bool>()
                         }
                     });
                 }
@@ -385,16 +362,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     match __index__ {
                         #get_var
                         n => #core::widget_builder::panic_input(&self.property(), n, #core::widget_builder::InputKind::Var),
-                    }
-                }
-            }
-        }
-        if !get_state.is_empty() {
-            get_state = quote! {
-                fn state_var(&self, __index__: usize) -> &#core::var::StateVar {
-                    match __index__ {
-                        #get_state
-                        n => #core::widget_builder::panic_input(&self.property(), n, #core::widget_builder::InputKind::StateVar),
                     }
                 }
             }
@@ -554,7 +521,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 #get_var
-                #get_state
                 #get_value
                 #get_ui_node
                 #get_ui_node_list
@@ -619,7 +585,6 @@ impl Parse for Default {
 #[derive(Clone, Copy)]
 enum InputKind {
     Var,
-    StateVar,
     Value,
     UiNode,
     WidgetHandler,
@@ -629,7 +594,6 @@ impl ToTokens for InputKind {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let kin = match self {
             InputKind::Var => ident!("Var"),
-            InputKind::StateVar => ident!("StateVar"),
             InputKind::Value => ident!("Value"),
             InputKind::UiNode => ident!("UiNode"),
             InputKind::WidgetHandler => ident!("WidgetHandler"),
@@ -748,14 +712,8 @@ impl Input {
                             }
                         }
                     }
-                    Type::Path(t) if t.path.segments.last().map(|s| s.ident == "StateVar").unwrap_or(false) => {
-                        input.kind = InputKind::StateVar;
-                        input.ty = quote_spanned!(t.span()=> #core::var::StateVar);
-                        input.info_ty = quote_spanned!(t.span()=> bool);
-                        input.storage_ty = input.ty.clone();
-                    }
                     t => {
-                        errors.push("property input can only have `impl OneTrait` or `StateVar` types", t.span());
+                        errors.push("property input can only have `impl OneTrait` types", t.span());
                     }
                 }
             }
