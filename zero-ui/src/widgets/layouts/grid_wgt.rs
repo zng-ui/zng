@@ -540,14 +540,7 @@ impl UiNode for GridNode {
         let mut has_leftover_rows = false;
 
         columns.for_each_mut(|ci, col| {
-            let col_kind = if fill_x.is_some() {
-                SizePropertyLength::get_wgt(col).width
-            } else {
-                // !!: CSS handles *leftover* columns by measuring then in AUTO, using the widest column as `1.lft()` and then
-                //     layout all *leftover* columns by this length.
-                //     See: https://www.w3.org/TR/css3-grid-layout/#fr-unit
-                SizePropertyLength::Default
-            };
+            let col_kind = SizePropertyLength::get_wgt(col).width;
 
             let col_info = &mut self.column_info[ci];
 
@@ -572,11 +565,7 @@ impl UiNode for GridNode {
             true
         });
         rows.for_each_mut(|ri, row| {
-            let row_kind = if fill_y.is_some() {
-                SizePropertyLength::get_wgt(row).height
-            } else {
-                SizePropertyLength::Default
-            };
+            let row_kind = SizePropertyLength::get_wgt(row).height;
 
             let row_info = &mut self.row_info[ri];
 
@@ -601,9 +590,11 @@ impl UiNode for GridNode {
             true
         });
 
-        // measure cells in DEFAULT columns&rows, collect widest/tallest as a negative length (neg marks partial DEFAULT)
+        // Measure cells when needed, collect widest/tallest.
+        //  - For `Default` columns&rows to get their size.
+        //  - For `leftover` columns&rows when the grid with no fill or exact size, to get the `1.lft()` length.
         let columns_len = self.column_info.len();
-        if has_default {
+        if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
             cells.for_each(|i, cell| {
                 let info = cell::CellInfo::get_wgt(cell);
                 if info.column_span > 1 || info.row_span > 1 {
@@ -614,8 +605,8 @@ impl UiNode for GridNode {
                 let col = &mut self.column_info[info.column];
                 let row = &mut self.row_info[info.row];
 
-                if col.meta.is_default() {
-                    if row.meta.is_default() {
+                if col.meta.is_default() || (fill_x.is_none() && col.meta.is_leftover().is_some()) {
+                    if row.meta.is_default() || (fill_y.is_none() && row.meta.is_leftover().is_some()) {
                         // (default, default)
                         let size = ctx
                             .as_measure()
@@ -662,7 +653,7 @@ impl UiNode for GridNode {
                 true
             });
 
-            // layout column&row widgets.
+            // layout `Default` column&row widgets.
             let view_columns_len = columns.len();
             for (i, col) in self.column_info.iter_mut().enumerate() {
                 if col.meta.is_default() {
@@ -699,20 +690,27 @@ impl UiNode for GridNode {
 
         // distribute leftover grid space to columns
         if has_leftover_cols {
-            let mut leftover_width = fill_x.unwrap(); // relative is converted to auto if not fill (!!: TODO may change this).
+            let mut no_fill_1_lft = Px(0);
+            let mut used_width = Px(0);
             let mut total_factor = Factor(0.0);
             let mut leftover_count = 0;
             let mut max_factor = 0.0_f32;
 
-            for col in &self.column_info {
-                if col.width > Px(0) {
-                    leftover_width -= col.width;
-                } else if let Some(f) = col.meta.is_leftover() {
+            for col in &mut self.column_info {
+                if let Some(f) = col.meta.is_leftover() {
+                    if fill_x.is_none() {
+                        no_fill_1_lft = no_fill_1_lft.max(col.width);
+                        col.width = Px::MIN;
+                    }
                     max_factor = max_factor.max(f.0);
                     total_factor += f;
                     leftover_count += 1;
+                } else if col.width > Px(0) {
+                    used_width += col.width;
                 }
             }
+
+            // handle big leftover factors
             if total_factor.0.is_infinite() {
                 total_factor = Factor(0.0);
 
@@ -741,16 +739,30 @@ impl UiNode for GridNode {
                 }
             }
 
-            leftover_width -= spacing.column * Px((self.column_info.len() - 1) as i32);
-            leftover_width = leftover_width.max(Px(0));
-
+            // individual factors under `1.0` behave like `Length::Relative`.
             if total_factor < Factor(1.0) {
                 total_factor = Factor(1.0);
             }
 
+            let mut leftover_width = if let Some(w) = fill_x {
+                (w - used_width).max(Px(0))
+            } else {
+                // grid has no width, so `1.lft()` is defined by the widest cell measured using `Default` constrains.
+                let mut unbounded_width = used_width;
+                for col in &self.column_info {
+                    if let Some(f) = col.meta.is_leftover() {
+                        unbounded_width += no_fill_1_lft * f;
+                    }
+                }
+                let bounded_width = constrains.x.clamp(unbounded_width);
+                (bounded_width - used_width).max(Px(0))
+            };
+            // !!: spacing already removed?
+            leftover_width = leftover_width.max(Px(0));
+
             let view_columns_len = columns.len();
 
-            // find extra leftover space from leftover that can't fully fill their requested leftover length.
+            // find extra leftover space from columns that can't fully fill their requested leftover length.
             let mut settled_all = false;
             while !settled_all && leftover_width > Px(0) {
                 settled_all = true;
@@ -819,20 +831,27 @@ impl UiNode for GridNode {
         }
         // distribute leftover grid space to rows
         if has_leftover_rows {
-            let mut leftover_height = fill_y.unwrap(); // relative is converted to auto if not fill (!!: TODO may change this).
+            let mut no_fill_1_lft = Px(0);
+            let mut used_height = Px(0);
             let mut total_factor = Factor(0.0);
             let mut leftover_count = 0;
             let mut max_factor = 0.0_f32;
 
-            for row in &self.row_info {
-                if row.height > Px(0) {
-                    leftover_height -= row.height;
-                } else if let Some(f) = row.meta.is_leftover() {
+            for row in &mut self.row_info {
+                if let Some(f) = row.meta.is_leftover() {
+                    if fill_y.is_none() {
+                        no_fill_1_lft = no_fill_1_lft.max(row.height);
+                        row.height = Px::MIN;
+                    }
                     max_factor = max_factor.max(f.0);
                     total_factor += f;
                     leftover_count += 1;
+                } else if row.height > Px(0) {
+                    used_height += row.height;
                 }
             }
+
+            // handle big leftover factors
             if total_factor.0.is_infinite() {
                 total_factor = Factor(0.0);
 
@@ -860,6 +879,27 @@ impl UiNode for GridNode {
                     }
                 }
             }
+
+            // individual factors under `1.0` behave like `Length::Relative`.
+            if total_factor < Factor(1.0) {
+                total_factor = Factor(1.0);
+            }
+
+            let mut leftover_height = if let Some(h) = fill_y {
+                (h - used_height).max(Px(0))
+            } else {
+                // grid has no height, so `1.lft()` is defined by the tallest cell measured using `Default` constrains.
+                let mut unbounded_height = used_height;
+                for col in &self.column_info {
+                    if let Some(f) = col.meta.is_leftover() {
+                        unbounded_height += no_fill_1_lft * f;
+                    }
+                }
+                let bounded_height = constrains.x.clamp(unbounded_height);
+                (bounded_height - used_height).max(Px(0))
+            };
+            // !!: spacing already removed?
+            leftover_height = leftover_height.max(Px(0));
 
             let view_rows_len = rows.len();
 
