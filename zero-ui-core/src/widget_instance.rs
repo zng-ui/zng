@@ -488,7 +488,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Render all nodes.
     ///
     /// The correct functionality of some list implementations depend on this call, using [`for_each`] to render nodes can
-    /// break then, for example, the [`ZSortingList`] render nodes in a different order.
+    /// break it, for example, the [`ZSortingList`] render nodes in a different order.
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -501,7 +501,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Render all nodes.
     ///
     /// The correct functionality of some list implementations depend on this call, using [`for_each`] to render nodes can
-    /// break then, for example, the [`ZSortingList`] render nodes in a different order.
+    /// break it, for example, the [`ZSortingList`] render nodes in a different order.
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {

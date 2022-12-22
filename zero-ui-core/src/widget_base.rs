@@ -868,7 +868,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             match self.visibility.get() {
                 Visibility::Visible => self.child.render(ctx, frame),
                 Visibility::Hidden => frame.hide(|frame| self.child.render(ctx, frame)),
-                Visibility::Collapsed => frame.collapse(ctx.info_tree),
+                Visibility::Collapsed => unreachable!("collapsed rendered"),
             }
         }
 
@@ -876,7 +876,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             match self.visibility.get() {
                 Visibility::Visible => self.child.render_update(ctx, update),
                 Visibility::Hidden => update.hidden(|update| self.child.render_update(ctx, update)),
-                Visibility::Collapsed => {}
+                Visibility::Collapsed => unreachable!("collapsed rendered"),
             }
         }
     }

@@ -1031,6 +1031,10 @@ impl UiNode for GridNode {
 
         constrains.fill_size_or(grid_size)
     }
+
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.children.render_all(ctx, frame);
+    }
 }
 
 /// Arguments for [`grid::auto_grow_view`].

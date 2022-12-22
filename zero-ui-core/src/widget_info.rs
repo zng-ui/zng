@@ -338,6 +338,7 @@ struct WidgetBoundsData {
     is_in_bounds: Option<bool>,
     is_partially_culled: bool,
     cannot_auto_hide: bool,
+    is_collapsed: bool,
 }
 
 /// Info abound the last time a widget was rendered.
@@ -612,6 +613,11 @@ impl WidgetBoundsInfo {
         self.0.lock().inner_bounds
     }
 
+    /// If the widget and descendants was collapsed during layout.
+    pub fn is_collapsed(&self) -> bool {
+        self.0.lock().is_collapsed
+    }
+
     /// Last layout pass that updated the offsets or any of the descendant offsets.
     ///
     /// The version is different every time any of the offsets on the widget or descendants changes after a layout update.
@@ -746,7 +752,15 @@ impl WidgetBoundsInfo {
     }
 
     fn set_outer_size(&self, size: PxSize) {
-        self.0.lock().outer_size = size;
+        let mut s = self.0.lock();
+        if !size.is_empty() {
+            s.is_collapsed = false;
+        }
+        s.outer_size = size;
+    }
+
+    fn set_is_collapsed(&self, collapsed: bool) {
+        self.0.lock().is_collapsed = collapsed;
     }
 
     fn set_inline(&self, inline: Option<InlineLayout>) {

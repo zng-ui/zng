@@ -751,6 +751,8 @@ impl WidgetLayout {
     /// the the size, ignoring the min-size constrains, and call this method to update all the descendant
     /// bounds information to be a zero-sized point.
     ///
+    /// Note that the widget will automatically not be rendered when collapsed.
+    ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self, ctx: &mut LayoutContext) {
         self.finish_known();
@@ -770,6 +772,7 @@ impl WidgetLayout {
                 info.bounds_info.set_child_offset(PxVector::zero());
                 info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_metrics(None, LayoutMask::NONE);
+                info.bounds_info.set_is_collapsed(true);
             }
         } else {
             tracing::error!("collapse did not find `{}` in the info tree", widget_id)
@@ -780,6 +783,10 @@ impl WidgetLayout {
     ///
     /// Widgets that control the visibility of their children can use this method and then, in the same layout pass, layout
     /// the children that should be visible.
+    ///
+    /// Note that the widgets will automatically not be rendered when collapsed.
+    ///
+    /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse_descendants(&mut self, ctx: &mut LayoutContext) {
         let widget_id = ctx.path.widget_id();
         if let Some(w) = ctx.info_tree.get(widget_id) {
@@ -795,6 +802,7 @@ impl WidgetLayout {
                 info.bounds_info.set_child_offset(PxVector::zero());
                 info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_metrics(None, LayoutMask::NONE);
+                info.bounds_info.set_is_collapsed(true);
             }
         } else {
             tracing::error!("collapse_descendants did not find `{}` in the info tree", widget_id)
@@ -805,11 +813,15 @@ impl WidgetLayout {
     ///
     /// Widgets that control the visibility of their children can use this method and then, in the same layout pass, layout
     /// the children that should be visible.
+    ///
+    /// Note that the widgets will automatically not be rendered when collapsed.
+    ///
+    /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse_child(&mut self, ctx: &mut LayoutContext, index: usize) {
         let widget_id = ctx.path.widget_id();
         if let Some(w) = ctx.info_tree.get(widget_id) {
             if let Some(w) = w.children().nth(index) {
-                for w in w.descendants() {
+                for w in w.self_and_descendants() {
                     let info = w.info();
                     info.bounds_info.set_outer_size(PxSize::zero());
                     info.bounds_info.set_inner_size(PxSize::zero());
@@ -821,6 +833,7 @@ impl WidgetLayout {
                     info.bounds_info.set_child_offset(PxVector::zero());
                     info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
                     info.bounds_info.set_metrics(None, LayoutMask::NONE);
+                    info.bounds_info.set_is_collapsed(true);
                 }
             } else {
                 tracing::error!(

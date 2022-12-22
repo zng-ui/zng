@@ -122,13 +122,6 @@ macro_rules! expect_inner {
         }
     };
 }
-macro_rules! expect_outer {
-    ($self:ident.$fn_name:ident) => {
-        if $self.is_inner() {
-            tracing::error!("called `{}` in inner context of `{}`", stringify!($fn_name), $self.widget_id);
-        }
-    };
-}
 
 struct WidgetData {
     has_transform: bool,
@@ -153,7 +146,6 @@ pub struct FrameBuilder {
 
     hit_testable: bool,
     visible: bool,
-    collapsed: bool,
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
@@ -238,7 +230,6 @@ impl FrameBuilder {
             can_reuse: true,
             open_reuse: None,
             auto_hide_rect,
-            collapsed: false,
 
             render_index: ZIndex(0),
 
@@ -381,6 +372,8 @@ impl FrameBuilder {
     /// If `reuse` is `Some` and the widget has been rendered before  and [`can_reuse`] allows reuse, the `render`
     /// closure is not called, an only a reference to the widget range in the previous frame is send.
     ///
+    /// If the widget [`is_collapsed`] during layout it is not rendered.
+    ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
     /// [`can_reuse`]: Self::can_reuse
@@ -396,6 +389,14 @@ impl FrameBuilder {
                 ctx.path.widget_id(),
                 self.widget_id
             );
+        }
+
+        if ctx.widget_info.bounds.is_collapsed() {
+            // collapse
+            for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                info.bounds_info().set_rendered(None, ctx.info_tree);
+            }
+            return;
         }
 
         let prev_outer = ctx.widget_info.bounds.outer_transform();
@@ -579,7 +580,7 @@ impl FrameBuilder {
 
             // increment by reused
             self.render_index = ctx.widget_info.bounds.rendered().map(|i| i.front).unwrap_or(self.render_index);
-        } else if !mem::take(&mut self.collapsed) {
+        } else {
             // if did not reuse and rendered
             ctx.widget_info.bounds.set_rendered(
                 Some(WidgetRenderInfo {
@@ -650,49 +651,17 @@ impl FrameBuilder {
     ///
     /// Nodes that set the visibility to [`Hidden`] must render using this method and update using the [`FrameUpdate::hidden`] method.
     ///
+    /// Note that for [`Collapsed`] the widget is automatically not rendered if [`WidgetLayout::collapse`] or other related
+    /// collapse method was already called for it.
+    ///
     /// [`is_visible`]: Self::is_visible
     /// [`Hidden`]: crate::widget_info::Visibility::Hidden
+    /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
+    /// [`WidgetLayout::collapse`]: crate::widget_info::WidgetLayout::collapse
     pub fn hide(&mut self, render: impl FnOnce(&mut Self)) {
         let parent_visible = mem::replace(&mut self.visible, false);
         render(self);
         self.visible = parent_visible;
-    }
-
-    /// Don't render the current widget and descendants and collapse bounds.
-    ///
-    /// Nodes that set the visibility to [`Collapsed`] must not call `render` and `render_update` for the child
-    /// nodes, and instead call this method to update self and descendants to the not rendered collapsed state.
-    ///
-    /// [`Collapsed`]: crate::widget_info::Visibility::Hidden
-    pub fn collapse(&mut self, info_tree: &WidgetInfoTree) {
-        expect_outer!(self.collapse);
-
-        if !self.collapsed {
-            self.collapsed = true;
-
-            if let Some(w) = info_tree.get(self.widget_id) {
-                for w in w.self_and_descendants() {
-                    w.bounds_info().set_rendered(None, info_tree);
-                }
-            } else {
-                tracing::error!("collapse did not find widget `{}` in info tree", self.widget_id)
-            }
-        }
-    }
-
-    /// Like [`collapse`], but only updates the descendant nodes to the collapsed state.
-    ///
-    /// [`collapse`]: Self::collapse
-    pub fn collapse_descendants(&mut self, info_tree: &WidgetInfoTree) {
-        if !self.collapsed {
-            if let Some(w) = info_tree.get(self.widget_id) {
-                for w in w.descendants() {
-                    w.bounds_info().set_rendered(None, info_tree);
-                }
-            } else {
-                tracing::error!("collapse_descendants did not find widget `{}` in info tree", self.widget_id)
-            }
-        }
     }
 
     /// Returns `true`  if the widget stacking context is still being build.

@@ -268,6 +268,7 @@ impl WindowLayers {
                     }
                 }
 
+                // no visible mode match
                 wl.collapse(ctx);
                 PxSize::zero()
             }
@@ -334,11 +335,8 @@ impl WindowLayers {
                             ),
                             _ => self.widget.render(ctx, frame),
                         }
-                        return;
                     }
                 }
-
-                frame.collapse(ctx.info_tree);
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {

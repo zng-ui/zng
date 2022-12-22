@@ -1,6 +1,6 @@
 use crate::prelude::new_widget::*;
 
-use std::{cell::Cell, mem};
+use std::mem;
 
 /// Switch visibility of children nodes using an index variable.
 ///
@@ -24,7 +24,6 @@ pub mod switch {
         index: I,
         options: W,
         collapse: bool,
-        render_collapse_once: Cell<bool>,
     }
     #[ui_node(
         delegate_list = &self.options,
@@ -80,7 +79,6 @@ pub mod switch {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if mem::take(&mut self.collapse) {
                 wl.collapse_descendants(ctx);
-                *self.render_collapse_once.get_mut() = true;
             }
 
             let index = self.index.get();
@@ -92,9 +90,6 @@ pub mod switch {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if self.render_collapse_once.take() {
-                frame.collapse_descendants(ctx.info_tree);
-            }
             let index = self.index.get();
             if index < self.options.len() {
                 self.options.with_node(index, |n| n.render(ctx, frame))
@@ -117,7 +112,6 @@ pub mod switch {
             index,
             options,
             collapse: true,
-            render_collapse_once: Cell::new(true),
         }
         .cfg_boxed()
     }
