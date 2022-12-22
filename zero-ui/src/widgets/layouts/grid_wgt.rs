@@ -997,11 +997,12 @@ impl UiNode for GridNode {
         let grid_size = PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0)));
 
         // layout and translate cells
+        let cells_offset = columns.len() + rows.len();
         cells.for_each_mut(|i, cell| {
             let info = cell::CellInfo::get_wgt(cell).actual(i, columns_len);
 
             if info.column >= self.column_info.len() || info.row >= self.row_info.len() {
-                wl.collapse_child(ctx, i);
+                wl.collapse_child(ctx, cells_offset + i);
                 return true;
             }
 
@@ -1019,7 +1020,7 @@ impl UiNode for GridNode {
             cell_size.height -= spacing.row;
 
             if cell_size.is_empty() {
-                wl.collapse_child(ctx, i);
+                wl.collapse_child(ctx, cells_offset + i);
                 return true;
             }
 
