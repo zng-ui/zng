@@ -763,7 +763,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 }
 
 fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> impl UiNode {
-    event_state(child, state, true, WIDGET_INFO_CHANGED_EVENT, move |ctx, _| {
+    event_is_state(child, state, true, WIDGET_INFO_CHANGED_EVENT, move |ctx, _| {
         let is_enabled = ctx
             .info_tree
             .get(ctx.path.widget_id())
@@ -888,7 +888,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 }
 
 fn visibility_eq_state(child: impl UiNode, state: StateVar, expected: Visibility) -> impl UiNode {
-    event_state(
+    event_is_state(
         child,
         state,
         expected == Visibility::Visible,
@@ -1053,7 +1053,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 /// [`hit_test_mode`]: fn@hit_test_mode
 #[property(EVENT)]
 pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
-    bind_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
+    bind_is_state(child, HIT_TEST_MODE_VAR.map(|m| m.is_hit_testable()), state)
 }
 
 /// Sets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].

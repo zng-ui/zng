@@ -10,7 +10,7 @@ use crate::prelude::new_property::*;
 /// [`DISABLED`]: Interactivity::DISABLED
 #[property(CONTEXT)]
 pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
+    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_disabled(ctx.path) {
             Some(true)
         } else if args.is_mouse_leave_disabled(ctx.path) {
@@ -33,7 +33,7 @@ pub fn is_hovered_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_hovered_disabled`]: fn@is_hovered_disabled
 #[property(CONTEXT)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
+    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
         if args.is_mouse_enter_enabled(ctx.path) {
             Some(true)
         } else if args.is_mouse_leave_enabled(ctx.path) {
@@ -51,7 +51,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(CONTEXT)]
 pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state2(
+    event_is_state2(
         child,
         state,
         false,
@@ -95,7 +95,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 #[property(CONTEXT)]
 pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state2(
+    event_is_state2(
         child,
         state,
         false,
@@ -135,7 +135,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(CONTEXT)]
 pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
-    event_state2(
+    event_is_state2(
         child,
         state,
         false,
@@ -246,7 +246,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     let shortcut_pressed = state_var();
     let child = is_shortcut_pressed(child, shortcut_pressed.clone());
 
-    bind_state(child, merge_var!(pointer_pressed, shortcut_pressed, |&p, &s| p || s), state)
+    bind_is_state(child, merge_var!(pointer_pressed, shortcut_pressed, |&p, &s| p || s), state)
 }
 
 /// If [`is_cap_pointer_pressed`] or [`is_shortcut_pressed`].
@@ -261,7 +261,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     let shortcut_pressed = state_var();
     let child = is_shortcut_pressed(child, shortcut_pressed.clone());
 
-    bind_state(child, merge_var!(pointer_pressed, shortcut_pressed, |&p, &s| p || s), state)
+    bind_is_state(child, merge_var!(pointer_pressed, shortcut_pressed, |&p, &s| p || s), state)
 }
 
 #[doc(no_inline)]

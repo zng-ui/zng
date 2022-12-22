@@ -259,13 +259,13 @@ pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>)
 /// If the [`CONTEXT_IMAGE_VAR`] is an error.
 #[property(LAYOUT)]
 pub fn is_error(child: impl UiNode, state: StateVar) -> impl UiNode {
-    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
+    bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] is a successfully loaded image.
 #[property(LAYOUT)]
 pub fn is_loaded(child: impl UiNode, state: StateVar) -> impl UiNode {
-    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
+    bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
 }
 
 /// Sets the [view generator] that is used to create a content for the error message.

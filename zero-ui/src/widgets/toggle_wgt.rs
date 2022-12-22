@@ -248,7 +248,7 @@ pub mod toggle_properties {
     /// [`value`]: fn@value.
     #[property(EVENT)]
     pub fn is_checked(child: impl UiNode, state: StateVar) -> impl UiNode {
-        bind_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
+        bind_is_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
     }
 
     /// Values that is selected in the contextual [`selector`].

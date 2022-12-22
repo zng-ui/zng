@@ -15,7 +15,7 @@ pub fn state_var() -> StateVar {
 pub type StateVar = ArcVar<bool>;
 
 /// Helper for declaring state properties that depend on a single event.
-pub fn event_state<A: EventArgs>(
+pub fn event_is_state<A: EventArgs>(
     child: impl UiNode,
     state: StateVar,
     default: bool,
@@ -60,7 +60,7 @@ pub fn event_state<A: EventArgs>(
 
 /// Helper for declaring state properties that depend on two other event states.
 #[allow(clippy::too_many_arguments)]
-pub fn event_state2<A0: EventArgs, A1: EventArgs>(
+pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
     child: impl UiNode,
     state: StateVar,
     default: bool,
@@ -139,7 +139,7 @@ pub fn event_state2<A0: EventArgs, A1: EventArgs>(
 
 /// Helper for declaring state properties that depend on tree other event states.
 #[allow(clippy::too_many_arguments)]
-pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
+pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     child: impl UiNode,
     state: StateVar,
     default: bool,
@@ -234,7 +234,7 @@ pub fn event_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
 ///
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
 /// that merge other state properties.
-pub fn bind_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVar) -> impl UiNode {
+pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVar) -> impl UiNode {
     #[ui_node(struct BindStateNode {
         child: impl UiNode,
         source: impl Var<bool>,
@@ -260,4 +260,38 @@ pub fn bind_state(child: impl UiNode, source: impl IntoVar<bool>, state: StateVa
         binding: VarHandle::dummy(),
     }
     .cfg_boxed()
+}
+
+/// Helper for declaring state properties that are controlled by values in the widget state map.
+///
+/// The `predicate` closure is called with the widget state every update.
+pub fn widget_state_is_state(
+    child: impl UiNode,
+    predicate: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
+    state: StateVar,
+) -> impl UiNode {
+    #[ui_node(struct BindWidgetStateNode {
+        child: impl UiNode,
+        state: StateVar,
+        predicate: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
+    })]
+    impl UiNode for BindWidgetStateNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+            self.state.set_ne(ctx.vars, (self.predicate)(ctx.widget_state.as_ref()));
+        }
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            self.state.set_ne(ctx.vars, (self.predicate)(ctx.widget_state.as_ref()));
+        }
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
+            self.state.set_ne(ctx.vars, (self.predicate)(ctx.widget_state.as_ref()));
+        }
+    }
+    BindWidgetStateNode {
+        child: child.cfg_boxed(),
+        state,
+        predicate,
+    }
 }

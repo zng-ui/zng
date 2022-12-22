@@ -117,17 +117,28 @@ pub mod column {
 
     pub use crate::properties::{max_width, min_width, width};
 
-    // !!: what we need
-    //    - Widget state is perfect to communicate the index.
-    //    - Except we want the `INDEX_VAR` for custom `when` conditions.
-    //    - We need a "state" property that takes on different values.
-    //    - Was there not something about `get_` prefix?
-    //        - Not in TODO anymore, idea was to have `get_index(impl UiNode, ArcVar<usize>) -> impl UiNode`.
-    //        - The prefix `get_` signals the same kind of thing the `is_` prefix does.
-    //        - Default required?
-
     /// Column index in the parent widget set by the parent.
     pub(super) static INDEX_ID: StaticStateId<usize> = StaticStateId::new_unique();
+
+    /// If the column index is even.
+    ///
+    /// Column index is zero-based, so the first column is even, the next [`is_odd`].
+    ///
+    /// [`is_odd`]: fn@is_odd
+    #[property(CONTEXT)]
+    pub fn is_even(child: impl UiNode, state: StateVar) -> impl UiNode {
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 == 0, state)
+    }
+
+    /// If the column index is odd.
+    ///
+    /// Column index is zero-based, so the first column [`is_even`], the next one is odd.
+    ///
+    /// [`is_even`]: fn@is_even
+    #[property(CONTEXT)]
+    pub fn is_odd(child: impl UiNode, state: StateVar) -> impl UiNode {
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
+    }
 }
 
 /// Grid row definition.
@@ -148,6 +159,26 @@ pub mod row {
 
     /// Row index in the parent widget set by the parent.
     pub(super) static INDEX_ID: StaticStateId<usize> = StaticStateId::new_unique();
+
+    /// If the row index is even.
+    ///
+    /// Row index is zero-based, so the first row is even, the next [`is_odd`].
+    ///
+    /// [`is_odd`]: fn@is_odd
+    #[property(CONTEXT)]
+    pub fn is_even(child: impl UiNode, state: StateVar) -> impl UiNode {
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 == 0, state)
+    }
+
+    /// If the row index is odd.
+    ///
+    /// Row index is zero-based, so the first row [`is_even`], the next one is odd.
+    ///
+    /// [`is_even`]: fn@is_even
+    #[property(CONTEXT)]
+    pub fn is_odd(child: impl UiNode, state: StateVar) -> impl UiNode {
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
+    }
 }
 
 /// Grid cell container.
