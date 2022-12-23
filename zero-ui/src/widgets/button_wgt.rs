@@ -19,7 +19,7 @@ pub mod button {
         ///
         /// ```
         /// # use zero_ui::prelude::*;
-        /// # let _scope = App::blank();
+        /// # let _scope = App::minimal();
         /// #
         /// button! {
         ///     on_click = hn!(|ctx, args: &ClickArgs| {

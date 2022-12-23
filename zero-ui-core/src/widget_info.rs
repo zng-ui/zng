@@ -151,7 +151,7 @@ impl PartialEq for WidgetInfoTree {
 impl Eq for WidgetInfoTree {}
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
-    pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
+    pub fn wgt(window_id: WindowId, root_id: WidgetId) -> Self {
         WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), 1.fct(), None)
             .finalize()
             .0

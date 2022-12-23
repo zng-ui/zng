@@ -537,13 +537,13 @@ event! {
 /// A view-process must be initialized before creating an app. Panics on `run` if there is
 /// not view-process, also panics if the current process is executing as a view-process.
 ///
-/// [`blank`]: App::blank
+/// [`minimal`]: App::minimal
 /// [`default`]: App::default
 pub struct App;
 impl App {
     /// If an app is already running in the current thread.
     ///
-    /// An app is *running* as soon as it starts building ([`App::blank`], [`App::default`]), and it stops running after
+    /// An app is *running* as soon as it starts building ([`App::minimal`], [`App::default`]), and it stops running after
     /// [`AppExtended::run`] returns or the [`HeadlessApp`] is dropped.
     ///
     /// You can use [`app_local!`] to create *static* resources that live for the app lifetime.
@@ -626,7 +626,7 @@ fn check_deadlock() {}
 #[cfg(not(dyn_app_extension))]
 impl App {
     /// Application without any extension.
-    pub fn blank() -> AppExtended<()> {
+    pub fn minimal() -> AppExtended<()> {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
@@ -655,7 +655,7 @@ impl App {
     /// * [`ImageManager`]
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<impl AppExtension> {
-        App::blank()
+        App::minimal()
             .extend(ConfigManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
@@ -672,7 +672,7 @@ impl App {
 #[cfg(dyn_app_extension)]
 impl App {
     /// Application without any extension and without device events.
-    pub fn blank() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+    pub fn minimal() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
@@ -701,7 +701,7 @@ impl App {
     /// * [`ImageManager`]
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        App::blank()
+        App::minimal()
             .extend(ConfigManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
@@ -2409,7 +2409,7 @@ mod headless_tests {
 
     #[test]
     fn new_empty() {
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
         let cf = app.update(false);
         assert_eq!(cf, ControlFlow::Wait);
     }

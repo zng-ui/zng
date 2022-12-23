@@ -1,14 +1,14 @@
 use zero_ui::properties::states::is_pressed;
-use zero_ui::widgets::blank;
+use zero_ui::widgets::wgt;
 
 fn test_1() {
-    let _ = blank! {
+    let _ = wgt! {
         =
     };
 }
 
 fn test_2() {
-    let _ = blank! {
+    let _ = wgt! {
         when *#is_pressed {
             =
         }
@@ -16,7 +16,7 @@ fn test_2() {
 }
 
 fn main() {
-    let _scope = zero_ui::core::app::App::blank();
+    let _scope = zero_ui::core::app::App::minimal();
     test_1();
     test_2();
 }

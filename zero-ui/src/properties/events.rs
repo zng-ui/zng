@@ -24,7 +24,7 @@
 //! ```
 //! use zero_ui::prelude::*;
 //!
-//! let _app = App::blank();
+//! let _app = App::minimal();
 //!
 //! let txt = var_from("Click Me!");
 //! let btn = button! {
@@ -40,7 +40,7 @@
 //! ```
 //! use zero_ui::prelude::*;
 //!
-//! let _app = App::blank();
+//! let _app = App::minimal();
 //!
 //! let enabled = var(true);
 //! let btn = button! {

@@ -57,7 +57,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
 
         a.bind_map(&b, |a| a.to_text()).perm();
 
@@ -102,7 +102,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
 
         a.bind_map_bidi(&b, |a| a.to_text(), |b| b.parse().unwrap()).perm();
 
@@ -147,7 +147,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
 
         a.bind_filter_map(&b, |a| if *a == 13 { None } else { Some(a.to_text()) }).perm();
 
@@ -193,7 +193,7 @@ mod bindings {
         let a = var(10);
         let b = var("".to_text());
 
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
 
         a.bind_filter_map_bidi(&b, |a| Some(a.to_text()), |b| b.parse().ok()).perm();
 
@@ -254,7 +254,7 @@ mod bindings {
         let c = var(0);
         let d = var(0);
 
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
 
         a.bind_map(&b, |a| *a + 1).perm();
         b.bind_map(&c, |b| *b + 1).perm();
@@ -309,7 +309,7 @@ mod bindings {
         let c = var(0);
         let d = var(0);
 
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
 
         a.bind_bidi(&b).perm();
         b.bind_bidi(&c).perm();
@@ -362,7 +362,7 @@ mod bindings {
         let a = var(1);
         let b = var(1);
 
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
 
         let handle = a.bind_map(&b, |i| *i + 1);
 
@@ -607,7 +607,7 @@ mod context {
 
     #[test]
     fn context_var_map_moved_app_ctx() {
-        let _app = App::blank();
+        let _app = App::minimal();
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         let (_, a) = TEST_VAR.with_context(ContextInitHandle::new(), "A", || mapped.get());
@@ -690,7 +690,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_when1() {
-        let _scope = App::blank();
+        let _scope = App::minimal();
 
         let var = when_var! {
             false => var("hello".to_text()),
@@ -704,7 +704,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_when2() {
-        let _scope = App::blank();
+        let _scope = App::minimal();
 
         let var = when_var! {
             true => TEST_VAR,
@@ -718,7 +718,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_issue_when_any() {
-        let _scope = App::blank();
+        let _scope = App::minimal();
 
         let mut var = AnyWhenVarBuilder::new(TEST_VAR);
         var.push(self::var(false), self::var("hello".to_text()));
@@ -731,7 +731,7 @@ mod context {
 
     #[test]
     fn context_var_recursion_merge() {
-        let _scope = App::blank();
+        let _scope = App::minimal();
 
         let var = merge_var!(TEST_VAR, var(true), |t, _| t.clone());
 

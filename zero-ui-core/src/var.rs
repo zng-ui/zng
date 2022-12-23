@@ -666,22 +666,22 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     // ...
 ///     # child
 /// }
-/// # #[widget($crate::blank)]
-/// # mod blank { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::wgt)]
+/// # mod wgt { inherit!(zero_ui_core::widget_base::base); }
 /// # fn main() {
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// // shorthand #1:
-/// let wgt = blank! {
+/// let w = wgt! {
 ///     size = (800, 600);
 /// };
 ///
 /// // shorthand #2:
-/// let wgt = blank! {
+/// let w = wgt! {
 ///     size = (800.1, 600.2);
 /// };
 ///
-/// // blanket impl:
-/// let wgt = blank! {
+/// // full:
+/// let w = wgt! {
 ///     size = Size { width: 800.0, height: 600.0 };
 /// };
 /// # }
@@ -714,23 +714,23 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     FooNode { child, bar: bar.into_var() }
 /// }
 ///
-/// # #[widget($crate::blank)]
-/// # pub mod blank { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::wgt)]
+/// # pub mod wgt { inherit!(zero_ui_core::widget_base::base); }
 /// # fn main() {
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// // literal assign:
-/// let wgt = blank! {
+/// let wgt = wgt! {
 ///     foo = 42;
 /// };
 ///
 /// // variable assign:
 /// let variable = var(42);
-/// let wgt = blank! {
+/// let wgt = wgt! {
 ///     foo = variable;
 /// };
 ///
 /// // widget when:
-/// let wgt = blank! {
+/// let wgt = wgt! {
 ///     foo = 42;
 ///
 ///     when !*#enabled {

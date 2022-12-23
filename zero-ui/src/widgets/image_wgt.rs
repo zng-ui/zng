@@ -52,7 +52,7 @@ pub mod image {
 /// ```
 /// # use zero_ui::prelude::*;
 /// # use zero_ui::widgets::image::*;
-/// # let _scope = App::blank();
+/// # let _scope = App::minimal();
 /// #
 /// # let _ =
 /// button! {

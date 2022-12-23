@@ -1475,7 +1475,7 @@ impl ContentCtrl {
             root_state: OwnedStateMap::new(),
             root: window.child,
 
-            info_tree: WidgetInfoTree::blank(window_id, window.id),
+            info_tree: WidgetInfoTree::wgt(window_id, window.id),
             root_info: WidgetContextInfo::new(),
             used_info_builder: None,
             root_var_handles: VarHandles::default(),

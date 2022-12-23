@@ -1,6 +1,6 @@
 ///<span data-del-macro-root></span> Implements `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` without boilerplate.
 ///
-/// Unfortunately we cannot provide a blanket impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
+/// Unfortunately we cannot provide a wgtet impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
 /// that would block all manual implementations of the trait, so you need to implement then manually to
 /// enable the easy-to-use properties that are expected.
 ///

@@ -150,7 +150,7 @@ pub mod column {
     ///
     /// ```
     /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
-    /// #
+    /// # let _scope = zero_ui::core::app::App::minimal();
     /// # let _ =
     /// grid::column! {
     ///     background_color = colors::GRAY;    
@@ -247,7 +247,7 @@ pub mod row {
     ///
     /// ```
     /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
-    /// #
+    /// # let _scope = zero_ui::core::app::App::minimal();
     /// # let _ =
     /// grid::row! {
     ///     background_color = colors::GRAY;    

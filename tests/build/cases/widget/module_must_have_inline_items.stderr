@@ -1,5 +1,5 @@
 error[E0658]: non-inline modules in proc macro input are unstable
- --> $DIR/module_must_have_inline_items.rs:5:1
+ --> cases/widget/module_must_have_inline_items.rs:5:1
   |
 5 | pub mod test_widget;
   | ^^^^^^^^^^^^^^^^^^^^
@@ -7,7 +7,7 @@ error[E0658]: non-inline modules in proc macro input are unstable
   = note: see issue #54727 <https://github.com/rust-lang/rust/issues/54727> for more information
 
 error: only modules with inline content are supported
- --> $DIR/module_must_have_inline_items.rs:5:20
+ --> cases/widget/module_must_have_inline_items.rs:5:20
   |
 5 | pub mod test_widget;
   |                    ^

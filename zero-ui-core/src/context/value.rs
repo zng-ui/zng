@@ -303,7 +303,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 ///     println!("value is {}!", FOO.read());
 /// }
 ///
-/// let _scope = App::blank();
+/// let _scope = App::minimal();
 ///
 /// let mut value = Some(String::from("other"));
 /// FOO.with_context(&mut value, || {

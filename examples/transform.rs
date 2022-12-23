@@ -107,7 +107,7 @@ fn transform_order() -> impl UiNode {
     // transform created using a single property or two properties generate the same transform because
     // are in the same order.
     z_stack(ui_list![
-        blank! {
+        wgt! {
             // single property
             transform = rotate(10.deg()).translate(50, 30);
 
@@ -118,7 +118,7 @@ fn transform_order() -> impl UiNode {
                 z_index = ZIndex::DEFAULT + 1;
             }
         },
-        blank! {
+        wgt! {
             // two properties
             rotate = 10.deg();
             translate = 50, 30;

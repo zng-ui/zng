@@ -1,4 +1,4 @@
-use zero_ui::core::{property, widget_instance::UiNode, var::IntoVar};
+use zero_ui::core::{property, var::IntoVar, widget_instance::UiNode};
 
 #[property(CONTEXT)]
 pub fn has_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {

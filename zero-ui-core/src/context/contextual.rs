@@ -123,7 +123,7 @@ impl AppContextMut {
     ///
     /// ```
     /// # use zero_ui_core::{context::*, handler::*, var::*};
-    /// # let mut app = zero_ui_core::app::App::blank().run_headless(false);
+    /// # let mut app = zero_ui_core::app::App::minimal().run_headless(false);
     /// let foo_var = var(false);
     /// # app.ctx().updates.run(
     /// async_app_hn_once!(foo_var, |ctx, _| {

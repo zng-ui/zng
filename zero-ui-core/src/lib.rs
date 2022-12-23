@@ -924,7 +924,7 @@ pub use zero_ui_proc_macros::property;
 /// #     }
 /// # }
 /// # fn main() {
-/// # let _scope = app::App::blank();
+/// # let _scope = app::App::minimal();
 /// let wgt = foo! {
 ///     baz = false;
 ///     margin = 10;

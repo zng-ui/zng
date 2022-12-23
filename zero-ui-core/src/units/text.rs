@@ -58,8 +58,8 @@ pub type LineSpacing = Length;
 ///
 /// The initial paragraph space is `line_height + line_spacing * 2`, this extra spacing is added to that.
 ///
-/// A "paragraph" is a sequence of lines in-between blank lines (empty or spaces only). This extra space is applied per blank line
-/// not per paragraph, if there are three blank lines between paragraphs the extra spacing is applied trice.
+/// A "paragraph" is a sequence of lines in-between wgt lines (empty or spaces only). This extra space is applied per wgt line
+/// not per paragraph, if there are three wgt lines between paragraphs the extra spacing is applied trice.
 ///
 /// The [`Default`] value is zero.
 ///

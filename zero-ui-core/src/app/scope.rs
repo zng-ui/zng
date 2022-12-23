@@ -252,7 +252,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 ///     static BAR: String = "Into!";
 /// }
 ///
-/// let app = App::blank();
+/// let app = App::minimal();
 ///
 /// assert_eq!(10, FOO.get());
 /// ```

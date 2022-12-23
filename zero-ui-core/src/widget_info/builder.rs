@@ -278,7 +278,7 @@ pub struct InlineLayout {
     /// can also clip the area from this point to the `block` bottom-right.
     pub last_row: PxPoint,
 
-    /// Height above `last_line.y` that is just blank space in between lines.
+    /// Height above `last_line.y` that is just wgt space in between lines.
     ///
     /// Panels that insert inter-row spacing can use this to *collapse* the spacing between inline items to avoid double spacing.
     ///

@@ -9,7 +9,7 @@ warning: unused variable: `node`
 error[E0080]: evaluation of constant value failed
   --> cases/widget_new/not_allowed_in_when1.rs:13:13
    |
-13 |       let _ = blank! {
+13 |       let _ = wgt! {
    |  _____________^
 14 | |         margin = 0;
 15 | |         when {
@@ -19,4 +19,4 @@ error[E0080]: evaluation of constant value failed
 21 | |     };
    | |_____^ the evaluated program panicked at 'property `foo` cannot be read in when expr', $DIR/cases/widget_new/not_allowed_in_when1.rs:13:13
    |
-   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `blank` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `wgt` (in Nightly builds, run with -Z macro-backtrace for more info)

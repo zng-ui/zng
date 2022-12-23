@@ -586,19 +586,19 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
         items.0.insert(
             0,
             match args.depth {
-                0 => crate::widgets::blank! {
+                0 => crate::widgets::wgt! {
                     size = (5, 5);
                     corner_radius = 5;
                     margin = (0.6.em(), 0.5.em(), 0, 0);
                     background_color = TEXT_COLOR_VAR;
                 },
-                1 => crate::widgets::blank! {
+                1 => crate::widgets::wgt! {
                     size = (5, 5);
                     corner_radius = 5;
                     margin = (0.6.em(), 0.5.em(), 0, 0);
                     border = 1.px(), TEXT_COLOR_VAR.map_into();
                 },
-                _ => crate::widgets::blank! {
+                _ => crate::widgets::wgt! {
                     size = (5, 5);
                     margin = (0.6.em(), 0.5.em(), 0, 0);
                     background_color = TEXT_COLOR_VAR;

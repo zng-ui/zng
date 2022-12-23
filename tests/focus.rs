@@ -1167,7 +1167,7 @@ pub fn focus_continued_after_widget_id_move() {
 
     let mut app = app.run(view(
         do_move_id.clone(),
-        blank! { focusable = true; id; }.boxed(),
+        wgt! { focusable = true; id; }.boxed(),
         move |_, do_move_id| {
             if do_move_id.get() {
                 View::Update({

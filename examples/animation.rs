@@ -55,7 +55,7 @@ fn example(vars: &Vars) -> impl UiNode {
                 background = ruler();
                 margin = (0, 0, 40, 0);
                 child_align = Align::LEFT;
-                child = blank! {
+                child = wgt! {
                     id = "ball";
                     size = (40, 40);
                     corner_radius = 20;
@@ -152,7 +152,7 @@ fn ease_btn(
                 text(name.into()),
                 image! {
                     img_scale_ppi = true;
-                    img_loading_view = view_generator!(|_, _| blank! {
+                    img_loading_view = view_generator!(|_, _| wgt! {
                         size = (64, 64);
                         margin = 10;
                     });
@@ -189,7 +189,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 let y = size.1 * (1.fct() - y_fct);
 
                 children.push(
-                    blank! {
+                    wgt! {
                         offset = (x, y);
                         size = (3, 3);
                         corner_radius = 2;

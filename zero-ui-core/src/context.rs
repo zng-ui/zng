@@ -442,7 +442,7 @@ impl TestWidgetContext {
         Self {
             window_id,
             root_id,
-            info_tree: WidgetInfoTree::blank(window_id, root_id),
+            info_tree: WidgetInfoTree::wgt(window_id, root_id),
             widget_info: WidgetContextInfo::default(),
             app_state: OwnedStateMap::new(),
             window_state: OwnedStateMap::new(),

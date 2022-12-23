@@ -58,7 +58,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! button! {
 //!     on_click = hn!(|_, _| println!("Clicked!"));
 //!     child = text("Click Me!");
@@ -88,7 +88,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let text_a = text! {
 //!     txt = "Hello!";
 //!     txt_color = colors::BLACK;
@@ -131,7 +131,7 @@
 //! }
 //!
 //! # fn main() {
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let btn = red_button! {
 //!     child = text("!");
 //!     on_click = hn!(|_, _| println!("Alert!"));
@@ -149,7 +149,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let menu = v_stack! {
 //!     spacing = 5;
 //!     children = ui_list![
@@ -172,16 +172,16 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! #
-//! let wgt = blank! {
+//! let wgt = wgt! {
 //!     // single value assign:
 //!     margin = (10, 5);
 //!
 //!     // multi value assign:
 //!     background_gradient = 45.deg(), [rgb(255, 0, 0), rgb(0, 255, 0)];
 //! };
-//! let wgt = blank! {
+//! let wgt = wgt! {
 //!     // multi value using the named value syntax:
 //!     background_gradient = {
 //!         axis: 45.deg(),
@@ -214,8 +214,8 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # use blank as foo;
-//! # let _scope = App::blank();
+//! # use wgt as foo;
+//! # let _scope = App::minimal();
 //! let wgt = foo! {
 //!     margin = 10;
 //! };
@@ -238,23 +238,23 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
-//! # let _ = blank! {
+//! # let _scope = App::minimal();
+//! # let _ = wgt! {
 //! // Same margin all around:
 //! margin = 10;
 //! # };
 //!
-//! # let _ = blank! {
+//! # let _ = wgt! {
 //! // (top-bottom, left-right):
 //! margin = (10, 20);
 //! # };
 //!
-//! # let _ = blank! {
+//! # let _ = wgt! {
 //! // (top, right, bottom, left):
 //! margin = (10, 20, 30, 40);
 //! # };
 //!
-//! # let _ = blank! {
+//! # let _ = wgt! {
 //! // direct value:
 //! margin = SideOffsets::new_all(10);
 //! # };
@@ -265,7 +265,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let offset = var(SideOffsets::from(10));
 //! let moving_btn = button! {
 //!     margin = offset.clone();
@@ -288,7 +288,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text(flag.map_to_text());
@@ -314,7 +314,7 @@
 //! ```
 //! # use zero_ui::prelude::*;
 //! # use std::borrow::Cow;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text(flag.map_to_text());
@@ -337,7 +337,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let count = var(0u32);
 //! let clicker = button! {
 //!     child = text(count.map(|c| {
@@ -400,7 +400,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! #[derive(Clone, Debug)]
 //! enum Status {
 //!     Idle,
@@ -462,7 +462,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let mut count = 0;
 //!
 //! button! {
@@ -480,7 +480,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let mut count = 0;
 //! let data = vec![0, 1, 0];
 //!
@@ -501,7 +501,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! # button! {
 //! on_click = hn!(|ctx, args: &ClickArgs| {
 //!     args.propagation().stop();
@@ -517,7 +517,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! let count = var(0u32);
 //!
 //! button! {
@@ -537,7 +537,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! # let status = var("Waiting Click..".to_text());
 //! button! {
 //!     on_click = async_hn!(status, |ctx, _| {
@@ -561,7 +561,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! # let status = var("Waiting Double Click..".to_text());
 //! # async fn some_task(status: ArcVar<Text>) { }
 //! button! {
@@ -586,7 +586,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! # let status = var("Waiting Click..".to_text());
 //! let data = vec![0, 1];
 //! button! {
@@ -606,7 +606,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! button! {
 //!     on_pre_click = hn!(|_, a: &ClickArgs|{
 //!         if a.is_double() {
@@ -630,7 +630,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! window! {
 //!     on_pre_click = hn!(|_, _| println!("window.on_pre_click"));
 //!     on_click = hn!(|_, _| println!("window.on_click"));
@@ -677,7 +677,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! #
 //! button! {
 //!     on_click = hn!(|ctx, _| COPY_CMD.notify(ctx));
@@ -706,7 +706,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! # fn test() -> impl WidgetHandler<()> {
 //! # let foo_var = var(true);
 //! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
@@ -735,7 +735,7 @@
 //!
 //! ```
 //! # use zero_ui::prelude::*;
-//! # let _scope = App::blank();
+//! # let _scope = App::minimal();
 //! # let _ =
 //! button! {
 //!     child = text("Open Window");

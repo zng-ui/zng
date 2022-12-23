@@ -1,4 +1,4 @@
-use zero_ui::core::{property, widget_instance::UiNode, var::IntoVar};
+use zero_ui::core::{property, var::IntoVar, widget_instance::UiNode};
 
 #[property(CONTEXT)]
 pub fn get_state(child: impl UiNode, state: impl IntoVar<u32>) -> impl UiNode {
@@ -13,6 +13,6 @@ pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) ->
 }
 
 #[derive(Debug, Clone)]
-pub struct NotDefault { }
+pub struct NotDefault {}
 
 fn main() {}

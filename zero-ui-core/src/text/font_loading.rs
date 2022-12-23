@@ -1663,7 +1663,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_default() {
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
         let gen = GenericFonts::new(app.ctx().updates.sender());
 
         assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(und)))
@@ -1671,7 +1671,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_fallback() {
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
         let gen = GenericFonts::new(app.ctx().updates.sender());
 
         assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(en_US)));
@@ -1680,7 +1680,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get1() {
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
         let mut gen = GenericFonts::new(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(en_US), "Test Value");
 
@@ -1690,7 +1690,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get2() {
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
         let mut gen = GenericFonts::new(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(en), "Test Value");
 
@@ -1700,7 +1700,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get_best() {
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
         let mut gen = GenericFonts::new(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(en), "Test Value");
         gen.set_sans_serif(lang!(en_US), "Best");
@@ -1712,7 +1712,7 @@ mod tests {
 
     #[test]
     fn generic_fonts_get_no_lang_match() {
-        let mut app = App::blank().run_headless(false);
+        let mut app = App::minimal().run_headless(false);
         let mut gen = GenericFonts::new(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(es_US), "Test Value");
 

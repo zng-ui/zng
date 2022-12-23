@@ -1,6 +1,6 @@
 use zero_ui::core::{property, widget_instance::UiNode};
 use zero_ui::properties::margin;
-use zero_ui::widgets::blank;
+use zero_ui::widgets::wgt;
 
 #[property(CONTEXT)]
 pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
@@ -9,8 +9,8 @@ pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
 }
 
 fn main() {
-    let _scope = zero_ui::core::app::App::blank();
-    let _ = blank! {
+    let _scope = zero_ui::core::app::App::minimal();
+    let _ = wgt! {
         margin = 0;
         when {
             let node = #foo;

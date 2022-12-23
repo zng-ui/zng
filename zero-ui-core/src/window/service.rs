@@ -797,7 +797,7 @@ impl AppWindowInfo {
             mode,
             renderer: None,
             vars,
-            widget_tree: WidgetInfoTree::blank(id, root_id),
+            widget_tree: WidgetInfoTree::wgt(id, root_id),
             is_focused: false,
             loading_handle,
             is_loaded: false,

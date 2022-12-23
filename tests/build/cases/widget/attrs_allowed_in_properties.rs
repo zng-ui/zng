@@ -28,7 +28,7 @@ pub mod test_widget {
 }
 
 fn main() {
-    let _scope = zero_ui::core::app::App::blank();
+    let _scope = zero_ui::core::app::App::minimal();
     let _ = test_widget! {
         allowed_cfg = 0;
         allowed_lints = 0;

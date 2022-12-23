@@ -91,7 +91,7 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
                 spacing = 4;
                 children_align = Align::LEFT;
                 children = ui_list![
-                    blank! {
+                    wgt! {
                         background_color = c.clone();
                         size = (16, 16);
                     },

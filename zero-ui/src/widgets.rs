@@ -75,11 +75,11 @@ mod window_wgt;
 #[doc(inline)]
 pub use window_wgt::window;
 
-/// A widget with only the implicit properties.
+/// Minimal widget.
 ///
-/// You can use this to shape a custom widget that will only
-/// be used once. Instead of declaring a new widget type.
-#[crate::core::widget($crate::widgets::blank)]
-pub mod blank {
+/// You can use this to create a quick new custom widget that is only used in one code place and can be created entirely
+/// by properties and `when` conditions.
+#[crate::core::widget($crate::widgets::wgt)]
+pub mod wgt {
     inherit!(::zero_ui_core::widget_base::base);
 }

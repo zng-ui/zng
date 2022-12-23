@@ -140,7 +140,7 @@ where
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::hn;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|_, _| {
@@ -155,7 +155,7 @@ where
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::hn;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|ctx, args: &ClickArgs| {
@@ -172,7 +172,7 @@ where
 /// # use zero_ui_core::text::formatx;
 /// # use zero_ui_core::var::{var, Var};
 /// # use zero_ui_core::handler::hn;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let foo = var(0);
 ///
@@ -251,7 +251,7 @@ where
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::hn_once;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -270,7 +270,7 @@ where
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::hn_once;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -357,7 +357,7 @@ where
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::async_hn;
 /// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|_, _| {
@@ -378,7 +378,7 @@ where
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::async_hn;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|ctx, args: ClickArgs| {
@@ -396,7 +396,7 @@ where
 /// # use zero_ui_core::var::{var, Var};
 /// # use zero_ui_core::task;
 /// # use zero_ui_core::text::formatx;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let enabled = var(true);
 ///
@@ -526,7 +526,7 @@ where
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::async_hn_once;
 /// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -549,7 +549,7 @@ where
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::async_hn_once;
 /// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -708,7 +708,7 @@ where
 /// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// CLICK_EVENT.on_event(app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
@@ -726,7 +726,7 @@ where
 /// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
 /// # use zero_ui_core::handler::app_hn;
 /// # use zero_ui_core::context::AppContext;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// CLICK_EVENT.on_event(app_hn!(|ctx, args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -744,7 +744,7 @@ where
 /// # use zero_ui_core::var::{var, Var};
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::handler::app_hn;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let foo = var("".to_text());
 ///
@@ -823,7 +823,7 @@ where
 /// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::app_hn_once;
 /// # use zero_ui_core::context::AppContext;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
@@ -843,7 +843,7 @@ where
 /// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
 /// # use zero_ui_core::handler::app_hn_once;
 /// # use zero_ui_core::context::AppContext;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let data = vec![1, 2, 3];
 ///
@@ -946,7 +946,7 @@ where
 /// # use zero_ui_core::handler::async_app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// CLICK_EVENT.on_event(async_app_hn!(|_, _, _| {
 ///     println!("Clicked Somewhere!");
@@ -972,7 +972,7 @@ where
 /// # use zero_ui_core::handler::async_app_hn;
 /// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// CLICK_EVENT.on_event(async_app_hn!(|ctx, args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -993,7 +993,7 @@ where
 /// # use zero_ui_core::var::{var, Var};
 /// # use zero_ui_core::task;
 /// # use zero_ui_core::text::{formatx, ToText};
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let status = var("pending..".to_text());
 ///
@@ -1113,7 +1113,7 @@ where
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::async_hn_once;
 /// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
@@ -1136,7 +1136,7 @@ where
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::async_hn_once;
 /// # use zero_ui_core::task;
-/// # let _scope = zero_ui_core::app::App::blank();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
