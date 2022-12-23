@@ -20,7 +20,7 @@ use crate::{context::*, event::*, widget_instance::*, *};
 /// # }
 /// # #[widget($crate::text)]
 /// # pub mod text { use super::*; inherit!(crate::widget_base::base); properties! { pub txt(impl IntoVar<Text>); } }
-/// # fn main() { 
+/// # fn main() {
 /// let probe = state_var();
 /// # let _ =
 /// text! {
@@ -57,7 +57,7 @@ pub fn state_var() -> ArcVar<bool> {
 /// #   pub use super::get_index;
 /// #   properties! { pub background_color(impl IntoVar<Rgba>); }
 /// # }
-/// # fn main() { 
+/// # fn main() {
 /// let probe = getter_var::<usize>();
 /// # let _ =
 /// row! {

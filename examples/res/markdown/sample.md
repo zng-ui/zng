@@ -4,7 +4,7 @@ A paragraph, with **bold** text , **italic** text, and ***both***.
 
 Lorem ipsum dolor sit amet, ei nam copiosae invidunt accusamus. Vidit dicat cu pri, sit magna vocibus ut. Cum eu assum primis voluptatum. Est dolorum urbanitas elaboraret no, nisl definitiones cu sit.
 
-You can also link, [web](https://httpbin.org), [file](../image/zdenek-machacek-unsplash.jpg), a [title](#table "Table"), or a footnote[^1]. And finally you can `inline` code.
+You can also link [web](https://httpbin.org), [file](../image/zdenek-machacek-unsplash.jpg), a [title](#table "Table"), or a footnote[^1]. And finally you can `inline` code.
 
 ## Blocks
 

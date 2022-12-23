@@ -449,7 +449,7 @@ fn nest_group_spacing() {
         assert_eq!(expected, g.0);
         expected += NestGroup::NEXT_GROUP;
     }
-    assert_eq!(expected, u16::MAX);
+    assert_eq!(expected, (u16::MAX / 9) * 9); // 65529
 }
 
 /// Kind of property input.

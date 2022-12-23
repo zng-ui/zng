@@ -120,7 +120,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 for input in &inputs[1..] {
                     match input.kind {
                         InputKind::Var => {
-                            let ident = input.ident.to_string();
+                            let ident = ident.to_string();
                             if ident.starts_with("is_") || ident.starts_with("has_") {
                                 default.extend(quote! {
                                     #core::var::state_var(),
