@@ -699,25 +699,26 @@ pub fn default_block_quote_view(args: BlockQuoteViewArgs) -> impl UiNode {
 ///
 /// See [`TABLE_VIEW_VAR`] for more details.
 pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
-    // !!: TODO, proper grid layout
-    let mut rows = Vec::with_capacity((args.cells.len() / args.columns.len()) + 1);
-    let mut row = Vec::with_capacity(args.columns.len());
-    for cell in args.cells.0 {
-        row.push(cell);
-        if row.len() == args.columns.len() {
-            rows.push(
-                crate::widgets::layouts::h_stack! {
-                    spacing = 5;
-                    children = row.drain(..).collect::<UiNodeVec>()
-                }
-                .boxed(),
-            );
-        }
-    }
+    use crate::widgets::layouts::grid;
 
-    crate::widgets::layouts::v_stack! {
-        spacing = 5;
-        children = rows;
+    grid! {
+        background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
+        border = (1, 1, 0, 1), TEXT_COLOR_VAR.map(|c| c.with_alpha(50.pct()).into());
+        align = Align::LEFT;
+        auto_grow_view = view_generator!(|_, args: grid::AutoGrowViewArgs| {
+            if args.index % 2 == 0 {
+                grid::row!{
+                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(50.pct()).into());
+                    background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
+                }
+            } else {
+                grid::row!{
+                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(50.pct()).into());
+                }
+            }
+        });
+        columns = std::iter::repeat_with(|| grid::column!{}.boxed()).take(args.columns.len()).collect::<UiNodeVec>();
+        cells = args.cells;
     }
 }
 
@@ -731,13 +732,19 @@ pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
     } else if args.is_heading {
         crate::widgets::layouts::wrap! {
             crate::widgets::text::font_weight = crate::core::text::FontWeight::BOLD;
+            padding = 2;
             children = items;
         }
         .boxed()
     } else if items.len() == 1 {
-        items.remove(0)
+        crate::widgets::container! {
+            padding = 2;
+            child = items.remove(0);
+        }
+        .boxed()
     } else {
         crate::widgets::layouts::wrap! {
+            padding = 2;
             children = items;
         }
         .boxed()

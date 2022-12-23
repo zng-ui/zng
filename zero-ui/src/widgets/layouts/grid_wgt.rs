@@ -663,7 +663,12 @@ impl UiNode for GridNode {
     }
 
     fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        todo!("layout can get very elaborate, how do we avoid massive duplication here?")
+        if let Some(size) = ctx.constrains().fill_or_exact() {
+            size
+        } else {
+            // !!: layout can get very elaborate, how do we avoid massive duplication here?
+            PxSize::zero()
+        }
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -1133,19 +1138,24 @@ impl UiNode for GridNode {
             row.y = y;
             y += row.height + spacing.row;
         }
-        // translate column&row views
+
+        // layout and translate column&row views
+        let grid_size = PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0)));
         columns.for_each_mut(|ci, col| {
             let x = self.column_info[ci].x;
             wl.with_outer(col, false, |wl, _| wl.translate(PxVector::new(x, Px(0))));
             true
         });
         rows.for_each_mut(|ri, row| {
+            // !!: only use measure before this.
+            ctx.with_constrains(
+                |c| c.with_exact(grid_size.width, self.row_info[ri].height),
+                |ctx| row.layout(ctx, wl),
+            );
             let y = self.row_info[ri].y;
             wl.with_outer(row, false, |wl, _| wl.translate(PxVector::new(Px(0), y)));
             true
         });
-
-        let grid_size = PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0)));
 
         // layout and translate cells
         let cells_offset = columns.len() + rows.len();
