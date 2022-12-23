@@ -64,7 +64,7 @@ pub fn state_var() -> ArcVar<bool> {
 ///     background_color = probe.map(|&i| {
 ///         let g = (i % 255) as u8;
 ///         rgb(g, g, g)
-///     };
+///     });
 ///     get_index = probe;
 /// }
 /// # ; }

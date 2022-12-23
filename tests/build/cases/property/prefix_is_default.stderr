@@ -1,0 +1,16 @@
+error[E0277]: the trait bound `ArcVar<bool>: IntoVar<u32>` is not satisfied
+  --> cases/property/prefix_is_default.rs:10:52
+   |
+9  | #[property(CONTEXT)]
+   | -------------------- required by a bound introduced by this call
+10 | pub fn is_state_invalid(child: impl UiNode, state: impl IntoVar<u32>) -> impl UiNode {
+   |                                                    ^^^^ the trait `IntoVar<u32>` is not implemented for `ArcVar<bool>`
+   |
+   = help: the trait `IntoVar<T>` is implemented for `ArcVar<T>`
+note: required by a bound in `is_state_invalid::__new__`
+  --> cases/property/prefix_is_default.rs:10:57
+   |
+9  | #[property(CONTEXT)]
+   | -------------------- required by a bound in this
+10 | pub fn is_state_invalid(child: impl UiNode, state: impl IntoVar<u32>) -> impl UiNode {
+   |                                                         ^^^^^^^^^^^^ required by this bound in `is_state_invalid::__new__`

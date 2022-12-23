@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
 
-use crate::util::{crate_core, Attributes, Errors};
+use crate::util::{crate_core, set_stream_span, Attributes, Errors};
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut errors = Errors::default();
@@ -107,6 +107,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let cfg = Attributes::new(item.attrs.clone()).cfg;
         let vis = &item.vis;
         let ident = &item.sig.ident;
+        let ident_str = ident.to_string();
         let generics = &item.sig.generics;
         let has_generics = !generics.params.empty_or_trailing();
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
@@ -120,13 +121,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 for input in &inputs[1..] {
                     match input.kind {
                         InputKind::Var => {
-                            let ident = ident.to_string();
-                            if ident.starts_with("is_") || ident.starts_with("has_") {
-                                default.extend(quote! {
+                            if ident_str.starts_with("is_") || ident_str.starts_with("has_") {
+                                let core = set_stream_span(core.clone(), input.ty.span());
+                                default.extend(quote_spanned! {input.ty.span()=>
                                     #core::var::state_var(),
                                 })
-                            } else if ident.starts_with("get_") {
-                                default.extend(quote! {
+                            } else if ident_str.starts_with("get_") {
+                                let core = set_stream_span(core.clone(), input.ty.span());
+                                default.extend(quote_spanned! {input.ty.span()=>
                                     #core::var::getter_var(),
                                 })
                             }

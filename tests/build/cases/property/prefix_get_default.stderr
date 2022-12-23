@@ -1,0 +1,15 @@
+error[E0277]: the trait bound `NotDefault: std::default::Default` is not satisfied
+  --> cases/property/prefix_get_default.rs:10:53
+   |
+10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
+   |                                                     ^^^^ the trait `std::default::Default` is not implemented for `NotDefault`
+   |
+note: required by a bound in `getter_var`
+  --> $WORKSPACE/zero-ui-core/src/var/state.rs
+   |
+   | pub fn getter_var<T: VarValue + Default>() -> ArcVar<T> {
+   |                                 ^^^^^^^ required by this bound in `getter_var`
+help: consider annotating `NotDefault` with `#[derive(Default)]`
+   |
+16 | #[derive(Default)]
+   |
