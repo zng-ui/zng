@@ -1,3 +1,5 @@
+use zero_ui_core::task::parking_lot::Mutex;
+
 use crate::prelude::new_widget::*;
 
 /// Grid layout with cells of variable sizes.
@@ -468,8 +470,7 @@ fn grid_node(
         auto_grow_view,
         auto_grow_mode,
 
-        column_info: vec![],
-        row_info: vec![],
+        info: Default::default(),
         auto_imaginary: 0,
     }
 }
@@ -541,6 +542,12 @@ impl Default for RowInfo {
     }
 }
 
+#[derive(Default)]
+struct GridInfo {
+    columns: Vec<ColumnInfo>,
+    rows: Vec<RowInfo>,
+}
+
 #[ui_node(struct GridNode {
     // [[columns, auto_columns], [rows, auto_rows], cells]
     children: Vec<BoxedUiNodeList>,
@@ -550,11 +557,11 @@ impl Default for RowInfo {
     #[var] auto_grow_mode: impl Var<AutoGrowMode>,
     #[var] spacing: impl Var<GridSpacing>,
 
-    column_info: Vec<ColumnInfo>,
-    row_info: Vec<RowInfo>,
+    info: Mutex<GridInfo>,
     auto_imaginary: usize,
 })]
-impl UiNode for GridNode {
+impl GridNode {
+    #[UiNode]
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.auto_subs(ctx);
         self.children.init_all(ctx);
@@ -616,20 +623,22 @@ impl UiNode for GridNode {
             }
         }
 
+        let info = self.info.get_mut();
         match auto_mode {
             AutoGrowMode::Rows(_) => {
-                self.column_info.resize(self.children[0].len(), ColumnInfo::default());
-                self.row_info
+                info.columns.resize(self.children[0].len(), ColumnInfo::default());
+                info.rows
                     .resize(self.children[1].len() + generated_len + self.auto_imaginary, RowInfo::default());
             }
             AutoGrowMode::Columns(_) => {
-                self.column_info
+                info.columns
                     .resize(self.children[0].len() + generated_len + self.auto_imaginary, ColumnInfo::default());
-                self.row_info.resize(self.children[1].len(), RowInfo::default());
+                info.rows.resize(self.children[1].len(), RowInfo::default());
             }
         }
     }
 
+    #[UiNode]
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         self.children.deinit_all(ctx);
 
@@ -644,10 +653,12 @@ impl UiNode for GridNode {
 
         self.auto_imaginary = 0;
 
-        self.column_info.clear();
-        self.row_info.clear();
+        let info = self.info.get_mut();
+        info.columns.clear();
+        info.rows.clear();
     }
 
+    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         if self.spacing.is_new(ctx) {
             ctx.updates.layout();
@@ -662,23 +673,17 @@ impl UiNode for GridNode {
         }
     }
 
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        if let Some(size) = ctx.constrains().fill_or_exact() {
-            size
-        } else {
-            // !!: layout can get very elaborate, how do we avoid massive duplication here?
-            PxSize::zero()
-        }
-    }
+    fn layout_info(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> (PxGridSpacing, PxSize) {
+        let mut info = self.info.lock();
+        let info = &mut *info;
 
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
         let constrains = ctx.constrains();
 
         let fill_x = constrains.x.fill_or_exact();
         let fill_y = constrains.y.fill_or_exact();
 
-        let mut children = self.children.iter_mut();
+        let mut children = self.children.iter();
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
         let cells = children.next().unwrap();
@@ -689,10 +694,10 @@ impl UiNode for GridNode {
         let mut has_leftover_cols = false;
         let mut has_leftover_rows = false;
 
-        columns.for_each_mut(|ci, col| {
+        columns.for_each(|ci, col| {
             let col_kind = SizePropertyLength::get_wgt(col).width;
 
-            let col_info = &mut self.column_info[ci];
+            let col_info = &mut info.columns[ci];
 
             col_info.x = Px::MIN;
             col_info.width = Px::MIN;
@@ -707,17 +712,17 @@ impl UiNode for GridNode {
                     has_leftover_cols = true;
                 }
                 SizePropertyLength::Exact => {
-                    col_info.width = col.layout(ctx, wl).width;
+                    col_info.width = col.measure(ctx, wm).width;
                     col_info.meta = ColRowMeta::exact();
                 }
             }
 
             true
         });
-        rows.for_each_mut(|ri, row| {
+        rows.for_each(|ri, row| {
             let row_kind = SizePropertyLength::get_wgt(row).height;
 
-            let row_info = &mut self.row_info[ri];
+            let row_info = &mut info.rows[ri];
 
             row_info.y = Px::MIN;
             row_info.height = Px::MIN;
@@ -732,7 +737,7 @@ impl UiNode for GridNode {
                     has_leftover_rows = true;
                 }
                 SizePropertyLength::Exact => {
-                    row_info.height = row.layout(ctx, wl).height;
+                    row_info.height = row.measure(ctx, wm).height;
                     row_info.meta = ColRowMeta::exact();
                 }
             }
@@ -743,17 +748,17 @@ impl UiNode for GridNode {
         // Measure cells when needed, collect widest/tallest.
         //  - For `Default` columns&rows to get their size.
         //  - For `leftover` columns&rows when the grid with no fill or exact size, to get the `1.lft()` length.
-        let columns_len = self.column_info.len();
+        let columns_len = info.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
             cells.for_each(|i, cell| {
-                let info = cell::CellInfo::get_wgt(cell);
-                if info.column_span > 1 || info.row_span > 1 {
+                let cell_info = cell::CellInfo::get_wgt(cell);
+                if cell_info.column_span > 1 || cell_info.row_span > 1 {
                     return true; // continue;
                 }
-                let info = info.actual(i, columns_len);
+                let cell_info = cell_info.actual(i, columns_len);
 
-                let col = &mut self.column_info[info.column];
-                let row = &mut self.row_info[info.row];
+                let col = &mut info.columns[cell_info.column];
+                let row = &mut info.rows[cell_info.row];
 
                 let col_is_default = col.meta.is_default() || (fill_x.is_none() && col.meta.is_leftover().is_some());
                 let col_is_exact = !col_is_default && col.meta.is_exact();
@@ -766,84 +771,38 @@ impl UiNode for GridNode {
                 if col_is_default {
                     if row_is_default {
                         // (default, default)
-                        let size = ctx
-                            .as_measure()
-                            .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
+                        let size = ctx.with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, wm));
 
                         col.width = col.width.max(size.width);
                         row.height = row.height.max(size.height);
                     } else if row_is_exact {
                         // (default, exact)
-                        let size = ctx.as_measure().with_constrains(
-                            |c| c.with_exact_y(row.height).with_fill(false, false),
-                            |ctx| cell.measure(ctx, &mut WidgetMeasure::new()),
-                        );
+                        let size = ctx.with_constrains(|c| c.with_exact_y(row.height).with_fill(false, false), |ctx| cell.measure(ctx, wm));
 
                         col.width = col.width.max(size.width);
                     } else {
                         debug_assert!(row_is_leftover);
                         // (default, leftover)
-                        let size = ctx
-                            .as_measure()
-                            .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
+                        let size = ctx.with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, wm));
 
                         col.width = col.width.max(size.width);
                     }
                 } else if col_is_exact {
                     if row_is_default {
                         // (exact, default)
-                        let size = ctx.as_measure().with_constrains(
-                            |c| c.with_exact_x(col.width).with_fill(false, false),
-                            |ctx| cell.measure(ctx, &mut WidgetMeasure::new()),
-                        );
+                        let size = ctx.with_constrains(|c| c.with_exact_x(col.width).with_fill(false, false), |ctx| cell.measure(ctx, wm));
 
                         row.height = row.height.max(size.height);
                     }
                 } else if row_is_default {
                     debug_assert!(col_is_leftover);
                     // (leftover, default)
-                    let size = ctx
-                        .as_measure()
-                        .with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, &mut WidgetMeasure::new()));
+                    let size = ctx.with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, wm));
 
                     row.height = row.height.max(size.height);
                 }
                 true
             });
-
-            // layout `Default` column&row widgets.
-            let view_columns_len = columns.len();
-            for (i, col) in self.column_info.iter_mut().enumerate() {
-                if col.meta.is_default() {
-                    if i < view_columns_len {
-                        // layout column view
-                        let size = ctx.with_constrains(
-                            |c| c.with_exact_x(col.width),
-                            |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
-                        );
-                        // final width can change due to min/max
-                        col.width = size.width;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            let view_rows_len = rows.len();
-            for (i, row) in self.row_info.iter_mut().enumerate() {
-                if row.meta.is_default() {
-                    if i < view_rows_len {
-                        // layout row view
-                        let size = ctx.with_constrains(
-                            |c| c.with_exact_y(row.height),
-                            |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
-                        );
-                        // final height can change due to min/max
-                        row.height = size.height;
-                    } else {
-                        break;
-                    }
-                }
-            }
         }
 
         // distribute leftover grid space to columns
@@ -854,7 +813,7 @@ impl UiNode for GridNode {
             let mut leftover_count = 0;
             let mut max_factor = 0.0_f32;
 
-            for col in &mut self.column_info {
+            for col in &mut info.columns {
                 if let Some(f) = col.meta.is_leftover() {
                     if fill_x.is_none() {
                         no_fill_1_lft = no_fill_1_lft.max(col.width);
@@ -874,7 +833,7 @@ impl UiNode for GridNode {
 
                 if max_factor.is_infinite() {
                     // +inf takes all space
-                    for col in &mut self.column_info {
+                    for col in &mut info.columns {
                         if let Some(f) = col.meta.is_leftover() {
                             if f.0.is_infinite() {
                                 col.meta = ColRowMeta::leftover(Factor(1.0));
@@ -887,7 +846,7 @@ impl UiNode for GridNode {
                 } else {
                     // scale down every factor to fit
                     let scale = f32::MAX / max_factor / leftover_count as f32;
-                    for col in &mut self.column_info {
+                    for col in &mut info.columns {
                         if let Some(f) = col.meta.is_leftover() {
                             let f = Factor(f.0 * scale);
                             col.meta = ColRowMeta::leftover(f);
@@ -903,11 +862,11 @@ impl UiNode for GridNode {
             }
 
             let mut leftover_width = if let Some(w) = fill_x {
-                w - used_width - spacing.column * Px((self.column_info.len() - 1) as i32)
+                w - used_width - spacing.column * Px((info.columns.len() - 1) as i32)
             } else {
                 // grid has no width, so `1.lft()` is defined by the widest cell measured using `Default` constrains.
                 let mut unbounded_width = used_width;
-                for col in &self.column_info {
+                for col in &info.columns {
                     if let Some(f) = col.meta.is_leftover() {
                         unbounded_width += no_fill_1_lft * f;
                     }
@@ -924,7 +883,7 @@ impl UiNode for GridNode {
             while !settled_all && leftover_width > Px(0) {
                 settled_all = true;
 
-                for (i, col) in self.column_info.iter_mut().enumerate() {
+                for (i, col) in info.columns.iter_mut().enumerate() {
                     let lft = if let Some(lft) = col.meta.is_leftover() {
                         lft
                     } else {
@@ -935,9 +894,9 @@ impl UiNode for GridNode {
                     col.width = Px(width as i32);
 
                     if i < view_columns_len {
-                        let size = ctx.as_measure().with_constrains(
+                        let size = ctx.with_constrains(
                             |c| c.with_fill_x(true).with_max_x(col.width),
-                            |ctx| columns.with_node(i, |col| col.measure(ctx, &mut WidgetMeasure::new())),
+                            |ctx| columns.with_node(i, |col| col.measure(ctx, wm)),
                         );
 
                         if col.width != size.width {
@@ -945,10 +904,6 @@ impl UiNode for GridNode {
                             // the leftover pool.
                             settled_all = false;
 
-                            let size = ctx.with_constrains(
-                                |c| c.with_fill_x(true).with_max_x(col.width),
-                                |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
-                            );
                             col.width = size.width;
                             col.meta = ColRowMeta::exact();
 
@@ -964,8 +919,8 @@ impl UiNode for GridNode {
 
             leftover_width = leftover_width.max(Px(0));
 
-            // layout settled leftover columns that can fill the requested leftover length.
-            for (i, col) in self.column_info.iter_mut().enumerate() {
+            // finish settled leftover columns that can fill the requested leftover length.
+            for col in &mut info.columns {
                 let lft = if let Some(lft) = col.meta.is_leftover() {
                     lft
                 } else {
@@ -975,15 +930,6 @@ impl UiNode for GridNode {
                 let width = lft.0 * leftover_width.0 as f32 / total_factor.0;
                 col.width = Px(width as i32);
                 col.meta = ColRowMeta::exact();
-
-                if i < view_columns_len {
-                    ctx.with_constrains(
-                        |c| c.with_fill_x(true).with_max_x(col.width),
-                        |ctx| columns.with_node_mut(i, |col| col.layout(ctx, wl)),
-                    );
-                } else {
-                    break;
-                }
             }
         }
         // distribute leftover grid space to rows
@@ -994,7 +940,7 @@ impl UiNode for GridNode {
             let mut leftover_count = 0;
             let mut max_factor = 0.0_f32;
 
-            for row in &mut self.row_info {
+            for row in &mut info.rows {
                 if let Some(f) = row.meta.is_leftover() {
                     if fill_y.is_none() {
                         no_fill_1_lft = no_fill_1_lft.max(row.height);
@@ -1014,7 +960,7 @@ impl UiNode for GridNode {
 
                 if max_factor.is_infinite() {
                     // +inf takes all space
-                    for row in &mut self.row_info {
+                    for row in &mut info.rows {
                         if let Some(f) = row.meta.is_leftover() {
                             if f.0.is_infinite() {
                                 row.meta = ColRowMeta::leftover(Factor(1.0));
@@ -1027,7 +973,7 @@ impl UiNode for GridNode {
                 } else {
                     // scale down every factor to fit
                     let scale = f32::MAX / max_factor / leftover_count as f32;
-                    for row in &mut self.row_info {
+                    for row in &mut info.rows {
                         if let Some(f) = row.meta.is_leftover() {
                             let f = Factor(f.0 * scale);
                             row.meta = ColRowMeta::leftover(f);
@@ -1043,11 +989,11 @@ impl UiNode for GridNode {
             }
 
             let mut leftover_height = if let Some(h) = fill_y {
-                h - used_height - spacing.row * Px((self.row_info.len() - 1) as i32)
+                h - used_height - spacing.row * Px((info.rows.len() - 1) as i32)
             } else {
                 // grid has no height, so `1.lft()` is defined by the tallest cell measured using `Default` constrains.
                 let mut unbounded_height = used_height;
-                for row in &self.row_info {
+                for row in &info.rows {
                     if let Some(f) = row.meta.is_leftover() {
                         unbounded_height += no_fill_1_lft * f;
                     }
@@ -1064,7 +1010,7 @@ impl UiNode for GridNode {
             while !settled_all && leftover_height > Px(0) {
                 settled_all = true;
 
-                for (i, row) in self.row_info.iter_mut().enumerate() {
+                for (i, row) in info.rows.iter_mut().enumerate() {
                     let lft = if let Some(lft) = row.meta.is_leftover() {
                         lft
                     } else {
@@ -1075,9 +1021,9 @@ impl UiNode for GridNode {
                     row.height = Px(height as i32);
 
                     if i < view_rows_len {
-                        let size = ctx.as_measure().with_constrains(
+                        let size = ctx.with_constrains(
                             |c| c.with_fill_y(true).with_max_y(row.height),
-                            |ctx| rows.with_node(i, |row| row.measure(ctx, &mut WidgetMeasure::new())),
+                            |ctx| rows.with_node(i, |row| row.measure(ctx, wm)),
                         );
 
                         if row.height != size.height {
@@ -1085,10 +1031,6 @@ impl UiNode for GridNode {
                             // the leftover pool.
                             settled_all = false;
 
-                            let size = ctx.with_constrains(
-                                |c| c.with_fill_y(true).with_max_y(row.height),
-                                |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
-                            );
                             row.height = size.height;
                             row.meta = ColRowMeta::exact();
 
@@ -1104,8 +1046,8 @@ impl UiNode for GridNode {
 
             leftover_height = leftover_height.max(Px(0));
 
-            // layout settled leftover rows that can fill the requested leftover length.
-            for (i, row) in self.row_info.iter_mut().enumerate() {
+            // finish settled leftover rows that can fill the requested leftover length.
+            for row in &mut info.rows {
                 let lft = if let Some(lft) = row.meta.is_leftover() {
                     lft
                 } else {
@@ -1115,68 +1057,79 @@ impl UiNode for GridNode {
                 let height = lft.0 * leftover_height.0 as f32 / total_factor.0;
                 row.height = Px(height as i32);
                 row.meta = ColRowMeta::exact();
-
-                if i < view_rows_len {
-                    ctx.with_constrains(
-                        |c| c.with_fill_y(true).with_max_y(row.height),
-                        |ctx| rows.with_node_mut(i, |row| row.layout(ctx, wl)),
-                    );
-                } else {
-                    break;
-                }
             }
         }
 
         // compute column&row offsets
         let mut x = Px(0);
-        for col in &mut self.column_info {
+        for col in &mut info.columns {
             col.x = x;
             x += col.width + spacing.column;
         }
         let mut y = Px(0);
-        for row in &mut self.row_info {
+        for row in &mut info.rows {
             row.y = y;
             y += row.height + spacing.row;
         }
 
-        // layout and translate column&row views
-        let grid_size = PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0)));
-        columns.for_each_mut(|ci, col| {
-            let x = self.column_info[ci].x;
-            wl.with_outer(col, false, |wl, _| wl.translate(PxVector::new(x, Px(0))));
-            true
-        });
-        rows.for_each_mut(|ri, row| {
-            // !!: only use measure before this.
-            ctx.with_constrains(
-                |c| c.with_exact(grid_size.width, self.row_info[ri].height),
-                |ctx| row.layout(ctx, wl),
-            );
-            let y = self.row_info[ri].y;
-            wl.with_outer(row, false, |wl, _| wl.translate(PxVector::new(Px(0), y)));
-            true
-        });
+        (spacing, PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0))))
+    }
 
+    #[UiNode]
+    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+        if let Some(size) = ctx.constrains().fill_or_exact() {
+            size
+        } else {
+            self.layout_info(ctx, wm).1
+        }
+    }
+
+    #[UiNode]
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let (spacing, grid_size) = self.layout_info(&mut ctx.as_measure(), &mut WidgetMeasure::new());
+        let constrains = ctx.constrains();
+
+        let info = self.info.get_mut();
+
+        let mut children = self.children.iter_mut();
+        let columns = children.next().unwrap();
+        let rows = children.next().unwrap();
+        let cells = children.next().unwrap();
+
+        // layout and translate columns
+        columns.for_each_mut(|ci, col| {
+            let info = info.columns[ci];
+            ctx.with_constrains(|c| c.with_exact(info.width, grid_size.height), |ctx| col.layout(ctx, wl));
+            wl.with_outer(col, false, |wl, _| wl.translate(PxVector::new(info.x, Px(0))));
+            true
+        });
+        // layout and translate rows
+        rows.for_each_mut(|ri, row| {
+            let info = info.rows[ri];
+            ctx.with_constrains(|c| c.with_exact(grid_size.width, info.height), |ctx| row.layout(ctx, wl));
+            wl.with_outer(row, false, |wl, _| wl.translate(PxVector::new(Px(0), info.y)));
+            true
+        });
         // layout and translate cells
         let cells_offset = columns.len() + rows.len();
         cells.for_each_mut(|i, cell| {
-            let info = cell::CellInfo::get_wgt(cell).actual(i, columns_len);
+            let cell_info = cell::CellInfo::get_wgt(cell).actual(i, info.columns.len());
 
-            if info.column >= self.column_info.len() || info.row >= self.row_info.len() {
+            if cell_info.column >= info.columns.len() || cell_info.row >= info.rows.len() {
                 wl.collapse_child(ctx, cells_offset + i);
                 return true;
             }
 
-            let cell_offset = PxVector::new(self.column_info[info.column].x, self.row_info[info.row].y);
+            let cell_offset = PxVector::new(info.columns[cell_info.column].x, info.rows[cell_info.row].y);
             let mut cell_size = PxSize::zero();
 
-            for col in info.column..(info.column + info.column_span).min(self.column_info.len()) {
-                cell_size.width += self.column_info[col].width + spacing.column;
+            for col in cell_info.column..(cell_info.column + cell_info.column_span).min(info.columns.len()) {
+                cell_size.width += info.columns[col].width + spacing.column;
             }
             cell_size.width -= spacing.column;
 
-            for row in info.row..(info.row + info.row_span).min(self.row_info.len()) {
-                cell_size.height += self.row_info[row].height + spacing.row;
+            for row in cell_info.row..(cell_info.row + cell_info.row_span).min(info.rows.len()) {
+                cell_size.height += info.rows[row].height + spacing.row;
             }
             cell_size.height -= spacing.row;
 
@@ -1192,10 +1145,6 @@ impl UiNode for GridNode {
         });
 
         constrains.fill_size_or(grid_size)
-    }
-
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.children.render_all(ctx, frame);
     }
 }
 
