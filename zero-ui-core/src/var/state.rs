@@ -12,16 +12,17 @@ use crate::{context::*, event::*, widget_instance::*, *};
 /// Example of manual usage to show a state as text:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, text::*};
+/// # use zero_ui_core::{*, widget_instance::*, var::*, text::*};
 /// # #[property(CONTEXT)]
 /// # pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// #   let _ = state;
 /// #   child
 /// # }
 /// # #[widget($crate::text)]
-/// # pub mod text { inherit!(crate::widget_base::base); properties! { pub txt(impl IntoVar<Text>); } }
-/// # fn main() { let _ =
+/// # pub mod text { use super::*; inherit!(crate::widget_base::base); properties! { pub txt(impl IntoVar<Text>); } }
+/// # fn main() { 
 /// let probe = state_var();
+/// # let _ =
 /// text! {
 ///     txt = probe.map(|p| formatx!("is_pressed = {p:?}"));
 ///     is_pressed = probe;
@@ -43,7 +44,7 @@ pub fn state_var() -> ArcVar<bool> {
 /// Example of manual usage to map the state to a color:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, text::*, color::*};
+/// # use zero_ui_core::{*, widget_instance::*, var::*, text::*, color::*};
 /// # #[property(CONTEXT)]
 /// # pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
 /// #   let _ = state;
@@ -54,15 +55,16 @@ pub fn state_var() -> ArcVar<bool> {
 /// #   use super::*;
 /// #   inherit!(crate::widget_base::base);
 /// #   pub use super::get_index;
-/// #   properties! { pub background_color(impl IntoVar<Rgba); }
+/// #   properties! { pub background_color(impl IntoVar<Rgba>); }
 /// # }
-/// # fn main() { let _ =
+/// # fn main() { 
 /// let probe = getter_var::<usize>();
+/// # let _ =
 /// row! {
-///     background_color = probe.map(|i| {
-///         let i = i as i32;
-///         rgb(i % 255, i % 255, i % 255)
-///     });
+///     background_color = probe.map(|&i| {
+///         let g = (i % 255) as u8;
+///         rgb(g, g, g)
+///     };
 ///     get_index = probe;
 /// }
 /// # ; }

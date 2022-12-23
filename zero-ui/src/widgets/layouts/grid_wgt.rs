@@ -149,7 +149,7 @@ pub mod column {
     /// This uses the `get_index` to give every third column a different background.
     ///
     /// ```
-    /// # use crate::widgets::layouts::grid;
+    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
     /// #
     /// # let _ =
     /// grid::column! {
@@ -246,7 +246,7 @@ pub mod row {
     /// This uses the `get_index` to give every third row a different background.
     ///
     /// ```
-    /// # use crate::widgets::layouts::grid;
+    /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
     /// #
     /// # let _ =
     /// grid::row! {
