@@ -603,7 +603,6 @@ pub struct PropertyNewArgs {
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
     /// | [`Var`]             | `Box<BoxedVar<T>>` or `Box<AnyWhenVarBuilder>`
-    /// | [`StateVar`]        | `Box<StateVar>`
     /// | [`Value`]           | `Box<T>`
     /// | [`UiNode`]          | `Box<ArcNode<BoxedUiNode>>` or `Box<WhenUiNodeBuilder>`
     /// | [`UiNodeList`]      | `Box<ArcNodeList<BoxedUiNodeList>>` or `Box<WhenUiNodeListBuilder>`
@@ -612,7 +611,6 @@ pub struct PropertyNewArgs {
     /// The expected type must be casted as `Box<dyn Any>`, the new function will downcast and unbox the args.
     ///
     /// [`Var`]: InputKind::Var
-    /// [`StateVar`]: InputKind::StateVar
     /// [`Value`]: InputKind::Value
     /// [`UiNode`]: InputKind::UiNode
     /// [`UiNodeList`]: InputKind::UiNodeList
@@ -627,7 +625,6 @@ pub struct PropertyNewArgs {
     /// | Kind                | Expected Type
     /// |---------------------|-------------------------------------------------
     /// | [`Var`]             | `Box<PropertyBuildAction<BoxedVar<T>>>`
-    /// | [`StateVar`]        | `Box<PropertyBuildAction<StateVar>>`
     /// | [`Value`]           | `Box<PropertyBuildAction<T>>`
     /// | [`UiNode`]          | `Box<PropertyBuildAction<ArcNode<BoxedUiNode>>>`
     /// | [`UiNodeList`]      | `Box<PropertyBuildAction<ArcNodeList<BoxedUiNodeList>>>`
@@ -636,7 +633,6 @@ pub struct PropertyNewArgs {
     /// The expected type must be casted as `Box<dyn AnyPropertyBuildAction>`, the new function will downcast and unbox the args.
     ///
     /// [`Var`]: InputKind::Var
-    /// [`StateVar`]: InputKind::StateVar
     /// [`Value`]: InputKind::Value
     /// [`UiNode`]: InputKind::UiNode
     /// [`UiNodeList`]: InputKind::UiNodeList
@@ -759,9 +755,9 @@ pub trait PropertyArgs: Send + Sync {
     /// Instance info.
     fn instance(&self) -> PropertyInstInfo;
 
-    /// Gets a [`InputKind::Var`] or [`InputKind::StateVar`].
+    /// Gets a [`InputKind::Var`].
     ///
-    /// Is a `BoxedVar<T>` or `StateVar`.
+    /// Is a `BoxedVar<T>`.
     fn var(&self, i: usize) -> &dyn AnyVar {
         panic_input(&self.property(), i, InputKind::Var)
     }
@@ -2332,7 +2328,7 @@ impl WidgetBuilding {
                             let handler = assign.widget_handler(i).clone_boxed();
                             entry.push(when.state.clone(), handler);
                         }
-                        InputKind::Value => panic!("cannot assign `StateVar`, `Value` in when blocks"),
+                        InputKind::Value => panic!("cannot assign `Value` in when blocks"),
                     }
                 }
 
@@ -2770,14 +2766,12 @@ pub struct PropertyBuildActionArgs<'a, I: Any + Send> {
 /// | Kind                | Expected Type
 /// |---------------------|-------------------------------------------------
 /// | [`Var`]             | `BoxedVar<T>`
-/// | [`StateVar`]        | `StateVar`
 /// | [`Value`]           | `T`
 /// | [`UiNode`]          | `ArcNode<BoxedUiNode>`
 /// | [`UiNodeList`]      | `ArcNodeList<BoxedUiNodeList>`
 /// | [`WidgetHandler`]   | `ArcWidgetHandler<A>`
 ///
 /// [`Var`]: InputKind::Var
-/// [`StateVar`]: InputKind::StateVar
 /// [`Value`]: InputKind::Value
 /// [`UiNode`]: InputKind::UiNode
 /// [`UiNodeList`]: InputKind::UiNodeList

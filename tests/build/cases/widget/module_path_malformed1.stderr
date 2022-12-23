@@ -1,8 +1,8 @@
 error: unexpected end of input, expected identifier
- --> cases/widget/module_path_malformed1.rs:3:16
+ --> cases/widget/module_path_malformed1.rs:3:17
   |
 3 | #[widget($crate::)]
-  |                ^^
+  |                 ^
 
 error[E0432]: unresolved import `$crate`
  --> cases/widget/module_path_malformed1.rs:3:1

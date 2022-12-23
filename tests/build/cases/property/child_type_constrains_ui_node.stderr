@@ -1,4 +1,4 @@
-error: property input can only have `impl OneTrait` or `StateVar` types
+error: property input can only have `impl OneTrait` types
  --> cases/property/child_type_constrains_ui_node.rs:8:29
   |
 8 | pub fn invalid_child(child: NilUiNode, input: impl IntoVar<bool>) -> impl UiNode {

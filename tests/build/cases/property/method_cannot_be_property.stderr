@@ -10,7 +10,7 @@ error: methods cannot be properties
 15 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {
    |                         ^^^^
 
-error: property input can only have `impl OneTrait` or `StateVar` types
+error: property input can only have `impl OneTrait` types
   --> cases/property/method_cannot_be_property.rs:15:31
    |
 15 |     pub fn self_method2(self: Box<Self>, input: impl IntoVar<bool>) -> impl UiNode {

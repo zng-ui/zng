@@ -10,9 +10,9 @@ warning: unused import: `zero_ui::properties::margin`
 5 |     use zero_ui::properties::margin;
   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = note: `#[warn(unused_imports)]` on by default
 help: consider adding a `#[cfg(test)]` to the containing module
  --> cases/widget/attrs_allowed_in_properties.rs:4:1
   |
 4 | pub mod test_widget {
   | ^^^^^^^^^^^^^^^^^^^
+  = note: `#[warn(unused_imports)]` on by default

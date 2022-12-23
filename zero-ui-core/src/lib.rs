@@ -451,12 +451,10 @@ pub use zero_ui_proc_macros::ui_node;
 /// [`IntoValue<T>`]: crate::var::IntoValue
 /// [`IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetHandler<A>`]: crate::handler::WidgetHandler
-/// [`StateVar`]: crate::var::StateVar
 /// [`UiNode`]: crate::widget_instance::UiNode
 /// [`UiNodeList`]: crate::widget_instance::UiNodeList
 /// [`NilUiNode`]: crate::widget_instance::NilUiNode
 /// [`InputKind::Var`]: crate::widget_builder::InputKind::Var
-/// [`InputKind::StateVar`]: crate::widget_builder::InputKind::StateVar
 /// [`InputKind::Value`]: crate::widget_builder::InputKind::Value
 /// [`InputKind::UiNode`]: crate::widget_builder::InputKind::UiNode
 /// [`InputKind::UiNodeList`]: crate::widget_builder::InputKind::UiNodeList
@@ -786,7 +784,7 @@ pub use zero_ui_proc_macros::property;
 /// # }
 /// #
 /// # #[property(LAYOUT)]
-/// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
+/// # pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// #   let _ = state;
 /// #   child
 /// # }
@@ -817,7 +815,7 @@ pub use zero_ui_proc_macros::property;
 /// ### Property Reference
 ///
 /// The most common `when` expression reference is a property, in the example above the `is_pressed` property is instantiated for the widget
-/// and it's [`StateVar`] input controls when the background is set to green. Note that a reference to the value is inserted in the expression
+/// and it's input read-write var controls when the background is set to green. Note that a reference to the value is inserted in the expression
 /// so an extra deref `*` is required. A property can also be referenced with a path, `#properties::is_pressed` also works.
 ///
 /// The syntax seen so far is actually a shorthand way to reference the first input of a property, the full syntax is `#is_pressed.0` or
@@ -825,7 +823,7 @@ pub use zero_ui_proc_macros::property;
 /// reference by tuple-style index or by name. Note that if the value it self is a tuple or `struct` you need to use the extended syntax
 /// to reference a member of the value, `#foo.0.0` or `#foo.0.name`. Methods have no ambiguity, `#foo.name()` is the same as `#foo.0.name()`.
 ///
-/// Not all properties can be referenced in `when` conditions, only inputs of type [`StateVar`], `impl IntoVar<T>` and `impl IntoValue<T>` are
+/// Not all properties can be referenced in `when` conditions, only inputs of type `impl IntoVar<T>` and `impl IntoValue<T>` are
 /// allowed, attempting to reference a different kind of input generates a compile error.
 ///
 /// ### Variable Reference
@@ -909,7 +907,7 @@ pub use zero_ui_proc_macros::property;
 /// # }
 /// #
 /// # #[property(LAYOUT)]
-/// # pub fn is_pressed(child: impl UiNode, state: var::StateVar) -> impl UiNode {
+/// # pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// #   let _ = state;
 /// #   child
 /// # }
@@ -973,7 +971,6 @@ pub use zero_ui_proc_macros::property;
 /// [`Importance`]: widget_builder::Importance
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: widget_instance::UiNode
-/// [`StateVar`]: var::StateVar
 /// [`widget_base::base`]: mod@widget_base::base
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;

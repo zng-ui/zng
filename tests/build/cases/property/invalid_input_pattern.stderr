@@ -4,7 +4,7 @@ error: property input can only have a simple ident
 4 | pub fn invalid_destruct(child: impl UiNode, (a, b): (bool, u8)) -> impl UiNode {
   |                                             ^^^^^^
 
-error: property input can only have `impl OneTrait` or `StateVar` types
+error: property input can only have `impl OneTrait` types
  --> cases/property/invalid_input_pattern.rs:4:53
   |
 4 | pub fn invalid_destruct(child: impl UiNode, (a, b): (bool, u8)) -> impl UiNode {

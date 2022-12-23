@@ -4,7 +4,7 @@ error: property functions cannot declare lifetimes
 4 | pub fn invalid<'a>(child: impl UiNode, input: &'a str) -> impl UiNode {
   |                ^^
 
-error: property input can only have `impl OneTrait` or `StateVar` types
+error: property input can only have `impl OneTrait` types
  --> cases/property/cannot_declare_lifetime.rs:4:47
   |
 4 | pub fn invalid<'a>(child: impl UiNode, input: &'a str) -> impl UiNode {

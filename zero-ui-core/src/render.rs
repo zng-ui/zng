@@ -377,7 +377,7 @@ impl FrameBuilder {
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
     /// [`can_reuse`]: Self::can_reuse
-    /// [`WidgetLayout::collapse`]: WidgetLayout::collapse
+    /// [`WidgetLayout::collapse`]: crate::widget_info::WidgetLayout::collapse
     pub fn push_widget(
         &mut self,
         ctx: &mut RenderContext,

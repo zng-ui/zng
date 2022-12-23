@@ -1,4 +1,4 @@
-error: property input can only have `impl OneTrait` or `StateVar` types
+error: property input can only have `impl OneTrait` types
  --> cases/widget/malformed_property_type2.rs:8:17
   |
 8 |         pub foo(_) = 10;
