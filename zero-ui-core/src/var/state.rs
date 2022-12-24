@@ -90,14 +90,14 @@ pub fn event_is_state<A: EventArgs>(
     event: Event<A>,
     on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
-    #[ui_node(struct EventStateNode<A: EventArgs> {
+    #[ui_node(struct EventIsStateNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
         default: bool,
         state: impl Var<bool>,
         on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + Send + 'static,
     })]
-    impl UiNode for EventStateNode {
+    impl UiNode for EventIsStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             validate_getter_var(ctx, &self.state);
             self.auto_subs(ctx);
@@ -117,7 +117,7 @@ pub fn event_is_state<A: EventArgs>(
             self.child.event(ctx, update);
         }
     }
-    EventStateNode {
+    EventIsStateNode {
         child: child.cfg_boxed(),
         event,
         default,
@@ -141,7 +141,7 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
     on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
-    #[ui_node(struct EventState2Node<A0: EventArgs, A1: EventArgs,> {
+    #[ui_node(struct EventIsState2Node<A0: EventArgs, A1: EventArgs,> {
         child: impl UiNode,
         #[event] event0: Event<A0>,
         #[event] event1: Event<A1>,
@@ -153,7 +153,7 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
         partial: (bool, bool),
         partial_default: (bool, bool),
     })]
-    impl UiNode for EventState2Node {
+    impl UiNode for EventIsState2Node {
         fn init(&mut self, ctx: &mut WidgetContext) {
             validate_getter_var(ctx, &self.state);
             self.auto_subs(ctx);
@@ -192,7 +192,7 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
             }
         }
     }
-    EventState2Node {
+    EventIsState2Node {
         child: child.cfg_boxed(),
         event0,
         event1,
@@ -224,7 +224,7 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + Send + 'static,
     merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
-    #[ui_node(struct EventState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
+    #[ui_node(struct EventIsState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
         child: impl UiNode,
         #[event] event0: Event<A0>,
         #[event] event1: Event<A1>,
@@ -238,7 +238,7 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         partial: (bool, bool, bool),
         merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + Send + 'static,
     })]
-    impl UiNode for EventState3Node {
+    impl UiNode for EventIsState3Node {
         fn init(&mut self, ctx: &mut WidgetContext) {
             validate_getter_var(ctx, &self.state);
             self.auto_subs(ctx);
@@ -284,7 +284,7 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
             }
         }
     }
-    EventState3Node {
+    EventIsState3Node {
         child: child.cfg_boxed(),
         event0,
         event1,
@@ -306,13 +306,13 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
 /// that merge other state properties.
 pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct BindStateNode {
+    #[ui_node(struct BindIsStateNode {
         child: impl UiNode,
         source: impl Var<bool>,
         state: impl Var<bool>,
         binding: VarHandle,
     })]
-    impl UiNode for BindStateNode {
+    impl UiNode for BindIsStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             validate_getter_var(ctx, &self.state);
             let _ = self.state.set_ne(ctx, self.source.get());
@@ -325,7 +325,7 @@ pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl
             self.child.deinit(ctx);
         }
     }
-    BindStateNode {
+    BindIsStateNode {
         child: child.cfg_boxed(),
         source: source.into_var(),
         state: state.into_var(),
@@ -336,18 +336,21 @@ pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl
 
 /// Helper for declaring state properties that are controlled by values in the widget state map.
 ///
-/// The `predicate` closure is called with the widget state every update.
+/// The `predicate` closure is called with the widget state on init and every update, if the returned value changes the `state`
+/// updates. The `deinit` closure is called on deinit to get the *reset* value.
 pub fn widget_state_is_state(
     child: impl UiNode,
     predicate: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
+    deinit: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
     state: impl IntoVar<bool>,
 ) -> impl UiNode {
-    #[ui_node(struct BindWidgetStateNode {
+    #[ui_node(struct WidgetStateIsStateNode {
         child: impl UiNode,
         state: impl Var<bool>,
         predicate: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
+        deinit: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
     })]
-    impl UiNode for BindWidgetStateNode {
+    impl UiNode for WidgetStateIsStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             validate_getter_var(ctx, &self.state);
             self.child.init(ctx);
@@ -358,8 +361,9 @@ pub fn widget_state_is_state(
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
-            if self.state.get() {
-                let _ = self.state.set(ctx.vars, false);
+            let state = (self.deinit)(ctx.widget_state.as_ref());
+            if state != self.state.get() {
+                let _ = self.state.set(ctx.vars, state);
             }
         }
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -370,9 +374,63 @@ pub fn widget_state_is_state(
             }
         }
     }
-    BindWidgetStateNode {
+    WidgetStateIsStateNode {
         child: child.cfg_boxed(),
         state: state.into_var(),
         predicate,
+        deinit,
+    }
+}
+
+/// Helper for declaring state getter properties that are controlled  by values in the widget state map.
+///
+/// The `get_new` closure is called with the widget state and current `state` every init and update, if it returns some value
+/// the `state` updates. The `get_deinit` closure is called on deinit to get the *reset* value.
+pub fn widget_state_get_state<T: VarValue>(
+    child: impl UiNode,
+    get_new: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
+    get_deinit: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
+    state: impl IntoVar<T>,
+) -> impl UiNode {
+    #[ui_node(struct WidgetStateGetStateNode<T: VarValue> {
+        _t: PhantomData<T>,
+        child: impl UiNode,
+        state: impl Var<T>,
+        get_new: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
+        get_deinit: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
+    })]
+    impl UiNode for WidgetStateGetStateNode {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            validate_getter_var(ctx, &self.state);
+            self.child.init(ctx);
+            let new = self.state.with(|s| (self.get_new)(ctx.widget_state.as_ref(), s));
+            if let Some(new) = new {
+                let _ = self.state.set(ctx, new);
+            }
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+
+            let new = self.state.with(|s| (self.get_deinit)(ctx.widget_state.as_ref(), s));
+            if let Some(new) = new {
+                let _ = self.state.set(ctx, new);
+            }
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
+            let new = self.state.with(|s| (self.get_new)(ctx.widget_state.as_ref(), s));
+            if let Some(new) = new {
+                let _ = self.state.set(ctx, new);
+            }
+        }
+    }
+    WidgetStateGetStateNode {
+        _t: PhantomData,
+        child: child.cfg_boxed(),
+        state: state.into_var(),
+        get_new,
+        get_deinit,
     }
 }

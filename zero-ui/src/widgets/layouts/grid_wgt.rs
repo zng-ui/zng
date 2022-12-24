@@ -119,8 +119,8 @@ pub mod column {
 
     pub use crate::properties::{max_width, min_width, width};
 
-    /// Column index in the parent widget set by the parent.
-    pub(super) static INDEX_ID: StaticStateId<usize> = StaticStateId::new_unique();
+    /// Column index, total in the parent widget set by the parent.
+    pub(super) static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
 
     /// If the column index is even.
     ///
@@ -129,7 +129,7 @@ pub mod column {
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT)]
     pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 == 0, state)
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
 
     /// If the column index is odd.
@@ -139,7 +139,35 @@ pub mod column {
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT)]
     pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
+    }
+
+    /// If the column is the first.
+    #[property(CONTEXT)]
+    pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+        widget_state_is_state(
+            child,
+            |w| {
+                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                i == 0 && l > 0
+            },
+            |_| false,
+            state,
+        )
+    }
+
+    /// If the column is the last.
+    #[property(CONTEXT)]
+    pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+        widget_state_is_state(
+            child,
+            |w| {
+                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                i < l && i == l - 1
+            },
+            |_| false,
+            state,
+        )
     }
 
     /// Get the column index for custom `when` expressions.
@@ -163,40 +191,78 @@ pub mod column {
     /// }
     /// # ;
     /// ```
-    #[property(CONTEXT, default(var(0)))]
+    #[property(CONTEXT)]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
-        #[ui_node(struct GetIndexNode {
-            child: impl UiNode,
-            state: impl Var<usize>
-        })]
-        impl UiNode for GetIndexNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.child.init(ctx);
-                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
-                if self.state.get() != state {
-                    let _ = self.state.set(ctx, state);
-                }
-            }
-
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.child.deinit(ctx);
-                if self.state.get() != 0 {
-                    let _ = self.state.set_ne(ctx.vars, 0usize);
-                }
-            }
-
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                self.child.update(ctx, updates);
-                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
-                if self.state.get() != state {
-                    let _ = self.state.set(ctx, state);
-                }
-            }
-        }
-        GetIndexNode {
+        widget_state_get_state(
             child,
-            state: state.into_var(),
-        }
+            |w, &i| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0;
+                if a != i {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &i| if i != 0 { Some(0) } else { None },
+            state,
+        )
+    }
+
+    /// Get the column index and number of columns.
+    #[property(CONTEXT)]
+    pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+        widget_state_get_state(
+            child,
+            |w, &i| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                if a != i {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &i| if i != (0, 0) { Some((0, 0)) } else { None },
+            state,
+        )
+    }
+
+    /// Get the column index, starting from the last column at `0`.
+    #[property(CONTEXT)]
+    pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+        widget_state_get_state(
+            child,
+            |w, &i| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = a.1 - a.0;
+                if a != i {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &i| if i != 0 { Some(0) } else { None },
+            state,
+        )
+    }
+
+    /// Get the column index as a factor of the total number of columns.
+    #[property(CONTEXT, default(var(0.fct())))]
+    pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
+        widget_state_get_state(
+            child,
+            |w, &f| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = a.1 as f32 / a.0 as f32;
+                let a = Factor(a);
+                if a != f {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &f| if f != 0.fct() { Some(0.fct()) } else { None },
+            state,
+        )
     }
 }
 
@@ -216,8 +282,8 @@ pub mod row {
 
     pub use crate::properties::{height, max_height, min_height};
 
-    /// Row index in the parent widget set by the parent.
-    pub(super) static INDEX_ID: StaticStateId<usize> = StaticStateId::new_unique();
+    /// Row index, total in the parent widget set by the parent.
+    pub(super) static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
 
     /// If the row index is even.
     ///
@@ -226,7 +292,7 @@ pub mod row {
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT)]
     pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 == 0, state)
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
 
     /// If the row index is odd.
@@ -236,7 +302,35 @@ pub mod row {
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT)]
     pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or(0) % 2 != 0, state)
+        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
+    }
+
+    /// If the row is the first.
+    #[property(CONTEXT)]
+    pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+        widget_state_is_state(
+            child,
+            |w| {
+                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                i == 0 && l > 0
+            },
+            |_| false,
+            state,
+        )
+    }
+
+    /// If the row is the last.
+    #[property(CONTEXT)]
+    pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+        widget_state_is_state(
+            child,
+            |w| {
+                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                i < l && i == l - 1
+            },
+            |_| false,
+            state,
+        )
     }
 
     /// Get the row index for custom `when` expressions.
@@ -260,40 +354,78 @@ pub mod row {
     /// }
     /// # ;
     /// ```
-    #[property(CONTEXT, default(var(0)))]
+    #[property(CONTEXT)]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
-        #[ui_node(struct GetIndexNode {
-            child: impl UiNode,
-            state: impl Var<usize>
-        })]
-        impl UiNode for GetIndexNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.child.init(ctx);
-                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
-                if self.state.get() != state {
-                    let _ = self.state.set(ctx, state);
-                }
-            }
-
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.child.deinit(ctx);
-                if self.state.get() != 0 {
-                    let _ = self.state.set_ne(ctx.vars, 0usize);
-                }
-            }
-
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                self.child.update(ctx, updates);
-                let state = ctx.widget_state.get(&INDEX_ID).copied().unwrap_or(0);
-                if self.state.get() != state {
-                    let _ = self.state.set(ctx, state);
-                }
-            }
-        }
-        GetIndexNode {
+        widget_state_get_state(
             child,
-            state: state.into_var(),
-        }
+            |w, &i| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0;
+                if a != i {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &i| if i != 0 { Some(0) } else { None },
+            state,
+        )
+    }
+
+    /// Get the column index and number of columns.
+    #[property(CONTEXT)]
+    pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
+        widget_state_get_state(
+            child,
+            |w, &i| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                if a != i {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &i| if i != (0, 0) { Some((0, 0)) } else { None },
+            state,
+        )
+    }
+
+    /// Get the row index, starting from the last row at `0`.
+    #[property(CONTEXT)]
+    pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
+        widget_state_get_state(
+            child,
+            |w, &i| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = a.1 - a.0;
+                if a != i {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &i| if i != 0 { Some(0) } else { None },
+            state,
+        )
+    }
+
+    /// Get the row index as a factor of the total number of rows.
+    #[property(CONTEXT, default(0.fct()))]
+    pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
+        widget_state_get_state(
+            child,
+            |w, &f| {
+                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = a.1 as f32 / a.0 as f32;
+                let a = Factor(a);
+                if a != f {
+                    Some(a)
+                } else {
+                    None
+                }
+            },
+            |_, &f| if f != 0.fct() { Some(0.fct()) } else { None },
+            state,
+        )
     }
 }
 
@@ -652,18 +784,30 @@ impl GridNode {
         }
 
         // Set index for column and row.
+        let columns_len = self.children[0].len() + imaginary_cols;
         self.children[0].for_each_mut(|i, c| {
-            c.with_context_mut(|ctx| ctx.widget_state.set(&column::INDEX_ID, i));
+            c.with_context_mut(|c_ctx| {
+                let prev = c_ctx.widget_state.set(&column::INDEX_ID, (i, columns_len));
+                if prev != Some((i, columns_len)) {
+                    ctx.updates.update(c_ctx.id);
+                }
+            });
             true
         });
+        let rows_len = self.children[1].len() + imaginary_rows;
         self.children[1].for_each_mut(|i, r| {
-            r.with_context_mut(|ctx| ctx.widget_state.set(&row::INDEX_ID, i));
+            r.with_context_mut(|r_ctx| {
+                let prev = r_ctx.widget_state.set(&row::INDEX_ID, (i, rows_len));
+                if prev != Some((i, rows_len)) {
+                    ctx.updates.update(r_ctx.id);
+                }
+            });
             true
         });
 
         let info = self.info.get_mut();
-        info.columns.resize(self.children[0].len() + imaginary_cols, ColumnInfo::default());
-        info.rows.resize(self.children[1].len() + imaginary_rows, RowInfo::default());
+        info.columns.resize(columns_len, ColumnInfo::default());
+        info.rows.resize(rows_len, RowInfo::default());
     }
 
     #[UiNode]

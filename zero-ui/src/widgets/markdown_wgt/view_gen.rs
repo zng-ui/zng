@@ -709,14 +709,19 @@ pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
         border = 1, TEXT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
         align = Align::LEFT;
         auto_grow_view = view_generator!(|_, args: grid::AutoGrowViewArgs| {
-            if args.index % 2 == 0 {
-                grid::row! {
-                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
-                    background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
-                }
-            } else {
-                grid::row! {
-                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
+            grid::row! {
+                border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
+                background_color = {
+                    let alpha = if args.index % 2 == 0 {
+                        5.pct()
+                    } else {
+                        0.pct()
+                    };
+                    TEXT_COLOR_VAR.map(move |c| c.with_alpha(alpha))
+                };
+
+                when *#is_last {
+                    border = 0, BorderStyle::Hidden;
                 }
             }
         });

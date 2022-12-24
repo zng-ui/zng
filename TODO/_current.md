@@ -3,8 +3,7 @@
     - `TextAlign::START` is something interesting in general, not just for text.
     - `TextAlign::JUSTIFY` is just `FILL` for text?
 
-* Add more metadata for `row!`, `is_last`, `get_rev_index`.
-    - Use this to fix the markdown table bottom border line.
+* Add contextual grid info, like the text `TextLayout`, to allow custom properties to extent it (like an special border property).
 
 * Grid pos-layout align.
     - Cell align.
