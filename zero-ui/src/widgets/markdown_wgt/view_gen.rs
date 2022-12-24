@@ -167,7 +167,7 @@ pub struct FootnoteDefViewArgs {
 /// See [`TABLE_VIEW_VAR`] for more details.
 pub struct TableViewArgs {
     /// Column definitions with align.
-    pub columns: Vec<TextAlign>,
+    pub columns: Vec<Align>,
     /// Cell items.
     pub cells: UiNodeVec,
 }
@@ -178,6 +178,9 @@ pub struct TableViewArgs {
 pub struct TableCellViewArgs {
     /// If the cell is inside the header row.
     pub is_heading: bool,
+
+    /// Column align.
+    pub col_align: Align,
 
     /// Inline items.
     pub items: UiNodeVec,
@@ -703,17 +706,17 @@ pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
 
     grid! {
         background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
-        border = (1, 1, 0, 1), TEXT_COLOR_VAR.map(|c| c.with_alpha(50.pct()).into());
+        border = 1, TEXT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
         align = Align::LEFT;
         auto_grow_view = view_generator!(|_, args: grid::AutoGrowViewArgs| {
             if args.index % 2 == 0 {
-                grid::row!{
-                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(50.pct()).into());
+                grid::row! {
+                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                     background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
                 }
             } else {
-                grid::row!{
-                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(50.pct()).into());
+                grid::row! {
+                    border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                 }
             }
         });
@@ -726,26 +729,21 @@ pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
 ///
 /// See [`TABLE_CELL_VIEW_VAR`] for more details.
 pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
-    let mut items = args.items;
-    if items.is_empty() {
+    if args.items.is_empty() {
         NilUiNode.boxed()
     } else if args.is_heading {
         crate::widgets::layouts::wrap! {
             crate::widgets::text::font_weight = crate::core::text::FontWeight::BOLD;
-            padding = 2;
-            children = items;
-        }
-        .boxed()
-    } else if items.len() == 1 {
-        crate::widgets::container! {
-            padding = 2;
-            child = items.remove(0);
+            padding = 6;
+            child_align = args.col_align;
+            children = args.items;
         }
         .boxed()
     } else {
         crate::widgets::layouts::wrap! {
-            padding = 2;
-            children = items;
+            padding = 6;
+            child_align = args.col_align;
+            children = args.items;
         }
         .boxed()
     }

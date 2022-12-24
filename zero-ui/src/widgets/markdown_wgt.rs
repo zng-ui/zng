@@ -154,6 +154,8 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut heading_text = None;
     let mut footnote_def_start = None;
     let mut table_cells = vec![];
+    let mut table_cols = vec![];
+    let mut table_col = 0;
     let mut table_head = false;
 
     for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b| Some((b.reference, "".into())))) {
@@ -181,11 +183,23 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 Tag::FootnoteDefinition(_) => {
                     footnote_def_start = Some(blocks.len());
                 }
-                Tag::Table(_) => {}
+                Tag::Table(columns) => {
+                    table_cols = columns
+                        .into_iter()
+                        .map(|c| match c {
+                            Alignment::None | Alignment::Left => Align::LEFT,
+                            Alignment::Center => Align::CENTER,
+                            Alignment::Right => Align::RIGHT,
+                        })
+                        .collect()
+                }
                 Tag::TableHead => {
                     table_head = true;
+                    table_col = 0;
                 }
-                Tag::TableRow => {}
+                Tag::TableRow => {
+                    table_col = 0;
+                }
                 Tag::TableCell => {}
                 Tag::Emphasis => {
                     emphasis += 1;
@@ -311,38 +325,32 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         ));
                     }
                 }
-                Tag::Table(columns) => {
+                Tag::Table(_) => {
                     if !table_cells.is_empty() {
-                        blocks.push(
-                            table_view.generate(
-                                ctx,
-                                TableViewArgs {
-                                    columns: columns
-                                        .into_iter()
-                                        .map(|c| match c {
-                                            Alignment::None => TextAlign::START,
-                                            Alignment::Left => TextAlign::LEFT,
-                                            Alignment::Center => TextAlign::CENTER,
-                                            Alignment::Right => TextAlign::RIGHT,
-                                        })
-                                        .collect(),
-                                    cells: mem::take(&mut table_cells).into(),
-                                },
-                            ),
-                        );
+                        blocks.push(table_view.generate(
+                            ctx,
+                            TableViewArgs {
+                                columns: mem::take(&mut table_cols),
+                                cells: mem::take(&mut table_cells).into(),
+                            },
+                        ));
                     }
                 }
                 Tag::TableHead => {
                     table_head = false;
                 }
                 Tag::TableRow => {}
-                Tag::TableCell => table_cells.push(table_cell_view.generate(
-                    ctx,
-                    TableCellViewArgs {
-                        is_heading: table_head,
-                        items: mem::take(&mut inlines).into(),
-                    },
-                )),
+                Tag::TableCell => {
+                    table_cells.push(table_cell_view.generate(
+                        ctx,
+                        TableCellViewArgs {
+                            is_heading: table_head,
+                            col_align: table_cols[table_col],
+                            items: mem::take(&mut inlines).into(),
+                        },
+                    ));
+                    table_col += 1;
+                }
                 Tag::Emphasis => {
                     emphasis -= 1;
                 }

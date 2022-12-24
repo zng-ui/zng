@@ -1,11 +1,10 @@
-* Implement abstraction for operations that only use one axis, we have duplicate algorithms in h_stack, v_stack, grid.
-    - Instead of inventing a name for axis, cross-axis we can just have the width be height be swapped?
-        - More readable, may cause algorithm that only works for width getting used in height.
-    - Implement `stack` panel that can dynamically swap axis of operation.
-  because of this.
-* Implement abstraction to allow implementing measure and layout in the same code.
-    - Can't short-circuit layout in every context, sometimes need to recreate a lot of the layout algorithm, leading to
-      duplicate code.
+* Merge `TextAlign` into `Align`.
+    - Tried to use `TextAlign` in a `wrap!`, did not work.
+    - `TextAlign::START` is something interesting in general, not just for text.
+    - `TextAlign::JUSTIFY` is just `FILL` for text?
+
+* Add more metadata for `row!`, `is_last`, `get_rev_index`.
+    - Use this to fix the markdown table bottom border line.
 
 * Grid pos-layout align.
     - Cell align.
@@ -18,8 +17,6 @@
     - List number horizontal alignment.
         - Need something like a grid here as well? To share the column size.
         - Right now the bullet is inside the item already
-    - Table, data format and panel?
-        - Implement `grid!` with cell align.
     - Links and footnotes.
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip.
         - Fix file links display (don't show added relative path?).
