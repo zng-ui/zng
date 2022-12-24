@@ -148,7 +148,7 @@ pub mod column {
     ///
     /// # Examples
     ///
-    /// This uses the `get_index` to give every third column a different background.
+    /// This uses `get_index` to give every third column a different background.
     ///
     /// ```
     /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
@@ -245,7 +245,7 @@ pub mod row {
     ///
     /// # Examples
     ///
-    /// This uses the `get_index` to give every third row a different background.
+    /// This uses `get_index` to give every third row a different background.
     ///
     /// ```
     /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};

@@ -126,7 +126,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                                 default.extend(quote_spanned! {input.ty.span()=>
                                     #core::var::state_var(),
                                 })
-                            } else if ident_str.starts_with("get_") {
+                            } else if ident_str.starts_with("get_") || ident_str.starts_with("actual_") {
                                 let core = set_stream_span(core.clone(), input.ty.span());
                                 default.extend(quote_spanned! {input.ty.span()=>
                                     #core::var::getter_var(),

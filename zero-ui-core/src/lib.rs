@@ -387,14 +387,14 @@ pub use zero_ui_proc_macros::ui_node;
 /// Most properties with var inputs are *setters*, that is the inputs configure an effect on the widget. But some properties
 /// can be *getters*, detecting widget state and setting it on the *input* variable. These properties are usually named with
 /// a prefix that indicates their input is actually for getting state, the prefixes `is_` and `has_` mark a property with
-/// a single `bool` input that reads a widget state, the prefix `get_` marks a property that reads a non-boolean state from
+/// a single `bool` input that reads a widget state, the prefix `get_` and `actual_` marks a property that reads a non-boolean state from
 /// the widget.
 ///
 /// Getter properties are configured with a default read-write variable, so that they can be used in `when` expressions directly,
 /// for example, `when *#is_pressed`, the `is_pressed` property has a `default(var(false))`, so it automatically initializes
 /// with a read-write variable that is used in the when condition. The property attribute tries to generate defaults automatically
 /// based on the prefix, attempting to use a read-write var with the `T::default()`, this can be overwritten just by setting
-/// the default, but it enforces the requirement of a default, it is not possible to declare a `get_` property without default.
+/// the default, but it enforces the requirement of a default, it is not possible to declare a getter property without default.
 ///
 /// #### `impl IntoValue<T>`
 ///
