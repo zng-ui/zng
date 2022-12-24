@@ -219,13 +219,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     where
         F: FnOnce(&BoxedUiNode) -> R,
     {
+        assert_bounds(self.len(), index);
+
         if index < self.0.len() {
             self.0.with_node(index, f)
-        } else if index < self.1.len() {
-            self.1.with_node(index, f)
         } else {
-            assert_bounds(self.len(), index);
-            unreachable!()
+            self.1.with_node(index - self.0.len(), f)
         }
     }
 
@@ -233,13 +232,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
     {
+        assert_bounds(self.len(), index);
+
         if index < self.0.len() {
             self.0.with_node_mut(index, f)
-        } else if index < self.1.len() {
-            self.1.with_node_mut(index, f)
         } else {
-            assert_bounds(self.len(), index);
-            unreachable!()
+            self.1.with_node_mut(index - self.0.len(), f)
         }
     }
 
