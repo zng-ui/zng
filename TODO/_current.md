@@ -7,8 +7,7 @@
     - Can't short-circuit layout in every context, sometimes need to recreate a lot of the layout algorithm, leading to
       duplicate code.
 
-* Grid.
-    - Finish `!!:`.
+* Grid pos-layout align.
     - Cell align.
     - Column & Row align for when all fixed is less then available.
     - Masonry align?

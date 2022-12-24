@@ -355,7 +355,7 @@ pub trait UiNode: Any + Send {
     {
         let boxed = self.boxed();
         if boxed.actual_type_id() == TypeId::of::<T>() {
-            Ok(*boxed.as_any_boxed().downcast().unwrap())
+            Ok(*boxed.into_any_boxed().downcast().unwrap())
         } else if TypeId::of::<T>() == TypeId::of::<BoxedUiNode>() {
             Ok(*(Box::new(boxed) as Box<dyn Any>).downcast().unwrap())
         } else {
@@ -368,6 +368,22 @@ pub trait UiNode: Any + Send {
     /// [`type_id`]: Any::type_id
     fn actual_type_id(&self) -> TypeId {
         self.type_id()
+    }
+
+    /// Access to `dyn Any` methods.
+    fn as_any(&self) -> &dyn Any
+    where
+        Self: Sized,
+    {
+        self
+    }
+
+    /// Access to mut `dyn Any` methods.
+    fn as_any_mut(&mut self) -> &mut dyn Any
+    where
+        Self: Sized,
+    {
+        self
     }
 
     /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with an [`InfoContext`]
@@ -510,6 +526,43 @@ pub trait UiNodeList: UiNodeListBoxed {
             true
         })
     }
+    /// Downcast to `L`, if `self` is `L` or `self` is a [`BoxedUiNodeList`] that is `L`.
+    fn downcast_unbox<L: UiNodeList>(self) -> Result<L, BoxedUiNodeList>
+    where
+        Self: Sized,
+    {
+        let boxed = self.boxed();
+        if boxed.actual_type_id() == TypeId::of::<L>() {
+            Ok(*boxed.into_any_boxed().downcast().unwrap())
+        } else if TypeId::of::<L>() == TypeId::of::<BoxedUiNodeList>() {
+            Ok(*(Box::new(boxed) as Box<dyn Any>).downcast().unwrap())
+        } else {
+            Err(boxed)
+        }
+    }
+
+    /// Returns the [`type_id`] of the unboxed list.
+    ///
+    /// [`type_id`]: Any::type_id
+    fn actual_type_id(&self) -> TypeId {
+        self.type_id()
+    }
+
+    /// Access to `dyn Any` methods.
+    fn as_any(&self) -> &dyn Any
+    where
+        Self: Sized,
+    {
+        self
+    }
+
+    /// Access to mut `dyn Any` methods.
+    fn as_any_mut(&mut self) -> &mut dyn Any
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 
 #[doc(hidden)]
@@ -588,9 +641,11 @@ pub trait UiNodeBoxed: Any + Send {
     fn with_context_boxed(&self, f: &mut dyn FnMut(&mut WidgetNodeContext));
     fn with_context_mut_boxed(&mut self, f: &mut dyn FnMut(&mut WidgetNodeMutContext));
     fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode;
+    fn as_any_boxed(&self) -> &dyn Any;
+    fn as_any_mut_boxed(&mut self) -> &mut dyn Any;
 
     fn actual_type_id_boxed(&self) -> TypeId;
-    fn as_any_boxed(self: Box<Self>) -> Box<dyn Any>;
+    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any>;
 }
 
 impl<U: UiNode> UiNodeBoxed for U {
@@ -642,7 +697,7 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.type_id()
     }
 
-    fn as_any_boxed(self: Box<Self>) -> Box<dyn Any> {
+    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 
@@ -652,6 +707,14 @@ impl<U: UiNode> UiNodeBoxed for U {
 
     fn with_context_mut_boxed(&mut self, f: &mut dyn FnMut(&mut WidgetNodeMutContext)) {
         self.with_context_mut(f);
+    }
+
+    fn as_any_boxed(&self) -> &dyn Any {
+        self.as_any()
+    }
+
+    fn as_any_mut_boxed(&mut self) -> &mut dyn Any {
+        self.as_any_mut()
     }
 }
 
@@ -669,6 +732,10 @@ pub trait UiNodeListBoxed: Any + Send {
     fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
     fn render_all_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     fn render_update_all_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+    fn actual_type_id_boxed(&self) -> TypeId;
+    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any>;
+    fn as_any_boxed(&self) -> &dyn Any;
+    fn as_any_mut_boxed(&mut self) -> &mut dyn Any;
 }
 impl<L: UiNodeList> UiNodeListBoxed for L {
     fn with_node_boxed(&self, index: usize, f: &mut dyn FnMut(&BoxedUiNode)) {
@@ -717,6 +784,22 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn render_update_all_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.render_update_all(ctx, update);
+    }
+
+    fn actual_type_id_boxed(&self) -> TypeId {
+        self.type_id()
+    }
+
+    fn into_any_boxed(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn as_any_boxed(&self) -> &dyn Any {
+        self.as_any()
+    }
+
+    fn as_any_mut_boxed(&mut self) -> &mut dyn Any {
+        self.as_any_mut()
     }
 }
 
@@ -804,6 +887,20 @@ impl UiNode for BoxedUiNode {
     {
         self.into_widget_boxed()
     }
+
+    fn as_any(&self) -> &dyn Any
+    where
+        Self: Sized,
+    {
+        self.as_ref().as_any_boxed()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any
+    where
+        Self: Sized,
+    {
+        self.as_mut().as_any_mut_boxed()
+    }
 }
 
 impl UiNodeList for BoxedUiNodeList {
@@ -849,6 +946,10 @@ impl UiNodeList for BoxedUiNodeList {
         self
     }
 
+    fn actual_type_id(&self) -> TypeId {
+        self.as_ref().actual_type_id_boxed()
+    }
+
     fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
         self.as_mut().drain_into_boxed(vec)
     }
@@ -875,6 +976,20 @@ impl UiNodeList for BoxedUiNodeList {
 
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.as_ref().render_update_all_boxed(ctx, update);
+    }
+
+    fn as_any(&self) -> &dyn Any
+    where
+        Self: Sized,
+    {
+        self.as_ref().as_any_boxed()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any
+    where
+        Self: Sized,
+    {
+        self.as_mut().as_any_mut_boxed()
     }
 }
 

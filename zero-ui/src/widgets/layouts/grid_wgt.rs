@@ -454,24 +454,19 @@ fn grid_node(
     auto_grow_mode: BoxedVar<AutoGrowMode>,
     spacing: BoxedVar<GridSpacing>,
 ) -> impl UiNode {
-    let auto_columns = EditableUiNodeList::new();
-    let auto_columns_ref = auto_columns.reference();
-    let auto_rows = EditableUiNodeList::new();
-    let auto_rows_ref = auto_rows.reference();
+    let auto_columns: Vec<BoxedUiNode> = vec![];
+    let auto_rows: Vec<BoxedUiNode> = vec![];
     GridNode {
         children: vec![
             vec![columns, auto_columns.boxed()].boxed(),
             vec![rows, auto_rows.boxed()].boxed(),
             ZSortingList::new(cells).boxed(),
         ],
-        auto_columns: auto_columns_ref,
-        auto_rows: auto_rows_ref,
         spacing,
         auto_grow_view,
         auto_grow_mode,
 
         info: Default::default(),
-        auto_imaginary: 0,
     }
 }
 
@@ -548,23 +543,113 @@ struct GridInfo {
     rows: Vec<RowInfo>,
 }
 
+fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
+    cols_or_rows.as_any_mut().downcast_mut::<Vec<BoxedUiNodeList>>().unwrap()[1]
+        .as_any_mut()
+        .downcast_mut()
+        .unwrap()
+}
+
 #[ui_node(struct GridNode {
     // [[columns, auto_columns], [rows, auto_rows], cells]
     children: Vec<BoxedUiNodeList>,
-    auto_columns: EditableUiNodeListRef,
-    auto_rows: EditableUiNodeListRef,
     #[var] auto_grow_view: impl Var<ViewGenerator<AutoGrowViewArgs>>,
     #[var] auto_grow_mode: impl Var<AutoGrowMode>,
     #[var] spacing: impl Var<GridSpacing>,
 
     info: Mutex<GridInfo>,
-    auto_imaginary: usize,
 })]
 impl GridNode {
-    #[UiNode]
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.auto_subs(ctx);
-        self.children.init_all(ctx);
+    // add/remove info entries, auto-grow/shrink
+    fn update_info(&mut self, ctx: &mut WidgetContext) {
+        let auto_mode = self.auto_grow_mode.get();
+
+        // max need column or row in the auto_mode axis.
+        let mut max_custom = 0;
+        let mut max_auto_placed_i = 0;
+        self.children[2].for_each(|i, c| {
+            let info = c.with_context(|ctx| cell::CellInfo::get(ctx.widget_state)).unwrap_or_default();
+
+            let n = match auto_mode {
+                AutoGrowMode::Rows(_) => info.row,
+                AutoGrowMode::Columns(_) => info.column,
+            };
+            if n == usize::MAX {
+                max_auto_placed_i = i;
+            } else {
+                max_custom = max_custom.max(n);
+            }
+
+            true // continue
+        });
+
+        let mut imaginary_cols = 0;
+        let mut imaginary_rows = 0;
+
+        match auto_mode {
+            AutoGrowMode::Rows(max) => {
+                let max_auto_placed = max_auto_placed_i / self.children[0].len() + 1;
+                #[allow(clippy::manual_clamp)] // (max-selected).min(limit)
+                let max_needed = max_auto_placed.max(max_custom).min(max as usize);
+
+                let rows_len = self.children[1].len();
+
+                #[allow(clippy::comparison_chain)]
+                if rows_len < max_needed {
+                    let auto = downcast_auto(&mut self.children[1]);
+                    let mut index = rows_len;
+
+                    let view = self.auto_grow_view.get();
+                    if view.is_nil() {
+                        imaginary_rows = max_needed - rows_len;
+                    } else {
+                        while index < max_needed {
+                            let mut row = view.generate(ctx, AutoGrowViewArgs { mode: auto_mode, index });
+                            row.init(ctx);
+                            auto.push(row);
+                            index += 1;
+                        }
+                    }
+                } else if rows_len > max_needed {
+                    let remove = rows_len - max_needed;
+                    let auto = downcast_auto(&mut self.children[1]);
+                    for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
+                        auto.deinit(ctx);
+                    }
+                }
+            }
+            AutoGrowMode::Columns(max) => {
+                let max_auto_placed = max_auto_placed_i / self.children[0].len() + 1;
+                #[allow(clippy::manual_clamp)] // (max-selected).min(limit)
+                let max_needed = max_auto_placed.max(max_custom).min(max as usize);
+
+                let cols_len = self.children[0].len();
+
+                #[allow(clippy::comparison_chain)]
+                if cols_len < max_needed {
+                    let auto = downcast_auto(&mut self.children[0]);
+                    let mut index = cols_len;
+
+                    let view = self.auto_grow_view.get();
+                    if view.is_nil() {
+                        imaginary_cols = max_needed - cols_len;
+                    } else {
+                        while index < max_needed {
+                            let mut column = view.generate(ctx, AutoGrowViewArgs { mode: auto_mode, index });
+                            column.init(ctx);
+                            auto.push(column);
+                            index += 1;
+                        }
+                    }
+                } else if cols_len > max_needed {
+                    let remove = cols_len - max_needed;
+                    let auto = downcast_auto(&mut self.children[0]);
+                    for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
+                        auto.deinit(ctx);
+                    }
+                }
+            }
+        }
 
         // Set index for column and row.
         self.children[0].for_each_mut(|i, c| {
@@ -576,86 +661,23 @@ impl GridNode {
             true
         });
 
-        // collect column/row count needed for auto-grow.
-        let auto_mode = self.auto_grow_mode.get();
-        let mut max_custom = 0;
-        let mut max_auto_placed = 0;
-        self.children[2].for_each_mut(|i, c| {
-            let info = c.with_context(|ctx| cell::CellInfo::get(ctx.widget_state)).unwrap_or_default();
-            if let AutoGrowMode::Rows(_) = auto_mode {
-                if info.row != usize::MAX {
-                    max_custom = max_custom.max(info.row);
-                } else {
-                    max_auto_placed = i;
-                }
-            } else if info.column != usize::MAX {
-                max_custom = max_custom.max(info.column);
-            } else {
-                max_auto_placed = i;
-            }
-
-            true
-        });
-
-        // auto-grow
-        let mut generated_len = 0;
-        match auto_mode {
-            AutoGrowMode::Rows(max) | AutoGrowMode::Columns(max) => {
-                let needed_len = (max_custom.max(max_auto_placed / self.children[0].len()) + 1).min(max as usize);
-                let fixed_len = self.children[1].len();
-                if needed_len > fixed_len {
-                    let view = self.auto_grow_view.get();
-                    if !view.is_nil() {
-                        let list = match auto_mode {
-                            AutoGrowMode::Rows(_) => &self.auto_rows,
-                            AutoGrowMode::Columns(_) => &self.auto_columns,
-                        };
-                        for i in fixed_len..needed_len {
-                            let mut auto_item = view.generate(ctx, AutoGrowViewArgs { mode: auto_mode, index: i });
-                            auto_item.with_context_mut(|ctx| ctx.widget_state.set(&row::INDEX_ID, i));
-                            list.push(ctx, auto_item);
-                        }
-                        generated_len = needed_len - fixed_len;
-                    } else {
-                        self.auto_imaginary = needed_len - fixed_len;
-                    }
-                }
-            }
-        }
-
         let info = self.info.get_mut();
-        match auto_mode {
-            AutoGrowMode::Rows(_) => {
-                info.columns.resize(self.children[0].len(), ColumnInfo::default());
-                info.rows
-                    .resize(self.children[1].len() + generated_len + self.auto_imaginary, RowInfo::default());
-            }
-            AutoGrowMode::Columns(_) => {
-                info.columns
-                    .resize(self.children[0].len() + generated_len + self.auto_imaginary, ColumnInfo::default());
-                info.rows.resize(self.children[1].len(), RowInfo::default());
-            }
-        }
+        info.columns.resize(self.children[0].len() + imaginary_cols, ColumnInfo::default());
+        info.rows.resize(self.children[1].len() + imaginary_rows, RowInfo::default());
+    }
+
+    #[UiNode]
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.auto_subs(ctx);
+        self.children.init_all(ctx);
+        self.update_info(ctx);
     }
 
     #[UiNode]
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         self.children.deinit_all(ctx);
-
-        match self.auto_grow_mode.get() {
-            AutoGrowMode::Rows(_) => {
-                self.auto_rows.clear(ctx);
-            }
-            AutoGrowMode::Columns(_) => {
-                self.auto_columns.clear(ctx);
-            }
-        }
-
-        self.auto_imaginary = 0;
-
-        let info = self.info.get_mut();
-        info.columns.clear();
-        info.rows.clear();
+        downcast_auto(&mut self.children[0]).clear();
+        downcast_auto(&mut self.children[1]).clear();
     }
 
     #[UiNode]
@@ -667,8 +689,17 @@ impl GridNode {
         let mut any = false;
         self.children.update_all(ctx, updates, &mut any);
 
-        if any || self.auto_grow_view.is_new(ctx) || self.auto_grow_mode.is_new(ctx) {
-            // !!: TODO, support new columns/rows
+        if self.auto_grow_view.is_new(ctx) || self.auto_grow_mode.is_new(ctx) {
+            for mut auto in downcast_auto(&mut self.children[0]).drain(..) {
+                auto.deinit(ctx);
+            }
+            for mut auto in downcast_auto(&mut self.children[1]).drain(..) {
+                auto.deinit(ctx);
+            }
+            any = true;
+        }
+        if any {
+            self.update_info(ctx);
             ctx.updates.layout();
         }
     }

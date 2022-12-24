@@ -129,6 +129,9 @@ pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
     /// Access to `dyn Any` methods.
     fn as_any(&self) -> &dyn Any;
 
+    /// Access to mut `dyn Any` methods.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
     /// Access to `Box<dyn Any>` methods.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -141,6 +144,10 @@ pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
 
 impl<T: VarValue> AnyVarValue for T {
     fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 
