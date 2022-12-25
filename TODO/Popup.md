@@ -1,6 +1,7 @@
 # Popup TODO
 
-* Align content in a transparent overlay window with underlying widgets, like layers.
-* Seamless transition from TOP_LAYER to actual popup window.
+* Don't use actual window?
+    - Webrender very expensive, we can limit the tooltip to be within the window and just use a layer to render it.
 * Tooltips.
+    - Use it in `markdown!`.
 * Context menus.

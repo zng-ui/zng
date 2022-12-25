@@ -200,7 +200,7 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     if args.propagation().is_stopped() {
         return false;
     }
-    // Note: file names can start with #, but we are chosing to always interpret urls with this prefix as an anchor.
+    // Note: file names can start with #, but we are choosing to always interpret URLs with this prefix as an anchor.
     if let Some(anchor) = args.url.strip_prefix('#') {
         if let Some(md) = ctx
             .info_tree

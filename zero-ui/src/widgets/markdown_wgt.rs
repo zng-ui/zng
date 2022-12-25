@@ -187,7 +187,8 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     table_cols = columns
                         .into_iter()
                         .map(|c| match c {
-                            Alignment::None | Alignment::Left => Align::LEFT,
+                            Alignment::None => Align::START,
+                            Alignment::Left => Align::LEFT,
                             Alignment::Center => Align::CENTER,
                             Alignment::Right => Align::RIGHT,
                         })
