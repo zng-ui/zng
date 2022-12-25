@@ -230,7 +230,7 @@ fn delayed_focus() -> impl UiNode {
                 corner_radius = 4;
                 txt = "delayed target";
                 font_style = FontStyle::Italic;
-                txt_align = TextAlign::CENTER_MIDDLE;
+                txt_align = Align::CENTER;
                 background_color = color_scheme_map(rgb(30, 30, 30), rgb(225, 225, 225));
 
                 focusable = true;

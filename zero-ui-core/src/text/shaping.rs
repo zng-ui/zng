@@ -337,7 +337,7 @@ pub struct ShapedText {
     /// vertical align offset applied.
     y_offset: f32,
     align_box: PxRect,
-    align: TextAlign,
+    align: Align,
 }
 impl ShapedText {
     /// New empty text.
@@ -410,7 +410,7 @@ impl ShapedText {
     }
 
     /// Last applied alignment.
-    pub fn align(&self) -> TextAlign {
+    pub fn align(&self) -> Align {
         self.align
     }
 
@@ -429,7 +429,7 @@ impl ShapedText {
         line_height: Px,
         line_spacing: Px,
         align_box: impl FnOnce(PxSize) -> PxRect,
-        align: TextAlign,
+        align: Align,
     ) {
         //
         // Line Height & Spacing
@@ -527,7 +527,7 @@ impl ShapedText {
             self.og_line_height,
             self.og_line_spacing,
             |_| PxRect::zero(),
-            TextAlign::LEFT,
+            Align::START,
         );
     }
 
@@ -625,7 +625,7 @@ impl ShapedText {
             underline_descent: self.underline_descent,
             y_offset: 0.0,
             align_box: PxRect::zero(),
-            align: TextAlign::LEFT,
+            align: Align::START,
         }
     }
 
@@ -669,7 +669,7 @@ impl ShapedText {
                 underline_descent: self.underline_descent,
                 y_offset: 0.0,
                 align_box: PxRect::zero(),
-                align: TextAlign::LEFT,
+                align: Align::START,
             };
 
             if self.lines.0.is_empty() || self.lines.last().end <= self.segments.0.len() {
@@ -808,7 +808,7 @@ impl ShapedText {
             self.line_height,
             self.line_spacing,
             |_| PxRect::zero(),
-            TextAlign::LEFT,
+            Align::START,
         );
 
         if self.is_empty() {
@@ -917,7 +917,7 @@ impl ShapedTextBuilder {
                 underline_descent: Default::default(),
                 y_offset: 0.0,
                 align_box: PxRect::zero(),
-                align: TextAlign::LEFT,
+                align: Align::START,
             },
 
             line_height: 0.0,

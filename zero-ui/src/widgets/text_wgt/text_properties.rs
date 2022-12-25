@@ -50,8 +50,11 @@ context_var! {
     /// Configuration of line breaks in Chinese, Japanese, or Korean text.
     pub static LINE_BREAK_VAR: LineBreak = LineBreak::Auto;
 
-    /// Text line alignment in a text block.
-    pub static TEXT_ALIGN_VAR: TextAlign = TextAlign::START;
+    /// Text line alignment inside a text block.
+    pub static TEXT_ALIGN_VAR: Align = Align::START;
+
+    /// Text justify mode when text align is fill.
+    pub static JUSTIFY_VAR: Option<Justify> = None;
 
     /// Length of the `TAB` space.
     pub static TAB_LENGTH_VAR: TabLength = 400.pct();
@@ -287,8 +290,14 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 
 /// Sets the [`TEXT_ALIGN_VAR`] context var.
 #[property(CONTEXT, default(TEXT_ALIGN_VAR))]
-pub fn txt_align(child: impl UiNode, mode: impl IntoVar<TextAlign>) -> impl UiNode {
+pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)
+}
+
+/// Sets the [`JUSTIFY_VAR`] context var.
+#[property(CONTEXT, default(JUSTIFY_VAR))]
+pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
+    with_context_var(child, JUSTIFY_VAR, mode)
 }
 
 /// Sets the [`TAB_LENGTH_VAR`] context var.

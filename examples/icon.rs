@@ -233,7 +233,7 @@ fn title(title: Text) -> impl UiNode {
     text! {
         txt = title;
         font_size = 24;
-        txt_align = TextAlign::CENTER;
+        txt_align = Align::CENTER;
     }
 }
 fn sub_title(title: impl Into<Text>) -> impl UiNode {
@@ -246,6 +246,6 @@ fn size_label(size: Text) -> impl UiNode {
     text! {
         txt = size;
         font_size = 10;
-        txt_align = TextAlign::CENTER;
+        txt_align = Align::CENTER;
     }
 }

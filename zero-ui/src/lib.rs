@@ -933,8 +933,8 @@ pub mod prelude {
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
                 NumVariant,
             },
-            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text,
-            TextAlign, TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak,
+            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, Justify, LineBreak, Text,
+            TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak,
         },
         units::{
             rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Align, AngleUnits,
