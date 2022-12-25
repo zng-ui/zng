@@ -28,6 +28,12 @@ use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrain
 ///
 /// You can use the [`is_fill_x`], [`is_fill_y`] and [`is_baseline`] methods to probe for this special values.
 ///
+/// ## Right-to-Left
+///
+/// The `x` alignment can be flagged as `x_rtl_aware`, in widgets that implement right-to-left the `x` value is multiplied by `-1.fct()`.
+/// The named `const` values that contain `START` and `END` are `x_rtl_aware`, the others are not. The `x_rtl_aware` flag is sticky, all
+/// arithmetic operations between aligns output a flagged align if any of the inputs is flagged.
+///
 /// [`is_fill_x`]: Align::is_fill_x
 /// [`is_fill_y`]: Align::is_fill_y
 /// [`is_baseline`]: Align::is_baseline
@@ -36,6 +42,9 @@ use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrain
 pub struct Align {
     /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: Factor,
+    /// If `x` is multiplied by `-1.fct()` in right-to-left contexts.
+    pub x_rtl_aware: bool,
+
     /// *y* alignment in a `[0.0..=1.0]` range.
     pub y: Factor,
 }
@@ -44,7 +53,37 @@ impl PartialEq for Align {
         self.is_fill_x() == other.is_fill_x() && self.is_fill_y() == other.is_fill_y() && self.x == other.x && self.y == other.y
     }
 }
+impl Default for Align {
+    /// [`Align::START`].
+    fn default() -> Self {
+        Align::START
+    }
+}
 impl Align {
+    /// Gets the actual [`x`] align value.
+    ///
+    /// [`x`]: Self::x
+    pub fn x(&self, rtl: bool) -> Factor {
+        if self.x_rtl_aware && rtl && !self.is_fill_x() {
+            self.x * -(1.fct())
+        } else {
+            self.x
+        }
+    }
+
+    /// Gets the actual [`y`] align value.
+    ///
+    /// [`y`]: Self::y
+    pub fn y(&self) -> Factor {
+        if self.y.0.is_finite() {
+            self.y
+        } else {
+            #[cfg(debug_assertions)]
+            tracing::error!("invalid vertical text align {:?} ignored", self.y);
+            0.fct()
+        }
+    }
+
     /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
     ///
     /// [`x`]: Align::x
@@ -120,11 +159,15 @@ impl Align {
 }
 impl_from_and_into_var! {
     fn from<X: Into<Factor>, Y: Into<Factor>>((x, y): (X, Y)) -> Align {
-        Align { x: x.into(), y: y.into() }
+        Align { x: x.into(), x_rtl_aware: false, y: y.into() }
+    }
+
+    fn from<X: Into<Factor>, Y: Into<Factor>>((x, rtl, y): (X, bool, Y)) -> Align {
+        Align { x: x.into(), x_rtl_aware: rtl, y: y.into() }
     }
 
     fn from(xy: Factor) -> Align {
-        Align { x: xy, y: xy }
+        Align { x: xy, x_rtl_aware: false, y: xy }
     }
 
     fn from(xy: FactorPercent) -> Align {
@@ -132,14 +175,14 @@ impl_from_and_into_var! {
     }
 }
 macro_rules! named_aligns {
-    ( $($NAME:ident = ($x:expr, $y:expr);)+ ) => {named_aligns!{$(
-        [stringify!(($x, $y))] $NAME = ($x, $y);
+    ( $($NAME:ident = ($x:expr, $rtl:expr, $y:expr);)+ ) => {named_aligns!{$(
+        [stringify!(($x, $y))] $NAME = ($x, $rtl, $y);
     )+}};
 
-    ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {
+    ( $([$doc:expr] $NAME:ident = ($x:expr, $rtl:expr, $y:expr);)+ ) => {
         $(
         #[doc=$doc]
-        pub const $NAME: Align = Align { x: Factor($x), y: Factor($y) };
+        pub const $NAME: Align = Align { x: Factor($x), x_rtl_aware: $rtl, y: Factor($y) };
         )+
 
         /// Returns the alignment `const` name if `self` is equal to one of then.
@@ -164,7 +207,11 @@ impl fmt::Debug for Align {
                 f.write_str(name)
             }
         } else {
-            f.debug_struct("Align").field("x", &self.x).field("y", &self.y).finish()
+            f.debug_struct("Align")
+                .field("x", &self.x)
+                .field("x_rtl_aware", &self.x_rtl_aware)
+                .field("y", &self.y)
+                .finish()
         }
     }
 }
@@ -193,34 +240,44 @@ impl fmt::Display for Align {
 }
 impl Align {
     named_aligns! {
-        TOP_LEFT = (0.0, 0.0);
-        BOTTOM_LEFT = (0.0, 1.0);
+        TOP_START = (0.0, true, 0.0);
+        TOP_LEFT = (0.0, false, 0.0);
+        BOTTOM_START = (0.0, true, 0.0);
+        BOTTOM_LEFT = (0.0, false, 1.0);
 
-        TOP_RIGHT = (1.0, 0.0);
-        BOTTOM_RIGHT = (1.0, 1.0);
+        TOP_END = (1.0, true, 0.0);
+        TOP_RIGHT = (1.0, false, 0.0);
+        BOTTOM_END = (1.0, true, 0.0);
+        BOTTOM_RIGHT = (1.0, false, 1.0);
 
-        LEFT = (0.0, 0.5);
-        RIGHT = (1.0, 0.5);
-        TOP = (0.5, 0.0);
-        BOTTOM = (0.5, 1.0);
+        START = (0.0, true, 0.5);
+        LEFT = (0.0, false, 0.5);
+        END = (0.0, true, 0.5);
+        RIGHT = (1.0, false, 0.5);
+        TOP = (0.5, false, 0.0);
+        BOTTOM = (0.5, false, 1.0);
 
-        CENTER = (0.5, 0.5);
+        CENTER = (0.5, false, 0.5);
 
-        FILL_TOP = (f32::INFINITY, 0.0);
-        FILL_BOTTOM = (f32::INFINITY, 1.0);
-        FILL_RIGHT = (1.0, f32::INFINITY);
-        FILL_LEFT = (0.0, f32::INFINITY);
+        FILL_TOP = (f32::INFINITY, false, 0.0);
+        FILL_BOTTOM = (f32::INFINITY, false, 1.0);
+        FILL_START = (1.0, true, f32::INFINITY);
+        FILL_RIGHT = (1.0, false, f32::INFINITY);
+        FILL_END = (0.0, true, f32::INFINITY);
+        FILL_LEFT = (0.0, false, f32::INFINITY);
 
-        FILL_X = (f32::INFINITY, 0.5);
-        FILL_Y = (0.5, f32::INFINITY);
+        FILL_X = (f32::INFINITY, false, 0.5);
+        FILL_Y = (0.5, false, f32::INFINITY);
 
-        FILL = (f32::INFINITY, f32::INFINITY);
+        FILL = (f32::INFINITY, false, f32::INFINITY);
 
-        BASELINE_LEFT = (0.0, f32::NEG_INFINITY);
-        BASELINE_CENTER = (0.5, f32::NEG_INFINITY);
-        BASELINE_RIGHT = (1.0, f32::NEG_INFINITY);
+        BASELINE_START = (1.0, true, f32::NEG_INFINITY);
+        BASELINE_LEFT = (0.0, false, f32::NEG_INFINITY);
+        BASELINE_CENTER = (0.5, false, f32::NEG_INFINITY);
+        BASELINE_END = (1.0, true, f32::NEG_INFINITY);
+        BASELINE_RIGHT = (1.0, false, f32::NEG_INFINITY);
 
-        BASELINE = (f32::INFINITY, f32::NEG_INFINITY);
+        BASELINE = (f32::INFINITY, false, f32::NEG_INFINITY);
     }
 }
 impl_from_and_into_var! {
@@ -235,6 +292,7 @@ impl_from_and_into_var! {
     fn from(factor2d: Factor2d) -> Align {
         Align {
             x: factor2d.x,
+            x_rtl_aware: false,
             y: factor2d.y,
         }
     }
@@ -255,6 +313,7 @@ impl ops::AddAssign for Align {
         } else {
             self.x += rhs.x;
         }
+        self.x_rtl_aware |= rhs.x_rtl_aware;
 
         if self.is_baseline() || rhs.is_baseline() {
             self.y = f32::NEG_INFINITY.fct();
@@ -283,6 +342,7 @@ impl ops::SubAssign for Align {
         } else {
             self.x -= rhs.x;
         }
+        self.x_rtl_aware |= rhs.x_rtl_aware;
 
         if self.is_baseline() || rhs.is_baseline() {
             // baseline is an special value.
@@ -314,6 +374,7 @@ impl<S: Into<Factor2d>> ops::MulAssign<S> for Align {
         } else {
             self.x *= rhs.x;
         }
+        self.x_rtl_aware |= rhs.x_rtl_aware;
 
         if self.is_baseline() || rhs.is_baseline() {
             // baseline is an special value.
@@ -345,6 +406,7 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Align {
         } else {
             self.x /= rhs.x;
         }
+        self.x_rtl_aware |= rhs.x_rtl_aware;
 
         if self.is_baseline() || rhs.is_baseline() {
             // baseline is an special value.

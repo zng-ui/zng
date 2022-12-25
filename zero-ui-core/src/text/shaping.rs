@@ -6,7 +6,7 @@ use std::{
 
 use super::{
     font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, InternedStr, Lang,
-    LineBreak, SegmentedText, Text, TextAlign, TextSegment, TextSegmentKind, WordBreak,
+    LineBreak, SegmentedText, Text, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
     crate_util::{f32_cmp, IndexRange},

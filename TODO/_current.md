@@ -2,8 +2,11 @@
     - Tried to use `TextAlign` in a `wrap!`, did not work.
     - `TextAlign::START` is something interesting in general, not just for text.
     - `TextAlign::JUSTIFY` is just `FILL` for text?
+    - Need a core `RTL_VAR`.
 
 * Add contextual grid info, like the text `TextLayout`, to allow custom properties to extent it (like an special border property).
+
+* Auto request update for widget when it's state changes.
 
 * Grid pos-layout align.
     - Cell align.
