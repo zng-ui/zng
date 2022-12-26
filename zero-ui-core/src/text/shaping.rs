@@ -512,6 +512,13 @@ impl ShapedText {
                 line_start = line.end;
             }
 
+            let y_transform_px = Px(y_transform as i32);
+            self.underline -= y_transform_px;
+            self.baseline -= y_transform_px;
+            self.overline -= y_transform_px;
+            self.strikethrough -= y_transform_px;
+            self.underline_descent -= y_transform_px;
+
             self.y_offset = global_offset.y;
             self.padding = padding;
             self.align_box = align_box;
