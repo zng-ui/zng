@@ -1,3 +1,4 @@
+use path_absolutize::*;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -120,13 +121,17 @@ impl LinkResolver {
         Self::Resolve(Arc::new(fn_))
     }
 
-    /// Resolve file links relative to `base`
+    /// Resolve file links relative to `base`. 
+    /// 
+    /// The path is also absolutized, but not canonicalized.
     pub fn base_dir(base: impl Into<PathBuf>) -> Self {
         let base = base.into();
         Self::new(move |url| {
             if !url.starts_with('#') && url.parse::<Uri>().is_err() {
                 if let Ok(path) = url.parse::<PathBuf>() {
-                    return base.join(path).display().to_text();
+                    if let Ok(path) = base.join(path).absolutize() {
+                        return path.display().to_text();
+                    }
                 }
             }
             url.to_text()

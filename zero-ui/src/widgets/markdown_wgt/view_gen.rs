@@ -567,7 +567,7 @@ pub fn default_heading_view(args: HeadingViewArgs) -> impl UiNode {
 ///
 /// See [`LIST_VIEW_VAR`] for more details.
 ///
-/// [`grid!`]: crate::widgets::layouts::grid
+/// [`grid!`]: mod@crate::widgets::layouts::grid
 pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
