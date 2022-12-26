@@ -81,6 +81,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
                 || PARAGRAPH_VIEW_VAR.is_new(ctx)
                 || HEADING_VIEW_VAR.is_new(ctx)
                 || LIST_VIEW_VAR.is_new(ctx)
+                || LIST_ITEM_BULLET_VIEW_VAR.is_new(ctx)
                 || LIST_ITEM_VIEW_VAR.is_new(ctx)
                 || IMAGE_VIEW_VAR.is_new(ctx)
                 || RULE_VIEW_VAR.is_new(ctx)
@@ -126,6 +127,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let heading_view = HEADING_VIEW_VAR.get();
     let paragraph_view = PARAGRAPH_VIEW_VAR.get();
     let list_view = LIST_VIEW_VAR.get();
+    let list_item_bullet_view = LIST_ITEM_BULLET_VIEW_VAR.get();
     let list_item_view = LIST_ITEM_VIEW_VAR.get();
     let image_view = IMAGE_VIEW_VAR.get();
     let rule_view = RULE_VIEW_VAR.get();
@@ -301,12 +303,16 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                             None
                         };
 
+                        let bullet_args = ListItemBulletViewArgs {
+                            depth: depth as u32,
+                            num,
+                            checked: list.item_checked.take(),
+                        };
+                        list_items.push(list_item_bullet_view.generate(ctx, bullet_args));
                         list_items.push(list_item_view.generate(
                             ctx,
                             ListItemViewArgs {
-                                depth: depth as u32,
-                                num,
-                                checked: list.item_checked.take(),
+                                bullet: bullet_args,
                                 items: inlines.drain(list.inline_start..).collect(),
                                 nested_list,
                             },

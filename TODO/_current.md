@@ -1,7 +1,4 @@
 * Implement `markdown!`.
-    - List number horizontal alignment.
-        - Need something like a grid here as well? To share the column size.
-        - Right now the bullet is inside the item already
     - Links and footnotes.
         - Implement something that automatically selects the best side of the target widget to open the link tool-tip.
         - Fix file links display (don't show added relative path?).

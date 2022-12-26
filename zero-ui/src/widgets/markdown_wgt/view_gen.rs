@@ -95,11 +95,14 @@ pub struct ListViewArgs {
     pub first_num: Option<u64>,
 
     /// List items.
+    ///
+    /// Each two items are the bullet or number followed by the item.
     pub items: UiNodeVec,
 }
 
-/// Arguments for a markdown list item view.
-pub struct ListItemViewArgs {
+/// Arguments for a markdown list item bullet, checkmark or number.
+#[derive(Clone, Copy)]
+pub struct ListItemBulletViewArgs {
     /// Nested list depth, starting from zero for items in the outer-list.
     pub depth: u32,
 
@@ -108,6 +111,12 @@ pub struct ListItemViewArgs {
 
     /// If the list is checked. `Some(true)` is `[x]` and `Some(false)` is `[ ]`.
     pub checked: Option<bool>,
+}
+
+/// Arguments for a markdown list item view.
+pub struct ListItemViewArgs {
+    /// Copy of the bullet args.
+    pub bullet: ListItemBulletViewArgs,
 
     /// Inline items of the list item.
     pub items: UiNodeVec,
@@ -216,7 +225,10 @@ context_var! {
     /// View generator for a markdown list.
     pub static LIST_VIEW_VAR: ViewGenerator<ListViewArgs> = ViewGenerator::new(|_, args| default_list_view(args));
 
-    /// View generator for a markdown list item.
+    /// View generator for a markdown list item bullet, checkmark or number.
+    pub static LIST_ITEM_BULLET_VIEW_VAR: ViewGenerator<ListItemBulletViewArgs> = ViewGenerator::new(|_, args| default_list_item_bullet_view(args));
+
+    /// View generator for a markdown list item content.
     pub static LIST_ITEM_VIEW_VAR: ViewGenerator<ListItemViewArgs> = ViewGenerator::new(|_, args| default_list_item_view(args));
 
     /// View generator for a markdown image.
@@ -298,6 +310,14 @@ pub fn heading_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<Heading
 #[property(CONTEXT, default(LIST_VIEW_VAR))]
 pub fn list_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListViewArgs>>) -> impl UiNode {
     with_context_var(child, LIST_VIEW_VAR, view)
+}
+
+/// View generator that converts [`ListItemBulletViewArgs`] to widgets.
+///
+/// Sets the [`LIST_ITEM_BULLET_VIEW_VAR`].
+#[property(CONTEXT, default(LIST_ITEM_BULLET_VIEW_VAR))]
+pub fn list_item_bullet_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListItemBulletViewArgs>>) -> impl UiNode {
+    with_context_var(child, LIST_ITEM_BULLET_VIEW_VAR, view)
 }
 
 /// View generator that converts [`ListItemViewArgs`] to widgets.
@@ -543,14 +563,67 @@ pub fn default_heading_view(args: HeadingViewArgs) -> impl UiNode {
 
 /// Default list view.
 ///
+/// Uses a [`grid!`] with two columns, one default for the bullet or number, the other fills the leftover space.
+///
 /// See [`LIST_VIEW_VAR`] for more details.
+///
+/// [`grid!`]: crate::widgets::layouts::grid
 pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        crate::widgets::layouts::v_stack! {
+        use crate::widgets::layouts::grid;
+        grid! {
             margin = (0, 0, 0, 1.em());
-            children = args.items;
+            cells = args.items;
+            columns = ui_list![
+                grid::column!(),
+                grid::column! { width = 1.lft() },
+            ];
+        }
+        .boxed()
+    }
+}
+
+/// Default list item bullet, checkmark or number view.
+///
+/// See [`LIST_ITEM_BULLET_VIEW_VAR`] for more details.
+pub fn default_list_item_bullet_view(args: ListItemBulletViewArgs) -> impl UiNode {
+    if let Some(checked) = args.checked {
+        crate::widgets::text! {
+            txt = " ✓ ";
+            txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
+            background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+            corner_radius = 4;
+            scale = 0.8.fct();
+            offset = (-(0.1.fct()), 0);
+        }
+        .boxed()
+    } else if let Some(n) = args.num {
+        crate::widgets::text! {
+            txt = formatx!("{n}. ");
+            align = Align::RIGHT;
+        }
+        .boxed()
+    } else {
+        match args.depth {
+            0 => crate::widgets::wgt! {
+                size = (5, 5);
+                corner_radius = 5;
+                margin = (0.6.em(), 0.5.em(), 0, 0);
+                background_color = TEXT_COLOR_VAR;
+            },
+            1 => crate::widgets::wgt! {
+                size = (5, 5);
+                corner_radius = 5;
+                margin = (0.6.em(), 0.5.em(), 0, 0);
+                border = 1.px(), TEXT_COLOR_VAR.map_into();
+            },
+            _ => crate::widgets::wgt! {
+                size = (5, 5);
+                margin = (0.6.em(), 0.5.em(), 0, 0);
+                background_color = TEXT_COLOR_VAR;
+            },
         }
         .boxed()
     }
@@ -562,53 +635,12 @@ pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
 pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
     let mut items = args.items;
 
-    if let Some(checked) = args.checked {
-        items.0.insert(
-            0,
-            crate::widgets::text! {
-                txt = " ✓ ";
-                txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
-                background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
-                corner_radius = 4;
-                scale = 0.8.fct();
-                offset = (-(0.1.fct()), 0);
-            }
-            .boxed(),
-        );
-    }
-
-    if let Some(n) = args.num {
-        items.0.insert(
-            0,
-            crate::widgets::text! {
-                txt = formatx!("{n}. ");
-            }
-            .boxed(),
-        );
-    } else if args.checked.is_none() {
-        items.0.insert(
-            0,
-            match args.depth {
-                0 => crate::widgets::wgt! {
-                    size = (5, 5);
-                    corner_radius = 5;
-                    margin = (0.6.em(), 0.5.em(), 0, 0);
-                    background_color = TEXT_COLOR_VAR;
-                },
-                1 => crate::widgets::wgt! {
-                    size = (5, 5);
-                    corner_radius = 5;
-                    margin = (0.6.em(), 0.5.em(), 0, 0);
-                    border = 1.px(), TEXT_COLOR_VAR.map_into();
-                },
-                _ => crate::widgets::wgt! {
-                    size = (5, 5);
-                    margin = (0.6.em(), 0.5.em(), 0, 0);
-                    background_color = TEXT_COLOR_VAR;
-                },
-            }
-            .boxed(),
-        );
+    if items.is_empty() {
+        return if let Some(inner) = args.nested_list {
+            inner
+        } else {
+            NilUiNode.boxed()
+        };
     }
 
     let mut r = if items.len() == 1 {
