@@ -2221,8 +2221,8 @@ impl<T> FrameVarKey<T> {
 bitflags! {
     /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.
     pub struct FontSynthesis: u8 {
-        /// No synthetic font generated, if font resolution does not find a variant the matches the requested propertied
-        /// the properties are ignored and the normal font is returned.
+        /// No synthetic font generated, if font resolution does not find a variant the matches the requested style and weight
+        /// the request is ignored and the normal font is returned.
         const DISABLED = 0;
         /// Enable synthetic bold. Font resolution finds the closest bold variant, the difference added using extra stroke.
         const BOLD = 1;

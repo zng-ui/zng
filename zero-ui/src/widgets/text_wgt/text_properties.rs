@@ -119,42 +119,80 @@ context_var! {
     pub static HYPHEN_CHAR_VAR: Text = Text::from_char('-');
 }
 
+/// Font family name or list of names for texts in this widget or descendants.
+///
+/// All fonts in the list are resolved according to the [`font_style`], [`font_weight`] and [`font_stretch`] config.
+/// During text shaping the first font on the list is preferred, but if the font does not cover a character or word, that
+/// character or word falls-back to the second font in the list and so on.
+///
 /// Sets the [`FONT_FAMILY_VAR`] context var.
+///
+/// [`font_style`]: fn@font_style
+/// [`font_weight`]: fn@font_weight
+/// [`font_stretch`]: fn@font_stretch
 #[property(CONTEXT, default(FONT_FAMILY_VAR))]
 pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl UiNode {
     with_context_var(child, FONT_FAMILY_VAR, names)
 }
 
+/// Defines the degree of blackness or stroke thickness of the font glyphs.
+///
+/// This value influences font resolution, the variant within the font family that is closest to this config will be selected.
+///
 /// Sets the [`FONT_STYLE_VAR`] context var.
 #[property(CONTEXT, default(FONT_STYLE_VAR))]
 pub fn font_style(child: impl UiNode, style: impl IntoVar<FontStyle>) -> impl UiNode {
     with_context_var(child, FONT_STYLE_VAR, style)
 }
 
+/// Defines how condensed or expanded the preferred font should be.
+///
+/// This value influences font resolution, the variant within the font family that is closest to this config will be selected.
+///
 /// Sets the [`FONT_WEIGHT_VAR`] context var.
 #[property(CONTEXT, default(FONT_WEIGHT_VAR))]
 pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl UiNode {
     with_context_var(child, FONT_WEIGHT_VAR, weight)
 }
 
+/// Defines how condensed or expanded the preferred font should be.
+///
+/// This value influences font resolution, the variant within the font family that is closest to this config will be selected.
+///
 /// Sets the [`FONT_STRETCH_VAR`] context var.
 #[property(CONTEXT, default(FONT_STRETCH_VAR))]
 pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
     with_context_var(child, FONT_STRETCH_VAR, stretch)
 }
 
+/// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.
+///
+/// Not all fonts implement the requested [`font_weight`] and [`font_style`], this config allows the renderer
+/// to try and generate the style and weight anyway, using transforms and the glyph outlines.
+///
 /// Sets the [`FONT_SYNTHESIS_VAR`] context var.
+///
+/// [`font_weight`]: fn@font_weight
+/// [`font_style`]: fn@font_style
 #[property(CONTEXT, default(FONT_SYNTHESIS_VAR))]
 pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
     with_context_var(child, FONT_SYNTHESIS_VAR, enabled)
 }
 
+/// Configure the anti-aliasing used to render text glyphs inside the widget.
+///
+/// Uses the operating system configuration by default.
+///
 /// Sets the [`FONT_AA_VAR`] context var.
 #[property(CONTEXT, default(FONT_AA_VAR))]
 pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl UiNode {
     with_context_var(child, FONT_AA_VAR, aa)
 }
 
+/// Sets the font size for the widget and descendants.
+///
+/// This property affects all texts inside the widget and the [`Length::Em`] unit.
+///
 /// Sets the [`FONT_SIZE_VAR`] context var and the [`LayoutMetrics::font_size`].
 #[property(CONTEXT, default(FONT_SIZE_VAR))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
@@ -271,12 +309,12 @@ pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> imp
 }
 
 /// Extra spacing in-between paragraphs.
-/// 
+///
 /// The default value is `1.em()`. Note that the [`text!`] widget does not implement this property, as raw text does not encode
 /// paragraph breaks, this property and context var exists to configure *rich-text* widgets, like the [`markdown!`] widget.
 ///
 /// Sets the [`PARAGRAPH_SPACING_VAR`] context var.
-/// 
+///
 /// [`text!`]: mod@crate::widgets::text
 /// [`markdown!`]: mod@crate::widgets::markdown
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR))]
@@ -289,9 +327,9 @@ pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacin
 /// This value is only considered if it is impossible to fit a full word to a line.
 ///
 /// Hyphens can be inserted in word breaks using the [`hyphens`] configuration.
-/// 
+///
 /// Sets the [`WORD_BREAK_VAR`] context var.
-/// 
+///
 /// [`hyphens`]: fn@hyphens
 #[property(CONTEXT, default(WORD_BREAK_VAR))]
 pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiNode {
@@ -299,7 +337,7 @@ pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiN
 }
 
 /// Configuration of text wrapping for Chinese, Japanese, or Korean text.
-/// 
+///
 /// Sets the [`LINE_BREAK_VAR`] context var.
 #[property(CONTEXT, default(LINE_BREAK_VAR))]
 pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiNode {
@@ -307,12 +345,12 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 }
 
 /// Alignment of text lines inside text blocks.
-/// 
+///
 /// Note that the [`text!`] widget only implements this for text inside each instance in isolation, multiple
 /// text instances in an inline row will not all align together by the [`text!`] layout implementation alone.
 ///
 /// Sets the [`TEXT_ALIGN_VAR`] context var.
-/// 
+///
 /// [`text!`]: mod@crate::widgets::text
 #[property(CONTEXT, default(TEXT_ALIGN_VAR))]
 pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
@@ -320,9 +358,9 @@ pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
 }
 
 /// Config the automatic spacing inserted between words and letters when text is aligned to fill.
-/// 
+///
 /// Text alignment can be set to [`Align::FILL`], if this config is set to `Some(mode)` when that happens
-/// the text layout will automatically insert spaces to try and *fill* the text block. When justify is not 
+/// the text layout will automatically insert spaces to try and *fill* the text block. When justify is not
 /// enabled, that is set to `None`, fill alignment is the same as [`Align::START`].
 ///
 /// Sets the [`JUSTIFY_VAR`] context var.
@@ -332,7 +370,7 @@ pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl 
 }
 
 /// Length of the TAB character space, relative to the normal space advance.
-/// 
+///
 /// Is set to `400.pct()` by default, so 4 times a space.
 ///
 /// Sets the [`TAB_LENGTH_VAR`] context var.
@@ -342,7 +380,7 @@ pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl U
 }
 
 /// Text white space transform.
-/// 
+///
 /// Can be used to collapse a sequence of spaces into a single one, or to ignore line-breaks.
 /// Is [`WhiteSpace::Preserve`] by default.
 ///
