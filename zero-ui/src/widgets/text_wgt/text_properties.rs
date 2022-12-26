@@ -270,42 +270,82 @@ pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> imp
     with_context_var(child, WORD_SPACING_VAR, extra)
 }
 
+/// Extra spacing in-between paragraphs.
+/// 
+/// The default value is `1.em()`. Note that the [`text!`] widget does not implement this property, as raw text does not encode
+/// paragraph breaks, this property and context var exists to configure *rich-text* widgets, like the [`markdown!`] widget.
+///
 /// Sets the [`PARAGRAPH_SPACING_VAR`] context var.
+/// 
+/// [`text!`]: mod@crate::widgets::text
+/// [`markdown!`]: mod@crate::widgets::markdown
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
 }
 
+/// Configure line breaks inside words during text wrap.
+///
+/// This value is only considered if it is impossible to fit a full word to a line.
+///
+/// Hyphens can be inserted in word breaks using the [`hyphens`] configuration.
+/// 
 /// Sets the [`WORD_BREAK_VAR`] context var.
+/// 
+/// [`hyphens`]: fn@hyphens
 #[property(CONTEXT, default(WORD_BREAK_VAR))]
 pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiNode {
     with_context_var(child, WORD_BREAK_VAR, mode)
 }
 
+/// Configuration of text wrapping for Chinese, Japanese, or Korean text.
+/// 
 /// Sets the [`LINE_BREAK_VAR`] context var.
 #[property(CONTEXT, default(LINE_BREAK_VAR))]
 pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiNode {
     with_context_var(child, LINE_BREAK_VAR, mode)
 }
 
+/// Alignment of text lines inside text blocks.
+/// 
+/// Note that the [`text!`] widget only implements this for text inside each instance in isolation, multiple
+/// text instances in an inline row will not all align together by the [`text!`] layout implementation alone.
+///
 /// Sets the [`TEXT_ALIGN_VAR`] context var.
+/// 
+/// [`text!`]: mod@crate::widgets::text
 #[property(CONTEXT, default(TEXT_ALIGN_VAR))]
 pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)
 }
 
+/// Config the automatic spacing inserted between words and letters when text is aligned to fill.
+/// 
+/// Text alignment can be set to [`Align::FILL`], if this config is set to `Some(mode)` when that happens
+/// the text layout will automatically insert spaces to try and *fill* the text block. When justify is not 
+/// enabled, that is set to `None`, fill alignment is the same as [`Align::START`].
+///
 /// Sets the [`JUSTIFY_VAR`] context var.
 #[property(CONTEXT, default(JUSTIFY_VAR))]
 pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
     with_context_var(child, JUSTIFY_VAR, mode)
 }
 
+/// Length of the TAB character space, relative to the normal space advance.
+/// 
+/// Is set to `400.pct()` by default, so 4 times a space.
+///
 /// Sets the [`TAB_LENGTH_VAR`] context var.
 #[property(CONTEXT, default(TAB_LENGTH_VAR))]
 pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl UiNode {
     with_context_var(child, TAB_LENGTH_VAR, length)
 }
 
+/// Text white space transform.
+/// 
+/// Can be used to collapse a sequence of spaces into a single one, or to ignore line-breaks.
+/// Is [`WhiteSpace::Preserve`] by default.
+///
 /// Sets the [`WHITE_SPACE_VAR`] context var.
 #[property(CONTEXT, default(WHITE_SPACE_VAR))]
 pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
