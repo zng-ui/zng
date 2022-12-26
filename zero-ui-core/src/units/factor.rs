@@ -100,6 +100,8 @@ impl Factor {
         self.into()
     }
 
+    /// Flip factor, around `0.5`,
+    ///
     /// Returns `1.fct() - self`.
     pub fn flip(self) -> Factor {
         1.fct() - self

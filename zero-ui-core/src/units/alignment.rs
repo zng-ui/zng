@@ -21,18 +21,19 @@ use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrain
 ///
 /// ## Special Values
 ///
-/// The [`f32::INFINITY`] value can be used in ***x*** or ***y*** to indicate that the content should *fill* the available space.
+/// The [`f32::INFINITY`] value can be used in ***x*** or ***y*** to indicate that the content must *fill* the available space.
 ///
-/// The [`f32::NEG_INFINITY`] value can be used in ***y*** to indicate that a panel widget should align its items by each *baseline*,
-/// for most widgets this is the same as `BOTTOM`, but for texts this aligns to the baseline of the texts.
+/// The [`f32::NEG_INFINITY`] value can be used in ***y*** to indicate that a panel widget must align its items by each *baseline*,
+/// for most widgets this is the same as `BOTTOM`, but for texts this aligns to the baseline of the texts (bottom + baseline).
 ///
 /// You can use the [`is_fill_x`], [`is_fill_y`] and [`is_baseline`] methods to probe for this special values.
 ///
 /// ## Right-to-Left
 ///
-/// The `x` alignment can be flagged as `x_rtl_aware`, in widgets that implement right-to-left the `x` value is multiplied by `-1.fct()`.
+/// The `x` alignment can be flagged as `x_rtl_aware`, in widgets that implement right-to-left the `x` value is flipped around `0.5.fct()`.
 /// The named `const` values that contain `START` and `END` are `x_rtl_aware`, the others are not. The `x_rtl_aware` flag is sticky, all
-/// arithmetic operations between aligns output a flagged align if any of the inputs is flagged.
+/// arithmetic operations between aligns output an `x_rtl_aware` align if any of the inputs is flagged. The flag is only resolved explicitly,
+/// arithmetic operations apply on the
 ///
 /// [`is_fill_x`]: Align::is_fill_x
 /// [`is_fill_y`]: Align::is_fill_y
@@ -42,7 +43,7 @@ use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrain
 pub struct Align {
     /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: Factor,
-    /// If `x` is multiplied by `-1.fct()` in right-to-left contexts.
+    /// If `x` is flipped (around `0.5`) in right-to-left contexts.
     pub x_rtl_aware: bool,
 
     /// *y* alignment in a `[0.0..=1.0]` range.
@@ -60,23 +61,32 @@ impl Default for Align {
     }
 }
 impl Align {
-    /// Gets the actual [`x`] align value.
+    /// Gets the best finite [`x`] align value.
+    ///
+    /// Replaces `FILL` with `START`, flips `x` for right-to-left if applicable.
     ///
     /// [`x`]: Self::x
     pub fn x(&self, rtl: bool) -> Factor {
-        if self.x_rtl_aware && rtl && !self.is_fill_x() {
-            self.x * -(1.fct())
+        let x = if self.x.0.is_finite() { self.x } else { 0.fct() };
+
+        if self.x_rtl_aware && rtl {
+            x.flip()
         } else {
-            self.x
+            x
         }
     }
 
-    /// Gets the actual [`y`] align value.
+    /// Gets the best finite [`y`] align value.
+    ///
+    /// Returns `1.fct()` for [`is_baseline`], implementers must add the baseline offset to that.
     ///
     /// [`y`]: Self::y
+    /// [`is_baseline`]: Self::is_baseline
     pub fn y(&self) -> Factor {
         if self.y.0.is_finite() {
             self.y
+        } else if self.is_baseline() {
+            1.fct()
         } else {
             #[cfg(debug_assertions)]
             tracing::error!("invalid vertical text align {:?} ignored", self.y);
@@ -100,7 +110,7 @@ impl Align {
 
     /// Returns `true` if [`y`] is a special value that indicates the contents must be aligned by their baseline.
     ///
-    /// If this is `true` the *y* alignment should be `BOTTOM` plus the baseline offset.
+    /// If this is `true` the *y* alignment must be `BOTTOM` plus the baseline offset.
     ///
     /// [`y`]: Align::y
     pub fn is_baseline(self) -> bool {

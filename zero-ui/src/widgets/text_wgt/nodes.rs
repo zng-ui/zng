@@ -1080,43 +1080,40 @@ pub fn render_text() -> impl UiNode {
         }
 
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
-            let mut render = move |r: &ResolvedText, t: &LayoutText| {
-                let clip = t.shaped_text.align_box();
-                let color = TEXT_COLOR_VAR.get();
-                let color_value = if let Some(key) = self.color_key {
-                    key.bind(color.into(), TEXT_COLOR_VAR.is_animating())
-                } else {
-                    FrameValue::Value(color.into())
-                };
-
-                let aa = FONT_AA_VAR.get();
-
-                let mut reuse = self.reuse.borrow_mut();
-
-                let rendered = Some(RenderedText {
-                    version: t.shaped_text_version,
-                    synthesis: r.synthesis,
-                    color,
-                    aa,
-                });
-                if self.rendered.get() != rendered {
-                    self.rendered.set(rendered);
-                    *reuse = None;
-                }
-
-                frame.push_reuse(&mut reuse, |frame| {
-                    for (font, glyphs) in t.shaped_text.glyphs() {
-                        frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
-                    }
-                });
-            };
-
             let read = ResolvedText::read();
             let r = read.as_ref().expect("expected `ResolvedText` in `render_text`");
             let read = LayoutText::read();
             let t = read.as_ref().expect("expected `LayoutText` in `render_text`");
 
-            render(r, t)
+            let lh = t.shaped_text.line_height();
+            let clip = t.shaped_text.align_box().inflate(lh, lh); // clip allow some weird chars, but
+            let color = TEXT_COLOR_VAR.get();
+            let color_value = if let Some(key) = self.color_key {
+                key.bind(color.into(), TEXT_COLOR_VAR.is_animating())
+            } else {
+                FrameValue::Value(color.into())
+            };
+
+            let aa = FONT_AA_VAR.get();
+
+            let mut reuse = self.reuse.borrow_mut();
+
+            let rendered = Some(RenderedText {
+                version: t.shaped_text_version,
+                synthesis: r.synthesis,
+                color,
+                aa,
+            });
+            if self.rendered.get() != rendered {
+                self.rendered.set(rendered);
+                *reuse = None;
+            }
+
+            frame.push_reuse(&mut reuse, |frame| {
+                for (font, glyphs) in t.shaped_text.glyphs() {
+                    frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                }
+            });
         }
 
         fn render_update(&self, _: &mut RenderContext, update: &mut FrameUpdate) {

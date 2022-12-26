@@ -485,6 +485,9 @@ impl ShapedText {
                 (padding.top + align_box.origin.y).0 as f32,
             );
             global_offset.y += (align_box.height() - padding.vertical() - self.size.height).0 as f32 * align.y();
+            if align.is_baseline() {
+                global_offset.y += self.baseline.0 as f32;
+            }
 
             let y_transform = global_offset.y - self.y_offset;
 
