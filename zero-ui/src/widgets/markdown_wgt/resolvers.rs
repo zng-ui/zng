@@ -121,8 +121,8 @@ impl LinkResolver {
         Self::Resolve(Arc::new(fn_))
     }
 
-    /// Resolve file links relative to `base`. 
-    /// 
+    /// Resolve file links relative to `base`.
+    ///
     /// The path is also absolutized, but not canonicalized.
     pub fn base_dir(base: impl Into<PathBuf>) -> Self {
         let base = base.into();

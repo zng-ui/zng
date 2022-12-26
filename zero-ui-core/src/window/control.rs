@@ -948,7 +948,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
         }
 
         match parent_id {
-            Some(parent_id) => {
+            Some(mut parent_id) => {
                 if parent_id == *ctx.window_id {
                     tracing::error!("cannot set `{:?}` as it's own parent", parent_id);
                     parent_var.set(ctx.vars, *parent);
@@ -962,10 +962,15 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
 
                 let windows = Windows::req(ctx.services);
                 if let Ok(parent_vars) = windows.vars(parent_id) {
-                    if parent_vars.parent().with(Option::is_some) {
-                        tracing::error!("cannot use `{:?}` as a parent because it already has a parent", parent_id);
-                        parent_var.set(ctx.vars, *parent);
-                        return false;
+                    // redirect to parent's parent.
+                    if let Some(grand) = parent_vars.parent().get() {
+                        tracing::debug!("using `{grand:?}` as parent, because it is the parent of requested `{parent_id:?}`");
+                        parent_var.set(ctx.vars, grand);
+
+                        parent_id = grand;
+                        if Some(parent_id) == *parent {
+                            return false;
+                        }
                     }
 
                     // remove previous

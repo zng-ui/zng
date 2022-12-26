@@ -486,8 +486,11 @@ impl WindowVars {
     ///
     /// # Validation
     ///
-    /// The parent window must exist, it cannot have a parent and the child window cannot have children, it also can't set itself as the parent.
-    /// If these condition are not met an error is logged and the parent is set to `None`.
+    /// The parent window cannot have a parent, if it has, that parent id is used, a *debug* message is logged and the parent
+    /// var is updated.
+    ///
+    /// The parent window must exist, this window (child) cannot have children, it also can't set itself as the parent.
+    /// If any of these conditions are not met, an error is logged and the parent var is restored to the previous value.
     ///
     /// [`modal`]: Self::modal
     /// [`color_scheme`]: Self::color_scheme
