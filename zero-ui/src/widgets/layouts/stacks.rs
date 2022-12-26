@@ -658,6 +658,7 @@ pub mod z_stack {
             let align = self.align.get();
 
             let constrains = ctx.constrains();
+            let direction = ctx.direction();
             let mut size = None;
 
             if let Some(known) = constrains.fill_or_exact() {
@@ -686,7 +687,7 @@ pub mod z_stack {
                     |ctx| {
                         self.children.for_each_mut(|_, n| {
                             let s = n.layout(ctx, wl);
-                            align.layout(s, constrains, wl);
+                            align.layout(s, constrains, direction, wl);
                             true
                         });
                     },
@@ -700,7 +701,7 @@ pub mod z_stack {
                     |ctx| {
                         self.children.for_each_mut(|_, n| {
                             let s = n.layout(ctx, wl);
-                            let child_size = align.layout(s, constrains, wl);
+                            let child_size = align.layout(s, constrains, direction, wl);
                             size = size.max(child_size);
                             true
                         });

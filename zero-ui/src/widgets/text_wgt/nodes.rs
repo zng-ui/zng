@@ -580,6 +580,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     line_spacing,
                     |size| PxRect::from_size(metrics.constrains().fill_size_or(size)),
                     align,
+                    metrics.direction(),
                 );
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
 

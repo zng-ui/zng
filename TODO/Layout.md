@@ -1,9 +1,12 @@
 # Layout TODO
 
-* Integrate `LayoutDirection` with `Align`.
-    - Review all align properties.
-* Integrate `LayoutDirection` with panels.
-    - Optional, RTL stack and wrap, mirrored grid?
+* Integrate `LayoutDirection` with all widgets.
+  - IMAGE_ALIGN_VAR
+  - h_stack::children_align
+  - v_stack::children_align
+  - z_stack::children_align
+  - wrap
+  - grid
 
 ## Inline Align
 

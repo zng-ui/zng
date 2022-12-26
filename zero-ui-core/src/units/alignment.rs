@@ -3,7 +3,7 @@ use std::{
     ops,
 };
 
-use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
+use crate::{context::LayoutDirection, impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
 
 use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrains2d, PxSize, PxVector};
 
@@ -66,10 +66,10 @@ impl Align {
     /// Replaces `FILL` with `START`, flips `x` for right-to-left if applicable.
     ///
     /// [`x`]: Self::x
-    pub fn x(&self, rtl: bool) -> Factor {
+    pub fn x(&self, direction: LayoutDirection) -> Factor {
         let x = if self.x.0.is_finite() { self.x } else { 0.fct() };
 
-        if self.x_rtl_aware && rtl {
+        if self.x_rtl_aware && direction.is_rtl() {
             x.flip()
         } else {
             x
@@ -141,13 +141,25 @@ impl Align {
     }
 
     /// Applies the alignment transform to `wl` and returns the size of the parent align node.
-    pub fn layout(self, child_size: PxSize, parent_constrains: PxConstrains2d, wl: &mut WidgetLayoutTranslation) -> PxSize {
+    pub fn layout(
+        self,
+        child_size: PxSize,
+        parent_constrains: PxConstrains2d,
+        direction: LayoutDirection,
+        wl: &mut WidgetLayoutTranslation,
+    ) -> PxSize {
         let size = parent_constrains.fill_size().max(child_size);
         let size = parent_constrains.clamp_size(size);
 
         let mut offset = PxVector::zero();
         if !self.is_fill_x() {
-            offset.x = (size.width - child_size.width) * self.x.0;
+            let x = if self.x_rtl_aware && direction.is_rtl() {
+                self.x.flip().0
+            } else {
+                self.x.0
+            };
+
+            offset.x = (size.width - child_size.width) * x;
         }
 
         let baseline = self.is_baseline();

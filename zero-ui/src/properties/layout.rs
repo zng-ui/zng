@@ -131,7 +131,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
             wl.disable_inline();
             let align = self.alignment.get();
             let child_size = ctx.with_constrains(|c| align.child_constrains(c), |ctx| self.child.layout(ctx, wl));
-            align.layout(child_size, ctx.constrains(), wl)
+            align.layout(child_size, ctx.constrains(), ctx.direction(), wl)
         }
     }
     AlignNode {

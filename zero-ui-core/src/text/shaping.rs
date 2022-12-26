@@ -9,6 +9,7 @@ use super::{
     LineBreak, SegmentedText, Text, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
+    context::LayoutDirection,
     crate_util::{f32_cmp, IndexRange},
     units::*,
 };
@@ -338,6 +339,7 @@ pub struct ShapedText {
     y_offset: f32,
     align_box: PxRect,
     align: Align,
+    direction: LayoutDirection,
 }
 impl ShapedText {
     /// New empty text.
@@ -414,6 +416,11 @@ impl ShapedText {
         self.align
     }
 
+    /// Last applied alignment direction.
+    pub fn direction(&self) -> LayoutDirection {
+        self.direction
+    }
+
     /// Reshape text.
     ///
     /// The `align_box` closure is called with the up-to-date [`box_size`] to produce the container rect where the
@@ -430,6 +437,7 @@ impl ShapedText {
         line_spacing: Px,
         align_box: impl FnOnce(PxSize) -> PxRect,
         align: Align,
+        direction: LayoutDirection,
     ) {
         //
         // Line Height & Spacing
@@ -496,7 +504,7 @@ impl ShapedText {
 
             let mut line_start = 0;
             for line in &mut self.lines.0 {
-                let x_align = align.x(false);
+                let x_align = align.x(direction);
                 let x_offset = global_offset.x + (max_line_w - line.width) * x_align + empty_x * x_align;
 
                 let x_transform = x_offset - line.x_offset;
@@ -538,6 +546,7 @@ impl ShapedText {
             self.og_line_spacing,
             |_| PxRect::zero(),
             Align::START,
+            LayoutDirection::LTR,
         );
     }
 
@@ -636,6 +645,7 @@ impl ShapedText {
             y_offset: 0.0,
             align_box: PxRect::zero(),
             align: Align::START,
+            direction: LayoutDirection::LTR,
         }
     }
 
@@ -680,6 +690,7 @@ impl ShapedText {
                 y_offset: 0.0,
                 align_box: PxRect::zero(),
                 align: Align::START,
+                direction: LayoutDirection::LTR,
             };
 
             if self.lines.0.is_empty() || self.lines.last().end <= self.segments.0.len() {
@@ -819,6 +830,7 @@ impl ShapedText {
             self.line_spacing,
             |_| PxRect::zero(),
             Align::START,
+            LayoutDirection::LTR,
         );
 
         if self.is_empty() {
@@ -928,6 +940,7 @@ impl ShapedTextBuilder {
                 y_offset: 0.0,
                 align_box: PxRect::zero(),
                 align: Align::START,
+                direction: LayoutDirection::LTR,
             },
 
             line_height: 0.0,
@@ -2271,7 +2284,14 @@ mod tests {
 
         assert_eq!(from, test.line_spacing());
         let align_box = test.align_box();
-        test.reshape(test.padding(), test.line_height(), to, |_| align_box, test.align());
+        test.reshape(
+            test.padding(),
+            test.line_height(),
+            to,
+            |_| align_box,
+            test.align(),
+            test.direction(),
+        );
         assert_eq!(to, test.line_spacing());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
@@ -2307,7 +2327,14 @@ mod tests {
 
         assert_eq!(from, test.line_height());
         let align_box = test.align_box();
-        test.reshape(test.padding(), to, test.line_spacing(), |_| align_box, test.align());
+        test.reshape(
+            test.padding(),
+            to,
+            test.line_spacing(),
+            |_| align_box,
+            test.align(),
+            test.direction(),
+        );
         assert_eq!(to, test.line_height());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
