@@ -94,6 +94,14 @@ impl Align {
         }
     }
 
+    /// Gets the best finite [`x`] and [`y`] align values.
+    ///
+    /// [`x`]: fn@Self::x
+    /// [`y`]: fn@Self::y
+    pub fn xy(self, direction: LayoutDirection) -> Factor2d {
+        Factor2d::new(self.x(direction), self.y())
+    }
+
     /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
     ///
     /// [`x`]: Align::x

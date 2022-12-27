@@ -1,10 +1,11 @@
-use std::mem;
-
 use crate::prelude::new_widget::*;
+
+mod direction;
+use direction::*;
 
 #[widget($crate::widgets::layouts::stack)]
 pub mod stack {
-    pub use super::StackDirection;
+    pub use super::direction::StackDirection;
     use super::*;
 
     inherit!(widget_base::base);
@@ -77,147 +78,89 @@ impl UiNode for StackNode {
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let mut prev_rect = PxRect::zero();
-        self.children.for_each_mut(|i, c| {
-            let direction = self.direction.get().layout(ctx, prev_rect, todo!());
-            true
-        });
-        let spacing = self.spacing.get().layout(todo!(), |_| Px(0));
-    }
-}
+        let mut constrains = ctx.constrains();
+        let direction = self.direction.get();
+        let direction_vector = direction.vector(ctx.direction());
+        let children_align = self.children_align.get();
+        let child_align = direction.filter_align(children_align);
 
-/// Defines a placement point in the previous item and the origin point of the next.
-///
-/// # Alignment & Spacing
-///
-/// The direction type can express non-fill alignment and spacing by it self, but prefer using the [`stack::children_align`] and
-/// [`stack::spacing`] properties as they are more readable and include fill alignment. The [`stack!`] widget implements alignment
-/// along the axis that does not change, so if the computed layout vector is zero in a dimension the items can fill in that dimension.
-///
-/// [`stack::children_align`]: fn@stack::children_align
-/// [`stack::spacing`]: fn@stack::spacing
-/// [`stack!`]: mod@stack
-///
-/// # Examples
-///
-/// TODO, use the ASCII drawings?
-#[derive(Debug, Default, Clone)]
-pub struct StackDirection {
-    /// Point on the previous item where the next item is placed.
-    pub place: Point,
-    /// Point on the next item that is offset to match `place`.
-    pub origin: Point,
-
-    /// If `place.x` and `origin.x` are swapped in [`LayoutDirection::RTL`] contexts.
-    pub is_rtl_aware: bool,
-}
-impl StackDirection {
-    /// `((100.pct(), 0), (0, 0))`, items are placed in a row from left to right.
-    ///
-    /// Alignment works on the `y` direction because it is not affected.
-    pub fn left_to_right() -> Self {
-        Self {
-            place: (100.pct(), 0).into(),
-            origin: (0, 0).into(),
-            is_rtl_aware: false,
-        }
-    }
-
-    /// `((0, 0), (100.pct(), 0))`, items are placed in a row from right to left.
-    ///
-    /// Alignment works on the `y` direction because it is not affected.
-    pub fn right_to_left() -> Self {
-        Self {
-            place: (0, 0).into(),
-            origin: (100.pct(), 0).into(),
-            is_rtl_aware: false,
-        }
-    }
-
-    /// `((100.pct(), 0), (0, 0), true)`, items are placed in a row from left to right or from right to left in RTL contexts.
-    ///
-    /// In [`LayoutDirection::RTL`] contexts the `place.x` and `origin.x` values are swapped before they are computed.
-    ///
-    /// Alignment works on the `y` direction because it is not affected.
-    pub fn start_to_end() -> Self {
-        Self {
-            place: (100.pct(), 0).into(),
-            origin: (0, 0).into(),
-            is_rtl_aware: false,
-        }
-    }
-
-    /// `((0, 0), (100.pct(), 0)), true)`, items are placed in a row from right to left or from left to right in RTL contexts.
-    ///
-    /// In [`LayoutDirection::RTL`] contexts the `place.x` and `origin.x` values are swapped before they are computed.
-    ///
-    /// Alignment works on the `y` direction because it is not affected.
-    pub fn end_to_start() -> Self {
-        Self {
-            place: (0, 0).into(),
-            origin: (100.pct(), 0).into(),
-            is_rtl_aware: false,
-        }
-    }
-
-    /// `((0, 100.pct()), (0, 0))`, items are placed in a column from top to bottom.
-    ///  
-    /// Alignment works on the `x` direction because it is not affected.
-    pub fn top_to_bottom() -> Self {
-        Self {
-            place: (0, 100.pct()).into(),
-            origin: (0, 0).into(),
-            is_rtl_aware: false,
-        }
-    }
-
-    /// `(0, 0), (0, 100.pct())`, items are placed in a column from bottom to top.
-    ///  
-    /// Alignment works on the `x` direction because it is not affected.
-    pub fn bottom_to_top() -> Self {
-        Self {
-            place: (0, 0).into(),
-            origin: (0, 100.pct()).into(),
-            is_rtl_aware: false,
-        }
-    }
-
-    /// `(0, 0)`, items are just stacked in the Z order.
-    ///
-    /// Fill alignment works in both dimensions because they don't change.
-    ///
-    /// Note that items are always rendered in the order defined by the [`z_index`] property.
-    ///
-    /// [`z_index`]: fn@z_index
-    pub fn none() -> Self {
-        Self {
-            place: Point::zero(),
-            origin: Point::zero(),
-            is_rtl_aware: false,
-        }
-    }
-
-    /// Compute offset of the next item.
-    pub fn layout(&self, ctx: &LayoutMetrics, prev_item: PxRect, next_item: PxSize) -> PxVector {
-        if self.is_rtl_aware && ctx.direction().is_ltr() {
-            let mut d = self.clone();
-            mem::swap(&mut d.place.x, &mut d.origin.x);
-            d.is_rtl_aware = false;
-            return d.layout_resolved_rtl(ctx, prev_item, next_item);
-        }
-
-        self.layout_resolved_rtl(ctx, prev_item, next_item)
-    }
-
-    fn layout_resolved_rtl(&self, ctx: &LayoutMetrics, prev_item: PxRect, next_item: PxSize) -> PxVector {
-        let place = {
-            let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(prev_item.size));
-            self.place.layout(&ctx, |_| PxPoint::zero())
+        // !!: review this
+        let spacing = self.spacing.get();
+        let spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
+            (false, false) => PxVector::new(spacing.layout(ctx.for_x(), |_| Px(0)), spacing.layout(ctx.for_y(), |_| Px(0))),
+            (true, false) => PxVector::new(Px(0), spacing.layout(ctx.for_y(), |_| Px(0))),
+            (false, true) => PxVector::new(spacing.layout(ctx.for_x(), |_| Px(0)), Px(0)),
+            (true, true) => PxVector::zero(),
         };
-        let origin = {
-            let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(next_item));
-            self.origin.layout(&ctx, |_| PxPoint::zero())
-        };
-        prev_item.origin.to_vector() + place.to_vector() - origin.to_vector()
+
+        // need measure when children fill, but the panel does not.
+        let mut need_measure = false;
+        let mut max_size = PxSize::zero();
+        match (constrains.x.fill_or_exact(), constrains.y.fill_or_exact()) {
+            (None, None) => need_measure = child_align.is_fill_x() || child_align.is_fill_y(),
+            (None, Some(h)) => {
+                max_size.height = h;
+                need_measure = child_align.is_fill_x();
+            }
+            (Some(w), None) => {
+                max_size.width = w;
+                need_measure = child_align.is_fill_y();
+            }
+            (Some(w), Some(h)) => max_size = PxSize::new(w, h),
+        }
+
+        // child constrains
+        constrains = constrains.with_fill(child_align.is_fill_x(), child_align.is_fill_y());
+
+        // find largest child, the others will fill to its size.
+        if need_measure {
+            ctx.as_measure().with_constrains(
+                |_| constrains,
+                |ctx| {
+                    self.children.for_each(|_, c| {
+                        let size = c.measure(ctx, &mut WidgetMeasure::new());
+                        max_size = max_size.max(size);
+                        true
+                    });
+                },
+            );
+
+            max_size = constrains.clamp_size(max_size);
+
+            constrains = constrains.with_max_size(max_size);
+        }
+
+        let mut item_bounds = euclid::Box2D::zero();
+        let child_align = child_align.xy(ctx.direction());
+
+        ctx.with_constrains(
+            |_| constrains,
+            |ctx| {
+                let mut item_rect = PxRect::zero();
+                let mut child_spacing = PxVector::zero();
+                self.children.for_each_mut(|_, c| {
+                    let size = c.layout(ctx, wl);
+                    let offset = direction.layout(ctx, item_rect, size) + child_spacing;
+                    let align_offset = (max_size - size).to_vector() * child_align;
+
+                    wl.with_outer(c, false, |wl, _| wl.translate(offset + align_offset));
+
+                    item_rect.origin = offset.to_point();
+                    item_rect.size = size;
+
+                    let item_box = item_rect.to_box2d();
+                    item_bounds.min = item_bounds.min.min(item_box.min);
+                    item_bounds.max = item_bounds.max.max(item_box.max);
+                    child_spacing = spacing;
+
+                    true
+                });
+            },
+        );
+
+        // !!: correct negative items (right-to-left) to be in the area of the panel as best as possible.
+        // !!: apply children align on the entire group as a unit? (remove child_align?)
+
+        constrains.clamp_size(max_size.max(item_bounds.size()))
     }
 }

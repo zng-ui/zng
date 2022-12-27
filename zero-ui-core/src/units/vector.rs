@@ -104,7 +104,7 @@ impl Vector {
     }
 
     /// Replaces [`Length::Default`] values with `overwrite` values.
-    pub fn replace_default(&mut self, overwrite: &Point) {
+    pub fn replace_default(&mut self, overwrite: &Vector) {
         self.x.replace_default(&overwrite.x);
         self.y.replace_default(&overwrite.y);
     }
