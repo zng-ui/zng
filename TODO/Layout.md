@@ -85,11 +85,17 @@ layout:
 
 direction = (1.fct(), 0);
 children_align = Align::LEFT; // (0, 0.5.fct())
-panel size
 ---------------------------
 |                         |
-|0|1|2|                   |
+|0|1|2|                   | // How? Just align as a group? 
 |                         |
+|-------------------------|
+
+children_align = Align::FILL_LEFT;
+---------------------------
+| | | |                   |
+|0|1|2|                   | // And for fill?
+| | | |                   |
 |-------------------------|
 ```
 
