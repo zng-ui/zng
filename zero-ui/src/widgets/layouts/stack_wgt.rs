@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::prelude::new_widget::*;
 
 #[widget($crate::widgets::layouts::stack)]
@@ -105,6 +107,9 @@ pub struct StackDirection {
     pub place: Point,
     /// Point on the next item that is offset to match `place`.
     pub origin: Point,
+
+    /// If `place.x` and `origin.x` are swapped in [`LayoutDirection::RTL`] contexts.
+    pub is_rtl_aware: bool,
 }
 impl StackDirection {
     /// `((100.pct(), 0), (0, 0))`, items are placed in a row from left to right.
@@ -114,26 +119,55 @@ impl StackDirection {
         Self {
             place: (100.pct(), 0).into(),
             origin: (0, 0).into(),
+            is_rtl_aware: false,
         }
     }
 
-    /// `(0, 0), (100.pct(), 0))`, items are placed in a row from right to left.
+    /// `((0, 0), (100.pct(), 0))`, items are placed in a row from right to left.
     ///
     /// Alignment works on the `y` direction because it is not affected.
     pub fn right_to_left() -> Self {
         Self {
             place: (0, 0).into(),
             origin: (100.pct(), 0).into(),
+            is_rtl_aware: false,
         }
     }
 
-    /// `(0, 100.pct())`, items are placed in a column from top to bottom.
+    /// `((100.pct(), 0), (0, 0), true)`, items are placed in a row from left to right or from right to left in RTL contexts.
+    ///
+    /// In [`LayoutDirection::RTL`] contexts the `place.x` and `origin.x` values are swapped before they are computed.
+    ///
+    /// Alignment works on the `y` direction because it is not affected.
+    pub fn start_to_end() -> Self {
+        Self {
+            place: (100.pct(), 0).into(),
+            origin: (0, 0).into(),
+            is_rtl_aware: false,
+        }
+    }
+
+    /// `((0, 0), (100.pct(), 0)), true)`, items are placed in a row from right to left or from left to right in RTL contexts.
+    ///
+    /// In [`LayoutDirection::RTL`] contexts the `place.x` and `origin.x` values are swapped before they are computed.
+    ///
+    /// Alignment works on the `y` direction because it is not affected.
+    pub fn end_to_start() -> Self {
+        Self {
+            place: (0, 0).into(),
+            origin: (100.pct(), 0).into(),
+            is_rtl_aware: false,
+        }
+    }
+
+    /// `((0, 100.pct()), (0, 0))`, items are placed in a column from top to bottom.
     ///  
     /// Alignment works on the `x` direction because it is not affected.
     pub fn top_to_bottom() -> Self {
         Self {
             place: (0, 100.pct()).into(),
             origin: (0, 0).into(),
+            is_rtl_aware: false,
         }
     }
 
@@ -144,6 +178,7 @@ impl StackDirection {
         Self {
             place: (0, 0).into(),
             origin: (0, 100.pct()).into(),
+            is_rtl_aware: false,
         }
     }
 
@@ -158,11 +193,23 @@ impl StackDirection {
         Self {
             place: Point::zero(),
             origin: Point::zero(),
+            is_rtl_aware: false,
         }
     }
 
     /// Compute offset of the next item.
     pub fn layout(&self, ctx: &LayoutMetrics, prev_item: PxRect, next_item: PxSize) -> PxVector {
+        if self.is_rtl_aware && ctx.direction().is_ltr() {
+            let mut d = self.clone();
+            mem::swap(&mut d.place.x, &mut d.origin.x);
+            d.is_rtl_aware = false;
+            return d.layout_resolved_rtl(ctx, prev_item, next_item);
+        }
+
+        self.layout_resolved_rtl(ctx, prev_item, next_item)
+    }
+
+    fn layout_resolved_rtl(&self, ctx: &LayoutMetrics, prev_item: PxRect, next_item: PxSize) -> PxVector {
         let place = {
             let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(prev_item.size));
             self.place.layout(&ctx, |_| PxPoint::zero())
@@ -171,7 +218,6 @@ impl StackDirection {
             let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(next_item));
             self.origin.layout(&ctx, |_| PxPoint::zero())
         };
-
         prev_item.origin.to_vector() + place.to_vector() - origin.to_vector()
     }
 }
