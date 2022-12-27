@@ -377,9 +377,6 @@ pub fn image_presenter() -> impl UiNode {
             // - Fit the cropped and scaled image to the constrains, add a bounds clip to the crop clip.
 
             let mut align = IMAGE_ALIGN_VAR.get();
-            if align.is_baseline() {
-                align.y = 1.fct();
-            }
 
             let min_size = ctx.constrains().clamp_size(render_clip.size);
             let wgt_size = ctx.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
@@ -424,7 +421,7 @@ pub fn image_presenter() -> impl UiNode {
                 render_offset.x = -render_clip.origin.x;
             } else {
                 let diff = wgt_size.width - render_clip.size.width;
-                let offset = diff * align.x;
+                let offset = diff * align.x(ctx.direction());
                 render_offset.x += offset;
                 if diff < Px(0) {
                     render_clip.origin.x -= offset;
@@ -439,7 +436,7 @@ pub fn image_presenter() -> impl UiNode {
                 render_offset.y = -render_clip.origin.y;
             } else {
                 let diff = wgt_size.height - render_clip.size.height;
-                let offset = diff * align.y;
+                let offset = diff * align.y();
                 render_offset.y += offset;
                 if diff < Px(0) {
                     render_clip.origin.y -= offset;

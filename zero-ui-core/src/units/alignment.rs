@@ -66,7 +66,7 @@ impl Align {
     /// Replaces `FILL` with `START`, flips `x` for right-to-left if applicable.
     ///
     /// [`x`]: Self::x
-    pub fn x(&self, direction: LayoutDirection) -> Factor {
+    pub fn x(self, direction: LayoutDirection) -> Factor {
         let x = if self.x.0.is_finite() { self.x } else { 0.fct() };
 
         if self.x_rtl_aware && direction.is_rtl() {
@@ -82,7 +82,7 @@ impl Align {
     ///
     /// [`y`]: Self::y
     /// [`is_baseline`]: Self::is_baseline
-    pub fn y(&self) -> Factor {
+    pub fn y(self) -> Factor {
         if self.y.0.is_finite() {
             self.y
         } else if self.is_baseline() {
