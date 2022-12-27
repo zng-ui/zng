@@ -8,6 +8,10 @@ mod grid_wgt;
 #[doc(inline)]
 pub use grid_wgt::grid;
 
+mod stack_wgt;
+#[doc(inline)]
+pub use stack_wgt::stack;
+
 mod stacks;
 #[doc(inline)]
 pub use stacks::{h_stack, stack_nodes, stack_nodes_layout_by, v_stack, z_stack};
