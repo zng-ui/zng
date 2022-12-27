@@ -77,44 +77,101 @@ impl UiNode for StackNode {
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let mut prev_rect = PxRect::zero();
         self.children.for_each_mut(|i, c| {
-            let direction = self.direction.get().layout(ctx, |_| PxVector::zero());
+            let direction = self.direction.get().layout(ctx, prev_rect, todo!());
             true
         });
         let spacing = self.spacing.get().layout(todo!(), |_| Px(0));
     }
 }
 
+/// Defines a placement point in the previous item and the origin point of the next.
+///
+/// # Alignment & Spacing
+///
+/// The direction type can express non-fill alignment and spacing by it self, but prefer using the [`stack::children_align`] and
+/// [`stack::spacing`] properties as they are more readable and include fill alignment. The [`stack!`] widget implements alignment
+/// along the axis that does not change, so if the computed layout vector is zero in a dimension the items can fill in that dimension.
+///
+/// [`stack::children_align`]: fn@stack::children_align
+/// [`stack::spacing`]: fn@stack::spacing
+/// [`stack!`]: mod@stack
+///
+/// # Examples
+///
+/// TODO, use the ASCII drawings?
 #[derive(Debug, Default, Clone)]
 pub struct StackDirection {
-    pub x: Length,
-    pub y: Length,
+    /// Point on the previous item where the next item is placed.
+    pub place: Point,
+    /// Point on the next item that is offset to match `place`.
+    pub origin: Point,
 }
 impl StackDirection {
-    /// horizontal stack
-    pub fn h() -> Self {
+    /// `((100.pct(), 0), (0, 0))`, items are placed in a row from left to right.
+    ///
+    /// Alignment works on the `y` direction because it is not affected.
+    pub fn left_to_right() -> Self {
         Self {
-            x: 100.pct().into(),
-            y: 0.into(),
-        }
-    }
-    /// vertical stack
-    pub fn v() -> Self {
-        Self {
-            x: 0.into(),
-            y: 100.pct().into(),
+            place: (100.pct(), 0).into(),
+            origin: (0, 0).into(),
         }
     }
 
-    /// depth stack
-    pub fn z() -> Self {
-        Self { x: 0.into(), y: 0.into() }
+    /// `(0, 0), (100.pct(), 0))`, items are placed in a row from right to left.
+    ///
+    /// Alignment works on the `y` direction because it is not affected.
+    pub fn right_to_left() -> Self {
+        Self {
+            place: (0, 0).into(),
+            origin: (100.pct(), 0).into(),
+        }
     }
 
-    /// Compute the vector in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxVector) -> PxVector {
-        PxVector::new(
-            self.x.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).x),
-            self.y.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).y),
-        )
+    /// `(0, 100.pct())`, items are placed in a column from top to bottom.
+    ///  
+    /// Alignment works on the `x` direction because it is not affected.
+    pub fn top_to_bottom() -> Self {
+        Self {
+            place: (0, 100.pct()).into(),
+            origin: (0, 0).into(),
+        }
+    }
+
+    /// `(0, 0), (0, 100.pct())`, items are placed in a column from bottom to top.
+    ///  
+    /// Alignment works on the `x` direction because it is not affected.
+    pub fn bottom_to_top() -> Self {
+        Self {
+            place: (0, 0).into(),
+            origin: (0, 100.pct()).into(),
+        }
+    }
+
+    /// `(0, 0)`, items are just stacked in the Z order.
+    ///
+    /// Fill alignment works in both dimensions because they don't change.
+    ///
+    /// Note that items are always rendered in the order defined by the [`z_index`] property.
+    ///
+    /// [`z_index`]: fn@z_index
+    pub fn none() -> Self {
+        Self {
+            place: Point::zero(),
+            origin: Point::zero(),
+        }
+    }
+
+    /// Compute offset of the next item.
+    pub fn layout(&self, ctx: &LayoutMetrics, prev_item: PxRect, next_item: PxSize) -> PxVector {
+        let place = {
+            let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(prev_item.size));
+            self.place.layout(&ctx, |_| PxPoint::zero())
+        };
+        let origin = {
+            let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(next_item));
+            self.origin.layout(&ctx, |_| PxPoint::zero())
+        };
+
+        prev_item.origin.to_vector() + place.to_vector() - origin.to_vector()
     }
 }
