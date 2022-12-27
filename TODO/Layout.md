@@ -1,9 +1,32 @@
 # Layout TODO
 
+* Can a stack panel be omni-directional controlled by a vector that defines origin of each
+  subsequent item in the layout bounds of the previous item.
+```rust
+pub struct StackDirection {
+  pub x: Length,
+  pub y: Length,
+}
+impl StackDirection {
+  pub fn horizontal() -> Self {
+    Self {
+      x: 100.pct().into(),
+      y: 0.into()
+    }
+  }
+    pub fn vertical() -> Self {
+    Self {
+      x: 0.into()
+      y: 100.pct().into(),
+    }
+  }
+}
+```
+- How does `FILL` work with this?
+
 * Integrate `LayoutDirection` with all widgets.
   - h_stack::children_align
   - v_stack::children_align
-  - z_stack::children_align
   - wrap
   - grid
 
