@@ -86,12 +86,18 @@ impl UiNode for StackNode {
 
         // !!: review this
         let spacing = self.spacing.get();
-        let spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
+        let mut spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
             (false, false) => PxVector::new(spacing.layout(ctx.for_x(), |_| Px(0)), spacing.layout(ctx.for_y(), |_| Px(0))),
             (true, false) => PxVector::new(Px(0), spacing.layout(ctx.for_y(), |_| Px(0))),
             (false, true) => PxVector::new(spacing.layout(ctx.for_x(), |_| Px(0)), Px(0)),
             (true, true) => PxVector::zero(),
         };
+        if direction_vector.x < 0 {
+            spacing.x = -spacing.x;
+        }
+        if direction_vector.y < 0 {
+            spacing.y = -spacing.y;
+        }
 
         // need measure when children fill, but the panel does not.
         let mut need_measure = false;
@@ -159,14 +165,13 @@ impl UiNode for StackNode {
         // final position, align child inside item_bounds and item_bounds in the panel area.
         let child_align = child_align.xy(ctx.direction());
         let items_size = item_bounds.size();
-        // !!: correct negative items (right-to-left) to be in the area of the panel as best as possible.
-        // !!: apply children align on the entire group as a unit.
+        let children_offset = -item_bounds.min.to_vector() + (max_size - items_size).to_vector() * children_align.xy(ctx.direction());
+
+        // !!: underline align?
         self.children.for_each_mut(|_, c| {
             let size = c.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
-
-            let align_offset = (items_size - size).to_vector() * child_align;
-
-            wl.with_outer(c, true, |wl, _| wl.translate(align_offset));
+            let child_offset = (items_size - size).to_vector() * child_align;
+            wl.with_outer(c, true, |wl, _| wl.translate(children_offset + child_offset));
 
             true
         });
