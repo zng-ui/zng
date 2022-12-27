@@ -130,9 +130,8 @@ impl UiNode for StackNode {
             constrains = constrains.with_max_size(max_size);
         }
 
+        // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
-        let child_align = child_align.xy(ctx.direction());
-
         ctx.with_constrains(
             |_| constrains,
             |ctx| {
@@ -141,9 +140,8 @@ impl UiNode for StackNode {
                 self.children.for_each_mut(|_, c| {
                     let size = c.layout(ctx, wl);
                     let offset = direction.layout(ctx, item_rect, size) + child_spacing;
-                    let align_offset = (max_size - size).to_vector() * child_align;
 
-                    wl.with_outer(c, false, |wl, _| wl.translate(offset + align_offset));
+                    wl.with_outer(c, false, |wl, _| wl.translate(offset));
 
                     item_rect.origin = offset.to_point();
                     item_rect.size = size;
@@ -158,8 +156,20 @@ impl UiNode for StackNode {
             },
         );
 
+        // final position, align child inside item_bounds and item_bounds in the panel area.
+        let child_align = child_align.xy(ctx.direction());
+        let items_size = item_bounds.size();
         // !!: correct negative items (right-to-left) to be in the area of the panel as best as possible.
-        // !!: apply children align on the entire group as a unit? (remove child_align?)
+        // !!: apply children align on the entire group as a unit.
+        self.children.for_each_mut(|_, c| {
+            let size = c.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
+
+            let align_offset = (items_size - size).to_vector() * child_align;
+
+            wl.with_outer(c, true, |wl, _| wl.translate(align_offset));
+
+            true
+        });
 
         constrains.clamp_size(max_size.max(item_bounds.size()))
     }
