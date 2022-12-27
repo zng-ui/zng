@@ -78,7 +78,7 @@ impl UiNode for StackNode {
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let mut constrains = ctx.constrains();
+        let constrains = ctx.constrains();
         let direction = self.direction.get();
         let direction_vector = direction.vector(ctx.direction());
         let children_align = self.children_align.get();
@@ -102,26 +102,31 @@ impl UiNode for StackNode {
         // need measure when children fill, but the panel does not.
         let mut need_measure = false;
         let mut max_size = PxSize::zero();
+        let mut measure_constrains = constrains;
         match (constrains.x.fill_or_exact(), constrains.y.fill_or_exact()) {
-            (None, None) => need_measure = child_align.is_fill_x() || child_align.is_fill_y(),
+            (None, None) => {
+                need_measure = child_align.is_fill_x() || child_align.is_fill_y();
+                if !need_measure {
+                    max_size = constrains.max_size().unwrap_or_else(|| PxSize::new(Px::MAX, Px::MAX));
+                }
+            }
             (None, Some(h)) => {
                 max_size.height = h;
                 need_measure = child_align.is_fill_x();
+                measure_constrains = constrains.with_fill_x(false);
             }
             (Some(w), None) => {
                 max_size.width = w;
                 need_measure = child_align.is_fill_y();
+                measure_constrains = constrains.with_fill_y(false);
             }
             (Some(w), Some(h)) => max_size = PxSize::new(w, h),
         }
 
-        // child constrains
-        constrains = constrains.with_fill(child_align.is_fill_x(), child_align.is_fill_y());
-
         // find largest child, the others will fill to its size.
         if need_measure {
             ctx.as_measure().with_constrains(
-                |_| constrains,
+                move |_| measure_constrains,
                 |ctx| {
                     self.children.for_each(|_, c| {
                         let size = c.measure(ctx, &mut WidgetMeasure::new());
@@ -132,14 +137,16 @@ impl UiNode for StackNode {
             );
 
             max_size = constrains.clamp_size(max_size);
-
-            constrains = constrains.with_max_size(max_size);
         }
 
         // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
         ctx.with_constrains(
-            |_| constrains,
+            move |_| {
+                constrains
+                    .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
+                    .with_max_size(max_size)
+            },
             |ctx| {
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
@@ -165,7 +172,8 @@ impl UiNode for StackNode {
         // final position, align child inside item_bounds and item_bounds in the panel area.
         let child_align = child_align.xy(ctx.direction());
         let items_size = item_bounds.size();
-        let children_offset = -item_bounds.min.to_vector() + (max_size - items_size).to_vector() * children_align.xy(ctx.direction());
+        let panel_size = constrains.fill_size_or(item_bounds.size());
+        let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(ctx.direction());
 
         // !!: underline align?
         self.children.for_each_mut(|_, c| {
@@ -176,6 +184,6 @@ impl UiNode for StackNode {
             true
         });
 
-        constrains.clamp_size(max_size.max(item_bounds.size()))
+        panel_size
     }
 }

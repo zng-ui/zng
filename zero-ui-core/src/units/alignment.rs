@@ -88,8 +88,6 @@ impl Align {
         } else if self.is_baseline() {
             1.fct()
         } else {
-            #[cfg(debug_assertions)]
-            tracing::error!("invalid vertical text align {:?} ignored", self.y);
             0.fct()
         }
     }
