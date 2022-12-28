@@ -177,12 +177,15 @@ impl StackNode {
         let items_size = item_bounds.size();
         let panel_size = constrains.fill_size_or(items_size);
         let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(ctx.direction());
+        let align_baseline = children_align.is_baseline();
 
-        // !!: underline align?
         self.children.for_each_mut(|_, c| {
             let size = c.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
             let child_offset = (items_size - size).to_vector() * child_align;
-            wl.with_outer(c, true, |wl, _| wl.translate(children_offset + child_offset));
+            wl.with_outer(c, true, |wl, _| {
+                wl.translate(children_offset + child_offset);
+                wl.translate_baseline(align_baseline);
+            });
 
             true
         });
