@@ -98,6 +98,7 @@ impl StackNode {
                 constrains
                     .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
                     .with_max_size(max_size)
+                    .with_new_min(Px(0), Px(0))
             },
             |ctx| {
                 let mut item_rect = PxRect::zero();
@@ -143,6 +144,7 @@ impl StackNode {
                 constrains
                     .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
                     .with_max_size(max_size)
+                    .with_new_min(Px(0), Px(0))
             },
             |ctx| {
                 let mut item_rect = PxRect::zero();
@@ -250,7 +252,7 @@ impl StackNode {
         // find largest child, the others will fill to its size.
         if need_measure {
             ctx.with_constrains(
-                move |_| measure_constrains,
+                move |_| measure_constrains.with_new_min(Px(0), Px(0)),
                 |ctx| {
                     self.children.for_each(|_, c| {
                         let size = c.measure(ctx, &mut WidgetMeasure::new());

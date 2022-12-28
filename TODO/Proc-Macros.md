@@ -7,6 +7,8 @@ Proc-macros are mostly implemented, there are some improvements we can make:
 * Support custom syntax in widget macros?
     - If the widget macro does not match input, redirects to an specially named macro in the widget module.
     - Enables `text!("Hello {}!", name)` and all other shorthand syntax that we currently implement using a function.
+    - Need to be a pattern matched before the widget_new actually.
+    - Something declared as a macro_rules but subsumed by the widget proc-macro?
 * Reduce the capture boilerplate?
     - Generate capture based on function inputs?
 

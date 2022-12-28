@@ -139,10 +139,11 @@ impl PxConstrains {
 
     /// Returns a copy of the current constrains with `sub` subtracted from the maximum bounds.
     ///
-    /// Does nothing if is unbounded, otherwise does a saturating subtraction.
+    /// Does nothing if is unbounded, otherwise does a saturating subtraction, also lowers the min to be <= max.
     pub fn with_less(mut self, sub: Px) -> Self {
         if self.max < Px::MAX {
             self.max -= sub;
+            self.min = self.min.min(self.max);
         }
         self
     }
@@ -569,7 +570,7 @@ impl PxConstrains2d {
 
     /// Returns a copy of the current constrains with `sub_x` and `sob_y` subtracted from the maximum bounds.
     ///
-    /// Does nothing if is unbounded, otherwise does a saturating subtraction.
+    /// Does nothing if is unbounded, otherwise does a saturating subtraction. Also lowers min to be <= max.
     pub fn with_less(mut self, sub_x: Px, sub_y: Px) -> Self {
         self.x = self.x.with_less(sub_x);
         self.y = self.y.with_less(sub_y);
@@ -578,14 +579,14 @@ impl PxConstrains2d {
 
     /// Returns a copy of the current constrains with `sub` subtracted from the maximum bounds.
     ///
-    /// Does nothing if is unbounded, otherwise does a saturating subtraction.
+    /// Does nothing if is unbounded, otherwise does a saturating subtraction. Also lowers min to be <= max.
     pub fn with_less_size(self, sub: PxSize) -> Self {
         self.with_less(sub.width, sub.height)
     }
 
     /// Returns a copy of the current constrains with `sub_x` subtracted from the maximum bounds of the **x** axis.
     ///
-    /// Does nothing if is unbounded, otherwise does a saturating subtraction.
+    /// Does nothing if is unbounded, otherwise does a saturating subtraction. Also lowers min to be <= max.
     pub fn with_less_x(mut self, sub_x: Px) -> Self {
         self.x = self.x.with_less(sub_x);
         self
@@ -593,7 +594,7 @@ impl PxConstrains2d {
 
     /// Returns a copy of the current constrains with `sub_y` subtracted from the maximum bounds of the **y** axis.
     ///
-    /// Does nothing if is unbounded, otherwise does a saturating subtraction.
+    /// Does nothing if is unbounded, otherwise does a saturating subtraction. Also lowers min to be <= max.
     pub fn with_less_y(mut self, sub_y: Px) -> Self {
         self.y = self.y.with_less(sub_y);
         self
