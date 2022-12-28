@@ -589,8 +589,10 @@ pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
 ///
 /// See [`LIST_ITEM_BULLET_VIEW_VAR`] for more details.
 pub fn default_list_item_bullet_view(args: ListItemBulletViewArgs) -> impl UiNode {
+    use crate::prelude::*;
+
     if let Some(checked) = args.checked {
-        crate::widgets::text! {
+        text! {
             txt = " ✓ ";
             txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
             background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
@@ -600,26 +602,26 @@ pub fn default_list_item_bullet_view(args: ListItemBulletViewArgs) -> impl UiNod
         }
         .boxed()
     } else if let Some(n) = args.num {
-        crate::widgets::text! {
+        text! {
             txt = formatx!("{n}. ");
             align = Align::RIGHT;
         }
         .boxed()
     } else {
         match args.depth {
-            0 => crate::widgets::wgt! {
+            0 => wgt! {
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 background_color = TEXT_COLOR_VAR;
             },
-            1 => crate::widgets::wgt! {
+            1 => wgt! {
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 border = 1.px(), TEXT_COLOR_VAR.map_into();
             },
-            _ => crate::widgets::wgt! {
+            _ => wgt! {
                 size = (5, 5);
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 background_color = TEXT_COLOR_VAR;
@@ -633,6 +635,8 @@ pub fn default_list_item_bullet_view(args: ListItemBulletViewArgs) -> impl UiNod
 ///
 /// See [`LIST_ITEM_VIEW_VAR`] for more details.
 pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
+    use crate::prelude::*;
+
     let mut items = args.items;
 
     if items.is_empty() {
@@ -646,14 +650,15 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
     let mut r = if items.len() == 1 {
         items.remove(0)
     } else {
-        crate::widgets::layouts::wrap! {
+        wrap! {
             children = items;
         }
         .boxed()
     };
 
     if let Some(inner) = args.nested_list {
-        r = crate::widgets::layouts::v_stack! {
+        r = stack! {
+            direction = StackDirection::top_to_bottom();
             children = ui_list![
                 r,
                 inner
@@ -669,9 +674,11 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
 ///
 /// See [`IMAGE_VIEW_VAR`] for more details.
 pub fn default_image_view(args: ImageViewArgs) -> impl UiNode {
+    use crate::prelude::*;
+
     let mut alt_items = args.alt_items;
     if alt_items.is_empty() {
-        crate::widgets::image! {
+        image! {
             align = Align::TOP_LEFT;
             source = args.source;
         }
@@ -679,13 +686,13 @@ pub fn default_image_view(args: ImageViewArgs) -> impl UiNode {
         let alt_items = if alt_items.len() == 1 {
             alt_items.remove(0)
         } else {
-            crate::widgets::layouts::wrap! {
+            wrap! {
                 children = alt_items;
             }
             .boxed()
         };
-        let alt_items = crate::core::widget_instance::ArcNode::new(alt_items);
-        crate::widgets::image! {
+        let alt_items = ArcNode::new(alt_items);
+        image! {
             align = Align::TOP_LEFT;
             source = args.source;
             img_error_view = view_generator!(|_, _| {
@@ -708,10 +715,13 @@ pub fn default_rule_view(_: RuleViewArgs) -> impl UiNode {
 ///
 /// See [`BLOCK_QUOTE_VIEW_VAR`] for more details.
 pub fn default_block_quote_view(args: BlockQuoteViewArgs) -> impl UiNode {
+    use crate::prelude::*;
+
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        crate::widgets::layouts::v_stack! {
+        stack! {
+            direction = StackDirection::top_to_bottom();
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
             corner_radius = 2;
@@ -766,10 +776,12 @@ pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
 ///
 /// See [`TABLE_CELL_VIEW_VAR`] for more details.
 pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
+    use crate::prelude::*;
+
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else if args.is_heading {
-        crate::widgets::layouts::wrap! {
+        wrap! {
             crate::widgets::text::font_weight = crate::core::text::FontWeight::BOLD;
             padding = 6;
             child_align = args.col_align;
@@ -777,7 +789,7 @@ pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
         }
         .boxed()
     } else {
-        crate::widgets::layouts::wrap! {
+        wrap! {
             padding = 6;
             child_align = args.col_align;
             children = args.items;
@@ -790,12 +802,15 @@ pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
 ///
 /// See [`PANEL_VIEW_VAR`] for more details.
 pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
+    use crate::prelude::*;
+
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else if args.items.len() == 1 {
         args.items.remove(0)
     } else {
-        crate::widgets::layouts::v_stack! {
+        stack! {
+            direction = StackDirection::top_to_bottom();
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
         }
@@ -828,25 +843,29 @@ pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
 ///
 /// See [`FOOTNOTE_DEF_VIEW_VAR`] for more details.
 pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
+    use crate::prelude::*;
+
     let mut items = args.items;
     let items = if items.is_empty() {
         NilUiNode.boxed()
     } else if items.len() == 1 {
         items.remove(0)
     } else {
-        crate::widgets::layouts::v_stack! {
+        stack! {
+            direction = StackDirection::top_to_bottom();
             children = items;
         }
         .boxed()
     };
 
     let url_back = formatx!("#footnote-ref-{}", args.label);
-    crate::widgets::layouts::h_stack! {
+    stack! {
+        direction = StackDirection::left_to_right();
         spacing = 0.5.em();
-        crate::widgets::markdown::anchor = formatx!("footnote-{}", args.label);
+        markdown::anchor = formatx!("footnote-{}", args.label);
         children = ui_list![
-            crate::widgets::link! {
-                child = crate::widgets::text(formatx!("[^{}]", args.label));
+            link! {
+                child = text(formatx!("[^{}]", args.label));
                 on_click = hn!(|ctx, args: &ClickArgs| {
                     args.propagation().stop();
 

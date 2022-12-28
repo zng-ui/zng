@@ -248,3 +248,191 @@ impl StackNode {
         max_size
     }
 }
+
+/// Basic horizontal stack layout.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::minimal();
+/// let text = h_stack(ui_list![
+///     text("Hello "),
+///     text("World"),
+/// ]);
+/// ```
+///
+/// # `stack!`
+///
+/// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::left_to_right`].
+pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
+    stack! {
+        direction = StackDirection::left_to_right();
+        children;
+    }
+}
+
+/// Basic vertical stack layout.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::minimal();
+/// let text = v_stack(ui_list![
+///     text("Hello "),
+///     text("World"),
+/// ]);
+/// ```
+///
+/// # `stack!`
+///
+/// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::top_to_bottom`].
+pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
+    stack! {
+        direction = StackDirection::top_to_bottom();
+        children;
+    }
+}
+
+/// Basic layering stack layout.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::minimal();
+/// let text = z_stack(ui_list![
+///     text("Hello "),
+///     text("World"),
+/// ]);
+/// ```
+///
+/// # `stack!`
+///
+/// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::none`].
+pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
+    stack! {
+        children;
+    }
+}
+
+/// Creates a node that updates and layouts the `nodes` in the logical order they appear in the list
+/// and renders then on on top of the other from back(0) to front(len-1). The layout size is the largest item width and height,
+/// the parent constrains are used for the layout of each item.
+///
+/// This is the most simple *z-stack* implementation possible, it is a building block useful for quickly declaring
+/// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render,
+/// for a complete z-stack panel widget see [`z_stack`].
+///
+/// [`z_stack`]: mod@z_stack
+pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
+    #[ui_node(struct StackNodesNode {
+        children: impl UiNodeList,
+    })]
+    impl StackNodesNode {}
+
+    StackNodesNode { children: nodes }.cfg_boxed()
+}
+
+/// Creates a node that updates the `nodes` in the logical order they appear, renders then on on top of the other from back(0) to front(len-1),
+/// but layouts the `index` item first and uses its size to get `constrains` for the other items.
+///
+/// The layout size is the largest item width and height.
+///
+/// If the `index` is out of range the node logs an error and behaves like [`stack_nodes`].
+pub fn stack_nodes_layout_by(
+    nodes: impl UiNodeList,
+    index: impl IntoVar<usize>,
+    constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
+) -> impl UiNode {
+    #[ui_node(struct StackNodesFillNode {
+        children: impl UiNodeList,
+        #[var] index: impl Var<usize>,
+        constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
+    })]
+    impl UiNode for StackNodesFillNode {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            if self.index.is_new(ctx) {
+                ctx.updates.layout();
+            }
+            self.children.update_all(ctx, updates, &mut ());
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            let index = self.index.get();
+            let len = self.children.len();
+            if index >= len {
+                tracing::error!(
+                    "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
+                    index,
+                    len,
+                    ctx.path
+                );
+                let mut size = PxSize::zero();
+                self.children.for_each(|_, n| {
+                    let s = n.measure(ctx, wm);
+                    size = size.max(s);
+                    true
+                });
+                size
+            } else {
+                let mut size = self.children.with_node(index, |n| n.measure(ctx, wm));
+                let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
+                ctx.with_constrains(
+                    |_| constrains,
+                    |ctx| {
+                        self.children.for_each(|i, n| {
+                            if i != index {
+                                size = size.max(n.measure(ctx, wm));
+                            }
+                            true
+                        });
+                    },
+                );
+                size
+            }
+        }
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let index = self.index.get();
+            let len = self.children.len();
+            if index >= len {
+                tracing::error!(
+                    "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
+                    index,
+                    len,
+                    ctx.path
+                );
+                let mut size = PxSize::zero();
+                self.children.for_each_mut(|_, n| {
+                    let s = n.layout(ctx, wl);
+                    size = size.max(s);
+                    true
+                });
+                size
+            } else {
+                let mut size = self.children.with_node_mut(index, |n| n.layout(ctx, wl));
+                let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
+                ctx.with_constrains(
+                    |_| constrains,
+                    |ctx| {
+                        self.children.for_each_mut(|i, n| {
+                            if i != index {
+                                let s = n.layout(ctx, wl);
+                                size = size.max(s);
+                            }
+                            true
+                        });
+                    },
+                );
+                size
+            }
+        }
+    }
+    StackNodesFillNode {
+        children: nodes,
+        index: index.into_var(),
+        constrains,
+    }
+    .cfg_boxed()
+}

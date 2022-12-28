@@ -19,7 +19,8 @@ fn app_main() {
             icon = WindowIcon::render(|_| icon());
             child = scroll! {
                 padding = 20;
-                child = v_stack! {
+                child = stack! {
+                    direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_list![
                         title("Linear"),
@@ -165,7 +166,8 @@ fn stack_linear() -> impl UiNode {
 
 fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
     let name = name.to_text();
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_list![
             text(name),
@@ -178,7 +180,8 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
 }
 
 fn sample_line(children: impl UiNodeList) -> impl UiNode {
-    h_stack! {
+    stack! {
+        direction = StackDirection::left_to_right();
         spacing = 5;
         children;
     }

@@ -19,7 +19,8 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Button Example";
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 5;
                 sticky_width = true;
@@ -67,7 +68,8 @@ fn image_button() -> impl UiNode {
     button! {
         id = "img-btn";
         on_click = hn!(|_, _| println!("Clicked image button"));
-        child = h_stack! {
+        child = stack! {
+            direction = StackDirection::left_to_right();
             children_align = Align::CENTER;
             children = ui_list![
                 image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
@@ -83,7 +85,8 @@ fn dyn_buttons() -> impl UiNode {
     let children_ref = dyn_children.reference();
     let mut btn = 'A';
 
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = dyn_children.chain(ui_list![
             button! {
@@ -116,7 +119,8 @@ fn separator() -> impl UiNode {
 }
 
 fn toggle_buttons() -> impl UiNode {
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_list![
             toggle! {

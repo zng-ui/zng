@@ -10,7 +10,8 @@ fn main() {
             title = "Hit-Test Example";
 
             child_align = Align::CENTER;
-            child = h_stack! {
+            child = stack! {
+                direction = StackDirection::left_to_right();
                 spacing = 14;
                 children = ui_list![
                     example(HitTestMode::Visual),

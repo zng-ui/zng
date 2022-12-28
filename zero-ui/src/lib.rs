@@ -150,7 +150,8 @@
 //! ```
 //! # use zero_ui::prelude::*;
 //! # let _scope = App::minimal();
-//! let menu = v_stack! {
+//! let menu = stack! {
+//!     direction = StackDirection::top_to_bottom();
 //!     spacing = 5;
 //!     children = ui_list![
 //!         button! { child = text("New") },
@@ -160,7 +161,7 @@
 //! };
 //! ```
 //!
-//! The example demonstrates the [`v_stack!`] layout widget, it stacks other widgets vertically with an optional spacing in between then.
+//! The example demonstrates the [`stack!`] layout widget, directed to stack vertically with an optional spacing in between then.
 //! All the built-in layouts are in the **[`zero_ui::widgets::layouts`]**.
 //!
 //! ## Properties
@@ -825,7 +826,7 @@
 //! [`button!`]: mod@crate::widgets::button
 //! [`text()`]: fn@crate::widgets::text
 //! [`text!`]: mod@crate::widgets::text
-//! [`v_stack!`]: mod@crate::widgets::layouts::v_stack
+//! [`stack!`]: mod@crate::widgets::layouts::stack
 //! [`font_size`]: fn@crate::widgets::text::font_size
 //! [`margin`]: fn@crate::properties::margin
 //! [`on_click`]: fn@crate::properties::events::gesture::on_click
@@ -985,7 +986,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::image::ImageFit;
     #[doc(no_inline)]
-    pub use crate::widgets::layouts::*;
+    pub use crate::widgets::layouts::{stack::StackDirection, *};
     #[doc(no_inline)]
     pub use crate::widgets::scroll::ScrollMode;
     #[doc(no_inline)]

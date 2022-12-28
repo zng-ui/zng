@@ -28,7 +28,8 @@ fn app_main() {
                         colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                     );
                     // smooth_scrolling = false;
-                    child = v_stack!{
+                    child = stack!{
+                        direction = StackDirection::top_to_bottom();
                         children_align = Align::LEFT;
                         children = ui_list![
                             text! {
@@ -57,7 +58,8 @@ fn commands() -> impl UiNode {
 
     let show = var(false);
 
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         align = Align::TOP;
         padding = 5;
         background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
@@ -65,7 +67,8 @@ fn commands() -> impl UiNode {
         alt_focus_scope = true;
 
         children = ui_list![
-            v_stack! {
+            stack! {
+                direction = StackDirection::top_to_bottom();
                 visibility = show.map_into();
                 spacing = 3;
 

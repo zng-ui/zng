@@ -28,7 +28,8 @@ fn app_main() {
             resizable = false;
             auto_size = true;
             padding = 5;
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children = ui_list![
                     text! {

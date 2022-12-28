@@ -38,7 +38,8 @@ fn app_main() {
 
         img_window(
             "Image Example",
-            h_stack! {
+            stack! {
+                direction = StackDirection::left_to_right();
                 spacing = 30;
                 children = ui_list![
                     section(
@@ -119,7 +120,8 @@ fn app_main() {
                         ]
                     ),
 
-                    v_stack! {
+                    stack! {
+                        direction = StackDirection::top_to_bottom();
                         spacing = 30;
                         children = ui_list![
                             section(
@@ -156,7 +158,8 @@ fn app_main() {
 fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
     let fit = fit.into_var();
 
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         children_align = Align::TOP_LEFT;
         spacing = 5;
 
@@ -174,7 +177,8 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
 fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
     let filter = filter.into_var();
 
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         children_align = Align::TOP_LEFT;
         spacing = 2;
 
@@ -200,7 +204,8 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
     let timer = timers.interval((1.0 / 24.0).secs(), true);
     let label = var_from("play");
 
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         align = Align::CENTER;
         children = ui_list![
             button! {
@@ -416,13 +421,15 @@ fn img_window(title: impl IntoVar<Text>, child: impl UiNode) -> Window {
 }
 
 fn section(title: impl IntoVar<Text>, children: impl UiNodeList) -> impl UiNode {
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         children_align = Align::TOP_LEFT;
 
         children = ui_list![
             self::title(title),
-            v_stack! {
+            stack! {
+                direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children_align = Align::TOP_LEFT;
 

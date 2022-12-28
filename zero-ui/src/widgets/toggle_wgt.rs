@@ -270,7 +270,7 @@ pub mod toggle_properties {
     /// # let _scope = App::minimal();
     /// let foo = var(1_i32);
     ///
-    /// v_stack! {
+    /// stack! {
     ///     toggle::selector = toggle::Selector::single(foo.clone());
     ///
     ///     spacing = 5;

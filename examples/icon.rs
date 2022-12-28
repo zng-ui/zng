@@ -61,12 +61,14 @@ fn icons() -> impl UiNode {
             },
         }
     }
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         padding = (20, 5, 5, 5);
         spacing = 20;
         children_align = Align::TOP;
         children = ui_list![
-            h_stack! {
+            stack! {
+                direction = StackDirection::left_to_right();
                 toggle::selector = toggle::Selector::single(selected_font.clone());
                 spacing = 5;
                 children = ui_list![
@@ -96,7 +98,8 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
     button! {
         padding = 2;
         size = (80, 80);
-        child = v_stack! {
+        child = stack! {
+            direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::CENTER;
             children = ui_list![
@@ -143,8 +146,9 @@ fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
-            child = z_stack(ui_list![
-                v_stack! {
+            child = stack!(children = ui_list![
+                stack! {
+                    direction = StackDirection::top_to_bottom();
                     spacing = 5;
                     padding = 10;
                     children_align = Align::TOP_LEFT;
@@ -156,11 +160,13 @@ fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
                             font_size = 18;
                         },
                         sub_title("Using `icon!`:"),
-                        h_stack! {
+                        stack! {
+                            direction = StackDirection::left_to_right();
                             spacing = 5;
                             children_align = Align::TOP_LEFT;
                             children = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
-                                v_stack! {
+                                stack! {
+                                    direction = StackDirection::top_to_bottom();
                                     spacing = 3;
                                     children = ui_list![
                                         size_label(formatx!("{size}")),
@@ -181,11 +187,13 @@ fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
                         },
 
                         sub_title("Using `text!`:"),
-                        h_stack! {
+                        stack! {
+                            direction = StackDirection::left_to_right();
                             spacing = 5;
                             children_align = Align::TOP_LEFT;
                             children = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
-                                v_stack! {
+                                stack! {
+                                    direction = StackDirection::top_to_bottom();
                                     spacing = 3;
                                     children = ui_list![
                                         size_label(formatx!("{size}")),

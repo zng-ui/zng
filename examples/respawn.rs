@@ -19,7 +19,8 @@ fn main() {
             });
             foreground = window_status(ctx);
             child_align = Align::CENTER;
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children_align = Align::TOP;
                 children = ui_list![
@@ -75,7 +76,8 @@ fn click_counter() -> impl UiNode {
 }
 
 fn image() -> impl UiNode {
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 3;
         children = ui_list![
             strong("Image:"),
@@ -93,7 +95,8 @@ fn window_status(ctx: &mut WindowContext) -> impl UiNode {
         };
     }
 
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         margin = 10;
         align = Align::TOP_LEFT;

@@ -45,7 +45,8 @@ fn app_main() {
             });
 
             child_align = Align::CENTER;
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children = ui_list![
                     overlay_example(),
@@ -86,14 +87,16 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 corner_radius = unset!;
             });
             padding = 2;
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_list![
                     text! {
                         txt = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
                     },
-                    h_stack! {
+                    stack! {
+                        direction = StackDirection::left_to_right();
                         spacing = 2;
                         children = ui_list![
                             button! {
@@ -119,7 +122,8 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
 
 fn layer_index_example() -> impl UiNode {
     // demonstrates that the z-order is not affected by the order of insertion.
-    h_stack! {
+    stack! {
+        direction = StackDirection::left_to_right();
         spacing = 5;
         children = ui_list![
             layer_n_btn(7, colors::DARK_GREEN),

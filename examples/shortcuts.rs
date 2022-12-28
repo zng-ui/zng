@@ -72,7 +72,8 @@ fn app_main() {
             start_position = StartPosition::CenterMonitor;
 
             child_align = Align::CENTER;
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 children = ui_list![
                     text!{
                         align = Align::CENTER;

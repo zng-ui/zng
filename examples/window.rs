@@ -45,17 +45,20 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         });
         on_close_requested = confirm_close();
         child_align = Align::CENTER;
-        child = h_stack! {
+        child = stack! {
+            direction = StackDirection::left_to_right();
             spacing = 40;
             children = ui_list![
-                v_stack! {
+                stack! {
+                    direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_list![
                         state_commands(window_id),
                         focus_control(),
                     ]
                 },
-                v_stack! {
+                stack! {
+                    direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_list![
                         state(window_vars),
@@ -63,14 +66,16 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                         chrome(window_vars),
                     ];
                 },
-                v_stack! {
+                stack! {
+                    direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_list![
                         icon(window_vars),
                         background_color(background),
                     ];
                 },
-                v_stack! {
+                stack! {
+                    direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_list![
                         screenshot(),
@@ -87,7 +92,8 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
         toggle! {
             value::<Rgba> = c.clone();
             select_on_init;
-            child = h_stack! {
+            child = stack! {
+                direction = StackDirection::left_to_right();
                 spacing = 4;
                 children_align = Align::LEFT;
                 children = ui_list![
@@ -493,7 +499,8 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
                 }
             });
 
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_list![
                     text! {
@@ -503,7 +510,8 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
                         };
                         margin = 15;
                     },
-                    h_stack! {
+                    stack! {
+                        direction = StackDirection::left_to_right();
                         spacing = 4;
                         children = ui_list![
                             button! {
@@ -546,7 +554,8 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
 }
 
 fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_list![text! {
             txt = header;
@@ -557,7 +566,8 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
 }
 
 fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl UiNodeList) -> impl UiNode {
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         toggle::selector = toggle::Selector::single(selection);
         children = ui_list![text! {

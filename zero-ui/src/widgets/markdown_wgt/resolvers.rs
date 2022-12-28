@@ -300,89 +300,92 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
             background_color = color_scheme_map(colors::DARK_RED.with_alpha(90.pct()), colors::PINK.with_alpha(90.pct()));
         }
 
-        child = h_stack(ui_list! [
-            link! {
-                focus_on_init = true;
+        child = stack! {
+            direction = StackDirection::left_to_right();
+            children = ui_list![
+                link! {
+                    focus_on_init = true;
 
-                child = text(url);
-                underline_skip = UnderlineSkip::SPACES;
+                    child = text(url);
+                    underline_skip = UnderlineSkip::SPACES;
 
-                on_blur = async_hn_once!(status, |ctx, _| {
-                    if status.get() != Status::Pending {
-                        return;
-                    }
+                    on_blur = async_hn_once!(status, |ctx, _| {
+                        if status.get() != Status::Pending {
+                            return;
+                        }
 
-                    status.set(&ctx, Status::Cancel);
-                    task::deadline(200.ms()).await;
+                        status.set(&ctx, Status::Cancel);
+                        task::deadline(200.ms()).await;
 
-                    ctx.with(|ctx| {
-                        WindowLayers::remove(ctx, popup_id);
+                        ctx.with(|ctx| {
+                            WindowLayers::remove(ctx, popup_id);
+                        });
                     });
-                });
-                on_move = async_hn!(status, |ctx, args: WidgetTransformChangedArgs| {
-                    if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
-                        return;
-                    }
+                    on_move = async_hn!(status, |ctx, args: WidgetTransformChangedArgs| {
+                        if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                            return;
+                        }
 
-                    status.set(&ctx, Status::Cancel);
-                    task::deadline(200.ms()).await;
+                        status.set(&ctx, Status::Cancel);
+                        task::deadline(200.ms()).await;
 
-                    ctx.with(|ctx| {
-                        WindowLayers::remove(ctx, popup_id);
+                        ctx.with(|ctx| {
+                            WindowLayers::remove(ctx, popup_id);
+                        });
                     });
-                });
 
-                on_click = async_hn_once!(status, |ctx, args: ClickArgs| {
-                    if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
-                        return;
-                    }
+                    on_click = async_hn_once!(status, |ctx, args: ClickArgs| {
+                        if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                            return;
+                        }
 
-                    args.propagation().stop();
+                        args.propagation().stop();
 
-                    let url = match link {
-                        Link::Url(u) => u.to_string(),
-                        Link::Path(p) => {
-                            match p.canonicalize() {
-                                Ok(p) => p.display().to_string(),
-                                Err(e) => {
-                                    tracing::error!("error canonicalizing \"{}\", {e}", p.display());
-                                    return;
+                        let url = match link {
+                            Link::Url(u) => u.to_string(),
+                            Link::Path(p) => {
+                                match p.canonicalize() {
+                                    Ok(p) => p.display().to_string(),
+                                    Err(e) => {
+                                        tracing::error!("error canonicalizing \"{}\", {e}", p.display());
+                                        return;
+                                    }
                                 }
                             }
-                        }
-                    };
+                        };
 
-                    let open = if cfg!(windows) {
-                        "explorer"
-                    } else if cfg!(target_vendor = "apple") {
-                        "open"
-                    } else {
-                        "xdg-open"
-                    };
-                    let ok = match std::process::Command::new(open).arg(url.as_str()).status() {
-                        Ok(c) => {
-                            let ok = c.success() || (cfg!(windows) && c.code() == Some(1));
-                            if !ok {
-                                tracing::error!("error opening \"{url}\", code: {c}");
+                        let open = if cfg!(windows) {
+                            "explorer"
+                        } else if cfg!(target_vendor = "apple") {
+                            "open"
+                        } else {
+                            "xdg-open"
+                        };
+                        let ok = match std::process::Command::new(open).arg(url.as_str()).status() {
+                            Ok(c) => {
+                                let ok = c.success() || (cfg!(windows) && c.code() == Some(1));
+                                if !ok {
+                                    tracing::error!("error opening \"{url}\", code: {c}");
+                                }
+                                ok
                             }
-                            ok
-                        }
-                        Err(e) => {
-                            tracing::error!("error opening \"{url}\", {e}");
-                            false
-                        }
-                    };
+                            Err(e) => {
+                                tracing::error!("error opening \"{url}\", {e}");
+                                false
+                            }
+                        };
 
-                    status.set(&ctx, if ok { Status::Ok } else { Status::Err });
-                    task::deadline(200.ms()).await;
+                        status.set(&ctx, if ok { Status::Ok } else { Status::Err });
+                        task::deadline(200.ms()).await;
 
-                    ctx.with(|ctx| {
-                        WindowLayers::remove(ctx, popup_id);
+                        ctx.with(|ctx| {
+                            WindowLayers::remove(ctx, popup_id);
+                        });
                     });
-                });
-            },
-            text(" 🡵"),
-        ]);
+                },
+                text(" 🡵"),
+            ];
+        }
     };
 
     WindowLayers::insert_anchored(

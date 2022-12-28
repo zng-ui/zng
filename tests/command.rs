@@ -139,19 +139,22 @@ fn listener_window(focused_wgt: bool) -> Window {
     }
 
     window! {
-        child = v_stack(ui_list![
-            container! {
-                id = "test-widget";
-                size = (100, 100);
-                child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
-            },
-            container! {
-                id = "other-widget";
-                size = (100, 100);
-                focusable = focused_wgt;
-                child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
-            }
-        ])
+        child = stack! {
+            direction = StackDirection::top_to_bottom();
+            children = ui_list![
+                container! {
+                    id = "test-widget";
+                    size = (100, 100);
+                    child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
+                },
+                container! {
+                    id = "other-widget";
+                    size = (100, 100);
+                    focusable = focused_wgt;
+                    child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
+                }
+            ];
+        }
     }
 }
 

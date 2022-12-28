@@ -533,14 +533,17 @@ mod ansi_view {
 
     /// Default [`PAGE_VIEW_VAR`].
     ///
-    /// Returns a `v_stack!` for multiple lines, or return the single line, or a nil node.
+    /// Returns a `stack!` for multiple lines, or return the single line, or a nil node.
     pub fn default_page_view(mut args: PageViewArgs) -> impl UiNode {
+        use crate::prelude::*;
+
         if args.lines.is_empty() {
             NilUiNode.boxed()
         } else if args.lines.len() == 1 {
             args.lines.remove(0)
         } else {
-            crate::widgets::layouts::v_stack! {
+            stack! {
+                direction = StackDirection::top_to_bottom();
                 children = args.lines;
             }
             .boxed()
@@ -549,14 +552,17 @@ mod ansi_view {
 
     /// Default [`PANEL_VIEW_VAR`].
     ///
-    /// Returns a `v_stack!` for multiple pages, or returns the single page, or a nil node.
+    /// Returns a `stack!` for multiple pages, or returns the single page, or a nil node.
     pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
+        use crate::prelude::*;
+
         if args.pages.is_empty() {
             NilUiNode.boxed()
         } else if args.pages.len() == 1 {
             args.pages.remove(0)
         } else {
-            crate::widgets::layouts::v_stack! {
+            stack! {
+                direction = StackDirection::top_to_bottom();
                 children = args.pages
             }
             .boxed()

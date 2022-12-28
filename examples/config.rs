@@ -45,7 +45,8 @@ fn app_main() {
                     txt_color = colors::RED;
                 }
             };
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 5;
                 children = ui_list![

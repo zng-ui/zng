@@ -24,18 +24,21 @@ fn app_main() {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             font_size = fs.easing(150.ms(), easing::linear);
             child = z_stack(ui_list![
-                h_stack! {
+                stack! {
+                    direction = StackDirection::left_to_right();
                     align = Align::CENTER;
                     spacing = 40;
                     children = ui_list![
-                        v_stack! {
+                        stack! {
+                            direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_list![
                                 basic(),
                                 defaults(ctx),
                             ];
                         },
-                        v_stack! {
+                        stack! {
+                            direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_list![
                                 line_height(),
@@ -44,7 +47,8 @@ fn app_main() {
                                 letter_spacing(),
                             ];
                         },
-                        v_stack! {
+                        stack! {
+                            direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_list![
                                 decoration_lines(),
@@ -68,10 +72,11 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
             *s.to_mut() += Length::Pt(change);
         });
     }
-    h_stack! {
+    stack! {
         button::vis::extend_style = style_generator!(|_, _| style! {
             padding = (0, 5);
         });
+        direction = StackDirection::left_to_right();
         spacing = 5;
         corner_radius = 4;
         background_color = color_scheme_map(rgba(0, 0, 0, 40.pct()), rgba(1., 1., 1., 40.pct()));
@@ -263,7 +268,8 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
             &lang!(und),
         );
 
-        h_stack! {
+        stack! {
+            direction = StackDirection::left_to_right();
             children_align = Align::BASELINE_LEFT;
             children = ui_list![
                 text(if title.is_empty() {
@@ -295,7 +301,8 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
 }
 
 fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_list![text! {
             txt = header;

@@ -26,7 +26,8 @@ fn app_main() {
 
             color_scheme = ColorScheme::Dark;
 
-            child = v_stack! {
+            child = stack! {
+                direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 20;
                 children = ui_list![

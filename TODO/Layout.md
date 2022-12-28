@@ -1,7 +1,6 @@
 # Layout TODO
 
-* Can a stack panel be omni-directional controlled by a vector that defines origin of each
-  subsequent item in the layout bounds of the previous item.
+* Implement `StackDirection` from same types as `LinearGradientAxis`.
 ```rust
 pub struct StackDirection {
   pub x: Length,

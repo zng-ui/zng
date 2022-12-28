@@ -10,11 +10,7 @@ pub use grid_wgt::grid;
 
 mod stack_wgt;
 #[doc(inline)]
-pub use stack_wgt::stack;
-
-mod stacks;
-#[doc(inline)]
-pub use stacks::{h_stack, stack_nodes, stack_nodes_layout_by, v_stack, z_stack};
+pub use stack_wgt::{h_stack, stack, stack_nodes, stack_nodes_layout_by, v_stack, z_stack};
 
 mod uniform_grid_wgt;
 #[doc(inline)]

@@ -45,7 +45,8 @@ fn example(vars: &Vars) -> impl UiNode {
     use easing::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
 
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 10;
         children_align = Align::TOP;
         children = ui_list![
@@ -68,8 +69,9 @@ fn example(vars: &Vars) -> impl UiNode {
                     }
                 };
             },
-            h_stack! {
+            stack! {
                 id = "mod-menu";
+                direction = StackDirection::left_to_right();
                 spacing = 2;
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
@@ -145,7 +147,8 @@ fn ease_btn(
     use easing::EasingModifierFn::*;
 
     button! {
-        child = v_stack! {
+        child = stack! {
+            direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::TOP;
             children = ui_list![
@@ -229,7 +232,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 }
                 .boxed(),
             );
-            z_stack! {
+            stack! {
                 children_align = Align::TOP_LEFT;
                 children;
                 size;
@@ -241,7 +244,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
 }
 
 fn ruler() -> impl UiNode {
-    z_stack! {
+    stack! {
         children_align = Align::LEFT;
         children = (0..=300).step_by(10)
             .map(|x| rule_line! {

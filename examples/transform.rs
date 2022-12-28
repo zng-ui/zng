@@ -20,10 +20,12 @@ fn app_main() {
         window! {
             title = "Transform Example";
             child_align = Align::CENTER;
-            child = h_stack! {
+            child = stack! {
+                direction = StackDirection::left_to_right();
                 spacing = 40;
                 children = ui_list![
-                    v_stack! {
+                    stack! {
+                        direction = StackDirection::top_to_bottom();
                         spacing = 25;
                         children_align = Align::TOP;
                         children = ui_list![
@@ -35,7 +37,8 @@ fn app_main() {
                             transformed("Identity", Transform::identity()),
                         ];
                     },
-                    v_stack! {
+                    stack! {
+                        direction = StackDirection::top_to_bottom();
                         spacing = 40;
                         children = ui_list![
                             transform_stack(),
@@ -75,7 +78,8 @@ fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Int
 fn transform_stack() -> impl UiNode {
     // the panel widget uses its child transform to position the widget for performance reasons,
     // the widget transform does not affect.
-    v_stack! {
+    stack! {
+        direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_list![
             container! {
