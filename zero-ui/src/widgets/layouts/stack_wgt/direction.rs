@@ -7,6 +7,8 @@ use crate::core::{context::*, units::*, var::impl_from_and_into_var};
 /// Defining stack direction like this allows expressing the traditional stack directions along an axis, as well as
 /// intermediary for transition animations or diagonal directions.
 ///
+/// Note that collapsed items (layout size zero) are skipped, so the previous and next items are both non-empty in layout.
+///
 /// # Alignment & Spacing
 ///
 /// The direction type can express non-fill alignment and spacing by it self, but prefer using the [`stack::children_align`] and

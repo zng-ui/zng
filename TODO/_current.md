@@ -1,7 +1,6 @@
 * Button example.
 * Focus example, 
     - nested.
-    - Detach, spacing for collapsed not removed?
 * Gradient, spacing above stack.
     - And icon?
 * Image nothing visible.

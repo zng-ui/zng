@@ -104,6 +104,10 @@ impl StackNode {
                 let mut child_spacing = PxVector::zero();
                 self.children.for_each(|_, c| {
                     let size = c.measure(ctx, wm);
+                    if size.is_empty() {
+                        return true; // continue, skip collapsed
+                    }
+
                     let offset = direction.layout(ctx, item_rect, size) + child_spacing;
 
                     item_rect.origin = offset.to_point();
@@ -145,6 +149,10 @@ impl StackNode {
                 let mut child_spacing = PxVector::zero();
                 self.children.for_each_mut(|_, c| {
                     let size = c.layout(ctx, wl);
+                    if size.is_empty() {
+                        return true; // continue, skip collapsed
+                    }
+
                     let offset = direction.layout(ctx, item_rect, size) + child_spacing;
 
                     wl.with_outer(c, false, |wl, _| wl.translate(offset));
