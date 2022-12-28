@@ -44,7 +44,8 @@ use direction::*;
 /// [`stack_nodes`]: fn@stack_nodes
 /// 
 /// [`direction`]: fn@stack::direction
-/// [`StackDirection`]: fn@stack::StackDirection
+/// [`StackDirection`]: stack::StackDirection
+/// [`z_index`]: fn@crate::prelude::z_index
 #[widget($crate::widgets::layouts::stack)]
 pub mod stack {
     pub use super::direction::StackDirection;
