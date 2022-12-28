@@ -18,6 +18,11 @@ pub mod stack {
         pub direction(impl IntoVar<StackDirection>);
 
         /// Space in-between items.
+        ///
+        /// The spacing is added along non-zero axis for each item offset after the first, so the spacing may
+        /// not always be in-between items if a non-standard [`direction`] is used.
+        ///
+        /// [`direction`]: fn@direction
         pub spacing(impl IntoVar<Length>);
 
         /// Spacing around the items stack, inside the border.
@@ -25,9 +30,12 @@ pub mod stack {
 
         /// Items alignment.
         ///
+        /// The items are aligned along axis that don't change, as defined by the [`direction`].
+        ///
         /// The default is [`FILL`].
         ///
         /// [`FILL`]: Align::FILL
+        /// [`direction`]: fn@direction
         pub children_align(impl IntoVar<Align>) = Align::FILL;
     }
 

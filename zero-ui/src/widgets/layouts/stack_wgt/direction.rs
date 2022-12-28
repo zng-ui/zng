@@ -10,8 +10,13 @@ use crate::core::{context::*, units::*, var::impl_from_and_into_var};
 /// # Alignment & Spacing
 ///
 /// The direction type can express non-fill alignment and spacing by it self, but prefer using the [`stack::children_align`] and
-/// [`stack::spacing`] properties as they are more readable and include fill alignment. The [`stack!`] widget implements alignment
-/// along the axis that does not change, so if the computed layout vector is zero in a dimension the items can fill in that dimension.
+/// [`stack::spacing`] properties as they are more readable and include fill alignment.
+///
+/// The [`stack!`] widget implements alignment along the axis that does not change, so if the computed layout vector
+/// is zero in a dimension the items can fill in that dimension.
+///
+/// The [`stack!`] widget adds the spacing along non-zero axis for each item offset after the first, so the spacing is not
+/// added for a perfect straight column or row, but it is added even for a single pixel shift *diagonal* stack.
 ///
 /// [`stack::children_align`]: fn@stack::children_align
 /// [`stack::spacing`]: fn@stack::spacing
