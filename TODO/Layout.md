@@ -1,4 +1,7 @@
-* Review `uniform_grid`, can it be folded into `grid`?
+* Review `uniform_grid`, is it needed now that we have `grid`?
+  - Effect can be recreated using `grid`, performance loss is minimal.
+
+## Direction
 
 * Integrate `LayoutDirection` with all widgets.
   - wrap

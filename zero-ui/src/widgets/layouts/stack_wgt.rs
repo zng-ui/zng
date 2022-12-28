@@ -3,6 +3,48 @@ use crate::prelude::new_widget::*;
 mod direction;
 use direction::*;
 
+/// Stack layout.
+/// 
+/// Without [`direction`] this is a Z layering stack, with direction the traditional vertical and horizontal *stack panels*
+/// can be recreated, other custom layouts are also supported, diagonal stacks, partially layered stacks and more. See
+/// [`StackDirection`] for more details.
+/// 
+/// # Z-Index
+///
+/// By default the widgets are rendered in their logical order, the last widget renders in front of the others,
+/// you can change this by setting the [`z_index`] property in the item widget.
+///
+/// # Examples
+///
+/// The example creates a stack that positions each child under the previous one, in a vertical column. A space of 10
+/// is reserved around the children and a space of 5 in between each child. The stack is centralized in the parent
+/// widget, but the children fill the width of the widest child.
+/// 
+/// ```
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::minimal();
+/// let text = stack! {
+///     direction = StackDirection::top_to_bottom();
+///     padding = 10;
+///     spacing = 5;
+///     align = Align::CENTER;
+///     children_align = Align::FILL;
+///     children = ui_list![
+///         text("one"),
+///         text("two"),
+///         text("three"),
+///     ];
+/// };
+/// ```
+///
+/// # `stack_nodes`
+///
+/// If you only want to create an overlaying effect composed of multiple nodes you can use the [`stack_nodes`] function.
+///
+/// [`stack_nodes`]: fn@stack_nodes
+/// 
+/// [`direction`]: fn@stack::direction
+/// [`StackDirection`]: fn@stack::StackDirection
 #[widget($crate::widgets::layouts::stack)]
 pub mod stack {
     pub use super::direction::StackDirection;
