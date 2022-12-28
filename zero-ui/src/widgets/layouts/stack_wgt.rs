@@ -343,9 +343,9 @@ pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// This is the most simple *z-stack* implementation possible, it is a building block useful for quickly declaring
 /// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render,
-/// for a complete z-stack panel widget see [`z_stack`].
+/// for a complete stack panel widget see [`stack!`].
 ///
-/// [`z_stack`]: mod@z_stack
+/// [`stack!`]: mod@stack
 pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
     #[ui_node(struct StackNodesNode {
         children: impl UiNodeList,

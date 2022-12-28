@@ -20,9 +20,9 @@ use crate::core::{context::*, units::*, var::impl_from_and_into_var};
 /// The [`stack!`] widget adds the spacing along non-zero axis for each item offset after the first, so the spacing is not
 /// added for a perfect straight column or row, but it is added even for a single pixel shift *diagonal* stack.
 ///
-/// [`stack::children_align`]: fn@stack::children_align
-/// [`stack::spacing`]: fn@stack::spacing
-/// [`stack!`]: mod@stack
+/// [`stack::children_align`]: fn@crate::widgets::layouts::stack::children_align
+/// [`stack::spacing`]: fn@crate::widgets::layouts::stack::spacing
+/// [`stack!`]: mod@crate::widgets::layouts::stack
 ///
 /// # Examples
 ///
@@ -156,7 +156,7 @@ impl StackDirection {
     ///
     /// Note that items are always rendered in the order defined by the [`z_index`] property.
     ///
-    /// [`z_index`]: fn@z_index
+    /// [`z_index`]: fn@crate::prelude::z_index
     pub fn none() -> Self {
         Self {
             place: Point::zero(),
