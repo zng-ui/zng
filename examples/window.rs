@@ -48,11 +48,11 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         child = stack! {
             direction = StackDirection::left_to_right();
             spacing = 40;
-            children = ui_list![
+            children = ui_vec![
                 stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_list![
+                    children = ui_vec![
                         state_commands(window_id),
                         focus_control(),
                     ]
@@ -60,7 +60,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                 stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_list![
+                    children = ui_vec![
                         state(window_vars),
                         visibility(window_vars),
                         chrome(window_vars),
@@ -69,7 +69,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                 stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_list![
+                    children = ui_vec![
                         icon(window_vars),
                         background_color(background),
                     ];
@@ -77,7 +77,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                 stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_list![
+                    children = ui_vec![
                         screenshot(),
                         misc(window_id, window_vars),
                     ];
@@ -96,7 +96,7 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
                 direction = StackDirection::left_to_right();
                 spacing = 4;
                 children_align = Align::LEFT;
-                children = ui_list![
+                children = ui_vec![
                     wgt! {
                         background_color = c.clone();
                         size = (16, 16);
@@ -115,7 +115,7 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
     select(
         "Background Color",
         color,
-        ui_list![
+        ui_vec![
             color_btn(color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9)), true),
             primary_color(rgb(1.0, 0.0, 0.0)),
             primary_color(rgb(0.0, 0.8, 0.0)),
@@ -212,7 +212,7 @@ fn screenshot() -> impl UiNode {
         }
     }
 
-    section("Screenshot", ui_list![of_window(), of_headless_temp(),])
+    section("Screenshot", ui_vec![of_window(), of_headless_temp(),])
 }
 
 fn icon(window_vars: &WindowVars) -> impl UiNode {
@@ -225,7 +225,7 @@ fn icon(window_vars: &WindowVars) -> impl UiNode {
     select(
         "Icon",
         window_vars.icon().clone(),
-        ui_list![
+        ui_vec![
             icon_btn("Default", WindowIcon::Default),
             icon_btn("Png File", "examples/res/window/icon-file.png".into()),
             icon_btn("Png Bytes", include_bytes!("res/window/icon-bytes.png").into()),
@@ -268,7 +268,7 @@ fn chrome(window_vars: &WindowVars) -> impl UiNode {
     select(
         "Chrome",
         window_vars.chrome().clone(),
-        ui_list![
+        ui_vec![
             chrome_btn(WindowChrome::Default),
             chrome_btn(WindowChrome::None),
             text("TODO custom"),
@@ -281,7 +281,7 @@ fn state_commands(window_id: WindowId) -> impl UiNode {
 
     section(
         "Commands",
-        ui_list![
+        ui_vec![
             cmd_btn(MINIMIZE_CMD.scoped(window_id)),
             separator(),
             cmd_btn(RESTORE_CMD.scoped(window_id)),
@@ -342,7 +342,7 @@ fn focus_control() -> impl UiNode {
         });
     };
 
-    section("Focus", ui_list![focus_btn, critical_btn, info_btn,])
+    section("Focus", ui_vec![focus_btn, critical_btn, info_btn,])
 }
 
 fn state(window_vars: &WindowVars) -> impl UiNode {
@@ -356,7 +356,7 @@ fn state(window_vars: &WindowVars) -> impl UiNode {
     select(
         "State",
         window_vars.state().clone(),
-        ui_list![
+        ui_vec![
             state_btn(WindowState::Minimized),
             separator(),
             state_btn(WindowState::Normal),
@@ -383,14 +383,14 @@ fn visibility(window_vars: &WindowVars) -> impl UiNode {
         });
     };
 
-    section("Visibility", ui_list![btn])
+    section("Visibility", ui_vec![btn])
 }
 
 fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
     let can_open_windows = window_vars.state().map(|&s| s != WindowState::Exclusive);
     section(
         "Misc.",
-        ui_list![
+        ui_vec![
             toggle! {
                 child = text("Taskbar Visible");
                 checked = window_vars.taskbar_visible().clone();
@@ -502,7 +502,7 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
             child = stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
-                children = ui_list![
+                children = ui_vec![
                     text! {
                         txt = match windows.len() {
                             1 => "Close Confirmation\n\nClose 1 window?".to_text(),
@@ -513,7 +513,7 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
                     stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 4;
-                        children = ui_list![
+                        children = ui_vec![
                             button! {
                                 child = strong("Close");
                                 on_click = hn_once!(state, |ctx, _| {
@@ -557,7 +557,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_list![text! {
+        children = ui_vec![text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
@@ -570,7 +570,7 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>,
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         toggle::selector = toggle::Selector::single(selection);
-        children = ui_list![text! {
+        children = ui_vec![text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

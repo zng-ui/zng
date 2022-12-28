@@ -41,16 +41,16 @@ fn app_main() {
             stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 30;
-                children = ui_list![
+                children = ui_vec![
                     section(
                         "Sources",
-                        ui_list![
+                        ui_vec![
                             sub_title("File"),
                             uniform_grid! {
                                 columns = 4;
                                 spacing = 2;
                                 align = Align::CENTER;
-                                children = ui_list![
+                                children = ui_vec![
                                     image("examples/res/image/Luma8.png"),
                                     image("examples/res/image/Luma16.png"),
                                     image("examples/res/image/LumaA8.png"),
@@ -94,7 +94,7 @@ fn app_main() {
 
                     section(
                         "Fit",
-                        ui_list![
+                        ui_vec![
                             img_fit(ImageFit::None),
                             img_fit(ImageFit::Fill),
                             img_fit(ImageFit::Contain),
@@ -105,7 +105,7 @@ fn app_main() {
 
                     section(
                         "Filter",
-                        ui_list![
+                        ui_vec![
                             img_filter(filters::grayscale(true)),
                             img_filter(filters::sepia(true)),
                             img_filter(filters::opacity(50.pct())),
@@ -123,11 +123,11 @@ fn app_main() {
                     stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 30;
-                        children = ui_list![
+                        children = ui_vec![
                             section(
                                 "Errors",
 
-                                ui_list![
+                                ui_vec![
                                     sub_title("File"),
                                     image("404.png"),
 
@@ -137,11 +137,11 @@ fn app_main() {
                             ),
                             section(
                                 "Sprite",
-                                ui_list![sprite(ctx.timers)]
+                                ui_vec![sprite(ctx.timers)]
                             ),
                             section(
                                 "Window",
-                                ui_list![
+                                ui_vec![
                                     panorama_image(),
                                     block_window_load_image(),
                                     large_image(),
@@ -163,7 +163,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
         children_align = Align::TOP_LEFT;
         spacing = 5;
 
-        children = ui_list![
+        children = ui_vec![
             sub_title(fit.map_debug()),
             image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
@@ -182,7 +182,7 @@ fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
         children_align = Align::TOP_LEFT;
         spacing = 2;
 
-        children = ui_list![
+        children = ui_vec![
             sub_title(filter.map(|f| {
                 let s = format!("{f:?}");
                 if s.starts_with("color_matrix") {
@@ -207,7 +207,7 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         align = Align::CENTER;
-        children = ui_list![
+        children = ui_vec![
             button! {
                 child = text(label.clone());
                 align = Align::CENTER;
@@ -426,7 +426,7 @@ fn section(title: impl IntoVar<Text>, children: impl UiNodeList) -> impl UiNode 
         spacing = 5;
         children_align = Align::TOP_LEFT;
 
-        children = ui_list![
+        children = ui_vec![
             self::title(title),
             stack! {
                 direction = StackDirection::top_to_bottom();

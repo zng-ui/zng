@@ -153,7 +153,7 @@
 //! let menu = stack! {
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 5;
-//!     children = ui_list![
+//!     children = ui_vec![
 //!         button! { child = text("New") },
 //!         button! { child = text("Load") },
 //!         button! { child = text("Save") },
@@ -950,7 +950,7 @@ pub mod prelude {
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility, WidgetPath},
         widget_instance::{
-            ui_list, z_index, ArcNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, UiNode, UiNodeList,
+            ui_vec, z_index, ArcNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, UiNode, UiNodeList,
             UiNodeListChain, UiNodeVec, WidgetId, ZIndex,
         },
         window::{
@@ -1060,7 +1060,7 @@ pub mod prelude {
                 WidgetMeasure,
             },
             widget_instance::{
-                ui_list, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList, SortingListParent, UiNode,
+                ui_vec, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, SortingList, SortingListParent, UiNode,
                 UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec, WidgetId,
             },
         };
@@ -1123,7 +1123,7 @@ pub mod prelude {
                 WidgetMeasure,
             },
             widget_instance::{
-                ui_list, z_index, AdoptiveNode, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode,
+                ui_vec, z_index, AdoptiveNode, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode,
                 NilUiNode, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec, WidgetId,
                 ZIndex, ZSortingList,
             },

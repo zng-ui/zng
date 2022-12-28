@@ -22,15 +22,15 @@ use super::*;
 /// # fn text(fake: &str) -> impl UiNode { NilUiNode  };
 /// # use text as foo;
 /// # use text as bar;
-/// let widgets = ui_list![
+/// let widgets = ui_vec![
 ///     foo("Hello"),
 ///     bar("World!")
 /// ];
 /// ```
 ///
-/// `ui_list!` automatically calls [`UiNode::boxed`] for each item.
+/// `ui_vec!` automatically calls [`UiNode::boxed`] for each item.
 #[macro_export]
-macro_rules! ui_list {
+macro_rules! ui_vec {
     () => { $crate::widget_instance::UiNodeVec::new() };
     ($($node:expr),+ $(,)?) => {
         $crate::widget_instance::UiNodeVec(vec![
@@ -39,7 +39,7 @@ macro_rules! ui_list {
     };
 }
 #[doc(inline)]
-pub use crate::ui_list;
+pub use crate::ui_vec;
 
 impl UiNodeList for Vec<BoxedUiNode> {
     fn with_node<R, F>(&self, index: usize, f: F) -> R

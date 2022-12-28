@@ -302,7 +302,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
 
         child = stack! {
             direction = StackDirection::left_to_right();
-            children = ui_list![
+            children = ui_vec![
                 link! {
                     focus_on_init = true;
 

@@ -30,7 +30,7 @@ fn app_main() {
                 direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 20;
-                children = ui_list![
+                children = ui_vec![
                     widgets::mr_borders! {
                         border_align = 0.pct();
                         child = text("border_align = 0.pct();");

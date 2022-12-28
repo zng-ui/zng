@@ -4,11 +4,11 @@ mod direction;
 use direction::*;
 
 /// Stack layout.
-/// 
+///
 /// Without [`direction`] this is a Z layering stack, with direction the traditional vertical and horizontal *stack panels*
 /// can be recreated, other custom layouts are also supported, diagonal stacks, partially layered stacks and more. See
 /// [`StackDirection`] for more details.
-/// 
+///
 /// # Z-Index
 ///
 /// By default the widgets are rendered in their logical order, the last widget renders in front of the others,
@@ -19,7 +19,7 @@ use direction::*;
 /// The example creates a stack that positions each child under the previous one, in a vertical column. A space of 10
 /// is reserved around the children and a space of 5 in between each child. The stack is centralized in the parent
 /// widget, but the children fill the width of the widest child.
-/// 
+///
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
@@ -29,7 +29,7 @@ use direction::*;
 ///     spacing = 5;
 ///     align = Align::CENTER;
 ///     children_align = Align::FILL;
-///     children = ui_list![
+///     children = ui_vec![
 ///         text("one"),
 ///         text("two"),
 ///         text("three"),
@@ -42,7 +42,7 @@ use direction::*;
 /// If you only want to create an overlaying effect composed of multiple nodes you can use the [`stack_nodes`] function.
 ///
 /// [`stack_nodes`]: fn@stack_nodes
-/// 
+///
 /// [`direction`]: fn@stack::direction
 /// [`StackDirection`]: stack::StackDirection
 /// [`z_index`]: fn@crate::prelude::z_index
@@ -322,7 +322,7 @@ impl StackNode {
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// let text = h_stack(ui_list![
+/// let text = h_stack(ui_vec![
 ///     text("Hello "),
 ///     text("World"),
 /// ]);
@@ -345,7 +345,7 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// let text = v_stack(ui_list![
+/// let text = v_stack(ui_vec![
 ///     text("Hello "),
 ///     text("World"),
 /// ]);
@@ -368,7 +368,7 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// let text = z_stack(ui_list![
+/// let text = z_stack(ui_vec![
 ///     text("Hello "),
 ///     text("World"),
 /// ]);

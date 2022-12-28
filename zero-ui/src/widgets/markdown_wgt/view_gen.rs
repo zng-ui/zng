@@ -576,7 +576,7 @@ pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
         grid! {
             margin = (0, 0, 0, 1.em());
             cells = args.items;
-            columns = ui_list![
+            columns = ui_vec![
                 grid::column!(),
                 grid::column! { width = 1.lft() },
             ];
@@ -659,7 +659,7 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
     if let Some(inner) = args.nested_list {
         r = stack! {
             direction = StackDirection::top_to_bottom();
-            children = ui_list![
+            children = ui_vec![
                 r,
                 inner
             ]
@@ -863,7 +863,7 @@ pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
         direction = StackDirection::left_to_right();
         spacing = 0.5.em();
         markdown::anchor = formatx!("footnote-{}", args.label);
-        children = ui_list![
+        children = ui_vec![
             link! {
                 child = text(formatx!("[^{}]", args.label));
                 on_click = hn!(|ctx, args: &ClickArgs| {

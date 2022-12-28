@@ -23,7 +23,7 @@ fn main() {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children_align = Align::TOP;
-                children = ui_list![
+                children = ui_vec![
                     text! {
                         txt = "The renderer and OS windows are created in another process, the `view-process`. \
                                It automatically respawns in case of a graphics driver crash or other similar fatal error.";
@@ -79,7 +79,7 @@ fn image() -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 3;
-        children = ui_list![
+        children = ui_vec![
             strong("Image:"),
             image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
         ];
@@ -103,7 +103,7 @@ fn window_status(ctx: &mut WindowContext) -> impl UiNode {
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         font_family = "monospace";
         opacity = 80.pct();
-        children = ui_list![
+        children = ui_vec![
             status!(actual_position),
             status!(actual_size),
             status!(restore_state),

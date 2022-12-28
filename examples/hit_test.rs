@@ -13,7 +13,7 @@ fn main() {
             child = stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 14;
-                children = ui_list![
+                children = ui_vec![
                     example(HitTestMode::Visual),
                     example(HitTestMode::RoundedBounds),
                     example(HitTestMode::Bounds),

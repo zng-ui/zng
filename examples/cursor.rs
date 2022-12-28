@@ -14,7 +14,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|_| {
-        let mut demos = ui_list![];
+        let mut demos = ui_vec![];
         for icon in CURSORS {
             demos.push(cursor_demo(Some(*icon)));
         }
@@ -24,7 +24,7 @@ fn app_main() {
             resizable = false;
             auto_size = true;
             padding = 20;
-            child = v_stack(ui_list![
+            child = v_stack(ui_vec![
                 uniform_grid! {
                     columns = 5;
                     children = demos;

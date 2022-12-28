@@ -66,12 +66,12 @@ fn icons() -> impl UiNode {
         padding = (20, 5, 5, 5);
         spacing = 20;
         children_align = Align::TOP;
-        children = ui_list![
+        children = ui_vec![
             stack! {
                 direction = StackDirection::left_to_right();
                 toggle::selector = toggle::Selector::single(selected_font.clone());
                 spacing = 5;
-                children = ui_list![
+                children = ui_vec![
                     select_font("filled"),
                     select_font("outlined"),
                     select_font("rounded"),
@@ -102,7 +102,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
             direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::CENTER;
-            children = ui_list![
+            children = ui_vec![
                 icon! {
                     ico = ico.clone();
                 },
@@ -146,13 +146,13 @@ fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
-            child = stack!(children = ui_list![
+            child = stack!(children = ui_vec![
                 stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 5;
                     padding = 10;
                     children_align = Align::TOP_LEFT;
-                    children = ui_list![
+                    children = ui_vec![
                         title(formatx!("{ico}")),
                         text! {
                             txt = ico.name;
@@ -168,7 +168,7 @@ fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
                                 stack! {
                                     direction = StackDirection::top_to_bottom();
                                     spacing = 3;
-                                    children = ui_list![
+                                    children = ui_vec![
                                         size_label(formatx!("{size}")),
                                         icon! {
                                             ico = ico.clone();
@@ -195,7 +195,7 @@ fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
                                 stack! {
                                     direction = StackDirection::top_to_bottom();
                                     spacing = 3;
-                                    children = ui_list![
+                                    children = ui_vec![
                                         size_label(formatx!("{size}")),
                                         text! {
                                             txt = ico.code;

@@ -57,7 +57,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     let background = fill_node(background);
 
     BackgroundNode {
-        children: ui_list![background, child],
+        children: ui_vec![background, child],
     }
 }
 
@@ -181,7 +181,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
 
     ForegroundNode {
-        children: ui_list![child, foreground],
+        children: ui_vec![child, foreground],
     }
 }
 

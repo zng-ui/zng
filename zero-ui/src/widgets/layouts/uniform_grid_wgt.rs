@@ -17,7 +17,7 @@ use crate::prelude::new_widget::*;
 /// let grid = uniform_grid!{
 ///     columns = 3;
 ///     rows = 2;
-///     children = ui_list![
+///     children = ui_vec![
 ///         text("0,0"), text("1,0"), text("2,0"),
 ///         text("0,1"), text("1,1")
 ///     ];
@@ -65,7 +65,7 @@ pub mod uniform_grid {
         ///     columns = 3;
         ///     rows = 2;
         ///     first_column = 1;
-        ///     children = ui_list![
+        ///     children = ui_vec![
         ///                      text("1,0"), text("2,0"),
         ///         text("0,1"), text("1,1"), text("2,1")
         ///     ];
@@ -380,7 +380,7 @@ pub mod uniform_grid {
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// let grid = uniform_grid(ui_list![
+/// let grid = uniform_grid(ui_vec![
 ///     text("0,0"), text("1,0"),
 ///     text("0,1"), text("1,1"),
 /// ]);

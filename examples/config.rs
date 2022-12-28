@@ -49,7 +49,7 @@ fn app_main() {
                 direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 5;
-                children = ui_list![
+                children = ui_vec![
                     toggle! {
                         child = text(checked.map(|c| formatx!("Checked: {c:?}")));
                         checked = checked.clone();

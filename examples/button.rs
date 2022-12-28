@@ -24,7 +24,7 @@ fn app_main() {
                 align = Align::CENTER;
                 spacing = 5;
                 sticky_width = true;
-                children = ui_list![
+                children = ui_vec![
                     example(),
                     example(),
                     disabled(),
@@ -71,7 +71,7 @@ fn image_button() -> impl UiNode {
         child = stack! {
             direction = StackDirection::left_to_right();
             children_align = Align::CENTER;
-            children = ui_list![
+            children = ui_vec![
                 image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
                 text("Click Me!")
             ];
@@ -81,14 +81,14 @@ fn image_button() -> impl UiNode {
 }
 
 fn dyn_buttons() -> impl UiNode {
-    let dyn_children = EditableUiNodeList::from_vec(ui_list![separator()]);
+    let dyn_children = EditableUiNodeList::from_vec(ui_vec![separator()]);
     let children_ref = dyn_children.reference();
     let mut btn = 'A';
 
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = dyn_children.chain(ui_list![
+        children = dyn_children.chain(ui_vec![
             button! {
                 child = text("Add Button");
                 on_click = hn!(|ctx, _| {
@@ -122,7 +122,7 @@ fn toggle_buttons() -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_list![
+        children = ui_vec![
             toggle! {
                 child = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
                 checked = var(false);

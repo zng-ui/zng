@@ -11,7 +11,7 @@ use crate::{
     ui_node,
     units::*,
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder},
-    widget_instance::{ui_list, UiNode, UiNodeList},
+    widget_instance::{ui_vec, UiNode, UiNodeList},
     window::WindowId,
 };
 
@@ -42,7 +42,7 @@ pub fn default_children() {
     impl UiNode for Node {}
 
     test_trace(Node {
-        children: ui_list![TestTraceNode::default(), TestTraceNode::default()],
+        children: ui_vec![TestTraceNode::default(), TestTraceNode::default()],
     });
 }
 #[test]
@@ -54,7 +54,7 @@ pub fn default_delegate_list() {
     impl<C: UiNodeList> UiNode for Node<C> {}
 
     test_trace(Node {
-        inner: ui_list![TestTraceNode::default(), TestTraceNode::default()],
+        inner: ui_vec![TestTraceNode::default(), TestTraceNode::default()],
     });
 }
 fn test_trace(node: impl UiNode) {

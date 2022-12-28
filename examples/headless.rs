@@ -65,7 +65,7 @@ fn image() -> impl UiNode {
                 linear_gradient(angle.deg(), stops)
             }
 
-            ui_list![
+            ui_vec![
                 flood(colors::WHITE),
                 gradient(0, colors::RED),
                 gradient(20, colors::RED),

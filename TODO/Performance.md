@@ -70,7 +70,7 @@
       - The background UI also needs to observe app updates.
       - Does not sound like a full background, more of a delayed render?
   - Better performance when many UI items need to compute, if layout is invalidated for many widgets we want to use rayon join to work
-    in multiple branches of an ui_list at the same time.
+    in multiple branches of an ui_vec at the same time.
     - Rayon join done at the widget level, `par_for_each`.
     - Init, update, event just works.
     - Layout just works?

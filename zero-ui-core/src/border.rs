@@ -7,7 +7,7 @@ use crate::{
     context::{LayoutContext, LayoutMetrics, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
     context_local, property,
     render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId},
-    ui_list, ui_node,
+    ui_node, ui_vec,
     units::*,
     var::{impl_from_and_into_var, *},
     widget_info::{WidgetBorderInfo, WidgetLayout, WidgetMeasure},
@@ -931,7 +931,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
     }
     BorderNode {
-        children: ui_list![child, border_visual],
+        children: ui_vec![child, border_visual],
         offsets: border_offsets.into_var(),
         layout_offsets: SideOffsets::zero(),
         render_offsets: PxSideOffsets::zero(),

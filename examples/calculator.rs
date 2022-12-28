@@ -31,7 +31,7 @@ fn app_main() {
             child = stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
-                children = ui_list![
+                children = ui_vec![
                     text! {
                         txt = calc.map_ref(|c| c.text());
                         align = Align::RIGHT;
@@ -60,7 +60,7 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
         spacing = 2;
         columns = 4;
         font_size = 14.pt();
-        children = ui_list![
+        children = ui_vec![
             b_squre,  b_sroot,  b_clear,  b_back,
             bn('7'),  bn('8'),  bn('9'),  bn('/'),
             bn('4'),  bn('5'),  bn('6'),  bn('*'),

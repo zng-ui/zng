@@ -501,7 +501,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
     });
 
     LayersNode {
-        children: ui_list![child].chain(sorting_layers),
+        children: ui_vec![child].chain(sorting_layers),
         layered,
     }
     .cfg_boxed()

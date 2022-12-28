@@ -23,12 +23,12 @@ fn app_main() {
             child = stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 40;
-                children = ui_list![
+                children = ui_vec![
                     stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 25;
                         children_align = Align::TOP;
-                        children = ui_list![
+                        children = ui_vec![
                             transformed("Translate -10", translate(-10, -10)),
                             transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
                             transformed("Rotate 10º", rotate(10.deg())),
@@ -40,7 +40,7 @@ fn app_main() {
                     stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 40;
-                        children = ui_list![
+                        children = ui_vec![
                             transform_stack(),
                             transform_order(),
                         ]
@@ -81,7 +81,7 @@ fn transform_stack() -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_list![
+        children = ui_vec![
             container! {
                 child = text("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
@@ -110,7 +110,7 @@ fn transform_stack() -> impl UiNode {
 fn transform_order() -> impl UiNode {
     // transform created using a single property or two properties generate the same transform because
     // are in the same order.
-    z_stack(ui_list![
+    z_stack(ui_vec![
         wgt! {
             // single property
             transform = rotate(10.deg()).translate(50, 30);

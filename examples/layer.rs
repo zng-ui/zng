@@ -48,7 +48,7 @@ fn app_main() {
             child = stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
-                children = ui_list![
+                children = ui_vec![
                     overlay_example(),
                     layer_index_example(),
                     anchor_example(),
@@ -90,7 +90,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
             child = stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
-                children = ui_list![
+                children = ui_vec![
                     text! {
                         txt = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
@@ -98,7 +98,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                     stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 2;
-                        children = ui_list![
+                        children = ui_vec![
                             button! {
                                 visibility = offset < 50;
                                 child = text("Open Another");
@@ -125,7 +125,7 @@ fn layer_index_example() -> impl UiNode {
     stack! {
         direction = StackDirection::left_to_right();
         spacing = 5;
-        children = ui_list![
+        children = ui_vec![
             layer_n_btn(7, colors::DARK_GREEN),
             layer_n_btn(8, colors::DARK_BLUE),
             layer_n_btn(9, colors::DARK_RED),

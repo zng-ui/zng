@@ -137,7 +137,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::widget_instance::NilUiNode,
                         }),
                         InputKind::UiNodeList => default.extend(quote! {
-                            #core::widget_instance::ui_list![],
+                            #core::widget_instance::ui_vec![],
                         }),
                         InputKind::WidgetHandler if !has_generics => default.extend(quote! {
                             #core::handler::hn!(|_, _| {}),

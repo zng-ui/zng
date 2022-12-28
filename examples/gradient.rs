@@ -22,7 +22,7 @@ fn app_main() {
                 child = stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_list![
+                    children = ui_vec![
                         title("Linear"),
                         linear_angle(),
                         linear_points(),
@@ -44,7 +44,7 @@ fn title(title: &'static str) -> impl UiNode {
 }
 
 fn linear_angle() -> impl UiNode {
-    sample_line(ui_list![
+    sample_line(ui_vec![
         sample("90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE])),
         sample("45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE])),
         sample("0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN])),
@@ -53,7 +53,7 @@ fn linear_angle() -> impl UiNode {
 }
 
 fn linear_points() -> impl UiNode {
-    sample_line(ui_list![
+    sample_line(ui_vec![
         sample(
             "(30, 30) to (90, 90) clamp",
             linear_gradient((30, 30).to(90, 90), [colors::GREEN, colors::RED]),
@@ -75,7 +75,7 @@ fn linear_points() -> impl UiNode {
 
 fn linear_tile() -> impl UiNode {
     let w = 180 / 5;
-    sample_line(ui_list![
+    sample_line(ui_vec![
         sample(
             "tiles",
             linear_gradient_full(45.deg(), [colors::GREEN, colors::YELLOW], ExtendMode::Clamp, (w, w), (0, 0)),
@@ -98,17 +98,17 @@ fn linear_tile() -> impl UiNode {
 }
 
 fn stack_linear() -> impl UiNode {
-    sample_line(ui_list![
+    sample_line(ui_vec![
         sample(
             "background",
-            stack_nodes(ui_list![
+            stack_nodes(ui_vec![
                 linear_gradient(45.deg(), [colors::RED, colors::GREEN]),
                 linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)]),
             ]),
         ),
         sample(
             "over color",
-            stack_nodes(ui_list![
+            stack_nodes(ui_vec![
                 flood(colors::WHITE),
                 linear_gradient(0.deg(), stops![colors::RED, (colors::RED.transparent(), 50.pct())]),
                 linear_gradient(120.deg(), stops![colors::GREEN, (colors::GREEN.transparent(), 50.pct())]),
@@ -132,7 +132,7 @@ fn stack_linear() -> impl UiNode {
                 );
                 let mut cross_rainbow = rainbow.clone();
                 cross_rainbow.set_alpha(0.5);
-                ui_list![
+                ui_vec![
                     linear_gradient(Line::to_right(), rainbow),
                     linear_gradient(Line::to_bottom(), cross_rainbow),
                 ]
@@ -147,7 +147,7 @@ fn stack_linear() -> impl UiNode {
                     linear_gradient(angle.deg(), stops)
                 }
 
-                ui_list![
+                ui_vec![
                     flood(colors::WHITE),
                     gradient(0, colors::RED),
                     gradient(20, colors::RED),
@@ -169,7 +169,7 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_list![
+        children = ui_vec![
             text(name),
             container! {
                 size = (180, 180);

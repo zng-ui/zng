@@ -141,7 +141,7 @@ fn listener_window(focused_wgt: bool) -> Window {
     window! {
         child = stack! {
             direction = StackDirection::top_to_bottom();
-            children = ui_list![
+            children = ui_vec![
                 container! {
                     id = "test-widget";
                     size = (100, 100);

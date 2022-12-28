@@ -234,7 +234,7 @@ pub mod scroll {
 
         use crate::core::context::UpdatesTraceUiNodeExt;
         ScrollNode {
-            children: ui_list![
+            children: ui_vec![
                 clip_to_bounds(
                     nodes::viewport(child, mode.into_var()).instrument("viewport"),
                     clip_to_viewport.into_var()

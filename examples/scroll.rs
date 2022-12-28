@@ -19,7 +19,7 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Scroll Example";
-            child = z_stack(ui_list![
+            child = z_stack(ui_vec![
                 scroll! {
                     id = "scroll";
                     padding = 20;
@@ -31,7 +31,7 @@ fn app_main() {
                     child = stack!{
                         direction = StackDirection::top_to_bottom();
                         children_align = Align::LEFT;
-                        children = ui_list![
+                        children = ui_vec![
                             text! {
                                 id = "Lorem 1";
                                 txt = "Lorem 1";
@@ -66,13 +66,13 @@ fn commands() -> impl UiNode {
         corner_radius = (0, 0, 8, 8);
         alt_focus_scope = true;
 
-        children = ui_list![
+        children = ui_vec![
             stack! {
                 direction = StackDirection::top_to_bottom();
                 visibility = show.map_into();
                 spacing = 3;
 
-                children = ui_list![
+                children = ui_vec![
                     cmd_btn(SCROLL_UP_CMD),
                     cmd_btn(SCROLL_DOWN_CMD),
                     cmd_btn(SCROLL_LEFT_CMD),

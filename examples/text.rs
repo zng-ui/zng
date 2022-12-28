@@ -23,16 +23,16 @@ fn app_main() {
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             font_size = fs.easing(150.ms(), easing::linear);
-            child = z_stack(ui_list![
+            child = z_stack(ui_vec![
                 stack! {
                     direction = StackDirection::left_to_right();
                     align = Align::CENTER;
                     spacing = 40;
-                    children = ui_list![
+                    children = ui_vec![
                         stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
-                            children = ui_list![
+                            children = ui_vec![
                                 basic(),
                                 defaults(ctx),
                             ];
@@ -40,7 +40,7 @@ fn app_main() {
                         stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
-                            children = ui_list![
+                            children = ui_vec![
                                 line_height(),
                                 line_spacing(),
                                 word_spacing(),
@@ -50,7 +50,7 @@ fn app_main() {
                         stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
-                            children = ui_list![
+                            children = ui_vec![
                                 decoration_lines(),
                             ]
                         }
@@ -81,7 +81,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
         corner_radius = 4;
         background_color = color_scheme_map(rgba(0, 0, 0, 40.pct()), rgba(1., 1., 1., 40.pct()));
         padding = 4;
-        children = ui_list![
+        children = ui_vec![
             button! {
                 child = text("-");
                 font_family = FontName::monospace();
@@ -110,7 +110,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
 fn basic() -> impl UiNode {
     section(
         "basic",
-        ui_list![
+        ui_vec![
             text("Basic Text"),
             strong("Strong Text"),
             em("Emphasis Text"),
@@ -129,7 +129,7 @@ fn basic() -> impl UiNode {
 fn line_height() -> impl UiNode {
     section(
         "line_height",
-        ui_list![
+        ui_vec![
             text! {
                 txt = "Default: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
@@ -148,7 +148,7 @@ fn line_height() -> impl UiNode {
 fn line_spacing() -> impl UiNode {
     section(
         "line_spacing",
-        ui_list![container! {
+        ui_vec![container! {
             child = text! {
                 txt = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
@@ -168,7 +168,7 @@ fn line_spacing() -> impl UiNode {
 fn word_spacing() -> impl UiNode {
     section(
         "word_spacing",
-        ui_list![text! {
+        ui_vec![text! {
             txt = "Word spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
@@ -183,7 +183,7 @@ fn word_spacing() -> impl UiNode {
 fn letter_spacing() -> impl UiNode {
     section(
         "letter_spacing",
-        ui_list![text! {
+        ui_vec![text! {
             txt = "Letter spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
@@ -198,7 +198,7 @@ fn letter_spacing() -> impl UiNode {
 fn decoration_lines() -> impl UiNode {
     section(
         "Decorations",
-        ui_list![
+        ui_vec![
             text! {
                 txt = "Overline, 1, Dotted,\ndefault color";
                 overline = 1, LineStyle::Dotted;
@@ -271,7 +271,7 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
         stack! {
             direction = StackDirection::left_to_right();
             children_align = Align::BASELINE_LEFT;
-            children = ui_list![
+            children = ui_vec![
                 text(if title.is_empty() {
                     formatx!("{font_family}: ")
                 } else {
@@ -287,7 +287,7 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
 
     section(
         "defaults",
-        ui_list![
+        ui_vec![
             // Generic
             demo(ctx, "", FontName::serif()),
             demo(ctx, "", FontName::sans_serif()),
@@ -304,7 +304,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_list![text! {
+        children = ui_vec![text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

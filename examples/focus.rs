@@ -29,14 +29,14 @@ fn app_main() {
             background = commands();
             child = stack! {
                 direction = StackDirection::top_to_bottom();
-                children = ui_list![
+                children = ui_vec![
                     alt_scope(),
                     stack! {
                         direction = StackDirection::left_to_right();
                         margin = (50, 0, 0, 0);
                         align = Align::CENTER;
                         spacing = 10;
-                        children = ui_list![
+                        children = ui_vec![
                             tab_index(),
                             functions(window_enabled),
                             delayed_focus(),
@@ -60,7 +60,7 @@ fn alt_scope() -> impl UiNode {
             border = unset!;
             corner_radius = unset!;
         });
-        children = ui_list![
+        children = ui_vec![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),
         ];
@@ -72,7 +72,7 @@ fn tab_index() -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         focus_shortcut = shortcut!(T);
-        children = ui_list![
+        children = ui_vec![
             title("TabIndex (T)"),
             button("Button A5", 5),
             button("Button A4", 3),
@@ -88,7 +88,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         focus_shortcut = shortcut!(F);
-        children = ui_list![
+        children = ui_vec![
             title("Functions (F)"),
             // New Window
             button! {
@@ -103,7 +103,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                                 direction = StackDirection::top_to_bottom();
                                 align = Align::CENTER;
                                 spacing = 5;
-                                children = ui_list![
+                                children = ui_vec![
                                     title("Other Window (W)"),
                                     button("Button B5", 5),
                                     button("Button B4", 3),
@@ -176,7 +176,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
             child = stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
-                children = ui_list![
+                children = ui_vec![
                     text! {
                         txt = "Window scope is disabled so the overlay scope is the root scope.";
                         margin = 15;
@@ -184,7 +184,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
                     stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 2;
-                        children = ui_list![
+                        children = ui_vec![
                         disable_window(window_enabled),
                         button! {
                                 child = text("Close");
@@ -205,7 +205,7 @@ fn delayed_focus() -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         focus_shortcut = shortcut!(D);
-        children = ui_list![
+        children = ui_vec![
             title("Delayed 4s (D)"),
 
             delayed_btn("Force Focus", |ctx| {
@@ -363,7 +363,7 @@ fn nested_focusables() -> impl UiNode {
                     child = stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 10;
-                        children = ui_list![
+                        children = ui_vec![
                             nested_focusables_group('a'),
                             nested_focusables_group('b'),
                         ];
@@ -391,9 +391,9 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
         padding = 2;
         direction = StackDirection::top_to_bottom();
         children = if row == 5 {
-            ui_list![nested]
+            ui_vec![nested]
         } else {
-            ui_list![
+            ui_vec![
                 nested,
                 nested_focusable(g, column, row + 1),
             ]

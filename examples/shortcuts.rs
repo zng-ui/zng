@@ -74,7 +74,7 @@ fn app_main() {
             child_align = Align::CENTER;
             child = stack! {
                 direction = StackDirection::top_to_bottom();
-                children = ui_list![
+                children = ui_vec![
                     text!{
                         align = Align::CENTER;
                         font_size = 18.pt();

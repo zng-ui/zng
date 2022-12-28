@@ -49,7 +49,7 @@ fn example(vars: &Vars) -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 10;
         children_align = Align::TOP;
-        children = ui_list![
+        children = ui_vec![
             container! {
                 id = "demo";
                 width = 301;
@@ -79,7 +79,7 @@ fn example(vars: &Vars) -> impl UiNode {
                         child = text(m.to_text());
                         value = m;
                     };
-                    ui_list![
+                    ui_vec![
                         mode(EaseIn),
                         mode(EaseOut),
                         mode(EaseInOut),
@@ -96,7 +96,7 @@ fn example(vars: &Vars) -> impl UiNode {
                 button::vis::extend_style = style_generator!(|_, _| style! {
                     padding = 3;
                 });
-                children = ui_list![
+                children = ui_vec![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
                     ease_btn(&x, &color, "cubic", easing::cubic, &easing_mod),
@@ -151,7 +151,7 @@ fn ease_btn(
             direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::TOP;
-            children = ui_list![
+            children = ui_vec![
                 text(name.into()),
                 image! {
                     img_scale_ppi = true;
@@ -181,7 +181,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
     ImageSource::render_node(
         RenderMode::Software,
         clone_move!(size, |ctx, _| {
-            let mut children = ui_list![];
+            let mut children = ui_vec![];
             let color_t = animation::Transition::new(FROM_COLOR, TO_COLOR);
             let fps_f = FPS as f32;
             for i in 0..=FPS {
