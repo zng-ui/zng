@@ -1,16 +1,8 @@
 * Button example.
-* Focus example, 
-    - nested.
-* Gradient, spacing above stack.
-    - And icon?
-* Image nothing visible.
-* Markdown,
-    - ansi_text.
-    - block quote.
-* Scroll menu.
-* Text most not visible.
-* Transform, most not visible.
-* Window, most not visible.
+    - Width grows every change.
+
+* Gradient, spacing above stack?
+* Icon, spacing above expanded icon?
 
 * Fix inline align, see `./Layout.md`. 
 

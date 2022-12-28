@@ -227,12 +227,22 @@ impl StackNode {
             (None, Some(h)) => {
                 max_size.height = h;
                 need_measure = child_align.is_fill_x();
-                measure_constrains = constrains.with_fill_x(false);
+
+                if need_measure {
+                    measure_constrains = constrains.with_fill_x(false);
+                } else {
+                    max_size.width = Px::MAX;
+                }
             }
             (Some(w), None) => {
                 max_size.width = w;
                 need_measure = child_align.is_fill_y();
-                measure_constrains = constrains.with_fill_y(false);
+
+                if need_measure {
+                    measure_constrains = constrains.with_fill_y(false);
+                } else {
+                    max_size.height = Px::MAX;
+                }
             }
             (Some(w), Some(h)) => max_size = PxSize::new(w, h),
         }
