@@ -13,8 +13,12 @@ use crate::{
 use super::*;
 
 /// Creates an [`UiNodeVec`] containing the arguments.
+///  
+/// Note that the items can be any type, `ui_vec!` automatically calls [`UiNode::boxed`] for each item.
 ///
 /// # Examples
+///
+/// Create a vec containing a list of nodes/widgets:
 ///
 /// ```
 /// # use zero_ui_core::widget_instance::*;
@@ -28,7 +32,18 @@ use super::*;
 /// ];
 /// ```
 ///
-/// `ui_vec!` automatically calls [`UiNode::boxed`] for each item.
+/// Create a vec containing the node repeated **n** times:
+///
+/// ```
+/// # use zero_ui_core::widget_instance::*;
+/// # use zero_ui_core::widget_base::*;
+/// #fn text(fake: &str) -> impl UiNode { NilUiNode  };
+/// # use text as foo;
+/// let widgets = ui_vec![foo(" . "); 10];
+/// ```
+///
+/// Note that this is different from `vec![item; n]`, the node is not cloned, the expression is called **n** times to
+/// generate the nodes.
 #[macro_export]
 macro_rules! ui_vec {
     () => { $crate::widget_instance::UiNodeVec::new() };
