@@ -1006,6 +1006,7 @@ pub use zero_ui_proc_macros::property;
 /// The macro instance above is equivalent to:
 ///
 /// ```
+/// # macro_rules! demo {
 /// # () => {
 /// let margin = 10;
 /// let wgt = text! {

@@ -515,7 +515,7 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
                         spacing = 4;
                         children = ui_vec![
                             button! {
-                                child = strong("Close");
+                                child = strong!("Close");
                                 on_click = hn_once!(state, |ctx, _| {
                                     state.set(ctx, CloseState::Close);
                                     Windows::req(ctx.services).close_together(windows).unwrap();

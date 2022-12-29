@@ -94,23 +94,59 @@ pub mod text {
     }
 }
 
-/// A simple text run with **bold** font weight.
+///<span data-del-macro-root></span> A simple text run with **bold** font weight.
+///
+/// The input syntax is the same as the shorthand [`text!`].
 ///
 /// # Configure
 ///
-/// Apart from the font weight this widget can be configured with contextual properties like [`text`](function@text).
-pub fn strong(txt: impl IntoVar<Text> + 'static) -> impl UiNode {
-    text! { txt; font_weight = FontWeight::BOLD; }
+/// Apart from the font weight this widget can be configured with contextual properties like [`text!`].
+///
+/// [`text`]: mod@text
+#[macro_export]
+macro_rules! strong {
+    ($txt:expr) => {
+        $crate::widgets::text! {
+            txt = $txt;
+            font_weight = $crate::core::text::FontWeight::BOLD;
+        }
+    };
+    ($txt:tt, $($format:tt)*) => {
+        $crate::widgets::text! {
+            txt = $crate::core::text::formatx!($txt, $($format)*);
+            font_weight = $crate::core::text::FontWeight::BOLD;
+        }
+    };
 }
+#[doc(inline)]
+pub use strong;
 
-/// A simple text run with *italic* font style.
+///<span data-del-macro-root></span> A simple text run with *italic* font style.
+///
+/// The input syntax is the same as the shorthand [`text!`].
 ///
 /// # Configure
 ///
-/// Apart from the font style this widget can be configured with contextual properties like [`text`](function@text).
-pub fn em(txt: impl IntoVar<Text> + 'static) -> impl UiNode {
-    text! { txt; font_style = FontStyle::Italic; }
+/// Apart from the font style this widget can be configured with contextual properties like [`text!`].
+///
+/// [`text`]: mod@text
+#[macro_export]
+macro_rules! em {
+    ($txt:expr) => {
+        $crate::widgets::text! {
+            txt = $txt;
+            font_style = FontStyle::Italic;
+        }
+    };
+    ($txt:tt, $($format:tt)*) => {
+        $crate::widgets::text! {
+            txt = $crate::core::text::formatx!($txt, $($format)*);
+            font_style = FontStyle::Italic;
+        }
+    };
 }
+#[doc(inline)]
+pub use em;
 
 /// Text box widget.
 #[widget($crate::widgets::text_input)]

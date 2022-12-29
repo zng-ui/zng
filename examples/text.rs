@@ -112,8 +112,8 @@ fn basic() -> impl UiNode {
         "basic",
         ui_vec![
             text!("Basic Text"),
-            strong("Strong Text"),
-            em("Emphasis Text"),
+            strong!("Strong Text"),
+            em!("Emphasis Text"),
             text! {
                 txt_color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
                 txt = "Colored Text";

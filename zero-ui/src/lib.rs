@@ -70,7 +70,7 @@
 //! The example demonstrates the [`button!`] widget, you may think that [`on_click`] and [`font_size`] are implemented in the widget,
 //! but they are not. The button widget only knows that it has a `content` that is another widget, it makes this content looks like a button.
 //!
-//! In this case [`text()`] is another widget that renders text, and [`font_size`] is a property that sets the font size for all texts
+//! In this case [`text!()`] is another widget that renders text, and [`font_size`] is a property that sets the font size for all texts
 //! inside the widget it is set in. Similarly [`on_click`] is a property that makes the widget clickable. Widgets are build from
 //! properties and properties are built from a lower level block, the [`UiNode`].
 //!
@@ -824,7 +824,7 @@
 //! that attribute line in your crate to support Windows releases.
 //!
 //! [`button!`]: mod@crate::widgets::button
-//! [`text()`]: fn@crate::widgets::text
+//! [`text!()`]: mod@crate::widgets::text
 //! [`text!`]: mod@crate::widgets::text
 //! [`stack!`]: mod@crate::widgets::layouts::stack
 //! [`font_size`]: fn@crate::widgets::text::font_size
