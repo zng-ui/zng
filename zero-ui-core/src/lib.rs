@@ -962,8 +962,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ## Custom Rules
 ///
-/// You can declare custom rules for the widget macro, the macro matches these rules first before matching the normal widget syntax. This
-/// can be used to declare **custom shorthand** syntax for the widget.
+/// You can declare custom rules for the widget macro, this can be used to declare **custom shorthand** syntax for the widget.
 ///
 /// The custom rules are declared inside braces after the widget path in the widget attribute. The syntax is similar to `macro_rules!`
 /// rules, but the expanded tokens are the direct input of the normal widget expansion.
@@ -975,8 +974,7 @@ pub use zero_ui_proc_macros::property;
 /// The `<rule>` is any macro pattern rule, the `<init>` is the normal widget init code that the rule expands to.
 ///
 /// Note that custom rules are not inherited, they apply only to the declaring widget macro, inherited widgets must replicate
-/// the rules if desired. Also note that the custom rules are inserted before the normal generated rules, so be careful that
-/// you don't intercept the normal widget syntax.
+/// the rules if desired.
 ///
 /// ### Examples
 ///
@@ -1015,6 +1013,19 @@ pub use zero_ui_proc_macros::property;
 /// # };
 /// # }
 /// ```
+///
+/// ### Limitations
+///
+/// The expanded tokens can only be a recursive input for the same widget macro, you can't expand to a different widget.
+///
+/// Some rules are intercepted by the default widget rules:
+///
+/// * `$(#[$attr:meta])* $property:ident = $($rest:tt)*`, blocks all custom `$ident = $tt*` patterns.
+/// * `$(#[$attr:meta])* when $($rest:tt)*`, blocks all custom `when $tt*` patterns.
+///
+/// Note that the default single property shorthand syntax is not blocked, in the examples above `text!(font_size)` will match
+/// the custom shorthand rule and try to set the `txt` with the `font_size` variable, without the shorthand it would create a widget without
+/// `txt` but with a set `font_size`. So a custom rule `$p:expr` is only recommended for widgets that have a property of central importance.
 ///
 /// # More Details
 ///

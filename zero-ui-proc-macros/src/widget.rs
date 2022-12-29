@@ -496,11 +496,34 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #macro_ident {
+            // inherit util
             #macro_if_mixin
+            // actual new
+            (zero_ui_widget: $($tt:tt)*) => {
+                #macro_new
+            };
+
+            // enforce normal syntax, property = <expr> ..
+            ($(#[$attr:meta])* $property:ident = $($rest:tt)*) => {
+                #mod_path! {
+                    zero_ui_widget: $(#[$attr])* $property = $($rest)*
+                }
+            };
+            // enforce normal syntax, when <expr> { .. } ..
+            ($(#[$attr:meta])* when $($rest:tt)*) => {
+                #mod_path! {
+                    zero_ui_widget: $(#[$attr])* when $($rest)*
+                }
+            };
+
+            // custom rules, can be (<expr>), why we need enforce some rules
             #custom_rules
 
+            // fallback, single property shorthand or error.
             ($($tt:tt)*) => {
-                #macro_new
+                #mod_path! {
+                    zero_ui_widget: $($tt)*
+                }
             };
         }
         #[doc(hidden)]

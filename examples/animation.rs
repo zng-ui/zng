@@ -92,8 +92,8 @@ fn example(vars: &Vars) -> impl UiNode {
             grid! {
                 id = "easing-menu";
                 spacing = 2;
-                columns = ui_vec![grid::column!(width = 1.lft()); 7];
-                auto_grow_view = view_generator!(|_, _| grid::row!(height = 1.lft()));
+                columns = ui_vec![grid::column!(1.lft()); 7];
+                auto_grow_view = view_generator!(|_, _| grid::row!(1.lft()));
                 button::vis::extend_style = style_generator!(|_, _| style! {
                     padding = 3;
                 });

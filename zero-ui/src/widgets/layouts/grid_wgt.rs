@@ -110,8 +110,17 @@ pub mod grid {
 ///
 /// See the [`grid::columns`] property for more details.
 ///
+/// # Shorthand
+///
+/// The `column!` macro provides a shorthand init that sets the width, `grid::column!(1.lft())` instantiates
+/// a column with width of *1 leftover*.
+///
 /// [`grid::columns`]: fn@grid::columns
-#[widget($crate::widgets::layouts::grid::column)]
+#[widget($crate::widgets::layouts::grid::column {
+    ($width:expr) => {
+        width = $width;
+    };
+})]
 pub mod column {
     use super::*;
 
@@ -273,8 +282,17 @@ pub mod column {
 ///
 /// See the [`grid::rows`] property for more details.
 ///
+/// # Shorthand
+///
+/// The `row!` macro provides a shorthand init that sets the height, `grid::row!(1.lft())` instantiates
+/// a row with height of *1 leftover*.
+///
 /// [`grid::rows`]: fn@grid::rows
-#[widget($crate::widgets::layouts::grid::row)]
+#[widget($crate::widgets::layouts::grid::row {
+    ($height:expr) => {
+        height = $height;
+    };
+})]
 pub mod row {
     use super::*;
 

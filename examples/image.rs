@@ -47,8 +47,8 @@ fn app_main() {
                         ui_vec![
                             sub_title("File"),
                             grid! {
-                                columns = ui_vec![grid::column!(width = 1.lft()); 4];
-                                auto_grow_view = view_generator!(|_, _| grid::row!(height = 1.lft()));
+                                columns = ui_vec![grid::column!(1.lft()); 4];
+                                auto_grow_view = view_generator!(|_, _| grid::row!(1.lft()));
                                 spacing = 2;
                                 align = Align::CENTER;
                                 cells= ui_vec![

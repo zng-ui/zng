@@ -58,8 +58,8 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
 
     grid! {
         spacing = 2;
-        columns = ui_vec![grid::column!(width = 1.lft()); 4];
-        auto_grow_view = view_generator!(|_, _| grid::row!(height = 1.lft()));
+        columns = ui_vec![grid::column!(1.lft()); 4];
+        auto_grow_view = view_generator!(|_, _| grid::row!(1.lft()));
         font_size = 14.pt();
         cells = ui_vec![
             b_squre,  b_sroot,  b_clear,  b_back,

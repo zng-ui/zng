@@ -26,8 +26,8 @@ fn app_main() {
             padding = 20;
             child = v_stack(ui_vec![
                 grid! {
-                    columns = ui_vec![grid::column!(width = 1.lft()); 5];
-                    auto_grow_view = view_generator!(|_, _| grid::row!(height = 1.lft()));
+                    columns = ui_vec![grid::column!(1.lft()); 5];
+                    auto_grow_view = view_generator!(|_, _| grid::row!(1.lft()));
                     cells = demos;
                 },
                 center(cursor_demo(None)),
