@@ -1,3 +1,13 @@
+## Inline Align
+
+* Right now we can't align the `wrap!` rows to the right.
+* This is a limitation of the current inline layout API, it can't work, 
+  we need the full row width to compute the align offset.
+* Can this be done with a measure pass?
+* Wrap layout really needs to be centralized in the panel, but how to communicate with
+
+## Min Constrains Reset
+
 * Review PxConstrains::min in every panel, should be zero? 
 
 ## Direction
@@ -5,13 +15,6 @@
 * Integrate `LayoutDirection` with all widgets.
   - wrap
   - grid
-
-## Inline Align
-
-* Right now we can't align the `wrap!` rows to the right.
-* This is a limitation of the current inline layout API, it can't work, 
-  we need the full row width to compute the align offset.
-* Can this be done with a measure pass?
 
 ## Grid 
 
