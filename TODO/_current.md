@@ -1,6 +1,6 @@
-* Duplicate widget module docs on the macro when expanding by rust-analyzer.
-    - This should enable widget docs on hover.
-    - Do the same for the property struct.
+* Better name for `view_generator!`?
+    - Not used just for view, a better name is `wgt_gen!` or something?
+    - What about the suffix `_view` in all properties of this type?  
 * Fix inline align, see `./Layout.md`. 
 
 * Continue "#Parallel UI" in `./Performance.md`.

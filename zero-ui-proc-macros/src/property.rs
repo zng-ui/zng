@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
 
-use crate::util::{crate_core, set_stream_span, Attributes, Errors};
+use crate::util::{self, crate_core, set_stream_span, Attributes, Errors};
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut errors = Errors::default();
@@ -416,9 +416,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let node_instance = ident_spanned!(output_span=> "__node__");
 
+        let struct_docs = if util::is_rust_analyzer() {
+            let docs = &attrs.docs;
+            quote! {
+                #(#docs)*
+            }
+        } else {
+            quote! {
+                #[doc(hidden)]
+            }
+        };
+
         quote! {
             #cfg
-            #[doc(hidden)]
+            #struct_docs
             #[derive(std::clone::Clone)]
             #[allow(non_camel_case_types)]
             #vis struct #ident #impl_gens #where_gens {

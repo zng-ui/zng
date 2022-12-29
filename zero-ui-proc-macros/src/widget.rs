@@ -489,11 +489,22 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         }
     };
 
+    let macro_docs = if util::is_rust_analyzer() {
+        let docs = &attrs.docs;
+        quote! {
+            #(#docs)*
+        }
+    } else {
+        quote! {
+            #[doc(hidden)]
+        }
+    };
+
     let r = quote! {
         #attrs
         #vis #mod_token #ident #mod_block
 
-        #[doc(hidden)]
+        #macro_docs
         #[macro_export]
         macro_rules! #macro_ident {
             // inherit util
