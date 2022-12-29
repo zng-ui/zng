@@ -46,11 +46,12 @@ fn app_main() {
                         "Sources",
                         ui_vec![
                             sub_title("File"),
-                            uniform_grid! {
-                                columns = 4;
+                            grid! {
+                                columns = ui_vec![grid::column!(width = 1.lft()); 4];
+                                auto_grow_view = view_generator!(|_, _| grid::row!(height = 1.lft()));
                                 spacing = 2;
                                 align = Align::CENTER;
-                                children = ui_vec![
+                                cells= ui_vec![
                                     image("examples/res/image/Luma8.png"),
                                     image("examples/res/image/Luma16.png"),
                                     image("examples/res/image/LumaA8.png"),
@@ -60,7 +61,7 @@ fn app_main() {
                                     image("examples/res/image/RGBA8.png"),
                                     image("examples/res/image/RGBA16.png"),
                                 ]
-                            },
+                          },
 
                             sub_title("Web"),
                             image! {

@@ -89,14 +89,15 @@ fn example(vars: &Vars) -> impl UiNode {
                     ]
                 }
             },
-            uniform_grid! {
+            grid! {
                 id = "easing-menu";
                 spacing = 2;
-                columns = 7;
+                columns = ui_vec![grid::column!(width = 1.lft()); 7];
+                auto_grow_view = view_generator!(|_, _| grid::row!(height = 1.lft()));
                 button::vis::extend_style = style_generator!(|_, _| style! {
                     padding = 3;
                 });
-                children = ui_vec![
+                cells = ui_vec![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
                     ease_btn(&x, &color, "cubic", easing::cubic, &easing_mod),

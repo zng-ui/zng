@@ -32,6 +32,17 @@ use super::*;
 #[macro_export]
 macro_rules! ui_vec {
     () => { $crate::widget_instance::UiNodeVec::new() };
+    ($node:expr; $n:expr) => {
+        {
+            let mut n: usize = $n;
+            let mut vec = UiNodeVec::with_capacity(n);
+            while n > 0 {
+                vec.push($node);
+                n -= 1;
+            }
+            vec
+        }
+    };
     ($($node:expr),+ $(,)?) => {
         $crate::widget_instance::UiNodeVec(vec![
             $($crate::widget_instance::UiNode::boxed($node)),*

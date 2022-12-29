@@ -56,11 +56,12 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
     let b_back = btn_backspace(calc.clone());
     let b_equal = btn_eval(calc.clone());
 
-    uniform_grid! {
+    grid! {
         spacing = 2;
-        columns = 4;
+        columns = ui_vec![grid::column!(width = 1.lft()); 4];
+        auto_grow_view = view_generator!(|_, _| grid::row!(height = 1.lft()));
         font_size = 14.pt();
-        children = ui_vec![
+        cells = ui_vec![
             b_squre,  b_sroot,  b_clear,  b_back,
             bn('7'),  bn('8'),  bn('9'),  bn('/'),
             bn('4'),  bn('5'),  bn('6'),  bn('*'),
