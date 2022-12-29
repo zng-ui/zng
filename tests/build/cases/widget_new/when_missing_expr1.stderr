@@ -1,5 +1,10 @@
 error: expected when expression
- --> cases/widget_new/when_missing_expr1.rs:6:9
+ --> cases/widget_new/when_missing_expr1.rs:5:13
   |
-6 |         when
-  |         ^^^^
+5 |       let _ = wgt! {
+  |  _____________^
+6 | |         when
+7 | |     };
+  | |_____^
+  |
+  = note: this error originates in the macro `wgt` (in Nightly builds, run with -Z macro-backtrace for more info)

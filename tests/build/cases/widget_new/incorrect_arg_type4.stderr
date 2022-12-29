@@ -1,13 +1,17 @@
 error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
-  --> cases/widget_new/incorrect_arg_type4.rs:9:29
+  --> cases/widget_new/incorrect_arg_type4.rs:7:13
    |
-9  |           background_gradient = {
-   |           -                   ^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
-   |  _________|
-   | |
-10 | |             axis: 0.deg(),
-11 | |             stops: true
-   | |_________________- required by a bound introduced by this call
+7  |        let _ = wgt! {
+   |   _____________^
+8  |  |         // only background_gradient gets highlighted here because generics..
+9  |  |         background_gradient = {
+   |  |_________-
+10 | ||             axis: 0.deg(),
+11 | ||             stops: true
+   | ||_________________- required by a bound introduced by this call
+12 |  |         }
+13 |  |     };
+   |  |_____^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
    |
    = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>

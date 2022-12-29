@@ -94,7 +94,7 @@ impl HeadedCtrl {
         }
     }
 
-    fn update_view(&mut self, update: impl FnOnce(&ViewWindow) + 'static) {
+    fn update_gen(&mut self, update: impl FnOnce(&ViewWindow) + 'static) {
         if let Some(view) = &self.window {
             // view is online, just update.
             update(view);
@@ -268,25 +268,25 @@ impl HeadedCtrl {
                 }
 
                 if let Some(visible) = self.vars.visible().get_new(ctx) {
-                    self.update_view(move |view| {
+                    self.update_gen(move |view| {
                         let _: Ignore = view.set_visible(visible);
                     });
                 }
 
                 if let Some(movable) = self.vars.movable().get_new(ctx) {
-                    self.update_view(move |view| {
+                    self.update_gen(move |view| {
                         let _: Ignore = view.set_movable(movable);
                     });
                 }
 
                 if let Some(resizable) = self.vars.resizable().get_new(ctx) {
-                    self.update_view(move |view| {
+                    self.update_gen(move |view| {
                         let _: Ignore = view.set_resizable(resizable);
                     });
                 }
 
                 if prev_state != new_state {
-                    self.update_view(move |view| {
+                    self.update_gen(move |view| {
                         let _: Ignore = view.set_state(new_state);
                     })
                 }
@@ -321,43 +321,43 @@ impl HeadedCtrl {
             }
             if send_icon {
                 let icon = self.icon.as_ref().and_then(|ico| ico.get().view().cloned());
-                self.update_view(move |view| {
+                self.update_gen(move |view| {
                     let _: Ignore = view.set_icon(icon.as_ref());
                 });
             }
 
             if let Some(title) = self.vars.title().get_new(ctx) {
-                self.update_view(move |view| {
+                self.update_gen(move |view| {
                     let _: Ignore = view.set_title(title.into_owned());
                 });
             }
 
             if let Some(mode) = self.vars.video_mode().get_new(ctx) {
-                self.update_view(move |view| {
+                self.update_gen(move |view| {
                     let _: Ignore = view.set_video_mode(mode);
                 });
             }
 
             if let Some(cursor) = self.vars.cursor().get_new(ctx) {
-                self.update_view(move |view| {
+                self.update_gen(move |view| {
                     let _: Ignore = view.set_cursor(cursor);
                 });
             }
 
             if let Some(visible) = self.vars.taskbar_visible().get_new(ctx) {
-                self.update_view(move |view| {
+                self.update_gen(move |view| {
                     let _: Ignore = view.set_taskbar_visible(visible);
                 });
             }
 
             if let Some(top) = self.vars.always_on_top().get_new(ctx) {
-                self.update_view(move |view| {
+                self.update_gen(move |view| {
                     let _: Ignore = view.set_always_on_top(top);
                 });
             }
 
             if let Some(mode) = self.vars.frame_capture_mode().get_new(ctx) {
-                self.update_view(move |view| {
+                self.update_gen(move |view| {
                     let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
                 });
             }
@@ -922,13 +922,13 @@ impl HeadedCtrl {
     }
 
     pub fn focus(&mut self, _: &mut WindowContext) {
-        self.update_view(|view| {
+        self.update_gen(|view| {
             let _ = view.focus();
         });
     }
 
     pub fn bring_to_top(&mut self, _: &mut WindowContext) {
-        self.update_view(|view| {
+        self.update_gen(|view| {
             let _ = view.bring_to_top();
         });
     }

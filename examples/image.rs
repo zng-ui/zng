@@ -6,7 +6,7 @@ use zero_ui::core::{
     timer::Timers,
 };
 use zero_ui::prelude::*;
-use zero_ui::widgets::image::{img_error_view, img_loading_view, ImageErrorArgs};
+use zero_ui::widgets::image::{img_error_gen, img_loading_gen, ImageErrorArgs};
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -48,7 +48,7 @@ fn app_main() {
                             sub_title("File"),
                             grid! {
                                 columns = ui_vec![grid::column!(1.lft()); 4];
-                                auto_grow_view = view_generator!(|_, _| grid::row!(1.lft()));
+                                auto_grow_gen = wgt_gen!(|_, _| grid::row!(1.lft()));
                                 spacing = 2;
                                 align = Align::CENTER;
                                 cells= ui_vec![
@@ -366,7 +366,7 @@ pub mod img_window {
         color_scheme = ColorScheme::Dark;
 
         // content shown by all images when loading.
-        img_loading_view = view_generator!(|ctx, _| {
+        img_loading_gen = wgt_gen!(|ctx, _| {
             let mut dots_count = 3;
             let msg = ctx.timers.interval(300.ms(), false).map(move |_| {
                 dots_count += 1;
@@ -391,7 +391,7 @@ pub mod img_window {
         });
 
         // content shown by all images that failed to load.
-        img_error_view = view_generator!(|_, args: ImageErrorArgs| {
+        img_error_gen = wgt_gen!(|_, args: ImageErrorArgs| {
             center_viewport(text! {
                 txt = args.error;
                 margin = 8;

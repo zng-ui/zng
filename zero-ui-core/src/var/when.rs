@@ -19,7 +19,7 @@ use super::*;
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// #fn text(text: impl IntoVar<Text>) { }
+/// # macro_rules! text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_text());
 ///
@@ -38,7 +38,7 @@ use super::*;
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// #fn text(text: impl IntoVar<Text>) { }
+/// # macro_rules! text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
 /// # let condition0 = var(true);
 /// # let condition1 = var(true);
 /// let t = text!(when_var! {

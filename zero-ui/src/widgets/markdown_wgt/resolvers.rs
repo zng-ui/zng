@@ -27,13 +27,13 @@ context_var! {
 
 /// Markdown image resolver.
 ///
-/// This can be used to override image source resolution, by default the image URL or URI is passed as parsed to the [`image_view`].
+/// This can be used to override image source resolution, by default the image URL or URI is passed as parsed to the [`image_gen`].
 ///
 /// Note that image downloads are blocked by default, you can enable this by using the [`image::img_limits`] property.
 ///
 /// Sets the [`IMAGE_RESOLVER_VAR`].
 ///
-/// [`image_view`]: fn@crate::widgets::markdown::image_view
+/// [`image_gen`]: fn@crate::widgets::markdown::image_gen
 /// [`image::img_limits`]: fn@crate::widgets::image::img_limits
 #[property(CONTEXT, default(IMAGE_RESOLVER_VAR))]
 pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>) -> impl UiNode {

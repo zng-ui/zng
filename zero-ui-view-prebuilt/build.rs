@@ -28,7 +28,7 @@ fn main() {
 
     if lib.exists() {
         println!("cargo:rustc-cfg=zero_ui_lib_embedded");
-        println!("cargo:rustc-env=ZERO_UI_VIEW_LIB={}", lib.canonicalize().unwrap().display());
+        println!("cargo:rustc-env=ZERO_UI_GEN_LIB={}", lib.canonicalize().unwrap().display());
 
         let lib_bytes = std::fs::read(lib).unwrap();
 
@@ -41,7 +41,7 @@ fn main() {
         hash[8..].copy_from_slice(&b.to_le_bytes());
 
         println!(
-            "cargo:rustc-env=ZERO_UI_VIEW_LIB_HASH={}",
+            "cargo:rustc-env=ZERO_UI_GEN_LIB_HASH={}",
             base64::encode_config(hash, base64::URL_SAFE_NO_PAD)
         );
     } else {

@@ -3,8 +3,8 @@
 use std::mem;
 
 use super::image_properties::{
-    ImageErrorArgs, ImageFit, ImageLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_ERROR_VIEW_VAR, IMAGE_FIT_VAR,
-    IMAGE_LIMITS_VAR, IMAGE_LOADING_VIEW_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_PPI_VAR,
+    ImageErrorArgs, ImageFit, ImageLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_ERROR_GEN_VAR, IMAGE_FIT_VAR,
+    IMAGE_LIMITS_VAR, IMAGE_LOADING_GEN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_PPI_VAR,
     IMAGE_SCALE_VAR,
 };
 use crate::core::image::*;
@@ -139,7 +139,7 @@ context_local! {
     static IN_LOADING_VIEW: bool = false;
 }
 
-/// Presents the contextual [`IMAGE_ERROR_VIEW_VAR`] if the [`CONTEXT_IMAGE_VAR`] is an error.
+/// Presents the contextual [`IMAGE_ERROR_GEN_VAR`] if the [`CONTEXT_IMAGE_VAR`] is an error.
 ///
 /// The error view is rendered under the `child`.
 ///
@@ -147,8 +147,8 @@ context_local! {
 pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
     let mut image_handle: Option<(VarHandle, WidgetId)> = None;
 
-    let view = ViewGenerator::presenter_map(
-        IMAGE_ERROR_VIEW_VAR,
+    let view = WidgetGenerator::presenter_map(
+        IMAGE_ERROR_GEN_VAR,
         move |ctx, is_new| {
             if is_new {
                 if let Some((handle, id)) = &mut image_handle {
@@ -196,7 +196,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// Presents the contextual [`IMAGE_LOADING_VIEW_VAR`] if the [`CONTEXT_IMAGE_VAR`] is loading.
+/// Presents the contextual [`IMAGE_LOADING_GEN_VAR`] if the [`CONTEXT_IMAGE_VAR`] is loading.
 ///
 /// The loading view is rendered under the `child`.
 ///
@@ -204,8 +204,8 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
     let mut image_handle = None;
 
-    let view = ViewGenerator::presenter_map(
-        IMAGE_LOADING_VIEW_VAR,
+    let view = WidgetGenerator::presenter_map(
+        IMAGE_LOADING_GEN_VAR,
         move |ctx, is_new| {
             if is_new {
                 if let Some((handle, id)) = &mut image_handle {

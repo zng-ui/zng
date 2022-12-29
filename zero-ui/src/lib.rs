@@ -1065,7 +1065,7 @@ pub mod prelude {
             },
         };
         #[doc(no_inline)]
-        pub use crate::widgets::{layouts::stack_nodes, view_generator, DataUpdate, ViewGenerator};
+        pub use crate::widgets::{layouts::stack_nodes, wgt_gen, DataUpdate, WidgetGenerator};
     }
 
     /// All the types you need to declare a new widget or widget mix-in.
@@ -1157,7 +1157,7 @@ pub mod prelude {
             mixins::style_mixin,
             style,
             style::{style_generator, StyleGenerator},
-            view_generator, DataUpdate, ViewGenerator,
+            wgt_gen, DataUpdate, WidgetGenerator,
         };
     }
 }

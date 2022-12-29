@@ -141,7 +141,7 @@ impl Monitors {
         for (id, info) in available_monitors {
             added.push(id);
 
-            self.monitors.insert(id, MonitorInfo::from_view(id, info));
+            self.monitors.insert(id, MonitorInfo::from_gen(id, info));
         }
 
         if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
@@ -265,7 +265,7 @@ impl fmt::Debug for MonitorInfo {
 }
 impl MonitorInfo {
     /// New from a [`zero_ui_view_api::MonitorInfo`].
-    fn from_view(id: MonitorId, info: zero_ui_view_api::MonitorInfo) -> Self {
+    fn from_gen(id: MonitorId, info: zero_ui_view_api::MonitorInfo) -> Self {
         MonitorInfo {
             id,
             is_primary: var(info.is_primary),

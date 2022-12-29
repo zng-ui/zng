@@ -25,7 +25,7 @@ use super::{util::VarData, *};
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// #fn text(text: impl IntoVar<Text>) {  }
+/// # macro_rules! text { ($($tt:tt)*) => { () } }
 /// let var0: ArcVar<Text> = var_from("Hello");
 /// let var1: ArcVar<Text> = var_from("World");
 ///

@@ -18,9 +18,9 @@ type DuctHandle = duct::Handle;
 #[cfg(not(feature = "ipc"))]
 struct DuctHandle;
 
-pub(crate) const VERSION_VAR: &str = "ZERO_UI_VIEW_VERSION";
-pub(crate) const SERVER_NAME_VAR: &str = "ZERO_UI_VIEW_SERVER";
-pub(crate) const MODE_VAR: &str = "ZERO_UI_VIEW_MODE";
+pub(crate) const VERSION_VAR: &str = "ZERO_UI_GEN_VERSION";
+pub(crate) const SERVER_NAME_VAR: &str = "ZERO_UI_GEN_SERVER";
+pub(crate) const MODE_VAR: &str = "ZERO_UI_GEN_MODE";
 
 /// View Process controller, used in the App Process.
 ///

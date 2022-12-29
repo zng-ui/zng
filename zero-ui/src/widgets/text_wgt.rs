@@ -38,7 +38,7 @@ mod text_properties;
 ///
 /// let name = "World";
 /// let fmt = text! {
-///     txt = formatx!("Hello {}!", name);
+///     txt = zero_ui::core::text::formatx!("Hello {}!", name);
 /// };
 /// ```
 ///

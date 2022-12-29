@@ -59,11 +59,11 @@ context_var! {
     /// Is `true` by default.
     pub static IMAGE_CACHE_VAR: bool = true;
 
-    /// View generator for the content shown when the image does not load.
-    pub static IMAGE_ERROR_VIEW_VAR: ViewGenerator<ImageErrorArgs> = ViewGenerator::nil();
+    /// Widget generator for the content shown when the image does not load.
+    pub static IMAGE_ERROR_GEN_VAR: WidgetGenerator<ImageErrorArgs> = WidgetGenerator::nil();
 
-    /// View generator for the content shown when the image is still loading.
-    pub static IMAGE_LOADING_VIEW_VAR: ViewGenerator<ImageLoadingArgs> = ViewGenerator::nil();
+    /// Widget generator for the content shown when the image is still loading.
+    pub static IMAGE_LOADING_GEN_VAR: WidgetGenerator<ImageLoadingArgs> = WidgetGenerator::nil();
 
     /// Custom image load and decode limits.
     ///
@@ -268,25 +268,25 @@ pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
 }
 
-/// Sets the [view generator] that is used to create a content for the error message.
+/// Sets the [`wgt_gen!`] that is used to create a content for the error message.
 ///
-/// [view generator]: crate::widgets::view_generator
-#[property(CONTEXT, default(IMAGE_ERROR_VIEW_VAR))]
-pub fn img_error_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ImageErrorArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_ERROR_VIEW_VAR, generator)
+/// [`wgt_gen!`]: crate::widgets::wgt_gen
+#[property(CONTEXT, default(IMAGE_ERROR_GEN_VAR))]
+pub fn img_error_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ImageErrorArgs>>) -> impl UiNode {
+    with_context_var(child, IMAGE_ERROR_GEN_VAR, generator)
 }
 
-/// Sets the [view generator] that is used to create a content for the error message.
+/// Sets the [`wgt_gen!`] that is used to create a content for the error message.
 ///
-/// [view generator]: crate::widgets::view_generator
-#[property(CONTEXT, default(IMAGE_LOADING_VIEW_VAR))]
-pub fn img_loading_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ImageLoadingArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_LOADING_VIEW_VAR, generator)
+/// [`wgt_gen!`]: crate::widgets::wgt_gen
+#[property(CONTEXT, default(IMAGE_LOADING_GEN_VAR))]
+pub fn img_loading_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ImageLoadingArgs>>) -> impl UiNode {
+    with_context_var(child, IMAGE_LOADING_GEN_VAR, generator)
 }
 
-/// Arguments for [`img_loading_view`].
+/// Arguments for [`img_loading_gen`].
 ///
-/// [`img_loading_view`]: fn@img_loading_view
+/// [`img_loading_gen`]: fn@img_loading_gen
 #[derive(Clone, Debug)]
 pub struct ImageLoadingArgs {}
 
@@ -296,10 +296,10 @@ pub struct ImageLoadingArgs {}
 #[derive(Clone, Debug)]
 pub struct ImageLoadArgs {}
 
-/// Arguments for [`on_error`] and [`img_error_view`].
+/// Arguments for [`on_error`] and [`img_error_gen`].
 ///
 /// [`on_error`]: fn@on_error
-/// [`img_error_view`]: fn@img_error_view
+/// [`img_error_gen`]: fn@img_error_gen
 #[derive(Clone, Debug)]
 pub struct ImageErrorArgs {
     /// Error message.

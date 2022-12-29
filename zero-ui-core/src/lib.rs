@@ -981,13 +981,13 @@ pub use zero_ui_proc_macros::property;
 /// Example of a text widget that declares a shorthand syntax to implicitly set a `txt` property:
 ///
 /// ```
-/// #[widget($crate::text {
+/// #[zero_ui_core::widget($crate::text {
 ///     ($txt:expr) => {
 ///         txt = $txt;
 ///     };
 /// })]
 /// pub mod text {
-/// #   use zero_ui_core::text::Text;
+/// #   use zero_ui_core::{text::Text, var::IntoVar};
 /// #    inherit!(zero_ui_core::widget_base::base);
 ///     // ..
 ///

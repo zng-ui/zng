@@ -74,21 +74,21 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
             use view_gen::*;
 
             if self.md.is_new(ctx)
-                || TEXT_VIEW_VAR.is_new(ctx)
-                || LINK_VIEW_VAR.is_new(ctx)
-                || CODE_INLINE_VIEW_VAR.is_new(ctx)
-                || CODE_BLOCK_VIEW_VAR.is_new(ctx)
-                || PARAGRAPH_VIEW_VAR.is_new(ctx)
-                || HEADING_VIEW_VAR.is_new(ctx)
-                || LIST_VIEW_VAR.is_new(ctx)
-                || LIST_ITEM_BULLET_VIEW_VAR.is_new(ctx)
-                || LIST_ITEM_VIEW_VAR.is_new(ctx)
-                || IMAGE_VIEW_VAR.is_new(ctx)
-                || RULE_VIEW_VAR.is_new(ctx)
-                || BLOCK_QUOTE_VIEW_VAR.is_new(ctx)
-                || TABLE_VIEW_VAR.is_new(ctx)
-                || TABLE_CELL_VIEW_VAR.is_new(ctx)
-                || PANEL_VIEW_VAR.is_new(ctx)
+                || TEXT_GEN_VAR.is_new(ctx)
+                || LINK_GEN_VAR.is_new(ctx)
+                || CODE_INLINE_GEN_VAR.is_new(ctx)
+                || CODE_BLOCK_GEN_VAR.is_new(ctx)
+                || PARAGRAPH_GEN_VAR.is_new(ctx)
+                || HEADING_GEN_VAR.is_new(ctx)
+                || LIST_GEN_VAR.is_new(ctx)
+                || LIST_ITEM_BULLET_GEN_VAR.is_new(ctx)
+                || LIST_ITEM_GEN_VAR.is_new(ctx)
+                || IMAGE_GEN_VAR.is_new(ctx)
+                || RULE_GEN_VAR.is_new(ctx)
+                || BLOCK_QUOTE_GEN_VAR.is_new(ctx)
+                || TABLE_GEN_VAR.is_new(ctx)
+                || TABLE_CELL_GEN_VAR.is_new(ctx)
+                || PANEL_GEN_VAR.is_new(ctx)
                 || IMAGE_RESOLVER_VAR.is_new(ctx)
                 || LINK_RESOLVER_VAR.is_new(ctx)
             {
@@ -120,22 +120,22 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     let mut emphasis = 0;
     let mut strikethrough = 0;
 
-    let text_view = TEXT_VIEW_VAR.get();
-    let link_view = LINK_VIEW_VAR.get();
-    let code_inline_view = CODE_INLINE_VIEW_VAR.get();
-    let code_block_view = CODE_BLOCK_VIEW_VAR.get();
-    let heading_view = HEADING_VIEW_VAR.get();
-    let paragraph_view = PARAGRAPH_VIEW_VAR.get();
-    let list_view = LIST_VIEW_VAR.get();
-    let list_item_bullet_view = LIST_ITEM_BULLET_VIEW_VAR.get();
-    let list_item_view = LIST_ITEM_VIEW_VAR.get();
-    let image_view = IMAGE_VIEW_VAR.get();
-    let rule_view = RULE_VIEW_VAR.get();
-    let block_quote_view = BLOCK_QUOTE_VIEW_VAR.get();
-    let footnote_ref_view = FOOTNOTE_REF_VIEW_VAR.get();
-    let footnote_def_view = FOOTNOTE_DEF_VIEW_VAR.get();
-    let table_view = TABLE_VIEW_VAR.get();
-    let table_cell_view = TABLE_CELL_VIEW_VAR.get();
+    let text_view = TEXT_GEN_VAR.get();
+    let link_view = LINK_GEN_VAR.get();
+    let code_inline_view = CODE_INLINE_GEN_VAR.get();
+    let code_block_view = CODE_BLOCK_GEN_VAR.get();
+    let heading_view = HEADING_GEN_VAR.get();
+    let paragraph_view = PARAGRAPH_GEN_VAR.get();
+    let list_view = LIST_GEN_VAR.get();
+    let list_item_bullet_view = LIST_ITEM_BULLET_GEN_VAR.get();
+    let list_item_view = LIST_ITEM_GEN_VAR.get();
+    let image_view = IMAGE_GEN_VAR.get();
+    let rule_view = RULE_GEN_VAR.get();
+    let block_quote_view = BLOCK_QUOTE_GEN_VAR.get();
+    let footnote_ref_view = FOOTNOTE_REF_GEN_VAR.get();
+    let footnote_def_view = FOOTNOTE_DEF_GEN_VAR.get();
+    let table_view = TABLE_GEN_VAR.get();
+    let table_cell_view = TABLE_CELL_GEN_VAR.get();
 
     let image_resolver = IMAGE_RESOLVER_VAR.get();
     let link_resolver = LINK_RESOLVER_VAR.get();
@@ -223,7 +223,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     if !inlines.is_empty() {
                         blocks.push(paragraph_view.generate(
                             ctx,
-                            ParagraphViewArgs {
+                            ParagraphGenArgs {
                                 index: blocks.len() as u32,
                                 items: mem::take(&mut inlines).into(),
                             },
@@ -234,7 +234,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     if !inlines.is_empty() {
                         blocks.push(heading_view.generate(
                             ctx,
-                            HeadingViewArgs {
+                            HeadingGenArgs {
                                 level,
                                 anchor: heading_anchor(heading_text.take().unwrap_or_default().as_str()),
                                 items: mem::take(&mut inlines).into(),
@@ -248,7 +248,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         if !items.is_empty() {
                             blocks.push(block_quote_view.generate(
                                 ctx,
-                                BlockQuoteViewArgs {
+                                BlockQuoteGenArgs {
                                     level: block_quote_start.len() as u32,
                                     items,
                                 },
@@ -262,7 +262,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         debug_assert_eq!(Some('\n'), _last_line_break);
                         blocks.push(code_block_view.generate(
                             ctx,
-                            CodeBlockViewArgs {
+                            CodeBlockGenArgs {
                                 lang: match kind {
                                     CodeBlockKind::Indented => Text::empty(),
                                     CodeBlockKind::Fenced(l) => l.to_text(),
@@ -276,7 +276,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     if let Some(_list) = list_info.pop() {
                         blocks.push(list_view.generate(
                             ctx,
-                            ListViewArgs {
+                            ListGenArgs {
                                 depth: list_info.len() as u32,
                                 first_num: n,
                                 items: mem::take(&mut list_items).into(),
@@ -303,7 +303,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                             None
                         };
 
-                        let bullet_args = ListItemBulletViewArgs {
+                        let bullet_args = ListItemBulletGenArgs {
                             depth: depth as u32,
                             num,
                             checked: list.item_checked.take(),
@@ -311,7 +311,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         list_items.push(list_item_bullet_view.generate(ctx, bullet_args));
                         list_items.push(list_item_view.generate(
                             ctx,
-                            ListItemViewArgs {
+                            ListItemGenArgs {
                                 bullet: bullet_args,
                                 items: inlines.drain(list.inline_start..).collect(),
                                 nested_list,
@@ -325,7 +325,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         let items = blocks.drain(i..).collect();
                         blocks.push(footnote_def_view.generate(
                             ctx,
-                            FootnoteDefViewArgs {
+                            FootnoteDefGenArgs {
                                 label: label.to_text(),
                                 items,
                             },
@@ -336,7 +336,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     if !table_cells.is_empty() {
                         blocks.push(table_view.generate(
                             ctx,
-                            TableViewArgs {
+                            TableGenArgs {
                                 columns: mem::take(&mut table_cols),
                                 cells: mem::take(&mut table_cells).into(),
                             },
@@ -350,7 +350,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 Tag::TableCell => {
                     table_cells.push(table_cell_view.generate(
                         ctx,
-                        TableCellViewArgs {
+                        TableCellGenArgs {
                             is_heading: table_head,
                             col_align: table_cols[table_col],
                             items: mem::take(&mut inlines).into(),
@@ -382,7 +382,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                             let url = html_escape::decode_html_entities(url.as_ref());
                             inlines.push(text_view.generate(
                                 ctx,
-                                TextViewArgs {
+                                TextGenArgs {
                                     txt: url.to_text(),
                                     style: MarkdownStyle {
                                         strong: strong > 0,
@@ -398,7 +398,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                             let items = inlines.drain(s..).collect();
                             inlines.push(link_view.generate(
                                 ctx,
-                                LinkViewArgs {
+                                LinkGenArgs {
                                     url,
                                     title: title.to_text(),
                                     items,
@@ -411,7 +411,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     let title = html_escape::decode_html_entities(title.as_ref());
                     blocks.push(image_view.generate(
                         ctx,
-                        ImageViewArgs {
+                        ImageGenArgs {
                             source: image_resolver.resolve(&url),
                             title: title.to_text(),
                             alt_items: mem::take(&mut inlines).into(),
@@ -431,7 +431,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         text_view
                             .generate(
                                 ctx,
-                                TextViewArgs {
+                                TextGenArgs {
                                     txt: txt.to_text(),
                                     style: MarkdownStyle {
                                         strong: strong > 0,
@@ -450,7 +450,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     code_inline_view
                         .generate(
                             ctx,
-                            CodeInlineViewArgs {
+                            CodeInlineGenArgs {
                                 txt: txt.to_text(),
                                 style: MarkdownStyle {
                                     strong: strong > 0,
@@ -473,12 +473,12 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
             },
             Event::FootnoteReference(label) => {
                 let label = html_escape::decode_html_entities(label.as_ref());
-                inlines.push(footnote_ref_view.generate(ctx, FootnoteRefViewArgs { label: label.to_text() }));
+                inlines.push(footnote_ref_view.generate(ctx, FootnoteRefGenArgs { label: label.to_text() }));
             }
             Event::SoftBreak => {}
             Event::HardBreak => {}
             Event::Rule => {
-                blocks.push(rule_view.generate(ctx, RuleViewArgs {}));
+                blocks.push(rule_view.generate(ctx, RuleGenArgs {}));
             }
             Event::TaskListMarker(c) => {
                 if let Some(l) = &mut list_info.last_mut() {
@@ -488,7 +488,7 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
         }
     }
 
-    PANEL_VIEW_VAR.get().generate(ctx, PanelViewArgs { items: blocks.into() })
+    PANEL_GEN_VAR.get().generate(ctx, PanelGenArgs { items: blocks.into() })
 }
 
 /// Simple markdown run.

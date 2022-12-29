@@ -1,10 +1,15 @@
 error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
-  --> cases/widget_new/missing_field_all_multi.rs:10:29
+  --> cases/widget_new/missing_field_all_multi.rs:6:13
    |
-10 |         background_gradient = { }
-   |         ------------------- ^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
-   |         |
-   |         required by a bound introduced by this call
+6  |       let _ = wgt! {
+   |  _____________^
+7  | |         // background_gradient has two fields
+8  | |         // this is interpreted as an unnamed assign `{ }` is the value
+9  | |         // and the second value is missing
+10 | |         background_gradient = { }
+   | |         ------------------- required by a bound introduced by this call
+11 | |     };
+   | |_____^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
    |
    = help: the following other types implement trait `IntoVar<T>`:
             <implementers-list>
@@ -31,5 +36,5 @@ note: associated function defined here
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
     |
-10  |         background_gradient(=, /* value */) = { }
-    |                            ++++++++++++++++
+10  |         background_gradient(#[crate::core::widget($crate::widgets::wgt)], /* value */) = { }
+    |                            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

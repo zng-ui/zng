@@ -15,5 +15,5 @@ note: associated function defined here
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
     |
-8   |         background_gradient(=, /* value */) = 0.deg(), ;
-    |                            ++++++++++++++++
+8   |         background_gradient(#[crate::core::widget($crate::widgets::wgt)], /* value */) = 0.deg(), ;
+    |                            +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

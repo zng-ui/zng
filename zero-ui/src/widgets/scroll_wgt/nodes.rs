@@ -213,20 +213,20 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
 /// Create a node that generates and presents the [vertical scrollbar].
 ///
-/// [vertical scrollbar]: VERTICAL_SCROLLBAR_VIEW_VAR
+/// [vertical scrollbar]: VERTICAL_SCROLLBAR_GEN_VAR
 pub fn v_scrollbar_presenter() -> impl UiNode {
-    scrollbar_presenter(VERTICAL_SCROLLBAR_VIEW_VAR, scrollbar::Orientation::Vertical)
+    scrollbar_presenter(VERTICAL_SCROLLBAR_GEN_VAR, scrollbar::Orientation::Vertical)
 }
 
 /// Create a node that generates and presents the [horizontal scrollbar].
 ///
-/// [horizontal scrollbar]: HORIZONTAL_SCROLLBAR_VIEW_VAR
+/// [horizontal scrollbar]: HORIZONTAL_SCROLLBAR_GEN_VAR
 pub fn h_scrollbar_presenter() -> impl UiNode {
-    scrollbar_presenter(HORIZONTAL_SCROLLBAR_VIEW_VAR, scrollbar::Orientation::Horizontal)
+    scrollbar_presenter(HORIZONTAL_SCROLLBAR_GEN_VAR, scrollbar::Orientation::Horizontal)
 }
 
-fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
-    ViewGenerator::presenter(var, move |_, is_new| {
+fn scrollbar_presenter(var: impl IntoVar<WidgetGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
+    WidgetGenerator::presenter(var, move |_, is_new| {
         if is_new {
             DataUpdate::Update(ScrollBarArgs::new(orientation))
         } else {
@@ -237,9 +237,9 @@ fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientat
 
 /// Create a node that generates and presents the [scrollbar joiner].
 ///
-/// [scrollbar joiner]: SCROLLBAR_JOINER_VIEW_VAR
+/// [scrollbar joiner]: SCROLLBAR_JOINER_GEN_VAR
 pub fn scrollbar_joiner_presenter() -> impl UiNode {
-    ViewGenerator::presenter_default(SCROLLBAR_JOINER_VIEW_VAR)
+    WidgetGenerator::presenter_default(SCROLLBAR_JOINER_GEN_VAR)
 }
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],

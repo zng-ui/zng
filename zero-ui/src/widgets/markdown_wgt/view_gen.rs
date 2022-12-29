@@ -20,8 +20,8 @@ pub struct MarkdownStyle {
 ///
 /// The text can be inside a paragraph, heading, list item or any other markdown block item.
 ///
-/// See [`TEXT_VIEW_VAR`] for more details.
-pub struct TextViewArgs {
+/// See [`TEXT_GEN_VAR`] for more details.
+pub struct TextGenArgs {
     /// The text run.
     pub txt: Text,
     /// The style.
@@ -30,8 +30,8 @@ pub struct TextViewArgs {
 
 /// Arguments for a markdown inlined link view.
 ///
-/// See [`LINK_VIEW_VAR`] for more details.
-pub struct LinkViewArgs {
+/// See [`LINK_GEN_VAR`] for more details.
+pub struct LinkGenArgs {
     /// The link.
     pub url: Text,
 
@@ -46,8 +46,8 @@ pub struct LinkViewArgs {
 ///
 /// The text can be inside a paragraph, heading, list item or any other markdown block item.
 ///
-/// See [`CODE_INLINE_VIEW_VAR`] for more details.
-pub struct CodeInlineViewArgs {
+/// See [`CODE_INLINE_GEN_VAR`] for more details.
+pub struct CodeInlineGenArgs {
     /// The code text run.
     pub txt: Text,
     /// The style.
@@ -56,8 +56,8 @@ pub struct CodeInlineViewArgs {
 
 /// Arguments for a markdown code block view.
 ///
-/// See [`CODE_BLOCK_VIEW_VAR`] for more details.
-pub struct CodeBlockViewArgs {
+/// See [`CODE_BLOCK_GEN_VAR`] for more details.
+pub struct CodeBlockGenArgs {
     /// Code language, can be empty.
     pub lang: Text,
     /// Raw text.
@@ -66,8 +66,8 @@ pub struct CodeBlockViewArgs {
 
 /// Arguments for a markdown paragraph view.
 ///
-/// See [`PARAGRAPH_VIEW_VAR`] for more details.
-pub struct ParagraphViewArgs {
+/// See [`PARAGRAPH_GEN_VAR`] for more details.
+pub struct ParagraphGenArgs {
     /// Zero-sized index of the paragraph.
     pub index: u32,
     /// Inline items.
@@ -75,7 +75,7 @@ pub struct ParagraphViewArgs {
 }
 
 /// Arguments for a markdown heading view.
-pub struct HeadingViewArgs {
+pub struct HeadingGenArgs {
     /// Level.
     pub level: HeadingLevel,
 
@@ -87,7 +87,7 @@ pub struct HeadingViewArgs {
 }
 
 /// Arguments for a markdown list view.
-pub struct ListViewArgs {
+pub struct ListGenArgs {
     /// Nested list depth, starting from zero for the outer-list.
     pub depth: u32,
 
@@ -102,7 +102,7 @@ pub struct ListViewArgs {
 
 /// Arguments for a markdown list item bullet, checkmark or number.
 #[derive(Clone, Copy)]
-pub struct ListItemBulletViewArgs {
+pub struct ListItemBulletGenArgs {
     /// Nested list depth, starting from zero for items in the outer-list.
     pub depth: u32,
 
@@ -114,9 +114,9 @@ pub struct ListItemBulletViewArgs {
 }
 
 /// Arguments for a markdown list item view.
-pub struct ListItemViewArgs {
+pub struct ListItemGenArgs {
     /// Copy of the bullet args.
-    pub bullet: ListItemBulletViewArgs,
+    pub bullet: ListItemBulletGenArgs,
 
     /// Inline items of the list item.
     pub items: UiNodeVec,
@@ -126,7 +126,7 @@ pub struct ListItemViewArgs {
 }
 
 /// Arguments for a markdown image view.
-pub struct ImageViewArgs {
+pub struct ImageGenArgs {
     /// Image, resolved by the [`image_resolver`].
     ///
     /// [`image_resolver`]: fn@crate::widgets::markdown::image_resolver
@@ -140,10 +140,10 @@ pub struct ImageViewArgs {
 /// Arguments for a markdown rule view.
 ///
 /// Currently no args.
-pub struct RuleViewArgs {}
+pub struct RuleGenArgs {}
 
 /// Arguments for a markdown block quote view.
-pub struct BlockQuoteViewArgs {
+pub struct BlockQuoteGenArgs {
     /// Number of *parent* quotes in case of nesting.
     ///
     /// > 0
@@ -156,15 +156,15 @@ pub struct BlockQuoteViewArgs {
 }
 
 /// Arguments for a markdown footnote reference view.
-pub struct FootnoteRefViewArgs {
+pub struct FootnoteRefGenArgs {
     /// Footnote referenced.
     pub label: Text,
 }
 
 /// Arguments for a markdown footnote definition view.
 ///
-/// See [`PARAGRAPH_VIEW_VAR`] for more details.
-pub struct FootnoteDefViewArgs {
+/// See [`PARAGRAPH_GEN_VAR`] for more details.
+pub struct FootnoteDefGenArgs {
     /// Identifier label.
     pub label: Text,
     /// Block items.
@@ -173,8 +173,8 @@ pub struct FootnoteDefViewArgs {
 
 /// Arguments for a markdown table view.
 ///
-/// See [`TABLE_VIEW_VAR`] for more details.
-pub struct TableViewArgs {
+/// See [`TABLE_GEN_VAR`] for more details.
+pub struct TableGenArgs {
     /// Column definitions with align.
     pub columns: Vec<Align>,
     /// Cell items.
@@ -183,8 +183,8 @@ pub struct TableViewArgs {
 
 /// Arguments for a markdown table cell view.
 ///
-/// See [`TABLE_CELL_VIEW_VAR`] for more details.
-pub struct TableCellViewArgs {
+/// See [`TABLE_CELL_GEN_VAR`] for more details.
+pub struct TableCellGenArgs {
     /// If the cell is inside the header row.
     pub is_heading: bool,
 
@@ -197,195 +197,195 @@ pub struct TableCellViewArgs {
 
 /// Arguments for a markdown panel.
 ///
-/// See [`PANEL_VIEW_VAR`] for more details.
-pub struct PanelViewArgs {
+/// See [`PANEL_GEN_VAR`] for more details.
+pub struct PanelGenArgs {
     /// Block items.
     pub items: UiNodeVec,
 }
 
 context_var! {
-    /// View generator for a markdown text segment.
-    pub static TEXT_VIEW_VAR: ViewGenerator<TextViewArgs> = ViewGenerator::new(|_, args| default_text_view(args));
+    /// Widget generator for a markdown text segment.
+    pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = WidgetGenerator::new(|_, args| default_text_gen(args));
 
-    /// View generator for a markdown link segment.
-    pub static LINK_VIEW_VAR: ViewGenerator<LinkViewArgs> = ViewGenerator::new(|_, args| default_link_view(args));
+    /// Widget generator for a markdown link segment.
+    pub static LINK_GEN_VAR: WidgetGenerator<LinkGenArgs> = WidgetGenerator::new(|_, args| default_link_gen(args));
 
-    /// View generator for a markdown inline code segment.
-    pub static CODE_INLINE_VIEW_VAR: ViewGenerator<CodeInlineViewArgs> = ViewGenerator::new(|_, args| default_code_inline_view(args));
+    /// Widget generator for a markdown inline code segment.
+    pub static CODE_INLINE_GEN_VAR: WidgetGenerator<CodeInlineGenArgs> = WidgetGenerator::new(|_, args| default_code_inline_gen(args));
 
-    /// View generator for a markdown code block segment.
-    pub static CODE_BLOCK_VIEW_VAR: ViewGenerator<CodeBlockViewArgs> = ViewGenerator::new(|_, args| default_code_block_view(args));
+    /// Widget generator for a markdown code block segment.
+    pub static CODE_BLOCK_GEN_VAR: WidgetGenerator<CodeBlockGenArgs> = WidgetGenerator::new(|_, args| default_code_block_gen(args));
 
-    /// View generator for a markdown paragraph.
-    pub static PARAGRAPH_VIEW_VAR: ViewGenerator<ParagraphViewArgs> = ViewGenerator::new(|_, args| default_paragraph_view(args));
+    /// Widget generator for a markdown paragraph.
+    pub static PARAGRAPH_GEN_VAR: WidgetGenerator<ParagraphGenArgs> = WidgetGenerator::new(|_, args| default_paragraph_gen(args));
 
-    /// View generator for a markdown heading.
-    pub static HEADING_VIEW_VAR: ViewGenerator<HeadingViewArgs> = ViewGenerator::new(|_, args| default_heading_view(args));
+    /// Widget generator for a markdown heading.
+    pub static HEADING_GEN_VAR: WidgetGenerator<HeadingGenArgs> = WidgetGenerator::new(|_, args| default_heading_gen(args));
 
-    /// View generator for a markdown list.
-    pub static LIST_VIEW_VAR: ViewGenerator<ListViewArgs> = ViewGenerator::new(|_, args| default_list_view(args));
+    /// Widget generator for a markdown list.
+    pub static LIST_GEN_VAR: WidgetGenerator<ListGenArgs> = WidgetGenerator::new(|_, args| default_list_gen(args));
 
-    /// View generator for a markdown list item bullet, checkmark or number.
-    pub static LIST_ITEM_BULLET_VIEW_VAR: ViewGenerator<ListItemBulletViewArgs> = ViewGenerator::new(|_, args| default_list_item_bullet_view(args));
+    /// Widget generator for a markdown list item bullet, checkmark or number.
+    pub static LIST_ITEM_BULLET_GEN_VAR: WidgetGenerator<ListItemBulletGenArgs> = WidgetGenerator::new(|_, args| default_list_item_bullet_gen(args));
 
-    /// View generator for a markdown list item content.
-    pub static LIST_ITEM_VIEW_VAR: ViewGenerator<ListItemViewArgs> = ViewGenerator::new(|_, args| default_list_item_view(args));
+    /// Widget generator for a markdown list item content.
+    pub static LIST_ITEM_GEN_VAR: WidgetGenerator<ListItemGenArgs> = WidgetGenerator::new(|_, args| default_list_item_gen(args));
 
-    /// View generator for a markdown image.
-    pub static IMAGE_VIEW_VAR: ViewGenerator<ImageViewArgs> = ViewGenerator::new(|_, args| default_image_view(args));
+    /// Widget generator for a markdown image.
+    pub static IMAGE_GEN_VAR: WidgetGenerator<ImageGenArgs> = WidgetGenerator::new(|_, args| default_image_gen(args));
 
-    /// View generator for a markdown rule line.
-    pub static RULE_VIEW_VAR: ViewGenerator<RuleViewArgs> = ViewGenerator::new(|_, args| default_rule_view(args));
+    /// Widget generator for a markdown rule line.
+    pub static RULE_GEN_VAR: WidgetGenerator<RuleGenArgs> = WidgetGenerator::new(|_, args| default_rule_gen(args));
 
-    /// View generator for a markdown block quote.
-    pub static BLOCK_QUOTE_VIEW_VAR: ViewGenerator<BlockQuoteViewArgs> = ViewGenerator::new(|_, args| default_block_quote_view(args));
+    /// Widget generator for a markdown block quote.
+    pub static BLOCK_QUOTE_GEN_VAR: WidgetGenerator<BlockQuoteGenArgs> = WidgetGenerator::new(|_, args| default_block_quote_gen(args));
 
-    /// View generator for an inline reference to a footnote.
-    pub static FOOTNOTE_REF_VIEW_VAR: ViewGenerator<FootnoteRefViewArgs> = ViewGenerator::new(|_, args| default_footnote_ref_view(args));
+    /// Widget generator for an inline reference to a footnote.
+    pub static FOOTNOTE_REF_GEN_VAR: WidgetGenerator<FootnoteRefGenArgs> = WidgetGenerator::new(|_, args| default_footnote_ref_gen(args));
 
-    /// View generator for a footnote definition block.
-    pub static FOOTNOTE_DEF_VIEW_VAR: ViewGenerator<FootnoteDefViewArgs> = ViewGenerator::new(|_, args| default_footnote_def_view(args));
+    /// Widget generator for a footnote definition block.
+    pub static FOOTNOTE_DEF_GEN_VAR: WidgetGenerator<FootnoteDefGenArgs> = WidgetGenerator::new(|_, args| default_footnote_def_gen(args));
 
-    /// View generator for a markdown table.
-    pub static TABLE_VIEW_VAR: ViewGenerator<TableViewArgs> = ViewGenerator::new(|_, args| default_table_view(args));
+    /// Widget generator for a markdown table.
+    pub static TABLE_GEN_VAR: WidgetGenerator<TableGenArgs> = WidgetGenerator::new(|_, args| default_table_gen(args));
 
-    /// View generator for a markdown table body cell.
-    pub static TABLE_CELL_VIEW_VAR: ViewGenerator<TableCellViewArgs> = ViewGenerator::new(|_, args| default_table_cell_view(args));
+    /// Widget generator for a markdown table body cell.
+    pub static TABLE_CELL_GEN_VAR: WidgetGenerator<TableCellGenArgs> = WidgetGenerator::new(|_, args| default_table_cell_gen(args));
 
-    /// View generator for a markdown panel.
-    pub static PANEL_VIEW_VAR: ViewGenerator<PanelViewArgs> = ViewGenerator::new(|_, args| default_panel_view(args));
+    /// Widget generator for a markdown panel.
+    pub static PANEL_GEN_VAR: WidgetGenerator<PanelGenArgs> = WidgetGenerator::new(|_, args| default_panel_gen(args));
 }
 
-/// View generator that converts [`TextViewArgs`] to widgets.
+/// Widget generator that converts [`TextGenArgs`] to widgets.
 ///
-/// Sets the [`TEXT_VIEW_VAR`].
-#[property(CONTEXT, default(TEXT_VIEW_VAR))]
-pub fn text_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<TextViewArgs>>) -> impl UiNode {
-    with_context_var(child, TEXT_VIEW_VAR, view)
+/// Sets the [`TEXT_GEN_VAR`].
+#[property(CONTEXT, default(TEXT_GEN_VAR))]
+pub fn text_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<TextGenArgs>>) -> impl UiNode {
+    with_context_var(child, TEXT_GEN_VAR, gen)
 }
 
-/// View generator that converts [`LinkViewArgs`] to widgets.
+/// Widget generator that converts [`LinkGenArgs`] to widgets.
 ///
-/// Sets the [`LINK_VIEW_VAR`].
-#[property(CONTEXT, default(LINK_VIEW_VAR))]
-pub fn link_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<LinkViewArgs>>) -> impl UiNode {
-    with_context_var(child, LINK_VIEW_VAR, view)
+/// Sets the [`LINK_GEN_VAR`].
+#[property(CONTEXT, default(LINK_GEN_VAR))]
+pub fn link_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<LinkGenArgs>>) -> impl UiNode {
+    with_context_var(child, LINK_GEN_VAR, gen)
 }
 
-/// View generator that converts [`CodeInlineViewArgs`] to widgets.
+/// Widget generator that converts [`CodeInlineGenArgs`] to widgets.
 ///
-/// Sets the [`CODE_INLINE_VIEW_VAR`].
-#[property(CONTEXT, default(CODE_INLINE_VIEW_VAR))]
-pub fn code_inline_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<CodeInlineViewArgs>>) -> impl UiNode {
-    with_context_var(child, CODE_INLINE_VIEW_VAR, view)
+/// Sets the [`CODE_INLINE_GEN_VAR`].
+#[property(CONTEXT, default(CODE_INLINE_GEN_VAR))]
+pub fn code_inline_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<CodeInlineGenArgs>>) -> impl UiNode {
+    with_context_var(child, CODE_INLINE_GEN_VAR, gen)
 }
 
-/// View generator that converts [`CodeBlockViewArgs`] to widgets.
+/// Widget generator that converts [`CodeBlockGenArgs`] to widgets.
 ///
-/// Sets the [`CODE_BLOCK_VIEW_VAR`].
-#[property(CONTEXT, default(CODE_BLOCK_VIEW_VAR))]
-pub fn code_block_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<CodeBlockViewArgs>>) -> impl UiNode {
-    with_context_var(child, CODE_BLOCK_VIEW_VAR, view)
+/// Sets the [`CODE_BLOCK_GEN_VAR`].
+#[property(CONTEXT, default(CODE_BLOCK_GEN_VAR))]
+pub fn code_block_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<CodeBlockGenArgs>>) -> impl UiNode {
+    with_context_var(child, CODE_BLOCK_GEN_VAR, gen)
 }
 
-/// View generator that converts [`ParagraphViewArgs`] to widgets.
+/// Widget generator that converts [`ParagraphGenArgs`] to widgets.
 ///
-/// Sets the [`PARAGRAPH_VIEW_VAR`].
-#[property(CONTEXT, default(PARAGRAPH_VIEW_VAR))]
-pub fn paragraph_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ParagraphViewArgs>>) -> impl UiNode {
-    with_context_var(child, PARAGRAPH_VIEW_VAR, view)
+/// Sets the [`PARAGRAPH_GEN_VAR`].
+#[property(CONTEXT, default(PARAGRAPH_GEN_VAR))]
+pub fn paragraph_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<ParagraphGenArgs>>) -> impl UiNode {
+    with_context_var(child, PARAGRAPH_GEN_VAR, gen)
 }
 
-/// View generator that converts [`HeadingViewArgs`] to widgets.
+/// Widget generator that converts [`HeadingGenArgs`] to widgets.
 ///
-/// Sets the [`HEADING_VIEW_VAR`].
-#[property(CONTEXT, default(HEADING_VIEW_VAR))]
-pub fn heading_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<HeadingViewArgs>>) -> impl UiNode {
-    with_context_var(child, HEADING_VIEW_VAR, view)
+/// Sets the [`HEADING_GEN_VAR`].
+#[property(CONTEXT, default(HEADING_GEN_VAR))]
+pub fn heading_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<HeadingGenArgs>>) -> impl UiNode {
+    with_context_var(child, HEADING_GEN_VAR, gen)
 }
 
-/// View generator that converts [`ListViewArgs`] to widgets.
+/// Widget generator that converts [`ListGenArgs`] to widgets.
 ///
-/// Sets the [`LIST_VIEW_VAR`].
-#[property(CONTEXT, default(LIST_VIEW_VAR))]
-pub fn list_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListViewArgs>>) -> impl UiNode {
-    with_context_var(child, LIST_VIEW_VAR, view)
+/// Sets the [`LIST_GEN_VAR`].
+#[property(CONTEXT, default(LIST_GEN_VAR))]
+pub fn list_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<ListGenArgs>>) -> impl UiNode {
+    with_context_var(child, LIST_GEN_VAR, gen)
 }
 
-/// View generator that converts [`ListItemBulletViewArgs`] to widgets.
+/// Widget generator that converts [`ListItemBulletGenArgs`] to widgets.
 ///
-/// Sets the [`LIST_ITEM_BULLET_VIEW_VAR`].
-#[property(CONTEXT, default(LIST_ITEM_BULLET_VIEW_VAR))]
-pub fn list_item_bullet_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListItemBulletViewArgs>>) -> impl UiNode {
-    with_context_var(child, LIST_ITEM_BULLET_VIEW_VAR, view)
+/// Sets the [`LIST_ITEM_BULLET_GEN_VAR`].
+#[property(CONTEXT, default(LIST_ITEM_BULLET_GEN_VAR))]
+pub fn list_item_bullet_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<ListItemBulletGenArgs>>) -> impl UiNode {
+    with_context_var(child, LIST_ITEM_BULLET_GEN_VAR, gen)
 }
 
-/// View generator that converts [`ListItemViewArgs`] to widgets.
+/// Widget generator that converts [`ListItemGenArgs`] to widgets.
 ///
-/// Sets the [`LIST_ITEM_VIEW_VAR`].
-#[property(CONTEXT, default(LIST_ITEM_VIEW_VAR))]
-pub fn list_item_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ListItemViewArgs>>) -> impl UiNode {
-    with_context_var(child, LIST_ITEM_VIEW_VAR, view)
+/// Sets the [`LIST_ITEM_GEN_VAR`].
+#[property(CONTEXT, default(LIST_ITEM_GEN_VAR))]
+pub fn list_item_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<ListItemGenArgs>>) -> impl UiNode {
+    with_context_var(child, LIST_ITEM_GEN_VAR, gen)
 }
 
-/// View generator that converts [`ImageViewArgs`] to widgets.
+/// Widget generator that converts [`ImageGenArgs`] to widgets.
 ///
-/// Sets the [`IMAGE_VIEW_VAR`].
-#[property(CONTEXT, default(IMAGE_VIEW_VAR))]
-pub fn image_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<ImageViewArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_VIEW_VAR, view)
+/// Sets the [`IMAGE_GEN_VAR`].
+#[property(CONTEXT, default(IMAGE_GEN_VAR))]
+pub fn image_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<ImageGenArgs>>) -> impl UiNode {
+    with_context_var(child, IMAGE_GEN_VAR, gen)
 }
 
-/// View generator that converts [`RuleViewArgs`] to widgets.
+/// Widget generator that converts [`RuleGenArgs`] to widgets.
 ///
-/// Sets the [`RULE_VIEW_VAR`].
-#[property(CONTEXT, default(RULE_VIEW_VAR))]
-pub fn rule_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<RuleViewArgs>>) -> impl UiNode {
-    with_context_var(child, RULE_VIEW_VAR, view)
+/// Sets the [`RULE_GEN_VAR`].
+#[property(CONTEXT, default(RULE_GEN_VAR))]
+pub fn rule_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<RuleGenArgs>>) -> impl UiNode {
+    with_context_var(child, RULE_GEN_VAR, gen)
 }
 
-/// View generator that converts [`BlockQuoteViewArgs`] to widgets.
+/// Widget generator that converts [`BlockQuoteGenArgs`] to widgets.
 ///
-/// Sets the [`BLOCK_QUOTE_VIEW_VAR`].
-#[property(CONTEXT, default(BLOCK_QUOTE_VIEW_VAR))]
-pub fn block_quote_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<BlockQuoteViewArgs>>) -> impl UiNode {
-    with_context_var(child, BLOCK_QUOTE_VIEW_VAR, view)
+/// Sets the [`BLOCK_QUOTE_GEN_VAR`].
+#[property(CONTEXT, default(BLOCK_QUOTE_GEN_VAR))]
+pub fn block_quote_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<BlockQuoteGenArgs>>) -> impl UiNode {
+    with_context_var(child, BLOCK_QUOTE_GEN_VAR, gen)
 }
 
-/// View generator that converts [`FootnoteRefViewArgs`] to widgets.
+/// Widget generator that converts [`FootnoteRefGenArgs`] to widgets.
 ///
-/// Sets the [`FOOTNOTE_REF_VIEW_VAR`].
-#[property(CONTEXT, default(FOOTNOTE_REF_VIEW_VAR))]
-pub fn footnote_ref_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<FootnoteRefViewArgs>>) -> impl UiNode {
-    with_context_var(child, FOOTNOTE_REF_VIEW_VAR, view)
+/// Sets the [`FOOTNOTE_REF_GEN_VAR`].
+#[property(CONTEXT, default(FOOTNOTE_REF_GEN_VAR))]
+pub fn footnote_ref_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<FootnoteRefGenArgs>>) -> impl UiNode {
+    with_context_var(child, FOOTNOTE_REF_GEN_VAR, gen)
 }
 
-/// View generator that converts [`FootnoteDefViewArgs`] to widgets.
+/// Widget generator that converts [`FootnoteDefGenArgs`] to widgets.
 ///
-/// Sets the [`FOOTNOTE_DEF_VIEW_VAR`].
-#[property(CONTEXT, default(FOOTNOTE_DEF_VIEW_VAR))]
-pub fn footnote_def_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<FootnoteDefViewArgs>>) -> impl UiNode {
-    with_context_var(child, FOOTNOTE_DEF_VIEW_VAR, view)
+/// Sets the [`FOOTNOTE_DEF_GEN_VAR`].
+#[property(CONTEXT, default(FOOTNOTE_DEF_GEN_VAR))]
+pub fn footnote_def_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<FootnoteDefGenArgs>>) -> impl UiNode {
+    with_context_var(child, FOOTNOTE_DEF_GEN_VAR, gen)
 }
 
-/// View generator that converts [`TableViewArgs`] to widgets.
+/// Widget generator that converts [`TableGenArgs`] to widgets.
 ///
-/// Sets the [`TABLE_VIEW_VAR`].
-#[property(CONTEXT, default(TABLE_VIEW_VAR))]
-pub fn table_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<TableViewArgs>>) -> impl UiNode {
-    with_context_var(child, TABLE_VIEW_VAR, view)
+/// Sets the [`TABLE_GEN_VAR`].
+#[property(CONTEXT, default(TABLE_GEN_VAR))]
+pub fn table_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<TableGenArgs>>) -> impl UiNode {
+    with_context_var(child, TABLE_GEN_VAR, gen)
 }
 
-/// View generator that converts [`PanelViewArgs`] to a widget.
+/// Widget generator that converts [`PanelGenArgs`] to a widget.
 ///
 /// This generates the panel that contains all markdown blocks, it is the child of the [`markdown!`] widget.
 ///
-/// Sets the [`PANEL_VIEW_VAR`].
+/// Sets the [`PANEL_GEN_VAR`].
 ///
 /// [`markdown!`]: mod@crate::widgets::markdown
-#[property(CONTEXT, default(PANEL_VIEW_VAR))]
-pub fn panel_view(child: impl UiNode, view: impl IntoVar<ViewGenerator<PanelViewArgs>>) -> impl UiNode {
-    with_context_var(child, PANEL_VIEW_VAR, view)
+#[property(CONTEXT, default(PANEL_GEN_VAR))]
+pub fn panel_gen(child: impl UiNode, gen: impl IntoVar<WidgetGenerator<PanelGenArgs>>) -> impl UiNode {
+    with_context_var(child, PANEL_GEN_VAR, gen)
 }
 
 fn text_view_builder(txt: Text, style: MarkdownStyle) -> WidgetBuilder {
@@ -431,16 +431,16 @@ fn text_view_builder(txt: Text, style: MarkdownStyle) -> WidgetBuilder {
 
 /// Default text view.
 ///
-/// See [`TEXT_VIEW_VAR`] for more details.
-pub fn default_text_view(args: TextViewArgs) -> impl UiNode {
+/// See [`TEXT_GEN_VAR`] for more details.
+pub fn default_text_gen(args: TextGenArgs) -> impl UiNode {
     let builder = text_view_builder(args.txt, args.style);
     crate::widgets::text::build(builder)
 }
 
 /// Default inlined code text view.
 ///
-/// See [`CODE_INLINE_VIEW_VAR`] for more details.
-pub fn default_code_inline_view(args: CodeInlineViewArgs) -> impl UiNode {
+/// See [`CODE_INLINE_GEN_VAR`] for more details.
+pub fn default_code_inline_gen(args: CodeInlineGenArgs) -> impl UiNode {
     use crate::widgets::text as t;
 
     let mut builder = text_view_builder(args.txt, args.style);
@@ -463,8 +463,8 @@ pub fn default_code_inline_view(args: CodeInlineViewArgs) -> impl UiNode {
 
 /// Default inlined link view.
 ///
-/// See [`LINK_VIEW_VAR`] for more details.
-pub fn default_link_view(args: LinkViewArgs) -> impl UiNode {
+/// See [`LINK_GEN_VAR`] for more details.
+pub fn default_link_gen(args: LinkGenArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
@@ -498,10 +498,10 @@ pub fn default_link_view(args: LinkViewArgs) -> impl UiNode {
 ///
 /// Is [`ansi_text!`] for the `ansi` language, and only raw text for the rest.
 ///
-/// See [`CODE_BLOCK_VIEW_VAR`] for more details.
+/// See [`CODE_BLOCK_GEN_VAR`] for more details.
 ///
 /// [`ansi_text!`]: mod@crate::widgets::ansi_text
-pub fn default_code_block_view(args: CodeBlockViewArgs) -> impl UiNode {
+pub fn default_code_block_gen(args: CodeBlockGenArgs) -> impl UiNode {
     if args.lang == "ansi" {
         crate::widgets::ansi_text! {
             txt = args.txt;
@@ -524,8 +524,8 @@ pub fn default_code_block_view(args: CodeBlockViewArgs) -> impl UiNode {
 
 /// Default paragraph view.
 ///
-/// See [`PARAGRAPH_VIEW_VAR`] for more details.
-pub fn default_paragraph_view(mut args: ParagraphViewArgs) -> impl UiNode {
+/// See [`PARAGRAPH_GEN_VAR`] for more details.
+pub fn default_paragraph_gen(mut args: ParagraphGenArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else if args.items.len() == 1 {
@@ -540,8 +540,8 @@ pub fn default_paragraph_view(mut args: ParagraphViewArgs) -> impl UiNode {
 
 /// Default heading view.
 ///
-/// See [`HEADING_VIEW_VAR`] for more details.
-pub fn default_heading_view(args: HeadingViewArgs) -> impl UiNode {
+/// See [`HEADING_GEN_VAR`] for more details.
+pub fn default_heading_gen(args: HeadingGenArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
@@ -565,10 +565,10 @@ pub fn default_heading_view(args: HeadingViewArgs) -> impl UiNode {
 ///
 /// Uses a [`grid!`] with two columns, one default for the bullet or number, the other fills the leftover space.
 ///
-/// See [`LIST_VIEW_VAR`] for more details.
+/// See [`LIST_GEN_VAR`] for more details.
 ///
 /// [`grid!`]: mod@crate::widgets::layouts::grid
-pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
+pub fn default_list_gen(args: ListGenArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
@@ -587,8 +587,8 @@ pub fn default_list_view(args: ListViewArgs) -> impl UiNode {
 
 /// Default list item bullet, checkmark or number view.
 ///
-/// See [`LIST_ITEM_BULLET_VIEW_VAR`] for more details.
-pub fn default_list_item_bullet_view(args: ListItemBulletViewArgs) -> impl UiNode {
+/// See [`LIST_ITEM_BULLET_GEN_VAR`] for more details.
+pub fn default_list_item_bullet_gen(args: ListItemBulletGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     if let Some(checked) = args.checked {
@@ -633,8 +633,8 @@ pub fn default_list_item_bullet_view(args: ListItemBulletViewArgs) -> impl UiNod
 
 /// Default list item view.
 ///
-/// See [`LIST_ITEM_VIEW_VAR`] for more details.
-pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
+/// See [`LIST_ITEM_GEN_VAR`] for more details.
+pub fn default_list_item_gen(args: ListItemGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     let mut items = args.items;
@@ -672,8 +672,8 @@ pub fn default_list_item_view(args: ListItemViewArgs) -> impl UiNode {
 
 /// Default image view.
 ///
-/// See [`IMAGE_VIEW_VAR`] for more details.
-pub fn default_image_view(args: ImageViewArgs) -> impl UiNode {
+/// See [`IMAGE_GEN_VAR`] for more details.
+pub fn default_image_gen(args: ImageGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     let mut alt_items = args.alt_items;
@@ -695,7 +695,7 @@ pub fn default_image_view(args: ImageViewArgs) -> impl UiNode {
         image! {
             align = Align::TOP_LEFT;
             source = args.source;
-            img_error_view = view_generator!(|_, _| {
+            img_error_gen = wgt_gen!(|_, _| {
                 alt_items.take_on_init()
             });
         }
@@ -704,8 +704,8 @@ pub fn default_image_view(args: ImageViewArgs) -> impl UiNode {
 
 /// Default rule view.
 ///
-/// See [`RULE_VIEW_VAR`] for more details.
-pub fn default_rule_view(_: RuleViewArgs) -> impl UiNode {
+/// See [`RULE_GEN_VAR`] for more details.
+pub fn default_rule_gen(_: RuleGenArgs) -> impl UiNode {
     crate::widgets::hr! {
         opacity = 50.pct();
     }
@@ -713,8 +713,8 @@ pub fn default_rule_view(_: RuleViewArgs) -> impl UiNode {
 
 /// Default block quote view.
 ///
-/// See [`BLOCK_QUOTE_VIEW_VAR`] for more details.
-pub fn default_block_quote_view(args: BlockQuoteViewArgs) -> impl UiNode {
+/// See [`BLOCK_QUOTE_GEN_VAR`] for more details.
+pub fn default_block_quote_gen(args: BlockQuoteGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     if args.items.is_empty() {
@@ -742,15 +742,15 @@ pub fn default_block_quote_view(args: BlockQuoteViewArgs) -> impl UiNode {
 
 /// Default markdown table.
 ///
-/// See [`TABLE_VIEW_VAR`] for more details.
-pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
+/// See [`TABLE_GEN_VAR`] for more details.
+pub fn default_table_gen(args: TableGenArgs) -> impl UiNode {
     use crate::widgets::layouts::grid;
 
     grid! {
         background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
         border = 1, TEXT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
         align = Align::LEFT;
-        auto_grow_view = view_generator!(|_, args: grid::AutoGrowViewArgs| {
+        auto_grow_gen = wgt_gen!(|_, args: grid::AutoGrowGenArgs| {
             grid::row! {
                 border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                 background_color = {
@@ -774,8 +774,8 @@ pub fn default_table_view(args: TableViewArgs) -> impl UiNode {
 
 /// Default markdown table.
 ///
-/// See [`TABLE_CELL_VIEW_VAR`] for more details.
-pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
+/// See [`TABLE_CELL_GEN_VAR`] for more details.
+pub fn default_table_cell_gen(args: TableCellGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     if args.items.is_empty() {
@@ -800,8 +800,8 @@ pub fn default_table_cell_view(args: TableCellViewArgs) -> impl UiNode {
 
 /// Default markdown panel.
 ///
-/// See [`PANEL_VIEW_VAR`] for more details.
-pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
+/// See [`PANEL_GEN_VAR`] for more details.
+pub fn default_panel_gen(mut args: PanelGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     if args.items.is_empty() {
@@ -820,8 +820,8 @@ pub fn default_panel_view(mut args: PanelViewArgs) -> impl UiNode {
 
 /// Default markdown footnote definition.
 ///
-/// See [`FOOTNOTE_REF_VIEW_VAR`] for more details.
-pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
+/// See [`FOOTNOTE_REF_GEN_VAR`] for more details.
+pub fn default_footnote_ref_gen(args: FootnoteRefGenArgs) -> impl UiNode {
     use crate::widgets::*;
 
     let url = formatx!("#footnote-{}", args.label);
@@ -841,8 +841,8 @@ pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
 
 /// Default markdown footnote definition.
 ///
-/// See [`FOOTNOTE_DEF_VIEW_VAR`] for more details.
-pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
+/// See [`FOOTNOTE_DEF_GEN_VAR`] for more details.
+pub fn default_footnote_def_gen(args: FootnoteDefGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     let mut items = args.items;

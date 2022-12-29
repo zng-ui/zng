@@ -225,9 +225,9 @@ impl ViewLib {
 }
 
 #[cfg(zero_ui_lib_embedded)]
-const LIB: &[u8] = include_bytes!(env!("ZERO_UI_VIEW_LIB"));
+const LIB: &[u8] = include_bytes!(env!("ZERO_UI_GEN_LIB"));
 #[cfg(zero_ui_lib_embedded)]
-const LIB_NAME: &str = concat!("zv.", env!("CARGO_PKG_VERSION"), ".", env!("ZERO_UI_VIEW_LIB_HASH"));
+const LIB_NAME: &str = concat!("zv.", env!("CARGO_PKG_VERSION"), ".", env!("ZERO_UI_GEN_LIB_HASH"));
 
 /// Error searching or linking to pre-build library.
 #[derive(Debug)]

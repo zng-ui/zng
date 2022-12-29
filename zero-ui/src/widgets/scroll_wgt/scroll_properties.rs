@@ -3,14 +3,14 @@ use crate::widgets::flood;
 use super::{commands::ScrollToMode, parts::*, types::*, *};
 
 context_var! {
-    /// View generator for creating the vertical scrollbar of an scroll widget.
-    pub static VERTICAL_SCROLLBAR_VIEW_VAR: ViewGenerator<ScrollBarArgs> = default_scrollbar();
+    /// Widget generator for creating the vertical scrollbar of an scroll widget.
+    pub static VERTICAL_SCROLLBAR_GEN_VAR: WidgetGenerator<ScrollBarArgs> = default_scrollbar();
 
-    /// View generator for creating the vertical scrollbar of an scroll widget.
-    pub static HORIZONTAL_SCROLLBAR_VIEW_VAR: ViewGenerator<ScrollBarArgs> = default_scrollbar();
+    /// Widget generator for creating the vertical scrollbar of an scroll widget.
+    pub static HORIZONTAL_SCROLLBAR_GEN_VAR: WidgetGenerator<ScrollBarArgs> = default_scrollbar();
 
-    /// View generator for the little square that joins the two scrollbars when both are visible.
-    pub static SCROLLBAR_JOINER_VIEW_VAR: ViewGenerator<()> = view_generator!(|_, _| flood(scrollbar::vis::BACKGROUND_VAR));
+    /// Widget generator for the little square that joins the two scrollbars when both are visible.
+    pub static SCROLLBAR_JOINER_GEN_VAR: WidgetGenerator<()> = wgt_gen!(|_, _| flood(scrollbar::vis::BACKGROUND_VAR));
 
     /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
     ///
@@ -73,8 +73,8 @@ context_var! {
     };
 }
 
-fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
-    view_generator!(|_, args: ScrollBarArgs| {
+fn default_scrollbar() -> WidgetGenerator<ScrollBarArgs> {
+    wgt_gen!(|_, args: ScrollBarArgs| {
         scrollbar! {
             thumb_node = scrollbar::thumb! {
                 orientation = args.orientation;
@@ -88,28 +88,28 @@ fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
 }
 
 /// Vertical scrollbar generator for all scroll widget descendants.
-#[property(CONTEXT, default(VERTICAL_SCROLLBAR_VIEW_VAR))]
-pub fn v_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
-    with_context_var(child, VERTICAL_SCROLLBAR_VIEW_VAR, generator)
+#[property(CONTEXT, default(VERTICAL_SCROLLBAR_GEN_VAR))]
+pub fn v_scrollbar_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ScrollBarArgs>>) -> impl UiNode {
+    with_context_var(child, VERTICAL_SCROLLBAR_GEN_VAR, generator)
 }
 
 /// Horizontal scrollbar generator for all scroll widget descendants.
-#[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_VIEW_VAR))]
-pub fn h_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
-    with_context_var(child, HORIZONTAL_SCROLLBAR_VIEW_VAR, generator)
+#[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_GEN_VAR))]
+pub fn h_scrollbar_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ScrollBarArgs>>) -> impl UiNode {
+    with_context_var(child, HORIZONTAL_SCROLLBAR_GEN_VAR, generator)
 }
 
 /// Scrollbar generator for both orientations applicable to all scroll widget descendants.
 ///
-/// This property sets both [`v_scrollbar_view`] and [`h_scrollbar_view`] to the same `generator`.
+/// This property sets both [`v_scrollbar_gen`] and [`h_scrollbar_gen`] to the same `generator`.
 ///
-/// [`v_scrollbar_view`]: fn@v_scrollbar_view
-/// [`h_scrollbar_view`]: fn@h_scrollbar_view
-#[property(CONTEXT, default(ViewGenerator::nil()))]
-pub fn scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
+/// [`v_scrollbar_gen`]: fn@v_scrollbar_gen
+/// [`h_scrollbar_gen`]: fn@h_scrollbar_gen
+#[property(CONTEXT, default(WidgetGenerator::nil()))]
+pub fn scrollbar_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ScrollBarArgs>>) -> impl UiNode {
     let generator = generator.into_var();
-    let child = v_scrollbar_view(child, generator.clone());
-    h_scrollbar_view(child, generator)
+    let child = v_scrollbar_gen(child, generator.clone());
+    h_scrollbar_gen(child, generator)
 }
 
 /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
@@ -194,7 +194,7 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
 
 /// If the scroll defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
 #[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR))]
-pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn define_genport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DEFINE_VIEWPORT_UNIT_VAR, enabled)
 }
 
