@@ -33,19 +33,19 @@ fn app_main() {
                 children = ui_vec![
                     widgets::mr_borders! {
                         border_align = 0.pct();
-                        child = text("border_align = 0.pct();");
+                        child = text!("border_align = 0.pct();");
                     },
                     widgets::mr_borders! {
                         border_align = (1.0 / 3.0).fct();
-                        child = text("border_align = (1.0 / 3.0).fct();");
+                        child = text!("border_align = (1.0 / 3.0).fct();");
                     },
                     widgets::mr_borders! {
                         border_align = 50.pct();
-                        child = text("border_align = 50.pct();");
+                        child = text!("border_align = 50.pct();");
                     },
                     widgets::mr_borders! {
                         border_align = 100.pct();
-                        child = text("border_align = 100.pct();");
+                        child = text!("border_align = 100.pct();");
                     },
                     clip_to_bounds_demo(),
                     widgets::mr_borders! {
@@ -54,7 +54,7 @@ fn app_main() {
                             border_align = 100.pct();
                             child = widgets::mr_borders! {
                                 border_align = 100.pct();
-                                child = text("Nested");
+                                child = text!("Nested");
                             },
                         },
                     },

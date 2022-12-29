@@ -73,14 +73,14 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
 fn btn_square(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().square()));
-        child = text("x²");
+        child = text!("x²");
     }
 }
 
 fn btn_square_root(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().square_root()));
-        child = text("√x");
+        child = text!("√x");
     }
 }
 
@@ -88,7 +88,7 @@ fn btn_clear(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().clear()));
         click_shortcut = shortcut!(Escape);
-        child = text("C");
+        child = text!("C");
     }
 }
 
@@ -96,7 +96,7 @@ fn btn_backspace(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.to_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
-        child = text("⌫");
+        child = text!("⌫");
     }
 }
 
@@ -110,7 +110,7 @@ fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
             assert!(!shortcuts.0.is_empty());
             shortcuts
         };
-        child = text(c.to_string());
+        child = text!(c.to_string());
     }
 }
 
@@ -118,7 +118,7 @@ fn btn_eval(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
         on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.to_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
-        child = text("=");
+        child = text!("=");
     }
 }
 

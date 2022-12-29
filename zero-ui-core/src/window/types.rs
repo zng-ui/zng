@@ -480,7 +480,7 @@ impl WindowIcon {
     ///         corner_radius = 6;
     ///         font_size = 28;
     ///         font_weight = FontWeight::BOLD;
-    ///         child = text("A");
+    ///         child = text!("A");
     ///     }
     /// )
     /// # ;

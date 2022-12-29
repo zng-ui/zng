@@ -83,7 +83,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
         padding = 4;
         children = ui_vec![
             button! {
-                child = text("-");
+                child = text!("-");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
@@ -95,7 +95,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                 txt = font_size.map(|s| formatx!("{s}"));
             },
             button! {
-                child = text("+");
+                child = text!("+");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
@@ -111,7 +111,7 @@ fn basic() -> impl UiNode {
     section(
         "basic",
         ui_vec![
-            text("Basic Text"),
+            text!("Basic Text"),
             strong("Strong Text"),
             em("Emphasis Text"),
             text! {
@@ -272,7 +272,7 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
             direction = StackDirection::left_to_right();
             children_align = Align::BASELINE_LEFT;
             children = ui_vec![
-                text(if title.is_empty() {
+                text!(if title.is_empty() {
                     formatx!("{font_family}: ")
                 } else {
                     formatx!("{title}: ")

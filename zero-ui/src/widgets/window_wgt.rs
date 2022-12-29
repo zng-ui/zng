@@ -19,7 +19,7 @@ pub mod window_properties;
 /// App::default().run_window(|_| {
 ///     window! {
 ///         title = "Window 1";
-///         child = text("Window 1");
+///         child = text!("Window 1");
 ///     }
 /// })
 /// ```
@@ -128,7 +128,7 @@ pub mod window {
         ///     window! {
         ///         title = "Render Mode";
         ///         render_mode = RenderMode::Dedicated;
-        ///         child = text(selected_mode.map(|m| formatx!("Preference: Dedicated\nActual: {m:?}")));
+        ///         child = text!(selected_mode.map(|m| formatx!("Preference: Dedicated\nActual: {m:?}")));
         ///     }
         /// }
         /// ```

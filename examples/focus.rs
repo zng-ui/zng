@@ -92,7 +92,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             title("Functions (F)"),
             // New Window
             button! {
-                child = text("New Window");
+                child = text!("New Window");
                 on_click = hn!(|ctx, _| {
                     Windows::req(ctx.services).open(|ctx| {
                         let _ = ctx.window_id.set_name("other");
@@ -120,7 +120,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             {
                 let detach_focused = ArcNode::new_cyclic(|wk| {
                     let btn = button! {
-                        child = text("Detach Button");
+                        child = text!("Detach Button");
                         // focus_on_init = true;
                         on_click = hn!(|ctx, _| {
                             let wwk = wk.clone();
@@ -141,7 +141,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             disable_window(window_enabled.clone()),
             // Overlay Scope
             button! {
-                child = text("Overlay Scope");
+                child = text!("Overlay Scope");
                 on_click = hn!(|ctx, _| {
                     WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
@@ -152,7 +152,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
 }
 fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
     button! {
-        child = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
+        child = text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
         on_click = async_hn!(window_enabled, |ctx, _| {
             window_enabled.set(&ctx, false);
@@ -187,7 +187,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
                         children = ui_vec![
                         disable_window(window_enabled),
                         button! {
-                                child = text("Close");
+                                child = text!("Close");
                                 on_click = hn!(|ctx, _| {
                                     WindowLayers::remove(ctx, "overlay");
                                 })
@@ -258,7 +258,7 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
     let on_timeout = Arc::new(Mutex::new(Box::new(on_timeout)));
     let enabled = var(true);
     button! {
-        child = text(content.into());
+        child = text!(content.into());
         on_click = async_hn!(enabled, on_timeout, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(4.secs()).await;
@@ -280,7 +280,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl UiNo
     let content = content.into();
     let tab_index = tab_index.into();
     button! {
-        child = text(content.clone());
+        child = text!(content.clone());
         tab_index;
         on_click = hn!(|_, _| {
             println!("Clicked {content} {tab_index:?}")
@@ -347,7 +347,7 @@ fn trace_focus() {
 
 fn nested_focusables() -> impl UiNode {
     button! {
-        child = text("Nested Focusables");
+        child = text!("Nested Focusables");
 
         on_click = hn!(|ctx, args: &ClickArgs| {
             args.propagation().stop();

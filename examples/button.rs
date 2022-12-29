@@ -51,7 +51,7 @@ fn example() -> impl UiNode {
         on_double_click = hn!(|_, _| println!("double click!"));
         on_triple_click = hn!(|_, _| println!("triple click!"));
         on_context_click = hn!(|_, _| println!("context click!"));
-        child = text(t);
+        child = text!(t);
     }
 }
 
@@ -59,7 +59,7 @@ fn disabled() -> impl UiNode {
     button! {
         on_click = hn!(|_, _| panic!("disabled button"));
         enabled = false;
-        child = text("Disabled");
+        child = text!("Disabled");
         id = "disabled-btn"
     }
 }
@@ -73,7 +73,7 @@ fn image_button() -> impl UiNode {
             children_align = Align::CENTER;
             children = ui_vec![
                 image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
-                text("Click Me!")
+                text!("Click Me!")
             ];
             spacing = 5;
         };
@@ -90,10 +90,10 @@ fn dyn_buttons() -> impl UiNode {
         spacing = 5;
         children = dyn_children.chain(ui_vec![
             button! {
-                child = text("Add Button");
+                child = text!("Add Button");
                 on_click = hn!(|ctx, _| {
                     children_ref.push(ctx, button! {
-                        child = text(formatx!("Remove {}", btn));
+                        child = text!("Remove {}", btn);
                         on_click = hn!(children_ref, |ctx, _| {
                             children_ref.remove(ctx.updates, ctx.path.widget_id());
                         })
@@ -124,24 +124,24 @@ fn toggle_buttons() -> impl UiNode {
         spacing = 5;
         children = ui_vec![
             toggle! {
-                child = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
+                child = text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
                 checked = var(false);
             },
             toggle! {
-                child = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
+                child = text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(None);
             },
             toggle! {
-                child = text(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
+                child = text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(Some(false));
                 tristate = true;
             },
             checkbox! {
-                child = text("Checkbox");
+                child = text!("Checkbox");
                 checked = var(false);
             },
             checkbox! {
-                child = text("Checkbox Tristate");
+                child = text!("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
             },

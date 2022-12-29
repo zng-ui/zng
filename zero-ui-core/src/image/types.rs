@@ -506,7 +506,7 @@ impl ImageSource {
     ///         size = (500, 400);
     ///         parent = args.parent;
     ///         background_color = colors::GREEN;
-    ///         child = text("Rendered!");
+    ///         child = text!("Rendered!");
     ///     }
     /// )
     /// # ;
@@ -548,7 +548,7 @@ impl ImageSource {
     ///     |_ctx, _args| container! {
     ///         size = (500, 400);
     ///         background_color = colors::GREEN;
-    ///         child = text("Rendered!");
+    ///         child = text!("Rendered!");
     ///     }
     /// )
     /// # ;

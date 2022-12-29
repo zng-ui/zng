@@ -19,11 +19,11 @@ use super::*;
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// # fn text(text: impl IntoVar<Text>) { }
+/// #fn text(text: impl IntoVar<Text>) { }
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_text());
 ///
-/// let t = text(when_var! {
+/// let t = text!(when_var! {
 ///     condition.clone() => "condition: true".to_text(),
 ///     _ => when_false.clone(),
 /// });
@@ -38,10 +38,10 @@ use super::*;
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// # fn text(text: impl IntoVar<Text>) { }
+/// #fn text(text: impl IntoVar<Text>) { }
 /// # let condition0 = var(true);
 /// # let condition1 = var(true);
-/// let t = text(when_var! {
+/// let t = text!(when_var! {
 ///     #[cfg(some_flag)]
 ///     condition0 => "is condition 0".to_text(),
 ///     #[cfg(not(some_flag))]

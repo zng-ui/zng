@@ -73,7 +73,7 @@ pub mod toggle_properties {
     /// toggle! {
     ///     checked = foo.clone();
     ///
-    ///     child = text(foo.map(|b| formatx!("foo = {b}")));
+    ///     child = text!(foo.map(|b| formatx!("foo = {b}")));
     /// }
     /// # ;
     /// ```
@@ -140,7 +140,7 @@ pub mod toggle_properties {
     ///     checked_opt = foo.clone();
     ///     tristate = true;
     ///
-    ///     child = text(foo.map(|b| formatx!("foo = {b:?}")));
+    ///     child = text!(foo.map(|b| formatx!("foo = {b:?}")));
     /// }
     /// # ;
     /// ```
@@ -234,7 +234,7 @@ pub mod toggle_properties {
     ///     // checked_opt = var(Some(false));
     ///     // value<i32> = 42;
     ///
-    ///     child = text("Toggle Background");
+    ///     child = text!("Toggle Background");
     ///     background_color = colors::RED;
     ///     when *#is_checked {
     ///         background_color = colors::GREEN;
@@ -276,7 +276,7 @@ pub mod toggle_properties {
     ///     spacing = 5;
     ///     children = (1..=10_i32).map(|i| {
     ///         toggle! {
-    ///             child = text(formatx!("Item {i}"));
+    ///             child = text!("Item {i}");
     ///             value::<i32> = i;
     ///         }
     ///         .boxed()

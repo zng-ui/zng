@@ -61,7 +61,7 @@ fn app_main() {
 
 fn overlay_example() -> impl UiNode {
     button! {
-        child = text("TOP_MOST");
+        child = text!("TOP_MOST");
         on_click = hn!(|ctx, _| {
             WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay("overlay", 0));
         });
@@ -101,13 +101,13 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                         children = ui_vec![
                             button! {
                                 visibility = offset < 50;
-                                child = text("Open Another");
+                                child = text!("Open Another");
                                 on_click = hn!(|ctx, _| {
                                     WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
                                 })
                             },
                             button! {
-                                child = text("Remove");
+                                child = text!("Remove");
                                 on_click = hn!(|ctx, _| {
                                     WindowLayers::remove(ctx, id);
                                 })
@@ -135,7 +135,7 @@ fn layer_index_example() -> impl UiNode {
 fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
     let label = formatx!("Layer {n}");
     button! {
-        child = text(label.clone());
+        child = text!(label.clone());
         on_click = async_hn!(label, |ctx, _| {
             let id = WidgetId::new_unique();
             ctx.with(|ctx| WindowLayers::insert(ctx, n, container! {
@@ -195,7 +195,7 @@ fn anchor_example() -> impl UiNode {
 
     button! {
         id = "anchor";
-        child = text("Anchored");
+        child = text!("Anchored");
 
         margin = (60, 0);
         align = Align::CENTER;
@@ -226,7 +226,7 @@ fn transform_anchor_example() -> impl UiNode {
     let mut insert = true;
     button! {
         id = "t-anchor";
-        child = text("Transform Anchored");
+        child = text!("Transform Anchored");
 
         rotate = 20.deg();
         scale = 110.pct();

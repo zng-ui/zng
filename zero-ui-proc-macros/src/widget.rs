@@ -41,11 +41,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     }
 
     // a `$crate` path to the widget module.
-    let mod_path = match syn::parse::<ArgPath>(args) {
-        Ok(a) => a.path,
+    let (mod_path, custom_rules) = match syn::parse::<Args>(args) {
+        Ok(a) => (a.path, a.custom_rules),
         Err(e) => {
             errors.push_syn(e);
-            quote! { $crate::missing_widget_path}
+            (quote! { $crate::missing_widget_path}, vec![])
         }
     };
     let mod_path_str = mod_path.to_string().replace(' ', "");
@@ -68,6 +68,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             }
             #validate_path_ident!{}
         }
+    };
+
+    let custom_rules = {
+        let mut tt = quote!();
+        for widget_util::WidgetCustomRule { rule, init } in custom_rules {
+            tt.extend(quote! {
+                (#rule) => {
+                    #mod_path! {
+                        #init
+                    }
+                };
+            })
+        }
+        tt
     };
 
     let WidgetItems {
@@ -184,19 +198,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     let macro_if_mixin = if mixin {
         quote! {
-            (>> if mixin { $($tt:tt)* }) => {
+            (zero_ui_widget: if mixin { $($tt:tt)* }) => {
                 $($tt)*
             };
-            (>> if !mixin { $($tt:tt)* }) => {
+            (zero_ui_widget: if !mixin { $($tt:tt)* }) => {
                 // ignore
             };
         }
     } else {
         quote! {
-            (>> if !mixin { $($tt:tt)* }) => {
+            (zero_ui_widget: if !mixin { $($tt:tt)* }) => {
                 $($tt)*
             };
-            (>> if mixin { $($tt:tt)* }) => {
+            (zero_ui_widget: if mixin { $($tt:tt)* }) => {
                 // ignore
             };
         }
@@ -213,7 +227,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             let path = &inh.path;
             check.extend(quote_spanned! {path_span(path)=>
                 #path! {
-                    >> if !mixin {
+                    zero_ui_widget: if !mixin {
                         std::compile_error!{#error}
                     }
                 }
@@ -247,12 +261,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let error = format!("cannot inherit build from `{id}`, it is a mix-in\nmix-ins with suffix `_mixin` are ignored when inheriting build, but this one was renamed");
         quote_spanned! {path_span(path)=>
             #path! {
-                >> if mixin {
+                zero_ui_widget: if mixin {
                     std::compile_error!{ #error }
                 }
             }
             #path! {
-                >> if !mixin {
+                zero_ui_widget: if !mixin {
                     #[doc(inline)]
                     #[allow(unused_imports)]
                     pub use #path::build;
@@ -483,6 +497,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #[macro_export]
         macro_rules! #macro_ident {
             #macro_if_mixin
+            #custom_rules
 
             ($($tt:tt)*) => {
                 #macro_new
@@ -497,19 +512,38 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     r.into()
 }
 
-struct ArgPath {
+struct Args {
     path: TokenStream,
+    custom_rules: Vec<widget_util::WidgetCustomRule>,
 }
-impl Parse for ArgPath {
+impl Parse for Args {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let fork = input.fork();
         match (fork.parse::<Token![$]>(), fork.parse::<syn::Path>()) {
             (Ok(_), Ok(p)) => {
+                let has_custom_rules = fork.peek(token::Brace);
+                if has_custom_rules {
+                    let _ = fork.parse::<TokenTree>();
+                }
                 if fork.is_empty() {
                     if p.segments[0].ident == "crate" {
-                        Ok(ArgPath {
-                            path: input.parse().unwrap(),
-                        })
+                        let mut raw_parts = vec![];
+                        while !input.is_empty() {
+                            raw_parts.push(input.parse::<TokenTree>().unwrap());
+                        }
+
+                        let mut path = quote!();
+                        let mut custom_rules = vec![];
+
+                        if has_custom_rules {
+                            let rules = raw_parts.pop().unwrap().to_token_stream();
+                            custom_rules = syn::parse2::<widget_util::WidgetCustomRules>(rules)?.rules;
+                        }
+                        for part in raw_parts {
+                            part.to_tokens(&mut path);
+                        }
+
+                        Ok(Args { path, custom_rules })
                     } else {
                         Err(syn::Error::new(p.segments[0].ident.span(), "expected `crate`"))
                     }

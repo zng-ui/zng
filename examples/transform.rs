@@ -55,7 +55,7 @@ fn transformed(label: impl Into<Text>, transform: Transform) -> impl UiNode {
     container! {
         child = container! {
             transform;
-            child = text(label.into());
+            child = text!(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
         };
@@ -67,7 +67,7 @@ fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Int
         child = container! {
             transform;
             transform_origin = origin.into();
-            child = text(label.into());
+            child = text!(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
             padding = 10;
         };
@@ -83,14 +83,14 @@ fn transform_stack() -> impl UiNode {
         spacing = 5;
         children = ui_vec![
             container! {
-                child = text("Identity");
+                child = text!("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },
             container! {
                 id = "in-stack";
                 transform = rotate(45.deg());
-                child = text("Rotated 45º");
+                child = text!("Rotated 45º");
                 background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
                 padding = 10;
 
@@ -99,7 +99,7 @@ fn transform_stack() -> impl UiNode {
                 }
             },
             container! {
-                child = text("Identity");
+                child = text!("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },

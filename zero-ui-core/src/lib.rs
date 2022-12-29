@@ -475,9 +475,9 @@ pub use zero_ui_proc_macros::property;
 /// with content in other files will cause a compile time error. You also cannot set the attribute from the inside `#!`, this  is a
 /// limitation of the Rust compiler.
 ///
-/// The attribute receives one argument, it must be a macro style `$crate` path to the widget module, this is used in the generated macro
+/// The attribute requires one argument, it must be a macro style `$crate` path to the widget module, this is used in the generated macro
 /// to find the module during instantiation. The path must be to the *public* path to the module, that is, the same path that will be used
-/// to import the widget macro.
+/// to import the widget macro.  After the required widget path [custom rules] for the generated macro can be declared.
 ///
 /// ```
 /// # fn main() { }
@@ -955,6 +955,61 @@ pub use zero_ui_proc_macros::property;
 /// let margin = 10;
 /// let wgt = foo! {
 ///     margin;
+/// };
+/// # };
+/// # }
+/// ```
+///
+/// ## Custom Rules
+///
+/// You can declare custom rules for the widget macro, the macro matches these rules first before matching the normal widget syntax. This
+/// can be used to declare **custom shorthand** syntax for the widget.
+///
+/// The custom rules are declared inside braces after the widget path in the widget attribute. The syntax is similar to `macro_rules!`
+/// rules, but the expanded tokens are the direct input of the normal widget expansion.
+///
+/// ```txt
+/// (<rule>) => { <init> };
+/// ```
+///
+/// The `<rule>` is any macro pattern rule, the `<init>` is the normal widget init code that the rule expands to.
+///
+/// Note that custom rules are not inherited, they apply only to the declaring widget macro, inherited widgets must replicate
+/// the rules if desired. Also note that the custom rules are inserted before the normal generated rules, so be careful that
+/// you don't intercept the normal widget syntax.
+///
+/// ### Examples
+///
+/// Example of a text widget that declares a shorthand syntax to implicitly set a `txt` property:
+///
+/// ```
+/// #[widget($crate::text {
+///     ($txt:expr) => {
+///         txt = $txt;
+///     };
+/// })]
+/// pub mod text {
+/// #   use zero_ui_core::text::Text;
+/// #    inherit!(zero_ui_core::widget_base::base);
+///     // ..
+///
+///     properties! {
+///         pub txt(impl IntoVar<Text>);
+///     }
+/// }
+///
+/// # fn main() {
+/// let wgt = text!("Hello!");
+/// # }
+/// ```
+///
+/// The macro instance above is equivalent to:
+///
+/// ```
+/// # () => {
+/// let margin = 10;
+/// let wgt = text! {
+///     txt = "Hello!";
 /// };
 /// # };
 /// # }

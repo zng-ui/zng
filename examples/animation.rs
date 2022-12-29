@@ -76,7 +76,7 @@ fn example(vars: &Vars) -> impl UiNode {
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
                     let mode = |m: easing::EasingModifierFn| toggle! {
-                        child = text(m.to_text());
+                        child = text!(m.to_text());
                         value = m;
                     };
                     ui_vec![
@@ -114,7 +114,7 @@ fn example(vars: &Vars) -> impl UiNode {
                 ]
             },
             button! {
-                child = text("reset");
+                child = text!("reset");
                 foreground_highlight = {
                     offsets: -2,
                     widths: 1,
@@ -152,7 +152,7 @@ fn ease_btn(
             spacing = 2;
             children_align = Align::TOP;
             children = ui_vec![
-                text(name.into()),
+                text!(name.into()),
                 image! {
                     img_scale_ppi = true;
                     img_loading_view = view_generator!(|_, _| wgt! {

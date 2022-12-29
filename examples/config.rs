@@ -51,11 +51,11 @@ fn app_main() {
                 spacing = 5;
                 children = ui_vec![
                     toggle! {
-                        child = text(checked.map(|c| formatx!("Checked: {c:?}")));
+                        child = text!(checked.map(|c| formatx!("Checked: {c:?}")));
                         checked = checked.clone();
                     },
                     button! {
-                        child = text(count.map(|c| formatx!("Count: {c:?}")));
+                        child = text!(count.map(|c| formatx!("Count: {c:?}")));
                         on_click = hn!(count, |ctx, _| {
                             count.modify(ctx, |c| *c.to_mut() += 1).unwrap();
                         })
@@ -67,7 +67,7 @@ fn app_main() {
                     },
                     separator(),
                     button! {
-                        child = text("Reset");
+                        child = text!("Reset");
                         on_click = hn!(|ctx, _| {
                             checked.set_ne(ctx, false).unwrap();
                             count.set_ne(ctx, 0).unwrap();
@@ -75,7 +75,7 @@ fn app_main() {
                         })
                     },
                     button! {
-                        child = text("Open Another Instance");
+                        child = text!("Open Another Instance");
                         on_click = hn!(|ctx, _| {
                             let offset= Dip::new(30);
                             let pos = WindowVars::req(ctx).actual_position().get() + DipVector::new(offset, offset);

@@ -829,7 +829,7 @@ pub fn default_footnote_ref_view(args: FootnoteRefViewArgs) -> impl UiNode {
         font_size = 0.7.em();
         offset = (0, (-0.5).em());
         markdown::anchor = formatx!("footnote-ref-{}", args.label);
-        child = text(formatx!("[{}]", args.label));
+        child = text!("[{}]", args.label);
         on_click = hn!(|ctx, args: &ClickArgs| {
             args.propagation().stop();
 
@@ -865,7 +865,7 @@ pub fn default_footnote_def_view(args: FootnoteDefViewArgs) -> impl UiNode {
         markdown::anchor = formatx!("footnote-{}", args.label);
         children = ui_vec![
             link! {
-                child = text(formatx!("[^{}]", args.label));
+                child = text!("[^{}]", args.label);
                 on_click = hn!(|ctx, args: &ClickArgs| {
                     args.propagation().stop();
 

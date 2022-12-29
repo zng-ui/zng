@@ -31,7 +31,7 @@ fn example(mode: HitTestMode) -> impl UiNode {
             println!("Clicked {:?}", mode);
         });
 
-        child = text(formatx!("{:#?}", mode));
+        child = text!("{:#?}", mode);
         padding = 40;
         corner_radius = 40;
         // background_color = colors::GRAY;

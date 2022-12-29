@@ -101,7 +101,7 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
                         background_color = c.clone();
                         size = (16, 16);
                     },
-                    text(c.map_to_text()),
+                    text!(c.map_to_text()),
                 ];
             };
         }
@@ -130,7 +130,7 @@ fn screenshot() -> impl UiNode {
         use std::time::Instant;
         let enabled = var(true);
         button! {
-            child = text(enabled.map(|&enabled| {
+            child = text!(enabled.map(|&enabled| {
                 if enabled {
                     "screenshot".to_text()
                 } else {
@@ -173,7 +173,7 @@ fn screenshot() -> impl UiNode {
 
         let enabled = var(true);
         button! {
-            child = text(enabled.map(|&enabled| {
+            child = text!(enabled.map(|&enabled| {
                 if enabled {
                     "headless".to_text()
                 } else {
@@ -190,7 +190,7 @@ fn screenshot() -> impl UiNode {
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
                         child_align = Align::CENTER;
-                        child = text("No Head!");
+                        child = text!("No Head!");
 
                         frame_capture_mode = FrameCaptureMode::Next;
                         on_frame_image_ready = async_hn_once!(|ctx, args: FrameImageReadyArgs| {
@@ -218,7 +218,7 @@ fn screenshot() -> impl UiNode {
 fn icon(window_vars: &WindowVars) -> impl UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
         toggle! {
-            child = text(label);
+            child = text!(label);
             value = ico;
         }
     };
@@ -261,7 +261,7 @@ fn icon(window_vars: &WindowVars) -> impl UiNode {
 fn chrome(window_vars: &WindowVars) -> impl UiNode {
     let chrome_btn = |c: WindowChrome| {
         toggle! {
-            child = text(formatx!("{c:?}"));
+            child = text!("{c:?}");
             value = c;
         }
     };
@@ -271,7 +271,7 @@ fn chrome(window_vars: &WindowVars) -> impl UiNode {
         ui_vec![
             chrome_btn(WindowChrome::Default),
             chrome_btn(WindowChrome::None),
-            text("TODO custom"),
+            text!("TODO custom"),
         ],
     )
 }
@@ -300,7 +300,7 @@ fn focus_control() -> impl UiNode {
     let enabled = var(true);
     let focus_btn = button! {
         enabled = enabled.clone();
-        child = text("Focus in 5s");
+        child = text!("Focus in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(5.secs()).await;
@@ -315,7 +315,7 @@ fn focus_control() -> impl UiNode {
     let enabled = var(true);
     let critical_btn = button! {
         enabled = enabled.clone();
-        child = text("Critical Alert in 5s");
+        child = text!("Critical Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(5.secs()).await;
@@ -330,7 +330,7 @@ fn focus_control() -> impl UiNode {
     let enabled = var(true);
     let info_btn = button! {
         enabled = enabled.clone();
-        child = text("Info Alert in 5s");
+        child = text!("Info Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
             enabled.set(&ctx, false);
             task::deadline(5.secs()).await;
@@ -348,7 +348,7 @@ fn focus_control() -> impl UiNode {
 fn state(window_vars: &WindowVars) -> impl UiNode {
     let state_btn = |s: WindowState| {
         toggle! {
-            child = text(formatx!("{s:?}"));
+            child = text!("{s:?}");
             value = s;
         }
     };
@@ -364,7 +364,7 @@ fn state(window_vars: &WindowVars) -> impl UiNode {
             separator(),
             state_btn(WindowState::Fullscreen),
             state_btn(WindowState::Exclusive),
-            text("TODO video mode"),
+            text!("TODO video mode"),
         ],
     )
 }
@@ -373,7 +373,7 @@ fn visibility(window_vars: &WindowVars) -> impl UiNode {
     let visible = window_vars.visible();
     let btn = button! {
         enabled = visible.clone();
-        child = text("Hide for 1s");
+        child = text!("Hide for 1s");
         on_click = async_hn!(visible, |ctx, _| {
             visible.set(&ctx, false);
             println!("visible=false");
@@ -392,11 +392,11 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
         "Misc.",
         ui_vec![
             toggle! {
-                child = text("Taskbar Visible");
+                child = text!("Taskbar Visible");
                 checked = window_vars.taskbar_visible().clone();
             },
             toggle! {
-                child = text("Always on Top");
+                child = text!("Always on Top");
                 checked = window_vars.always_on_top().clone();
             },
             separator(),
@@ -405,7 +405,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
             {
                 let mut child_count = 0;
                 button! {
-                    child = text("Open Child Window");
+                    child = text!("Open Child Window");
                     enabled = can_open_windows.clone();
                     on_click = hn!(|ctx, _| {
                         child_count += 1;
@@ -428,7 +428,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
             {
                 let mut other_count = 0;
                 button! {
-                    child = text("Open Other Window");
+                    child = text!("Open Other Window");
                     enabled = can_open_windows;
                     on_click = hn!(|ctx, _| {
                         other_count += 1;
@@ -522,7 +522,7 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
                                 })
                             },
                             button! {
-                                child = text("Cancel");
+                                child = text!("Cancel");
                                 on_click = async_hn!(opacity, state, |ctx, _| {
                                     opacity.ease(&ctx, 0.fct(), 150.ms(), easing::linear).perm();
                                     ctx.yield_one().await;
@@ -544,7 +544,7 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
 
 fn cmd_btn(cmd: Command) -> impl UiNode {
     button! {
-        child = text(cmd.name_with_shortcut());
+        child = text!(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {

@@ -44,7 +44,7 @@ fn main() {
 
 fn respawn() -> impl UiNode {
     button! {
-        child = text("Respawn (F5)");
+        child = text!("Respawn (F5)");
         on_click = hn!(|ctx, _| {
             ViewProcess::req(ctx.services).respawn();
         });
@@ -54,7 +54,7 @@ fn respawn() -> impl UiNode {
 #[cfg(debug_assertions)]
 fn crash_respawn() -> impl UiNode {
     button! {
-        child = text("Crash View-Process");
+        child = text!("Crash View-Process");
         on_click = hn!(|ctx, _| {
             ViewProcess::req(ctx.services).crash_view_process();
         });
@@ -71,7 +71,7 @@ fn click_counter() -> impl UiNode {
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(ctx, new_txt);
         });
-        child = text(t);
+        child = text!(t);
     }
 }
 
@@ -91,7 +91,7 @@ fn window_status(ctx: &mut WindowContext) -> impl UiNode {
 
     macro_rules! status {
         ($name:ident) => {
-            text(vars.$name().map(|v| formatx!("{}: {v:?}", stringify!($name))))
+            text!(vars.$name().map(|v| formatx!("{}: {v:?}", stringify!($name))))
         };
     }
 
@@ -120,6 +120,6 @@ fn icon() -> impl UiNode {
         font_size = 28;
         font_weight = FontWeight::BOLD;
         child_align = Align::CENTER;
-        child = text("R");
+        child = text!("R");
     }
 }

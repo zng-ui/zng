@@ -43,7 +43,7 @@ fn run() {
                 size = (300, 200);
                 align = Align::CENTER;
                 font_size = 28;
-                child = text("Click Me!");
+                child = text!("Click Me!");
             }
         }
     })

@@ -383,7 +383,7 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///         background_color = rgb(0, 255, 0);
 ///         // fixed size ignores the layout available size.
 ///         size = (1000, 1000);
-///         child = text("1000x1000 green clipped to 200x300");
+///         child = text!("1000x1000 green clipped to 200x300");
 ///     };
 /// }
 /// # ;

@@ -37,13 +37,13 @@ fn app_main() {
                                 txt = "Lorem 1";
                                 font_size = 20;
                             },
-                            text(ipsum()),
+                            text!(ipsum()),
                             text! {
                                 id = "Lorem 2";
                                 txt = "Lorem 2";
                                 font_size = 20;
                             },
-                            text(ipsum())
+                            text!(ipsum())
                         ];
                     }
                 },
@@ -94,7 +94,7 @@ fn commands() -> impl UiNode {
                 ]
             },
             button! {
-                child = text(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
+                child = text!(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
                 margin = show.map(|s| if !s { 0.into() } else { (3, 0, 0, 0).into() });
                 on_click = hn!(|ctx, _| {
                     show.modify(ctx, |s| *s.to_mut() = !**s);
@@ -109,7 +109,7 @@ fn commands() -> impl UiNode {
 fn cmd_btn(cmd: Command) -> impl UiNode {
     let cmd = cmd.scoped(WidgetId::named("scroll"));
     button! {
-        child = text(cmd.name_with_shortcut());
+        child = text!(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         // visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
@@ -126,7 +126,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = commands::SCROLL_TO_CMD.scoped(scroll);
     button! {
-        child = text(formatx!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" }));
+        child = text!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
         on_click = hn!(|ctx, _| {
             commands::scroll_to(ctx, scroll, target, mode.clone());

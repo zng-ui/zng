@@ -16,7 +16,7 @@ use zero_ui::prelude::new_property::*;
 /// # let _scope = App::minimal();
 /// button! {
 ///     margin = 10;
-///     child = text("Click Me!")
+///     child = text!("Click Me!")
 /// }
 /// # ;
 /// ```
@@ -30,7 +30,7 @@ use zero_ui::prelude::new_property::*;
 /// container! {
 ///     child = button! {
 ///         margin = (10, 5.pct());
-///         child = text("Click Me!")
+///         child = text!("Click Me!")
 ///     };
 ///     margin = (1, 2, 3, 4);
 /// }
@@ -98,7 +98,7 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 /// container! {
 ///     child = button! {
 ///         align = Align::TOP;
-///         child = text("Click Me!")
+///         child = text!("Click Me!")
 ///     };
 /// }
 /// # ;
@@ -160,7 +160,7 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 ///
 /// button! {
 ///     offset = (100, 20.pct());
-///     child = text("Click Me!")
+///     child = text!("Click Me!")
 /// }
 /// # ;
 /// ```
@@ -218,7 +218,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 ///
 /// button! {
 ///     x = 20.pct();
-///     child = text("Click Me!")
+///     child = text!("Click Me!")
 /// };
 /// # ;
 /// ```
@@ -273,7 +273,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// button! {
 ///     y = 20.pct();
-///     child = text("Click Me!")
+///     child = text!("Click Me!")
 /// }
 /// # ;
 /// ```
@@ -334,7 +334,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// # let label = formatx!("");
 ///
 /// button! {
-///     child = text(label);
+///     child = text!(label);
 ///     min_size = (100, 50);
 /// }
 /// # ;
@@ -405,7 +405,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// # let label = formatx!("");
 ///
 /// button! {
-///     child = text(label);
+///     child = text!(label);
 ///     min_width = 100;
 /// }
 /// # ;
@@ -474,7 +474,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text("");
+/// # let btn_content = text!("");
 /// #
 /// button! {
 ///     child = btn_content;
@@ -546,7 +546,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text("");
+/// # let btn_content = text!("");
 /// #
 /// button! {
 ///     child = btn_content;
@@ -617,7 +617,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text("");
+/// # let btn_content = text!("");
 ///
 /// button! {
 ///     child = btn_content;
@@ -691,7 +691,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text("");
+/// # let btn_content = text!("");
 ///
 /// button! {
 ///     child = btn_content;
@@ -767,7 +767,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// button! {
 ///     background_color = rgb(255, 0, 0);
 ///     size = (200, 300);
-///     child = text("200x300 red");
+///     child = text!("200x300 red");
 /// }
 /// # ;
 /// ```
@@ -843,7 +843,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// button! {
 ///     background_color = rgb(255, 0, 0);
 ///     width = 200;
-///     child = text("200x? red");
+///     child = text!("200x? red");
 /// }
 /// # ;
 /// ```
@@ -917,7 +917,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// button! {
 ///     background_color = rgb(255, 0, 0);
 ///     height = 300;
-///     child = text("?x300 red");
+///     child = text!("?x300 red");
 /// }
 /// # ;
 /// ```

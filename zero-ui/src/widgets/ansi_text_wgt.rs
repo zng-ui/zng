@@ -520,7 +520,7 @@ mod ansi_view {
     /// Returns a `wrap!` for text with multiple segments, or returns the single segment, or an empty text.
     pub fn default_line_view(mut args: LineViewArgs) -> impl UiNode {
         if args.text.is_empty() {
-            crate::widgets::text("").boxed()
+            crate::widgets::text!("").boxed()
         } else if args.text.len() == 1 {
             args.text.remove(0)
         } else {

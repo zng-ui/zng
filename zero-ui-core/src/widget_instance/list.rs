@@ -19,7 +19,7 @@ use super::*;
 /// ```
 /// # use zero_ui_core::widget_instance::*;
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl UiNode { NilUiNode  };
+/// #fn text(fake: &str) -> impl UiNode { NilUiNode  };
 /// # use text as foo;
 /// # use text as bar;
 /// let widgets = ui_vec![

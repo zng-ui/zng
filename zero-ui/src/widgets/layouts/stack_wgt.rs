@@ -30,9 +30,9 @@ use direction::*;
 ///     align = Align::CENTER;
 ///     children_align = Align::FILL;
 ///     children = ui_vec![
-///         text("one"),
-///         text("two"),
-///         text("three"),
+///         text!("one"),
+///         text!("two"),
+///         text!("three"),
 ///     ];
 /// };
 /// ```
@@ -323,8 +323,8 @@ impl StackNode {
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// let text = h_stack(ui_vec![
-///     text("Hello "),
-///     text("World"),
+///     text!("Hello "),
+///     text!("World"),
 /// ]);
 /// ```
 ///
@@ -346,8 +346,8 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// let text = v_stack(ui_vec![
-///     text("Hello "),
-///     text("World"),
+///     text!("Hello "),
+///     text!("World"),
 /// ]);
 /// ```
 ///
@@ -369,8 +369,8 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// let text = z_stack(ui_vec![
-///     text("Hello "),
-///     text("World"),
+///     text!("Hello "),
+///     text!("World"),
 /// ]);
 /// ```
 ///

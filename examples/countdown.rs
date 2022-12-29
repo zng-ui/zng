@@ -39,7 +39,7 @@ fn app_main() {
 
             background_color = bkg.easing(150.ms(), easing::linear);
 
-            child = text(count.map(|&n| {
+            child = text!(count.map(|&n| {
                 let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
                 println!("{r}");
                 r
@@ -56,7 +56,7 @@ fn app_main() {
 
                 background_color = bkg.clone();
 
-                child = text(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
+                child = text!(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
             });
         }
     })

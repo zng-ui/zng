@@ -81,7 +81,7 @@ fn app_main() {
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     font_size = 24;
                                     child_align = Align::CENTER;
-                                    child = text("Rendered!");
+                                    child = text!("Rendered!");
                                 })
                             },
                             // sub_title("AVIF"),
@@ -209,7 +209,7 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
         align = Align::CENTER;
         children = ui_vec![
             button! {
-                child = text(label.clone());
+                child = text!(label.clone());
                 align = Align::CENTER;
                 padding = (2, 3);
                 on_click = hn!(timer, |ctx, _| {
@@ -244,7 +244,7 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
 
 fn large_image() -> impl UiNode {
     button! {
-        child = text("Large Image (205MB download)");
+        child = text!("Large Image (205MB download)");
         on_click = hn!(|ctx, _| {
             Windows::req(ctx.services).open(|_|img_window(
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
@@ -263,7 +263,7 @@ fn large_image() -> impl UiNode {
 
 fn panorama_image() -> impl UiNode {
     button! {
-        child = text("Panorama Image (100MB download)");
+        child = text!("Panorama Image (100MB download)");
         on_click = hn!(|ctx, _| {
             Windows::req(ctx.services).open(|_|img_window(
                 "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
@@ -286,7 +286,7 @@ fn panorama_image() -> impl UiNode {
 fn block_window_load_image() -> impl UiNode {
     let enabled = var(true);
     button! {
-        child = text(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
+        child = text!(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
         enabled = enabled.clone();
         on_click = hn!(|ctx, _| {
             enabled.set(ctx, false);

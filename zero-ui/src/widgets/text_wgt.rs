@@ -16,10 +16,41 @@ mod text_properties;
 ///     txt = "Hello!";
 /// };
 /// ```
-/// # As Function
+/// # Shorthand
 ///
-/// If you don't need to configure the text, you can just use the function [`text`](fn@text).
-#[widget($crate::widgets::text)]
+/// The `text!` macro provides shorthand syntax that matches the [`formatx!`] input, but outputs a text widget:
+///
+/// ```
+/// # use zero_ui::prelude::text;
+/// let txt = text!("Hello!");
+///
+/// let name = "World";
+/// let fmt = text!("Hello {}!", name);
+/// ```
+///
+/// The code abode is equivalent to:
+///
+/// ```
+/// # use zero_ui::prelude::text;
+/// let txt = text! {
+///     txt = "Hello!";
+/// };
+///
+/// let name = "World";
+/// let fmt = text! {
+///     txt = formatx!("Hello {}!", name);
+/// };
+/// ```
+///
+/// [`formatx!`]: crate::core::text::formatx!
+#[widget($crate::widgets::text {
+    ($txt:expr) => {
+        txt = $txt;
+    };
+    ($txt:tt, $($format:tt)*) => {
+        txt = $crate::core::text::formatx!($txt, $($format)*);
+    };
+})]
 pub mod text {
     use crate::prelude::new_widget::*;
 
@@ -61,38 +92,6 @@ pub mod text {
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
         });
     }
-}
-
-/// Simple text run.
-///
-/// # Configure
-///
-/// Text spans can be configured by setting [`font_family`], [`font_size`] and other properties in parent widgets.
-///
-/// # Examples
-///
-/// ```
-/// # fn main() -> () {
-/// use zero_ui::widgets::{container, text, text::{font_family, font_size}};
-///
-/// let hello_txt = container! {
-///     font_family = "Arial";
-///     font_size = 18;
-///     child = text("Hello!");
-/// };
-/// # }
-/// ```
-///
-/// # `text!`
-///
-/// There is a specific widget for creating configured text runs: [`text!`].
-///
-/// [`font_family`]: fn@crate::widgets::text::font_family
-/// [`font_size`]: fn@crate::widgets::text::font_size
-/// [`text_color`]: fn@crate::widgets::text::text_color
-/// [`text!`]: mod@text
-pub fn text(txt: impl IntoVar<Text>) -> impl UiNode {
-    text! { txt; }
 }
 
 /// A simple text run with **bold** font weight.

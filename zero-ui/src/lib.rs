@@ -44,7 +44,7 @@
 //!                 size = (300, 200);
 //!                 align = Align::CENTER;
 //!                 font_size = 28;
-//!                 child = text("Click Me!");
+//!                 child = text!("Click Me!");
 //!             }
 //!         }
 //!     })
@@ -61,7 +61,7 @@
 //! # let _scope = App::minimal();
 //! button! {
 //!     on_click = hn!(|_, _| println!("Clicked!"));
-//!     child = text("Click Me!");
+//!     child = text!("Click Me!");
 //!     font_size = 28;
 //! }
 //! # ;
@@ -96,12 +96,12 @@
 //!     margin = 10;
 //! };
 //!
-//! let text_b = text("Hello!");
+//! let text_b = text!("Hello!");
 //! ```
 //!
 //! The example instantiate two [`text!`] widgets, `text_a` uses the full macro, the `text` and `color` properties are mentioned in
-//! widget documentation but `background_gradient` and `margin` are not. The `text_b` demonstrates the shorthand function [`text()`]
-//! that for assigning the `text` property directly.
+//! widget documentation but `background_gradient` and `margin` are not. The `text_b` demonstrates the shorthand syntax [`text!("")`]
+//! that for assigning the `txt` property directly.
 //!
 //! This crate provides most of the common widgets in the **[`zero_ui::widgets`]** module. That module documentation also explains widgets
 //! in detail.
@@ -133,7 +133,7 @@
 //! # fn main() {
 //! # let _scope = App::minimal();
 //! let btn = red_button! {
-//!     child = text("!");
+//!     child = text!("!");
 //!     on_click = hn!(|_, _| println!("Alert!"));
 //! };
 //! # }
@@ -154,9 +154,9 @@
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 5;
 //!     children = ui_vec![
-//!         button! { child = text("New") },
-//!         button! { child = text("Load") },
-//!         button! { child = text("Save") },
+//!         button! { child = text!("New") },
+//!         button! { child = text!("Load") },
+//!         button! { child = text!("Save") },
 //!     ];
 //! };
 //! ```
@@ -273,7 +273,7 @@
 //!     on_click = hn!(|ctx, _| {
 //!         offset.modify(ctx, |m|m.to_mut().left += 50.0);
 //!     });
-//!     child = text("Click to Move!")
+//!     child = text!("Click to Move!")
 //! };
 //! ```
 //!
@@ -292,7 +292,7 @@
 //! # let _scope = App::minimal();
 //! let flag = var(false);
 //! let btn = button! {
-//!     child = text(flag.map_to_text());
+//!     child = text!(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
 //!         flag.set(ctx.vars, !flag.get());
 //!     });
@@ -318,7 +318,7 @@
 //! # let _scope = App::minimal();
 //! let flag = var(false);
 //! let btn = button! {
-//!     child = text(flag.map_to_text());
+//!     child = text!(flag.map_to_text());
 //!     on_click = hn!(|ctx, _| {
 //!         let new_value = !flag.get();
 //!         // 3 methods doing the same thing.
@@ -341,7 +341,7 @@
 //! # let _scope = App::minimal();
 //! let count = var(0u32);
 //! let clicker = button! {
-//!     child = text(count.map(|c| {
+//!     child = text!(count.map(|c| {
 //!         match c {
 //!             0 => "Click Me!".to_text(),
 //!             1 => "Clicked 1 Time!".to_text(),
@@ -378,7 +378,7 @@
 //!     handle.perm();
 //!     window! {
 //!         child = button! {
-//!             child = text(count_text);
+//!             child = text!(count_text);
 //!             on_click = hn!(|ctx, _| {
 //!                 count.modify(ctx, |c| *c.to_mut() += 1);
 //!             });
@@ -413,7 +413,7 @@
 //!
 //! let start_btn = button! {
 //!     // content derived from the status.
-//!     child = text(task_status.map(|s| match s {
+//!     child = text!(task_status.map(|s| match s {
 //!         Status::Idle => "Start".to_text(),
 //!         Status::Info(t) => t.clone()
 //!     }));
@@ -471,7 +471,7 @@
 //!         count += 1;
 //!         println!("Clicked {count} time{}", if count > 1 { "s" } else { "" });
 //!     });
-//!     child = text("Click Me!");
+//!     child = text!("Click Me!");
 //! }
 //! # ;
 //! ```
@@ -491,7 +491,7 @@
 //!     assert_eq!(1, count);
 //!     drop(data);
 //! });
-//! #   child = text("Click Me!");
+//! #   child = text!("Click Me!");
 //! # }
 //! # ;
 //! ```
@@ -508,7 +508,7 @@
 //!     args.propagation().stop();
 //!     println!("Click handled by {}", args.target);
 //! });
-//! #   child = text("Click Me!");
+//! #   child = text!("Click Me!");
 //! # }
 //! # ;
 //! ```
@@ -525,7 +525,7 @@
 //!     on_click = hn!(count, |ctx, _| {
 //!         count.modify(ctx, |c| *c.to_mut() += 1);
 //!     });
-//!     child = text(count.map_to_text());
+//!     child = text!(count.map_to_text());
 //! }
 //! # ;
 //! ```
@@ -552,7 +552,7 @@
 //!             Err(e) => status.set(&ctx, e.to_text()),
 //!         }
 //!     });
-//!#    child = text("Save");
+//!#    child = text!("Save");
 //! }
 //! # ;
 //! ```
@@ -572,7 +572,7 @@
 //!             status.set(&ctx, "Done.");
 //!         }
 //!     });
-//!#    child = text("Run");
+//!#    child = text!("Run");
 //! }
 //! # ;
 //! ```
@@ -594,7 +594,7 @@
 //!     on_click = async_hn_once!(|ctx, _| {
 //!         task::wait(move || std::fs::write("data.bin", data)).await;
 //!     });
-//!#    child = text("Save");
+//!#    child = text!("Save");
 //! }
 //! # ;
 //! ```
@@ -618,7 +618,7 @@
 //!         assert!(!a.is_double());
 //!         println!("Clicked!");
 //!     });
-//! #   child = text("!");
+//! #   child = text!("!");
 //! }
 //! # ;
 //! ```
@@ -644,7 +644,7 @@
 //!             on_pre_click = hn!(|_, _| println!("button.on_pre_click"));
 //!             on_click = hn!(|_, _| println!("button.on_click"));
 //!
-//!             child = text("Click Me!");
+//!             child = text!("Click Me!");
 //!         };
 //!     };
 //! }
@@ -682,7 +682,7 @@
 //! #
 //! button! {
 //!     on_click = hn!(|ctx, _| COPY_CMD.notify(ctx));
-//!     child = text(COPY_CMD.name());
+//!     child = text!(COPY_CMD.name());
 //!     enabled = COPY_CMD.is_enabled();
 //!     visibility = COPY_CMD.has_handlers().map_into();
 //! }
@@ -739,10 +739,10 @@
 //! # let _scope = App::minimal();
 //! # let _ =
 //! button! {
-//!     child = text("Open Window");
+//!     child = text!("Open Window");
 //!     on_click = hn!(|ctx, _| {
 //!         Windows::req(ctx).open(|_| window! {
-//!             child = text("Hello!");
+//!             child = text!("Hello!");
 //!         });
 //!     });
 //! }

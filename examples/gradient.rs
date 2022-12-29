@@ -170,7 +170,7 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_vec![
-            text(name),
+            text!(name),
             container! {
                 size = (180, 180);
                 child = gradient;
@@ -195,6 +195,6 @@ fn icon() -> impl UiNode {
         font_size = 28;
         font_weight = FontWeight::BOLD;
         child_align = Align::CENTER;
-        child = text("G");
+        child = text!("G");
     }
 }

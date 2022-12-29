@@ -306,7 +306,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                 link! {
                     focus_on_init = true;
 
-                    child = text(url);
+                    child = text!(url);
                     underline_skip = UnderlineSkip::SPACES;
 
                     on_blur = async_hn_once!(status, |ctx, _| {
@@ -383,7 +383,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                         });
                     });
                 },
-                text(" 🡵"),
+                text!(" 🡵"),
             ];
         }
     };

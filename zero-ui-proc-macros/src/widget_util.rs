@@ -859,3 +859,43 @@ impl Parse for UnamedArgs {
         })
     }
 }
+
+pub struct WidgetCustomRules {
+    pub rules: Vec<WidgetCustomRule>,
+}
+impl Parse for WidgetCustomRules {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        let inner;
+        braced!(inner in input);
+        let mut rules = vec![];
+        while !inner.is_empty() {
+            rules.push(inner.parse()?);
+        }
+        Ok(WidgetCustomRules { rules })
+    }
+}
+
+/// Represents a custom widget macro rule.
+pub struct WidgetCustomRule {
+    /// Rule tokens, `(<rule>) => { .. };`.
+    pub rule: TokenStream,
+    /// Init tokens, `(..) => { <init> };`
+    pub init: TokenStream,
+}
+impl Parse for WidgetCustomRule {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        let rule;
+        parenthesized!(rule in input);
+        let rule = rule.parse()?;
+
+        let _ = input.parse::<Token![=>]>()?;
+
+        let init;
+        braced!(init in input);
+        let init = init.parse()?;
+
+        let _ = input.parse::<Token![;]>()?;
+
+        Ok(WidgetCustomRule { rule, init })
+    }
+}
