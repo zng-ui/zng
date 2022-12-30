@@ -26,7 +26,7 @@ mod text_properties;
 ///
 /// let name = "World";
 /// let fmt = text!("Hello {}!", name);
-/// 
+///
 /// let expr = text!({
 ///     let mut s = String::new();
 ///     s.push('a');
@@ -46,7 +46,7 @@ mod text_properties;
 /// let fmt = text! {
 ///     txt = zero_ui::core::text::formatx!("Hello {}!", name);
 /// };
-/// 
+///
 /// let expr = text! {
 ///     txt = {
 ///         let mut s = String::new();

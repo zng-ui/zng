@@ -259,91 +259,47 @@ impl WidgetInfoBuilder {
     }
 }
 
-/// Represents the return info of widgets that support the inline layout.
+/// Info about the input inline connecting rows of the widget.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct InlineLayout {
-    /// Bounds of the node that sets inline points.
-    ///
-    /// Parents that do inline placement only consider a widget inline if the outer-bounds match these bounds.
-    pub bounds: PxSize,
+pub struct WidgetInlineMeasure {
+    /// Maximum fill width possible on the first row.
+    pub first_max_fill: Px,
+    /// Maximum fill width possible on the last row.
+    pub last_max_fill: Px,
 
-    /// Point from the outer-bounds top-left corner that defines the bottom-left of the first line.
-    ///
-    /// Parents that do inline placement use this to offset the widget so it *flows* inline. Inlining parents
-    /// can also clip the area from the `block` top-left to this point.
-    pub first_row: PxPoint,
-    /// Point from the outer-bounds top-left corner that defines the last line's top-right corner.
-    ///
-    /// Parents that do inline placement use this to offset the next sibling widget. Inlining parents
-    /// can also clip the area from this point to the `block` bottom-right.
-    pub last_row: PxPoint,
+    /// Offset from the bottom of the first row, positive up, that is the baseline of the first item in the row.
+    pub first_baseline: Px,
+    /// Offset from the bottom of the last row, positive up, that is the baseline of the last item in the row.
+    pub last_baseline: Px,
 
-    /// Height above `last_line.y` that is just wgt space in between lines.
+    /// Preferred first size.
     ///
-    /// Panels that insert inter-row spacing can use this to *collapse* the spacing between inline items to avoid double spacing.
+    /// In left-to-right direction the origin is `top_left`, in right-to-left direction the origin is `top_right - first.width`.
+    pub first: PxSize,
+
+    /// Preferred last size.
     ///
-    /// Note that inter-column spacing is fully controlled by the parent panel, inline items must not include *dangling* space to
-    /// the `last_row.x`.
-    pub last_row_spacing: Px,
+    /// In left-to-right direction the origin is `bottom_left - last.height`, in right-to-left direction
+    /// the origin is `bottom_right - last`.
+    pub last: PxSize,
 }
-impl InlineLayout {
-    /// Compute last line rectangle with origin top-left relative to bounds.
-    pub fn first_rect(self) -> PxRect {
-        PxRect::new(
-            PxPoint::new(self.first_row.x, Px(0)),
-            PxSize::new(self.bounds.width - self.first_row.x, self.first_row.y),
-        )
-    }
 
-    /// Compute the rectangle of the are in between the first and last line.
-    pub fn middle_rect(self) -> PxRect {
-        PxRect::new(
-            PxPoint::new(Px(0), self.first_row.y),
-            PxSize::new(self.bounds.width, self.bounds.height - self.first_row.y - self.last_row.y),
-        )
-    }
-
-    /// Compute last line rectangle with origin top-left relative to bounds.
-    pub fn last_rect(self) -> PxRect {
-        PxRect::new(
-            PxPoint::new(Px(0), self.last_row.y),
-            PxSize::new(self.last_row.x, self.bounds.height - self.last_row.y),
-        )
-    }
-
-    /// Set the layout to fill the full bounds.
-    pub fn set_block(&mut self, bounds: PxSize) {
-        self.bounds = bounds;
-        self.first_row = PxPoint::zero();
-        self.last_row = self.bounds.to_vector().to_point();
-        self.last_row_spacing = Px(0);
-    }
+/// Info about the inlined rows of the widget.
+#[derive(Clone, Debug, Default)]
+pub struct WidgetInlineInfo {
+    /// Last layout rows of the widget.
+    pub rows: Vec<PxRect>,
 }
 
 /// Represents the in-progress measure pass for a widget tree.
 #[derive(Default)]
 pub struct WidgetMeasure {
-    inline: Option<InlineLayout>,
+    inline: Option<WidgetInlineMeasure>,
 }
 impl WidgetMeasure {
     /// New default.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Calls `measure` and captures inline information.
-    ///
-    /// A value of [`InlineLayout`] is only returned if the [`InlineLayout::bounds`] match the returned bounds and [`disable_inline`]
-    /// was not called inside `measure`.
-    ///
-    /// [`disable_inline`]: Self::disable_inline
-    pub fn with_inline(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> (Option<InlineLayout>, PxSize) {
-        let prev = self.inline.replace(InlineLayout::default());
-
-        let r = measure(self);
-        let inline = mem::replace(&mut self.inline, prev);
-
-        (inline, r)
     }
 
     /// If the parent widget is doing inline flow layout.
@@ -353,11 +309,10 @@ impl WidgetMeasure {
 
     /// Mutable reference to the current widget's inline info.
     ///
-    /// The widget must set this to be inlined in the parent layout, otherwise it will be treated like a
-    /// *block* or *inline-block*.
+    /// The widget must configure this to be inlined in parent layout. This is only `Some(_)` if inline is enabled.
     ///
-    /// See [`InlineLayout`] for more details.
-    pub fn inline(&mut self) -> Option<&mut InlineLayout> {
+    /// See [`WidgetInlineInfo`] for more details.
+    pub fn inline(&mut self) -> Option<&mut WidgetInlineMeasure> {
         self.inline.as_mut()
     }
 
@@ -405,29 +360,6 @@ impl WidgetMeasure {
                     return ctx.widget_info.bounds.measure_outer_size();
                 }
             }
-
-            let layout_uses = ctx.widget_info.bounds.metrics_used();
-            if ctx
-                .widget_info
-                .bounds
-                .metrics()
-                .map(|m| m.masked_eq(&snap, layout_uses))
-                .unwrap_or(false)
-            {
-                let mut reused = false;
-                if let Some(inline) = self.inline() {
-                    if let Some(prev) = ctx.widget_info.bounds.inline() {
-                        *inline = prev;
-                        reused = true;
-                    }
-                } else {
-                    reused = ctx.widget_info.bounds.inline().is_none();
-                }
-
-                if reused {
-                    return ctx.widget_info.bounds.outer_size();
-                }
-            }
         }
 
         let parent_uses = ctx.metrics.enter_widget_ctx();
@@ -437,7 +369,7 @@ impl WidgetMeasure {
         let measure_uses = ctx.metrics.exit_widget_ctx(parent_uses);
         ctx.widget_info.bounds.set_measure_metrics(Some(snap), measure_uses);
         ctx.widget_info.bounds.set_measure_outer_size(size);
-        ctx.widget_info.bounds.set_measure_inline(self.inline);
+        ctx.widget_info.bounds.set_measure_inline(self.inline.take());
 
         size
     }
@@ -445,11 +377,11 @@ impl WidgetMeasure {
 
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
-    wm: WidgetMeasure,
     t: WidgetLayoutTranslation,
     known_collapsed: bool,
     known_child_offset_changed: i32,
     child_offset_changed: i32,
+    inline: Option<WidgetInlineInfo>,
 }
 impl WidgetLayout {
     // # Requirements
@@ -480,7 +412,6 @@ impl WidgetLayout {
         layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
     ) -> PxSize {
         let mut wl = Self {
-            wm: WidgetMeasure { inline: None },
             t: WidgetLayoutTranslation {
                 pass_id,
                 offset_buf: PxVector::zero(),
@@ -493,6 +424,7 @@ impl WidgetLayout {
             known_collapsed: false,
             known_child_offset_changed: 0,
             child_offset_changed: 0,
+            inline: None,
         };
         let size = wl.with_widget(ctx, false, layout);
         wl.finish_known();
@@ -548,8 +480,8 @@ impl WidgetLayout {
 
         if reuse && ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
             size = ctx.widget_info.bounds.outer_size();
-            if let Some(inline) = self.inline() {
-                if let Some(prev) = ctx.widget_info.bounds.inline() {
+            if let Some(inline) = self.inline.as_mut() {
+                if let Some(prev) = ctx.widget_info.bounds.take_inline() {
                     *inline = prev;
                     reused = true;
                 }
@@ -559,12 +491,16 @@ impl WidgetLayout {
         }
 
         if !reused {
+            if self.inline.is_none() && ctx.inline_constrains().is_some() {
+                self.inline = Some(Default::default());
+            }
+
             let parent_uses = ctx.metrics.enter_widget_ctx();
             size = layout(ctx, self);
             uses = ctx.metrics.exit_widget_ctx(parent_uses);
 
             ctx.widget_info.bounds.set_outer_size(size);
-            ctx.widget_info.bounds.set_inline(self.wm.inline);
+            ctx.widget_info.bounds.set_inline(self.inline.take());
         }
 
         ctx.widget_info.bounds.set_metrics(Some(snap), uses);
@@ -722,25 +658,19 @@ impl WidgetLayout {
             bounds.set_outer_offset(PxVector::zero());
         }
 
-        let mut wl = WidgetLayout {
-            wm: WidgetMeasure { inline: None },
-            t: WidgetLayoutTranslation {
-                pass_id: self.pass_id,
-                offset_buf: PxVector::zero(),
-                offset_baseline: false,
-                can_auto_hide: true,
-                baseline: Px(0),
-                known: Some(bounds),
-                known_target: KnownTarget::Outer,
-            },
-            known_collapsed: false,
-            known_child_offset_changed: 0,
-            child_offset_changed: 0,
+        let mut wl = WidgetLayoutTranslation {
+            pass_id: self.pass_id,
+            offset_buf: PxVector::zero(),
+            offset_baseline: false,
+            can_auto_hide: true,
+            baseline: Px(0),
+            known: Some(bounds),
+            known_target: KnownTarget::Outer,
         };
 
         let size = translate(&mut wl, target);
 
-        self.child_offset_changed += wl.t.known.unwrap().end_pass();
+        self.child_offset_changed += wl.known.unwrap().end_pass();
 
         size
     }
@@ -847,49 +777,24 @@ impl WidgetLayout {
         }
     }
 
-    /// Calls `layout` and captures inline information.
+    /// If the parent widget is doing inline layout and this widget signaled that it can support this
+    /// during measure.
     ///
-    /// A value of [`InlineLayout`] is only returned if the [`InlineLayout::bounds`] match the returned bounds and [`disable_inline`]
-    /// was not called inside `layout`.
-    ///
-    /// [`disable_inline`]: Self::disable_inline
-    pub fn with_inline(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (Option<InlineLayout>, PxSize) {
-        let prev = self.wm.inline.replace(InlineLayout::default());
-
-        let r = layout(self);
-        let mut inline = mem::replace(&mut self.wm.inline, prev);
-        if let Some(l) = inline {
-            if l.bounds != r || l.bounds.is_empty() {
-                inline = None;
-            }
-        }
-
-        (inline, r)
-    }
-
-    /// If the parent widget is doing inline flow layout.
+    /// See [`WidgetMeasure::inline`] for more details.
     pub fn is_inline(&self) -> bool {
-        self.wm.is_inline()
+        self.inline.is_some()
     }
 
     /// Mutable reference to the current widget's inline info.
     ///
-    /// The widget must set this to be inlined in the parent layout, otherwise it will be treated like a
-    /// *block* or *inline-block*.
+    /// If the parent widget is doing inline layout and this widget signaled that it can support this
+    /// during measure. You can use [`WidgetMeasure::disable_inline`] in the measure pass to layout as inline-block.
     ///
-    /// See [`InlineLayout`] for more details.
-    pub fn inline(&mut self) -> Option<&mut InlineLayout> {
-        self.wm.inline()
-    }
-
-    /// Sets [`is_inline`] to `false`.
+    /// When this is `Some(_)` the [`LayoutMetrics::inline_constrains`] is also `Some(_)`.
     ///
-    /// Must be called before child delegation, otherwise children that inline may render expecting to fit in
-    /// the inline flow.
-    ///
-    /// [`is_inline`]: Self::is_inline
-    pub fn disable_inline(&mut self) {
-        self.wm.disable_inline()
+    /// See [`WidgetInlineInfo`] for more details.
+    pub fn inline(&mut self) -> Option<&mut WidgetInlineInfo> {
+        self.inline.as_mut()
     }
 }
 impl ops::Deref for WidgetLayout {

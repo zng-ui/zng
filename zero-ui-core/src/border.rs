@@ -720,7 +720,6 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
         clip_bounds: PxSize,
         clip_corners: PxCornerRadius,
-        clip_inline: (PxPoint, PxPoint),
 
         offset: PxVector,
         offset_id: SpatialFrameId,
@@ -777,18 +776,6 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 t.translate(self.offset);
             });
 
-            let clip_inline = if let Some(inline) = wl.inline() {
-                if inline.bounds.height > fill_bounds.height {
-                    inline.last_row.y -= inline.bounds.height - fill_bounds.height;
-                }
-                (inline.first_row, inline.last_row)
-            } else {
-                Default::default()
-            };
-            if self.clip_inline != clip_inline {
-                self.clip_inline = clip_inline;
-            }
-
             fill_bounds
         }
 
@@ -803,15 +790,10 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                             c.push_clip_rect(bounds, false, false);
                         }
 
-                        if self.clip_inline.1 != PxPoint::zero() {
-                            if self.clip_inline.0 != PxPoint::zero() {
-                                c.push_clip_rect(PxRect::new(bounds.origin, self.clip_inline.0.to_vector().to_size()), true, false);
+                        if let Some(inline) = ctx.widget_info.bounds.inline() {
+                            for r in inline.rows.iter() {
+                                c.push_clip_rect(*r, true, false);
                             }
-
-                            let mut last = bounds.to_box2d();
-                            last.min += self.clip_inline.1.to_vector();
-                            let last = last.to_rect();
-                            c.push_clip_rect(last, true, false);
                         }
                     },
                     |f| self.child.render(ctx, f),
@@ -834,7 +816,6 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         child: content.cfg_boxed(),
         clip_bounds: PxSize::zero(),
         clip_corners: PxCornerRadius::zero(),
-        clip_inline: (PxPoint::zero(), PxPoint::zero()),
         offset: PxVector::zero(),
         offset_id: SpatialFrameId::new_unique(),
     }

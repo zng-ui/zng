@@ -620,7 +620,7 @@ bitflags! {
 
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
-        /// The `constrains`.
+        /// The [`LayoutMetrics::constrains`] and [`LayoutMetrics::inline_constrains`].
         const CONSTRAINS = 1 << 30;
 
         /// The [`LayoutMetrics::font_size`].
@@ -633,12 +633,10 @@ bitflags! {
         const VIEWPORT = 1 << 3;
         /// The [`LayoutMetrics::screen_ppi`].
         const SCREEN_PPI = 1 << 4;
-        /// The [`LayoutMetrics::inline_advance`].
-        const INLINE_ADVANCE = 1 << 5;
         /// The [`LayoutMetrics::direction`].
-        const DIRECTION = 1 << 6;
+        const DIRECTION = 1 << 5;
         /// The [`LayoutMetrics::leftover`] and [`LayoutMetrics::leftover_count`].
-        const LEFTOVER = 1 << 7;
+        const LEFTOVER = 1 << 6;
     }
 }
 impl Default for LayoutMask {

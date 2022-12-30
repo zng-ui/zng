@@ -244,24 +244,13 @@ pub fn foreground_highlight(
             let offsets = self.offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             let radius = radius.deflate(offsets);
 
-            let bounds;
-
+            let mut bounds = PxRect::zero();
             if let Some(inline) = wl.inline() {
-                let mut rect = inline.first_rect();
-                if rect.size.is_empty() {
-                    rect = inline.middle_rect();
+                if let Some(first) = inline.rows.iter().find(|r| !r.size.is_empty()) {
+                    bounds = *first;
                 }
-                if rect.size.is_empty() {
-                    rect = inline.last_rect();
-                }
-
-                rect.origin.x += offsets.left;
-                rect.origin.y += offsets.top;
-                rect.size.width -= offsets.horizontal();
-                rect.size.height -= offsets.vertical();
-
-                bounds = rect;
-            } else {
+            }
+            if bounds.size.is_empty() {
                 let border_offsets = ContextBorders::inner_offsets(ctx.path.widget_id());
 
                 bounds = PxRect::new(
@@ -396,7 +385,6 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         child: impl UiNode,
         #[var] clip: impl Var<bool>,
         corners: PxCornerRadius,
-        inline: (PxPoint, PxPoint),
     })]
     impl UiNode for ClipToBoundsNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -419,12 +407,6 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                     self.corners = corners;
                     ctx.updates.render();
                 }
-
-                if let Some(inline) = wl.inline() {
-                    self.inline = (inline.first_row, inline.last_row);
-                } else {
-                    self.inline = (PxPoint::zero(), PxPoint::zero());
-                }
             }
 
             bounds
@@ -442,16 +424,10 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                             c.push_clip_rect(bounds, false, true);
                         }
 
-                        if self.inline.1 != PxPoint::zero() {
-                            if self.inline.0 != PxPoint::zero() {
-                                let first = PxRect::new(bounds.origin, self.inline.0.to_vector().to_size());
-                                c.push_clip_rect(first, true, true);
+                        if let Some(inline) = ctx.widget_info.bounds.inline() {
+                            for r in inline.rows.iter() {
+                                c.push_clip_rect(*r, true, true);
                             }
-
-                            let mut last = bounds.to_box2d();
-                            last.min += self.inline.1.to_vector();
-                            let last = last.to_rect();
-                            c.push_clip_rect(last, true, true);
                         }
                     },
                     |f| self.child.render(ctx, f),
@@ -465,6 +441,5 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         child,
         clip: clip.into_var(),
         corners: PxCornerRadius::zero(),
-        inline: (PxPoint::zero(), PxPoint::zero()),
     }
 }

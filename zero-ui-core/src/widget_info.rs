@@ -309,8 +309,8 @@ struct WidgetBoundsData {
     child_offset: PxVector,
     offsets_pass: LayoutPassId,
 
-    inline: Option<InlineLayout>,
-    measure_inline: Option<InlineLayout>,
+    inline: Option<WidgetInlineInfo>,
+    measure_inline: Option<WidgetInlineMeasure>,
 
     childs_changed: bool,
 
@@ -479,9 +479,18 @@ impl WidgetBoundsInfo {
         self.0.lock().inner_transform
     }
 
-    /// Gets the inline layout info.
-    pub fn inline(&self) -> Option<InlineLayout> {
-        self.0.lock().inline
+    pub(super) fn measure_inline(&self) -> Option<WidgetInlineMeasure> {
+        self.0.lock().measure_inline
+    }
+
+    /// Exclusive read the inline layout info.
+    pub fn inline(&self) -> Option<parking_lot::MappedMutexGuard<WidgetInlineInfo>> {
+        let me = self.0.lock();
+        if me.inline.is_some() {
+            Some(parking_lot::MutexGuard::map(me, |m| m.inline.as_mut().unwrap()))
+        } else {
+            None
+        }
     }
 
     /// Gets the widget's latest render info, if it was rendered visible or hidden. Returns `None` if the widget was collapsed.
@@ -688,9 +697,6 @@ impl WidgetBoundsInfo {
     pub(crate) fn measure_metrics_used(&self) -> LayoutMask {
         self.0.lock().measure_metrics_used
     }
-    pub(crate) fn measure_inline(&self) -> Option<InlineLayout> {
-        self.0.lock().measure_inline
-    }
 
     fn begin_pass(&self, pass: LayoutPassId) {
         // Record current state as previous state on the first call of the `pass`, see `Self::end_pass`.
@@ -763,11 +769,15 @@ impl WidgetBoundsInfo {
         self.0.lock().is_collapsed = collapsed;
     }
 
-    fn set_inline(&self, inline: Option<InlineLayout>) {
+    fn take_inline(&self) -> Option<WidgetInlineInfo> {
+        self.0.lock().inline.take()
+    }
+
+    fn set_inline(&self, inline: Option<WidgetInlineInfo>) {
         self.0.lock().inline = inline;
     }
 
-    pub(super) fn set_measure_inline(&self, inline: Option<InlineLayout>) {
+    pub(super) fn set_measure_inline(&self, inline: Option<WidgetInlineMeasure>) {
         self.0.lock().measure_inline = inline;
     }
 

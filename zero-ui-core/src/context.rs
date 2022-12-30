@@ -7,7 +7,7 @@ use crate::{
     timer::Timers,
     units::*,
     var::{VarHandle, VarHandles, Vars},
-    widget_info::{InlineLayout, WidgetContextInfo, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath},
+    widget_info::{WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, WindowMode},
 };
@@ -1094,46 +1094,28 @@ impl<'a> MeasureContext<'a> {
         })
     }
 
-    /// Runs a function `f` in a measure context that has the new computed `inline_advance`.
-    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+    /// Measure the child in a new inline context.
+    ///
+    /// Returns the measured inline data and the desired size, or `None` and the desired size if the
+    /// widget does not support measure.
+    pub fn measure_inline(&mut self, wm: &mut WidgetMeasure, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+        let size = child.measure(
+            &mut MeasureContext {
+                metrics: &self.metrics.clone().with_inline_constrains(Some(Default::default())),
 
-            path: self.path,
+                path: self.path,
 
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `measure` in a measure context that has the new computed inline advance.
-    pub fn with_inline(
-        &mut self,
-        wm: &mut WidgetMeasure,
-        inline_advance: PxSize,
-        measure: impl FnOnce(&mut MeasureContext, &mut WidgetMeasure) -> PxSize,
-    ) -> (Option<InlineLayout>, PxSize) {
-        wm.with_inline(|wm| {
-            measure(
-                &mut MeasureContext {
-                    metrics: &self.metrics.clone().with_inline_advance(inline_advance),
-
-                    path: self.path,
-
-                    info_tree: self.info_tree,
-                    widget_info: self.widget_info,
-                    app_state: self.app_state,
-                    window_state: self.window_state,
-                    widget_state: self.widget_state,
-                    update_state: self.update_state.reborrow(),
-                },
-                wm,
-            )
-        })
+                info_tree: self.info_tree,
+                widget_info: self.widget_info,
+                app_state: self.app_state,
+                window_state: self.window_state,
+                widget_state: self.widget_state,
+                update_state: self.update_state.reborrow(),
+            },
+            wm,
+        );
+        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
+        (inline, size)
     }
 
     /// Runs a function `f` in a measure context that has the new direction.
@@ -1342,10 +1324,12 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
-    /// Runs a function `f` in a layout context that has the new computed `inline_advance`.
-    pub fn with_inline_advance<R>(&mut self, inline_advance: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    /// Runs a function `f` in a layout context that has enabled inline.
+    ///
+    /// The constrains must be computed using the
+    pub fn with_inline<R>(&mut self, inline_constrains: InlineConstrains, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_inline_advance(inline_advance),
+            metrics: &self.metrics.clone().with_inline_constrains(Some(inline_constrains)),
 
             path: self.path,
 
@@ -1361,38 +1345,7 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
-    /// Runs `layout` in a layout context that has the new computed inline advance.
-    ///
-    /// This method uses [`WidgetLayout::with_inline`].
-    pub fn with_inline(
-        &mut self,
-        wl: &mut WidgetLayout,
-        inline_advance: PxSize,
-        layout: impl FnOnce(&mut LayoutContext, &mut WidgetLayout) -> PxSize,
-    ) -> (Option<InlineLayout>, PxSize) {
-        wl.with_inline(|wl| {
-            layout(
-                &mut LayoutContext {
-                    metrics: &self.metrics.clone().with_inline_advance(inline_advance),
-
-                    path: self.path,
-
-                    info_tree: self.info_tree,
-                    widget_info: self.widget_info,
-                    app_state: self.app_state.reborrow(),
-                    window_state: self.window_state.reborrow(),
-                    widget_state: self.widget_state.reborrow(),
-                    update_state: self.update_state.reborrow(),
-
-                    vars: self.vars,
-                    updates: self.updates,
-                },
-                wl,
-            )
-        })
-    }
-
-    /// Runs a function `f` in a measure context that has the new direction.
+    /// Runs a function `f` in a layout context that has the new direction.
     pub fn with_direction<R>(&mut self, direction: LayoutDirection, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_direction(direction),
@@ -1609,6 +1562,23 @@ impl<'a> InfoContext<'a> {
     }
 }
 
+/// Constrains for inline layout.
+///
+/// Note that these constrains are present during measure too, but only to signal that inline measure info
+/// is expected, the values are all zero during measure.
+///
+/// During layout if this is set the widget must layout its first and last row to best fill the provided rectangles
+/// and must respect the `mid_clear` offset.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct InlineConstrains {
+    /// First row rect, defined by the parent.
+    pub first: PxRect,
+    /// Extra space in-between the first row and the mid-rows.
+    pub mid_clear: Px,
+    /// Last row rect, defined by the parent.
+    pub last: PxRect,
+}
+
 /// Layout metrics snapshot.
 ///
 /// A snapshot can be taken using the [`LayoutMetrics::snapshot`], you can also
@@ -1619,6 +1589,12 @@ pub struct LayoutMetricsSnapshot {
     ///
     /// [`constrains`]: LayoutMetrics::constrains
     pub constrains: PxConstrains2d,
+
+    /// The [`inline_constrains`].
+    ///
+    /// [`inline_constrains`]: LayoutMetrics::inline_constrains
+    pub inline_constrains: Option<InlineConstrains>,
+
     /// The [`font_size`].
     ///
     /// [`font_size`]: LayoutMetrics::font_size
@@ -1640,11 +1616,6 @@ pub struct LayoutMetricsSnapshot {
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
     pub screen_ppi: f32,
 
-    /// The [`inline_advance`].
-    ///
-    /// [`inline_advance`]: LayoutMetrics::inline_advance
-    pub inline_advance: PxSize,
-
     /// The [`direction`].
     ///
     /// [`direction`]: LayoutMetrics::direction
@@ -1658,13 +1629,13 @@ pub struct LayoutMetricsSnapshot {
 impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
-        (!mask.contains(LayoutMask::CONSTRAINS) || self.constrains == other.constrains)
+        (!mask.contains(LayoutMask::CONSTRAINS)
+            || (self.constrains == other.constrains && self.inline_constrains == other.inline_constrains))
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
             && (!mask.contains(LayoutMask::VIEWPORT) || self.viewport == other.viewport)
             && (!mask.contains(LayoutMask::SCREEN_PPI) || about_eq(self.screen_ppi, other.screen_ppi, 0.0001))
-            && (!mask.contains(LayoutMask::INLINE_ADVANCE) || self.inline_advance == other.inline_advance)
             && (!mask.contains(LayoutMask::DIRECTION) || self.direction == other.direction)
             && (!mask.contains(LayoutMask::LEFTOVER) || self.leftover == other.leftover)
     }
@@ -1672,22 +1643,22 @@ impl LayoutMetricsSnapshot {
 impl PartialEq for LayoutMetricsSnapshot {
     fn eq(&self, other: &Self) -> bool {
         self.constrains == other.constrains
+            && self.inline_constrains == other.inline_constrains
             && self.font_size == other.font_size
             && self.root_font_size == other.root_font_size
             && self.scale_factor == other.scale_factor
             && self.viewport == other.viewport
-            && self.inline_advance == other.inline_advance
             && about_eq(self.screen_ppi, other.screen_ppi, 0.0001)
     }
 }
 impl std::hash::Hash for LayoutMetricsSnapshot {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.constrains.hash(state);
+        self.inline_constrains.hash(state);
         self.font_size.hash(state);
         self.root_font_size.hash(state);
         self.scale_factor.hash(state);
         self.viewport.hash(state);
-        self.inline_advance.hash(state);
         about_eq_hash(self.screen_ppi, 0.0001, state);
     }
 }
@@ -1713,12 +1684,12 @@ impl LayoutMetrics {
             use_mask: Rc::new(Cell::new(LayoutMask::NONE)),
             s: LayoutMetricsSnapshot {
                 constrains: PxConstrains2d::new_fill_size(viewport),
+                inline_constrains: None,
                 font_size,
                 root_font_size: font_size,
                 scale_factor,
                 viewport,
                 screen_ppi: 96.0,
-                inline_advance: PxSize::zero(),
                 direction: LayoutDirection::default(),
                 leftover: euclid::size2(None, None),
             },
@@ -1772,15 +1743,14 @@ impl LayoutMetrics {
         self.s.constrains
     }
 
-    /// Current line already taken, the height is the *line* height, the width is the advance.
+    /// Current inline constrains.
     ///
-    /// This value is only valid if [`WidgetMeasure::is_inline`] or [`WidgetLayout::is_inline`].
-    ///
-    /// [`WidgetMeasure::is_inline`]: crate::widget_info::WidgetMeasure::is_inline
-    /// [`WidgetLayout::is_inline`]: crate::widget_info::WidgetLayout::is_inline
-    pub fn inline_advance(&self) -> PxSize {
-        self.register_use(LayoutMask::INLINE_ADVANCE);
-        self.s.inline_advance
+    /// Only present if the parent widget supports inline. In the measure pass the value is zero and only signals
+    /// that inline is enabled, in the layout pass the values are set and the widget must define its rows using these
+    /// constrains.
+    pub fn inline_constrains(&self) -> Option<InlineConstrains> {
+        self.register_use(LayoutMask::CONSTRAINS);
+        self.s.inline_constrains
     }
 
     /// Gets the inline or text flow direction.
@@ -1862,6 +1832,14 @@ impl LayoutMetrics {
         self
     }
 
+    /// Set the [`inline_constrains`].
+    ///
+    /// [`inline_constrains`]: Self::inline_constrains
+    pub fn with_inline_constrains(mut self, inline_constrains: Option<InlineConstrains>) -> Self {
+        self.s.inline_constrains = inline_constrains;
+        self
+    }
+
     /// Sets the [`font_size`].
     ///
     /// [`font_size`]: Self::font_size
@@ -1891,14 +1869,6 @@ impl LayoutMetrics {
     /// [`screen_ppi`]: Self::screen_ppi
     pub fn with_screen_ppi(mut self, screen_ppi: f32) -> Self {
         self.s.screen_ppi = screen_ppi;
-        self
-    }
-
-    /// Sets the [`inline_advance`].
-    ///
-    /// [`inline_advance`]: Self::inline_advance
-    pub fn with_inline_advance(mut self, inline_advance: PxSize) -> Self {
-        self.s.inline_advance = inline_advance;
         self
     }
 

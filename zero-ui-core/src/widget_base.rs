@@ -8,7 +8,7 @@ use crate::{
     property,
     render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
     ui_node,
-    units::{PxCornerRadius, PxPoint, PxRect, PxSize, PxTransform},
+    units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
     widget,
     widget_builder::*,
@@ -185,7 +185,6 @@ pub mod nodes {
         struct HitClips {
             bounds: PxSize,
             corners: PxCornerRadius,
-            inline: (PxPoint, PxPoint),
         }
         #[ui_node(struct InnerNode {
             child: impl UiNode,
@@ -220,11 +219,6 @@ pub mod nodes {
                         } else {
                             PxCornerRadius::zero()
                         },
-                        inline: if let Some(inline) = wl.inline() {
-                            (inline.first_row, inline.last_row)
-                        } else {
-                            Default::default()
-                        },
                     }
                 } else {
                     HitClips::default()
@@ -241,15 +235,10 @@ pub mod nodes {
                 frame.push_inner(ctx, self.transform_key, true, |ctx, frame| {
                     frame.hit_test().push_clips(
                         |c| {
-                            if self.clips.inline.1 != PxPoint::zero() {
-                                if self.clips.inline.0 != PxPoint::zero() {
-                                    c.push_clip_rect(PxRect::from_size(self.clips.inline.0.to_vector().to_size()), true)
+                            if let Some(inline) = ctx.widget_info.bounds.inline() {
+                                for r in inline.rows.iter() {
+                                    c.push_clip_rect(*r, true);
                                 }
-
-                                let mut last = PxRect::from_size(self.clips.bounds).to_box2d();
-                                last.min += self.clips.inline.1.to_vector();
-                                let last = last.to_rect();
-                                c.push_clip_rect(last, true);
                             }
                         },
                         |h| match HitTestMode::var().get() {

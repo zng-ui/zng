@@ -161,6 +161,9 @@ Sets for `background` render:
   - Right now is just the children that handle this.
   - Maybe only if there is a small amount of space that left?
   - Maybe can use height the estimate what extra space we can get away with?
+* And the justify algorithm it self?
+  - Firefox just finds all *gap opportunities* and distributes the space among then.
+  - Not something that needs a crate, not a fancy algorithm.
 
 ## Min Constrains Reset
 

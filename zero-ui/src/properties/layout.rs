@@ -62,8 +62,6 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
             ctx.with_sub_size(size_increment, |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
-
             let margin = self.margin.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
@@ -128,7 +126,6 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
             align.measure(child_size, ctx.constrains())
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let align = self.alignment.get();
             let child_size = ctx.with_constrains(|c| align.child_constrains(c), |ctx| self.child.layout(ctx, wl));
             align.layout(child_size, ctx.constrains(), ctx.direction(), wl)
@@ -372,7 +369,6 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
             size.max(min)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_size.get().layout(ctx.metrics, |_| PxSize::zero()),
@@ -443,7 +439,6 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_width.get().layout(ctx.metrics.for_x(), |_| Px(0)),
@@ -515,7 +510,6 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let min = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.min_height.get().layout(ctx.metrics.for_y(), |_| Px(0)),
@@ -587,7 +581,6 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
             size.min(max)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
@@ -659,7 +652,6 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
@@ -733,7 +725,6 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
             size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let max = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.max_height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
@@ -813,8 +804,6 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
-
             let size = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
@@ -886,7 +875,6 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             ctx.with_constrains(|c| c.with_exact_x(width), |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let width = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
@@ -960,7 +948,6 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.measure(ctx, wm))
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let height = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
@@ -1041,7 +1028,6 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let min = ctx.widget_info.bounds.inner_size().width;
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.layout(ctx, wl));
             size.width = size.width.max(min);
@@ -1074,7 +1060,6 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let min = ctx.widget_info.bounds.inner_size().height;
             let mut size = ctx.with_constrains(|c| c.with_min_x(min), |ctx| self.child.layout(ctx, wl));
             size.height = size.height.max(min);
@@ -1107,7 +1092,6 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            wl.disable_inline();
             let min = ctx.widget_info.bounds.inner_size();
             let mut size = ctx.with_constrains(|c| c.with_min_size(min), |ctx| self.child.layout(ctx, wl));
             size = size.max(min);

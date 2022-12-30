@@ -6,10 +6,7 @@ use std::{
 };
 
 use font_features::FontVariations;
-use zero_ui_core::{
-    focus::{Focus, FOCUS_CHANGED_EVENT},
-    widget_info::InlineLayout,
-};
+use zero_ui_core::focus::{Focus, FOCUS_CHANGED_EVENT};
 
 use super::text_properties::*;
 use crate::core::{
