@@ -115,6 +115,35 @@ Sets for `background` render:
   - Can't we just make the `wrap::children_align` default be `TXT_ALIGN_VAR`?
   - This pattern can be used by new inline widgets too, the `TXT_ALIGN_VAR` is unifier.
     - Name and mod is tied to `text`, is there inline widget that does not include text runs?
+* How is single row child handled?
+  - This has caused bugs in the current API, and it is supposed to support it already.
+  - What if `InlineInfo::rows` len defines how parent constrains are made?
+    - This forces us to always have a measure pass.
+  - The first and last stuff are equal.
+  - We will have lots of these, every bold word or link in a markdown is one.
+  - We can disable inline layout for it and just inline-block it.
+    - Can we still support `BASELINE` in this case?
+* Do we really need a measure pass for every Align?
+  - `Align::START` only needs the previous child's last how width for the next.
+  - Any other align, including `BASELINE` align needs measure.
+    - Baseline will be very common.
+    - If we figure out a way to support `BASELINE_START` without measure this is a perf win.
+      - There is no way, we need every baseline to get the tallest row.
+      - Actually we need to tallest row anyway right?
+* How do we align vertically in the row?
+  - Say we have a last row with twice the height as the next first row.
+  - We apply vertical align to it, among row segments.
+  - The next widget is positioned so that its mid rows clear the entire previous row.
+  - This may cause the first row offset to be negative.
+    - This causes backgrounds to get clipped incorrectly?
+  - We need an extra constrain that defines the vertical offset of the mid-rows.
+    - With this constrain we can position the child widget at the top of the row always?
+    - Anyway, we can always avoid negative first rows.
+* How is the child widget it self positioned?
+  - Always start with the row and span the entire width.
+  - Do we force the width or is the child that needs to consider the first/last row constrains?
+  - What about widgets that are a single row?
+    - Depends on how they are handled, we will probably just inline block it, or something similar.
 
 ## Min Constrains Reset
 
