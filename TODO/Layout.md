@@ -56,6 +56,11 @@ pub struct InlineConstrains {
   /// 
   /// If `None` the widget must define its own first row, aligned to the *start*.
   pub first: Option<PxRect>,
+  /// Extra space in-between the first row and the mid-rows.
+  /// 
+  /// This is only valid if `first` is set, it *clears* the entire first row so that the mid-rows
+  /// don't acidently overlap another larger segment. It must not be applied to the `last` row.
+  pub mid_clear: Px,
   /// Last row rect, defined by the parent.
   /// 
   /// If `None` the widget must define its owne last row, aligned to the *start*.
@@ -64,7 +69,12 @@ pub struct InlineConstrains {
 
 impl LayoutMetrics {
   /// Inline constrains, if the parent widget supports inline layout.
-  pub fn inline_constrains(&self) -> Option<InlineConstrains> { todo!() }
+  /// 
+  /// These constrains complement the [`constrains`] that define the total are the inline layout has. Inline
+  /// widgets can ignore the `constrains.y`, if the parent is implemented correctly `y` is unbounded.
+  /// 
+  /// [`constrains`]: Self::constrains
+  pub fn inline_constrains(&self) -> Option<InlineConstrains> { }
 }
 
 impl WidgetLayout {
@@ -80,6 +90,9 @@ Steps for `wrap!` layout:
     width change for possible for each row segment.
   - For `BASELINE` find the baseline that does not *clip* any of the row segments, offset all to align with it.
 * Layout children, now with `first` and `last` set.
+  - Vertical alignment applied to first and last rows of each child.
+    - In the vertical space of the tallest segment on the row.
+  - Also computes the  `mid_clear` for each child, so they can wrap properly.
 
 Steps for `text!` or `wrap!` nested inside another `wrap!`:
 
@@ -144,6 +157,10 @@ Sets for `background` render:
   - Do we force the width or is the child that needs to consider the first/last row constrains?
   - What about widgets that are a single row?
     - Depends on how they are handled, we will probably just inline block it, or something similar.
+* To `FILL` or justify can we insert spaces in the parent too?
+  - Right now is just the children that handle this.
+  - Maybe only if there is a small amount of space that left?
+  - Maybe can use height the estimate what extra space we can get away with?
 
 ## Min Constrains Reset
 
