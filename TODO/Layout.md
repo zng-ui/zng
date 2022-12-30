@@ -1,10 +1,32 @@
+# Layout TODO
+
 ## Inline Align
 
-* Right now we can't align the `wrap!` rows to the right.
-* This is a limitation of the current inline layout API, it can't work, 
-  we need the full row width to compute the align offset.
-* Can this be done with a measure pass?
-* Wrap layout really needs to be centralized in the panel, but how to communicate with
+Current inline API has problems.
+
+### Inline Requirements
+
+* Custom widgets can participate, not just text.
+* Properties can have access to each row box in the widget (to clip background, or any effect like this).
+* Rows can be aligned horizontally.
+* Widgets can be block only, they are inlined as a block.
+* Widgets that support inlining must also support block only layout.
+* Flow direction, as defined by `LayoutDirection`.
+
+### Current API
+
+Currently have `InlineLayout`, `WidgetMeasure::inline`, `WidgetLayout::inline` and `LayoutMetrics::inline_advance`.
+
+Limitations:
+
+* No detailed row info about the widget, background of wrapped text does not is not clipped correctly.
+  - Have a `rows: Vec<PxRect>` in `InlineLayout`?  
+* Rows cannot be aligned.
+  - **Parent needs measure of first and last row already wrapped to align!!**
+  - Parent panel controls align of first and last row, children control align of its own mid-rows.
+* Flow direction, only flows left-to-right.
+  - Controlled by the `LayoutMetrics::direction`.
+  - Same as align, parent panel defines first and last row rect, children defines mid-rows.
 
 ## Min Constrains Reset
 
