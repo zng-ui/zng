@@ -30,6 +30,59 @@ Limitations:
   - Controlled by the `LayoutMetrics::direction`.
   - Same as align, parent panel defines first and last row rect, children defines mid-rows.
 
+### New API
+
+```rust
+/// Info about the inline rows of the widget.
+pub struct InlineInfo {
+  /// Maximum fill width possible on the first row.
+  pub first_row_max_fill: Px,
+  /// Maximum fill width possible on the last row.
+  pub last_row_max_fill: Px,
+  /// Last layout rows of the widget.
+  pub rows: Vec<PxRect>,
+}
+
+/// Constrains for inline layout in the parent.
+/// 
+/// These constrains complement the normal layout constrains and layout direction. 
+pub struct InlineConstrains {
+  /// First row rect, defined by the parent.
+  /// 
+  /// If `None` the widget must define its own first row, aligned to the *start*.
+  pub first_row: Option<PxRect>,
+  /// Last row rect, defined by the parent.
+  /// 
+  /// If `None` the widget must define its owne last row, aligned to the *start*.
+  pub last_row: Option<PxRect>,
+}
+
+impl LayoutMetrics {
+  // close to the normal constrains.
+  pub fn inline_constrains(&self) -> Option<InlineConstrains> { todo!() }
+}
+```
+
+Steps for `wrap!` layout:
+
+* Measure children with no inline constrains.
+* Compute first and last row rect to match new `children_align`.
+  - For `FILL` distribute the leftover space using the `first_row_max_fill`, `last_row_max_fill` to find the least
+    width change for possible for each row segment.
+* Layout children, now with `first_row` and `last_row` set.
+
+Sets for `background` render:
+
+* Get the `InlineInfo` from the widget bounds?
+* Add the rows as clips.
+
+Open questions:
+
+* The row rectangles origin are in what space, the inner bounds?
+  - The `WidgetLayout` needs to patch when if completes the inner bounds?
+  - The two widgets that can be inlined, `text!` and `wrap!`, compute rows in the *child* space.
+  - Actually, all properties that affect box disable inline currently, maybe we can enforce this.
+
 ## Min Constrains Reset
 
 * Review PxConstrains::min in every panel, should be zero? 
