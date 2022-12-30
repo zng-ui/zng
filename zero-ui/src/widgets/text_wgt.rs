@@ -26,6 +26,12 @@ mod text_properties;
 ///
 /// let name = "World";
 /// let fmt = text!("Hello {}!", name);
+/// 
+/// let expr = text!({
+///     let mut s = String::new();
+///     s.push('a');
+///     s
+/// });
 /// ```
 ///
 /// The code abode is equivalent to:
@@ -33,17 +39,28 @@ mod text_properties;
 /// ```
 /// # use zero_ui::prelude::text;
 /// let txt = text! {
-///     txt = "Hello!";
+///     txt = zero_ui::core::text::formatx!("Hello!");
 /// };
 ///
 /// let name = "World";
 /// let fmt = text! {
 ///     txt = zero_ui::core::text::formatx!("Hello {}!", name);
 /// };
+/// 
+/// let expr = text! {
+///     txt = {
+///         let mut s = String::new();
+///         s.push('a');
+///         s
+///     };
+/// };
 /// ```
 ///
 /// [`formatx!`]: crate::core::text::formatx!
 #[widget($crate::widgets::text {
+    ($txt:literal) => {
+        txt = $crate::core::text::formatx!($txt);
+    };
     ($txt:expr) => {
         txt = $txt;
     };
