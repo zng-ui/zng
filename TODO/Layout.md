@@ -24,6 +24,8 @@ Limitations:
 * Rows cannot be aligned.
   - **Parent needs measure of first and last row already wrapped to align!!**
   - Parent panel controls align of first and last row, children control align of its own mid-rows.
+  - Child defines a max width possible for potential justify on first and last line.
+    - To justify the parent then divides the extra space to cause the less size increase among children in the row.
 * Flow direction, only flows left-to-right.
   - Controlled by the `LayoutMetrics::direction`.
   - Same as align, parent panel defines first and last row rect, children defines mid-rows.
