@@ -1273,6 +1273,35 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
+    /// Measure the child in a new inline context.
+    ///
+    /// The `first_max` is the space already taken from the first row.
+    ///
+    /// Returns the measured inline data and the desired size, or `None` and the desired size if the
+    /// widget does not support measure.
+    pub fn measure_inline(&mut self, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+        let size = child.measure(
+            &mut MeasureContext {
+                metrics: &self
+                    .metrics
+                    .clone()
+                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max })),
+
+                path: self.path,
+
+                info_tree: self.info_tree,
+                widget_info: self.widget_info,
+                app_state: self.app_state.as_ref(),
+                window_state: self.window_state.as_ref(),
+                widget_state: self.widget_state.as_ref(),
+                update_state: self.update_state.reborrow(),
+            },
+            &mut WidgetMeasure::new(),
+        );
+        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
+        (inline, size)
+    }
+
     /// Runs a function `f` in a layout context that has its max size subtracted by `removed` and its final size added by `removed`.
     ///
     /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.

@@ -2121,9 +2121,10 @@ impl WidgetBuilding {
     }
 
     /// Flags the property as captured and downcast the input var, or calls `or_else` to generate a fallback.
-    pub fn capture_var_or_else<T>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> T) -> BoxedVar<T>
+    pub fn capture_var_or_else<T, F>(&mut self, property_id: PropertyId, or_else: impl FnOnce() -> F) -> BoxedVar<T>
     where
         T: VarValue,
+        F: IntoVar<T>,
     {
         match self.capture_var::<T>(property_id) {
             Some(var) => var,
