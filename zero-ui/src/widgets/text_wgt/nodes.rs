@@ -6,14 +6,14 @@ use std::{
 };
 
 use font_features::FontVariations;
-use zero_ui_core::focus::{Focus, FOCUS_CHANGED_EVENT};
 
 use super::text_properties::*;
 use crate::core::{
-    focus::FocusInfoBuilder,
+    focus::{Focus, FocusInfoBuilder, FOCUS_CHANGED_EVENT},
     keyboard::{Keyboard, CHAR_INPUT_EVENT},
     task::parking_lot::Mutex,
     text::*,
+    widget_info::WidgetInlineInfo,
 };
 use crate::prelude::new_widget::*;
 
@@ -414,7 +414,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             metrics: &LayoutMetrics,
             t: &mut ResolvedText,
             pending: &mut Layout,
-            inline: Option<&mut InlineLayout>,
+            inline: Option<&mut WidgetInlineInfo>,
         ) -> PxSize {
             if t.reshape {
                 pending.insert(Layout::RESHAPE);

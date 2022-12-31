@@ -1096,12 +1096,17 @@ impl<'a> MeasureContext<'a> {
 
     /// Measure the child in a new inline context.
     ///
+    /// The `first_max` is the space already taken from the first row.
+    ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure.
-    pub fn measure_inline(&mut self, wm: &mut WidgetMeasure, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(&mut self, wm: &mut WidgetMeasure, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
-                metrics: &self.metrics.clone().with_inline_constrains(Some(Default::default())),
+                metrics: &self
+                    .metrics
+                    .clone()
+                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max })),
 
                 path: self.path,
 
@@ -1325,11 +1330,12 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in a layout context that has enabled inline.
-    ///
-    /// The constrains must be computed using the
-    pub fn with_inline<R>(&mut self, inline_constrains: InlineConstrains, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_inline<R>(&mut self, first: PxRect, mid_clear: Px, last: PxRect, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_inline_constrains(Some(inline_constrains)),
+            metrics: &self
+                .metrics
+                .clone()
+                .with_inline_constrains(Some(InlineConstrains::Layout { first, mid_clear, last })),
 
             path: self.path,
 
@@ -1563,20 +1569,39 @@ impl<'a> InfoContext<'a> {
 }
 
 /// Constrains for inline layout.
-///
-/// Note that these constrains are present during measure too, but only to signal that inline measure info
-/// is expected, the values are all zero during measure.
-///
-/// During layout if this is set the widget must layout its first and last row to best fill the provided rectangles
-/// and must respect the `mid_clear` offset.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct InlineConstrains {
-    /// First row rect, defined by the parent.
-    pub first: PxRect,
-    /// Extra space in-between the first row and the mid-rows.
-    pub mid_clear: Px,
-    /// Last row rect, defined by the parent.
-    pub last: PxRect,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum InlineConstrains {
+    /// Constrains for the measure pass.
+    Measure {
+        /// Reserved space on the first row.
+        first_max: Px,
+    },
+    /// Constrains the layout pass.
+    Layout {
+        /// First row rect, defined by the parent.
+        first: PxRect,
+        /// Extra space in-between the first row and the mid-rows.
+        mid_clear: Px,
+        /// Last row rect, defined by the parent.
+        last: PxRect,
+    },
+}
+impl InlineConstrains {
+    /// Get the `Measure` data or zero.
+    pub fn measure(self) -> Px {
+        match self {
+            InlineConstrains::Measure { first_max } => first_max,
+            InlineConstrains::Layout { .. } => Px(0),
+        }
+    }
+
+    /// Get the `Layout` data or zero.
+    pub fn layout(self) -> (PxRect, Px, PxRect) {
+        match self {
+            InlineConstrains::Layout { first, mid_clear, last } => (first, mid_clear, last),
+            InlineConstrains::Measure { .. } => (PxRect::zero(), Px(0), PxRect::zero()),
+        }
+    }
 }
 
 /// Layout metrics snapshot.
@@ -1745,9 +1770,7 @@ impl LayoutMetrics {
 
     /// Current inline constrains.
     ///
-    /// Only present if the parent widget supports inline. In the measure pass the value is zero and only signals
-    /// that inline is enabled, in the layout pass the values are set and the widget must define its rows using these
-    /// constrains.
+    /// Only present if the parent widget supports inline.
     pub fn inline_constrains(&self) -> Option<InlineConstrains> {
         self.register_use(LayoutMask::CONSTRAINS);
         self.s.inline_constrains

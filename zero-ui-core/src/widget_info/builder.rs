@@ -288,6 +288,8 @@ pub struct WidgetInlineMeasure {
 #[derive(Clone, Debug, Default)]
 pub struct WidgetInlineInfo {
     /// Last layout rows of the widget.
+    /// 
+    /// The rectangles are in the inner bounds space.
     pub rows: Vec<PxRect>,
 }
 
