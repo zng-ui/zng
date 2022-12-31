@@ -288,7 +288,7 @@ pub struct WidgetInlineMeasure {
 #[derive(Clone, Debug, Default)]
 pub struct WidgetInlineInfo {
     /// Last layout rows of the widget.
-    /// 
+    ///
     /// The rectangles are in the inner bounds space.
     pub rows: Vec<PxRect>,
 }
@@ -313,7 +313,7 @@ impl WidgetMeasure {
     ///
     /// The widget must configure this to be inlined in parent layout. This is only `Some(_)` if inline is enabled.
     ///
-    /// See [`WidgetInlineInfo`] for more details.
+    /// See [`WidgetInlineMeasure`] for more details.
     pub fn inline(&mut self) -> Option<&mut WidgetInlineMeasure> {
         self.inline.as_mut()
     }
@@ -386,25 +386,6 @@ pub struct WidgetLayout {
     inline: Option<WidgetInlineInfo>,
 }
 impl WidgetLayout {
-    // # Requirements
-    //
-    // * Outer can be affected by parent widget only.
-    // * Inner can be affected by widget only.
-    // * Parent widget can pre-load child outer-offsets, applied when the outer-bounds is visited.
-    // * Parent widget can detect when they don't actually have a child, so they can simulate padding for child nodes.
-    // * Parent panels can set the children outer-offsets directly, in case they need to layout every child first to compute position.
-    //
-    // ## Nice to Have
-    //
-    // * Everything implemented in `base` for single child nodes, only panel implementers should have to learn
-    //   the details of the layout pass.
-    //
-    // ## Preview & Return
-    //
-    // * Like the event tracks, going down to leaf nodes we are in *preview*, returning up to root we are in *return*.
-    // * Each node only affects its *inner* offset, so to affect the translate in preview we need to *buffer* until the
-    //   inner bounds is visited, during return we can now know the *inner* info, so we can update it directly.
-
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
