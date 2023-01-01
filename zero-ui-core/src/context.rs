@@ -1096,10 +1096,10 @@ impl<'a> MeasureContext<'a> {
 
     /// Measure the child in a new inline context.
     ///
-    /// The `first_max` is the space already taken from the first row.
+    /// The `first_max` is the available space for the first row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
-    /// widget does not support measure.
+    /// widget does not support measure. Note that the measured data is also updated in [`WidgetsBoundsInfo::inline_measure`].
     pub fn measure_inline(&mut self, wm: &mut WidgetMeasure, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
@@ -1119,7 +1119,7 @@ impl<'a> MeasureContext<'a> {
             },
             wm,
         );
-        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
+        let inline = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten();
         (inline, size)
     }
 
@@ -1275,10 +1275,10 @@ impl<'a> LayoutContext<'a> {
 
     /// Measure the child in a new inline context.
     ///
-    /// The `first_max` is the space already taken from the first row.
+    /// The `first_max` is the space available for the first row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
-    /// widget does not support measure.
+    /// widget does not support measure. Note that the measured data is also updated in [`WidgetsBoundsInfo::inline_measure`].
     pub fn measure_inline(&mut self, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
@@ -1298,7 +1298,7 @@ impl<'a> LayoutContext<'a> {
             },
             &mut WidgetMeasure::new(),
         );
-        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
+        let inline = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten();
         (inline, size)
     }
 

@@ -131,7 +131,7 @@ impl UiNode for WrapNode {
         let mut next_row = 0;
         let mut row_size = PxSize::zero();
         let mut row_end = 0;
-        self.children.for_each(|i, child| {
+        self.children.for_each_mut(|i, child| {
             if i == row_end && next_row < self.row_joiners.len() {
                 row_size = self.row_joiners[next_row].size;
 
@@ -141,6 +141,12 @@ impl UiNode for WrapNode {
                 } else {
                     row_end = usize::MAX;
                 }
+            }
+
+            if let Some(measure) = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten() {
+                todo!("layout inline")
+            } else {
+                todo!("layout inline-block")
             }
 
             // !!: TODO, use the row_joiners info to define the first and last row of each child.

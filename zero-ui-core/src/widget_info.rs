@@ -310,7 +310,7 @@ struct WidgetBoundsData {
     offsets_pass: LayoutPassId,
 
     inline: Option<WidgetInlineInfo>,
-    measure_inline: Option<WidgetInlineMeasure>,
+    inline_measure: Option<WidgetInlineMeasure>,
 
     childs_changed: bool,
 
@@ -479,11 +479,19 @@ impl WidgetBoundsInfo {
         self.0.lock().inner_transform
     }
 
-    pub(super) fn measure_inline(&self) -> Option<WidgetInlineMeasure> {
-        self.0.lock().measure_inline
+    /// Gets the latest inline measure info.
+    /// 
+    /// Note that this info may not be the same that was used to update the [`inline`] layout info.
+    /// This value is only useful for panels implementing inline, just after the widget was measured.
+    /// 
+    /// Returns `None` if the latest widget measure was not in an inlining context.
+    pub fn inline_measure(&self) -> Option<WidgetInlineMeasure> {
+        self.0.lock().inline_measure
     }
 
-    /// Exclusive read the inline layout info.
+    /// Exclusive read the latest inline layout info.
+    /// 
+    /// Returns `None` if the latest widget layout was not in an inlining context.
     pub fn inline(&self) -> Option<parking_lot::MappedMutexGuard<WidgetInlineInfo>> {
         let me = self.0.lock();
         if me.inline.is_some() {
@@ -778,7 +786,7 @@ impl WidgetBoundsInfo {
     }
 
     pub(super) fn set_measure_inline(&self, inline: Option<WidgetInlineMeasure>) {
-        self.0.lock().measure_inline = inline;
+        self.0.lock().inline_measure = inline;
     }
 
     pub(crate) fn set_measure_outer_size(&self, size: PxSize) {

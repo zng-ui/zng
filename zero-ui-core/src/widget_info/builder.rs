@@ -350,12 +350,12 @@ impl WidgetMeasure {
             {
                 let mut reused = false;
                 if let Some(inline) = self.inline() {
-                    if let Some(prev) = ctx.widget_info.bounds.measure_inline() {
+                    if let Some(prev) = ctx.widget_info.bounds.inline_measure() {
                         *inline = prev;
                         reused = true;
                     }
                 } else {
-                    reused = ctx.widget_info.bounds.measure_inline().is_none();
+                    reused = ctx.widget_info.bounds.inline_measure().is_none();
                 }
 
                 if reused {
