@@ -81,52 +81,48 @@ impl UiNode for WrapNode {
             return constrains.fill_or_exact().unwrap_or_default();
         }
 
-        let max_width = constrains.x.max().unwrap_or(Px::MAX);
-        let mut actual_max_width = Px(0);
-        let mut leftover = max_width;
-
+        let max_allowed_width = constrains.x.max().unwrap_or(Px::MAX);
         self.row_joiners.clear();
         let mut current_row = RowJoinerInfo::default();
+        let mut max_row_width = Px(0);
 
         // measure children to find all "joiner" rows and their size.
         self.children.for_each(|i, child| {
-            let (inline, size) = ctx.measure_inline(leftover, child);
-            actual_max_width = actual_max_width.max(size.width);
-
-            if let Some(inline) = inline {
-                // current row, or new if overflows.
-                let row_width = current_row.size.width + size.width;
-                if row_width < max_width {
-                    current_row.size.width = row_width;
-                    current_row.size.height = current_row.size.height.max(size.height);
-                } else {
-                    self.row_joiners
-                        .push(mem::replace(&mut current_row, RowJoinerInfo { size, first_child: i }));
-                }
-
-                // leftover space, only defined if the panel width is bounded.
-                if max_width < Px::MAX {
-                    if inline.last != size {
-                        leftover = max_width;
-                    }
-                    leftover -= inline.last.width;
-                    if leftover <= Px(0) {
-                        leftover = max_width;
-                    }
-                }
+            let leftover = if max_allowed_width == Px::MAX {
+                // unbounded
+                Px::MAX
             } else {
-                todo!("inline-block layout");
+                // bounded
+                max_allowed_width - current_row.size.width
+            };
+
+            let (inline, size) = ctx.measure_inline(leftover, child);
+
+            let measured_row_size = if let Some(inline) = inline { inline.first } else { size };
+
+            // add to current row, or wrap into new.
+            let row_width = current_row.size.width + measured_row_size.width;
+            if row_width < max_allowed_width {
+                current_row.size.width = row_width;
+                current_row.size.height = current_row.size.height.max(measured_row_size.height);
+            } else {
+                max_row_width = max_row_width.max(current_row.size.width);
+                self.row_joiners
+                    .push(mem::replace(&mut current_row, RowJoinerInfo { size, first_child: i }));
             }
+
             true
         });
         self.row_joiners.push(current_row);
 
-        // panel width is defined by constrains or by the widest row.
-        let max_width = if max_width == Px::MAX {
-            constrains.x.clamp(actual_max_width)
+        let panel_width = if let Some(s) = constrains.fill_or_exact() {
+            // constrains requests a width
+            s.width
         } else {
-            max_width
+            // our width, or min allowed
+            constrains.x.clamp(max_row_width)
         };
+        let mut panel_height = Px(0);
 
         let mut next_row = 0;
         let mut row_size = PxSize::zero();
@@ -156,7 +152,7 @@ impl UiNode for WrapNode {
             true
         });
 
-        todo!("constrained panel size")
+        constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
 }
 

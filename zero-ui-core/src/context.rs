@@ -1099,7 +1099,7 @@ impl<'a> MeasureContext<'a> {
     /// The `first_max` is the available space for the first row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
-    /// widget does not support measure. Note that the measured data is also updated in [`WidgetsBoundsInfo::inline_measure`].
+    /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
     pub fn measure_inline(&mut self, wm: &mut WidgetMeasure, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
@@ -1278,7 +1278,7 @@ impl<'a> LayoutContext<'a> {
     /// The `first_max` is the space available for the first row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
-    /// widget does not support measure. Note that the measured data is also updated in [`WidgetsBoundsInfo::inline_measure`].
+    /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
     pub fn measure_inline(&mut self, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
@@ -2007,7 +2007,7 @@ impl<'m> Deref for Layout1dMetrics<'m> {
 
 /// Defines the layout flow direction.
 ///
-/// This affects the [`InlineLayout`], some [`Align`] options and the base text shaping direction.
+/// This affects inline layout, some [`Align`] options and the base text shaping direction.
 ///
 /// The contextual value can be read during layout in [`LayoutMetrics::direction`], and it can be set using [`LayoutMetrics::with_direction`].
 /// Properties that define a more specific *direction* value also set this value, for example, a *TextDirection* property will also set the

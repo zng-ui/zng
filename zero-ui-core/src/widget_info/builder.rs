@@ -776,6 +776,8 @@ impl WidgetLayout {
     /// When this is `Some(_)` the [`LayoutMetrics::inline_constrains`] is also `Some(_)`.
     ///
     /// See [`WidgetInlineInfo`] for more details.
+    ///
+    /// [`LayoutMetrics::inline_constrains`]: crate::context::LayoutMetrics::inline_constrains
     pub fn inline(&mut self) -> Option<&mut WidgetInlineInfo> {
         self.inline.as_mut()
     }

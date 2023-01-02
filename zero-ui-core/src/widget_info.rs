@@ -480,17 +480,17 @@ impl WidgetBoundsInfo {
     }
 
     /// Gets the latest inline measure info.
-    /// 
+    ///
     /// Note that this info may not be the same that was used to update the [`inline`] layout info.
     /// This value is only useful for panels implementing inline, just after the widget was measured.
-    /// 
+    ///
     /// Returns `None` if the latest widget measure was not in an inlining context.
     pub fn inline_measure(&self) -> Option<WidgetInlineMeasure> {
         self.0.lock().inline_measure
     }
 
     /// Exclusive read the latest inline layout info.
-    /// 
+    ///
     /// Returns `None` if the latest widget layout was not in an inlining context.
     pub fn inline(&self) -> Option<parking_lot::MappedMutexGuard<WidgetInlineInfo>> {
         let me = self.0.lock();
