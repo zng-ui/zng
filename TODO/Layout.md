@@ -13,6 +13,11 @@
 * Support baseline align in-between children of different first/last row length.
 * Integrate, `wrap::children_align` with `txt_align`.
 
+### Final TODOs
+
+* Review other widgets, they need to mark no-inline?
+* Review `row_joiners` data, can the layout be implemented without it?
+
 ### New Inline API
 
 Parent panel defining an inline layout scope:
@@ -21,13 +26,12 @@ Parent panel defining an inline layout scope:
   - The returned `Option<WidgetInlineMeasure>` defines the advance left for the first line of the
     next item, and if it `None` the item is layout as inline-block.
   - The available width for the first row is communicated using `measure_inline`.
-[ ] - Create a `vec node member` to store line info:
+[x] - Create a `vec node member` to store line info:
   - `max_line_height`
   - `max_line_width`
   - `first_widget_index` ?
   - `last_widget_index` ?
   - *Each child can participate in 2 lines, but needs to be layout only once.
-  - Consider if there are any solutions without using a vec afterwards.
 [ ] - For each child, define the first and last row rectangles.
   - Also define the extra space the mid-rows of each child must clear.
     - This is an space so that the mid-rows don't write over the current row if the next widget has a shorter first row.

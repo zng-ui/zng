@@ -72,7 +72,13 @@ impl UiNode for WrapNode {
     }
 
     fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        todo!()
+        if let Some(known) = ctx.constrains().fill_or_exact() {
+            // !!: can't do this if parent inlining
+            return known;
+        }
+
+        // !!: TODO
+        ctx.constrains().fill_or_exact().unwrap_or_default()
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -111,8 +117,23 @@ impl UiNode for WrapNode {
                     .push(mem::replace(&mut current_row, RowJoinerInfo { size, first_child: i }));
             }
 
+            if let Some(inline) = inline {
+                if inline.last != size {
+                    // child wrap.
+                    max_row_width = max_row_width.max(current_row.size.width);
+                    self.row_joiners.push(mem::replace(
+                        &mut current_row,
+                        RowJoinerInfo {
+                            size: inline.last,
+                            first_child: i,
+                        },
+                    ));
+                }
+            }
+
             true
         });
+        max_row_width = max_row_width.max(current_row.size.width);
         self.row_joiners.push(current_row);
 
         let panel_width = if let Some(s) = constrains.fill_or_exact() {
@@ -125,11 +146,25 @@ impl UiNode for WrapNode {
         let mut panel_height = Px(0);
 
         let mut next_row = 0;
+        let mut row_offset = PxVector::zero();
         let mut row_size = PxSize::zero();
         let mut row_end = 0;
+        let child_align = self.children_align.get();
+        let child_align_x = child_align.x(ctx.direction());
+        let child_align_y = child_align.y();
+        // !!: TODO baseline align
+        let child_constrains = constrains
+            .with_fill(child_align.is_fill_x(), false)
+            .with_new_min(Px(0), Px(0))
+            .with_max_x(panel_width);
+
         self.children.for_each_mut(|i, child| {
             if i == row_end && next_row < self.row_joiners.len() {
+                // panel wrap
+                panel_height += row_size.height;
+                row_offset.y += row_size.height;
                 row_size = self.row_joiners[next_row].size;
+                row_offset.x = (panel_width - row_size.width) * child_align_x;
 
                 next_row += 1;
                 if next_row < self.row_joiners.len() {
@@ -139,20 +174,84 @@ impl UiNode for WrapNode {
                 }
             }
 
-            if let Some(measure) = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten() {
-                todo!("layout inline")
+            if let Some((Some(inline), size)) =
+                child.with_context(|ctx| (ctx.widget_info.bounds.inline_measure(), ctx.widget_info.bounds.outer_size()))
+            {
+                if inline.last != size {
+                    // child wrap
+                    let first_row = PxRect::new(
+                        PxPoint::new(row_offset.x, row_offset.y + (row_size.height - inline.first.height) * child_align_y),
+                        inline.first,
+                    );
+                    let mid_clear = row_size.height - first_row.size.height;
+                    // !!: use the measured overall child size to calculate offset?
+                    let last_row = if let Some(nr) = self.row_joiners.get(next_row) {
+                        row_offset.y += row_size.height; // !!: what about the mid-rows?
+                        row_size = nr.size;
+                        row_offset.x = (panel_width - nr.size.height) * child_align_x;
+
+                        next_row += 1;
+                        if next_row < self.row_joiners.len() {
+                            row_end = self.row_joiners[next_row].first_child;
+                        } else {
+                            row_end = usize::MAX;
+                        }
+
+                        let mut r = PxRect::new(row_offset.to_point(), row_size);
+                        r.origin.y += (row_size.height - r.size.height) * child_align_y;
+                        row_offset.x += r.size.width;
+
+                        r
+                    } else {
+                        // last panel row (not a joiner)
+                        let mut r = PxRect::from_size(inline.last);
+                        if child_align.is_fill_x() {
+                            r.size.width = panel_width;
+                        }
+                        r.origin.y = size.height - r.size.height;
+                        r.origin.x = (panel_width - r.size.width) * child_align_x;
+                        r
+                    };
+
+                    let size = ctx.with_inline(first_row, mid_clear, last_row, |ctx| child.layout(ctx, wl));
+
+                    panel_height += size.height - first_row.size.height - mid_clear;
+                } else {
+                    // child inline, but no wrap
+
+                    let rect = PxRect::new(
+                        PxPoint::new(row_offset.x, row_offset.y + (row_size.height - inline.first.height) * child_align_y),
+                        inline.first,
+                    );
+
+                    let size = ctx.with_inline(rect, Px(0), rect, |ctx| child.layout(ctx, wl));
+                }
             } else {
-                todo!("layout inline-block")
+                // layout inline-block
+                let mut constrains = child_constrains;
+
+                if child_align.is_fill_y() {
+                    constrains.y = constrains.y.with_fill(true).with_max(row_size.height);
+                }
+
+                let size = ctx.with_constrains(|_| constrains, |ctx| child.layout(ctx, wl));
+
+                let mut offset = row_offset;
+                offset.y += (row_size.height - size.height) * child_align_y;
+                wl.with_outer(child, false, |wl, _| {
+                    wl.translate(row_offset);
+                });
+
+                row_offset.x += size.width;
             }
 
-            // !!: TODO, use the row_joiners info to define the first and last row of each child.
-            // !!: TODO, way to get the child measure constrains (it is stored in the bounds info, but not public)
-            //          - just make it public? Only useful here that we know we just measured.
-            child.layout(ctx, wl);
             true
         });
+        panel_height += row_size.height;
 
-        constrains.clamp_size(PxSize::new(panel_width, panel_height))
+        let panel_size = constrains.clamp_size(PxSize::new(panel_width, panel_height));
+
+        panel_size
     }
 }
 

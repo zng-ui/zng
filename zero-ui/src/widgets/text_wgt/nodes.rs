@@ -463,11 +463,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            let inline_advance = if inline.is_some() { metrics.inline_advance().width } else { Px(0) };
-            if self.shaping_args.text_indent != inline_advance {
-                self.shaping_args.text_indent = inline_advance;
-                pending.insert(Layout::RESHAPE);
-            }
+            // !!:
+            // let inline_advance = if inline.is_some() { metrics.inline_advance().width } else { Px(0) };
+            // if self.shaping_args.text_indent != inline_advance {
+            //     self.shaping_args.text_indent = inline_advance;
+            //     pending.insert(Layout::RESHAPE);
+            // }
 
             if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != txt_padding {
                 pending.insert(Layout::QUICK_RESHAPE);
@@ -637,6 +638,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let bounds = r.shaped_text.align_box().size;
             let size = metrics.constrains().fill_size_or(bounds);
+            /*
+            !!:
             if let Some(inline) = inline {
                 inline.bounds = bounds;
 
@@ -646,6 +649,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let clip_height = (r.shaped_text.box_size().height - size.height).max(Px(0));
                 inline.last_row = PxPoint::new(last_line_rect.width(), inline.bounds.height - last_line_rect.height() + clip_height);
             }
+            */
 
             size
         }
@@ -778,7 +782,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
                 let mut pending = self.pending;
-                txt.layout(ctx.metrics, t, &mut pending, wm.inline())
+                txt.layout(ctx.metrics, t, &mut pending, None)
             }
         }
         #[UiNode]
