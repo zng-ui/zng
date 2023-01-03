@@ -93,13 +93,13 @@ impl WrapNode {
             };
         }
 
-        let (max_row_width, panel_height) = self.measure_row_joiners(ctx, wm);
+        let desired_panel_size = self.measure_row_joiners(ctx, wm, inline_constrains);
         let panel_width = if let Some(width) = constrains.x.fill_or_exact() {
             // constrains requests a width
             width
         } else {
             // our width, or min allowed
-            constrains.x.clamp(max_row_width)
+            constrains.x.clamp(desired_panel_size.width)
         };
 
         if let Some(inline) = wm.inline() {
@@ -112,7 +112,7 @@ impl WrapNode {
             }
         }
 
-        constrains.clamp_size(PxSize::new(panel_width, panel_height))
+        constrains.clamp_size(PxSize::new(panel_width, desired_panel_size.height))
     }
 
     #[UiNode]
@@ -131,13 +131,13 @@ impl WrapNode {
             };
         }
 
-        let (max_row_width, _s) = self.measure_row_joiners(&mut ctx.as_measure(), &mut WidgetMeasure::new());
+        let desired_panel_size = self.measure_row_joiners(&mut ctx.as_measure(), &mut WidgetMeasure::new(), None);
         let panel_width = if let Some(width) = constrains.x.fill_or_exact() {
             // constrains requests a width
             width
         } else {
             // our width, or min allowed
-            constrains.x.clamp(max_row_width)
+            constrains.x.clamp(desired_panel_size.width)
         };
         let mut panel_height = Px(0);
 
@@ -253,8 +253,8 @@ impl WrapNode {
         panel_size
     }
 
-    /// Updates the `self.row_joiners` and returns the `(max_row_width, panel_height)`.
-    fn measure_row_joiners(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> (Px, Px) {
+    /// Updates the `self.row_joiners` and returns the desired panel size.
+    fn measure_row_joiners(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure, mut first_max: Option<Px>) -> PxSize {
         let constrains = ctx.constrains();
 
         let mut row_joiners = self.row_joiners.lock();
@@ -263,12 +263,14 @@ impl WrapNode {
         let max_allowed_width = constrains.x.max().unwrap_or(Px::MAX);
         row_joiners.clear();
         let mut current_row = RowJoinerInfo::default();
-        let mut max_row_width = Px(0);
-        let mut panel_height = Px(0);
+        let mut panel_size = PxSize::zero();
 
         // measure children to find all "joiner" rows and their size.
         self.children.for_each(|i, child| {
-            let leftover = if max_allowed_width == Px::MAX {
+            let first_max = if let Some(max) = first_max.take() {
+                // first line
+                max // !!: remove diff from max_allowed
+            } else if max_allowed_width == Px::MAX {
                 // unbounded
                 Px::MAX
             } else {
@@ -276,18 +278,23 @@ impl WrapNode {
                 max_allowed_width - current_row.size.width
             };
 
-            let (inline, size) = ctx.measure_inline(leftover, child);
+            let (inline, size) = ctx.measure_inline(first_max, child);
 
             let measured_row_size = if let Some(inline) = inline { inline.first } else { size };
 
             // add to current row, or wrap into new.
             let row_width = current_row.size.width + measured_row_size.width;
-            if row_width < max_allowed_width {
-                panel_height += current_row.size.height;
+
+            if ctx.path.widget_id() == WidgetId::named("outer-wrap") {
+                println!("!!: HERE: {:#?}", row_width);
+            }
+
+            if row_width <= max_allowed_width {
+                panel_size.height += current_row.size.height;
                 current_row.size.width = row_width;
                 current_row.size.height = current_row.size.height.max(measured_row_size.height);
             } else {
-                max_row_width = max_row_width.max(current_row.size.width);
+                panel_size.width = panel_size.width.max(current_row.size.width);
                 row_joiners.push(mem::replace(
                     &mut current_row,
                     RowJoinerInfo {
@@ -300,8 +307,8 @@ impl WrapNode {
             if let Some(inline) = inline {
                 if inline.last != size {
                     // child wrap.
-                    panel_height += current_row.size.height;
-                    max_row_width = max_row_width.max(current_row.size.width);
+                    panel_size.height += current_row.size.height;
+                    panel_size.width = panel_size.width.max(current_row.size.width);
                     row_joiners.push(mem::replace(
                         &mut current_row,
                         RowJoinerInfo {
@@ -314,11 +321,11 @@ impl WrapNode {
 
             true
         });
-        max_row_width = max_row_width.max(current_row.size.width);
-        panel_height += current_row.size.height;
+        panel_size.width = panel_size.width.max(current_row.size.width);
+        panel_size.height += current_row.size.height;
         row_joiners.push(current_row);
 
-        (max_row_width, panel_height)
+        panel_size
     }
 }
 
