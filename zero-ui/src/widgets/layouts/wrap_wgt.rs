@@ -102,7 +102,7 @@ impl WrapNode {
             constrains.x.clamp(max_row_width)
         };
 
-        if let Some(inline) = wm.inline() {            
+        if let Some(inline) = wm.inline() {
             let row_joiners = self.row_joiners.lock();
             if let Some(first) = row_joiners.first() {
                 inline.first = first.size;
@@ -156,8 +156,6 @@ impl WrapNode {
 
         let row_joiners = &*self.row_joiners.get_mut();
 
-        
-
         self.children.for_each_mut(|i, child| {
             if i == row_end && next_row < row_joiners.len() {
                 // panel wrap
@@ -186,7 +184,7 @@ impl WrapNode {
                     let mid_clear = row_size.height - first_row.size.height;
 
                     // !!: use the measured overall child size to calculate offset?
-                    let last_row = if let Some(nr) = row_joiners.get(next_row) {
+                    let last_row = if let Some(nr) = <[_]>::get(row_joiners, next_row) {
                         row_offset.y += row_size.height; // !!: what about the mid-rows?
                         row_size = nr.size;
                         row_offset.x = (panel_width - nr.size.height) * child_align_x;
@@ -290,7 +288,13 @@ impl WrapNode {
                 current_row.size.height = current_row.size.height.max(measured_row_size.height);
             } else {
                 max_row_width = max_row_width.max(current_row.size.width);
-                row_joiners.push(mem::replace(&mut current_row, RowJoinerInfo { size: measured_row_size, first_child: i }));
+                row_joiners.push(mem::replace(
+                    &mut current_row,
+                    RowJoinerInfo {
+                        size: measured_row_size,
+                        first_child: i,
+                    },
+                ));
             }
 
             if let Some(inline) = inline {
