@@ -1119,8 +1119,8 @@ pub mod prelude {
             property, ui_node, widget,
             widget_base::{self, HitTestMode},
             widget_info::{
-                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
-                WidgetMeasure, WidgetInlineMeasure,
+                InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure,
+                WidgetLayout, WidgetMeasure,
             },
             widget_instance::{
                 ui_vec, z_index, AdoptiveNode, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode,

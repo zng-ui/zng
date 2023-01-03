@@ -307,7 +307,7 @@ impl WidgetMeasure {
     /// New with inline enabled.
     pub fn new_inline() -> Self {
         Self {
-            inline: Some(WidgetInlineMeasure::default())
+            inline: Some(WidgetInlineMeasure::default()),
         }
     }
 
@@ -357,12 +357,12 @@ impl WidgetMeasure {
             {
                 let mut reused = false;
                 if let Some(inline) = self.inline() {
-                    if let Some(prev) = ctx.widget_info.bounds.inline_measure() {
+                    if let Some(prev) = ctx.widget_info.bounds.measure_inline() {
                         *inline = prev;
                         reused = true;
                     }
                 } else {
-                    reused = ctx.widget_info.bounds.inline_measure().is_none();
+                    reused = ctx.widget_info.bounds.measure_inline().is_none();
                 }
 
                 if reused {

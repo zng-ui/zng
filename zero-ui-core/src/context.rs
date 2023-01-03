@@ -1119,7 +1119,7 @@ impl<'a> MeasureContext<'a> {
             },
             &mut WidgetMeasure::new_inline(),
         );
-        let inline = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten();
+        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
         (inline, size)
     }
 
@@ -1298,7 +1298,7 @@ impl<'a> LayoutContext<'a> {
             },
             &mut WidgetMeasure::new_inline(),
         );
-        let inline = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten();
+        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
         (inline, size)
     }
 

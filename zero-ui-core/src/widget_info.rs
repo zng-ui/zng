@@ -310,7 +310,7 @@ struct WidgetBoundsData {
     offsets_pass: LayoutPassId,
 
     inline: Option<WidgetInlineInfo>,
-    inline_measure: Option<WidgetInlineMeasure>,
+    measure_inline: Option<WidgetInlineMeasure>,
 
     childs_changed: bool,
 
@@ -416,11 +416,14 @@ impl WidgetBoundsInfo {
         self.0.lock().outer_offset
     }
 
-    pub(crate) fn measure_outer_size(&self) -> PxSize {
+    /// Gets the widget's last measured outer bounds size.
+    ///
+    /// This size is expected to be the same if the widget is layout using the same exact parameters it was measured.
+    pub fn measure_outer_size(&self) -> PxSize {
         self.0.lock().measure_outer_size
     }
 
-    /// Gets the widget's outer bounds size.
+    /// Gets the widget's last layout outer bounds size.
     pub fn outer_size(&self) -> PxSize {
         self.0.lock().outer_size
     }
@@ -485,8 +488,8 @@ impl WidgetBoundsInfo {
     /// This value is only useful for panels implementing inline, just after the widget was measured.
     ///
     /// Returns `None` if the latest widget measure was not in an inlining context.
-    pub fn inline_measure(&self) -> Option<WidgetInlineMeasure> {
-        self.0.lock().inline_measure
+    pub fn measure_inline(&self) -> Option<WidgetInlineMeasure> {
+        self.0.lock().measure_inline
     }
 
     /// Exclusive read the latest inline layout info.
@@ -786,7 +789,7 @@ impl WidgetBoundsInfo {
     }
 
     pub(super) fn set_measure_inline(&self, inline: Option<WidgetInlineMeasure>) {
-        self.0.lock().inline_measure = inline;
+        self.0.lock().measure_inline = inline;
     }
 
     pub(crate) fn set_measure_outer_size(&self, size: PxSize) {
