@@ -304,6 +304,13 @@ impl WidgetMeasure {
         Self::default()
     }
 
+    /// New with inline enabled.
+    pub fn new_inline() -> Self {
+        Self {
+            inline: Some(WidgetInlineMeasure::default())
+        }
+    }
+
     /// If the parent widget is doing inline flow layout.
     pub fn is_inline(&self) -> bool {
         self.inline.is_some()

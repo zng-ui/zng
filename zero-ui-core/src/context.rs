@@ -1100,7 +1100,7 @@ impl<'a> MeasureContext<'a> {
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
-    pub fn measure_inline(&mut self, wm: &mut WidgetMeasure, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(&mut self, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
                 metrics: &self
@@ -1117,7 +1117,7 @@ impl<'a> MeasureContext<'a> {
                 widget_state: self.widget_state,
                 update_state: self.update_state.reborrow(),
             },
-            wm,
+            &mut WidgetMeasure::new_inline(),
         );
         let inline = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten();
         (inline, size)
@@ -1296,7 +1296,7 @@ impl<'a> LayoutContext<'a> {
                 widget_state: self.widget_state.as_ref(),
                 update_state: self.update_state.reborrow(),
             },
-            &mut WidgetMeasure::new(),
+            &mut WidgetMeasure::new_inline(),
         );
         let inline = child.with_context(|ctx| ctx.widget_info.bounds.inline_measure()).flatten();
         (inline, size)
