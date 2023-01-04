@@ -103,7 +103,14 @@ impl InlineLayout {
         let desired_panel_size = self.measure_rows(ctx, children, child_align);
 
         if let Some(inline) = wm.inline() {
+            inline.first_wrapped = false;
             inline.first = self.rows.first().map(|r| r.size).unwrap_or_default();
+            if inline.first.is_empty() {
+                if let Some(r) = self.rows.iter().find(|r| !r.size.is_empty()) {
+                    inline.first = r.size;
+                    inline.first_wrapped = true;
+                }
+            }
             inline.last = self.rows.last().map(|r| r.size).unwrap_or_default();
             // !!: TODO, fill and underline
             inline.first_max_fill = inline.first.width;
@@ -125,11 +132,8 @@ impl InlineLayout {
 
         let panel_width = constrains.x.fill_or(desired_panel_size.width);
 
-        let (first, mid, last) = if let Some((mut first, mid, last)) = ctx.inline_constrains().map(|c| c.layout()) {
-            if first.is_empty() {
-                first = last;
-            }
-            (first, mid, last)
+        let (first, mid, last) = if let Some(s) = ctx.inline_constrains().map(|c| c.layout()) {
+            s
         } else {
             // define our own first and last
             let mut first = PxRect::from_size(self.rows[0].size);
@@ -269,8 +273,18 @@ impl InlineLayout {
                     let (inline, size) = ctx.measure_inline(inline_constrain, child);
 
                     if let Some(inline) = inline {
-                        row.size.width += inline.first.width;
-                        row.size.height = row.size.height.max(inline.first.height);
+                        if inline.first_wrapped {
+                            // wrap by us, detected by child
+                            desired_panel_size.width = desired_panel_size.width.max(row.size.width);
+                            desired_panel_size.height += row.size.height;
+
+                            self.rows.push(row);
+                            row.size = inline.first;
+                            row.first_child = i;
+                        } else {
+                            row.size.width += inline.first.width;
+                            row.size.height = row.size.height.max(inline.first.height);
+                        }
 
                         if inline.last != size {
                             // wrap by child
@@ -279,14 +293,6 @@ impl InlineLayout {
 
                             self.rows.push(row);
                             row.size = inline.last;
-                            row.first_child = i;
-                        } else if inline.first.is_empty() {
-                            // wrap by us, detected by child
-                            desired_panel_size.width = desired_panel_size.width.max(row.size.width);
-                            desired_panel_size.height += row.size.height;
-
-                            self.rows.push(row);
-                            row.size = size;
                             row.first_child = i;
                         }
                     } else {

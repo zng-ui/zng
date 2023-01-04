@@ -277,6 +277,9 @@ pub struct WidgetInlineMeasure {
     /// In left-to-right direction the origin is `top_left`, in right-to-left direction the origin is `top_right - first.width`.
     pub first: PxSize,
 
+    /// Indicates that `first` starts in the next row, not in the *current* row defined by the inline constrains.
+    pub first_wrapped: bool,
+
     /// Preferred last size.
     ///
     /// In left-to-right direction the origin is `bottom_left - last.height`, in right-to-left direction
