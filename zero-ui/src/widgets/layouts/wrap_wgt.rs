@@ -149,9 +149,11 @@ impl InlineLayout {
         };
         let panel_height = last.origin.y + last.size.height;
 
-        let child_constrains = PxConstrains2d::new_unbounded()
-            .with_fill_x(child_align.is_fill_x())
-            .with_max_x(panel_width);
+        let child_constrains = PxConstrains2d::new_unbounded().with_fill_x(true).with_max_x(panel_width);
+
+        if let Some(inline) = wl.inline() {
+            inline.rows.clear();
+        }
 
         ctx.with_constrains(
             |_| child_constrains,
@@ -159,9 +161,13 @@ impl InlineLayout {
                 let mut row = first;
                 let mut row_advance = Px(0);
                 let mut next_row_i = 1;
+
                 children.for_each_mut(|i, child| {
                     if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
                         // new row
+                        if let Some(inline) = wl.inline() {
+                            inline.rows.push(row);
+                        }
                         if next_row_i == self.rows.len() - 1 {
                             row = last;
                         } else {
@@ -190,6 +196,8 @@ impl InlineLayout {
                         if child_inline.last != child_desired_size {
                             // child wraps
 
+                            debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
+
                             child_first.origin.x += row_advance;
                             // !!: TODO, clamp/fill size, align y within row
                             child_mid = child_first.size.height - row.size.height;
@@ -198,7 +206,7 @@ impl InlineLayout {
 
                             ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
                             wl.with_outer(child, false, |wl, _| {
-                                wl.translate(row.origin.to_vector() + PxVector::new(row_advance, Px(0)))
+                                wl.translate(PxVector::new(Px(0), row.origin.y));
                             });
 
                             row_advance = child_last.size.width;
@@ -237,6 +245,10 @@ impl InlineLayout {
 
                     true
                 });
+
+                if let Some(inline) = wl.inline() {
+                    inline.rows.push(row);
+                }
             },
         );
 
@@ -293,7 +305,7 @@ impl InlineLayout {
 
                             self.rows.push(row);
                             row.size = inline.last;
-                            row.first_child = i;
+                            row.first_child = i + 1;
                         }
                     } else {
                         if size.width <= inline_constrain {

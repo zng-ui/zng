@@ -791,8 +791,8 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                         }
 
                         if let Some(inline) = ctx.widget_info.bounds.inline() {
-                            for r in inline.rows.iter() {
-                                c.push_clip_rect(*r, true, false);
+                            for r in inline.negative_space().iter() {
+                                c.push_clip_rect(*r, false, false);
                             }
                         }
                     },

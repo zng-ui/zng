@@ -288,12 +288,84 @@ pub struct WidgetInlineMeasure {
 }
 
 /// Info about the inlined rows of the widget.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct WidgetInlineInfo {
     /// Last layout rows of the widget.
     ///
-    /// The rectangles are in the inner bounds space.
+    /// The rectangles are in the inner bounds space, from top-to-bottom.
     pub rows: Vec<PxRect>,
+
+    /// Widget inner bounds when the rows where last updated.
+    pub inner_bounds: PxRect,
+
+    negative_space: Mutex<Option<Arc<Vec<PxRect>>>>,
+}
+impl WidgetInlineInfo {
+    /// Gets the union of all row rectangles.
+    pub fn union(&self) -> PxRect {
+        self.rows.iter().fold(PxRect::zero(), |union, row| union.union(row))
+    }
+
+    /// Gets or computes the negative space of the [`rows`] in the [`inner_bounds`] space, that is, all the areas that are
+    /// not covered by any row.
+    ///
+    /// This is computed on demand and cached.
+    ///
+    /// [`rows`]: Self::rows
+    /// [`inner_bounds`]: Self::inner_bounds
+    pub fn negative_space(&self) -> Arc<Vec<PxRect>> {
+        let mut space = self.negative_space.lock();
+        if space.is_none() {
+            *space = Some(Arc::new(self.negatives_enveloped(self.inner_bounds)));
+        }
+        space.as_ref().unwrap().clone()
+    }
+
+    /// Invalidates the [`negative_space`] cache.
+    ///
+    /// [`negative_space`]: Self::negative_space
+    pub fn invalidate_negative_space(&mut self) {
+        *self.negative_space.get_mut() = None;
+    }
+
+    fn negatives_enveloped(&self, bounds: PxRect) -> Vec<PxRect> {
+        let mut space = vec![];
+
+        let bounds_max_x = bounds.max_x();
+        let mut last_max_y = bounds.origin.y;
+
+        for r in &self.rows {
+            let spacing_y = r.origin.y - last_max_y;
+            if spacing_y > Px(0) {
+                space.push(PxRect::new(
+                    PxPoint::new(bounds.origin.x, last_max_y),
+                    PxSize::new(bounds.size.width, spacing_y),
+                ));
+            }
+            last_max_y = r.max_y();
+
+            let left = r.origin.x - bounds.origin.x;
+            if left > Px(0) {
+                space.push(PxRect::new(
+                    PxPoint::new(bounds.origin.x, r.origin.y),
+                    PxSize::new(left, r.size.height),
+                ));
+            }
+            let max_x = r.max_x();
+            let right = bounds_max_x - max_x;
+            if right > Px(0) {
+                space.push(PxRect::new(PxPoint::new(max_x, r.origin.y), PxSize::new(right, r.size.height)));
+            }
+        }
+        let spacing_y = bounds.max_y() - last_max_y;
+        if spacing_y > Px(0) {
+            space.push(PxRect::new(
+                PxPoint::new(bounds.origin.x, last_max_y),
+                PxSize::new(bounds.size.width, spacing_y),
+            ));
+        }
+        space
+    }
 }
 
 /// Represents the in-progress measure pass for a widget tree.
@@ -305,13 +377,6 @@ impl WidgetMeasure {
     /// New default.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// New with inline enabled.
-    pub fn new_inline() -> Self {
-        Self {
-            inline: Some(WidgetInlineMeasure::default()),
-        }
     }
 
     /// If the parent widget is doing inline flow layout.
@@ -374,7 +439,11 @@ impl WidgetMeasure {
             }
         }
 
+        let parent_inline = self.inline.take();
         let parent_uses = ctx.metrics.enter_widget_ctx();
+        if ctx.inline_constrains().is_some() {
+            self.inline = Some(Default::default());
+        }
 
         let size = measure(ctx, self);
 
@@ -382,6 +451,7 @@ impl WidgetMeasure {
         ctx.widget_info.bounds.set_measure_metrics(Some(snap), measure_uses);
         ctx.widget_info.bounds.set_measure_outer_size(size);
         ctx.widget_info.bounds.set_measure_inline(self.inline.take());
+        self.inline = parent_inline;
 
         size
     }
@@ -460,6 +530,7 @@ impl WidgetLayout {
         self.offset_baseline = false;
         self.can_auto_hide = true;
         let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
+        let parent_inline = self.inline.take();
 
         ctx.widget_info.bounds.begin_pass(self.pass_id); // record prev state
 
@@ -473,19 +544,15 @@ impl WidgetLayout {
 
         if reuse && ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
             size = ctx.widget_info.bounds.outer_size();
-            if let Some(inline) = self.inline.as_mut() {
-                if let Some(prev) = ctx.widget_info.bounds.take_inline() {
-                    *inline = prev;
-                    reused = true;
-                }
-            } else {
-                reused = ctx.widget_info.bounds.inline().is_none();
-            }
+            reused = true;
         }
 
         if !reused {
-            if self.inline.is_none() && ctx.inline_constrains().is_some() {
-                self.inline = Some(Default::default());
+            if ctx.inline_constrains().is_some() {
+                self.inline = ctx.widget_info.bounds.take_inline();
+                if self.inline.is_none() {
+                    self.inline = Some(Default::default());
+                }
             }
 
             let parent_uses = ctx.metrics.enter_widget_ctx();
@@ -505,6 +572,7 @@ impl WidgetLayout {
         self.known_child_offset_changed = self.child_offset_changed;
 
         self.child_offset_changed += parent_child_offset_changed; // when parent inner closes this the flag is for the parent not this
+        self.inline = parent_inline;
 
         size
     }

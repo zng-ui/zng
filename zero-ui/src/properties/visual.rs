@@ -425,8 +425,8 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                         }
 
                         if let Some(inline) = ctx.widget_info.bounds.inline() {
-                            for r in inline.rows.iter() {
-                                c.push_clip_rect(*r, true, true);
+                            for r in inline.negative_space().iter() {
+                                c.push_clip_rect(*r, false, true);
                             }
                         }
                     },

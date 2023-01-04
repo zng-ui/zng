@@ -1117,7 +1117,7 @@ impl<'a> MeasureContext<'a> {
                 widget_state: self.widget_state,
                 update_state: self.update_state.reborrow(),
             },
-            &mut WidgetMeasure::new_inline(),
+            &mut WidgetMeasure::new(),
         );
         let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
         (inline, size)
@@ -1296,7 +1296,7 @@ impl<'a> LayoutContext<'a> {
                 widget_state: self.widget_state.as_ref(),
                 update_state: self.update_state.reborrow(),
             },
-            &mut WidgetMeasure::new_inline(),
+            &mut WidgetMeasure::new(),
         );
         let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
         (inline, size)
