@@ -107,6 +107,9 @@ impl InlineLayout {
         if let Some(inline) = wm.inline() {
             inline.first = self.rows.first().map(|r| r.size).unwrap_or_default();
             inline.last = self.rows.last().map(|r| r.size).unwrap_or_default();
+            // !!: TODO, fill and underline
+            inline.first_max_fill = inline.first.width;
+            inline.last_max_fill = inline.last.width;
         }
 
         constrains.clamp_size(desired_panel_size)
@@ -250,15 +253,17 @@ impl InlineLayout {
             |_| child_constrains,
             |ctx| {
                 children.for_each(|i, child| {
-                    let inline_constrain = if self.rows.is_empty() {
+                    let mut inline_constrain = child_inline_constrain;
+                    if self.rows.is_empty() {
                         if let Some(c) = inline_constrains {
-                            c.measure()
-                        } else {
-                            child_inline_constrain
+                            if let InlineConstrains::Measure { first_max } = c {
+                                inline_constrain = first_max;
+                            }
                         }
-                    } else {
-                        child_inline_constrain
-                    };
+                    }
+                    if inline_constrain < Px::MAX {
+                        inline_constrain -= row.size.width;
+                    }
 
                     let (inline, size) = ctx.measure_inline(inline_constrain, child);
 
@@ -276,9 +281,7 @@ impl InlineLayout {
                             row.first_child = i;
                         }
                     } else {
-                        let next_width = row.size.width + size.width;
-
-                        if next_width <= child_inline_constrain {
+                        if size.width <= inline_constrain {
                             row.size.width += size.width;
                             row.size.height = row.size.height.max(size.height);
                         } else {
