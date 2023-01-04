@@ -292,13 +292,13 @@ pub struct WidgetInlineMeasure {
 pub struct WidgetInlineInfo {
     /// Last layout rows of the widget.
     ///
-    /// The rectangles are in the inner bounds space, from top-to-bottom.
+    /// The rectangles are in the widget's inner space, from top to bottom.
     pub rows: Vec<PxRect>,
 
-    /// Widget inner bounds when the rows where last updated.
-    pub inner_bounds: PxRect,
+    /// Widget inner size when the rows where last updated.
+    pub inner_size: PxSize,
 
-    negative_space: Mutex<Option<Arc<Vec<PxRect>>>>,
+    negative_space: Mutex<(Arc<Vec<PxRect>>, bool)>,
 }
 impl WidgetInlineInfo {
     /// Gets the union of all row rectangles.
@@ -306,7 +306,7 @@ impl WidgetInlineInfo {
         self.rows.iter().fold(PxRect::zero(), |union, row| union.union(row))
     }
 
-    /// Gets or computes the negative space of the [`rows`] in the [`inner_bounds`] space, that is, all the areas that are
+    /// Gets or computes the negative space of the [`rows`] in the [`inner_size`] space, that is, all the areas that are
     /// not covered by any row.
     ///
     /// This is computed on demand and cached.
@@ -315,22 +315,28 @@ impl WidgetInlineInfo {
     /// [`inner_bounds`]: Self::inner_bounds
     pub fn negative_space(&self) -> Arc<Vec<PxRect>> {
         let mut space = self.negative_space.lock();
-        if space.is_none() {
-            *space = Some(Arc::new(self.negatives_enveloped(self.inner_bounds)));
+        if space.1 {
+            return space.0.clone();
         }
-        space.as_ref().unwrap().clone()
+
+        let mut vec = Arc::try_unwrap(mem::take(&mut space.0)).unwrap_or_default();
+        vec.clear();
+
+        self.negative_enveloped(&mut vec, PxRect::from_size(self.inner_size));
+
+        let r = Arc::new(vec);
+        *space = (r.clone(), true);
+        r
     }
 
     /// Invalidates the [`negative_space`] cache.
     ///
     /// [`negative_space`]: Self::negative_space
     pub fn invalidate_negative_space(&mut self) {
-        *self.negative_space.get_mut() = None;
+        self.negative_space.get_mut().1 = false;
     }
 
-    fn negatives_enveloped(&self, bounds: PxRect) -> Vec<PxRect> {
-        let mut space = vec![];
-
+    fn negative_enveloped(&self, space: &mut Vec<PxRect>, bounds: PxRect) {
         let bounds_max_x = bounds.max_x();
         let mut last_max_y = bounds.origin.y;
 
@@ -364,7 +370,6 @@ impl WidgetInlineInfo {
                 PxSize::new(bounds.size.width, spacing_y),
             ));
         }
-        space
     }
 }
 
@@ -550,7 +555,10 @@ impl WidgetLayout {
         if !reused {
             if ctx.inline_constrains().is_some() {
                 self.inline = ctx.widget_info.bounds.take_inline();
-                if self.inline.is_none() {
+                if let Some(inline) = self.inline.as_mut() {
+                    inline.rows.clear();
+                    inline.invalidate_negative_space();
+                } else {
                     self.inline = Some(Default::default());
                 }
             }
@@ -560,7 +568,13 @@ impl WidgetLayout {
             uses = ctx.metrics.exit_widget_ctx(parent_uses);
 
             ctx.widget_info.bounds.set_outer_size(size);
-            ctx.widget_info.bounds.set_inline(self.inline.take());
+
+            let mut inline = self.inline.take();
+            if let Some(inline) = inline.as_mut() {
+                inline.inner_size = ctx.widget_info.bounds.inner_size();
+                inline.invalidate_negative_space();
+            }
+            ctx.widget_info.bounds.set_inline(inline);
         }
 
         ctx.widget_info.bounds.set_metrics(Some(snap), uses);
