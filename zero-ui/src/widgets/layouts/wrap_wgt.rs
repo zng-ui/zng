@@ -1,7 +1,5 @@
 use crate::prelude::new_widget::*;
 
-use serde::__private::de;
-use std::mem;
 use task::parking_lot::Mutex;
 
 /// Wrapping inline layout.
@@ -127,8 +125,11 @@ impl InlineLayout {
 
         let panel_width = constrains.x.fill_or(desired_panel_size.width);
 
-        let (first, mid, last) = if let Some(constrains) = ctx.inline_constrains().map(|c| c.layout()) {
-            constrains
+        let (first, mid, last) = if let Some((mut first, mid, last)) = ctx.inline_constrains().map(|c| c.layout()) {
+            if first.is_empty() {
+                first = last;
+            }
+            (first, mid, last)
         } else {
             // define our own first and last
             let mut first = PxRect::from_size(self.rows[0].size);
@@ -278,6 +279,14 @@ impl InlineLayout {
 
                             self.rows.push(row);
                             row.size = inline.last;
+                            row.first_child = i;
+                        } else if inline.first.is_empty() {
+                            // wrap by us, detected by child
+                            desired_panel_size.width = desired_panel_size.width.max(row.size.width);
+                            desired_panel_size.height += row.size.height;
+
+                            self.rows.push(row);
+                            row.size = size;
                             row.first_child = i;
                         }
                     } else {
