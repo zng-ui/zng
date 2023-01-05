@@ -90,6 +90,7 @@ struct RowInfo {
 
 #[derive(Default)]
 pub struct InlineLayout {
+    first_wrapped: bool,
     rows: Vec<RowInfo>,
     desired_size: PxSize,
 }
@@ -104,14 +105,8 @@ impl InlineLayout {
         self.measure_rows(ctx, children, child_align);
 
         if let Some(inline) = wm.inline() {
-            inline.first_wrapped = false;
+            inline.first_wrapped = self.first_wrapped;
             inline.first = self.rows.first().map(|r| r.size).unwrap_or_default();
-            if inline.first.is_empty() {
-                if let Some(r) = self.rows.iter().find(|r| !r.size.is_empty()) {
-                    inline.first = r.size;
-                    inline.first_wrapped = true;
-                }
-            }
             inline.last = self.rows.last().map(|r| r.size).unwrap_or_default();
             // !!: TODO, fill and underline
             inline.first_max_fill = inline.first.width;
@@ -276,6 +271,7 @@ impl InlineLayout {
 
     fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align) {
         self.rows.clear();
+        self.first_wrapped = false;
         self.desired_size = PxSize::zero();
 
         let constrains = ctx.constrains();
@@ -290,7 +286,7 @@ impl InlineLayout {
             |ctx| {
                 children.for_each(|i, child| {
                     let mut inline_constrain = child_inline_constrain;
-                    if self.rows.is_empty() {
+                    if self.rows.is_empty() && !self.first_wrapped {
                         if let Some(InlineConstrains::Measure { first_max }) = inline_constrains {
                             inline_constrain = first_max;
                         }
@@ -304,10 +300,15 @@ impl InlineLayout {
                     if let Some(inline) = inline {
                         if inline.first_wrapped {
                             // wrap by us, detected by child
-                            self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += row.size.height;
+                            if row.size.is_empty() {
+                                debug_assert!(self.rows.is_empty());
+                                self.first_wrapped = true;
+                            } else {
+                                self.desired_size.width = self.desired_size.width.max(row.size.width);
+                                self.desired_size.height += row.size.height;
+                                self.rows.push(row);
+                            }
 
-                            self.rows.push(row);
                             row.size = inline.first;
                             row.first_child = i;
                         } else {
@@ -329,10 +330,15 @@ impl InlineLayout {
                         row.size.height = row.size.height.max(size.height);
                     } else {
                         // wrap by us
-                        self.desired_size.width = self.desired_size.width.max(row.size.width);
-                        self.desired_size.height += row.size.height;
+                        if row.size.is_empty() {
+                            debug_assert!(self.rows.is_empty());
+                            self.first_wrapped = true;
+                        } else {
+                            self.desired_size.width = self.desired_size.width.max(row.size.width);
+                            self.desired_size.height += row.size.height;
+                            self.rows.push(row);
+                        }
 
-                        self.rows.push(row);
                         row.size = size;
                         row.first_child = i;
                     }
