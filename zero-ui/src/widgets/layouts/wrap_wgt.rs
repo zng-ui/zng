@@ -210,15 +210,13 @@ impl InlineLayout {
 
                             // new row
                             if let Some(inline) = wl.inline() {
+                                // !!: TODO copy child rows here?
                                 inline.rows.push(row);
                             }
                             if next_row_i == self.rows.len() - 1 {
                                 row = last;
                             } else {
-                                row.origin.y += row.size.height;
-                                if next_row_i == 1 {
-                                    row.origin.y += mid;
-                                }
+                                row.origin.y += child_last.origin.y;
 
                                 row.size = self.rows[next_row_i].size;
                                 row.origin.x = (panel_width - row.size.width) * child_align_x;
