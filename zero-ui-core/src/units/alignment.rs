@@ -280,7 +280,7 @@ impl Align {
 
         START = (0.0, true, 0.5);
         LEFT = (0.0, false, 0.5);
-        END = (0.0, true, 0.5);
+        END = (1.0, true, 0.5);
         RIGHT = (1.0, false, 0.5);
         TOP = (0.5, false, 0.0);
         BOTTOM = (0.5, false, 1.0);
@@ -291,7 +291,7 @@ impl Align {
         FILL_BOTTOM = (f32::INFINITY, false, 1.0);
         FILL_START = (1.0, true, f32::INFINITY);
         FILL_RIGHT = (1.0, false, f32::INFINITY);
-        FILL_END = (0.0, true, f32::INFINITY);
+        FILL_END = (1.0, true, f32::INFINITY);
         FILL_LEFT = (0.0, false, f32::INFINITY);
 
         FILL_X = (f32::INFINITY, false, 0.5);
