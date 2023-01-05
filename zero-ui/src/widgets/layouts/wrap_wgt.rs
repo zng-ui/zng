@@ -210,8 +210,20 @@ impl InlineLayout {
 
                             // new row
                             if let Some(inline) = wl.inline() {
-                                // !!: TODO copy child rows here?
                                 inline.rows.push(row);
+                                child.with_context(|ctx| {
+                                    if let Some(inner) = ctx.widget_info.bounds.inline() {
+                                        if inner.rows.len() >= 3 {
+                                            inline.rows.extend(inner.rows[1..inner.rows.len() - 1].iter().map(|r| {
+                                                let mut r = *r;
+                                                r.origin.y += row.origin.y;
+                                                r
+                                            }));
+                                        }
+                                    } else {
+                                        tracing::error!("child inlined in measure, but not in layout")
+                                    }
+                                });
                             }
                             if next_row_i == self.rows.len() - 1 {
                                 row = last;
