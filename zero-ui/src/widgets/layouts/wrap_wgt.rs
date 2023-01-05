@@ -144,6 +144,12 @@ impl InlineLayout {
 
             last.origin.y = self.desired_size.height - last.size.height;
 
+            if let Some(y) = constrains.y.fill_or_exact() {
+                let align_y = (y - self.desired_size.height) * child_align_y;
+                first.origin.y += align_y;
+                last.origin.y += align_y;
+            }
+
             (first, Px(0), last)
         };
         let panel_height = last.origin.y + last.size.height;
