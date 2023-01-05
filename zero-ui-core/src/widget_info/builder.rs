@@ -553,7 +553,8 @@ impl WidgetLayout {
         }
 
         if !reused {
-            if ctx.inline_constrains().is_some() {
+            if ctx.inline_constrains().is_some() && ctx.widget_info.bounds.measure_inline().is_some() {
+                // inline enabled by parent and widget
                 self.inline = ctx.widget_info.bounds.take_inline();
                 if let Some(inline) = self.inline.as_mut() {
                     inline.rows.clear();
