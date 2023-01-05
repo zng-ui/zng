@@ -205,10 +205,10 @@ impl InlineLayout {
 
                             child_first.origin.x = row.origin.x + row_advance;
                             // !!: TODO, clamp/fill size, align y within row
-                            child_mid = child_first.size.height - row.size.height;
+                            child_mid = row.size.height - child_first.size.height;
                             // !!: TODO clamp/fill size, align y and new row x.
 
-                            child_last.origin.y = child_desired_size.height - child_last.size.height;
+                            child_last.origin.y = child_mid + child_desired_size.height - child_last.size.height;
 
                             let next_row = if next_row_i == self.rows.len() - 1 {
                                 last
