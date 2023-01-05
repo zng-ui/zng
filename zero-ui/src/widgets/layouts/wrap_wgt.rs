@@ -91,6 +91,7 @@ struct RowInfo {
 #[derive(Default)]
 pub struct InlineLayout {
     rows: Vec<RowInfo>,
+    desired_size: PxSize,
 }
 impl InlineLayout {
     pub fn measure(&mut self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure, children: &impl UiNodeList, child_align: Align) -> PxSize {
@@ -100,7 +101,7 @@ impl InlineLayout {
             return known;
         }
 
-        let desired_panel_size = self.measure_rows(ctx, children, child_align);
+        self.measure_rows(ctx, children, child_align);
 
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = false;
@@ -117,11 +118,14 @@ impl InlineLayout {
             inline.last_max_fill = inline.last.width;
         }
 
-        constrains.clamp_size(desired_panel_size)
+        constrains.clamp_size(self.desired_size)
     }
 
     pub fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, children: &mut impl UiNodeList, child_align: Align) -> PxSize {
-        let desired_panel_size = self.measure_rows(&mut ctx.as_measure(), children, child_align);
+        if ctx.inline_constrains().is_none() {
+            // if not already measured by parent inline
+            self.measure_rows(&mut ctx.as_measure(), children, child_align);
+        }
 
         let direction = ctx.direction(); // !!: TODO, use this to affect the direction items are placed
 
@@ -130,7 +134,7 @@ impl InlineLayout {
         let child_align_y = child_align.y();
         let child_align_baseline = child_align.is_baseline(); // !!: TODO
 
-        let panel_width = constrains.x.fill_or(desired_panel_size.width);
+        let panel_width = constrains.x.fill_or(self.desired_size.width);
 
         let (first, mid, last) = if let Some(s) = ctx.inline_constrains().map(|c| c.layout()) {
             s
@@ -143,7 +147,7 @@ impl InlineLayout {
                 row.origin.x = (panel_width - row.size.width) * child_align_x;
             }
 
-            last.origin.y = desired_panel_size.height - last.size.height;
+            last.origin.y = self.desired_size.height - last.size.height;
 
             (first, Px(0), last)
         };
@@ -255,8 +259,9 @@ impl InlineLayout {
         constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align) -> PxSize {
+    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align) {
         self.rows.clear();
+        self.desired_size = PxSize::zero();
 
         let constrains = ctx.constrains();
         let inline_constrains = ctx.inline_constrains();
@@ -264,7 +269,6 @@ impl InlineLayout {
         let child_constrains = PxConstrains2d::new_unbounded()
             .with_fill_x(child_align.is_fill_x())
             .with_max_x(child_inline_constrain);
-        let mut desired_panel_size = PxSize::zero();
         let mut row = RowInfo::default();
         ctx.with_constrains(
             |_| child_constrains,
@@ -272,10 +276,8 @@ impl InlineLayout {
                 children.for_each(|i, child| {
                     let mut inline_constrain = child_inline_constrain;
                     if self.rows.is_empty() {
-                        if let Some(c) = inline_constrains {
-                            if let InlineConstrains::Measure { first_max } = c {
-                                inline_constrain = first_max;
-                            }
+                        if let Some(InlineConstrains::Measure { first_max }) = inline_constrains {
+                            inline_constrain = first_max;
                         }
                     }
                     if inline_constrain < Px::MAX {
@@ -287,8 +289,8 @@ impl InlineLayout {
                     if let Some(inline) = inline {
                         if inline.first_wrapped {
                             // wrap by us, detected by child
-                            desired_panel_size.width = desired_panel_size.width.max(row.size.width);
-                            desired_panel_size.height += row.size.height;
+                            self.desired_size.width = self.desired_size.width.max(row.size.width);
+                            self.desired_size.height += row.size.height;
 
                             self.rows.push(row);
                             row.size = inline.first;
@@ -300,26 +302,24 @@ impl InlineLayout {
 
                         if inline.last != size {
                             // wrap by child
-                            desired_panel_size.width = desired_panel_size.width.max(row.size.width);
-                            desired_panel_size.height += size.height - row.size.height;
+                            self.desired_size.width = self.desired_size.width.max(row.size.width);
+                            self.desired_size.height += size.height - row.size.height;
 
                             self.rows.push(row);
                             row.size = inline.last;
                             row.first_child = i + 1;
                         }
+                    } else if size.width <= inline_constrain {
+                        row.size.width += size.width;
+                        row.size.height = row.size.height.max(size.height);
                     } else {
-                        if size.width <= inline_constrain {
-                            row.size.width += size.width;
-                            row.size.height = row.size.height.max(size.height);
-                        } else {
-                            // wrap by us
-                            desired_panel_size.width = desired_panel_size.width.max(row.size.width);
-                            desired_panel_size.height += row.size.height;
+                        // wrap by us
+                        self.desired_size.width = self.desired_size.width.max(row.size.width);
+                        self.desired_size.height += row.size.height;
 
-                            self.rows.push(row);
-                            row.size = size;
-                            row.first_child = i;
-                        }
+                        self.rows.push(row);
+                        row.size = size;
+                        row.first_child = i;
                     }
 
                     true
@@ -327,10 +327,8 @@ impl InlineLayout {
             },
         );
 
-        desired_panel_size.width = desired_panel_size.width.max(row.size.width);
-        desired_panel_size.height += row.size.height;
+        self.desired_size.width = self.desired_size.width.max(row.size.width);
+        self.desired_size.height += row.size.height;
         self.rows.push(row);
-
-        desired_panel_size
     }
 }
