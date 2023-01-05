@@ -25,7 +25,7 @@ pub mod wrap {
         /// to affect all nested wrap and text widgets.
         ///
         /// [`TEXT_ALIGN_VAR`]: crate::widgets::text::TEXT_ALIGN_VAR
-        /// [`txt_align`]: crate::widgets::text::txt_align
+        /// [`txt_align`]: fn@crate::widgets::text::txt_align
         pub children_align(impl IntoVar<Align>);
 
         /// Alignment of children in this widget and of nested wrap panels and texts.

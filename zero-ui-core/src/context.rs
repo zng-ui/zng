@@ -7,8 +7,8 @@ use crate::{
     timer::Timers,
     units::*,
     var::{VarHandle, VarHandles, Vars},
-    widget_info::{WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
-    widget_instance::WidgetId,
+    widget_info::{WidgetBoundsInfo, WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
+    widget_instance::{UiNode, WidgetId},
     window::{WindowId, WindowMode},
 };
 use std::{cell::Cell, fmt, ops::Deref, rc::Rc};
@@ -422,10 +422,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::{
-    widget_info::{WidgetBoundsInfo, WidgetInfoBuilder},
-    widget_instance::UiNode,
-};
+use crate::widget_info::WidgetInfoBuilder;
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
