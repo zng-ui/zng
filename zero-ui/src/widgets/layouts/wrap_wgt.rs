@@ -213,8 +213,23 @@ impl InlineLayout {
                                 wl.translate(PxVector::new(Px(0), row.origin.y));
                             });
 
+                            // new row
+                            if let Some(inline) = wl.inline() {
+                                inline.rows.push(row);
+                            }
+                            if next_row_i == self.rows.len() - 1 {
+                                row = last;
+                            } else {
+                                row.origin.y += row.size.height;
+                                if next_row_i == 1 {
+                                    row.origin.y += mid;
+                                }
+
+                                row.size = self.rows[next_row_i].size;
+                                row.origin.x = (panel_width - row.size.width) * child_align_x;
+                            }
                             row_advance = child_last.size.width;
-                            // !!: TODO, advance row
+                            next_row_i += 1;
                         } else {
                             // child inlined, but fits in the row
 
