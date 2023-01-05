@@ -72,12 +72,18 @@ impl UiNode for WrapNode {
     }
 
     fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        self.layout.lock().measure(ctx, wm, &self.children, self.children_align.get())
+        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
+        self.layout
+            .lock()
+            .measure(ctx, wm, &self.children, self.children_align.get(), spacing)
     }
 
     #[allow_(zero_ui::missing_delegate)] // false positive
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        self.layout.get_mut().layout(ctx, wl, &mut self.children, self.children_align.get())
+        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
+        self.layout
+            .get_mut()
+            .layout(ctx, wl, &mut self.children, self.children_align.get(), spacing)
     }
 }
 
@@ -95,7 +101,14 @@ pub struct InlineLayout {
     desired_size: PxSize,
 }
 impl InlineLayout {
-    pub fn measure(&mut self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure, children: &impl UiNodeList, child_align: Align) -> PxSize {
+    pub fn measure(
+        &mut self,
+        ctx: &mut MeasureContext,
+        wm: &mut WidgetMeasure,
+        children: &impl UiNodeList,
+        child_align: Align,
+        spacing: PxGridSpacing,
+    ) -> PxSize {
         let constrains = ctx.constrains();
 
         if let (None, Some(known)) = (ctx.inline_constrains(), constrains.fill_or_exact()) {
@@ -116,7 +129,14 @@ impl InlineLayout {
         constrains.clamp_size(self.desired_size)
     }
 
-    pub fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, children: &mut impl UiNodeList, child_align: Align) -> PxSize {
+    pub fn layout(
+        &mut self,
+        ctx: &mut LayoutContext,
+        wl: &mut WidgetLayout,
+        children: &mut impl UiNodeList,
+        child_align: Align,
+        spacing: PxGridSpacing,
+    ) -> PxSize {
         if ctx.inline_constrains().is_none() {
             // if not already measured by parent inline
             self.measure_rows(&mut ctx.as_measure(), children, child_align);
@@ -204,9 +224,8 @@ impl InlineLayout {
                             debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
 
                             child_first.origin.x = row.origin.x + row_advance;
-                            // !!: TODO, clamp/fill size, align y within row
+                            child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
                             child_mid = row.size.height - child_first.size.height;
-                            // !!: TODO clamp/fill size, align y and new row x.
 
                             child_last.origin.y = child_mid + child_desired_size.height - child_last.size.height;
 
