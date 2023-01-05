@@ -197,11 +197,22 @@ impl InlineLayout {
 
                             debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
 
-                            child_first.origin.x += row_advance;
+                            child_first.origin.x = row.origin.x + row_advance;
                             // !!: TODO, clamp/fill size, align y within row
                             child_mid = child_first.size.height - row.size.height;
                             // !!: TODO clamp/fill size, align y and new row x.
+
                             child_last.origin.y = child_desired_size.height - child_last.size.height;
+
+                            let next_row = if next_row_i == self.rows.len() - 1 {
+                                last
+                            } else {
+                                let mut r = row;
+                                r.origin.y += child_last.origin.y;
+                                r.origin.x = (panel_width - r.size.width) * child_align_x;
+                                r
+                            };
+                            child_last.origin.x = next_row.origin.x;
 
                             ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
                             wl.with_outer(child, false, |wl, _| {
@@ -225,14 +236,7 @@ impl InlineLayout {
                                     }
                                 });
                             }
-                            if next_row_i == self.rows.len() - 1 {
-                                row = last;
-                            } else {
-                                row.origin.y += child_last.origin.y;
-
-                                row.size = self.rows[next_row_i].size;
-                                row.origin.x = (panel_width - row.size.width) * child_align_x;
-                            }
+                            row = next_row;
                             row_advance = child_last.size.width;
                             next_row_i += 1;
                         } else {
