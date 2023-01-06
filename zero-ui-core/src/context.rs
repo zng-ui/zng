@@ -1093,17 +1093,17 @@ impl<'a> MeasureContext<'a> {
 
     /// Measure the child in a new inline context.
     ///
-    /// The `first_max` is the available space for the first row.
+    /// The `first_max` is the available space for the first row. The `mid_clear_min` is the current height of the row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
-    pub fn measure_inline(&mut self, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
                 metrics: &self
                     .metrics
                     .clone()
-                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max })),
+                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max, mid_clear_min })),
 
                 path: self.path,
 
@@ -1272,17 +1272,17 @@ impl<'a> LayoutContext<'a> {
 
     /// Measure the child in a new inline context.
     ///
-    /// The `first_max` is the space available for the first row.
+    /// The `first_max` is the space available for the first row. The `mid_clear_min` is the current height of the row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
-    pub fn measure_inline(&mut self, first_max: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
                 metrics: &self
                     .metrics
                     .clone()
-                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max })),
+                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max, mid_clear_min })),
 
                 path: self.path,
 
@@ -1601,6 +1601,11 @@ pub enum InlineConstrains {
     Measure {
         /// Reserved space on the first row.
         first_max: Px,
+        /// Current height of the row in the parent. If the widget wraps and defines the first
+        /// row in *this* parent's row, the `mid_clear` value will be the extra space needed to clear
+        /// this minimum or zero if the first how is taller. The widget must use this value to estimate the `mid_clear`
+        /// value and include it in the overall measured height of the widget.
+        mid_clear_min: Px,
     },
     /// Constrains the layout pass.
     Layout {
@@ -1614,10 +1619,10 @@ pub enum InlineConstrains {
 }
 impl InlineConstrains {
     /// Get the `Measure` data or zero.
-    pub fn measure(self) -> Px {
+    pub fn measure(self) -> (Px, Px) {
         match self {
-            InlineConstrains::Measure { first_max } => first_max,
-            InlineConstrains::Layout { .. } => Px(0),
+            InlineConstrains::Measure { first_max, mid_clear_min } => (first_max, mid_clear_min),
+            InlineConstrains::Layout { .. } => (Px(0), Px(0)),
         }
     }
 

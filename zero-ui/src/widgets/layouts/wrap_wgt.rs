@@ -226,8 +226,7 @@ impl InlineLayout {
                             child_first.origin.x = row.origin.x + row_advance;
                             child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
                             child_mid = row.size.height - child_first.size.height;
-
-                            child_last.origin.y = child_mid + child_desired_size.height - child_last.size.height;
+                            child_last.origin.y = child_desired_size.height - child_last.size.height;
 
                             let next_row = if next_row_i == self.rows.len() - 1 {
                                 last
@@ -325,16 +324,18 @@ impl InlineLayout {
             |ctx| {
                 children.for_each(|i, child| {
                     let mut inline_constrain = child_inline_constrain;
+                    let mut wrap_clear_min = Px(0);
                     if self.rows.is_empty() && !self.first_wrapped {
-                        if let Some(InlineConstrains::Measure { first_max }) = inline_constrains {
+                        if let Some(InlineConstrains::Measure { first_max, mid_clear_min }) = inline_constrains {
                             inline_constrain = first_max;
+                            wrap_clear_min = mid_clear_min;
                         }
                     }
                     if inline_constrain < Px::MAX {
                         inline_constrain -= row.size.width;
                     }
 
-                    let (inline, size) = ctx.measure_inline(inline_constrain, child);
+                    let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height, child);
 
                     if let Some(inline) = inline {
                         if inline.first_wrapped {
@@ -358,7 +359,7 @@ impl InlineLayout {
                         if inline.last != size {
                             // wrap by child
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += size.height - row.size.height;
+                            self.desired_size.height += size.height - inline.first.height;
 
                             self.rows.push(row);
                             row.size = inline.last;
@@ -374,7 +375,7 @@ impl InlineLayout {
                             self.first_wrapped = true;
                         } else {
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += row.size.height;
+                            self.desired_size.height += row.size.height.max(wrap_clear_min);
                             self.rows.push(row);
                         }
 
