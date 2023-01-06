@@ -411,7 +411,10 @@ impl InlineLayout {
                             row.size.width -= spacing.column;
                             row.size.width = row.size.width.max(Px(0));
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += row.size.height.max(wrap_clear_min) + spacing.row;
+                            self.desired_size.height += row.size.height.max(wrap_clear_min);
+                            if !self.rows.is_empty() || inline_constrains.is_none() {
+                                self.desired_size.height += spacing.row;
+                            }
                             self.rows.push(row);
                         }
 
