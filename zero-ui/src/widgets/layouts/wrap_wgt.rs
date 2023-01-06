@@ -225,7 +225,7 @@ impl InlineLayout {
 
                             child_first.origin.x = row.origin.x + row_advance;
                             child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
-                            child_mid = row.size.height - child_first.size.height;
+                            child_mid = (row.size.height - child_first.size.height).max(Px(0));
                             child_last.origin.y = child_desired_size.height - child_last.size.height;
 
                             let next_row = if next_row_i == self.rows.len() - 1 {
