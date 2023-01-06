@@ -233,6 +233,7 @@ impl InlineLayout {
                             } else {
                                 let mut r = row;
                                 r.origin.y += child_last.origin.y;
+                                r.size = self.rows[next_row_i].size;
                                 r.origin.x = (panel_width - r.size.width) * child_align_x;
                                 r
                             };
@@ -299,6 +300,7 @@ impl InlineLayout {
                 });
 
                 if let Some(inline) = wl.inline() {
+                    // last row
                     inline.rows.push(row);
                 }
             },
@@ -388,6 +390,7 @@ impl InlineLayout {
             },
         );
 
+        // last row
         self.desired_size.width = self.desired_size.width.max(row.size.width);
         self.desired_size.height += row.size.height;
         self.rows.push(row);
