@@ -1097,7 +1097,13 @@ impl<'a> MeasureContext<'a> {
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
-    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(
+        &mut self,
+        first_max: Px,
+        mid_clear_min: Px,
+        mid_spacing: Px,
+        child: &impl UiNode,
+    ) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
                 metrics: &self
@@ -1106,7 +1112,7 @@ impl<'a> MeasureContext<'a> {
                     .with_inline_constrains(Some(InlineConstrains::Measure(InlineConstrainsMeasure {
                         first_max,
                         mid_clear_min,
-                        mid_spacing: Px(0),
+                        mid_spacing,
                     }))),
 
                 path: self.path,
@@ -1280,7 +1286,13 @@ impl<'a> LayoutContext<'a> {
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
-    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(
+        &mut self,
+        first_max: Px,
+        mid_clear_min: Px,
+        mid_spacing: Px,
+        child: &impl UiNode,
+    ) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
                 metrics: &self
@@ -1289,7 +1301,7 @@ impl<'a> LayoutContext<'a> {
                     .with_inline_constrains(Some(InlineConstrains::Measure(InlineConstrainsMeasure {
                         first_max,
                         mid_clear_min,
-                        mid_spacing: Px(0),
+                        mid_spacing,
                     }))),
 
                 path: self.path,
@@ -1364,7 +1376,14 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in a layout context that has enabled inline.
-    pub fn with_inline<R>(&mut self, first: PxRect, mid_clear: Px, last: PxRect, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_inline<R>(
+        &mut self,
+        first: PxRect,
+        mid_clear: Px,
+        mid_spacing: Px,
+        last: PxRect,
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
         f(&mut LayoutContext {
             metrics: &self
                 .metrics
@@ -1372,7 +1391,7 @@ impl<'a> LayoutContext<'a> {
                 .with_inline_constrains(Some(InlineConstrains::Layout(InlineConstrainsLayout {
                     first,
                     mid_clear,
-                    mid_spacing: Px(0),
+                    mid_spacing,
                     last,
                 }))),
 
