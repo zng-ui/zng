@@ -15,15 +15,15 @@ pub mod wrap {
         /// Widget items.
         pub widget_base::children;
 
-        /// Space in-between rows.
+        /// Space in-between items and rows.
         ///
         /// This property only defines the spacing for rows of this panel, but it is set
-        /// to [`LINE_SPACING_VAR`] by default, so you can use the [`line_spacing`] property if
-        /// you want to affect all nested wrap and text widgets.
+        /// to [`LINE_SPACING_VAR`] for rows and zero for *column space* by default, so you can use
+        /// the [`line_spacing`] property if you want to affect all nested wrap and text widgets.
         ///
         /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
         /// [`line_spacing`]: fn@crate::widgets::text::txt_align
-        pub row_spacing(impl IntoVar<Length>);
+        pub spacing(impl IntoVar<GridSpacing>);
 
         /// Children align.
         ///
@@ -44,7 +44,8 @@ pub mod wrap {
 
         /// Spacing in-between rows of this widget and of nested wrap panels and texts.
         ///
-        /// Note that this only sets the [`row_spacing`] if that property is no set (default), or is set to [`LINE_SPACING_VAR`].
+        /// Note that this only sets the [`row_spacing`] if that property is no set (default), or is set to [`LINE_SPACING_VAR`] mapped to
+        /// the [`GridSpacing::row`] value.
         ///
         /// [`row_spacing`]: fn@crate::widgets::text::row_spacing
         /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
@@ -54,12 +55,17 @@ pub mod wrap {
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
-            let row_spacing = wgt.capture_var_or_else(property_id!(self::row_spacing), || LINE_SPACING_VAR);
+            let spacing = wgt.capture_var_or_else(property_id!(self::spacing), || {
+                LINE_SPACING_VAR.map(|s| GridSpacing {
+                    column: Length::zero(),
+                    row: s.clone(),
+                })
+            });
             let children_align = wgt.capture_var_or_else(property_id!(self::children_align), || TEXT_ALIGN_VAR);
 
             let node = WrapNode {
                 children: ZSortingList::new(children),
-                row_spacing,
+                spacing,
                 children_align,
                 layout: Default::default(),
             };
@@ -72,7 +78,7 @@ pub mod wrap {
 
 #[ui_node(struct WrapNode {
     children: impl UiNodeList,
-    #[var] row_spacing: impl Var<Length>,
+    #[var] spacing: impl Var<GridSpacing>,
     #[var] children_align: impl Var<Align>,
     layout: Mutex<InlineLayout>
 })]
@@ -81,24 +87,24 @@ impl UiNode for WrapNode {
         let mut any = false;
         self.children.update_all(ctx, updates, &mut any);
 
-        if any || self.row_spacing.is_new(ctx) || self.children_align.is_new(ctx) {
+        if any || self.spacing.is_new(ctx) || self.children_align.is_new(ctx) {
             ctx.updates.layout();
         }
     }
 
     fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        let row_spacing = self.row_spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
+        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
         self.layout
             .lock()
-            .measure(ctx, wm, &self.children, self.children_align.get(), row_spacing)
+            .measure(ctx, wm, &self.children, self.children_align.get(), spacing)
     }
 
     #[allow_(zero_ui::missing_delegate)] // false positive
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let row_spacing = self.row_spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
+        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
         self.layout
             .get_mut()
-            .layout(ctx, wl, &mut self.children, self.children_align.get(), row_spacing)
+            .layout(ctx, wl, &mut self.children, self.children_align.get(), spacing)
     }
 }
 
@@ -122,7 +128,7 @@ impl InlineLayout {
         wm: &mut WidgetMeasure,
         children: &impl UiNodeList,
         child_align: Align,
-        row_spacing: Px,
+        spacing: PxGridSpacing,
     ) -> PxSize {
         let constrains = ctx.constrains();
 
@@ -130,7 +136,7 @@ impl InlineLayout {
             return known;
         }
 
-        self.measure_rows(ctx, children, child_align, row_spacing);
+        self.measure_rows(ctx, children, child_align, spacing);
 
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = self.first_wrapped;
@@ -150,11 +156,11 @@ impl InlineLayout {
         wl: &mut WidgetLayout,
         children: &mut impl UiNodeList,
         child_align: Align,
-        row_spacing: Px,
+        spacing: PxGridSpacing,
     ) -> PxSize {
         if ctx.inline_constrains().is_none() {
             // if not already measured by parent inline
-            self.measure_rows(&mut ctx.as_measure(), children, child_align, row_spacing);
+            self.measure_rows(&mut ctx.as_measure(), children, child_align, spacing);
         }
 
         let direction = ctx.direction(); // !!: TODO, use this to affect the direction items are placed
@@ -211,7 +217,7 @@ impl InlineLayout {
                         if next_row_i == self.rows.len() - 1 {
                             row = last;
                         } else {
-                            row.origin.y += row.size.height;
+                            row.origin.y += row.size.height + spacing.row;
                             if next_row_i == 1 {
                                 // clear first row
                                 row.origin.y += mid;
@@ -240,19 +246,20 @@ impl InlineLayout {
 
                             child_first.origin.x = row.origin.x + row_advance;
                             child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
-                            child_mid = (row.size.height - child_first.size.height).max(Px(0));
+                            child_mid = (row.size.height + spacing.row - child_first.size.height).max(Px(0));
                             child_last.origin.y = child_desired_size.height - child_last.size.height;
 
                             let next_row = if next_row_i == self.rows.len() - 1 {
                                 last
                             } else {
                                 let mut r = row;
-                                r.origin.y += child_last.origin.y;
+                                r.origin.y += child_last.origin.y + spacing.row;
                                 r.size = self.rows[next_row_i].size;
                                 r.origin.x = (panel_width - r.size.width) * child_align_x;
                                 r
                             };
                             child_last.origin.x = next_row.origin.x;
+                            child_last.origin.y += spacing.row;
 
                             ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
                             wl.with_outer(child, false, |wl, _| {
@@ -277,7 +284,7 @@ impl InlineLayout {
                                 });
                             }
                             row = next_row;
-                            row_advance = child_last.size.width;
+                            row_advance = child_last.size.width + spacing.column;
                             next_row_i += 1;
                         } else {
                             // child inlined, but fits in the row
@@ -293,7 +300,7 @@ impl InlineLayout {
                                 },
                             );
                             wl.with_outer(child, false, |wl, _| wl.translate(row.origin.to_vector() + offset));
-                            row_advance += child_last.size.width;
+                            row_advance += child_last.size.width + spacing.column;
                         }
                     } else {
                         // inline block
@@ -308,7 +315,7 @@ impl InlineLayout {
                         let mut offset = PxVector::new(row_advance, Px(0));
                         offset.y = (row.size.height - size.height) * child_align_y;
                         wl.with_outer(child, false, |wl, _| wl.translate(row.origin.to_vector() + offset));
-                        row_advance += size.width;
+                        row_advance += size.width + spacing.column;
                     }
 
                     true
@@ -324,7 +331,7 @@ impl InlineLayout {
         constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align, row_spacing: Px) {
+    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align, spacing: PxGridSpacing) {
         self.rows.clear();
         self.first_wrapped = false;
         self.desired_size = PxSize::zero();
@@ -361,8 +368,10 @@ impl InlineLayout {
                                 debug_assert!(self.rows.is_empty());
                                 self.first_wrapped = true;
                             } else {
+                                row.size.width -= spacing.column;
+                                row.size.width = row.size.width.max(Px(0));
                                 self.desired_size.width = self.desired_size.width.max(row.size.width);
-                                self.desired_size.height += row.size.height + row_spacing;
+                                self.desired_size.height += row.size.height + spacing.row;
                                 self.rows.push(row);
                             }
 
@@ -376,14 +385,18 @@ impl InlineLayout {
                         if inline.last != size {
                             // wrap by child
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += size.height - inline.first.height + row_spacing;
+                            self.desired_size.height += size.height - inline.first.height + spacing.row;
 
                             self.rows.push(row);
                             row.size = inline.last;
+                            row.size.width += spacing.column;
                             row.first_child = i + 1;
+                        } else {
+                            // child inlined, but fit in row
+                            row.size.width += spacing.column;
                         }
                     } else if size.width <= inline_constrain {
-                        row.size.width += size.width;
+                        row.size.width += size.width + spacing.column;
                         row.size.height = row.size.height.max(size.height);
                     } else {
                         // wrap by us
@@ -391,12 +404,15 @@ impl InlineLayout {
                             debug_assert!(self.rows.is_empty());
                             self.first_wrapped = true;
                         } else {
+                            row.size.width -= spacing.column;
+                            row.size.width = row.size.width.max(Px(0));
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += row.size.height.max(wrap_clear_min) + row_spacing;
+                            self.desired_size.height += row.size.height.max(wrap_clear_min) + spacing.row;
                             self.rows.push(row);
                         }
 
                         row.size = size;
+                        row.size.width += spacing.column;
                         row.first_child = i;
                     }
 
@@ -406,6 +422,8 @@ impl InlineLayout {
         );
 
         // last row
+        row.size.width -= spacing.column;
+        row.size.width = row.size.width.max(Px(0));
         self.desired_size.width = self.desired_size.width.max(row.size.width);
         self.desired_size.height += row.size.height;
         self.rows.push(row);
