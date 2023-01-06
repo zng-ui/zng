@@ -262,7 +262,7 @@ impl InlineLayout {
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
 
-                            ctx.with_inline(child_first, child_mid, spacing.row, child_last, |ctx| child.layout(ctx, wl));
+                            ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
                             wl.with_outer(child, false, |wl, _| {
                                 wl.translate(PxVector::new(Px(0), row.origin.y));
                             });
@@ -297,7 +297,7 @@ impl InlineLayout {
                             ctx.with_constrains(
                                 |_| child_constrains.with_fill(false, false).with_max_size(child_inline.first),
                                 |ctx| {
-                                    ctx.with_inline(child_first, child_mid, spacing.row, child_last, |ctx| child.layout(ctx, wl));
+                                    ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
                                 },
                             );
                             wl.with_outer(child, false, |wl, _| wl.translate(row.origin.to_vector() + offset));
@@ -363,7 +363,7 @@ impl InlineLayout {
                         inline_constrain -= row.size.width;
                     }
 
-                    let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, spacing.row, child);
+                    let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, child);
 
                     if let Some(inline) = inline {
                         if inline.first_wrapped {
