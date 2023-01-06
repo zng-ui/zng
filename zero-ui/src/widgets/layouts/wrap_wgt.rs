@@ -7,7 +7,7 @@ use task::parking_lot::Mutex;
 pub mod wrap {
     use super::*;
 
-    use crate::widgets::text::TEXT_ALIGN_VAR;
+    use crate::widgets::text::{LINE_SPACING_VAR, TEXT_ALIGN_VAR};
 
     inherit!(widget_base::base);
 
@@ -15,8 +15,15 @@ pub mod wrap {
         /// Widget items.
         pub widget_base::children;
 
-        /// Space in-between items.
-        pub spacing(impl IntoVar<GridSpacing>);
+        /// Space in-between rows.
+        ///
+        /// This property only defines the spacing for rows of this panel, but it is set
+        /// to [`LINE_SPACING_VAR`] by default, so you can use the [`line_spacing`] property if
+        /// you want to affect all nested wrap and text widgets.
+        ///
+        /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
+        /// [`line_spacing`]: fn@crate::widgets::text::txt_align
+        pub row_spacing(impl IntoVar<Length>);
 
         /// Children align.
         ///
@@ -34,17 +41,25 @@ pub mod wrap {
         ///
         /// [`children_align`]: fn@children_align
         pub crate::widgets::text::txt_align;
+
+        /// Spacing in-between rows of this widget and of nested wrap panels and texts.
+        ///
+        /// Note that this only sets the [`row_spacing`] if that property is no set (default), or is set to [`LINE_SPACING_VAR`].
+        ///
+        /// [`row_spacing`]: fn@crate::widgets::text::row_spacing
+        /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
+        pub crate::widgets::text::line_spacing;
     }
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
-            let spacing = wgt.capture_var_or_default(property_id!(self::spacing));
+            let row_spacing = wgt.capture_var_or_else(property_id!(self::row_spacing), || LINE_SPACING_VAR);
             let children_align = wgt.capture_var_or_else(property_id!(self::children_align), || TEXT_ALIGN_VAR);
 
             let node = WrapNode {
                 children: ZSortingList::new(children),
-                spacing,
+                row_spacing,
                 children_align,
                 layout: Default::default(),
             };
@@ -57,7 +72,7 @@ pub mod wrap {
 
 #[ui_node(struct WrapNode {
     children: impl UiNodeList,
-    #[var] spacing: impl Var<GridSpacing>,
+    #[var] row_spacing: impl Var<Length>,
     #[var] children_align: impl Var<Align>,
     layout: Mutex<InlineLayout>
 })]
@@ -66,24 +81,24 @@ impl UiNode for WrapNode {
         let mut any = false;
         self.children.update_all(ctx, updates, &mut any);
 
-        if any || self.spacing.is_new(ctx) || self.children_align.is_new(ctx) {
+        if any || self.row_spacing.is_new(ctx) || self.children_align.is_new(ctx) {
             ctx.updates.layout();
         }
     }
 
     fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
+        let row_spacing = self.row_spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
         self.layout
             .lock()
-            .measure(ctx, wm, &self.children, self.children_align.get(), spacing)
+            .measure(ctx, wm, &self.children, self.children_align.get(), row_spacing)
     }
 
     #[allow_(zero_ui::missing_delegate)] // false positive
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
+        let row_spacing = self.row_spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
         self.layout
             .get_mut()
-            .layout(ctx, wl, &mut self.children, self.children_align.get(), spacing)
+            .layout(ctx, wl, &mut self.children, self.children_align.get(), row_spacing)
     }
 }
 
@@ -107,7 +122,7 @@ impl InlineLayout {
         wm: &mut WidgetMeasure,
         children: &impl UiNodeList,
         child_align: Align,
-        spacing: PxGridSpacing,
+        row_spacing: Px,
     ) -> PxSize {
         let constrains = ctx.constrains();
 
@@ -115,7 +130,7 @@ impl InlineLayout {
             return known;
         }
 
-        self.measure_rows(ctx, children, child_align);
+        self.measure_rows(ctx, children, child_align, row_spacing);
 
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = self.first_wrapped;
@@ -135,11 +150,11 @@ impl InlineLayout {
         wl: &mut WidgetLayout,
         children: &mut impl UiNodeList,
         child_align: Align,
-        spacing: PxGridSpacing,
+        row_spacing: Px,
     ) -> PxSize {
         if ctx.inline_constrains().is_none() {
             // if not already measured by parent inline
-            self.measure_rows(&mut ctx.as_measure(), children, child_align);
+            self.measure_rows(&mut ctx.as_measure(), children, child_align, row_spacing);
         }
 
         let direction = ctx.direction(); // !!: TODO, use this to affect the direction items are placed
@@ -309,7 +324,7 @@ impl InlineLayout {
         constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align) {
+    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align, row_spacing: Px) {
         self.rows.clear();
         self.first_wrapped = false;
         self.desired_size = PxSize::zero();
@@ -347,7 +362,7 @@ impl InlineLayout {
                                 self.first_wrapped = true;
                             } else {
                                 self.desired_size.width = self.desired_size.width.max(row.size.width);
-                                self.desired_size.height += row.size.height;
+                                self.desired_size.height += row.size.height + row_spacing;
                                 self.rows.push(row);
                             }
 
@@ -361,7 +376,7 @@ impl InlineLayout {
                         if inline.last != size {
                             // wrap by child
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += size.height - inline.first.height;
+                            self.desired_size.height += size.height - inline.first.height + row_spacing;
 
                             self.rows.push(row);
                             row.size = inline.last;
@@ -377,7 +392,7 @@ impl InlineLayout {
                             self.first_wrapped = true;
                         } else {
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += row.size.height.max(wrap_clear_min);
+                            self.desired_size.height += row.size.height.max(wrap_clear_min) + row_spacing;
                             self.rows.push(row);
                         }
 
