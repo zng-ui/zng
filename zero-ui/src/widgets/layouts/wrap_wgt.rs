@@ -173,7 +173,7 @@ impl InlineLayout {
         let panel_width = constrains.x.fill_or(self.desired_size.width);
 
         let (first, mid, last) = if let Some(s) = ctx.inline_constrains().map(|c| c.layout()) {
-            s
+            (s.first, s.mid_clear, s.last)
         } else {
             // define our own first and last
             let mut first = PxRect::from_size(self.rows[0].size);
@@ -350,7 +350,10 @@ impl InlineLayout {
                     let mut inline_constrain = child_inline_constrain;
                     let mut wrap_clear_min = Px(0);
                     if self.rows.is_empty() && !self.first_wrapped {
-                        if let Some(InlineConstrains::Measure { first_max, mid_clear_min }) = inline_constrains {
+                        if let Some(InlineConstrains::Measure(InlineConstrainsMeasure {
+                            first_max, mid_clear_min, ..
+                        })) = inline_constrains
+                        {
                             inline_constrain = first_max;
                             wrap_clear_min = mid_clear_min;
                         }

@@ -1103,7 +1103,11 @@ impl<'a> MeasureContext<'a> {
                 metrics: &self
                     .metrics
                     .clone()
-                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max, mid_clear_min })),
+                    .with_inline_constrains(Some(InlineConstrains::Measure(InlineConstrainsMeasure {
+                        first_max,
+                        mid_clear_min,
+                        mid_spacing: Px(0),
+                    }))),
 
                 path: self.path,
 
@@ -1282,7 +1286,11 @@ impl<'a> LayoutContext<'a> {
                 metrics: &self
                     .metrics
                     .clone()
-                    .with_inline_constrains(Some(InlineConstrains::Measure { first_max, mid_clear_min })),
+                    .with_inline_constrains(Some(InlineConstrains::Measure(InlineConstrainsMeasure {
+                        first_max,
+                        mid_clear_min,
+                        mid_spacing: Px(0),
+                    }))),
 
                 path: self.path,
 
@@ -1361,7 +1369,12 @@ impl<'a> LayoutContext<'a> {
             metrics: &self
                 .metrics
                 .clone()
-                .with_inline_constrains(Some(InlineConstrains::Layout { first, mid_clear, last })),
+                .with_inline_constrains(Some(InlineConstrains::Layout(InlineConstrainsLayout {
+                    first,
+                    mid_clear,
+                    mid_spacing: Px(0),
+                    last,
+                }))),
 
             path: self.path,
 
@@ -1594,43 +1607,61 @@ impl<'a> InfoContext<'a> {
     }
 }
 
+/// Constrains for inline measure.
+///
+/// See [`InlineConstrains`] for more details.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+pub struct InlineConstrainsMeasure {
+    /// Reserved space on the first row.
+    pub first_max: Px,
+    /// Current height of the row in the parent. If the widget wraps and defines the first
+    /// row in *this* parent's row, the `mid_clear` value will be the extra space needed to clear
+    /// this minimum or zero if the first how is taller. The widget must use this value to estimate the `mid_clear`
+    /// value and include it in the overall measured height of the widget.
+    pub mid_clear_min: Px,
+    /// Spacing added by the parent widget in between rows. The spacing is an extra offset under the `mid_clear`, but
+    /// if the child widget also has spacing they must collapse to the maximum of the two spacings.
+    pub mid_spacing: Px,
+}
+
 /// Constrains for inline layout.
+///
+/// See [`InlineConstrains`] for more details.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+pub struct InlineConstrainsLayout {
+    /// First row rect, defined by the parent.
+    pub first: PxRect,
+    /// Extra space in-between the first row and the mid-rows that must be offset to clear the other segments in the row.
+    pub mid_clear: Px,
+    /// Extra space added by the parent widget in between rows. The spacing is an extra offset under `mid_clear`, but
+    /// if the child widget also has spacing they must collapse to the maximum of the two spacings.
+    pub mid_spacing: Px,
+    /// Last row rect, defined by the parent.
+    pub last: PxRect,
+}
+
+/// Constrains for inline measure or layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum InlineConstrains {
     /// Constrains for the measure pass.
-    Measure {
-        /// Reserved space on the first row.
-        first_max: Px,
-        /// Current height of the row in the parent. If the widget wraps and defines the first
-        /// row in *this* parent's row, the `mid_clear` value will be the extra space needed to clear
-        /// this minimum or zero if the first how is taller. The widget must use this value to estimate the `mid_clear`
-        /// value and include it in the overall measured height of the widget.
-        mid_clear_min: Px,
-    },
+    Measure(InlineConstrainsMeasure),
     /// Constrains the layout pass.
-    Layout {
-        /// First row rect, defined by the parent.
-        first: PxRect,
-        /// Extra space in-between the first row and the mid-rows.
-        mid_clear: Px,
-        /// Last row rect, defined by the parent.
-        last: PxRect,
-    },
+    Layout(InlineConstrainsLayout),
 }
 impl InlineConstrains {
-    /// Get the `Measure` data or zero.
-    pub fn measure(self) -> (Px, Px) {
+    /// Get the `Measure` data or default.
+    pub fn measure(self) -> InlineConstrainsMeasure {
         match self {
-            InlineConstrains::Measure { first_max, mid_clear_min } => (first_max, mid_clear_min),
-            InlineConstrains::Layout { .. } => (Px(0), Px(0)),
+            InlineConstrains::Measure(m) => m,
+            InlineConstrains::Layout(_) => Default::default(),
         }
     }
 
-    /// Get the `Layout` data or zero.
-    pub fn layout(self) -> (PxRect, Px, PxRect) {
+    /// Get the `Layout` data or default.
+    pub fn layout(self) -> InlineConstrainsLayout {
         match self {
-            InlineConstrains::Layout { first, mid_clear, last } => (first, mid_clear, last),
-            InlineConstrains::Measure { .. } => (PxRect::zero(), Px(0), PxRect::zero()),
+            InlineConstrains::Layout(m) => m,
+            InlineConstrains::Measure(_) => Default::default(),
         }
     }
 }
