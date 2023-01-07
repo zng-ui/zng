@@ -312,7 +312,7 @@ impl WidgetInlineInfo {
     /// This is computed on demand and cached.
     ///
     /// [`rows`]: Self::rows
-    /// [`inner_bounds`]: Self::inner_bounds
+    /// [`inner_size`]: Self::inner_size
     pub fn negative_space(&self) -> Arc<Vec<PxRect>> {
         let mut space = self.negative_space.lock();
         if space.1 {

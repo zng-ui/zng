@@ -7,7 +7,7 @@ use crate::{
     timer::Timers,
     units::*,
     var::{VarHandle, VarHandles, Vars},
-    widget_info::{WidgetBoundsInfo, WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
+    widget_info::{WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
     widget_instance::{UiNode, WidgetId},
     window::{WindowId, WindowMode},
 };
@@ -422,7 +422,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::WidgetInfoBuilder;
+use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -1096,7 +1096,7 @@ impl<'a> MeasureContext<'a> {
     /// The `first_max` is the available space for the first row. The `mid_clear_min` is the current height of the row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
-    /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
+    /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::measure_inline`].
     pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
@@ -1278,7 +1278,7 @@ impl<'a> LayoutContext<'a> {
     /// The `first_max` is the space available for the first row. The `mid_clear_min` is the current height of the row.
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
-    /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::inline_measure`].
+    /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::measure_inline`].
     pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let size = child.measure(
             &mut MeasureContext {
@@ -2066,6 +2066,14 @@ impl fmt::Debug for LayoutDirection {
         match self {
             Self::LTR => write!(f, "LTR"),
             Self::RTL => write!(f, "RTL"),
+        }
+    }
+}
+impl From<unic_langid::CharacterDirection> for LayoutDirection {
+    fn from(value: unic_langid::CharacterDirection) -> Self {
+        match value {
+            unic_langid::CharacterDirection::LTR => Self::LTR,
+            unic_langid::CharacterDirection::RTL => Self::RTL,
         }
     }
 }

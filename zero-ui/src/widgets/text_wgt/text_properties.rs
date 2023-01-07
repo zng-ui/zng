@@ -567,11 +567,52 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
     with_font_feature(child, state, |f, s| f.ea_width().set(s))
 }
 
-/// Sets the [`LANG_VAR`] context var.
+/// Sets the text language and script for the widget and descendants.
+///
+/// This property affects all texts inside the widget and the layout direction.
+///
+/// Sets the [`LANG_VAR`] context var and the [`LayoutMetrics::direction`].
 #[property(CONTEXT, default(LANG_VAR))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
+    let lang = lang.into_var();
+    let child = direction(child, lang.map(|l| l.character_direction().into()));
     with_context_var(child, LANG_VAR, lang)
 }
+
+/// Sets the layout direction used in the layout of the widget and descendants.
+///
+/// Note that the [`lang`] property already sets the direction, this property can be used to directly override the direction.
+///
+/// [`lang`]: fn@lang
+#[property(CONTEXT+1, default(LayoutDirection::default()))]
+pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -> impl UiNode {
+    #[ui_node(struct DirectionNode {
+        child: impl UiNode,
+        #[var] direction: impl Var<LayoutDirection>,
+    })]
+    impl UiNode for DirectionNode {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
+
+            if self.direction.is_new(ctx) {
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            ctx.with_direction(self.direction.get(), |ctx| self.child.measure(ctx, wm))
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            ctx.with_direction(self.direction.get(), |ctx| self.child.layout(ctx, wl))
+        }
+    }
+    DirectionNode {
+        child,
+        direction: direction.into_var(),
+    }
+}
+
 /// Draw lines *under* each text line.
 ///
 /// Sets the [`UNDERLINE_THICKNESS_VAR`] and [`UNDERLINE_STYLE_VAR`].

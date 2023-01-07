@@ -917,7 +917,7 @@ pub mod prelude {
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
-        context::{AppContext, WidgetContext, WindowContext},
+        context::{AppContext, LayoutDirection, WidgetContext, WindowContext},
         event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, Events},
         focus::{DirectionalNav, Focus, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
@@ -979,8 +979,8 @@ pub mod prelude {
     pub use crate::properties::transform::{transform, *};
     #[doc(no_inline)]
     pub use crate::widgets::text::{
-        font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, txt_align, txt_color,
-        txt_transform, word_spacing, TEXT_COLOR_VAR,
+        direction, font_family, font_size, font_stretch, font_style, font_weight, lang, letter_spacing, line_height, tab_length, txt_align,
+        txt_color, txt_transform, word_spacing, TEXT_COLOR_VAR,
     };
 
     #[doc(no_inline)]
