@@ -275,7 +275,7 @@ pub fn foreground_highlight(
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
+            self.child.render(ctx, frame); // !!: highlight each row if inlining
             frame.push_border(self.render_bounds, self.render_widths, self.sides.get(), self.render_radius);
         }
     }
@@ -441,5 +441,56 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         child,
         clip: clip.into_var(),
         corners: PxCornerRadius::zero(),
+    }
+}
+
+/// Force widget to do inline layout when it is not inside a parent doing inline layout.
+///
+/// Widgets that support inlining can have different visuals when inlined, such as multiple *row* backgrounds. This
+/// property forces the widget to enter this mode by enabling inlining in the layout context if it is not already.
+#[property(CONTEXT-1, default(false))]
+pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    #[ui_node(struct InlineNode {
+        child: impl UiNode,
+        enabled: impl Var<bool>,
+    })]
+    impl UiNode for InlineNode {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.child.update(ctx, updates);
+            if self.enabled.is_new(ctx) {
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            if self.enabled.get() && ctx.inline_constrains().is_none() {
+                let c = InlineConstrainsMeasure {
+                    first_max: ctx.constrains().x.max_or(Px::MAX),
+                    mid_clear_min: Px(0),
+                };
+                // !!: need to enable in WidgetMeasure too.
+                ctx.with_inline_constrains(move |_| Some(c), |ctx| self.child.measure(ctx, wm))
+            } else {
+                self.child.measure(ctx, wm)
+            }
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            if self.enabled.get() && ctx.inline_constrains().is_none() {
+                if let Some(c) = ctx.widget_info.bounds.measure_inline() {
+                    let c = InlineConstrainsLayout {
+                        first: PxRect::from_size(c.first),
+                        mid_clear: Px(0),
+                        last: PxRect::from_size(c.last),
+                    };
+                    return ctx.with_inline_constrains(move |_| Some(c), |ctx| self.child.layout(ctx, wl));
+                }
+            }
+            self.child.layout(ctx, wl)
+        }
+    }
+    InlineNode {
+        child,
+        enabled: enabled.into_var(),
     }
 }

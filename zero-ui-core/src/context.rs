@@ -1049,6 +1049,34 @@ impl<'a> MeasureContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a measure context that has a new or modified inline constrain.
+    ///
+    /// The `inline_constrains` closure is called to produce the new constrains, the input is the current constrains.
+    ///
+    /// Note that panels implementing inline layout should prefer using [`measure_inline`] instead of this method.
+    ///
+    /// [`measure_inline`]: Self::measure_inline
+    pub fn with_inline_constrains<R>(
+        &mut self,
+        inline_constrains: impl FnOnce(Option<InlineConstrainsMeasure>) -> Option<InlineConstrainsMeasure>,
+        f: impl FnOnce(&mut MeasureContext) -> R,
+    ) -> R {
+        let ic = self.metrics.inline_constrains().map(|c| c.measure());
+        let ic = inline_constrains(ic).map(InlineConstrains::Measure);
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_inline_constrains(ic),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state.reborrow(),
+        })
+    }
+
     /// Runs a function `f` in a measure context that has its max size subtracted by `removed` and its final size added by `removed`.
     pub fn with_sub_size(&mut self, removed: PxSize, f: impl FnOnce(&mut MeasureContext) -> PxSize) -> PxSize {
         self.with_constrains(|c| c.with_less_size(removed), f) + removed
@@ -1258,6 +1286,37 @@ impl<'a> LayoutContext<'a> {
     ) -> R {
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_constrains(constrains),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state.reborrow(),
+            window_state: self.window_state.reborrow(),
+            widget_state: self.widget_state.reborrow(),
+            update_state: self.update_state.reborrow(),
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
+    /// Runs a function `f` in a layout context that has a new or modified inline constrain.
+    ///
+    /// The `inline_constrains` closure is called to produce the new constrains, the input is the current constrains.
+    ///
+    /// Note that panels implementing inline layout should prefer using [`measure_inline`] instead of this method.
+    ///
+    /// [`measure_inline`]: Self::measure_inline
+    pub fn with_inline_constrains<R>(
+        &mut self,
+        inline_constrains: impl FnOnce(Option<InlineConstrainsLayout>) -> Option<InlineConstrainsLayout>,
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
+        let ic = self.metrics.inline_constrains().map(|c| c.layout());
+        let ic = inline_constrains(ic).map(InlineConstrains::Layout);
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_inline_constrains(ic),
 
             path: self.path,
 
