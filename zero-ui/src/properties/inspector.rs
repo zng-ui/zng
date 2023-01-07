@@ -18,7 +18,7 @@ use crate::prelude::new_property::*;
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 ///
 /// [center point]: crate::core::widget_info::WidgetInfo::center
-#[property(CONTEXT)]
+#[property(CONTEXT, default(false))]
 pub fn show_center_points(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     show_widget_tree(
         child,
@@ -36,7 +36,7 @@ pub fn show_center_points(child: impl UiNode, enabled: impl IntoVar<bool>) -> im
 /// # Window Only
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
-#[property(CONTEXT)]
+#[property(CONTEXT, default(false))]
 pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     show_widget_tree(
         child,
@@ -59,6 +59,40 @@ pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
                     BorderSides::solid(colors::ROYAL_BLUE),
                     PxCornerRadius::zero(),
                 );
+            }
+        },
+        enabled,
+    )
+}
+
+/// Draws a border over every inlined widget row in the window.
+///
+/// # Window Only
+///
+/// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
+#[property(CONTEXT, default(false))]
+pub fn show_rows(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    show_widget_tree(
+        child,
+        |tree, frame| {
+            let p = Dip::new(1).to_px(frame.scale_factor().0);
+            let spatial_id = SpatialFrameId::new_unique();
+
+            for (i, wgt) in tree.all_widgets().enumerate() {
+                let wgt = wgt.bounds_info();
+                let transform = wgt.inner_transform();
+                if let Some(inline) = wgt.inline() {
+                    frame.push_reference_frame_item(spatial_id, i, FrameValue::Value(transform), false, false, |frame| {
+                        for row in &inline.rows {
+                            frame.push_border(
+                                *row,
+                                PxSideOffsets::new_all_same(p),
+                                BorderSides::dotted(colors::LIGHT_SALMON),
+                                PxCornerRadius::zero(),
+                            )
+                        }
+                    })
+                };
             }
         },
         enabled,
@@ -119,7 +153,7 @@ fn show_widget_tree(
 /// # Window Only
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
-#[property(CONTEXT)]
+#[property(CONTEXT, default(false))]
 pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct ShowHitTestNode {
         child: impl UiNode,
@@ -255,7 +289,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// # Window Only
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
-#[property(CONTEXT)]
+#[property(CONTEXT, default(None))]
 pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> impl UiNode {
     #[ui_node(struct ShowDirectionalQueryNode {
         child: impl UiNode,
