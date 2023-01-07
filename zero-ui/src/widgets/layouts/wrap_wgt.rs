@@ -245,9 +245,9 @@ impl InlineLayout {
                             debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
 
                             child_first.origin.x = row.origin.x + row_advance;
-                            if let LayoutDirection::RTL = direction {
-                                child_first.origin.x = row.size.width - child_first.size.width - child_first.origin.x;
-                            }
+                            // if let LayoutDirection::RTL = direction {
+                            //     child_first.origin.x = row.size.width - child_first.size.width - child_first.origin.x;
+                            // }
                             child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
                             child_mid = (row.size.height - child_first.size.height).max(Px(0));
                             child_last.origin.y = child_desired_size.height - child_last.size.height;
@@ -262,9 +262,9 @@ impl InlineLayout {
                                 r
                             };
                             child_last.origin.x = next_row.origin.x;
-                            if let LayoutDirection::RTL = direction {
-                                child_last.origin.x = next_row.size.width - child_last.size.width - child_last.origin.x;
-                            }
+                            // if let LayoutDirection::RTL = direction {
+                            //     child_last.origin.x = next_row.size.width - child_last.size.width - child_last.origin.x;
+                            // }
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
 
@@ -298,6 +298,9 @@ impl InlineLayout {
 
                             // !!: TODO, clamp/fill size, set the normal constrains to layout
                             let mut offset = PxVector::new(row_advance, Px(0));
+                            if let LayoutDirection::RTL = direction {
+                                offset.x = row.size.width - child_last.size.width - offset.x;
+                            }
                             offset.y = (row.size.height - child_inline.first.height) * child_align_y;
 
                             ctx.with_constrains(
@@ -320,6 +323,9 @@ impl InlineLayout {
                             |ctx| child.layout(ctx, wl),
                         );
                         let mut offset = PxVector::new(row_advance, Px(0));
+                        if let LayoutDirection::RTL = direction {
+                            offset.x = row.size.width - size.width - offset.x;
+                        }
                         offset.y = (row.size.height - size.height) * child_align_y;
                         wl.with_outer(child, false, |wl, _| wl.translate(row.origin.to_vector() + offset));
                         row_advance += size.width + spacing.column;
