@@ -245,9 +245,9 @@ impl InlineLayout {
                             debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
 
                             child_first.origin.x = row.origin.x + row_advance;
-                            // if let LayoutDirection::RTL = direction {
-                            //     child_first.origin.x = row.size.width - child_first.size.width - child_first.origin.x;
-                            // }
+                            if let LayoutDirection::RTL = direction {
+                                child_first.origin.x -= row_advance;
+                            }
                             child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
                             child_mid = (row.size.height - child_first.size.height).max(Px(0));
                             child_last.origin.y = child_desired_size.height - child_last.size.height;
@@ -262,9 +262,9 @@ impl InlineLayout {
                                 r
                             };
                             child_last.origin.x = next_row.origin.x;
-                            // if let LayoutDirection::RTL = direction {
-                            //     child_last.origin.x = next_row.size.width - child_last.size.width - child_last.origin.x;
-                            // }
+                            if let LayoutDirection::RTL = direction {
+                                child_last.origin.x += next_row.size.width - child_last.size.width;
+                            }
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
 
