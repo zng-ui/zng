@@ -414,6 +414,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             metrics: &LayoutMetrics,
             t: &mut ResolvedText,
             pending: &mut Layout,
+            measure_inline: Option<&mut WidgetInlineMeasure>,
             inline: Option<&mut WidgetInlineInfo>,
         ) -> PxSize {
             if t.reshape {
@@ -638,18 +639,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let bounds = r.shaped_text.align_box().size;
             let size = metrics.constrains().fill_size_or(bounds);
-            /*
-            !!:
+
             if let Some(inline) = inline {
-                inline.bounds = bounds;
+                for line in r.shaped_text.lines() {
+                    inline.rows.push(line.rect());
+                }
+            } else if let Some(inline) = measure_inline {
+                inline.first = r.shaped_text.lines().next().map(|l| l.rect().size).unwrap_or_default();
+                // !!: TODO, direct last reference
+                inline.last = r.shaped_text.lines().last().map(|l| l.rect().size).unwrap_or_default();
+                // !!: TODO, other measure info.
 
-                inline.first_row = PxPoint::new(inline_advance, r.shaped_text.lines().next().unwrap().rect().height());
-
-                let last_line_rect = r.shaped_text.lines().last().unwrap().rect();
-                let clip_height = (r.shaped_text.box_size().height - size.height).max(Px(0));
-                inline.last_row = PxPoint::new(last_line_rect.width(), inline.bounds.height - last_line_rect.height() + clip_height);
+                // !!: TODO, fill/justify
+                inline.first_max_fill = inline.first.width;
+                inline.last_max_fill = inline.last.width;
             }
-            */
 
             size
         }
@@ -782,7 +786,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
                 let mut pending = self.pending;
-                txt.layout(ctx.metrics, t, &mut pending, None)
+                txt.layout(ctx.metrics, t, &mut pending, wm.inline(), None)
             }
         }
         #[UiNode]
@@ -790,7 +794,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let mut write = RESOLVED_TEXT.write();
             let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
 
-            let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending, wl.inline());
+            let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending, None, wl.inline());
 
             if self.pending != Layout::empty() {
                 ctx.updates.render();

@@ -57,7 +57,7 @@
 # Shared Text
 
 * Let multiple text widgets share a single text, dynamically splitting the text as each widget fills.
-    - This allows complex for complex magazine formatting.
+    - This enables complex magazine formatting.
 
 # ANSI Text
 
