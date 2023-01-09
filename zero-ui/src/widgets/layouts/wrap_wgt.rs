@@ -179,10 +179,8 @@ impl InlineLayout {
             let mut first = PxRect::from_size(self.rows[0].size);
             let mut last = PxRect::from_size(self.rows.last().unwrap().size);
 
-            for row in [&mut first, &mut last] {
-                row.origin.x = (panel_width - row.size.width) * child_align_x;
-            }
-
+            first.origin.x = (panel_width - first.size.width) * child_align_x;
+            last.origin.x = (panel_width - last.size.width) * child_align_x;
             last.origin.y = self.desired_size.height - last.size.height;
 
             if let Some(y) = constrains.y.fill_or_exact() {

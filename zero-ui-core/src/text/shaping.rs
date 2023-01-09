@@ -340,6 +340,11 @@ pub struct ShapedText {
     align_box: PxRect,
     align: Align,
     direction: LayoutDirection,
+
+    // inline layout values
+    first_line: PxRect,
+    mid_clear: Px,
+    last_line: PxRect,
 }
 impl ShapedText {
     /// New empty text.
@@ -408,7 +413,7 @@ impl ShapedText {
 
     /// Last applied alignment box.
     pub fn align_box(&self) -> PxRect {
-        self.align_box
+        self.align_box // !!: remove
     }
 
     /// Last applied alignment.
@@ -416,9 +421,77 @@ impl ShapedText {
         self.align
     }
 
+    /// Last applied alignment area.
+    ///
+    /// The lines are aligned inside this size.
+    pub fn align_size(&self) -> PxSize {
+        self.align_box.size
+    }
+
     /// Last applied alignment direction.
     pub fn direction(&self) -> LayoutDirection {
         self.direction
+    }
+
+    /// Last applied extra spacing between the first and second lines to clear the full width of the second line in the
+    /// parent inline layout.
+    pub fn mid_clear(&self) -> Px {
+        self.mid_clear
+    }
+
+    fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) -> bool {
+        let mut update_height = false;
+
+        if self.line_height != line_height {
+            let offset_y = (line_height - self.line_height).0 as f32;
+            let mut offset = 0.0;
+            let center = offset_y / 2.0;
+
+            self.first_line.origin.y += Px(center as i32);
+
+            for (_, r) in self.lines.iter_segs() {
+                let r = self.segments.glyphs_range(r);
+                for g in &mut self.glyphs[r.iter()] {
+                    g.point.y += offset + center;
+                }
+
+                offset += offset_y;
+            }
+            offset -= offset_y;
+
+            self.last_line.origin.y += Px((offset + center) as i32);
+
+            self.line_height = line_height;
+            update_height = true;
+        }
+
+        if self.line_spacing != line_spacing {
+            if self.lines.is_multi() {
+                let offset_y = (line_spacing - self.line_spacing).0 as f32;
+                let mut offset = offset_y;
+
+                for (_, r) in self.lines.iter_segs_skip(1) {
+                    let r = self.segments.glyphs_range(r);
+
+                    for g in &mut self.glyphs[r.iter()] {
+                        g.point.y += offset;
+                    }
+
+                    offset += offset_y;
+                }
+                offset -= offset_y;
+
+                self.last_line.origin.y += Px(offset as i32);
+
+                update_height = true;
+            }
+            self.line_spacing = line_spacing;
+        }
+
+        if update_height {
+            self.update_height();
+        }
+        update_height
     }
 
     /// Reshape text lines.
@@ -432,13 +505,65 @@ impl ShapedText {
     pub fn reshape_lines(
         &mut self,
         constrains: PxConstrains2d,
-        inline_constrains: InlineConstrainsLayout,
+        inline_constrains: Option<InlineConstrainsLayout>,
         align: Align,
         padding: PxSideOffsets,
         line_height: Px,
         line_spacing: Px,
         direction: LayoutDirection,
     ) {
+        let realign_y = self.reshape_line_height_and_spacing(line_height, line_spacing);
+
+        let align_size = constrains.fill_size_or(self.size);
+        let align_x = align.x(direction);
+        let align_y = align.y();
+
+        let (first, mid, last) = if let Some(l) = inline_constrains {
+            (l.first, l.mid_clear, l.last)
+        } else {
+            // calculate our own first & last
+            let mut first = PxRect::from_size(self.first_line().map(|l| l.rect().size).unwrap_or_default());
+            let mut last = PxRect::from_size(self.last_line().map(|l| l.rect().size).unwrap_or_default());
+            last.origin.y = self.size.height - last.size.height;
+
+            first.origin.x = (align_size.width - first.size.width) * align_x;
+            last.origin.x = (align_size.width - last.size.width) * align_x;
+
+            let align_y = (align_size.height - self.size.height) * align_y;
+            first.origin.y += align_y;
+            last.origin.y += align_y;
+
+            (first, Px(0), last)
+        };
+
+        let mid_offset = euclid::vec2::<f32, zero_ui_view_api::webrender_api::units::LayoutPixel>(
+            0.0,
+            (align_size.height - self.size.height).0 as f32 * align_y,
+        );
+
+        if self.first_line != first {
+            let first_offset = (first.origin - self.first_line.origin).cast::<f32>().cast_unit();
+
+            let first_segs = self.lines.segs(0);
+            let first_glyphs = self.segments.glyphs_range(first_segs);
+
+            for g in &mut self.glyphs[first_glyphs.iter()] {
+                g.point += first_offset;
+            }
+        }
+
+        // !!: TODO, avoid double offset if it has only one line?
+        if self.last_line != last {
+            let last_offset = (last.origin - self.last_line.origin).cast::<f32>().cast_unit();
+
+            let last_segs = self.lines.segs(self.lines.0.len() - 1);
+            let last_glyphs = self.segments.glyphs_range(last_segs);
+
+            for g in &mut self.glyphs[last_glyphs.iter()] {
+                g.point += last_offset;
+            }
+        }
+
         todo!("!!: ")
     }
 
@@ -689,6 +814,9 @@ impl ShapedText {
             align_box: PxRect::zero(),
             align: Align::START,
             direction: LayoutDirection::LTR,
+            first_line: PxRect::zero(),
+            mid_clear: Px(0),
+            last_line: PxRect::zero(),
         }
     }
 
@@ -734,6 +862,9 @@ impl ShapedText {
                 align_box: PxRect::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,
+                first_line: PxRect::zero(),
+                mid_clear: Px(0),
+                last_line: PxRect::zero(),
             };
 
             if self.lines.0.is_empty() || self.lines.last().end <= self.segments.0.len() {
@@ -984,6 +1115,9 @@ impl ShapedTextBuilder {
                 align_box: PxRect::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,
+                first_line: PxRect::zero(),
+                mid_clear: Px(0),
+                last_line: PxRect::zero(),
             },
 
             line_height: 0.0,
