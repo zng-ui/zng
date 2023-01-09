@@ -13,7 +13,6 @@ use crate::core::{
     keyboard::{Keyboard, CHAR_INPUT_EVENT},
     task::parking_lot::Mutex,
     text::*,
-    widget_info::WidgetInlineInfo,
 };
 use crate::prelude::new_widget::*;
 
@@ -409,14 +408,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             ctx.constrains().fill_or_exact()
         }
 
-        fn layout(
-            &mut self,
-            metrics: &LayoutMetrics,
-            t: &mut ResolvedText,
-            pending: &mut Layout,
-            measure_inline: Option<&mut WidgetInlineMeasure>,
-            inline: Option<&mut WidgetInlineInfo>,
-        ) -> PxSize {
+        fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, pending: &mut Layout) -> PxSize {
             if t.reshape {
                 pending.insert(Layout::RESHAPE);
             }
@@ -464,12 +456,27 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            // !!:
-            // let inline_advance = if inline.is_some() { metrics.inline_advance().width } else { Px(0) };
-            // if self.shaping_args.text_indent != inline_advance {
-            //     self.shaping_args.text_indent = inline_advance;
-            //     pending.insert(Layout::RESHAPE);
-            // }
+            if let Some(inline) = metrics.inline_constrains() {
+                match inline {
+                    InlineConstrains::Measure(m) => {
+                        // !!: change ShapedText to support width constrains directly?
+                        let indent = if m.first_max == Px::MAX {
+                            Px(0)
+                        } else if let Some(w) = metrics.constrains().x.max() {
+                            (w - m.first_max).max(Px(0))
+                        } else {
+                            Px(0)
+                        };
+                        if self.shaping_args.text_indent != indent {
+                            self.shaping_args.text_indent = indent;
+                            pending.insert(Layout::RESHAPE);
+                        }
+                    }
+                    InlineConstrains::Layout(_) => {
+                        // !!: impl first and last positioning in ShapedText
+                    }
+                }
+            }
 
             if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != txt_padding {
                 pending.insert(Layout::QUICK_RESHAPE);
@@ -638,24 +645,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             let bounds = r.shaped_text.align_box().size;
-            let size = metrics.constrains().fill_size_or(bounds);
-
-            if let Some(inline) = inline {
-                for line in r.shaped_text.lines() {
-                    inline.rows.push(line.rect());
-                }
-            } else if let Some(inline) = measure_inline {
-                inline.first = r.shaped_text.lines().next().map(|l| l.rect().size).unwrap_or_default();
-                // !!: TODO, direct last reference
-                inline.last = r.shaped_text.lines().last().map(|l| l.rect().size).unwrap_or_default();
-                // !!: TODO, other measure info.
-
-                // !!: TODO, fill/justify
-                inline.first_max_fill = inline.first.width;
-                inline.last_max_fill = inline.last.width;
-            }
-
-            size
+            metrics.constrains().fill_size_or(bounds)
         }
     }
 
@@ -786,19 +776,46 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
                 let mut pending = self.pending;
-                txt.layout(ctx.metrics, t, &mut pending, wm.inline(), None)
+                let size = txt.layout(ctx.metrics, t, &mut pending);
+                if let (Some(inline), Some(l)) = (wm.inline(), txt.layout.as_ref()) {
+                    inline.first = l.shaped_text.lines().next().map(|l| l.rect().size).unwrap_or_default();
+                    inline.first.width -= txt.shaping_args.text_indent;
+                    // !!: TODO, direct last reference
+                    inline.last = l.shaped_text.lines().last().map(|l| l.rect().size).unwrap_or_default();
+                    // !!: TODO, other measure info.
+
+                    // !!: TODO, fill/justify
+                    inline.first_max_fill = inline.first.width;
+                    inline.last_max_fill = inline.last.width;
+                }
+                size
             }
         }
         #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let txt = self.txt.get_mut();
+
             let mut write = RESOLVED_TEXT.write();
             let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
 
-            let size = self.txt.get_mut().layout(ctx.metrics, t, &mut self.pending, None, wl.inline());
+            let size = txt.layout(ctx.metrics, t, &mut self.pending);
 
             if self.pending != Layout::empty() {
                 ctx.updates.render();
                 self.pending = Layout::empty();
+            }
+
+            if let (Some(inline), Some(l)) = (wl.inline(), txt.layout.as_ref()) {
+                let mut first_indent = Some(txt.shaping_args.text_indent);
+                for line in l.shaped_text.lines() {
+                    let mut r = line.rect();
+                    if let Some(ind) = first_indent.take() {
+                        // !!: refactor this to be automatic in ShapedText.
+                        r.origin.x += ind;
+                        r.size.width -= ind;
+                    }
+                    inline.rows.push(r);
+                }
             }
 
             wl.set_baseline(t.baseline);
