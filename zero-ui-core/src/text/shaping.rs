@@ -9,7 +9,7 @@ use super::{
     LineBreak, SegmentedText, Text, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
-    context::LayoutDirection,
+    context::{InlineConstrainsLayout, LayoutDirection},
     crate_util::{f32_cmp, IndexRange},
     units::*,
 };
@@ -49,7 +49,7 @@ pub struct TextShapingArgs {
     pub tab_x_advance: Px,
 
     /// Extra space before the start of the first line.
-    pub text_indent: Px,
+    pub text_indent: Px, // !!: repurpose this to first line of each paragraph (except first and last lines)?
 
     /// Finalized font features.
     pub font_features: RFontFeatures,
@@ -421,6 +421,27 @@ impl ShapedText {
         self.direction
     }
 
+    /// Reshape text lines.
+    ///
+    /// Reshape text lines without re-wrapping, this is more efficient then fully reshaping every glyph, but may
+    /// cause overflow if called with constrains incompatible with the ones used during the full text shaping.
+    ///
+    /// The general process of shaping text is to generate a shaped-text without align during *measure*, and then reuse
+    /// this shaped text every layout that does not invalidate any property that affects the text wrap.
+    #[allow(clippy::too_many_arguments)]
+    pub fn reshape_lines(
+        &mut self,
+        constrains: PxConstrains2d,
+        inline_constrains: InlineConstrainsLayout,
+        align: Align,
+        padding: PxSideOffsets,
+        line_height: Px,
+        line_spacing: Px,
+        direction: LayoutDirection,
+    ) {
+        todo!("!!: ")
+    }
+
     /// Reshape text.
     ///
     /// The `align_box` closure is called with the up-to-date [`box_size`] to produce the container rect where the
@@ -614,6 +635,28 @@ impl ShapedText {
             index: i,
             width: Px(w.round() as i32),
         })
+    }
+
+    /// Gets the first line, if the text contains any line.
+    pub fn first_line(&self) -> Option<ShapedLine> {
+        self.lines().next()
+    }
+
+    /// Gets the last line, if the text contains any line.
+    ///
+    /// This is more efficient than `t.lines().last()`.
+    pub fn last_line(&self) -> Option<ShapedLine> {
+        if self.lines.0.is_empty() {
+            None
+        } else {
+            let last_line = self.lines.0.len() - 1;
+            self.lines.iter_segs_skip(last_line).next().map(move |(w, r)| ShapedLine {
+                text: self,
+                seg_range: r,
+                index: last_line,
+                width: Px(w.round() as i32),
+            })
+        }
     }
 
     /// Create an empty [`ShapedText`] with the same metrics as `self`.

@@ -12,23 +12,28 @@
 [x] Flow direction, as defined by `LayoutDirection`.
 [x] Integrate, `wrap::children_align` with `txt_align`.
 [ ] Support baseline align in-between children of different first/last row height.
-[ ] Support `Justify`, enabled by `Align::FILL`.
 
 ### Final TODOs
 
 * Implement inline for `text!`.
-  - Text shaping now needs to support external first and last row rectangle?
-  - Implement fill/justify for mid-rows.
+  - Update `RESHAPE` uses the `first_max`, `last_max` and `mid_clear_min`, but all aligned to the left (zero).
+  - Update `QUICK_RESHAPE` positions the first and last using the rectangle, offsets `mid_clear` and aligns mid-lines.
+  - During layout, use widget measure metadata, like wrap does, trusting that they are up-to-date.
+
 * Implement baseline in `wrap!`.
   - Review normal baseline first, maybe just align bottom for each row + baseline offset already works?
     - Can try in a horizontal stack first, two texts one larger, see if they already align.
-* Implement fill/justify in `wrap!`.
-  - Panel can also add spacing? Maybe maximum row height of spacing, if it helps complete the row.
 * Review other widgets, they need to mark no-inline?
 * Review `inline` property.
 * Review `!!:`.
 * Merge.
 * Remove TODO.
+
+## Inline Align::FILL
+
+[ ] Support `Justify`, enabled by `Align::FILL`.
+[ ] Implement fill/justify in `wrap!`.
+  - Panel can also add spacing? Maybe maximum row height of spacing, if it helps complete the row.
 
 ## Min Constrains Reset
 

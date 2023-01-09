@@ -778,10 +778,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let mut pending = self.pending;
                 let size = txt.layout(ctx.metrics, t, &mut pending);
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.layout.as_ref()) {
-                    inline.first = l.shaped_text.lines().next().map(|l| l.rect().size).unwrap_or_default();
+                    inline.first = l.shaped_text.first_line().map(|l| l.rect().size).unwrap_or_default();
                     inline.first.width -= txt.shaping_args.text_indent;
-                    // !!: TODO, direct last reference
-                    inline.last = l.shaped_text.lines().last().map(|l| l.rect().size).unwrap_or_default();
+                    inline.last = l.shaped_text.last_line().map(|l| l.rect().size).unwrap_or_default();
                     // !!: TODO, other measure info.
 
                     // !!: TODO, fill/justify
