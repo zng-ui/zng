@@ -102,9 +102,6 @@ context_var! {
     /// Text is editable.
     pub static TEXT_EDITABLE_VAR: bool = false;
 
-    /// Text padding.
-    pub static TEXT_PADDING_VAR: SideOffsets = 0;
-
     /// If line breaks are automatically inserted to fill the available space.
     ///
     /// The [`LINE_BREAK_VAR`], [`WORD_BREAK_VAR`] and [`HYPHENS_VAR`] configure how the text is split.
@@ -698,12 +695,6 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 #[property(CONTEXT, default(TEXT_EDITABLE_VAR))]
 pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_EDITABLE_VAR, enabled)
-}
-
-/// Sets the [`TEXT_PADDING_VAR`] that is used in the text-input layout.
-#[property(CONTEXT, default(TEXT_PADDING_VAR))]
-pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
-    with_context_var(child, TEXT_PADDING_VAR, padding)
 }
 
 /// Enables or disables text wrap.

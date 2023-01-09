@@ -413,8 +413,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 pending.insert(Layout::RESHAPE);
             }
 
-            let txt_padding = TEXT_PADDING_VAR.get().layout(metrics, |_| PxSideOffsets::zero());
-
             let font_size = metrics.font_size();
 
             if self.layout.is_none() {
@@ -478,13 +476,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != txt_padding {
-                pending.insert(Layout::QUICK_RESHAPE);
-            }
             if !pending.contains(Layout::QUICK_RESHAPE) {
-                let size = r.shaped_text.box_size();
-                let align_box = PxRect::from_size(metrics.constrains().fill_size_or(size));
-                if align_box != r.shaped_text.align_box() {
+                let size = r.shaped_text.size();
+                if metrics.constrains().fill_size_or(size) != r.shaped_text.align_size() {
                     pending.insert(Layout::QUICK_RESHAPE);
                 }
             }
@@ -569,13 +563,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             /*
                 APPLY
             */
-            let prev_final_size = r.shaped_text.box_size();
+            let prev_final_size = r.shaped_text.size();
 
             if pending.contains(Layout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
             }
 
-            if !pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.box_size()) {
+            if !pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.size()) {
                 pending.insert(Layout::QUICK_RESHAPE);
             }
 
@@ -589,9 +583,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     metrics.direction(),
                 );
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
-
-                let baseline = r.shaped_text.box_baseline() + txt_padding.bottom;
-                t.baseline = baseline;
+                t.baseline = r.shaped_text.baseline();
             }
             if pending.contains(Layout::OVERLINE) {
                 if r.overline_thickness > Px(0) {
@@ -644,7 +636,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            let bounds = r.shaped_text.align_box().size;
+            let bounds = r.shaped_text.align_size();
             metrics.constrains().fill_size_or(bounds)
         }
     }
@@ -664,7 +656,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         #[UiNode]
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&TEXT_PADDING_VAR);
             // other subscriptions are handled by the `resolve_text` node.
             let txt = self.txt.get_mut();
             txt.shaping_args.lang = LANG_VAR.get();
@@ -707,11 +698,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 ctx.updates.layout();
             }
 
-            if OVERLINE_THICKNESS_VAR.is_new(ctx)
-                || STRIKETHROUGH_THICKNESS_VAR.is_new(ctx)
-                || UNDERLINE_THICKNESS_VAR.is_new(ctx)
-                || TEXT_PADDING_VAR.is_new(ctx)
-            {
+            if OVERLINE_THICKNESS_VAR.is_new(ctx) || STRIKETHROUGH_THICKNESS_VAR.is_new(ctx) || UNDERLINE_THICKNESS_VAR.is_new(ctx) {
                 ctx.updates.layout();
             }
 
@@ -1035,13 +1022,9 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 let read = LayoutText::read();
                 let t = read.as_ref().expect("expected `LayoutText` in `render_text`");
 
-                let mut clip_rect = t.shaped_text.align_box();
+                let mut clip_rect = PxRect::from_size(t.shaped_text.align_size());
                 clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
                 clip_rect.size.height = t.shaped_text.line_height();
-
-                let txt_padding = t.shaped_text.padding();
-                clip_rect.origin.x += txt_padding.left;
-                clip_rect.origin.y += txt_padding.top;
 
                 frame.push_color(clip_rect, self.color_key.bind(self.color.into(), true));
             }
@@ -1108,7 +1091,7 @@ pub fn render_text() -> impl UiNode {
             let t = read.as_ref().expect("expected `LayoutText` in `render_text`");
 
             let lh = t.shaped_text.line_height();
-            let clip = t.shaped_text.align_box().inflate(lh, lh); // clip allow some weird chars, but
+            let clip = PxRect::from_size(t.shaped_text.align_size()).inflate(lh, lh); // clip inflated to allow some weird glyphs
             let color = TEXT_COLOR_VAR.get();
             let color_value = if let Some(key) = self.color_key {
                 key.bind(color.into(), TEXT_COLOR_VAR.is_animating())

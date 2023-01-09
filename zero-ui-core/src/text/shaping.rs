@@ -320,7 +320,6 @@ pub struct ShapedText {
     lines: LineRangeVec,
     fonts: FontRangeVec,
 
-    padding: PxSideOffsets,
     size: PxSize,
     line_height: Px,
     line_spacing: Px,
@@ -337,7 +336,7 @@ pub struct ShapedText {
 
     /// vertical align offset applied.
     y_offset: f32, // !!: rename to mid_offset
-    align_box: PxRect,
+    align_size: PxSize,
     align: Align,
     direction: LayoutDirection,
 
@@ -371,14 +370,13 @@ impl ShapedText {
         let mut start = glyph_range.start();
         let segs_range = self.lines.segs(line_index);
         let line_end = self.segments.glyphs_range(segs_range).end();
-        let line_x = self.padding.left;
         let line_width = self.lines.width(line_index);
         self.glyphs_range(glyph_range).map(move |(font, glyphs)| {
             let glyphs_with_adv = glyphs.iter().enumerate().map(move |(i, g)| {
                 let gi = start + i + 1;
 
                 let adv = if gi == line_end {
-                    line_x.0 as f32 + line_width - g.point.x
+                    line_width - g.point.x
                 } else {
                     self.glyphs[gi].point.x - g.point.x
                 };
@@ -398,24 +396,6 @@ impl ShapedText {
         self.size
     }
 
-    /// Gets the [`size`] plus the [`padding`].
-    ///
-    /// [`size`]: Self::size
-    /// [`padding`]: Self::padding
-    pub fn box_size(&self) -> PxSize {
-        self.size() + PxSize::new(self.padding.horizontal(), self.padding.vertical())
-    }
-
-    /// Last applied padding.
-    pub fn padding(&self) -> PxSideOffsets {
-        self.padding
-    }
-
-    /// Last applied alignment box.
-    pub fn align_box(&self) -> PxRect {
-        self.align_box // !!: remove
-    }
-
     /// Last applied alignment.
     pub fn align(&self) -> Align {
         self.align
@@ -425,7 +405,7 @@ impl ShapedText {
     ///
     /// The lines are aligned inside this size.
     pub fn align_size(&self) -> PxSize {
-        self.align_box.size
+        self.align_size
     }
 
     /// Last applied alignment direction.
@@ -437,60 +417,6 @@ impl ShapedText {
     /// parent inline layout.
     pub fn mid_clear(&self) -> Px {
         self.mid_clear
-    }
-
-    fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) {
-        let mut update_height = false;
-
-        if self.line_height != line_height {
-            let offset_y = (line_height - self.line_height).0 as f32;
-            let mut offset = 0.0;
-            let center = offset_y / 2.0;
-
-            self.first_line.origin.y += Px(center as i32);
-
-            for (_, r) in self.lines.iter_segs() {
-                let r = self.segments.glyphs_range(r);
-                for g in &mut self.glyphs[r.iter()] {
-                    g.point.y += offset + center;
-                }
-
-                offset += offset_y;
-            }
-            offset -= offset_y;
-
-            self.last_line.origin.y += Px((offset + center) as i32);
-
-            self.line_height = line_height;
-            update_height = true;
-        }
-
-        if self.line_spacing != line_spacing {
-            if self.lines.is_multi() {
-                let offset_y = (line_spacing - self.line_spacing).0 as f32;
-                let mut offset = offset_y;
-
-                for (_, r) in self.lines.iter_segs_skip(1) {
-                    let r = self.segments.glyphs_range(r);
-
-                    for g in &mut self.glyphs[r.iter()] {
-                        g.point.y += offset;
-                    }
-
-                    offset += offset_y;
-                }
-                offset -= offset_y;
-
-                self.last_line.origin.y += Px(offset as i32);
-
-                update_height = true;
-            }
-            self.line_spacing = line_spacing;
-        }
-
-        if update_height {
-            self.update_height();
-        }
     }
 
     /// Reshape text lines.
@@ -598,37 +524,18 @@ impl ShapedText {
             self.y_offset = mid_offset.y;
         }
 
-        self.align_box = PxRect::from_size(align_size);
+        self.align_size = align_size;
         self.align = align;
     }
-
-    /// Reshape text.
-    ///
-    /// The `align_box` closure is called with the up-to-date [`box_size`] to produce the container rect where the
-    /// text is aligned.
-    ///
-    /// Glyphs are moved, including the `align_box.origin`, the [`size`] does not change.
-    ///
-    /// [`size`]: Self::size
-    /// [`box_size`]: Self::box_size
-    pub fn reshape_remove(
-        // !!:
-        &mut self,
-        padding: PxSideOffsets,
-        line_height: Px,
-        line_spacing: Px,
-        align_box: impl FnOnce(PxSize) -> PxRect,
-        align: Align,
-        direction: LayoutDirection,
-    ) {
-        //
-        // Line Height & Spacing
-        //
+    fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) {
         let mut update_height = false;
+
         if self.line_height != line_height {
             let offset_y = (line_height - self.line_height).0 as f32;
             let mut offset = 0.0;
             let center = offset_y / 2.0;
+
+            self.first_line.origin.y += Px(center as i32);
 
             for (_, r) in self.lines.iter_segs() {
                 let r = self.segments.glyphs_range(r);
@@ -638,10 +545,14 @@ impl ShapedText {
 
                 offset += offset_y;
             }
+            offset -= offset_y;
+
+            self.last_line.origin.y += Px((offset + center) as i32);
 
             self.line_height = line_height;
             update_height = true;
         }
+
         if self.line_spacing != line_spacing {
             if self.lines.is_multi() {
                 let offset_y = (line_spacing - self.line_spacing).0 as f32;
@@ -656,63 +567,17 @@ impl ShapedText {
 
                     offset += offset_y;
                 }
+                offset -= offset_y;
+
+                self.last_line.origin.y += Px(offset as i32);
+
                 update_height = true;
             }
             self.line_spacing = line_spacing;
         }
+
         if update_height {
             self.update_height();
-        }
-
-        //
-        // Offset & Align
-        //
-        let align_box = align_box(self.size + PxSize::new(padding.horizontal(), padding.vertical()));
-
-        if self.padding != padding || self.align_box != align_box || self.align != align {
-            let mut global_offset = euclid::vec2::<f32, ()>(
-                (padding.left + align_box.origin.x).0 as f32,
-                (padding.top + align_box.origin.y).0 as f32,
-            );
-            global_offset.y += (align_box.height() - padding.vertical() - self.size.height).0 as f32 * align.y();
-            if align.is_baseline() {
-                global_offset.y += self.baseline.0 as f32;
-            }
-
-            let y_transform = global_offset.y - self.y_offset;
-
-            let max_line_w = self.size.width.0 as f32;
-            let empty_x = (align_box.width() - padding.horizontal() - self.size.width).0 as f32;
-
-            let mut line_start = 0;
-            for line in &mut self.lines.0 {
-                let x_align = align.x(direction);
-                let x_offset = global_offset.x + (max_line_w - line.width) * x_align + empty_x * x_align;
-
-                let x_transform = x_offset - line.x_offset;
-
-                let glyphs = self.segments.glyphs_range(IndexRange(line_start, line.end));
-                for g in &mut self.glyphs[glyphs.iter()] {
-                    g.point.x += x_transform;
-                    g.point.y += y_transform;
-                }
-
-                line.x_offset = x_offset;
-
-                line_start = line.end;
-            }
-
-            let y_transform_px = Px(y_transform as i32);
-            self.underline -= y_transform_px;
-            self.baseline -= y_transform_px;
-            self.overline -= y_transform_px;
-            self.strikethrough -= y_transform_px;
-            self.underline_descent -= y_transform_px;
-
-            self.y_offset = global_offset.y;
-            self.padding = padding;
-            self.align_box = align_box;
-            self.align = align;
         }
     }
     fn update_height(&mut self) {
@@ -749,15 +614,6 @@ impl ShapedText {
     /// [`line_height`]: Self::line_height
     pub fn baseline(&self) -> Px {
         self.baseline
-    }
-
-    /// Vertical offset from the bottom up that is the baseline of the last line considering the padding.
-    ///
-    /// The *bottom* is the [`size`] height.
-    ///
-    /// [`size`]: Self::size
-    pub fn box_baseline(&self) -> Px {
-        self.baseline + self.padding.bottom
     }
 
     /// Vertical offset from the line bottom up that is the overline placement.
@@ -835,7 +691,6 @@ impl ShapedText {
                 font: self.fonts.font(0).clone(),
                 end: 0,
             }]),
-            padding: PxSideOffsets::zero(),
             size: PxSize::zero(),
             orig_line_height: self.orig_line_height,
             orig_line_spacing: self.orig_line_spacing,
@@ -847,7 +702,7 @@ impl ShapedText {
             underline: self.underline,
             underline_descent: self.underline_descent,
             y_offset: 0.0,
-            align_box: PxRect::zero(),
+            align_size: PxSize::zero(),
             align: Align::START,
             direction: LayoutDirection::LTR,
             first_line: PxRect::zero(),
@@ -883,7 +738,6 @@ impl ShapedText {
                 segments: GlyphSegmentVec(self.segments.0.drain(segment..).collect()),
                 lines: LineRangeVec(self.lines.0.drain(l_end..).collect()),
                 fonts: FontRangeVec(self.fonts.0.drain(f_end..).collect()),
-                padding: PxSideOffsets::zero(),
                 size: PxSize::zero(),
                 orig_line_height: self.orig_line_height,
                 orig_line_spacing: self.orig_line_spacing,
@@ -895,7 +749,7 @@ impl ShapedText {
                 underline: self.underline,
                 underline_descent: self.underline_descent,
                 y_offset: 0.0,
-                align_box: PxRect::zero(),
+                align_size: PxSize::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,
                 first_line: PxRect::zero(),
@@ -1049,7 +903,7 @@ impl ShapedText {
         }
 
         // y-offset of glyphs in `text`.
-        let y_offset = (self.size.height - self.padding.bottom - self.line_height).0 as f32;
+        let y_offset = (self.size.height - self.line_height).0 as f32;
         for g in &mut text.glyphs {
             g.point.y += y_offset;
         }
@@ -1136,7 +990,6 @@ impl ShapedTextBuilder {
                 segments: Default::default(),
                 lines: Default::default(),
                 fonts: Default::default(),
-                padding: Default::default(),
                 size: Default::default(),
                 line_height: Default::default(),
                 line_spacing: Default::default(),
@@ -1148,7 +1001,7 @@ impl ShapedTextBuilder {
                 underline: Default::default(),
                 underline_descent: Default::default(),
                 y_offset: 0.0,
-                align_box: PxRect::zero(),
+                align_size: PxSize::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,
                 first_line: PxRect::zero(),
@@ -1593,7 +1446,7 @@ impl<'a> ShapedLine<'a> {
 
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
-        (PxPoint::new(Px(0), y + self.text.padding.top), self.width)
+        (PxPoint::new(Px(0), y), self.width)
     }
 
     fn segments(&self) -> &'a [GlyphSegment] {
@@ -1806,7 +1659,7 @@ impl<'a> ShapedSegment<'a> {
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let (x, width) = self.x_width();
         let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - bottom_up_offset;
-        (PxPoint::new(x, y + self.text.padding.top), width)
+        (PxPoint::new(x, y), width)
     }
 
     /// Overline spanning the word or spaces, start point + width.
@@ -1833,7 +1686,6 @@ impl<'a> ShapedSegment<'a> {
     /// Returns an iterator of start point + width for underline segments.
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - self.text.underline;
-        let y = y + self.text.padding.top;
         let (x, _) = self.x_width();
 
         let line_y = -(self.text.baseline - self.text.underline).0 as f32;

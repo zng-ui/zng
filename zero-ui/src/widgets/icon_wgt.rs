@@ -32,9 +32,7 @@ pub mod icon {
         pub vis::ico_color;
 
         /// Spacing in between the icon and background edges or border.
-        ///
-        /// Set to `0` by default.
-        pub text::padding as padding;
+        pub crate::properties::padding;
     }
 
     fn include(wgt: &mut WidgetBuilder) {

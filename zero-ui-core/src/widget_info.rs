@@ -488,6 +488,8 @@ impl WidgetBoundsInfo {
     /// This value is only useful for panels implementing inline, just after the widget was measured.
     ///
     /// Returns `None` if the latest widget measure was not in an inlining context.
+    ///
+    /// [`inline`]: Self::inline
     pub fn measure_inline(&self) -> Option<WidgetInlineMeasure> {
         self.0.lock().measure_inline
     }
