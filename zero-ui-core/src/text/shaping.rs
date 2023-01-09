@@ -336,7 +336,7 @@ pub struct ShapedText {
     underline_descent: Px,
 
     /// vertical align offset applied.
-    y_offset: f32,
+    y_offset: f32, // !!: rename to mid_offset
     align_box: PxRect,
     align: Align,
     direction: LayoutDirection,
@@ -536,12 +536,7 @@ impl ShapedText {
             (first, Px(0), last)
         };
 
-        let mid_offset = euclid::vec2::<f32, zero_ui_view_api::webrender_api::units::LayoutPixel>(
-            0.0,
-            (align_size.height - self.size.height).0 as f32 * align_y,
-        );
-
-        if self.first_line != first {
+        if self.first_line != first && !self.lines.0.is_empty() {
             let first_offset = (first.origin - self.first_line.origin).cast::<f32>().cast_unit();
 
             let first_segs = self.lines.segs(0);
@@ -550,10 +545,12 @@ impl ShapedText {
             for g in &mut self.glyphs[first_glyphs.iter()] {
                 g.point += first_offset;
             }
-        }
 
-        // !!: TODO, avoid double offset if it has only one line?
-        if self.last_line != last {
+            self.lines.first_mut().x_offset = first.origin.x.0 as f32;
+        }
+        if self.last_line != last && self.lines.0.len() > 1 {
+            // last changed and it is not first
+
             let last_offset = (last.origin - self.last_line.origin).cast::<f32>().cast_unit();
 
             let last_segs = self.lines.segs(self.lines.0.len() - 1);
@@ -562,9 +559,49 @@ impl ShapedText {
             for g in &mut self.glyphs[last_glyphs.iter()] {
                 g.point += last_offset;
             }
+
+            self.lines.last_mut().x_offset = last.origin.x.0 as f32;
+        }
+        self.first_line = first;
+        self.last_line = last;
+
+        if self.lines.0.len() > 2 {
+            // has mid-lines
+
+            let mid_offset = euclid::vec2::<f32, zero_ui_view_api::webrender_api::units::LayoutPixel>(
+                0.0,
+                (align_size.height - self.size.height).0 as f32 * align_y + mid.0 as f32,
+            );
+            let y_transform = mid_offset.y - self.y_offset;
+            let align_width = align_size.width.0 as f32;
+
+            let skip_last = self.lines.0.len() - 2;
+            let mut line_start = 0;
+            for line in &mut self.lines.0[1..=skip_last] {
+                let x_offset = (align_width - line.width) * align_x;
+                let x_transform = x_offset - line.x_offset;
+
+                let glyphs = self.segments.glyphs_range(IndexRange(line_start, line.end));
+                for g in &mut self.glyphs[glyphs.iter()] {
+                    g.point.x += x_transform;
+                    g.point.y += y_transform;
+                }
+                line.x_offset = x_offset;
+
+                line_start = line.end;
+            }
+
+            let y_transform_px = Px(y_transform as i32);
+            self.underline -= y_transform_px;
+            self.baseline -= y_transform_px;
+            self.overline -= y_transform_px;
+            self.strikethrough -= y_transform_px;
+            self.underline_descent -= y_transform_px;
+            self.y_offset = mid_offset.y;
         }
 
-        todo!("!!: ")
+        self.align_box = PxRect::from_size(align_size);
+        self.align = align;
     }
 
     /// Reshape text.
