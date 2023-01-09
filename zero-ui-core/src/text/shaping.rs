@@ -325,8 +325,8 @@ pub struct ShapedText {
     line_height: Px,
     line_spacing: Px,
 
-    og_line_height: Px,
-    og_line_spacing: Px,
+    orig_line_height: Px,
+    orig_line_spacing: Px,
 
     // offsets from the line_height bottom
     baseline: Px,
@@ -439,7 +439,7 @@ impl ShapedText {
         self.mid_clear
     }
 
-    fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) -> bool {
+    fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) {
         let mut update_height = false;
 
         if self.line_height != line_height {
@@ -491,7 +491,6 @@ impl ShapedText {
         if update_height {
             self.update_height();
         }
-        update_height
     }
 
     /// Reshape text lines.
@@ -507,12 +506,11 @@ impl ShapedText {
         constrains: PxConstrains2d,
         inline_constrains: Option<InlineConstrainsLayout>,
         align: Align,
-        padding: PxSideOffsets,
         line_height: Px,
         line_spacing: Px,
         direction: LayoutDirection,
     ) {
-        let realign_y = self.reshape_line_height_and_spacing(line_height, line_spacing);
+        self.reshape_line_height_and_spacing(line_height, line_spacing);
 
         let align_size = constrains.fill_size_or(self.size);
         let align_x = align.x(direction);
@@ -613,7 +611,8 @@ impl ShapedText {
     ///
     /// [`size`]: Self::size
     /// [`box_size`]: Self::box_size
-    pub fn reshape(
+    pub fn reshape_remove(
+        // !!:
         &mut self,
         padding: PxSideOffsets,
         line_height: Px,
@@ -723,12 +722,12 @@ impl ShapedText {
 
     /// Restore text to initial shape.
     pub fn clear_reshape(&mut self) {
-        self.reshape(
-            PxSideOffsets::zero(),
-            self.og_line_height,
-            self.og_line_spacing,
-            |_| PxRect::zero(),
+        self.reshape_lines(
+            PxConstrains2d::new_fill_size(self.align_size()),
+            None,
             Align::START,
+            self.orig_line_height,
+            self.orig_line_spacing,
             LayoutDirection::LTR,
         );
     }
@@ -838,10 +837,10 @@ impl ShapedText {
             }]),
             padding: PxSideOffsets::zero(),
             size: PxSize::zero(),
-            og_line_height: self.og_line_height,
-            og_line_spacing: self.og_line_spacing,
-            line_height: self.og_line_height,
-            line_spacing: self.og_line_spacing,
+            orig_line_height: self.orig_line_height,
+            orig_line_spacing: self.orig_line_spacing,
+            line_height: self.orig_line_height,
+            line_spacing: self.orig_line_spacing,
             baseline: self.baseline,
             overline: self.overline,
             strikethrough: self.strikethrough,
@@ -886,10 +885,10 @@ impl ShapedText {
                 fonts: FontRangeVec(self.fonts.0.drain(f_end..).collect()),
                 padding: PxSideOffsets::zero(),
                 size: PxSize::zero(),
-                og_line_height: self.og_line_height,
-                og_line_spacing: self.og_line_spacing,
-                line_height: self.og_line_height,
-                line_spacing: self.og_line_spacing,
+                orig_line_height: self.orig_line_height,
+                orig_line_spacing: self.orig_line_spacing,
+                line_height: self.orig_line_height,
+                line_spacing: self.orig_line_spacing,
                 baseline: self.baseline,
                 overline: self.overline,
                 strikethrough: self.strikethrough,
@@ -1035,12 +1034,12 @@ impl ShapedText {
             return;
         }
 
-        text.reshape(
-            PxSideOffsets::zero(),
+        text.reshape_lines(
+            PxConstrains2d::new_bounded_size(self.align_size()),
+            None,
+            Align::START,
             self.line_height,
             self.line_spacing,
-            |_| PxRect::zero(),
-            Align::START,
             LayoutDirection::LTR,
         );
 
@@ -1141,8 +1140,8 @@ impl ShapedTextBuilder {
                 size: Default::default(),
                 line_height: Default::default(),
                 line_spacing: Default::default(),
-                og_line_height: Default::default(),
-                og_line_spacing: Default::default(),
+                orig_line_height: Default::default(),
+                orig_line_spacing: Default::default(),
                 baseline: Default::default(),
                 overline: Default::default(),
                 strikethrough: Default::default(),
@@ -1177,8 +1176,8 @@ impl ShapedTextBuilder {
 
         let metrics = font.metrics();
 
-        t.out.og_line_height = config.line_height;
-        t.out.og_line_spacing = config.line_spacing;
+        t.out.orig_line_height = config.line_height;
+        t.out.orig_line_spacing = config.line_spacing;
         t.out.line_height = config.line_height;
         t.out.line_spacing = config.line_spacing;
 
@@ -2497,13 +2496,12 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_spacing());
-        let align_box = test.align_box();
-        test.reshape(
-            test.padding(),
+        test.reshape_lines(
+            PxConstrains2d::new_fill_size(test.align_size()),
+            None,
+            test.align(),
             test.line_height(),
             to,
-            |_| align_box,
-            test.align(),
             test.direction(),
         );
         assert_eq!(to, test.line_spacing());
@@ -2540,13 +2538,12 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_height());
-        let align_box = test.align_box();
-        test.reshape(
-            test.padding(),
+        test.reshape_lines(
+            PxConstrains2d::new_fill_size(test.align_size()),
+            None,
+            test.align(),
             to,
             test.line_spacing(),
-            |_| align_box,
-            test.align(),
             test.direction(),
         );
         assert_eq!(to, test.line_height());
