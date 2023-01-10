@@ -999,7 +999,7 @@ struct ShapedTextBuilder {
 }
 impl ShapedTextBuilder {
     fn actual_max_width(&self) -> f32 {
-        if self.out.lines.0.is_empty() {
+        if self.out.lines.0.is_empty() && !self.out.first_wrapped {
             self.first_line_max.min(self.max_width)
         } else {
             self.max_width
@@ -1124,9 +1124,6 @@ impl ShapedTextBuilder {
             match kind {
                 TextSegmentKind::Word => {
                     font.shape_segment(seg, word_ctx_key, features, |shaped_seg| {
-                        if i == 1 {
-                            println!{"!!: {max_width:?}(max) {:?}(advance)", shaped_seg.x_advance}
-                        }
                         if self.origin.x + shaped_seg.x_advance > max_width {
                             // need wrap
 
@@ -1337,7 +1334,6 @@ impl ShapedTextBuilder {
     fn push_line_break(&mut self) {
         if self.out.glyphs.is_empty() && self.allow_first_wrap {
             self.out.first_wrapped = true;
-            self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
         } else {
             self.out.lines.0.push(LineRange {
                 end: self.out.segments.0.len(),
@@ -1352,9 +1348,8 @@ impl ShapedTextBuilder {
 
             self.max_line_x = self.origin.x.max(self.max_line_x);
             self.origin.x = 0.0;
+            self.origin.y += self.line_height + self.line_spacing;
         }
-
-        self.origin.y += self.line_height + self.line_spacing;
     }
 
     pub fn push_text_seg(&mut self, seg: &str, kind: TextSegmentKind) {
