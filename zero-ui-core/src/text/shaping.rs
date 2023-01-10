@@ -501,7 +501,7 @@ impl ShapedText {
             let align_width = align_size.width.0 as f32;
 
             let skip_last = self.lines.0.len() - 2;
-            let mut line_start = 0;
+            let mut line_start = self.lines.0[0].end;
             for line in &mut self.lines.0[1..=skip_last] {
                 let x_offset = (align_width - line.width) * align_x;
                 let x_transform = x_offset - line.x_offset;
