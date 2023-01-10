@@ -1187,7 +1187,7 @@ impl ShapedTextBuilder {
         let line_height_px = Px(self.line_height as i32);
         self.out.last_line = PxRect::new(
             PxPoint::new(Px(0), self.out.size.height - line_height_px),
-            PxSize::new(self.out.size.width, line_height_px),
+            PxSize::new(Px(self.origin.x as i32), line_height_px),
         );
         if self.out.lines.0.len() == 1 {
             self.out.first_line = self.out.last_line;
@@ -1313,18 +1313,14 @@ impl ShapedTextBuilder {
             x_offset: 0.0,
         });
 
+        if self.out.lines.0.len() == 1 {
+            self.out.first_line = PxRect::from_size(PxSize::new(Px(self.origin.x as i32), Px(self.line_height as i32)));
+            self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
+        }
+
         self.max_line_x = self.origin.x.max(self.max_line_x);
         self.origin.x = 0.0;
         self.origin.y += self.line_height + self.line_spacing;
-
-        if self.out.lines.0.len() == 1 {
-            self.out.first_line = PxRect::new(
-                PxPoint::new(Px(0), Px(self.origin.y as i32)),
-                PxSize::new(Px(self.origin.x as i32), Px(self.line_height as i32)),
-            );
-
-            self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
-        }
     }
 
     pub fn push_text_seg(&mut self, seg: &str, kind: TextSegmentKind) {
