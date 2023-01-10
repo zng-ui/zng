@@ -638,8 +638,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         r.underlines = vec![];
                     }
                 }
-
-                self.pending = Layout::empty();
             }
 
             metrics.constrains().fill_size_or(r.shaped_text.size())
