@@ -1341,9 +1341,11 @@ impl ShapedTextBuilder {
                 x_offset: 0.0,
             });
 
-            if self.out.lines.0.len() == 1 && !self.out.first_wrapped {
+            if self.out.lines.0.len() == 1 {
                 self.out.first_line = PxRect::from_size(PxSize::new(Px(self.origin.x as i32), Px(self.line_height as i32)));
-                self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
+                if !self.out.first_wrapped {
+                    self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
+                }
             }
 
             self.max_line_x = self.origin.x.max(self.max_line_x);
