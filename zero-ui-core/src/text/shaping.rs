@@ -998,6 +998,14 @@ struct ShapedTextBuilder {
     text_seg_end: usize,
 }
 impl ShapedTextBuilder {
+    fn actual_max_width(&self) -> f32 {
+        if self.out.lines.0.is_empty() {
+            self.first_line_max.min(self.max_width)
+        } else {
+            self.max_width
+        }
+    }
+
     fn shape_text(font: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut t = Self {
             out: ShapedText {
@@ -1093,9 +1101,9 @@ impl ShapedTextBuilder {
 
         t.break_words = match config.word_break {
             WordBreak::Normal => {
-                config.lang.matches(&lang!("ch"), true, true)
-                    || config.lang.matches(&lang!("jp"), true, true)
-                    || config.lang.matches(&lang!("ko"), true, true)
+                lang!("ch").matches(&config.lang, true, false)
+                    || lang!("jp").matches(&config.lang, true, false)
+                    || lang!("ko").matches(&config.lang, true, false)
             }
             WordBreak::BreakAll => true,
             WordBreak::KeepAll => false,
@@ -1111,16 +1119,14 @@ impl ShapedTextBuilder {
     }
 
     fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &WordContextKey, text: &SegmentedText) {
-        let mut first = true;
-        for (seg, kind) in text.iter() {
-            let max_width = if self.out.lines.0.is_empty() {
-                self.first_line_max.min(self.max_width)
-            } else {
-                self.max_width
-            };
+        for (i, (seg, kind)) in text.iter().enumerate() {
+            let max_width = self.actual_max_width();
             match kind {
                 TextSegmentKind::Word => {
                     font.shape_segment(seg, word_ctx_key, features, |shaped_seg| {
+                        if i == 1 {
+                            println!{"!!: {max_width:?}(max) {:?}(advance)", shaped_seg.x_advance}
+                        }
                         if self.origin.x + shaped_seg.x_advance > max_width {
                             // need wrap
 
@@ -1193,8 +1199,6 @@ impl ShapedTextBuilder {
                     self.push_text_seg(seg, kind);
                 }
             }
-
-            first = false;
         }
 
         self.out.lines.0.push(LineRange {
@@ -1238,6 +1242,7 @@ impl ShapedTextBuilder {
         // find the split that fits more letters and hyphen
         let mut end_glyph = 0;
         let mut end_point_i = 0;
+        let max_width = self.actual_max_width();
         for (i, point) in split_points.iter().enumerate() {
             let mut point = *point;
             let mut width = 0.0;
@@ -1255,7 +1260,7 @@ impl ShapedTextBuilder {
                 gi = i;
             }
 
-            if self.origin.x + width + self.hyphen_glyphs.x_advance > self.max_width {
+            if self.origin.x + width + self.hyphen_glyphs.x_advance > max_width {
                 break;
             } else {
                 end_glyph = gi;
@@ -1301,7 +1306,7 @@ impl ShapedTextBuilder {
             g.cluster -= seg_a.len() as u32;
         }
 
-        if shaped_seg_b.x_advance > self.max_width {
+        if shaped_seg_b.x_advance > self.actual_max_width() {
             // second half still does not fit, try to hyphenate again.
             if self.push_hyphenate_pt(&split_points[end_point_i..], &shaped_seg_b, seg_b) {
                 return true;
@@ -1367,8 +1372,9 @@ impl ShapedTextBuilder {
     pub fn push_split_seg(&mut self, shaped_seg: &ShapedSegmentData, seg: &str, kind: TextSegmentKind, spacing: f32) {
         let mut end_glyph = 0;
         let mut end_glyph_x = 0.0;
+        let max_width = self.actual_max_width();
         for (i, g) in shaped_seg.glyphs.iter().enumerate() {
-            if self.origin.x + g.point.0 > self.max_width {
+            if self.origin.x + g.point.0 > max_width {
                 end_glyph = i.saturating_sub(1);
                 end_glyph_x = g.point.0;
                 break;
