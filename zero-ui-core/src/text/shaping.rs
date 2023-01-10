@@ -9,7 +9,7 @@ use super::{
     LineBreak, SegmentedText, Text, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
-    context::{InlineConstrainsLayout, LayoutDirection},
+    context::{InlineConstrainsLayout, InlineConstrainsMeasure, LayoutDirection},
     crate_util::{f32_cmp, IndexRange},
     units::*,
 };
@@ -48,8 +48,8 @@ pub struct TextShapingArgs {
     /// Width of the TAB character.
     pub tab_x_advance: Px,
 
-    /// Extra space before the start of the first line.
-    pub text_indent: Px, // !!: repurpose this to first line of each paragraph (except first and last lines)?
+    /// Inline constrains for initial text shaping and wrap.
+    pub inline_constrains: Option<InlineConstrainsMeasure>,
 
     /// Finalized font features.
     pub font_features: RFontFeatures,
@@ -84,7 +84,7 @@ impl Default for TextShapingArgs {
             ignore_ligatures: false,
             disable_kerning: false,
             tab_x_advance: Px(0),
-            text_indent: Px(0),
+            inline_constrains: None,
             font_features: RFontFeatures::default(),
             max_width: Px::MAX,
             line_break: Default::default(),
@@ -978,6 +978,8 @@ struct ShapedTextBuilder {
     hyphens: Hyphens,
 
     origin: euclid::Point2D<f32, ()>,
+    first_line_max: f32,
+    mid_clear_min: f32,
     max_line_x: f32,
     text_seg_end: usize,
 }
@@ -1021,6 +1023,8 @@ impl ShapedTextBuilder {
             hyphens: config.hyphens,
 
             origin: euclid::point2(0.0, 0.0),
+            first_line_max: f32::INFINITY,
+            mid_clear_min: 0.0,
             max_line_x: 0.0,
             text_seg_end: 0,
         };
@@ -1047,8 +1051,15 @@ impl ShapedTextBuilder {
         let dft_line_height = metrics.line_height().0 as f32;
         let center_height = (t.line_height - dft_line_height) / 2.0;
 
-        t.origin = euclid::point2::<_, ()>(config.text_indent.0 as f32, baseline.0 as f32 + center_height);
+        t.origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32 + center_height);
         t.max_line_x = 0.0;
+        if let Some(inline) = config.inline_constrains {
+            t.first_line_max = inline.first_max.0 as f32;
+            t.mid_clear_min = inline.mid_clear_min.0 as f32;
+        } else {
+            t.first_line_max = f32::INFINITY;
+            t.mid_clear_min = 0.0;
+        }
 
         t.letter_spacing = config.letter_spacing.0 as f32;
         t.word_spacing = config.word_spacing.0 as f32;
@@ -1083,13 +1094,18 @@ impl ShapedTextBuilder {
 
     fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &WordContextKey, text: &SegmentedText) {
         for (seg, kind) in text.iter() {
+            let max_width = if self.out.lines.0.is_empty() {
+                self.first_line_max.min(self.max_width)
+            } else {
+                self.max_width
+            };
             match kind {
                 TextSegmentKind::Word => {
                     font.shape_segment(seg, word_ctx_key, features, |shaped_seg| {
-                        if self.origin.x + shaped_seg.x_advance > self.max_width {
+                        if self.origin.x + shaped_seg.x_advance > max_width {
                             // need wrap
 
-                            if shaped_seg.x_advance > self.max_width {
+                            if shaped_seg.x_advance > max_width {
                                 // need segment split
 
                                 // try to hyphenate
@@ -1124,7 +1140,7 @@ impl ShapedTextBuilder {
                 }
                 TextSegmentKind::Space => {
                     font.shape_segment(seg, word_ctx_key, features, |shaped_seg| {
-                        if self.origin.x + shaped_seg.x_advance > self.max_width {
+                        if self.origin.x + shaped_seg.x_advance > max_width {
                             // need wrap
                             if seg.len() > 2 {
                                 // split spaces
@@ -1168,6 +1184,14 @@ impl ShapedTextBuilder {
         self.out.size = PxSize::new(Px(self.origin.x.max(self.max_line_x).round() as i32), Px(0));
         self.out.update_height();
 
+        let line_height_px = Px(self.line_height as i32);
+        self.out.last_line = PxRect::new(
+            PxPoint::new(Px(0), self.out.size.height - line_height_px),
+            PxSize::new(self.out.size.width, line_height_px),
+        );
+        if self.out.lines.0.len() == 1 {
+            self.out.first_line = self.out.last_line;
+        }
         self.out.fonts.0.push(FontRange {
             font: font.clone(),
             end: self.out.glyphs.len(),
@@ -1292,6 +1316,15 @@ impl ShapedTextBuilder {
         self.max_line_x = self.origin.x.max(self.max_line_x);
         self.origin.x = 0.0;
         self.origin.y += self.line_height + self.line_spacing;
+
+        if self.out.lines.0.len() == 1 {
+            self.out.first_line = PxRect::new(
+                PxPoint::new(Px(0), Px(self.origin.y as i32)),
+                PxSize::new(Px(self.origin.x as i32), Px(self.line_height as i32)),
+            );
+
+            self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
+        }
     }
 
     pub fn push_text_seg(&mut self, seg: &str, kind: TextSegmentKind) {
@@ -1371,8 +1404,18 @@ impl<'a> fmt::Debug for ShapedLine<'a> {
 impl<'a> ShapedLine<'a> {
     /// Bounds of the line.
     pub fn rect(&self) -> PxRect {
+        if self.index == 0 {
+            return self.text.first_line;
+        }
+        if self.index == self.text.lines.0.len() - 1 {
+            return self.text.last_line;
+        }
+
         let size = PxSize::new(self.width, self.text.line_height);
-        let origin = PxPoint::new(Px(0), self.text.line_height * Px(self.index as i32));
+        let origin = PxPoint::new(
+            Px(self.text.lines.0[self.index].x_offset as i32),
+            self.text.line_height * Px(self.index as i32) + self.text.mid_clear,
+        );
         PxRect::new(origin, size)
     }
 
@@ -1445,8 +1488,9 @@ impl<'a> ShapedLine<'a> {
     }
 
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
-        let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
-        (PxPoint::new(Px(0), y), self.width)
+        let r = self.rect();
+        let y = r.max_y() - bottom_up_offset;
+        (PxPoint::new(r.origin.x, y), self.width)
     }
 
     fn segments(&self) -> &'a [GlyphSegment] {

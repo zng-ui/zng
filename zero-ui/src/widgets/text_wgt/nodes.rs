@@ -402,15 +402,20 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     struct FinalText {
         layout: Option<LayoutText>,
         shaping_args: TextShapingArgs,
+        pending: Layout,
     }
     impl FinalText {
         fn measure(&mut self, ctx: &mut MeasureContext) -> Option<PxSize> {
+            if ctx.inline_constrains().is_some() {
+                return None;
+            }
+
             ctx.constrains().fill_or_exact()
         }
 
-        fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, pending: &mut Layout) -> PxSize {
+        fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
             if t.reshape {
-                pending.insert(Layout::RESHAPE);
+                self.pending.insert(Layout::RESHAPE);
             }
 
             let font_size = metrics.font_size();
@@ -428,14 +433,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     underlines: vec![],
                     underline_thickness: Px(0),
                 });
-                pending.insert(Layout::RESHAPE);
+                self.pending.insert(Layout::RESHAPE);
             }
 
             let r = self.layout.as_mut().unwrap();
 
             if font_size != r.fonts.requested_size() || !r.fonts.is_sized_from(&t.faces) {
                 r.fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
-                pending.insert(Layout::RESHAPE);
+                self.pending.insert(Layout::RESHAPE);
             }
 
             if TEXT_WRAP_VAR.get() && !metrics.constrains().x.is_unbounded() {
@@ -443,43 +448,38 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if self.shaping_args.max_width != max_width {
                     self.shaping_args.max_width = max_width;
 
-                    if !pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(max_width) {
-                        pending.insert(Layout::RESHAPE);
+                    if !self.pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(max_width) {
+                        self.pending.insert(Layout::RESHAPE);
                     }
                 }
             } else if self.shaping_args.max_width != Px::MAX {
                 self.shaping_args.max_width = Px::MAX;
-                if !pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(Px::MAX) {
-                    pending.insert(Layout::RESHAPE);
+                if !self.pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(Px::MAX) {
+                    self.pending.insert(Layout::RESHAPE);
                 }
             }
 
             if let Some(inline) = metrics.inline_constrains() {
                 match inline {
                     InlineConstrains::Measure(m) => {
-                        // !!: change ShapedText to support width constrains directly?
-                        let indent = if m.first_max == Px::MAX {
-                            Px(0)
-                        } else if let Some(w) = metrics.constrains().x.max() {
-                            (w - m.first_max).max(Px(0))
-                        } else {
-                            Px(0)
-                        };
-                        if self.shaping_args.text_indent != indent {
-                            self.shaping_args.text_indent = indent;
-                            pending.insert(Layout::RESHAPE);
+                        if self.shaping_args.inline_constrains != Some(m) {
+                            self.shaping_args.inline_constrains = Some(m);
+                            self.pending.insert(Layout::RESHAPE);
                         }
                     }
                     InlineConstrains::Layout(_) => {
                         // !!: impl first and last positioning in ShapedText
                     }
                 }
+            } else if self.shaping_args.inline_constrains.is_some() {
+                self.shaping_args.inline_constrains = None;
+                self.pending.insert(Layout::RESHAPE);
             }
 
-            if !pending.contains(Layout::QUICK_RESHAPE) {
+            if !self.pending.contains(Layout::QUICK_RESHAPE) {
                 let size = r.shaped_text.size();
                 if metrics.constrains().fill_size_or(size) != r.shaped_text.align_size() {
-                    pending.insert(Layout::QUICK_RESHAPE);
+                    self.pending.insert(Layout::QUICK_RESHAPE);
                 }
             }
 
@@ -511,17 +511,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 LINE_SPACING_VAR.get().layout(m.for_y(), |_| Px(0))
             };
 
-            if !pending.contains(Layout::RESHAPE)
+            if !self.pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
                     || word_spacing != self.shaping_args.word_spacing
                     || tab_length != self.shaping_args.tab_x_advance)
             {
-                pending.insert(Layout::RESHAPE);
+                self.pending.insert(Layout::RESHAPE);
             }
-            if !pending.contains(Layout::QUICK_RESHAPE)
+            if !self.pending.contains(Layout::QUICK_RESHAPE)
                 && (line_spacing != self.shaping_args.line_spacing || line_height != self.shaping_args.line_height)
             {
-                pending.insert(Layout::QUICK_RESHAPE);
+                self.pending.insert(Layout::QUICK_RESHAPE);
             }
 
             self.shaping_args.letter_spacing = letter_spacing;
@@ -542,109 +542,113 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 )
             };
 
-            if !pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
-                pending.insert(Layout::OVERLINE);
+            if !self.pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
+                self.pending.insert(Layout::OVERLINE);
             }
-            if !pending.contains(Layout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
-                pending.insert(Layout::STRIKETHROUGH);
+            if !self.pending.contains(Layout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
+                self.pending.insert(Layout::STRIKETHROUGH);
             }
-            if !pending.contains(Layout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
-                pending.insert(Layout::UNDERLINE);
+            if !self.pending.contains(Layout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
+                self.pending.insert(Layout::UNDERLINE);
             }
             r.overline_thickness = overline;
             r.strikethrough_thickness = strikethrough;
             r.underline_thickness = underline;
 
             let align = TEXT_ALIGN_VAR.get();
-            if !pending.contains(Layout::QUICK_RESHAPE) && align != r.shaped_text.align() {
-                pending.insert(Layout::QUICK_RESHAPE);
+            if !self.pending.contains(Layout::QUICK_RESHAPE) && align != r.shaped_text.align() {
+                self.pending.insert(Layout::QUICK_RESHAPE);
             }
+            // !!: quick-reshape if inline constrains changed?
 
             /*
                 APPLY
             */
             let prev_final_size = r.shaped_text.size();
 
-            if pending.contains(Layout::RESHAPE) {
+            if self.pending.contains(Layout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
+                self.pending = self.pending.intersection(Layout::QUICK_RESHAPE);
             }
 
-            if !pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.size()) {
-                pending.insert(Layout::QUICK_RESHAPE);
+            if !self.pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.size()) {
+                self.pending.insert(Layout::QUICK_RESHAPE);
             }
 
-            if pending.contains(Layout::QUICK_RESHAPE) {
-                r.shaped_text.reshape_lines(
-                    metrics.constrains(),
-                    metrics.inline_constrains().map(|c| c.layout()),
-                    align,
-                    line_height,
-                    line_spacing,
-                    metrics.direction(),
-                );
-                r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
-                t.baseline = r.shaped_text.baseline();
-            }
-            if pending.contains(Layout::OVERLINE) {
-                if r.overline_thickness > Px(0) {
-                    r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
-                } else {
-                    r.overlines = vec![];
+            if !is_measure {
+                if self.pending.contains(Layout::QUICK_RESHAPE) {
+                    r.shaped_text.reshape_lines(
+                        metrics.constrains(),
+                        metrics.inline_constrains().map(|c| c.layout()),
+                        align,
+                        line_height,
+                        line_spacing,
+                        metrics.direction(),
+                    );
+                    r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
+                    t.baseline = r.shaped_text.baseline();
                 }
-            }
-            if pending.contains(Layout::STRIKETHROUGH) {
-                if r.strikethrough_thickness > Px(0) {
-                    r.strikethroughs = r.shaped_text.lines().map(|l| l.strikethrough()).collect();
-                } else {
-                    r.strikethroughs = vec![];
-                }
-            }
-            if pending.contains(Layout::UNDERLINE) {
-                if r.underline_thickness > Px(0) {
-                    let skip = UNDERLINE_SKIP_VAR.get();
-                    match UNDERLINE_POSITION_VAR.get() {
-                        UnderlinePosition::Font => {
-                            if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
-                                r.underlines = r
-                                    .shaped_text
-                                    .lines()
-                                    .flat_map(|l| l.underline_skip_glyphs_and_spaces(r.underline_thickness))
-                                    .collect();
-                            } else if skip.contains(UnderlineSkip::GLYPHS) {
-                                r.underlines = r
-                                    .shaped_text
-                                    .lines()
-                                    .flat_map(|l| l.underline_skip_glyphs(r.underline_thickness))
-                                    .collect();
-                            } else if skip.contains(UnderlineSkip::SPACES) {
-                                r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
-                            } else {
-                                r.underlines = r.shaped_text.lines().map(|l| l.underline()).collect();
-                            }
-                        }
-                        UnderlinePosition::Descent => {
-                            // descent clears all glyphs, so we only need to care about spaces
-                            if skip.contains(UnderlineSkip::SPACES) {
-                                r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_descent_skip_spaces()).collect();
-                            } else {
-                                r.underlines = r.shaped_text.lines().map(|l| l.underline_descent()).collect();
-                            }
-                        }
+                if self.pending.contains(Layout::OVERLINE) {
+                    if r.overline_thickness > Px(0) {
+                        r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
+                    } else {
+                        r.overlines = vec![];
                     }
-                } else {
-                    r.underlines = vec![];
                 }
+                if self.pending.contains(Layout::STRIKETHROUGH) {
+                    if r.strikethrough_thickness > Px(0) {
+                        r.strikethroughs = r.shaped_text.lines().map(|l| l.strikethrough()).collect();
+                    } else {
+                        r.strikethroughs = vec![];
+                    }
+                }
+                if self.pending.contains(Layout::UNDERLINE) {
+                    if r.underline_thickness > Px(0) {
+                        let skip = UNDERLINE_SKIP_VAR.get();
+                        match UNDERLINE_POSITION_VAR.get() {
+                            UnderlinePosition::Font => {
+                                if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
+                                    r.underlines = r
+                                        .shaped_text
+                                        .lines()
+                                        .flat_map(|l| l.underline_skip_glyphs_and_spaces(r.underline_thickness))
+                                        .collect();
+                                } else if skip.contains(UnderlineSkip::GLYPHS) {
+                                    r.underlines = r
+                                        .shaped_text
+                                        .lines()
+                                        .flat_map(|l| l.underline_skip_glyphs(r.underline_thickness))
+                                        .collect();
+                                } else if skip.contains(UnderlineSkip::SPACES) {
+                                    r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
+                                } else {
+                                    r.underlines = r.shaped_text.lines().map(|l| l.underline()).collect();
+                                }
+                            }
+                            UnderlinePosition::Descent => {
+                                // descent clears all glyphs, so we only need to care about spaces
+                                if skip.contains(UnderlineSkip::SPACES) {
+                                    r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_descent_skip_spaces()).collect();
+                                } else {
+                                    r.underlines = r.shaped_text.lines().map(|l| l.underline_descent()).collect();
+                                }
+                            }
+                        }
+                    } else {
+                        r.underlines = vec![];
+                    }
+                }
+
+                self.pending = Layout::empty();
             }
 
-            let bounds = r.shaped_text.align_size();
-            metrics.constrains().fill_size_or(bounds)
+            metrics.constrains().fill_size_or(r.shaped_text.size())
         }
     }
 
     #[ui_node(struct LayoutTextNode {
         child: impl UiNode,
         txt: Mutex<FinalText>,
-        pending: Layout,
     })]
     impl LayoutTextNode {
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut T_child) -> R) -> R {
@@ -677,7 +681,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if FONT_SIZE_VAR.is_new(ctx) || FONT_VARIATIONS_VAR.is_new(ctx) {
-                self.pending.insert(Layout::RESHAPE);
+                self.txt.get_mut().pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
 
@@ -688,13 +692,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 || TAB_LENGTH_VAR.is_new(ctx)
                 || LANG_VAR.is_new(ctx)
             {
-                self.txt.get_mut().shaping_args.lang = LANG_VAR.get();
-                self.pending.insert(Layout::RESHAPE);
+                let txt = self.txt.get_mut();
+                txt.shaping_args.lang = LANG_VAR.get();
+                txt.pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
 
             if UNDERLINE_POSITION_VAR.is_new(ctx) || UNDERLINE_SKIP_VAR.is_new(ctx) {
-                self.pending.insert(Layout::UNDERLINE);
+                self.txt.get_mut().pending.insert(Layout::UNDERLINE);
                 ctx.updates.layout();
             }
 
@@ -706,7 +711,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let txt = self.txt.get_mut();
                 if txt.shaping_args.line_break != lb {
                     txt.shaping_args.line_break = lb;
-                    self.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(Layout::RESHAPE);
                     ctx.updates.layout();
                 }
             }
@@ -715,7 +720,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let txt = self.txt.get_mut();
                 if txt.shaping_args.word_break != wb {
                     txt.shaping_args.word_break = wb;
-                    self.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(Layout::RESHAPE);
                     ctx.updates.layout();
                 }
             }
@@ -724,7 +729,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let txt = self.txt.get_mut();
                 if txt.shaping_args.hyphens != h {
                     txt.shaping_args.hyphens = h;
-                    self.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(Layout::RESHAPE);
                     ctx.updates.layout();
                 }
             }
@@ -733,20 +738,20 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let txt = self.txt.get_mut();
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
-                    self.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(Layout::RESHAPE);
                     ctx.updates.layout();
                 }
             }
 
             if TEXT_WRAP_VAR.is_new(ctx) {
-                self.pending.insert(Layout::RESHAPE);
+                self.txt.get_mut().pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
 
             FONT_FEATURES_VAR.with_new(ctx.vars, |f| {
                 let txt = self.txt.get_mut();
                 txt.shaping_args.font_features = f.finalize();
-                self.pending.insert(Layout::RESHAPE);
+                txt.pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             });
 
@@ -762,11 +767,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             } else {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
-                let mut pending = self.pending;
-                let size = txt.layout(ctx.metrics, t, &mut pending);
+                let size = txt.layout(ctx.metrics, t, true);
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.layout.as_ref()) {
                     inline.first = l.shaped_text.first_line().map(|l| l.rect().size).unwrap_or_default();
-                    inline.first.width -= txt.shaping_args.text_indent;
                     inline.last = l.shaped_text.last_line().map(|l| l.rect().size).unwrap_or_default();
                     // !!: TODO, other measure info.
 
@@ -784,23 +787,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let mut write = RESOLVED_TEXT.write();
             let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
 
-            let size = txt.layout(ctx.metrics, t, &mut self.pending);
+            let size = txt.layout(ctx.metrics, t, false);
 
-            if self.pending != Layout::empty() {
+            if txt.pending != Layout::empty() {
                 ctx.updates.render();
-                self.pending = Layout::empty();
+                txt.pending = Layout::empty();
             }
 
             if let (Some(inline), Some(l)) = (wl.inline(), txt.layout.as_ref()) {
-                let mut first_indent = Some(txt.shaping_args.text_indent);
                 for line in l.shaped_text.lines() {
-                    let mut r = line.rect();
-                    if let Some(ind) = first_indent.take() {
-                        // !!: refactor this to be automatic in ShapedText.
-                        r.origin.x += ind;
-                        r.size.width -= ind;
-                    }
-                    inline.rows.push(r);
+                    inline.rows.push(line.rect());
                 }
             }
 
@@ -830,8 +826,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         txt: Mutex::new(FinalText {
             layout: None,
             shaping_args: TextShapingArgs::default(),
+            pending: Layout::empty(),
         }),
-        pending: Layout::empty(),
     }
     .cfg_boxed()
 }
