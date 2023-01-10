@@ -341,6 +341,7 @@ pub struct ShapedText {
     direction: LayoutDirection,
 
     // inline layout values
+    first_wrapped: bool,
     first_line: PxRect,
     mid_clear: Px,
     last_line: PxRect,
@@ -654,6 +655,11 @@ impl ShapedText {
         })
     }
 
+    /// If the first line starts in a new inline row because it could not fit in the leftover inline space.
+    pub fn first_wrapped(&self) -> bool {
+        self.first_wrapped
+    }
+
     /// Gets the first line, if the text contains any line.
     pub fn first_line(&self) -> Option<ShapedLine> {
         self.lines().next()
@@ -705,6 +711,7 @@ impl ShapedText {
             align_size: PxSize::zero(),
             align: Align::START,
             direction: LayoutDirection::LTR,
+            first_wrapped: false,
             first_line: PxRect::zero(),
             mid_clear: Px(0),
             last_line: PxRect::zero(),
@@ -752,6 +759,7 @@ impl ShapedText {
                 align_size: PxSize::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,
+                first_wrapped: false,
                 first_line: PxRect::zero(),
                 mid_clear: Px(0),
                 last_line: PxRect::zero(),
@@ -978,6 +986,7 @@ struct ShapedTextBuilder {
     hyphens: Hyphens,
 
     origin: euclid::Point2D<f32, ()>,
+    allow_first_wrap: bool,
     first_line_max: f32,
     mid_clear_min: f32,
     max_line_x: f32,
@@ -1006,6 +1015,7 @@ impl ShapedTextBuilder {
                 align_size: PxSize::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,
+                first_wrapped: false,
                 first_line: PxRect::zero(),
                 mid_clear: Px(0),
                 last_line: PxRect::zero(),
@@ -1021,6 +1031,7 @@ impl ShapedTextBuilder {
             tab_x_advance: 0.0,
             tab_index: 0,
             hyphens: config.hyphens,
+            allow_first_wrap: false,
 
             origin: euclid::point2(0.0, 0.0),
             first_line_max: f32::INFINITY,
@@ -1056,9 +1067,11 @@ impl ShapedTextBuilder {
         if let Some(inline) = config.inline_constrains {
             t.first_line_max = inline.first_max.0 as f32;
             t.mid_clear_min = inline.mid_clear_min.0 as f32;
+            t.allow_first_wrap = true;
         } else {
             t.first_line_max = f32::INFINITY;
             t.mid_clear_min = 0.0;
+            t.allow_first_wrap = false;
         }
 
         t.letter_spacing = config.letter_spacing.0 as f32;
@@ -1093,6 +1106,7 @@ impl ShapedTextBuilder {
     }
 
     fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &WordContextKey, text: &SegmentedText) {
+        let mut first = true;
         for (seg, kind) in text.iter() {
             let max_width = if self.out.lines.0.is_empty() {
                 self.first_line_max.min(self.max_width)
@@ -1146,7 +1160,7 @@ impl ShapedTextBuilder {
                                 // split spaces
                                 self.push_split_seg(shaped_seg, seg, kind, self.word_spacing);
                             } else {
-                                // cannot split, overflow spaces, let next segment start new line
+                                self.push_line_break();
                                 self.push_glyphs(shaped_seg, self.word_spacing);
                                 self.push_text_seg(seg, kind);
                             }
@@ -1157,6 +1171,7 @@ impl ShapedTextBuilder {
                     });
                 }
                 TextSegmentKind::Tab => {
+                    // !!: WRAP
                     let point = euclid::point2(self.origin.x, self.origin.y);
                     self.origin.x += self.tab_x_advance;
                     self.out.glyphs.push(GlyphInstance {
@@ -1168,10 +1183,13 @@ impl ShapedTextBuilder {
                     self.push_text_seg(seg, kind);
                 }
                 TextSegmentKind::LineBreak => {
+                    // !!: review text starting with line break in inline context
                     self.push_line_break();
                     self.push_text_seg(seg, kind);
                 }
             }
+
+            first = false;
         }
 
         self.out.lines.0.push(LineRange {
@@ -1307,19 +1325,25 @@ impl ShapedTextBuilder {
     }
 
     fn push_line_break(&mut self) {
-        self.out.lines.0.push(LineRange {
-            end: self.out.segments.0.len(),
-            width: self.origin.x,
-            x_offset: 0.0,
-        });
-
-        if self.out.lines.0.len() == 1 {
-            self.out.first_line = PxRect::from_size(PxSize::new(Px(self.origin.x as i32), Px(self.line_height as i32)));
+        if self.out.glyphs.is_empty() && self.allow_first_wrap {
+            self.out.first_wrapped = true;
             self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
+        } else {
+            self.out.lines.0.push(LineRange {
+                end: self.out.segments.0.len(),
+                width: self.origin.x,
+                x_offset: 0.0,
+            });
+
+            if self.out.lines.0.len() == 1 && !self.out.first_wrapped {
+                self.out.first_line = PxRect::from_size(PxSize::new(Px(self.origin.x as i32), Px(self.line_height as i32)));
+                self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
+            }
+
+            self.max_line_x = self.origin.x.max(self.max_line_x);
+            self.origin.x = 0.0;
         }
 
-        self.max_line_x = self.origin.x.max(self.max_line_x);
-        self.origin.x = 0.0;
         self.origin.y += self.line_height + self.line_spacing;
     }
 

@@ -769,6 +769,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.layout.as_ref()) {
                     inline.first = l.shaped_text.first_line().map(|l| l.rect().size).unwrap_or_default();
                     inline.last = l.shaped_text.last_line().map(|l| l.rect().size).unwrap_or_default();
+                    inline.first_wrapped = l.shaped_text.first_wrapped();
                     // !!: TODO, other measure info.
 
                     // !!: TODO, fill/justify
