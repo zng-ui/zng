@@ -770,6 +770,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     inline.first = l.shaped_text.first_line().map(|l| l.rect().size).unwrap_or_default();
                     inline.last = l.shaped_text.last_line().map(|l| l.rect().size).unwrap_or_default();
                     inline.first_wrapped = l.shaped_text.first_wrapped();
+                    inline.last_wrapped = l.shaped_text.lines_len() > 1;
                     // !!: TODO, other measure info.
 
                     // !!: TODO, fill/justify

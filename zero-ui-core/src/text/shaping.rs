@@ -335,7 +335,7 @@ pub struct ShapedText {
     underline_descent: Px,
 
     /// vertical align offset applied.
-    y_offset: f32, // !!: rename to mid_offset
+    mid_offset: f32,
     align_size: PxSize,
     align: Align,
     direction: LayoutDirection,
@@ -497,7 +497,7 @@ impl ShapedText {
                 0.0,
                 (align_size.height - self.size.height).0 as f32 * align_y + mid.0 as f32,
             );
-            let y_transform = mid_offset.y - self.y_offset;
+            let y_transform = mid_offset.y - self.mid_offset;
             let align_width = align_size.width.0 as f32;
 
             let skip_last = self.lines.0.len() - 2;
@@ -522,7 +522,7 @@ impl ShapedText {
             self.overline -= y_transform_px;
             self.strikethrough -= y_transform_px;
             self.underline_descent -= y_transform_px;
-            self.y_offset = mid_offset.y;
+            self.mid_offset = mid_offset.y;
         }
 
         self.align_size = align_size;
@@ -655,6 +655,11 @@ impl ShapedText {
         })
     }
 
+    /// Returns the number of text lines.
+    pub fn lines_len(&self) -> usize {
+        self.lines.0.len()
+    }
+
     /// If the first line starts in a new inline row because it could not fit in the leftover inline space.
     pub fn first_wrapped(&self) -> bool {
         self.first_wrapped
@@ -707,7 +712,7 @@ impl ShapedText {
             strikethrough: self.strikethrough,
             underline: self.underline,
             underline_descent: self.underline_descent,
-            y_offset: 0.0,
+            mid_offset: 0.0,
             align_size: PxSize::zero(),
             align: Align::START,
             direction: LayoutDirection::LTR,
@@ -755,7 +760,7 @@ impl ShapedText {
                 strikethrough: self.strikethrough,
                 underline: self.underline,
                 underline_descent: self.underline_descent,
-                y_offset: 0.0,
+                mid_offset: 0.0,
                 align_size: PxSize::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,
@@ -1011,7 +1016,7 @@ impl ShapedTextBuilder {
                 strikethrough: Default::default(),
                 underline: Default::default(),
                 underline_descent: Default::default(),
-                y_offset: 0.0,
+                mid_offset: 0.0,
                 align_size: PxSize::zero(),
                 align: Align::START,
                 direction: LayoutDirection::LTR,

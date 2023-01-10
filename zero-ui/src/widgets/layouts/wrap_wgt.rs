@@ -140,6 +140,7 @@ impl InlineLayout {
 
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = self.first_wrapped;
+            inline.last_wrapped = self.rows.len() > 1;
             inline.first = self.rows.first().map(|r| r.size).unwrap_or_default();
             inline.last = self.rows.last().map(|r| r.size).unwrap_or_default();
             // !!: TODO, fill and underline
@@ -237,7 +238,7 @@ impl InlineLayout {
                         let mut child_mid = Px(0);
                         let mut child_last = PxRect::from_size(child_inline.last);
 
-                        if child_inline.last != child_desired_size {
+                        if child_inline.last_wrapped {
                             // child wraps
 
                             debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
@@ -396,7 +397,7 @@ impl InlineLayout {
                             row.size.height = row.size.height.max(inline.first.height);
                         }
 
-                        if inline.last != size {
+                        if inline.last_wrapped {
                             // wrap by child
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
                             self.desired_size.height += size.height - inline.first.height + spacing.row;

@@ -285,6 +285,9 @@ pub struct WidgetInlineMeasure {
     /// In left-to-right direction the origin is `bottom_left - last.height`, in right-to-left direction
     /// the origin is `bottom_right - last`.
     pub last: PxSize,
+
+    /// Indicates that `last` starts in the next row, not in the same row as the first.
+    pub last_wrapped: bool,
 }
 
 /// Info about the inlined rows of the widget.
