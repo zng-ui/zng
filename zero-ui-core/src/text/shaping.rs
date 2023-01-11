@@ -320,7 +320,6 @@ pub struct ShapedText {
     lines: LineRangeVec,
     fonts: FontRangeVec,
 
-    size: PxSize,
     line_height: Px,
     line_spacing: Px,
 
@@ -341,9 +340,11 @@ pub struct ShapedText {
     direction: LayoutDirection,
 
     // inline layout values
+    is_inlined: bool,
     first_wrapped: bool,
     first_line: PxRect,
     mid_clear: Px,
+    mid_size: PxSize,
     last_line: PxRect,
 }
 impl ShapedText {
@@ -391,20 +392,89 @@ impl ShapedText {
         })
     }
 
-    /// Bounding box size, the width is the longest line, the height is the sum of line heights + spacing in between,
-    /// no spacing is added before the first line and after the last line.
+    /// Bounding box size, the width is the longest line or the right-most point of first and
+    /// last line, the height is the bottom-most point of the last line.
     pub fn size(&self) -> PxSize {
-        self.size
+        self.mid_size().max(PxSize::new(
+            self.first_line.max_x().max(self.last_line.max_x()),
+            self.last_line.max_y() + self.mid_clear,
+        ))
+    }
+
+    /// Size of the text, if it is not inlined.
+    pub fn block_size(&self) -> PxSize {
+        if self.lines.0.is_empty() {
+            PxSize::zero()
+        } else if self.lines.0.len() == 1 {
+            self.first_line.size
+        } else {
+            let mut s = PxSize::new(
+                self.first_line.size.width.max(self.last_line.size.width),
+                self.first_line.size.height + self.line_spacing + self.last_line.size.height,
+            );
+            if self.lines.0.len() > 2 {
+                s.height += self.mid_size.height + self.line_spacing;
+            }
+            s
+        }
+    }
+
+    fn update_mid_size(&mut self) {
+        self.mid_size = if self.lines.0.len() <= 2 {
+            PxSize::zero()
+        } else {
+            let mid_lines = &self.lines.0[1..self.lines.0.len() - 1];
+            PxSize::new(
+                Px(mid_lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap_or_default() as i32),
+                Px(mid_lines.len() as i32) * self.line_height + Px((mid_lines.len() - 1) as i32) * self.line_spacing,
+            )
+        };
+    }
+
+    fn update_first_last_lines(&mut self) {
+        debug_assert!(!self.is_inlined);
+        if self.lines.0.is_empty() {
+            self.first_line = PxRect::zero();
+            self.last_line = PxRect::zero();
+        } else {
+            self.first_line = PxRect::from_size(PxSize::new(Px(self.lines.first_mut().width as i32), self.line_height));
+            if self.lines.0.len() > 1 {
+                self.last_line.size = PxSize::new(Px(self.lines.last().width as i32), self.line_height);
+                self.last_line.origin = PxPoint::new(Px(0), self.first_line.max_y() + self.line_spacing);
+                if self.lines.0.len() > 2 {
+                    self.last_line.origin.y += self.mid_size.height + self.line_spacing;
+                }
+            } else {
+                self.last_line = self.first_line;
+            }
+        }
+    }
+
+    /// Bounding box of the mid-lines, that is the lines except the first and last.
+    pub fn mid_size(&self) -> PxSize {
+        self.mid_size
+    }
+
+    /// If the text first and last lines is defined externally by the inline layout.
+    ///
+    /// When this is `true` the shaped text only defines aligns horizontally and only the mid-lines. The vertical
+    /// offset is defined by the the first line rectangle plus the [`mid_clear`].
+    ///
+    /// [`mid_clear`]: Self::mid_clear
+    pub fn is_inlined(&self) -> bool {
+        self.is_inlined
     }
 
     /// Last applied alignment.
+    ///
+    /// If the text is inlined only the mid-lines are aligned, and only horizontally.
     pub fn align(&self) -> Align {
         self.align
     }
 
     /// Last applied alignment area.
     ///
-    /// The lines are aligned inside this size.
+    /// The lines are aligned inside this size. If the text is inlined only the mid-lines are aligned and only horizontally.
     pub fn align_size(&self) -> PxSize {
         self.align_size
     }
@@ -439,9 +509,10 @@ impl ShapedText {
     ) {
         self.reshape_line_height_and_spacing(line_height, line_spacing);
 
-        let align_size = constrains.fill_size_or(self.size);
+        let block_size = self.block_size();
+        let align_size = constrains.fill_size_or(block_size);
         let align_x = align.x(direction);
-        let align_y = align.y();
+        let align_y = if inline_constrains.is_some() { 0.fct() } else { align.y() };
 
         let (first, mid, last) = if let Some(l) = inline_constrains {
             (l.first, l.mid_clear, l.last)
@@ -449,12 +520,12 @@ impl ShapedText {
             // calculate our own first & last
             let mut first = PxRect::from_size(self.first_line().map(|l| l.rect().size).unwrap_or_default());
             let mut last = PxRect::from_size(self.last_line().map(|l| l.rect().size).unwrap_or_default());
-            last.origin.y = self.size.height - last.size.height;
+            last.origin.y = block_size.height - last.size.height;
 
             first.origin.x = (align_size.width - first.size.width) * align_x;
             last.origin.x = (align_size.width - last.size.width) * align_x;
 
-            let align_y = (align_size.height - self.size.height) * align_y;
+            let align_y = (align_size.height - block_size.height) * align_y;
             first.origin.y += align_y;
             last.origin.y += align_y;
 
@@ -493,10 +564,9 @@ impl ShapedText {
         if self.lines.0.len() > 2 {
             // has mid-lines
 
-            // !!: TODO, how does size work here when parent can define any first & last rectangles.
             let mid_offset = euclid::vec2::<f32, zero_ui_view_api::webrender_api::units::LayoutPixel>(
                 0.0,
-                (align_size.height - self.size.height).0 as f32 * align_y + mid.0 as f32,
+                (align_size.height - block_size.height).0 as f32 * align_y + mid.0 as f32,
             );
             let y_transform = mid_offset.y - self.mid_offset;
             let align_width = align_size.width.0 as f32;
@@ -528,6 +598,7 @@ impl ShapedText {
 
         self.align_size = align_size;
         self.align = align;
+        self.is_inlined = inline_constrains.is_some();
     }
     fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) {
         let mut update_height = false;
@@ -579,12 +650,8 @@ impl ShapedText {
         }
 
         if update_height {
-            self.update_height();
+            self.update_mid_size();
         }
-    }
-    fn update_height(&mut self) {
-        let lines = Px(self.lines.0.len() as i32);
-        self.size.height = self.line_height * lines + self.line_spacing * (lines - Px(1)) + self.mid_clear;
     }
 
     /// Restore text to initial shape.
@@ -703,7 +770,6 @@ impl ShapedText {
                 font: self.fonts.font(0).clone(),
                 end: 0,
             }]),
-            size: PxSize::zero(),
             orig_line_height: self.orig_line_height,
             orig_line_spacing: self.orig_line_spacing,
             line_height: self.orig_line_height,
@@ -720,6 +786,8 @@ impl ShapedText {
             first_wrapped: false,
             first_line: PxRect::zero(),
             mid_clear: Px(0),
+            is_inlined: false,
+            mid_size: PxSize::zero(),
             last_line: PxRect::zero(),
         }
     }
@@ -751,7 +819,6 @@ impl ShapedText {
                 segments: GlyphSegmentVec(self.segments.0.drain(segment..).collect()),
                 lines: LineRangeVec(self.lines.0.drain(l_end..).collect()),
                 fonts: FontRangeVec(self.fonts.0.drain(f_end..).collect()),
-                size: PxSize::zero(),
                 orig_line_height: self.orig_line_height,
                 orig_line_spacing: self.orig_line_spacing,
                 line_height: self.orig_line_height,
@@ -766,8 +833,10 @@ impl ShapedText {
                 align: Align::START,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
+                is_inlined: false,
                 first_line: PxRect::zero(),
                 mid_clear: Px(0),
+                mid_size: PxSize::zero(),
                 last_line: PxRect::zero(),
             };
 
@@ -822,14 +891,14 @@ impl ShapedText {
                 g.point.x -= x_offset;
             }
 
-            self.size.width = Px(self.lines.max_width().round() as i32);
-            self.update_height();
+            self.update_mid_size();
+            self.update_first_last_lines();
 
-            b.size.width = Px(b.lines.max_width().round() as i32);
-            b.update_height();
+            b.update_mid_size();
+            b.update_first_last_lines();
 
             if self.lines.is_multi() {
-                let b_y_offset = (self.size.height - self.line_height - self.line_spacing).0 as f32;
+                let b_y_offset = self.last_line.origin.y.0 as f32;
                 for g in &mut b.glyphs {
                     g.point.y -= b_y_offset;
                 }
@@ -887,14 +956,12 @@ impl ShapedText {
                 self.glyphs.truncate(r.start());
                 self.clusters.truncate(r.start());
             }
-
-            self.size.width = Px(self.lines.max_width().round() as i32);
         }
     }
 
     /// Appends the `text` to the end of `self`.
     ///
-    /// Any reshape in `self` and `text` is cleared.
+    /// Any reshape in `self` and `text` is cleared, the shaped text also stops being inlined.
     pub fn extend(&mut self, mut text: ShapedText) {
         self.clear_reshape();
 
@@ -917,7 +984,7 @@ impl ShapedText {
         }
 
         // y-offset of glyphs in `text`.
-        let y_offset = (self.size.height - self.line_height).0 as f32;
+        let y_offset = (self.last_line.min_y() + self.line_spacing).0 as f32;
         for g in &mut text.glyphs {
             g.point.y += y_offset;
         }
@@ -962,8 +1029,8 @@ impl ShapedText {
         self.glyphs.extend(text.glyphs);
         self.clusters.extend(text.clusters);
 
-        self.size.width = Px(self.lines.max_width().round() as i32);
-        self.update_height();
+        self.update_mid_size();
+        self.update_first_last_lines();
     }
 
     /// Check if any line can be better wrapped given the new wrap config.
@@ -1015,7 +1082,6 @@ impl ShapedTextBuilder {
                 segments: Default::default(),
                 lines: Default::default(),
                 fonts: Default::default(),
-                size: Default::default(),
                 line_height: Default::default(),
                 line_spacing: Default::default(),
                 orig_line_height: Default::default(),
@@ -1030,8 +1096,10 @@ impl ShapedTextBuilder {
                 align: Align::START,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
+                is_inlined: config.inline_constrains.is_some(),
                 first_line: PxRect::zero(),
                 mid_clear: Px(0),
+                mid_size: PxSize::zero(),
                 last_line: PxRect::zero(),
             },
 
@@ -1120,7 +1188,7 @@ impl ShapedTextBuilder {
     }
 
     fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &WordContextKey, text: &SegmentedText) {
-        for (i, (seg, kind)) in text.iter().enumerate() {
+        for (seg, kind) in text.iter() {
             let max_width = self.actual_max_width();
             match kind {
                 TextSegmentKind::Word => {
@@ -1205,18 +1273,9 @@ impl ShapedTextBuilder {
             x_offset: 0.0,
         });
 
-        // longest line width X line heights.
-        self.out.size = PxSize::new(Px(self.origin.x.max(self.max_line_x).round() as i32), Px(0));
-        self.out.update_height();
+        self.out.update_mid_size();
+        self.out.update_first_last_lines();
 
-        let line_height_px = Px(self.line_height as i32);
-        self.out.last_line = PxRect::new(
-            PxPoint::new(Px(0), self.out.size.height - line_height_px),
-            PxSize::new(Px(self.origin.x as i32), line_height_px),
-        );
-        if self.out.lines.0.len() == 1 {
-            self.out.first_line = self.out.last_line;
-        }
         self.out.fonts.0.push(FontRange {
             font: font.clone(),
             end: self.out.glyphs.len(),
