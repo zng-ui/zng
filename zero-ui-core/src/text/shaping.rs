@@ -493,6 +493,7 @@ impl ShapedText {
         if self.lines.0.len() > 2 {
             // has mid-lines
 
+            // !!: TODO, how does size work here when parent can define any first & last rectangles.
             let mid_offset = euclid::vec2::<f32, zero_ui_view_api::webrender_api::units::LayoutPixel>(
                 0.0,
                 (align_size.height - self.size.height).0 as f32 * align_y + mid.0 as f32,
@@ -583,7 +584,7 @@ impl ShapedText {
     }
     fn update_height(&mut self) {
         let lines = Px(self.lines.0.len() as i32);
-        self.size.height = self.line_height * lines + self.line_spacing * (lines - Px(1));
+        self.size.height = self.line_height * lines + self.line_spacing * (lines - Px(1)) + self.mid_clear;
     }
 
     /// Restore text to initial shape.
@@ -1343,8 +1344,12 @@ impl ShapedTextBuilder {
 
             if self.out.lines.0.len() == 1 {
                 self.out.first_line = PxRect::from_size(PxSize::new(Px(self.origin.x as i32), Px(self.line_height as i32)));
+
                 if !self.out.first_wrapped {
-                    self.origin.y += (self.mid_clear_min - self.line_height).max(0.0);
+                    let mid_clear = (self.mid_clear_min - self.line_height).max(0.0).round();
+                    self.origin.y += mid_clear;
+                    self.out.mid_clear = Px(mid_clear as i32);
+                    self.out.mid_offset = mid_clear;
                 }
             }
 
