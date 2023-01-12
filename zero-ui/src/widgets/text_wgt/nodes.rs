@@ -467,8 +467,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             self.pending.insert(Layout::RESHAPE);
                         }
                     }
-                    InlineConstrains::Layout(_) => {
-                        // !!: impl first and last positioning in ShapedText
+                    InlineConstrains::Layout(l) => {
+                        if !self.pending.contains(Layout::QUICK_RESHAPE)
+                            && (r.shaped_text.mid_clear() != l.mid_clear
+                                || r.shaped_text.first_line().map(|l| l.rect()) != Some(l.first)
+                                || r.shaped_text.last_line().map(|l| l.rect()) != Some(l.last))
+                        {
+                            self.pending.insert(Layout::QUICK_RESHAPE);
+                        }
                     }
                 }
             } else if self.shaping_args.inline_constrains.is_some() {
@@ -559,7 +565,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if !self.pending.contains(Layout::QUICK_RESHAPE) && align != r.shaped_text.align() {
                 self.pending.insert(Layout::QUICK_RESHAPE);
             }
-            // !!: quick-reshape if inline constrains changed?
 
             /*
                 APPLY

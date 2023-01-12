@@ -21,7 +21,6 @@
 * Review other widgets, they need to mark no-inline?
 * Review `inline` property.
 * Review multiple spaces/word wrap.
-* Review `!!:`.
 * Merge.
 * Remove TODO.
 
