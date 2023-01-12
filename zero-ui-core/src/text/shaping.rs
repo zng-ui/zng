@@ -238,10 +238,6 @@ impl LineRangeVec {
         let l = self.0.len() - 1;
         &mut self.0[l]
     }
-
-    fn max_width(&self) -> f32 {
-        self.0.iter().map(|l| l.width).max_by(f32_cmp).unwrap()
-    }
 }
 
 /// `Vec<FontRange>` with helper methods.
@@ -397,7 +393,7 @@ impl ShapedText {
     pub fn size(&self) -> PxSize {
         self.mid_size().max(PxSize::new(
             self.first_line.max_x().max(self.last_line.max_x()),
-            self.last_line.max_y() + self.mid_clear,
+            self.last_line.max_y(),
         ))
     }
 
@@ -432,7 +428,6 @@ impl ShapedText {
     }
 
     fn update_first_last_lines(&mut self) {
-        debug_assert!(!self.is_inlined);
         if self.lines.0.is_empty() {
             self.first_line = PxRect::zero();
             self.last_line = PxRect::zero();
@@ -1275,6 +1270,9 @@ impl ShapedTextBuilder {
 
         self.out.update_mid_size();
         self.out.update_first_last_lines();
+        if self.out.is_inlined && self.out.lines.0.len() > 1 {
+            self.out.last_line.origin.y += self.out.mid_clear;
+        }
 
         self.out.fonts.0.push(FontRange {
             font: font.clone(),
