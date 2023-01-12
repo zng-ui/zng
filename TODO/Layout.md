@@ -20,6 +20,7 @@
     - Can try in a horizontal stack first, two texts one larger, see if they already align.
 * Review other widgets, they need to mark no-inline?
 * Review `inline` property.
+* Review multiple spaces/word wrap.
 * Review `!!:`.
 * Merge.
 * Remove TODO.

@@ -1204,7 +1204,7 @@ impl ShapedTextBuilder {
                                     self.push_split_seg(shaped_seg, seg, kind, self.letter_spacing);
                                 } else if !hyphenated {
                                     // normal wrap, glyphs overflow
-                                    self.push_line_break();
+                                    self.push_line_break(true);
 
                                     // try to hyphenate with full width available
                                     let hyphenaded = self.push_hyphenate(word_ctx_key, seg, shaped_seg);
@@ -1215,7 +1215,7 @@ impl ShapedTextBuilder {
                                     }
                                 }
                             } else {
-                                self.push_line_break();
+                                self.push_line_break(true);
                                 self.push_glyphs(shaped_seg, self.letter_spacing);
                                 self.push_text_seg(seg, kind);
                             }
@@ -1234,7 +1234,7 @@ impl ShapedTextBuilder {
                                 // split spaces
                                 self.push_split_seg(shaped_seg, seg, kind, self.word_spacing);
                             } else {
-                                self.push_line_break();
+                                self.push_line_break(true);
                                 self.push_glyphs(shaped_seg, self.word_spacing);
                                 self.push_text_seg(seg, kind);
                             }
@@ -1245,7 +1245,9 @@ impl ShapedTextBuilder {
                     });
                 }
                 TextSegmentKind::Tab => {
-                    // !!: WRAP
+                    if self.origin.x + self.tab_x_advance > max_width {
+                        self.push_line_break(true);
+                    }
                     let point = euclid::point2(self.origin.x, self.origin.y);
                     self.origin.x += self.tab_x_advance;
                     self.out.glyphs.push(GlyphInstance {
@@ -1257,8 +1259,7 @@ impl ShapedTextBuilder {
                     self.push_text_seg(seg, kind);
                 }
                 TextSegmentKind::LineBreak => {
-                    // !!: review text starting with line break in inline context
-                    self.push_line_break();
+                    self.push_line_break(false);
                     self.push_text_seg(seg, kind);
                 }
             }
@@ -1350,7 +1351,7 @@ impl ShapedTextBuilder {
         self.push_glyphs(&shaped_seg_a, self.word_spacing);
         self.push_text_seg(seg_a, TextSegmentKind::Word);
 
-        self.push_line_break();
+        self.push_line_break(true);
 
         // adjust the second half to a new line
         let mut shaped_seg_b = ShapedSegmentData {
@@ -1391,8 +1392,8 @@ impl ShapedTextBuilder {
         self.origin.y += shaped_seg.y_advance;
     }
 
-    fn push_line_break(&mut self) {
-        if self.out.glyphs.is_empty() && self.allow_first_wrap {
+    fn push_line_break(&mut self, soft: bool) {
+        if self.out.glyphs.is_empty() && self.allow_first_wrap && soft {
             self.out.first_wrapped = true;
         } else {
             self.out.lines.0.push(LineRange {
@@ -1458,7 +1459,7 @@ impl ShapedTextBuilder {
             };
             self.push_glyphs(&shaped_seg_a, spacing);
             self.push_text_seg(seg_a, kind);
-            self.push_line_break();
+            self.push_line_break(true);
 
             let mut shaped_seg_b = ShapedSegmentData {
                 glyphs: glyphs_b.to_vec(),
