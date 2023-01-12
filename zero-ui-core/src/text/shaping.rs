@@ -36,7 +36,7 @@ pub struct TextShapingArgs {
     /// Extra spacing added in between lines.
     pub line_spacing: Px,
 
-    /// Language of the text, also identifies if RTL.
+    /// Language of the text, defines the language, script and direction.
     pub lang: Lang,
 
     /// Don't use font ligatures.
@@ -475,6 +475,8 @@ impl ShapedText {
     }
 
     /// Last applied alignment direction.
+    ///
+    /// Note that the glyph and word directions is defined by the [`TextShapingArgs::lang`].
     pub fn direction(&self) -> LayoutDirection {
         self.direction
     }

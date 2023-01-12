@@ -15,11 +15,6 @@
 
 ### Final TODOs
 
-* Implement inline for `text!`.
-  - Update `RESHAPE` uses the `first_max`, `last_max` and `mid_clear_min`, but all aligned to the left (zero).
-  - Update `QUICK_RESHAPE` positions the first and last using the rectangle, offsets `mid_clear` and aligns mid-lines.
-  - During layout, use widget measure metadata, like wrap does, trusting that they are up-to-date.
-
 * Implement baseline in `wrap!`.
   - Review normal baseline first, maybe just align bottom for each row + baseline offset already works?
     - Can try in a horizontal stack first, two texts one larger, see if they already align.
@@ -31,8 +26,8 @@
 
 ## Inline Align::FILL
 
-[ ] Support `Justify`, enabled by `Align::FILL`.
-[ ] Implement fill/justify in `wrap!`.
+* Support `Justify`, enabled by `Align::FILL`.
+* Implement fill/justify in `wrap!`.
   - Panel can also add spacing? Maybe maximum row height of spacing, if it helps complete the row.
 
 ## Min Constrains Reset
@@ -48,7 +43,10 @@
 
 ## Inline
 
+* Fix `inline` property, to force widgets to use inline visual even when not in inline context.
+  - Need a way to enable it in `WidgetMeasure` and `WidgetLayout`.
 * Review properties that disable inline, maybe they can support it with the new API?
+  - First `foreground_highlight`, as it is used to draw the keyboard focus indicator in text links.
 
 ## Grid 
 

@@ -143,7 +143,6 @@ impl InlineLayout {
             inline.last_wrapped = self.rows.len() > 1;
             inline.first = self.rows.first().map(|r| r.size).unwrap_or_default();
             inline.last = self.rows.last().map(|r| r.size).unwrap_or_default();
-            // !!: TODO, fill and underline
             inline.first_max_fill = inline.first.width;
             inline.last_max_fill = inline.last.width;
         }
@@ -164,12 +163,12 @@ impl InlineLayout {
             self.measure_rows(&mut ctx.as_measure(), children, child_align, spacing);
         }
 
-        let direction = ctx.direction(); // !!: TODO, use this to affect the direction items are placed
+        let direction = ctx.direction();
 
         let constrains = ctx.constrains();
         let child_align_x = child_align.x(direction);
         let child_align_y = child_align.y();
-        let child_align_baseline = child_align.is_baseline(); // !!: TODO
+        let child_align_baseline = child_align.is_baseline();
 
         let panel_width = constrains.x.fill_or(self.desired_size.width);
 
@@ -295,7 +294,6 @@ impl InlineLayout {
                         } else {
                             // child inlined, but fits in the row
 
-                            // !!: TODO, clamp/fill size, set the normal constrains to layout
                             let mut offset = PxVector::new(row_advance, Px(0));
                             if let LayoutDirection::RTL = direction {
                                 offset.x = row.size.width - child_last.size.width - offset.x;

@@ -10,7 +10,6 @@
 
 * Implement text align demo in text example.
  - Need to make space, implement tabbed content?
-* Implement text start/end aligns.
 * Implement text clip.
 * Implement split/join segments.
 * Implement wrapping and justify.
@@ -24,8 +23,6 @@
 * Emoticon rendering, multi-colored fonts.
 
 * Hyphenation, use https://sourceforge.net/projects/hunspell/files/Hyphen/2.8/?
-
-* RTL per line.
 
 # Underline Skip Glyphs
 
@@ -63,9 +60,3 @@
 
 * Line numbers.
 * Virtualization, only parse/generate visible pages.
-
-# Wrap
-
-* Implement line alignment for `wrap!`. Right now variable font rows don't align.
-* Wrapped text background does not look right, need to track every line in `InlineLayout`?
-* 

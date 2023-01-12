@@ -275,7 +275,7 @@ pub fn foreground_highlight(
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame); // !!: highlight each row if inlining
+            self.child.render(ctx, frame);
             frame.push_border(self.render_bounds, self.render_widths, self.sides.get(), self.render_radius);
         }
     }
@@ -468,7 +468,6 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     first_max: ctx.constrains().x.max_or(Px::MAX),
                     mid_clear_min: Px(0),
                 };
-                // !!: need to enable in WidgetMeasure too.
                 ctx.with_inline_constrains(move |_| Some(c), |ctx| self.child.measure(ctx, wm))
             } else {
                 self.child.measure(ctx, wm)
