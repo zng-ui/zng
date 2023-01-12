@@ -593,6 +593,16 @@ impl ShapedText {
             self.mid_offset = mid_offset.y;
         }
 
+        // apply baseline to the content only,
+        let baseline_offset =
+            if self.align.is_baseline() { -self.baseline } else { Px(0) } + if align.is_baseline() { self.baseline } else { Px(0) };
+        if baseline_offset != Px(0) {
+            let baseline_offset = baseline_offset.0 as f32;
+            for g in &mut self.glyphs {
+                g.point.y += baseline_offset;
+            }
+        }
+
         self.align_size = align_size;
         self.align = align;
         self.is_inlined = inline_constrains.is_some();
@@ -778,7 +788,7 @@ impl ShapedText {
             underline_descent: self.underline_descent,
             mid_offset: 0.0,
             align_size: PxSize::zero(),
-            align: Align::START,
+            align: Align::TOP_LEFT,
             direction: LayoutDirection::LTR,
             first_wrapped: false,
             first_line: PxRect::zero(),
@@ -827,7 +837,7 @@ impl ShapedText {
                 underline_descent: self.underline_descent,
                 mid_offset: 0.0,
                 align_size: PxSize::zero(),
-                align: Align::START,
+                align: Align::TOP_LEFT,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
                 is_inlined: false,
@@ -1090,7 +1100,7 @@ impl ShapedTextBuilder {
                 underline_descent: Default::default(),
                 mid_offset: 0.0,
                 align_size: PxSize::zero(),
-                align: Align::START,
+                align: Align::TOP_LEFT,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
                 is_inlined: config.inline_constrains.is_some(),

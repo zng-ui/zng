@@ -289,17 +289,17 @@ impl Align {
 
         FILL_TOP = (f32::INFINITY, false, 0.0);
         FILL_BOTTOM = (f32::INFINITY, false, 1.0);
-        FILL_START = (1.0, true, f32::INFINITY);
+        FILL_START = (0.0, true, f32::INFINITY);
+        FILL_LEFT = (0.0, false, f32::INFINITY);
         FILL_RIGHT = (1.0, false, f32::INFINITY);
         FILL_END = (1.0, true, f32::INFINITY);
-        FILL_LEFT = (0.0, false, f32::INFINITY);
 
         FILL_X = (f32::INFINITY, false, 0.5);
         FILL_Y = (0.5, false, f32::INFINITY);
 
         FILL = (f32::INFINITY, false, f32::INFINITY);
 
-        BASELINE_START = (1.0, true, f32::NEG_INFINITY);
+        BASELINE_START = (0.0, true, f32::NEG_INFINITY);
         BASELINE_LEFT = (0.0, false, f32::NEG_INFINITY);
         BASELINE_CENTER = (0.5, false, f32::NEG_INFINITY);
         BASELINE_END = (1.0, true, f32::NEG_INFINITY);

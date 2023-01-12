@@ -11,16 +11,12 @@
 [x] Widgets that support inlining must also support block only layout.
 [x] Flow direction, as defined by `LayoutDirection`.
 [x] Integrate, `wrap::children_align` with `txt_align`.
-[ ] Support baseline align in-between children of different first/last row height.
+[x] Support baseline align in-between children of different first/last row height.
 
 ### Final TODOs
 
-* Implement baseline in `wrap!`.
-  - Review normal baseline first, maybe just align bottom for each row + baseline offset already works?
-    - Can try in a horizontal stack first, two texts one larger, see if they already align.
-* Review other widgets, they need to mark no-inline?
-* Review multiple spaces/word wrap.
 * Review text in blocks, padding.
+* Review collapsed child in `wrap!`.
 * Run all tests.
 * Review all examples.
 * Merge.

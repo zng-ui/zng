@@ -267,11 +267,6 @@ pub struct WidgetInlineMeasure {
     /// Maximum fill width possible on the last row.
     pub last_max_fill: Px,
 
-    /// Offset from the bottom of the first row, positive up, that is the baseline of the first item in the row.
-    pub first_baseline: Px,
-    /// Offset from the bottom of the last row, positive up, that is the baseline of the last item in the row.
-    pub last_baseline: Px,
-
     /// Preferred first size.
     ///
     /// In left-to-right direction the origin is `top_left`, in right-to-left direction the origin is `top_right - first.width`.
