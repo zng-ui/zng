@@ -1437,16 +1437,17 @@ impl ShapedTextBuilder {
         let max_width = self.actual_max_width();
         for (i, g) in shaped_seg.glyphs.iter().enumerate() {
             if self.origin.x + g.point.0 > max_width {
-                end_glyph = i.saturating_sub(1);
-                end_glyph_x = g.point.0;
                 break;
             }
+            end_glyph = i;
+            end_glyph_x = g.point.0;
         }
 
         let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
 
         if glyphs_a.is_empty() || glyphs_b.is_empty() {
             // failed split
+            self.push_line_break(true);
             self.push_glyphs(shaped_seg, spacing);
             self.push_text_seg(seg, kind);
         } else {
@@ -1470,8 +1471,13 @@ impl ShapedTextBuilder {
                 g.point.0 -= shaped_seg_a.x_advance;
                 g.cluster -= seg_a.len() as u32;
             }
-            self.push_glyphs(&shaped_seg_b, spacing);
-            self.push_text_seg(seg_b, kind);
+
+            if shaped_seg_b.x_advance <= max_width {
+                self.push_glyphs(&shaped_seg_b, spacing);
+                self.push_text_seg(seg_b, kind);
+            } else {
+                self.push_split_seg(&shaped_seg_b, seg_b, kind, spacing);
+            }
         }
     }
 }

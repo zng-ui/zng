@@ -395,7 +395,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             const UNDERLINE     = 0b0000_0001;
             const STRIKETHROUGH = 0b0000_0010;
             const OVERLINE      = 0b0000_0100;
-            const QUICK_RESHAPE = 0b0001_1111;
+            const RESHAPE_LINES = 0b0001_1111;
             const RESHAPE       = 0b0011_1111;
         }
     }
@@ -468,12 +468,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     }
                     InlineConstrains::Layout(l) => {
-                        if !self.pending.contains(Layout::QUICK_RESHAPE)
+                        if !self.pending.contains(Layout::RESHAPE_LINES)
                             && (r.shaped_text.mid_clear() != l.mid_clear
                                 || r.shaped_text.first_line().map(|l| l.rect()) != Some(l.first)
                                 || r.shaped_text.last_line().map(|l| l.rect()) != Some(l.last))
                         {
-                            self.pending.insert(Layout::QUICK_RESHAPE);
+                            self.pending.insert(Layout::RESHAPE_LINES);
                         }
                     }
                 }
@@ -482,10 +482,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.pending.insert(Layout::RESHAPE);
             }
 
-            if !self.pending.contains(Layout::QUICK_RESHAPE) {
+            if !self.pending.contains(Layout::RESHAPE_LINES) {
                 let size = r.shaped_text.size();
                 if metrics.constrains().fill_size_or(size) != r.shaped_text.align_size() {
-                    self.pending.insert(Layout::QUICK_RESHAPE);
+                    self.pending.insert(Layout::RESHAPE_LINES);
                 }
             }
 
@@ -524,10 +524,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             {
                 self.pending.insert(Layout::RESHAPE);
             }
-            if !self.pending.contains(Layout::QUICK_RESHAPE)
+            if !self.pending.contains(Layout::RESHAPE_LINES)
                 && (line_spacing != self.shaping_args.line_spacing || line_height != self.shaping_args.line_height)
             {
-                self.pending.insert(Layout::QUICK_RESHAPE);
+                self.pending.insert(Layout::RESHAPE_LINES);
             }
 
             self.shaping_args.letter_spacing = letter_spacing;
@@ -562,8 +562,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             r.underline_thickness = underline;
 
             let align = TEXT_ALIGN_VAR.get();
-            if !self.pending.contains(Layout::QUICK_RESHAPE) && align != r.shaped_text.align() {
-                self.pending.insert(Layout::QUICK_RESHAPE);
+            if !self.pending.contains(Layout::RESHAPE_LINES) && align != r.shaped_text.align() {
+                self.pending.insert(Layout::RESHAPE_LINES);
             }
 
             /*
@@ -573,15 +573,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             if self.pending.contains(Layout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
-                self.pending = self.pending.intersection(Layout::QUICK_RESHAPE);
+                self.pending = self.pending.intersection(Layout::RESHAPE_LINES);
             }
 
-            if !self.pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.size()) {
-                self.pending.insert(Layout::QUICK_RESHAPE);
+            if !self.pending.contains(Layout::RESHAPE_LINES) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.size()) {
+                self.pending.insert(Layout::RESHAPE_LINES);
             }
 
             if !is_measure {
-                if self.pending.contains(Layout::QUICK_RESHAPE) {
+                if self.pending.contains(Layout::RESHAPE_LINES) {
                     r.shaped_text.reshape_lines(
                         metrics.constrains(),
                         metrics.inline_constrains().map(|c| c.layout()),
