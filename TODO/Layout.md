@@ -15,7 +15,6 @@
 
 ### Final TODOs
 
-* Run all tests.
 * Review all examples.
 * Merge.
 * Remove TODO.
