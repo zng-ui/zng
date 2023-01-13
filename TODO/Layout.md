@@ -17,7 +17,6 @@
 
 * Review text in blocks, padding.
 * Review collapsed child in `wrap!`.
-* Review `wl.is_inline()` passing to child widgets.
 * Run all tests.
 * Review all examples.
 * Merge.

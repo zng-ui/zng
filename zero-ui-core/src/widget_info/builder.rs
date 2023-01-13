@@ -862,7 +862,7 @@ impl WidgetLayout {
     /// Mutable reference to the current widget's inline info.
     ///
     /// If the parent widget is doing inline layout and this widget signaled that it can support this
-    /// during measure. You can use [`WidgetMeasure::disable_inline`] in the measure pass to layout as inline-block.
+    /// during measure. You can use [`MeasureContext::with_inline_constrains`] in the measure pass to disable inline in both passes, measure and layout.
     ///
     /// The rows and negative space are already reset when widget layout started, and the inner size will be updated when
     /// the widget layout ends, the inline layout node only needs to push rows.
