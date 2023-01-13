@@ -143,8 +143,10 @@ impl PxConstrains {
     pub fn with_less(mut self, sub: Px) -> Self {
         if self.max < Px::MAX {
             self.max -= sub;
+            self.max = self.max.max(Px(0));
         }
         self.min -= sub;
+        self.min = self.min.max(Px(0));
         self
     }
 

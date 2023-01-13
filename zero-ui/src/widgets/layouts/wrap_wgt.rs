@@ -168,7 +168,6 @@ impl InlineLayout {
         let constrains = ctx.constrains();
         let child_align_x = child_align.x(direction);
         let child_align_y = child_align.y();
-        let child_align_baseline = child_align.is_baseline();
 
         let panel_width = constrains.x.fill_or(self.desired_size.width);
 

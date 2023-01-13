@@ -25,10 +25,10 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
             ctx.constrains().fill_size()
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             self.corners = ContextBorders::border_radius(ctx);
             ctx.constrains().fill_size()
         }
