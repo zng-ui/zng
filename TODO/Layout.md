@@ -15,8 +15,6 @@
 
 ### Final TODOs
 
-* Review text in blocks, padding.
-  - Padding is applied with `CHILD_LAYOUT` priority, but `text::nodes::layout_text` is inserted with `FILL` priority.
 * Run all tests.
 * Review all examples.
 * Merge.

@@ -442,7 +442,9 @@ static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 
 /// Wrap around the window outer-most event node to create the layers.
 ///
-/// This node is included in the `window::new_event` constructor.
+/// This node is included in the [`NestGroup::EVENT`] group.
+///
+/// [`NestGroup::EVENT`]: crate::core::widget_builder::NestGroup::EVENT
 pub fn layers(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct LayersNode {
         children: impl UiNodeList,

@@ -107,7 +107,7 @@ pub mod text {
             let child = nodes::render_underlines(child);
             wgt.set_child(child.boxed());
 
-            wgt.push_intrinsic(NestGroup::FILL, "layout_text", nodes::layout_text);
+            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", nodes::layout_text);
 
             let text = wgt.capture_var_or_default(property_id!(self::txt));
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
