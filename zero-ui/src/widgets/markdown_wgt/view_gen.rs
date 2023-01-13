@@ -801,13 +801,11 @@ pub fn default_table_cell_gen(args: TableCellGenArgs) -> impl UiNode {
 /// Default markdown panel.
 ///
 /// See [`PANEL_GEN_VAR`] for more details.
-pub fn default_panel_gen(mut args: PanelGenArgs) -> impl UiNode {
+pub fn default_panel_gen(args: PanelGenArgs) -> impl UiNode {
     use crate::prelude::*;
 
     if args.items.is_empty() {
         NilUiNode.boxed()
-    } else if args.items.len() == 1 {
-        args.items.remove(0)
     } else {
         stack! {
             direction = StackDirection::top_to_bottom();

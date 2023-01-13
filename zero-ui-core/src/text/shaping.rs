@@ -431,6 +431,7 @@ impl ShapedText {
         if self.lines.0.is_empty() {
             self.first_line = PxRect::zero();
             self.last_line = PxRect::zero();
+            self.align_size = PxSize::zero();
         } else {
             self.first_line = PxRect::from_size(PxSize::new(Px(self.lines.first_mut().width as i32), self.line_height));
             if self.lines.0.len() > 1 {
@@ -442,6 +443,7 @@ impl ShapedText {
             } else {
                 self.last_line = self.first_line;
             }
+            self.align_size = self.block_size();
         }
     }
 
