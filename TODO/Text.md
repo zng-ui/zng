@@ -67,3 +67,9 @@
     this does not happen when it is the last word in the `ShapedText` in an inline context.
 * Hyphenation does not backtrack, the word hyphenation end-up split as "hy-phe-nation" when it could be "hyphe-nation".
     - This is because the split segments are never rejoined?
+
+# Overflow
+
+* Fade-out.
+* Scroll on hover.
+* Ellipses.

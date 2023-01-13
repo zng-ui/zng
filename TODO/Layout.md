@@ -15,7 +15,6 @@
 
 ### Final TODOs
 
-* Review all examples.
 * Merge.
 * Remove TODO.
 
