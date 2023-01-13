@@ -824,6 +824,8 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
 /// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating
 /// with the other borders of the widget.
+///
+/// This node disables inline layout for the widget.
 pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
     #[ui_node(struct BorderNode {
         children: impl UiNodeList,
@@ -852,7 +854,11 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             let offsets = self.offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
             ContextBorders::measure_with_border(ctx, offsets, |ctx| {
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                ctx.with_sub_size(taken_size, |ctx| self.children.with_node(0, |n| n.measure(ctx, wm)))
+                ctx.with_inline_constrains(
+                    wm,
+                    |_| None,
+                    |ctx, wm| ctx.with_sub_size(taken_size, |ctx| self.children.with_node(0, |n| n.measure(ctx, wm))),
+                )
             })
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

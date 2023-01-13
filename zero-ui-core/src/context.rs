@@ -1052,29 +1052,37 @@ impl<'a> MeasureContext<'a> {
     /// Runs a function `f` in a measure context that has a new or modified inline constrain.
     ///
     /// The `inline_constrains` closure is called to produce the new constrains, the input is the current constrains.
+    /// If it returns `None` inline is disabled for the widget.
     ///
     /// Note that panels implementing inline layout should prefer using [`measure_inline`] instead of this method.
     ///
     /// [`measure_inline`]: Self::measure_inline
     pub fn with_inline_constrains<R>(
         &mut self,
+        wm: &mut WidgetMeasure,
         inline_constrains: impl FnOnce(Option<InlineConstrainsMeasure>) -> Option<InlineConstrainsMeasure>,
-        f: impl FnOnce(&mut MeasureContext) -> R,
+        f: impl FnOnce(&mut MeasureContext, &mut WidgetMeasure) -> R,
     ) -> R {
         let ic = self.metrics.inline_constrains().map(|c| c.measure());
         let ic = inline_constrains(ic).map(InlineConstrains::Measure);
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_inline_constrains(ic),
+        if ic.is_none() {
+            wm.disable_inline();
+        }
+        f(
+            &mut MeasureContext {
+                metrics: &self.metrics.clone().with_inline_constrains(ic),
 
-            path: self.path,
+                path: self.path,
 
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        })
+                info_tree: self.info_tree,
+                widget_info: self.widget_info,
+                app_state: self.app_state,
+                window_state: self.window_state,
+                widget_state: self.widget_state,
+                update_state: self.update_state.reborrow(),
+            },
+            wm,
+        )
     }
 
     /// Runs a function `f` in a measure context that has its max size subtracted by `removed` and its final size added by `removed`.

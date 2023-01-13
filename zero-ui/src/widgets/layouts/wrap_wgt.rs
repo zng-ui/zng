@@ -317,7 +317,7 @@ impl InlineLayout {
                                     .with_fill(false, false)
                                     .with_max(row.size.width - row_advance, row.size.height)
                             },
-                            |ctx| child.layout(ctx, wl),
+                            |ctx| ctx.with_inline_constrains(|_| None, |ctx| child.layout(ctx, wl)),
                         );
                         let mut offset = PxVector::new(row_advance, Px(0));
                         if let LayoutDirection::RTL = direction {

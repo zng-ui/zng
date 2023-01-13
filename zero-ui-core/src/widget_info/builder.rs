@@ -402,7 +402,7 @@ impl WidgetMeasure {
     /// the inline flow.
     ///
     /// [`is_inline`]: Self::is_inline
-    pub fn disable_inline(&mut self) {
+    pub(crate) fn disable_inline(&mut self) {
         self.inline = None;
     }
 

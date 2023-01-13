@@ -468,7 +468,7 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     first_max: ctx.constrains().x.max_or(Px::MAX),
                     mid_clear_min: Px(0),
                 };
-                ctx.with_inline_constrains(move |_| Some(c), |ctx| self.child.measure(ctx, wm))
+                ctx.with_inline_constrains(wm, move |_| Some(c), |ctx, wm| self.child.measure(ctx, wm))
             } else {
                 self.child.measure(ctx, wm)
             }
