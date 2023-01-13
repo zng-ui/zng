@@ -857,7 +857,12 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             match self.visibility.get() {
                 Visibility::Visible => self.child.render(ctx, frame),
                 Visibility::Hidden => frame.hide(|frame| self.child.render(ctx, frame)),
-                Visibility::Collapsed => unreachable!("collapsed rendered"),
+                Visibility::Collapsed => {
+                    #[cfg(debug_assertions)]
+                    {
+                        tracing::error!("collapsed rendered, to fix, layout the widget, or `WidgetLayout::collapse_child` the widget")
+                    }
+                }
             }
         }
 
@@ -865,7 +870,12 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             match self.visibility.get() {
                 Visibility::Visible => self.child.render_update(ctx, update),
                 Visibility::Hidden => update.hidden(|update| self.child.render_update(ctx, update)),
-                Visibility::Collapsed => unreachable!("collapsed rendered"),
+                Visibility::Collapsed => {
+                    #[cfg(debug_assertions)]
+                    {
+                        tracing::error!("collapsed rendered, to fix, layout the widget, or `WidgetLayout::collapse_child` the widget")
+                    }
+                }
             }
         }
     }

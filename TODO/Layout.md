@@ -16,7 +16,6 @@
 ### Final TODOs
 
 * Review text in blocks, padding.
-* Review collapsed child in `wrap!`.
 * Run all tests.
 * Review all examples.
 * Merge.

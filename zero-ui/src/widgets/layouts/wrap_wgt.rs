@@ -231,7 +231,14 @@ impl InlineLayout {
 
                     let child_inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
                     if let Some(child_inline) = child_inline {
-                        let child_desired_size = child.with_context(|ctx| ctx.widget_info.bounds.measure_outer_size()).unwrap();
+                        let child_desired_size = child
+                            .with_context(|c| c.widget_info.bounds.measure_outer_size())
+                            .unwrap_or_default();
+                        if child_desired_size.is_empty() {
+                            // collapsed, continue.
+                            wl.collapse_child(ctx, i);
+                            return true;
+                        }
 
                         let mut child_first = PxRect::from_size(child_inline.first);
                         let mut child_mid = Px(0);
@@ -319,6 +326,11 @@ impl InlineLayout {
                             },
                             |ctx| ctx.with_inline_constrains(|_| None, |ctx| child.layout(ctx, wl)),
                         );
+                        if size.is_empty() {
+                            // collapsed, continue.
+                            return true;
+                        }
+
                         let mut offset = PxVector::new(row_advance, Px(0));
                         if let LayoutDirection::RTL = direction {
                             offset.x = row.size.width - size.width - offset.x;
@@ -373,6 +385,11 @@ impl InlineLayout {
                     }
 
                     let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, child);
+
+                    if size.is_empty() {
+                        // collapsed, continue.
+                        return true;
+                    }
 
                     if let Some(inline) = inline {
                         if inline.first_wrapped {
