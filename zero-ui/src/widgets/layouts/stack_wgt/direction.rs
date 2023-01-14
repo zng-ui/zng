@@ -23,10 +23,6 @@ use crate::core::{context::*, units::*, var::impl_from_and_into_var};
 /// [`stack::children_align`]: fn@crate::widgets::layouts::stack::children_align
 /// [`stack::spacing`]: fn@crate::widgets::layouts::stack::spacing
 /// [`stack!`]: mod@crate::widgets::layouts::stack
-///
-/// # Examples
-///
-/// TODO, use the ASCII drawings?
 #[derive(Default, Clone)]
 pub struct StackDirection {
     /// Point on the previous item where the next item is placed.
