@@ -443,8 +443,10 @@ impl WidgetMeasure {
         }
 
         let parent_uses = ctx.metrics.enter_widget_ctx();
-        if ctx.inline_constrains().is_some() {
+        if ctx.inline_constrains().is_some() && self.inline.is_none() {
             self.inline = Some(Default::default());
+        } else {
+            self.inline = None;
         }
 
         let size = measure(ctx, self);
