@@ -1,23 +1,5 @@
 # Layout TODO
 
-## Inline Align
-
-### Inline Requirements
-
-[x] Custom widgets can participate, not just text.
-[x] Properties can have access to each row box in the widget (to clip background, or any effect like this).
-[x] Rows can be aligned horizontally.
-[x] Widgets can be block only, they are inlined as a block.
-[x] Widgets that support inlining must also support block only layout.
-[x] Flow direction, as defined by `LayoutDirection`.
-[x] Integrate, `wrap::children_align` with `txt_align`.
-[x] Support baseline align in-between children of different first/last row height.
-
-### Final TODOs
-
-* Merge.
-* Remove TODO.
-
 ## Inline Align::FILL
 
 * Support `Justify`, enabled by `Align::FILL`.
