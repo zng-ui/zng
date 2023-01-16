@@ -409,6 +409,7 @@ impl ShapedText {
                 self.first_line.size.height + self.line_spacing + self.last_line.size.height,
             );
             if self.lines.0.len() > 2 {
+                s.width = s.width.max(self.mid_size.width);
                 s.height += self.mid_size.height + self.line_spacing;
             }
             s
